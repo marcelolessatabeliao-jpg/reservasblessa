@@ -8,6 +8,7 @@ import { MessageCircle, CheckCircle, Loader2, ArrowRight } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { saveBooking } from '@/lib/booking-service';
 import { buildWhatsAppMessage } from '@/lib/whatsapp';
+import { PaymentModal } from './PaymentModal';
 
 interface Props {
   booking: BookingState;
@@ -29,6 +30,7 @@ function calculateMembershipCost(people: { adultsCount: number; halfPriceCount: 
 
 export function BookingOverview({ booking, totals }: Props) {
   const [saving, setSaving] = useState(false);
+  const [paymentData, setPaymentData] = useState<{ open: boolean; orderId: string } | null>(null);
   const hasAnything = totals.total > 0 || booking.entry.adults.length > 0 || booking.entry.children.length > 0;
 
   const handleAction = async (isPrepay: boolean) => {
@@ -63,12 +65,15 @@ export function BookingOverview({ booking, totals }: Props) {
     setSaving(true);
     try {
       const result = await saveBooking(booking, totals.total);
-      const code = result?.confirmationCode;
-
-      const msg = buildWhatsAppMessage(booking, totals.total, isPrepay, code);
-      const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
-      window.open(whatsappUrl, '_blank');
-
+      
+      if (isPrepay && result?.orderId) {
+        setPaymentData({ open: true, orderId: result.orderId });
+      } else {
+        const code = result?.confirmationCode;
+        const msg = buildWhatsAppMessage(booking, totals.total, isPrepay, code);
+        const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
+        window.open(whatsappUrl, '_blank');
+      }
     } catch {
       toast({ title: 'Erro ao salvar', description: 'Tente novamente.', variant: 'destructive' });
     } finally {
@@ -322,6 +327,17 @@ export function BookingOverview({ booking, totals }: Props) {
         </div>
 
       </div>
+
+      {paymentData && (
+        <PaymentModal
+          open={paymentData.open}
+          onOpenChange={(op) => setPaymentData(prev => prev ? { ...prev, open: op } : null)}
+          orderId={paymentData.orderId}
+          name={booking.entry.name || ''}
+          email={''} // Adicionado suporte de e-mail opcional no Asaas Edge function
+          totalAmount={totals.total}
+        />
+      )}
     </div>
   );
 }

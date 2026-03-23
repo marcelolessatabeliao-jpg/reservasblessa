@@ -32,6 +32,7 @@ export async function saveBooking(booking: BookingState, totalAmount: number, us
   }
 
   // 2. Integration: Save to orders and order_items tables
+  let finalOrderId = null;
   try {
     const { data: orderData, error: orderError } = await (supabase
       .from('orders') as any)
@@ -45,6 +46,7 @@ export async function saveBooking(booking: BookingState, totalAmount: number, us
       .single();
 
     if (!orderError && orderData) {
+      finalOrderId = orderData.id;
       const orderItems: any[] = [];
       
       // Map booking items to order items with descriptive names
@@ -93,22 +95,26 @@ export async function saveBooking(booking: BookingState, totalAmount: number, us
   }
 
 
-  // Save quad reservations for slot tracking
-  const activeQuads = booking.quads.filter(q => q.quantity > 0 && q.date && q.time);
-  if (activeQuads.length > 0 && bookingData) {
-    const quadReservations = activeQuads.map(q => ({
-      booking_id: bookingData.id,
-      quad_type: q.type,
-      reservation_date: format(q.date!, 'yyyy-MM-dd'),
-      time_slot: q.time!,
-      quantity: q.quantity,
-    }));
-
-    await (supabase.from('quad_reservations') as any).insert(quadReservations);
+    // Save quad reservations for slot tracking
+    const activeQuads = booking.quads.filter(q => q.quantity > 0 && q.date && q.time);
+    if (activeQuads.length > 0 && bookingData) {
+      const quadReservations = activeQuads.map(q => ({
+        booking_id: bookingData.id,
+        quad_type: q.type,
+        reservation_date: format(q.date!, 'yyyy-MM-dd'),
+        time_slot: q.time!,
+        quantity: q.quantity,
+      }));
+  
+      await (supabase.from('quad_reservations') as any).insert(quadReservations);
+    }
+  
+    return bookingData ? { 
+      id: bookingData.id, 
+      confirmationCode: bookingData.confirmation_code,
+      orderId: finalOrderId 
+    } : null;
   }
-
-  return bookingData ? { id: bookingData.id, confirmationCode: bookingData.confirmation_code } : null;
-}
 
 export async function getQuadAvailability(date: string, timeSlot: string): Promise<number> {
   const { data, error } = await supabase
