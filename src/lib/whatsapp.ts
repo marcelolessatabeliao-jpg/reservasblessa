@@ -88,10 +88,11 @@ export function buildWhatsAppMessage(booking: BookingState, total: number, isPre
   if (activeQuads.length) {
     msg += '*Passeio de Quadriciclo:*\n';
     activeQuads.forEach(q => {
-      const discount = getQuadDiscount(q.date);
+      const d = q.date ? new Date(q.date) : null;
+      const discount = getQuadDiscount(d);
       const finalPrice = QUAD_PRICES[q.type] * (1 - discount);
       msg += `${q.quantity} x ${QUAD_LABELS[q.type]} - ${formatCurrency(q.quantity * finalPrice)}\n`;
-      if (q.date) msg += `  Data: ${format(q.date, "dd/MM/yyyy", { locale: ptBR })}\n`;
+      if (d) msg += `  Data: ${format(d, "dd/MM/yyyy", { locale: ptBR })}\n`;
       if (q.time) msg += `  Horário: ${q.time}\n`;
       if (discount > 0) msg += `  Desconto: ${discount * 100}%\n`;
     });

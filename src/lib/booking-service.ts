@@ -18,7 +18,7 @@ export async function saveBooking(booking: BookingState, totalAmount: number, us
     .insert({
       name: entry.name.trim().slice(0, 200),
       phone: entry.phone?.trim().slice(0, 20) || null,
-      visit_date: format(entry.visitDate, 'yyyy-MM-dd'),
+      visit_date: format(new Date(entry.visitDate), 'yyyy-MM-dd'),
       adults: entry.adults.length,
       children: entry.children as any,
       total_amount: totalAmount,
@@ -101,7 +101,7 @@ export async function saveBooking(booking: BookingState, totalAmount: number, us
       const quadReservations = activeQuads.map(q => ({
         booking_id: bookingData.id,
         quad_type: q.type,
-        reservation_date: format(q.date!, 'yyyy-MM-dd'),
+        reservation_date: format(new Date(q.date!), 'yyyy-MM-dd'),
         time_slot: q.time!,
         quantity: q.quantity,
       }));

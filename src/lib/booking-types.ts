@@ -99,16 +99,18 @@ export const ADDITIONAL_INFO: Record<AdditionalService, { label: string; price: 
   },
 };
 
-export function getQuadDiscount(date: Date | null): number {
+export function getQuadDiscount(date: Date | string | null): number {
   if (!date) return 0;
-  const day = date.getDay();
+  const d = new Date(date);
+  const day = d.getDay();
   if (day === 1 || day === 5) return 0.2;
   if (day === 0 || day === 6) return 0.1;
   return 0;
 }
 
-export function isOperatingDay(date: Date): boolean {
-  const day = date.getDay();
+export function isOperatingDay(date: Date | string): boolean {
+  const d = new Date(date);
+  const day = d.getDay();
   return day === 0 || day === 1 || day === 5 || day === 6;
 }
 

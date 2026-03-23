@@ -74,8 +74,13 @@ export function BookingOverview({ booking, totals }: Props) {
         const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
         window.open(whatsappUrl, '_blank');
       }
-    } catch {
-      toast({ title: 'Erro ao salvar', description: 'Tente novamente.', variant: 'destructive' });
+    } catch (err: any) {
+      console.error("Booking Error:", err);
+      toast({ 
+        title: 'Erro ao salvar', 
+        description: err?.message ? err.message : 'Tente novamente.', 
+        variant: 'destructive' 
+      });
     } finally {
       setSaving(false);
     }
