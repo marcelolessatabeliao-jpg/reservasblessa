@@ -1,0 +1,327 @@
+import { useState } from 'react';
+import { motion } from 'framer-motion';
+import { BookingState, formatCurrency, KIOSK_INFO, QUAD_PRICES, QUAD_LABELS, ADDITIONAL_INFO, getQuadDiscount, getPersonPrice, WHATSAPP_NUMBER } from '@/lib/booking-types';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { Button } from '@/components/ui/button';
+import { MessageCircle, CheckCircle, Loader2, ArrowRight } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
+import { saveBooking } from '@/lib/booking-service';
+import { buildWhatsAppMessage } from '@/lib/whatsapp';
+
+interface Props {
+  booking: BookingState;
+  totals: {
+    entriesTotal: number;
+    kiosksTotal: number;
+    quadsTotal: number;
+    additionalsTotal: number;
+    total: number;
+  };
+}
+
+function calculateMembershipCost(people: { adultsCount: number; halfPriceCount: number }): number {
+  // Members pay 49.90 for full adults and 25.00 for those with benefits (half price)
+  const fullPriceTotal = people.adultsCount * 49.9;
+  const halfPriceTotal = people.halfPriceCount * 25.0;
+  return fullPriceTotal + halfPriceTotal;
+}
+
+export function BookingOverview({ booking, totals }: Props) {
+  const [saving, setSaving] = useState(false);
+  const hasAnything = totals.total > 0 || booking.entry.adults.length > 0 || booking.entry.children.length > 0;
+
+  const handleAction = async (isPrepay: boolean) => {
+    // Validation Rule: Name, WhatsApp, Day of Week, and Date are mandatory
+    if (!booking.entry.name?.trim() || !booking.entry.phone?.trim() || booking.entry.phone.length < 10) {
+      toast({
+        title: 'Informe seu nome e WhatsApp',
+        description: 'Preencha o campo de Nome e WhatsApp no topo do "Day Use" antes de finalizar para enviar.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    if (!booking.entry.dayOfWeek) {
+      toast({
+        title: 'Escolha o dia da semana',
+        description: 'Selecione o dia da semana na Etapa 1.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    if (!booking.entry.visitDate) {
+      toast({
+        title: 'Selecione uma data',
+        description: 'Escolha a data da sua visita no calendário na Etapa 1.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const result = await saveBooking(booking, totals.total);
+      const code = result?.confirmationCode;
+
+      const msg = buildWhatsAppMessage(booking, totals.total, isPrepay, code);
+      const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
+      window.open(whatsappUrl, '_blank');
+
+    } catch {
+      toast({ title: 'Erro ao salvar', description: 'Tente novamente.', variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!hasAnything) {
+    return (
+      <div className="flex flex-col items-center justify-center p-10 mt-10 text-center space-y-4 bg-white/30 backdrop-blur-md rounded-2xl border border-white/60">
+        <div className="w-16 h-16 bg-white/50 rounded-full flex items-center justify-center text-2xl shadow-sm">🛒</div>
+        <p className="text-muted-foreground font-medium">Você ainda não selecionou nenhum item.<br />Comece adicionando pessoas no Day Use!</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-3 mb-2">
+        <div className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-primary/10 text-primary shrink-0">
+          <span className="text-base sm:text-lg">📝</span>
+        </div>
+        <h3 className="font-display font-bold text-lg sm:text-xl">Resumo da Experiência</h3>
+      </div>
+
+      <div className="bg-white/50 backdrop-blur-md rounded-2xl border border-white/60 p-5 sm:p-6 shadow-xl space-y-5">
+
+        {/* Entradas */}
+        {/* Data selecionada */}
+        <div className="bg-primary/5 rounded-xl border border-primary/20 p-4 flex items-center justify-between">
+          <span className="text-[11px] uppercase font-black tracking-widest text-muted-foreground">Data da Visita:</span>
+          {booking.entry.visitDate ? (
+            <span className="font-bold text-primary">{format(booking.entry.visitDate, "dd/MM/yyyy (EEEE)", { locale: ptBR })}</span>
+          ) : (
+            <span className="font-medium text-destructive text-sm">Não selecionada</span>
+          )}
+        </div>
+
+        {/* Entradas */}
+        {(booking.entry.adults.length > 0 || booking.entry.children.length > 0) && (
+          <div className="pb-5 border-b border-primary/10">
+            <h4 className="font-bold text-primary mb-3 uppercase tracking-widest text-[10px] sm:text-xs">Day Use (Entradas)</h4>
+            <div className="space-y-3 text-sm sm:text-base text-muted-foreground">
+              {booking.entry.adults.map((a, i) => {
+                const qty = a.quantity || 1;
+                const price = getPersonPrice(a, a.age >= 60, booking.entry.dayOfWeek === 'domingo');
+                let details = [];
+                if (a.isTeacher) details.push('Professor');
+                if (a.isServer) details.push('Servidor');
+                if (a.isStudent) details.push('Estudante');
+                if (a.isPCD) details.push('PCD/TEA');
+                if (a.isBirthday) details.push('Aniversariante');
+                if (a.takeDonation && booking.entry.dayOfWeek !== 'domingo') details.push('Solidária');
+                if (a.age >= 60) details.push('Idoso');
+
+                return (
+                  <div key={`adult-${i}`} className="flex justify-between items-start">
+                    <div>
+                      <span>{qty}x Adulto</span>
+                      {details.length > 0 && <span className="block text-[11px] font-medium text-primary/70">{details.join(', ')}</span>}
+                    </div>
+                    <span className="font-medium whitespace-nowrap">{price === 0 ? 'Grátis' : formatCurrency(price * qty)}</span>
+                  </div>
+                );
+              })}
+
+              {booking.entry.children.map((c, i) => {
+                const qty = c.quantity || 1;
+                const price = getPersonPrice(c, c.age <= 11, booking.entry.dayOfWeek === 'domingo');
+                let details = [];
+                if (c.isPCD) details.push('PCD/TEA');
+                if (c.isBirthday) details.push('Aniversariante');
+
+                return (
+                  <div key={`child-${i}`} className="flex justify-between items-start mt-2">
+                    <div>
+                      <span>{qty}x Criança</span>
+                      {details.length > 0 && <span className="block text-[11px] font-medium text-primary/70">{details.join(', ')}</span>}
+                    </div>
+                    <span className="font-medium whitespace-nowrap">{price === 0 ? 'Grátis' : formatCurrency(price * qty)}</span>
+                  </div>
+                );
+              })}
+              <div className="flex justify-between font-bold text-foreground pt-2 mt-2 border-t border-primary/5">
+                <span>Subtotal Entradas</span>
+                <span>{formatCurrency(totals.entriesTotal)}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Quiosques */}
+        {booking.kiosks.some(k => k.quantity > 0) && (
+          <div className="pb-5 border-b border-primary/10">
+            <h4 className="font-bold text-primary mb-3 uppercase tracking-widest text-[10px] sm:text-xs">Quiosques</h4>
+            <div className="space-y-2 text-sm sm:text-base text-muted-foreground">
+              {booking.kiosks.filter(k => k.quantity > 0).map(k => (
+                <div key={k.type} className="flex justify-between">
+                  <div>
+                    <span>{k.quantity}x {KIOSK_INFO[k.type].label}</span>
+                    {booking.entry.visitDate && (
+                      <span className="block text-[10px] text-muted-foreground/80">📅 {format(booking.entry.visitDate, "dd/MM/yyyy", { locale: ptBR })}</span>
+                    )}
+                  </div>
+                  <span>{formatCurrency(k.quantity * KIOSK_INFO[k.type].price)}</span>
+                </div>
+              ))}
+              <div className="flex justify-between font-bold text-foreground pt-1">
+                <span>Subtotal Quiosques</span>
+                <span>{formatCurrency(totals.kiosksTotal)}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Quadriciclos */}
+        {booking.quads.some(q => q.quantity > 0) && (
+          <div className="pb-5 border-b border-primary/10">
+            <h4 className="font-bold text-primary mb-3 uppercase tracking-widest text-[10px] sm:text-xs">Quadriciclos</h4>
+            <div className="space-y-2 text-sm sm:text-base text-muted-foreground">
+              {booking.quads.filter(q => q.quantity > 0).map(q => {
+                const discount = getQuadDiscount(q.date);
+                const final_ = QUAD_PRICES[q.type] * (1 - discount);
+                return (
+                  <div key={q.type} className="flex justify-between items-start">
+                    <div>
+                      <span>{q.quantity}x Quad. {QUAD_LABELS[q.type]}</span>
+                      <span className="block text-[10px] text-muted-foreground/80">📅 {q.date ? format(q.date, "dd/MM/yyyy", { locale: ptBR }) : booking.entry.visitDate ? format(booking.entry.visitDate, "dd/MM/yyyy", { locale: ptBR }) : '—'} às {q.time || '—'}</span>
+                    </div>
+                    <span>{formatCurrency(q.quantity * final_)}</span>
+                  </div>
+                );
+              })}
+              <div className="flex justify-between font-bold text-foreground pt-1">
+                <span>Subtotal Quadriciclos</span>
+                <span>{formatCurrency(totals.quadsTotal)}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Adicionais */}
+        {booking.additionals.some(a => a.quantity > 0) && (
+          <div className="pb-5 border-b border-primary/10">
+            <h4 className="font-bold text-primary mb-3 uppercase tracking-widest text-[10px] sm:text-xs">Diversão e Lazer</h4>
+            <div className="space-y-2 text-sm sm:text-base text-muted-foreground">
+              {booking.additionals.filter(a => a.quantity > 0).map(a => (
+                <div key={a.type} className="flex justify-between items-start">
+                  <div>
+                    <span>{a.quantity}x {ADDITIONAL_INFO[a.type].label}</span>
+                    {booking.entry.visitDate && (
+                      <span className="block text-[10px] text-muted-foreground/80">📅 {format(booking.entry.visitDate, "dd/MM/yyyy", { locale: ptBR })}</span>
+                    )}
+                  </div>
+                  <span>{formatCurrency(a.quantity * ADDITIONAL_INFO[a.type].price)}</span>
+                </div>
+              ))}
+              <div className="flex justify-between font-bold text-foreground pt-1">
+                <span>Subtotal Diversão</span>
+                <span>{formatCurrency(totals.additionalsTotal)}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Membership Comparison Action Card */}
+        {(() => {
+          const allAdults = booking.entry.adults;
+          const halfPriceAdults = allAdults.filter(a => a.isTeacher || a.isServer || a.isStudent).reduce((acc, a) => acc + (a.quantity || 1), 0);
+          const fullPriceAdults = allAdults.reduce((acc, a) => acc + (a.quantity || 1), 0) - halfPriceAdults;
+
+          // Children that pay in day use (though they are usually free < 11, the user's logic focuses more on adults)
+          // For now let's assume membership pricing follows the user's explicit example with adults
+          const membershipPrice = calculateMembershipCost({ adultsCount: fullPriceAdults, halfPriceCount: halfPriceAdults });
+          const entriesTotal = totals.entriesTotal;
+
+          if ((fullPriceAdults + halfPriceAdults) > 0 && entriesTotal >= membershipPrice * 0.8) {
+            return (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="bg-gradient-to-br from-sun/20 via-sun/10 to-transparent border-2 border-sun/30 rounded-2xl p-4 sm:p-5 relative overflow-hidden group"
+              >
+                <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
+                  <span className="text-4xl text-sun-dark font-black">⭐</span>
+                </div>
+
+                <div className="relative z-10">
+                  <h4 className="font-gliker font-normal text-primary text-sm sm:text-base mb-2 flex items-center gap-2">
+                    💡 Dica: Vale mais a pena ser Sócio!
+                  </h4>
+                  <p className="text-xs sm:text-sm text-foreground font-medium mb-4 leading-relaxed">
+                    Sua reserva de hoje custa <span className="font-bold text-primary">{formatCurrency(entriesTotal)}</span>.
+                    No <span className="font-bold">Lessa Club</span>, você paga apenas <span className="font-bold text-primary-dark">{formatCurrency(membershipPrice)}/mês</span> e tem <span className="underline decoration-sun font-bold">entradas ilimitadas</span> o mês inteiro!
+                  </p>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full bg-white/80 hover:bg-sun hover:text-foreground border-sun/50 font-display font-black text-[10px] sm:text-xs uppercase tracking-widest h-10 shadow-sm transition-all"
+                    onClick={() => {
+                      const element = document.getElementById('especiais');
+                      if (element) {
+                        element.scrollIntoView({ behavior: 'smooth' });
+                      }
+                    }}
+                  >
+                    Quero ver os Planos <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </motion.div>
+            );
+          }
+          return null;
+        })()}
+
+        {/* Total Gigante */}
+        <div className="pt-2">
+          <div className="flex justify-between items-end mb-6">
+            <div>
+              <p className="text-[10px] sm:text-xs text-muted-foreground uppercase font-black tracking-widest mb-1.5 flex items-center gap-1.5">
+                Total da Reserva
+              </p>
+              <h2 className="font-display font-black text-4xl sm:text-5xl text-primary leading-none">
+                {formatCurrency(totals.total)}
+              </h2>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Button
+              size="lg"
+              onClick={() => handleAction(false)}
+              disabled={saving}
+              className="flex-1 bg-white hover:bg-black/5 text-foreground border border-black/10 shadow-sm font-display font-bold h-14"
+            >
+              {saving ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <MessageCircle className="mr-2 h-5 w-5 text-whatsapp" />}
+              Confirmar no WhatsApp
+            </Button>
+
+            <Button
+              size="lg"
+              onClick={() => handleAction(true)}
+              disabled={saving}
+              className="flex-1 bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-600/20 font-display font-bold h-14"
+            >
+              {saving ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <CheckCircle className="mr-2 h-5 w-5" />}
+              Já quero deixar pago
+            </Button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}

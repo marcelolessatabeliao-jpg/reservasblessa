@@ -1,0 +1,7 @@
+project_id = "oapcgqyyebsxjnomcsiu"
+
+[functions.admin-auth]
+verify_jwt = false
+
+[functions.update-booking-status]
+verify_jwt = false
