@@ -1,6 +1,7 @@
 import { QuantityStepper } from '@/components/QuantityStepper';
 import { AdditionalItem, ADDITIONAL_INFO, formatCurrency } from '@/lib/booking-types';
-import { Fish, CircleDot } from 'lucide-react';
+import { Fish, CircleDot, Loader2 } from 'lucide-react';
+import { useServices } from '@/hooks/useServices';
 
 const ICONS: Record<string, typeof Fish> = {
   'pesca': Fish,
@@ -13,6 +14,12 @@ interface Props {
 }
 
 export function AdditionalSelector({ additionals, onUpdate }: Props) {
+  const { getPrice, isLoading } = useServices();
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center p-6"><Loader2 className="animate-spin text-primary h-6 w-6" /></div>;
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3 mb-2">
@@ -24,6 +31,7 @@ export function AdditionalSelector({ additionals, onUpdate }: Props) {
 
       {additionals.map((item, i) => {
         const info = ADDITIONAL_INFO[item.type];
+        const basePrice = getPrice(`add_${item.type}`, info.price);
         const Icon = ICONS[item.type] || Fish;
         return (
           <div key={item.type} className="bg-white/50 backdrop-blur-md rounded-2xl border border-white/60 p-4 sm:p-5 shadow-xl">
@@ -37,8 +45,8 @@ export function AdditionalSelector({ additionals, onUpdate }: Props) {
                   <p className="text-[10px] sm:text-xs text-muted-foreground">{info.description}</p>
                   <p className="text-primary font-bold text-base sm:text-lg">
                     {item.quantity >= 1 
-                      ? `${formatCurrency(info.price)} x ${item.quantity} = ${formatCurrency(info.price * item.quantity)}` 
-                      : `${formatCurrency(info.price)}${item.type === 'futebol-sabao' ? ' por pessoa' : ''}`}
+                      ? `${formatCurrency(basePrice)} x ${item.quantity} = ${formatCurrency(basePrice * item.quantity)}` 
+                      : `${formatCurrency(basePrice)}${item.type === 'futebol-sabao' ? ' por pessoa' : ''}`}
                   </p>
                 </div>
               </div>

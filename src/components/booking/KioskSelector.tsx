@@ -1,4 +1,4 @@
-import { Home, AlertTriangle, CalendarIcon } from 'lucide-react';
+import { Home, AlertTriangle, CalendarIcon, Loader2 } from 'lucide-react';
 import { QuantityStepper } from '@/components/QuantityStepper';
 import { KioskItem, KIOSK_INFO, formatCurrency, isOperatingDay } from '@/lib/booking-types';
 import { Calendar } from '@/components/ui/calendar';
@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { useServices } from '@/hooks/useServices';
 
 interface Props {
   kiosks: KioskItem[];
@@ -14,6 +15,12 @@ interface Props {
 }
 
 export function KioskSelector({ kiosks, onUpdate }: Props) {
+  const { getPrice, isLoading } = useServices();
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center p-6"><Loader2 className="animate-spin text-primary h-6 w-6" /></div>;
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3 mb-2">
@@ -25,6 +32,8 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
 
       {kiosks.map((kiosk, i) => {
         const info = KIOSK_INFO[kiosk.type];
+        const basePrice = getPrice(`kiosk_${kiosk.type}`, info.price);
+        
         return (
           <div key={kiosk.type} className="bg-white/50 backdrop-blur-md rounded-2xl border border-white/60 p-4 sm:p-5 shadow-xl">
             <div className="flex items-center justify-between gap-2 mb-3">
@@ -33,8 +42,8 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
                 <p className="text-[10px] sm:text-xs text-muted-foreground">{info.capacity} - {info.available} {info.available === 1 ? 'unidade' : 'unidades'}</p>
                 <p className="text-primary font-bold text-base sm:text-lg">
                   {kiosk.quantity > 1 
-                    ? `${formatCurrency(info.price)} x ${kiosk.quantity} = ${formatCurrency(info.price * kiosk.quantity)}` 
-                    : formatCurrency(info.price)}
+                    ? `${formatCurrency(basePrice)} x ${kiosk.quantity} = ${formatCurrency(basePrice * kiosk.quantity)}` 
+                    : formatCurrency(basePrice)}
                 </p>
               </div>
               <QuantityStepper value={kiosk.quantity} onChange={(q) => onUpdate(i, { quantity: q })} max={info.available} />

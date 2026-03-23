@@ -9,6 +9,7 @@ import { toast } from '@/hooks/use-toast';
 import { saveBooking } from '@/lib/booking-service';
 import { buildWhatsAppMessage } from '@/lib/whatsapp';
 import { PaymentModal } from './PaymentModal';
+import { useServices } from '@/hooks/useServices';
 
 interface Props {
   booking: BookingState;
@@ -21,12 +22,16 @@ interface Props {
   };
 }
 
-function calculateMembershipCost(people: { adultsCount: number; halfPriceCount: number }): number {
-  // Members pay 49.90 for full adults and 25.00 for those with benefits (half price)
-  const fullPriceTotal = people.adultsCount * 49.9;
-  const halfPriceTotal = people.halfPriceCount * 25.0;
-  return fullPriceTotal + halfPriceTotal;
-}
+export function BookingOverview({ booking, totals }: Props) {
+  const [saving, setSaving] = useState(false);
+  const [paymentData, setPaymentData] = useState<{ open: boolean; orderId: string } | null>(null);
+  const { getPrice } = useServices();
+
+  function calculateMembershipCost(people: { adultsCount: number; halfPriceCount: number }): number {
+    const memberHalf = getPrice('entry_half', 25.0);
+    const memberFull = getPrice('entry_full', 49.9);
+    return (people.adultsCount * memberFull) + (people.halfPriceCount * memberHalf);
+  }
 
 export function BookingOverview({ booking, totals }: Props) {
   const [saving, setSaving] = useState(false);
@@ -70,7 +75,7 @@ export function BookingOverview({ booking, totals }: Props) {
         setPaymentData({ open: true, orderId: result.orderId });
       } else {
         const code = result?.confirmationCode;
-        const msg = buildWhatsAppMessage(booking, totals.total, isPrepay, code);
+        const msg = buildWhatsAppMessage(booking, totals.total, isPrepay, code, getPrice);
         const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
         window.open(whatsappUrl, '_blank');
       }
@@ -124,7 +129,7 @@ export function BookingOverview({ booking, totals }: Props) {
             <div className="space-y-3 text-sm sm:text-base text-muted-foreground">
               {booking.entry.adults.map((a, i) => {
                 const qty = a.quantity || 1;
-                const price = getPersonPrice(a, a.age >= 60, booking.entry.dayOfWeek === 'domingo');
+                const price = getPersonPrice(a, a.age >= 60, booking.entry.dayOfWeek === 'domingo', getPrice);
                 let details = [];
                 if (a.isTeacher) details.push('Professor');
                 if (a.isServer) details.push('Servidor');
@@ -147,7 +152,7 @@ export function BookingOverview({ booking, totals }: Props) {
 
               {booking.entry.children.map((c, i) => {
                 const qty = c.quantity || 1;
-                const price = getPersonPrice(c, c.age <= 11, booking.entry.dayOfWeek === 'domingo');
+                const price = getPersonPrice(c, c.age <= 11, booking.entry.dayOfWeek === 'domingo', getPrice);
                 let details = [];
                 if (c.isPCD) details.push('PCD/TEA');
                 if (c.isBirthday) details.push('Aniversariante');
@@ -175,7 +180,9 @@ export function BookingOverview({ booking, totals }: Props) {
           <div className="pb-5 border-b border-primary/10">
             <h4 className="font-bold text-primary mb-3 uppercase tracking-widest text-[10px] sm:text-xs">Quiosques</h4>
             <div className="space-y-2 text-sm sm:text-base text-muted-foreground">
-              {booking.kiosks.filter(k => k.quantity > 0).map(k => (
+              {booking.kiosks.filter(k => k.quantity > 0).map(k => {
+                const basePrice = getPrice(`kiosk_${k.type}`, KIOSK_INFO[k.type].price);
+                return (
                 <div key={k.type} className="flex justify-between">
                   <div>
                     <span>{k.quantity}x {KIOSK_INFO[k.type].label}</span>
@@ -183,9 +190,9 @@ export function BookingOverview({ booking, totals }: Props) {
                       <span className="block text-[10px] text-muted-foreground/80">📅 {format(booking.entry.visitDate, "dd/MM/yyyy", { locale: ptBR })}</span>
                     )}
                   </div>
-                  <span>{formatCurrency(k.quantity * KIOSK_INFO[k.type].price)}</span>
+                  <span>{formatCurrency(k.quantity * basePrice)}</span>
                 </div>
-              ))}
+              )})}
               <div className="flex justify-between font-bold text-foreground pt-1">
                 <span>Subtotal Quiosques</span>
                 <span>{formatCurrency(totals.kiosksTotal)}</span>
@@ -200,8 +207,10 @@ export function BookingOverview({ booking, totals }: Props) {
             <h4 className="font-bold text-primary mb-3 uppercase tracking-widest text-[10px] sm:text-xs">Quadriciclos</h4>
             <div className="space-y-2 text-sm sm:text-base text-muted-foreground">
               {booking.quads.filter(q => q.quantity > 0).map(q => {
+                const fallbackMap: Record<string, number> = { individual: 150, dupla: 250, 'adulto-crianca': 200 };
                 const discount = getQuadDiscount(q.date);
-                const final_ = QUAD_PRICES[q.type] * (1 - discount);
+                const basePrice = getPrice(`quad_${q.type}`, fallbackMap[q.type]);
+                const final_ = basePrice * (1 - discount);
                 return (
                   <div key={q.type} className="flex justify-between items-start">
                     <div>
@@ -225,7 +234,9 @@ export function BookingOverview({ booking, totals }: Props) {
           <div className="pb-5 border-b border-primary/10">
             <h4 className="font-bold text-primary mb-3 uppercase tracking-widest text-[10px] sm:text-xs">Diversão e Lazer</h4>
             <div className="space-y-2 text-sm sm:text-base text-muted-foreground">
-              {booking.additionals.filter(a => a.quantity > 0).map(a => (
+              {booking.additionals.filter(a => a.quantity > 0).map(a => {
+                const basePrice = getPrice(`add_${a.type}`, ADDITIONAL_INFO[a.type].price);
+                return (
                 <div key={a.type} className="flex justify-between items-start">
                   <div>
                     <span>{a.quantity}x {ADDITIONAL_INFO[a.type].label}</span>
@@ -233,9 +244,9 @@ export function BookingOverview({ booking, totals }: Props) {
                       <span className="block text-[10px] text-muted-foreground/80">📅 {format(booking.entry.visitDate, "dd/MM/yyyy", { locale: ptBR })}</span>
                     )}
                   </div>
-                  <span>{formatCurrency(a.quantity * ADDITIONAL_INFO[a.type].price)}</span>
+                  <span>{formatCurrency(a.quantity * basePrice)}</span>
                 </div>
-              ))}
+              )})}
               <div className="flex justify-between font-bold text-foreground pt-1">
                 <span>Subtotal Diversão</span>
                 <span>{formatCurrency(totals.additionalsTotal)}</span>

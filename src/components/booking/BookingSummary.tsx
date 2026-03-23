@@ -13,19 +13,14 @@ import { ptBR } from 'date-fns/locale';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { ArrowRight } from 'lucide-react';
 
-function calculateMembershipCost(payingCount: number): number {
-  return payingCount * 49.9;
-}
-
-interface Props {
-  booking: BookingState;
-  totals: { entriesTotal: number; kiosksTotal: number; quadsTotal: number; additionalsTotal: number; total: number };
-  hasItems: boolean;
-}
-
 import { buildWhatsAppMessage } from '@/lib/whatsapp';
 
 import { useAuth } from '@/hooks/useAuth';
+import { useServices } from '@/hooks/useServices';
+
+function calculateMembershipCost(payingCount: number, getPrice: (t: string, fb: number) => number): number {
+  return payingCount * getPrice('entry_full', 49.9);
+}
 
 export function BookingSummary({ booking, totals, hasItems }: Props) {
   const [expanded, setExpanded] = useState(false);
@@ -33,6 +28,7 @@ export function BookingSummary({ booking, totals, hasItems }: Props) {
   const [confirmationCode, setConfirmationCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const { userId } = useAuth();
+  const { getPrice } = useServices();
 
   if (!hasItems) return null;
 
@@ -69,7 +65,7 @@ export function BookingSummary({ booking, totals, hasItems }: Props) {
   };
 
   const handleGoToWhatsApp = () => {
-    const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(buildWhatsAppMessage(booking, totals.total, false, confirmationCode || undefined))}`;
+    const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(buildWhatsAppMessage(booking, totals.total, false, confirmationCode || undefined, getPrice))}`;
     window.open(whatsappUrl, '_blank');
     setConfirmationCode(null);
   };
@@ -93,7 +89,7 @@ export function BookingSummary({ booking, totals, hasItems }: Props) {
 
                 {booking.entry.adults.map((a, i) => {
                   const qty = a.quantity || 1;
-                  const price = getPersonPrice(a, a.age >= 60, booking.entry.dayOfWeek === 'domingo');
+                  const price = getPersonPrice(a, a.age >= 60, booking.entry.dayOfWeek === 'domingo', getPrice);
                   const label = a.isPCD ? 'Lessa Inclusão' : 
                                a.age >= 60 ? 'Lessa Vitalício' : 
                                a.isTeacher ? 'Lessa Professor Pass' :
@@ -110,7 +106,7 @@ export function BookingSummary({ booking, totals, hasItems }: Props) {
 
                 {booking.entry.children.map((c, i) => {
                   const qty = c.quantity || 1;
-                  const price = getPersonPrice(c, c.age <= 11, booking.entry.dayOfWeek === 'domingo');
+                  const price = getPersonPrice(c, c.age <= 11, booking.entry.dayOfWeek === 'domingo', getPrice);
                   return (
                     <div key={i} className="flex justify-between text-xs sm:text-sm">
                        <span>{qty > 1 ? `${qty}x ` : ''}Criança</span>
@@ -122,13 +118,15 @@ export function BookingSummary({ booking, totals, hasItems }: Props) {
                 {booking.kiosks.filter(k => k.quantity > 0).map(k => (
                   <div key={k.type} className="flex justify-between text-xs sm:text-sm">
                     <span>{k.quantity}x {KIOSK_INFO[k.type].label}</span>
-                    <span className="font-medium">{formatCurrency(k.quantity * KIOSK_INFO[k.type].price)}</span>
+                    <span className="font-medium">{formatCurrency(k.quantity * getPrice(`kiosk_${k.type}`, KIOSK_INFO[k.type].price))}</span>
                   </div>
                 ))}
 
                 {booking.quads.filter(q => q.quantity > 0).map(q => {
+                  const fallbackMap: Record<string, number> = { individual: 150, dupla: 250, 'adulto-crianca': 200 };
                   const discount = getQuadDiscount(q.date);
-                  const final_ = QUAD_PRICES[q.type] * (1 - discount);
+                  const basePrice = getPrice(`quad_${q.type}`, fallbackMap[q.type]);
+                  const final_ = basePrice * (1 - discount);
                   return (
                     <div key={q.type} className="text-xs sm:text-sm">
                       <div className="flex justify-between">
@@ -144,7 +142,7 @@ export function BookingSummary({ booking, totals, hasItems }: Props) {
                 {booking.additionals.filter(a => a.quantity > 0).map(a => (
                   <div key={a.type} className="flex justify-between text-xs sm:text-sm">
                     <span>{a.quantity}x {ADDITIONAL_INFO[a.type].label}</span>
-                    <span className="font-medium">{formatCurrency(a.quantity * ADDITIONAL_INFO[a.type].price)}</span>
+                    <span className="font-medium">{formatCurrency(a.quantity * getPrice(`add_${a.type}`, ADDITIONAL_INFO[a.type].price))}</span>
                   </div>
                 ))}
               </div>
@@ -161,7 +159,7 @@ export function BookingSummary({ booking, totals, hasItems }: Props) {
                   <p className="text-[10px] sm:text-xs text-muted-foreground uppercase font-black tracking-tighter">Total</p>
                   {(() => {
                     const payingPeople = booking.entry.adults.reduce((acc, a) => acc + (a.quantity || 1), 0);
-                    const membershipPrice = calculateMembershipCost(payingPeople);
+                    const membershipPrice = calculateMembershipCost(payingPeople, getPrice);
                     if (payingPeople > 0 && totals.entriesTotal >= membershipPrice * 0.8) {
                       return (
                         <div className="bg-sun text-foreground font-gliker font-black text-[7px] px-1.5 py-0.5 rounded-md animate-pulse whitespace-nowrap">

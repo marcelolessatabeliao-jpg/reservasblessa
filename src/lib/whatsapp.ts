@@ -2,8 +2,9 @@ import { BookingState, KIOSK_INFO, QUAD_LABELS, QUAD_PRICES, ADDITIONAL_INFO, ge
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
-export function buildWhatsAppMessage(booking: BookingState, total: number, isPrepay: boolean = false, code?: string): string {
+export function buildWhatsAppMessage(booking: BookingState, total: number, isPrepay: boolean = false, code?: string, getPrice?: (type: string, fb: number) => number): string {
   const { entry } = booking;
+  const safeGetPrice = getPrice || ((t: string, fb: number) => fb);
   const isSunday = entry.dayOfWeek === 'domingo';
   let msg = `Olá, Balneário Lessa!\nGostaria de confirmar uma reserva${isPrepay ? ' e já realizar o pagamento via Pix' : ''}.\n\n`;
   if (code) msg += `*Código da Reserva:* ${code}\n`;
@@ -18,7 +19,7 @@ export function buildWhatsAppMessage(booking: BookingState, total: number, isPre
 
   if (entry.adults.length > 0) {
     entry.adults.forEach((a, i) => {
-      const price = getPersonPrice(a, a.age >= 60, isSunday);
+      const price = getPersonPrice(a, a.age >= 60, isSunday, safeGetPrice);
       const qty = a.quantity || 1;
       const totalItemPrice = price * qty;
       const amountPrefix = qty > 1 ? `${qty}x ` : '';
@@ -46,7 +47,7 @@ export function buildWhatsAppMessage(booking: BookingState, total: number, isPre
   if (entry.children.length > 0) {
     entry.children.forEach((c, i) => {
       const qty = c.quantity || 1;
-      const price = getPersonPrice(c, c.age <= 11, isSunday);
+      const price = getPersonPrice(c, c.age <= 11, isSunday, safeGetPrice);
       const amountPrefix = qty > 1 ? `${qty}x ` : '';
       
       let details = '';
@@ -79,7 +80,8 @@ export function buildWhatsAppMessage(booking: BookingState, total: number, isPre
   if (activeKiosks.length) {
     msg += '*Quiosque:*\n';
     activeKiosks.forEach(k => {
-      msg += `${k.quantity} x ${KIOSK_INFO[k.type].label} - ${formatCurrency(k.quantity * KIOSK_INFO[k.type].price)}\n`;
+      const basePrice = safeGetPrice(`kiosk_${k.type}`, KIOSK_INFO[k.type].price);
+      msg += `${k.quantity} x ${KIOSK_INFO[k.type].label} - ${formatCurrency(k.quantity * basePrice)}\n`;
     });
     msg += '\n';
   }
@@ -88,9 +90,11 @@ export function buildWhatsAppMessage(booking: BookingState, total: number, isPre
   if (activeQuads.length) {
     msg += '*Passeio de Quadriciclo:*\n';
     activeQuads.forEach(q => {
+      const fallbackMap: Record<string, number> = { individual: 150, dupla: 250, 'adulto-crianca': 200 };
       const d = q.date ? new Date(q.date) : null;
       const discount = getQuadDiscount(d);
-      const finalPrice = QUAD_PRICES[q.type] * (1 - discount);
+      const basePrice = safeGetPrice(`quad_${q.type}`, fallbackMap[q.type]);
+      const finalPrice = basePrice * (1 - discount);
       msg += `${q.quantity} x ${QUAD_LABELS[q.type]} - ${formatCurrency(q.quantity * finalPrice)}\n`;
       if (d) msg += `  Data: ${format(d, "dd/MM/yyyy", { locale: ptBR })}\n`;
       if (q.time) msg += `  Horário: ${q.time}\n`;
@@ -103,7 +107,8 @@ export function buildWhatsAppMessage(booking: BookingState, total: number, isPre
   if (activeAdds.length) {
     msg += '*Serviços Adicionais:*\n';
     activeAdds.forEach(a => {
-      msg += `${a.quantity} x ${ADDITIONAL_INFO[a.type].label} - ${formatCurrency(a.quantity * ADDITIONAL_INFO[a.type].price)}\n`;
+      const basePrice = safeGetPrice(`add_${a.type}`, ADDITIONAL_INFO[a.type].price);
+      msg += `${a.quantity} x ${ADDITIONAL_INFO[a.type].label} - ${formatCurrency(a.quantity * basePrice)}\n`;
     });
     msg += '\n';
   }

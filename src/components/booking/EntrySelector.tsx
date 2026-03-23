@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Ticket, Plus, X, User, UserPlus, Baby, CalendarIcon, Heart, Info, Phone, ArrowLeft, ArrowRight, CheckCircle2, Accessibility, GraduationCap, Briefcase, Gift } from 'lucide-react';
+import { Ticket, Plus, X, User, UserPlus, Baby, CalendarIcon, Heart, Info, Phone, ArrowLeft, ArrowRight, CheckCircle2, Accessibility, GraduationCap, Briefcase, Gift, Loader2 } from 'lucide-react';
 import { BookingState, formatCurrency, isOperatingDay, ChildInfo, AdultInfo } from '@/lib/booking-types';
+import { useServices } from '@/hooks/useServices';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -29,6 +30,8 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
   const [wizardType, setWizardType] = useState<WizardType>(null);
   const [wizardStep, setWizardStep] = useState<number>(1);
   const [wizardData, setWizardData] = useState<any>({ age: null, category: 'inteira', takeDonation: false, isPCD: false });
+
+  const { getPrice } = useServices();
 
   const resetWizard = () => {
     setWizardType(null);
@@ -210,12 +213,15 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
         );
 
       case 3: // Adult Categories (Professor/Student/Server)
+        const entryFullStr = formatCurrency(getPrice('entry_full', 50)).replace(',00', '');
+        const entryHalfStr = formatCurrency(getPrice('entry_half', 25)).replace(',00', '');
+
         const categories = [
-          { id: 'inteira', label: 'Inteira', sublabel: 'Entrada normal', price: 'R$ 50', emoji: '🎟️', bg: 'bg-slate-50', border: 'border-slate-200', selectedBg: 'bg-slate-100', selectedBorder: 'border-slate-500', priceColor: 'text-slate-700', labelColor: 'text-slate-800' },
-          { id: 'professor', label: 'Professor', sublabel: 'Lessa Professor Pass', price: 'R$ 25', emoji: '📚', bg: 'bg-blue-50', border: 'border-blue-100', selectedBg: 'bg-blue-100', selectedBorder: 'border-blue-500', priceColor: 'text-blue-700', labelColor: 'text-blue-900' },
-          { id: 'estudante', label: 'Estudante', sublabel: 'Lessa Estudante Pass', price: 'R$ 25', emoji: '🎓', bg: 'bg-violet-50', border: 'border-violet-100', selectedBg: 'bg-violet-100', selectedBorder: 'border-violet-500', priceColor: 'text-violet-700', labelColor: 'text-violet-900' },
-          { id: 'servidor', label: 'Servidor Público', sublabel: 'Lessa Servidor Pass', price: 'R$ 25', emoji: '🏛️', bg: 'bg-emerald-50', border: 'border-emerald-100', selectedBg: 'bg-emerald-100', selectedBorder: 'border-emerald-500', priceColor: 'text-emerald-700', labelColor: 'text-emerald-900' },
-          { id: 'doador', label: 'Doador Sangue/Medula', sublabel: 'Benefício 50% OFF', price: 'R$ 25', emoji: '🩸', bg: 'bg-red-50', border: 'border-red-100', selectedBg: 'bg-red-100', selectedBorder: 'border-red-500', priceColor: 'text-red-700', labelColor: 'text-red-900' },
+          { id: 'inteira', label: 'Inteira', sublabel: 'Entrada normal', price: entryFullStr, emoji: '🎟️', bg: 'bg-slate-50', border: 'border-slate-200', selectedBg: 'bg-slate-100', selectedBorder: 'border-slate-500', priceColor: 'text-slate-700', labelColor: 'text-slate-800' },
+          { id: 'professor', label: 'Professor', sublabel: 'Lessa Professor Pass', price: entryHalfStr, emoji: '📚', bg: 'bg-blue-50', border: 'border-blue-100', selectedBg: 'bg-blue-100', selectedBorder: 'border-blue-500', priceColor: 'text-blue-700', labelColor: 'text-blue-900' },
+          { id: 'estudante', label: 'Estudante', sublabel: 'Lessa Estudante Pass', price: entryHalfStr, emoji: '🎓', bg: 'bg-violet-50', border: 'border-violet-100', selectedBg: 'bg-violet-100', selectedBorder: 'border-violet-500', priceColor: 'text-violet-700', labelColor: 'text-violet-900' },
+          { id: 'servidor', label: 'Servidor Público', sublabel: 'Lessa Servidor Pass', price: entryHalfStr, emoji: '🏛️', bg: 'bg-emerald-50', border: 'border-emerald-100', selectedBg: 'bg-emerald-100', selectedBorder: 'border-emerald-500', priceColor: 'text-emerald-700', labelColor: 'text-emerald-900' },
+          { id: 'doador', label: 'Doador Sangue/Medula', sublabel: 'Benefício 50% OFF', price: entryHalfStr, emoji: '🩸', bg: 'bg-red-50', border: 'border-red-100', selectedBg: 'bg-red-100', selectedBorder: 'border-red-500', priceColor: 'text-red-700', labelColor: 'text-red-900' },
           { id: 'aniversariante', label: 'Aniversariante', sublabel: 'Da semana · com comprovação', price: 'GRÁTIS', emoji: '🎂', bg: 'bg-amber-50', border: 'border-amber-100', selectedBg: 'bg-amber-100', selectedBorder: 'border-amber-500', priceColor: 'text-amber-700', labelColor: 'text-amber-900' },
         ];
 
@@ -398,7 +404,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
             <div className="text-center">
               <Heart className="h-12 w-12 text-sun mx-auto mb-3 animate-pulse" />
               <h4 className="text-xl font-black text-primary">Deseja ativar a Ação Solidária?</h4>
-              <p className="text-sm text-primary/60 font-bold px-4 leading-relaxed">Leve 1kg de alimento, livros, roupas ou brinquedos e pague apenas <span className="text-sun-dark font-black underline">R$ 25,00 (Meia-Entrada)</span>.</p>
+              <p className="text-sm text-primary/60 font-bold px-4 leading-relaxed">Leve 1kg de alimento, livros, roupas ou brinquedos e pague apenas <span className="text-sun-dark font-black underline">{formatCurrency(getPrice('entry_half', 25))} (Meia-Entrada)</span>.</p>
             </div>
             
             <div className="space-y-3 mt-6">
@@ -416,7 +422,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                 onClick={() => handleFinishWizard(undefined, false)}
               >
                 Não, prefiro Inteira
-                <span className="text-[10px] opacity-60 uppercase font-black">Pagar R$ 50,00</span>
+                <span className="text-[10px] opacity-60 uppercase font-black">Pagar {formatCurrency(getPrice('entry_full', 50))}</span>
               </Button>
 
               <Button 

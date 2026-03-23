@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 export interface SaveBookingResult {
   id: string;
   confirmationCode: string;
+  orderId?: string | null;
 }
 
 export async function saveBooking(booking: BookingState, totalAmount: number, userId?: string | null): Promise<SaveBookingResult | null> {
@@ -34,8 +35,8 @@ export async function saveBooking(booking: BookingState, totalAmount: number, us
   // 2. Integration: Save to orders and order_items tables
   let finalOrderId = null;
   try {
-    const { data: orderData, error: orderError } = await (supabase
-      .from('orders') as any)
+    const { data: orderData, error: orderError } = await (supabase as any)
+      .from('orders')
       .insert({
         user_id: userId || null,
         customer_name: entry.name, // Link name directly for guests
@@ -87,7 +88,7 @@ export async function saveBooking(booking: BookingState, totalAmount: number, us
       });
 
       if (orderItems.length > 0) {
-        await (supabase.from('order_items') as any).insert(orderItems);
+        await (supabase as any).from('order_items').insert(orderItems);
       }
     }
   } catch (err) {

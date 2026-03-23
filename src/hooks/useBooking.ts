@@ -1,9 +1,10 @@
 import { useState, useCallback, useMemo } from 'react';
 import {
   BookingState, ChildInfo, AdultInfo, KioskItem, QuadItem, AdditionalItem,
-  KIOSK_INFO, QUAD_PRICES, ADDITIONAL_INFO,
+  KIOSK_INFO, ADDITIONAL_INFO,
   getQuadDiscount, calculateEntryTotal,
 } from '@/lib/booking-types';
+import { useServices } from '@/hooks/useServices';
 
 const initialState: BookingState = {
   entry: {
@@ -108,17 +109,30 @@ export function useBooking() {
     }));
   }, []);
 
+  const { getPrice, isLoading } = useServices();
+
   const totals = useMemo(() => {
-    const entriesTotal = calculateEntryTotal(booking.entry);
-    const kiosksTotal = booking.kiosks.reduce((sum, k) => sum + k.quantity * KIOSK_INFO[k.type].price, 0);
+    if (isLoading) return { entriesTotal: 0, kiosksTotal: 0, quadsTotal: 0, additionalsTotal: 0, total: 0 };
+    const entriesTotal = calculateEntryTotal(booking.entry, getPrice);
+    
+    // Kiosks fallback map
+    const kiosksFallback: Record<string, number> = { menor: 75, maior: 100 };
+    const kiosksTotal = booking.kiosks.reduce((sum, k) => sum + k.quantity * getPrice(`kiosk_${k.type}`, kiosksFallback[k.type]), 0);
+    
+    // Quads fallback map
+    const quadsFallback: Record<string, number> = { individual: 150, dupla: 250, 'adulto-crianca': 200 };
     const quadsTotal = booking.quads.reduce((sum, q) => {
-      const base = q.quantity * QUAD_PRICES[q.type];
+      const base = q.quantity * getPrice(`quad_${q.type}`, quadsFallback[q.type]);
       const discount = getQuadDiscount(q.date);
       return sum + base * (1 - discount);
     }, 0);
-    const additionalsTotal = booking.additionals.reduce((sum, a) => sum + a.quantity * ADDITIONAL_INFO[a.type].price, 0);
+    
+    // Additionals fallback map
+    const addsFallback: Record<string, number> = { pesca: 20, 'futebol-sabao': 10 };
+    const additionalsTotal = booking.additionals.reduce((sum, a) => sum + a.quantity * getPrice(`add_${a.type}`, addsFallback[a.type]), 0);
+    
     return { entriesTotal, kiosksTotal, quadsTotal, additionalsTotal, total: entriesTotal + kiosksTotal + quadsTotal + additionalsTotal };
-  }, [booking]);
+  }, [booking, getPrice, isLoading]);
 
   const hasItems = useMemo(() => {
     return booking.entry.adults.length > 0 ||
@@ -128,5 +142,5 @@ export function useBooking() {
       booking.additionals.some(a => a.quantity > 0);
   }, [booking]);
 
-  return { booking, updateEntry, addAdult, removeAdult, updateAdult, addChild, removeChild, updateChild, updateKiosk, updateQuad, updateAdditional, totals, hasItems };
+  return { booking, updateEntry, addAdult, removeAdult, updateAdult, addChild, removeChild, updateChild, updateKiosk, updateQuad, updateAdditional, totals, hasItems, getPrice, isLoading };
 }

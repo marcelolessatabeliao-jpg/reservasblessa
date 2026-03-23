@@ -114,7 +114,12 @@ export function isOperatingDay(date: Date | string): boolean {
   return day === 0 || day === 1 || day === 5 || day === 6;
 }
 
-export function getPersonPrice(person: AdultInfo | ChildInfo, defaultGratuity: boolean, isSunday: boolean): number {
+export function getPersonPrice(
+  person: AdultInfo | ChildInfo, 
+  defaultGratuity: boolean, 
+  isSunday: boolean,
+  getPrice: (type: string, fallback: number) => number
+): number {
   if (defaultGratuity || person.isPCD || person.isTEA || person.isBirthday) {
     return 0;
   }
@@ -123,22 +128,22 @@ export function getPersonPrice(person: AdultInfo | ChildInfo, defaultGratuity: b
   const hasDonationDiscount = person.takeDonation && !isSunday;
 
   if (hasProfessionalDiscount || hasDonationDiscount) {
-    return 25;
+    return getPrice('entry_half', 25);
   }
 
-  return 50;
+  return getPrice('entry_full', 50);
 }
 
-export function calculateEntryTotal(entry: EntryBooking): number {
+export function calculateEntryTotal(entry: EntryBooking, getPrice: (type: string, fb: number) => number): number {
   let total = 0;
   const isSunday = entry.dayOfWeek === 'domingo';
 
   for (const adult of entry.adults) {
-    total += getPersonPrice(adult, adult.age >= 60, isSunday) * (adult.quantity || 1);
+    total += getPersonPrice(adult, adult.age >= 60, isSunday, getPrice) * (adult.quantity || 1);
   }
 
   for (const child of entry.children) {
-    total += getPersonPrice(child, child.age <= 11, isSunday) * (child.quantity || 1);
+    total += getPersonPrice(child, child.age <= 11, isSunday, getPrice) * (child.quantity || 1);
   }
 
   return total;

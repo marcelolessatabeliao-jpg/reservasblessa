@@ -1,14 +1,14 @@
-import { Bike, Tag } from 'lucide-react';
+import { Bike, Tag, CalendarIcon, Loader2 } from 'lucide-react';
 import { QuantityStepper } from '@/components/QuantityStepper';
-import { QuadItem, QUAD_LABELS, QUAD_PRICES, QUAD_TIMES, getQuadDiscount, formatCurrency, QuadTime, isOperatingDay } from '@/lib/booking-types';
+import { QuadItem, QUAD_LABELS, QUAD_TIMES, getQuadDiscount, formatCurrency, QuadTime, isOperatingDay } from '@/lib/booking-types';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { useServices } from '@/hooks/useServices';
 
 interface Props {
   quads: QuadItem[];
@@ -16,6 +16,12 @@ interface Props {
 }
 
 export function QuadSelector({ quads, onUpdate }: Props) {
+  const { getPrice, isLoading } = useServices();
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center p-6"><Loader2 className="animate-spin text-primary h-6 w-6" /></div>;
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3 mb-2">
@@ -32,7 +38,9 @@ export function QuadSelector({ quads, onUpdate }: Props) {
       </div>
 
       {quads.map((quad, i) => {
-        const basePrice = QUAD_PRICES[quad.type];
+        // Dynamic price from DB, fallback to 150/250/200 if not yet loaded or missing
+        const fallbackMap: Record<string, number> = { individual: 150, dupla: 250, 'adulto-crianca': 200 };
+        const basePrice = getPrice(`quad_${quad.type}`, fallbackMap[quad.type] || 0);
         const discount = getQuadDiscount(quad.date);
         const finalPrice = basePrice * (1 - discount);
 
