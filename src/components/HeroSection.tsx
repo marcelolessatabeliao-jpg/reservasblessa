@@ -31,7 +31,7 @@ export function HeroSection() {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7 }}
-          className="font-display font-extrabold text-4xl sm:text-6xl md:text-7xl lg:text-8xl text-white leading-[1.1] mb-4 sm:mb-6 drop-shadow-2xl px-2"
+          className="font-display font-extrabold text-[2.5rem] leading-[1.05] sm:text-6xl md:text-7xl lg:text-8xl text-white mb-4 sm:mb-6 drop-shadow-2xl px-2 break-words"
         >
           Balneário Lessa
         </motion.h1>
@@ -51,19 +51,19 @@ export function HeroSection() {
           transition={{ delay: 0.25 }}
           className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-8"
         >
-          <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/20 shadow-lg">
+          <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md px-3 sm:px-4 py-2 rounded-2xl border border-white/20 shadow-lg scale-[0.9] sm:scale-100">
             <div className="flex text-sun drop-shadow-sm">
               {[1, 2, 3, 4, 5].map((s) => (
-                <svg key={s} className="w-5 h-5 fill-current" viewBox="0 0 20 20">
+                <svg key={s} className="w-4 h-4 sm:w-5 sm:h-5 fill-current" viewBox="0 0 20 20">
                   <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                 </svg>
               ))}
             </div>
-            <span className="text-white font-black text-lg">Nota 4.8/5</span>
+            <span className="text-white font-black text-base sm:text-lg">Nota 4.8/5</span>
           </div>
-          <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/20 shadow-lg group hover:scale-105 transition-all duration-300">
-            <Sparkles className="h-5 w-5 text-sun animate-pulse shrink-0" />
-            <span className="text-white font-black text-lg">Mais de 10.000 visitantes felizes</span>
+          <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md px-3 sm:px-4 py-2 rounded-2xl border border-white/20 shadow-lg scale-[0.9] sm:scale-100 group">
+            <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-sun animate-pulse shrink-0" />
+            <span className="text-white font-black text-sm sm:text-lg truncate">10.000+ visitantes felizes</span>
           </div>
         </motion.div>
 
@@ -71,9 +71,9 @@ export function HeroSection() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3 }}
-          className="text-white/90 font-bold text-xs sm:text-sm mb-6 sm:mb-10 px-4 py-2 bg-black/30 backdrop-blur-sm inline-block rounded-xl border border-white/10"
+          className="text-white/90 font-bold text-[10px] sm:text-sm mb-10 px-4 py-2.5 bg-black/40 backdrop-blur-md block max-w-[280px] sm:max-w-none mx-auto rounded-xl border border-white/20 leading-tight"
         >
-          📍 Aberto das 9h às 17h • Sextas, Sábados, Domingos, Segundas e Feriados
+          📍 Aberto das 9h às 17h • Sextas, Sábados, Domingos, Segun. e Feriados
         </motion.p>
 
         <motion.div

@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
         .from('orders')
         .update({ status: 'paid', updated_at: new Date().toISOString() })
         .eq('id', orderId)
-        .select()
+        .select('id, confirmation_code, booking_id')
         .single();
 
       if (orderError) {
@@ -58,7 +58,7 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
       if (!existingVoucher) {
-        const code = `BL-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+        const code = orderData?.confirmation_code || `BL-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
         const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${code}`;
 
         await supabaseAdmin

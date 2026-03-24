@@ -74,24 +74,26 @@ export function LessaClubSimulator() {
             viewport={{ once: true }}
             className="flex flex-col gap-3"
           >
-            <div className="grid grid-cols-2 lg:grid-cols-1 gap-2.5">
+            <div className="grid grid-cols-1 gap-3">
               {[
                 { key: 'adult', label: 'Lessa Club', price: 49.9, emoji: '🎟️', color: 'bg-gradient-to-br from-sun/10 to-sun/30 border-sun/40 shadow-sun/5' },
                 { key: 'student', label: 'Estudante', price: 25, emoji: '🎓', color: 'bg-sun/5 border-sun/10' },
                 { key: 'teacher', label: 'Professor', price: 25, emoji: '📚', color: 'bg-green-600/5 border-green-600/10' },
                 { key: 'server', label: 'Servidor', price: 25, emoji: '🏛️', color: 'bg-primary/5 border-primary/10' },
               ].map((item) => (
-                <div key={item.key} className={`flex flex-col lg:flex-row items-center justify-between p-3 lg:p-4 rounded-xl border shadow-sm transition-colors text-center lg:text-left ${item.color}`}>
-                  <div className="mb-2 lg:mb-0">
-                    <div className="flex items-center gap-2 justify-center lg:justify-start">
-                       <span className="text-xl sm:text-2xl mb-1 lg:mb-0">{item.emoji}</span>
-                       <h4 className="font-bold text-foreground text-[11px] sm:text-base lg:text-lg leading-tight italic">
+                <div key={item.key} className={`flex items-center justify-between p-4 rounded-2xl border shadow-sm transition-colors text-left ${item.color}`}>
+                  <div>
+                    <div className="flex items-center gap-2 justify-start">
+                       <span className="text-2xl">{item.emoji}</span>
+                       <h4 className="font-bold text-foreground text-sm sm:text-lg italic leading-tight">
                          {item.label}
                        </h4>
                     </div>
-                    <p className="text-primary font-black text-[10px] sm:text-sm uppercase tracking-widest mt-0.5 lg:mt-0">{formatCurrency(item.price)}</p>
+                    <p className="text-primary font-black text-xs sm:text-sm uppercase tracking-widest mt-1">
+                      {formatCurrency(item.price)} <span className="text-[9px] text-muted-foreground font-medium opacity-70">/mês</span>
+                    </p>
                   </div>
-                  <div className="scale-90 sm:scale-[0.85] lg:scale-100">
+                  <div className="scale-100">
                     <QuantityStepper 
                       value={quantities[item.key as keyof typeof quantities]} 
                       onChange={(val) => setQuantities(prev => ({ ...prev, [item.key]: val }))} 
@@ -102,9 +104,9 @@ export function LessaClubSimulator() {
               ))}
             </div>
             
-            <div className="mt-3 text-center lg:text-left">
-              <h4 className="font-black uppercase tracking-widest text-[9px] text-muted-foreground mb-2.5 px-2">Gratuidades (Acesso Livre)</h4>
-              <div className="grid grid-cols-3 gap-2">
+            <div className="mt-5 text-center lg:text-left">
+              <h4 className="font-black uppercase tracking-widest text-[10px] text-muted-foreground mb-3 px-2">Gratuidades (Acesso Livre)</h4>
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
                 {[
                   { key: 'child', label: 'Crianças', emoji: '👶', color: 'bg-blue-50/50 border-blue-100/50' },
                   { key: 'senior', label: 'Idosos', emoji: '🧓', color: 'bg-purple-50/50 border-purple-100/50' },

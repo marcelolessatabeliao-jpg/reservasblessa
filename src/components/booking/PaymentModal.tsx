@@ -23,6 +23,8 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, totalAm
   const [loading, setLoading] = useState(false);
   const [pixData, setPixData] = useState<{ encodedImage: string; payload: string } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [paymentConfirmed, setPaymentConfirmed] = useState(false);
+  const [confirmationCode, setConfirmationCode] = useState('');
 
   useEffect(() => {
     if (!orderId || !open) return;
@@ -38,12 +40,13 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, totalAm
           filter: `id=eq.${orderId}`,
         },
         (payload) => {
-          if (payload.new.status === 'paid') {
+          if (payload.new.status === 'paid' || payload.new.status === 'confirmed') {
+            setConfirmationCode(payload.new.confirmation_code);
+            setPaymentConfirmed(true);
             toast({
               title: 'Pagamento Confirmado!',
-              description: 'Seu pagamento foi recebido com sucesso.',
+              description: 'Seu agendamento foi garantido com sucesso.',
             });
-            onOpenChange(false);
             onSuccess?.('paid_auto');
           }
         }
@@ -112,19 +115,21 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, totalAm
         status: 'pending'
       });
 
-      if (error) throw error;
-      
-      // Update order status to waiting_local
-      await (supabase as any).from('orders').update({
-        status: 'waiting_local',
-        updated_at: new Date().toISOString()
-      }).eq('id', orderId);
-      
+      const { data: updatedOrder, error: fetchError } = await (supabase as any)
+        .from('orders')
+        .select('confirmation_code')
+        .eq('id', orderId)
+        .single();
+
+      if (updatedOrder?.confirmation_code) {
+         setConfirmationCode(updatedOrder.confirmation_code);
+         setPaymentConfirmed(true);
+      }
+
       toast({
         title: 'Reserva Confirmada',
-        description: 'Faça o pagamento na bilheteria.',
+        description: 'Faça o pagamento na bilheteria apresentando seu voucher.',
       });
-      onOpenChange(false);
       onSuccess?.('local');
     } catch (err: any) {
       console.error(err);
@@ -161,7 +166,44 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, totalAm
           )}
         </DialogHeader>
 
-        {!pixData ? (
+        {paymentConfirmed ? (
+          <div className="flex flex-col items-center py-4 space-y-6 animate-in fade-in zoom-in duration-500">
+            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center text-green-600 mb-2">
+              <CheckCircle className="w-12 h-12" />
+            </div>
+            
+            <div className="text-center space-y-2">
+              <h3 className="text-2xl font-gliker text-primary">Reserva Confirmada!</h3>
+              <p className="text-sm text-muted-foreground font-medium">Apresente este código na entrada do Balneário</p>
+            </div>
+
+            <div className="bg-primary/5 border-2 border-dashed border-primary/20 rounded-3xl p-8 w-full text-center space-y-4">
+               <div>
+                  <p className="text-[10px] font-black uppercase text-primary/60 tracking-widest mb-1">CÓDIGO VOUCHER</p>
+                  <p className="text-4xl font-mono font-black text-primary tracking-[0.2em]">{confirmationCode}</p>
+               </div>
+               
+               <div className="flex justify-center bg-white p-4 rounded-2xl border shadow-sm max-w-[180px] mx-auto">
+                 <img 
+                   src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${confirmationCode}`} 
+                   alt="QR Code" 
+                   className="w-32 h-32"
+                 />
+               </div>
+            </div>
+
+            <Button 
+               onClick={() => onOpenChange(false)}
+               className="w-full h-14 bg-primary hover:bg-primary-dark text-white font-black rounded-2xl shadow-xl"
+            >
+              FECHAR E VOLTAR AO SITE
+            </Button>
+            
+            <p className="text-[10px] text-muted-foreground text-center px-4">
+              Enviamos os detalhes também para o seu e-mail e você pode tirar um print desta tela para agilizar seu check-in.
+            </p>
+          </div>
+        ) : !pixData ? (
           <div className="flex flex-col gap-4 mt-4">
             <Button 
               size="lg" 
@@ -215,13 +257,14 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, totalAm
 
             <Button 
               onClick={() => {
-                onOpenChange(false);
-                onSuccess?.('pix');
+                // Ao clicar aqui, apenas fechamos se não confirmou ainda, ou mostramos aviso
+                // Mas o poller Postgres vai disparar se o pagamento cair
+                toast({ title: "Aguardando confirmação...", description: "Assim que o banco confirmar, seu código aparecerá aqui." });
               }}
               variant="ghost"
               className="w-full h-12 font-bold text-xs sm:text-sm rounded-xl"
             >
-              Já realizei o pagamento
+              Aguardar confirmação na tela
             </Button>
           </div>
         )}

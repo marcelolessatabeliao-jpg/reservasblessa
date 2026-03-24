@@ -434,26 +434,64 @@ export default function Admin() {
 
                           <div className="space-y-3">
                             <p className="text-xs font-bold text-muted-foreground uppercase">Itens Comprados</p>
-                            <div className="bg-muted/30 rounded-2xl p-4 space-y-3 border border-muted">
-                              {order.order_items?.map((item: any, idx: number) => (
-                                <div key={idx} className="flex justify-between items-center">
-                                  <div className="flex items-center gap-3">
-                                    <div className="bg-white p-2 rounded-xl border font-bold text-primary">
-                                      {item.quantity}x
+                              <div className="bg-muted/30 rounded-2xl p-4 space-y-4 border border-muted">
+                                {order.order_items?.map((item: any, idx: number) => (
+                                  <div key={idx} className={cn(
+                                    "flex justify-between items-center transition-opacity",
+                                    item.is_redeemed && "opacity-60"
+                                  )}>
+                                    <div className="flex items-center gap-3">
+                                      <div className={cn(
+                                        "p-2 rounded-xl border font-bold",
+                                        item.is_redeemed ? "bg-green-100 text-green-700 border-green-200" : "bg-white text-primary"
+                                      )}>
+                                        {item.quantity}x
+                                      </div>
+                                      <div>
+                                        <p className="font-bold text-sm leading-tight flex items-center gap-2">
+                                          {item.product_id}
+                                          {item.is_redeemed && <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />}
+                                        </p>
+                                        <p className="text-[10px] text-muted-foreground uppercase font-black">{formatCurrency(item.unit_price)} unit.</p>
+                                      </div>
                                     </div>
-                                    <div>
-                                      <p className="font-bold text-sm leading-tight">{item.product_id}</p>
-                                      <p className="text-xs text-muted-foreground">{formatCurrency(item.unit_price)} unid.</p>
+                                    <div className="flex items-center gap-3">
+                                      <p className="font-black text-sm">{formatCurrency(item.unit_price * item.quantity)}</p>
+                                      <Button
+                                        size="sm"
+                                        variant={item.is_redeemed ? "ghost" : "outline"}
+                                        className={cn(
+                                          "h-9 w-9 p-0 rounded-full",
+                                          item.is_redeemed ? "text-green-600 hover:text-green-700 hover:bg-green-50" : "border-primary/20 text-primary hover:bg-primary/5"
+                                        )}
+                                        onClick={async (e) => {
+                                          e.stopPropagation();
+                                          try {
+                                             const { error } = await supabase
+                                               .from('order_items')
+                                               .update({ 
+                                                 is_redeemed: !item.is_redeemed, 
+                                                 redeemed_at: !item.is_redeemed ? new Date().toISOString() : null 
+                                               })
+                                               .eq('id', item.id);
+                                             if (error) throw error;
+                                             toast({ title: item.is_redeemed ? 'Item revertido' : 'Item marcado como USADO' });
+                                             fetchOrders();
+                                          } catch {
+                                             toast({ title: 'Erro ao validar item', variant: 'destructive' });
+                                          }
+                                        }}
+                                      >
+                                        <CheckCircle2 className="h-5 w-5" />
+                                      </Button>
                                     </div>
                                   </div>
-                                  <p className="font-black">{formatCurrency(item.unit_price * item.quantity)}</p>
+                                ))}
+                                <div className="pt-3 border-t flex justify-between items-center">
+                                  <span className="font-bold">Valor Total</span>
+                                  <span className="text-xl font-black text-primary">{formatCurrency(order.total_amount)}</span>
                                 </div>
-                              ))}
-                              <div className="pt-3 border-t flex justify-between items-center">
-                                <span className="font-bold">Total</span>
-                                <span className="text-xl font-black text-primary">{formatCurrency(order.total_amount)}</span>
                               </div>
-                            </div>
                           </div>
 
                           {order.vouchers && order.vouchers.length > 0 ? (
@@ -496,30 +534,41 @@ export default function Admin() {
                                 </Button>
                               </div>
 
-                              <div className="flex items-center gap-2 pt-2">
-                                {order.vouchers[0].is_redeemed ? (
-                                  <div className="w-full flex items-center justify-center gap-2 bg-destructive/10 text-destructive p-4 rounded-xl font-black">
-                                    <CheckCircle2 className="w-5 h-5" />
-                                    VOUCHER JÁ UTILIZADO
-                                  </div>
-                                ) : (
-                                  <Button 
-                                    className="w-full h-14 bg-whatsapp hover:bg-whatsapp-light text-white font-black text-lg gap-2 rounded-xl shadow-lg shadow-whatsapp/20"
-                                    onClick={async () => {
-                                      try {
-                                        await redeemVoucher(order.vouchers[0].id);
-                                        toast({ title: '✅ Voucher utilizado!', description: 'Entrada liberada com sucesso.' });
-                                        fetchOrders();
-                                      } catch {
-                                        toast({ title: 'Erro ao validar voucher', variant: 'destructive' });
-                                      }
-                                    }}
-                                  >
-                                    <CheckCircle2 className="w-6 h-6" />
-                                     MARCAR COMO UTILIZADO
-                                  </Button>
-                                )}
-                              </div>
+                               <div className="pt-2">
+                                 {order.order_items?.every((i: any) => i.is_redeemed) ? (
+                                    <div className="w-full flex items-center justify-center gap-2 bg-green-100 text-green-700 p-4 rounded-xl font-black text-sm">
+                                      <CheckCircle2 className="w-5 h-5" />
+                                      TUDO UTILIZADO (AGENDAMENTO COMPLETO)
+                                    </div>
+                                 ) : (
+                                    <Button 
+                                      className="w-full h-14 bg-primary hover:bg-primary-dark text-white font-black text-base gap-2 rounded-xl shadow-lg"
+                                      onClick={async () => {
+                                        try {
+                                          const itemIds = order.order_items?.map((i: any) => i.id) || [];
+                                          const { error } = await supabase
+                                            .from('order_items')
+                                            .update({ is_redeemed: true, redeemed_at: new Date().toISOString() })
+                                            .in('id', itemIds);
+                                          
+                                          if (error) throw error;
+
+                                          if (order.vouchers?.[0]) {
+                                             await redeemVoucher(order.vouchers[0].id);
+                                          }
+                                          
+                                          toast({ title: '✅ Agendamento Completo!', description: 'Todos os serviços marcados como usados.' });
+                                          fetchOrders();
+                                        } catch {
+                                          toast({ title: 'Erro ao validar agendamento', variant: 'destructive' });
+                                        }
+                                      }}
+                                    >
+                                      <CheckCircle2 className="w-6 h-6" />
+                                       MARCAR TUDO COMO USADO
+                                    </Button>
+                                 )}
+                               </div>
                             </div>
                           ) : (
                             <div className="p-6 text-center bg-sun/10 rounded-2xl border-2 border-sun/20">
