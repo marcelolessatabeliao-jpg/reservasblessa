@@ -20,12 +20,14 @@ interface Props {
   onUpdateAdult: (index: number, updates: Partial<AdultInfo>) => void;
   onRemoveChild: (index: number) => void;
   onUpdateChild: (index: number, updates: Partial<ChildInfo>) => void;
+  hideMainInfo?: boolean;
+  hideTitle?: boolean;
 }
 
 type WizardType = 'adult' | 'child' | 'senior' | 'pcd' | null;
 type WizardStep = 1 | 2 | 3 | 4;
 
-export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChild, onUpdateAdult, onUpdateChild }: Props) {
+export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChild, onUpdateAdult, onUpdateChild, hideMainInfo, hideTitle }: Props) {
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [wizardType, setWizardType] = useState<WizardType>(null);
   const [wizardStep, setWizardStep] = useState<number>(1);
@@ -440,16 +442,21 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3 mb-2">
-        <div className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-primary/10 text-primary shrink-0">
-          <Ticket className="h-4 w-4 sm:h-5 sm:w-5" />
+      {!hideTitle && (
+        <div className="flex items-center gap-3 mb-2">
+            <div className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-primary/10 text-primary shrink-0">
+            <Ticket className="h-4 w-4 sm:h-5 sm:w-5" />
+            </div>
+            <h3 className="font-gliker font-normal text-xl sm:text-2xl md:text-3xl leading-tight text-primary drop-shadow-sm text-center w-full">
+            Selecione quem vai participar
+            </h3>
         </div>
-        <h3 className="font-gliker font-normal text-xl sm:text-2xl md:text-3xl leading-tight text-primary drop-shadow-sm text-center w-full">
-          Monte seu dia e veja o valor na hora
-        </h3>
-      </div>
+      )}
 
-      <div className="bg-white/50 backdrop-blur-md rounded-[2.5rem] border border-white/60 p-4 sm:p-6 shadow-xl space-y-6">
+      <div className={cn(
+          "bg-white/50 backdrop-blur-md rounded-[2.5rem] border border-white/60 p-4 sm:p-6 shadow-xl space-y-6",
+          hideMainInfo && "bg-transparent backdrop-blur-none border-none shadow-none p-0"
+      )}>
         {/* Nome & Telefone Row */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-primary/5 p-4 rounded-3xl border border-primary/10 shadow-[inset_0_1px_4px_rgba(0,0,0,0.02)]">
           <div>
@@ -551,31 +558,35 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
               </h4>
             </div>
             
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <Button 
-                onClick={() => handleStartWizard('adult')} 
-                className="h-12 rounded-2xl bg-[#006020] text-white hover:bg-[#004d1a] font-black text-xs md:text-sm shadow-md transition-all active:scale-95"
-              >
-                🎟️ + Adulto
-              </Button>
-              <Button 
-                onClick={() => handleStartWizard('child')} 
-                className="h-12 rounded-2xl bg-[#006020] text-white hover:bg-[#004d1a] font-black text-xs md:text-sm shadow-md transition-all active:scale-95"
-              >
-                👶 + Criança
-              </Button>
-              <Button 
-                onClick={() => handleStartWizard('senior')} 
-                className="h-12 rounded-2xl bg-[#006020] text-white hover:bg-[#004d1a] font-black text-xs md:text-sm shadow-md transition-all active:scale-95"
-              >
-                🧓 + Idoso (60+)
-              </Button>
-              <Button 
-                onClick={() => handleStartWizard('pcd')} 
-                className="h-12 rounded-2xl bg-[#006020] text-white hover:bg-[#004d1a] font-black text-xs md:text-sm shadow-md transition-all active:scale-95"
-              >
-                ♿ PCD & TEA 🧩
-              </Button>
+            <div className="flex flex-col gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <Button 
+                    onClick={() => handleStartWizard('adult')} 
+                    className="w-full h-14 rounded-2xl bg-[#006020] text-white hover:bg-[#004d1a] font-black text-sm shadow-md transition-all active:scale-95 flex items-center justify-center gap-2"
+                >
+                    🎟️ Adicionar Adulto
+                </Button>
+                <Button 
+                    onClick={() => handleStartWizard('child')} 
+                    className="w-full h-14 rounded-2xl bg-[#006020] text-white hover:bg-[#004d1a] font-black text-sm shadow-md transition-all active:scale-95 flex items-center justify-center gap-2"
+                >
+                    👶 Adicionar Criança
+                </Button>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Button 
+                    onClick={() => handleStartWizard('senior')} 
+                    className="h-12 rounded-2xl bg-[#006020]/90 text-white hover:bg-[#004d1a] font-black text-[10px] shadow-sm transition-all active:scale-95"
+                >
+                    🧓 Idoso (60+)
+                </Button>
+                <Button 
+                    onClick={() => handleStartWizard('pcd')} 
+                    className="h-12 rounded-2xl bg-[#006020]/90 text-white hover:bg-[#004d1a] font-black text-[10px] shadow-sm transition-all active:scale-95"
+                >
+                    ♿ PCD & TEA
+                </Button>
+              </div>
             </div>
 
           </div>

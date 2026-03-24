@@ -17,9 +17,9 @@ export function Navbar() {
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-primary/95 backdrop-blur-md border-b border-primary-foreground/10">
-      <div className="container px-4 flex items-center justify-between h-14 sm:h-16 relative">
-        <a href="#inicio" className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <img src={logo} alt="Balneário Lessa" className="h-8 sm:h-10 shrink-0" />
+      <div className="container px-2 sm:px-4 flex items-center justify-between h-12 sm:h-16 relative">
+        <a href="#inicio" className="flex items-center gap-1 sm:gap-3 min-w-0">
+          <img src={logo} alt="Balneário Lessa" className="h-7 sm:h-10 shrink-0" />
           <span className="hidden sm:inline font-display font-black text-primary-foreground text-lg md:text-xl tracking-wide uppercase whitespace-nowrap">
             Balneário Lessa
           </span>

@@ -31,7 +31,7 @@ export function HeroSection() {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7 }}
-          className="font-display font-extrabold text-5xl sm:text-6xl md:text-7xl lg:text-8xl text-white leading-[1.1] mb-4 sm:mb-6 drop-shadow-2xl px-2"
+          className="font-display font-extrabold text-4xl sm:text-6xl md:text-7xl lg:text-8xl text-white leading-[1.1] mb-4 sm:mb-6 drop-shadow-2xl px-2"
         >
           Balneário Lessa
         </motion.h1>
