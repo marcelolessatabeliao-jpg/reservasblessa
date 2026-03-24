@@ -155,39 +155,12 @@ export function BookingSection() {
                         />
                       </div>
                     </div>
-
-                    <div className="space-y-2">
-                      <Label className="font-bold text-sm uppercase tracking-wider text-muted-foreground">Data da Visita</Label>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant={"outline"}
-                            className={cn(
-                              "w-full h-14 justify-start text-left font-medium text-lg rounded-xl border-2",
-                              !booking.entry.visitDate && "text-muted-foreground"
-                            )}
-                          >
-                            <CalendarIcon className="mr-2 h-5 w-5 text-primary" />
-                            {booking.entry.visitDate ? format(booking.entry.visitDate, "PPP", { locale: ptBR }) : <span>Selecione uma data</span>}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={booking.entry.visitDate}
-                            onSelect={(date) => updateEntry({ visitDate: date })}
-                            disabled={(date) => date < new Date() || !isOperatingDay(date)} 
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
                   </div>
 
                   <div className="pt-6 flex justify-end">
                     <Button 
                       size="lg"
-                      disabled={!booking.entry.name || !booking.entry.phone || !booking.entry.visitDate}
+                      disabled={!booking.entry.name || !booking.entry.phone}
                       onClick={() => nextStep('entradas')}
                       className="bg-primary hover:bg-primary-dark text-white font-black h-16 px-12 rounded-2xl shadow-xl shadow-primary/20 text-lg group"
                     >
@@ -207,7 +180,37 @@ export function BookingSection() {
                 >
                   <div className="flex items-center gap-3 mb-2">
                     <div className="p-2 bg-primary/10 rounded-lg text-primary"><Ticket className="h-5 w-5" /></div>
-                    <h3 className="font-gliker text-2xl text-primary">Quem vai com você?</h3>
+                    <h3 className="font-gliker text-2xl text-primary">Para quando e quem vai?</h3>
+                  </div>
+
+                  <div className="bg-white/50 backdrop-blur-md rounded-2xl border border-white/60 p-5 sm:p-6 shadow-xl mb-6">
+                    <div className="space-y-2">
+                        <Label className="font-bold text-sm uppercase tracking-wider text-muted-foreground">Selecione a Data da Visita</Label>
+                        <p className="text-[10px] text-muted-foreground mb-2 font-medium italic">* Funcionamento: Sexta a Segunda</p>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant={"outline"}
+                                    className={cn(
+                                        "w-full h-14 justify-start text-left font-medium text-lg rounded-xl border-2",
+                                        !booking.entry.visitDate && "text-muted-foreground"
+                                    )}
+                                >
+                                    <CalendarIcon className="mr-2 h-5 w-5 text-primary" />
+                                    {booking.entry.visitDate ? format(booking.entry.visitDate, "PPP", { locale: ptBR }) : <span>Clique aqui e selecione o dia</span>}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                    mode="single"
+                                    selected={booking.entry.visitDate}
+                                    onSelect={(date) => updateEntry({ visitDate: date })}
+                                    disabled={(date) => date < new Date() || !isOperatingDay(date)} 
+                                    initialFocus
+                                />
+                            </PopoverContent>
+                        </Popover>
+                    </div>
                   </div>
 
                   <EntrySelector
