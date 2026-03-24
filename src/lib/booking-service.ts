@@ -131,8 +131,8 @@ export async function saveBooking(
       }
     }
   } catch (err: any) {
-    console.error('CRITICAL: Master order sync broken.', err);
-    if (!finalOrderId) {
+    console.warn('Sync with orders table failed, but we will proceed if legacy bookings worked.', err);
+    if (!legacyBookingId) {
       throw new Error(`Falha no Sistema de Pedidos: ${err.message || 'Erro desconhecido'}`); 
     }
   }
@@ -160,7 +160,7 @@ export async function saveBooking(
   return { 
     id: legacyBookingId || finalOrderId || '', 
     confirmationCode: confirmationCode || 'PENDENTE',
-    orderId: finalOrderId 
+    orderId: finalOrderId || legacyBookingId 
   };
 }
 
