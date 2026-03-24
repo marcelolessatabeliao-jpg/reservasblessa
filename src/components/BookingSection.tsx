@@ -207,6 +207,7 @@ export function BookingSection() {
                                     onSelect={(date) => updateEntry({ visitDate: date })}
                                     disabled={(date) => date < new Date() || !isOperatingDay(date)} 
                                     initialFocus
+                                    locale={ptBR}
                                 />
                             </PopoverContent>
                         </Popover>
