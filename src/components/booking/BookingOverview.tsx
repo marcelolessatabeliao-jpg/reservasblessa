@@ -110,37 +110,50 @@ export function BookingOverview({ booking, totals }: Props) {
         unit_price: getPrice(`add_${a.type}`, ADDITIONAL_INFO[a.type].price) 
       });
     });
+    console.log("[Booking] handleAction started. isPrepay:", isPrepay);
     setSaving(true);
     try {
       const result = await saveBooking(booking, totals.total, null, items);
+      console.log("[Booking] saveBooking result:", result);
       
-      if (result?.orderId) {
-        if (isPrepay) {
-          // Virtual Payment Branch
-          setPaymentData({ open: true, orderId: result.orderId, confirmationCode: result.confirmationCode });
-          toast({
-            title: 'Iniciando Pagamento',
-            description: 'Aguarde enquanto preparamos seu link de pagamento seguro.',
-          });
-        } else {
-          // WhatsApp / Local branch
-          await (supabase as any).from('orders').update({ 
-            status: 'waiting_local',
-            updated_at: new Date().toISOString()
-          }).eq('id', result.orderId);
-          
-          const msg = buildWhatsAppMessage(booking, totals.total, false, result.confirmationCode, getPrice);
-          const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
-          window.open(whatsappUrl, '_blank');
-          
-          toast({
-            title: 'Reserva via WhatsApp',
-            description: 'Sua reserva foi enviada. Confirme os detalhes com nossa equipe.',
-          });
-        }
+      if (!result?.orderId) {
+        throw new Error("Não foi possível gerar o ID do pedido.");
       }
+
+      if (isPrepay === true) {
+        console.log("[Booking] Entering Virtual Payment Flow");
+        // ABSOLUTE BLINDAGE: Stop here and open modal
+        setPaymentData({ 
+          open: true, 
+          orderId: result.orderId, 
+          confirmationCode: result.confirmationCode 
+        });
+        
+        toast({
+          title: 'Iniciando Pagamento',
+          description: 'Aguarde enquanto preparamos seu link de pagamento seguro.',
+        });
+        return; // EXIT FUNCTION HERE
+      } 
+      
+      // WhatsApp / Local branch (ONLY if isPrepay is false)
+      console.log("[Booking] Entering WhatsApp Flow");
+      await (supabase as any).from('orders').update({ 
+        status: 'waiting_local',
+        updated_at: new Date().toISOString()
+      }).eq('id', result.orderId);
+      
+      const msg = buildWhatsAppMessage(booking, totals.total, false, result.confirmationCode, getPrice);
+      const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
+      window.open(whatsappUrl, '_blank');
+      
+      toast({
+        title: 'Reserva via WhatsApp',
+        description: 'Sua reserva foi enviada. Confirme os detalhes com nossa equipe.',
+      });
+      
     } catch (err: any) {
-      console.error("Booking Error:", err);
+      console.error("[Booking] CRITICAL ERROR:", err);
       toast({ 
         title: 'Erro ao salvar', 
         description: err.message || 'Houve um problema ao salvar seu pedido.', 
@@ -152,12 +165,14 @@ export function BookingOverview({ booking, totals }: Props) {
   };
 
   const handlePaymentSuccess = (method: string) => {
+    console.log("[Booking] handlePaymentSuccess. Method:", method);
     if (method === 'local' || method === 'manual') {
       const msg = buildWhatsAppMessage(booking, totals.total, false, paymentData?.confirmationCode, getPrice);
       const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
       window.open(whatsappUrl, '_blank');
     } else {
-      // For virtual payments (paid_auto, pix, etc.), show success but don't force WhatsApp redirect anymore
+      // For virtual payments, just show success. 
+      // Do NOT open WhatsApp automatically anymore to satisfy "Pagamento Virtual" goal.
       toast({
         title: 'Sucesso!',
         description: 'Seu pagamento foi reconhecido. Acompanhe seu e-mail para o voucher.',

@@ -8,6 +8,7 @@ import { AdditionalSelector } from '@/components/booking/AdditionalSelector';
 import { BookingOverview } from '@/components/booking/BookingOverview';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { Ticket, Home, Bike, Fish, Trophy, ClipboardList, ArrowRight } from 'lucide-react';
 
 export function BookingSection() {
@@ -141,106 +142,159 @@ export function BookingSection() {
                   <div className="text-left hidden lg:block relative z-10 min-w-0">
                     <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground group-data-[state=active]:text-primary/70">Finalizar</p>
                     <p className="text-base sm:text-lg font-bold text-foreground">Resumo</p>
+          {/* Replaced Tabs with a stepper-like structure */}
+          <div className="flex flex-col gap-6 max-w-4xl mx-auto">
+            {/* Step 1: Entry */}
+            <div className={cn("bg-white/50 backdrop-blur-md rounded-[2.5rem] border border-white/60 p-4 sm:p-6 shadow-xl space-y-4 transition-all", activeTab !== 'entrada' && "opacity-50 grayscale-[0.5] max-h-[100px] overflow-hidden cursor-pointer")} onClick={() => activeTab !== 'entrada' && setActiveTab('entrada')}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-black">1</div>
+                  <h3 className="font-gliker text-xl text-primary">Data e Participantes</h3>
+                </div>
+                {activeTab !== 'entrada' && <Button variant="ghost" size="sm" className="font-bold">Alterar</Button>}
+              </div>
+              
+              {activeTab === 'entrada' && (
+                <div className="pt-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <EntrySelector
+                    entry={booking.entry}
+                    onUpdateEntry={updateEntry}
+                    onRemoveAdult={removeAdult}
+                    onUpdateAdult={updateAdult}
+                    onRemoveChild={removeChild}
+                    onUpdateChild={updateChild}
+                  />
+                  <div className="mt-8 flex justify-end">
+                    <Button 
+                      disabled={!booking.entry.visitDate || (booking.entry.adults.length === 0 && booking.entry.children.length === 0)}
+                      onClick={(e) => { e.stopPropagation(); setActiveTab('quiosques'); }}
+                      className="bg-primary text-white font-black h-12 px-8 rounded-xl shadow-lg"
+                    >
+                      Próximo Passo: Quiosques <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
                   </div>
-                  <span className="lg:hidden text-[9px] sm:text-[11px] font-black uppercase relative z-10 shrink-0 text-center w-full leading-tight">Resumo</span>
-                </motion.button>
-              </TabsTrigger>
-            </TabsList>
-
-            <div className="flex-1 animate-in fade-in-50 duration-700 min-h-[500px] bg-white/40 backdrop-blur-xl border border-white/60 p-2 sm:p-8 rounded-[2rem] lg:rounded-[3rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative z-10">
-              <TabsContent value="entrada" className="m-0 focus-visible:outline-none focus-visible:ring-0">
-                <EntrySelector
-                  entry={booking.entry}
-                  onUpdateEntry={updateEntry}
-                  onRemoveAdult={removeAdult}
-                  onUpdateAdult={updateAdult}
-                  onRemoveChild={removeChild}
-                  onUpdateChild={updateChild}
-                />
-                <div className="mt-8 flex justify-end">
-                  <Button 
-                    onClick={() => setActiveTab('quiosques')}
-                    className="bg-primary text-white font-bold h-12 px-8 rounded-xl shadow-lg shadow-primary/20"
-                  >
-                    Próximo Passo: Quiosques <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
                 </div>
-              </TabsContent>
-
-              <TabsContent value="quiosques" className="m-0 focus-visible:outline-none focus-visible:ring-0">
-                <KioskSelector kiosks={booking.kiosks} onUpdate={updateKiosk} />
-                <div className="mt-8 flex justify-between">
-                  <Button variant="ghost" onClick={() => setActiveTab('entrada')}>Voltar</Button>
-                  <Button 
-                    onClick={() => setActiveTab('quads')}
-                    className="bg-primary text-white font-bold h-12 px-8 rounded-xl shadow-lg shadow-primary/20"
-                  >
-                    Próximo Passo: Quadriciclos <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="quads" className="m-0 focus-visible:outline-none focus-visible:ring-0">
-                <QuadSelector quads={booking.quads} onUpdate={updateQuad} />
-                <div className="mt-8 flex justify-between">
-                  <Button variant="ghost" onClick={() => setActiveTab('quiosques')}>Voltar</Button>
-                  <Button 
-                    onClick={() => setActiveTab('futebol')}
-                    className="bg-primary text-white font-bold h-12 px-8 rounded-xl shadow-lg shadow-primary/20"
-                  >
-                    Próximo Passo: Futebol <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="futebol" className="m-0 focus-visible:outline-none focus-visible:ring-0">
-                <AdditionalSelector
-                  additionals={booking.additionals.filter(a => a.type === 'futebol-sabao')}
-                  onUpdate={(idx, updates) => {
-                    const originalIndex = booking.additionals.findIndex(a => a.type === 'futebol-sabao');
-                    updateAdditional(originalIndex, updates);
-                  }}
-                />
-                <div className="mt-8 flex justify-between">
-                  <Button variant="ghost" onClick={() => setActiveTab('quads')}>Voltar</Button>
-                  <Button 
-                    onClick={() => setActiveTab('pesca')}
-                    className="bg-primary text-white font-bold h-12 px-8 rounded-xl shadow-lg shadow-primary/20"
-                  >
-                    Próximo Passo: Pesca <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="pesca" className="m-0 focus-visible:outline-none focus-visible:ring-0">
-                <AdditionalSelector
-                  additionals={booking.additionals.filter(a => a.type === 'pesca')}
-                  onUpdate={(idx, updates) => {
-                    const originalIndex = booking.additionals.findIndex(a => a.type === 'pesca');
-                    updateAdditional(originalIndex, updates);
-                  }}
-                />
-                <div className="mt-8 flex justify-between">
-                  <Button variant="ghost" onClick={() => setActiveTab('futebol')}>Voltar</Button>
-                  <Button 
-                    onClick={() => setActiveTab('resumo')}
-                    className="bg-primary text-white font-black h-14 px-10 rounded-2xl shadow-xl shadow-primary/20 text-lg"
-                  >
-                    Ver Resumo Final <ArrowRight className="ml-2 h-5 w-5" />
-                  </Button>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="resumo" className="m-0 focus-visible:outline-none focus-visible:ring-0">
-                <BookingOverview booking={booking} totals={totals} />
-                <div className="mt-8">
-                  <Button variant="ghost" onClick={() => setActiveTab('pesca')}>← Voltar para Opções</Button>
-                </div>
-              </TabsContent>
+              )}
             </div>
-          </Tabs>
+
+            {/* Step 2: Kiosks */}
+            <div className={cn("bg-white/50 backdrop-blur-md rounded-[2.5rem] border border-white/60 p-4 sm:p-6 shadow-xl space-y-4 transition-all", activeTab !== 'quiosques' && "opacity-50 grayscale-[0.5] max-h-[100px] overflow-hidden cursor-pointer")} onClick={() => activeTab !== 'quiosques' && setActiveTab('quiosques')}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-black">2</div>
+                  <h3 className="font-gliker text-xl text-primary">Quiosques</h3>
+                </div>
+                {activeTab !== 'quiosques' && <Button variant="ghost" size="sm" className="font-bold">Alterar</Button>}
+              </div>
+
+              {activeTab === 'quiosques' && (
+                <div className="pt-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <KioskSelector kiosks={booking.kiosks} onUpdate={updateKiosk} />
+                  <div className="mt-8 flex justify-between">
+                    <Button variant="ghost" onClick={(e) => { e.stopPropagation(); setActiveTab('entrada'); }}>Voltar</Button>
+                    <Button 
+                      onClick={(e) => { e.stopPropagation(); setActiveTab('quads'); }}
+                      className="bg-primary text-white font-black h-12 px-8 rounded-xl shadow-lg"
+                    >
+                      Próximo Passo: Quadriciclos <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Step 3: Quads */}
+            <div className={cn("bg-white/50 backdrop-blur-md rounded-[2.5rem] border border-white/60 p-4 sm:p-6 shadow-xl space-y-4 transition-all", activeTab !== 'quads' && "opacity-50 grayscale-[0.5] max-h-[100px] overflow-hidden cursor-pointer")} onClick={() => activeTab !== 'quads' && setActiveTab('quads')}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-black">3</div>
+                  <h3 className="font-gliker text-xl text-primary">Quadriciclos</h3>
+                </div>
+                {activeTab !== 'quads' && <Button variant="ghost" size="sm" className="font-bold">Alterar</Button>}
+              </div>
+
+              {activeTab === 'quads' && (
+                <div className="pt-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <QuadSelector quads={booking.quads} onUpdate={updateQuad} />
+                  <div className="mt-8 flex justify-between">
+                    <Button variant="ghost" onClick={(e) => { e.stopPropagation(); setActiveTab('quiosques'); }}>Voltar</Button>
+                    <Button 
+                      onClick={(e) => { e.stopPropagation(); setActiveTab('futebol'); }}
+                      className="bg-primary text-white font-black h-12 px-8 rounded-xl shadow-lg"
+                    >
+                      Próximo Passo: Futebol <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Step 4: Futebol & Adicionais */}
+            <div className={cn("bg-white/50 backdrop-blur-md rounded-[2.5rem] border border-white/60 p-4 sm:p-6 shadow-xl space-y-4 transition-all", activeTab !== 'futebol' && activeTab !== 'pesca' && activeTab !== 'resumo' && "opacity-50 grayscale-[0.5] max-h-[100px] overflow-hidden")} onClick={() => activeTab === 'futebol' || activeTab === 'pesca' ? null : setActiveTab('futebol')}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-black">4</div>
+                  <h3 className="font-gliker text-xl text-primary">Serviços Adicionais</h3>
+                </div>
+              </div>
+
+              {(activeTab === 'futebol' || activeTab === 'pesca') && (
+                <div className="pt-4 space-y-8 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <div className="space-y-4">
+                    <h4 className="font-bold text-sm uppercase text-muted-foreground tracking-widest pl-2">Diversão e Pesca</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <AdditionalSelector
+                        additionals={booking.additionals.filter(a => a.type === 'futebol-sabao')}
+                        onUpdate={(idx, updates) => {
+                          const originalIndex = booking.additionals.findIndex(a => a.type === 'futebol-sabao');
+                          updateAdditional(originalIndex, updates);
+                        }}
+                      />
+                      <AdditionalSelector
+                        additionals={booking.additionals.filter(a => a.type === 'pesca')}
+                        onUpdate={(idx, updates) => {
+                          const originalIndex = booking.additionals.findIndex(a => a.type === 'pesca');
+                          updateAdditional(originalIndex, updates);
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between">
+                    <Button variant="ghost" onClick={() => setActiveTab('quads')}>Voltar</Button>
+                    <Button 
+                      onClick={() => setActiveTab('resumo')}
+                      className="bg-primary text-white font-black h-14 px-10 rounded-2xl shadow-xl text-lg"
+                    >
+                      Ver Resumo Final <ArrowRight className="ml-2 h-5 w-5" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Step 5: Summary */}
+            <div className={cn("bg-white/50 backdrop-blur-md rounded-[2.5rem] border border-white/60 p-4 sm:p-6 shadow-xl space-y-4 transition-all", activeTab !== 'resumo' && "opacity-50 grayscale-[0.5] max-h-[100px] overflow-hidden")} onClick={() => activeTab === 'resumo' && setActiveTab('resumo')}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-black">5</div>
+                  <h3 className="font-gliker text-xl text-primary">Resumo da Reserva</h3>
+                </div>
+              </div>
+
+              {activeTab === 'resumo' && (
+                <div className="pt-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <BookingOverview booking={booking} totals={totals} />
+                  <div className="mt-8">
+                    <Button variant="ghost" onClick={() => setActiveTab('futebol')}>← Voltar para Opções</Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </section>
   );
 }
+```
