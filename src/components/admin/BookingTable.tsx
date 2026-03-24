@@ -16,28 +16,30 @@ interface Booking {
   visit_date: string;
   adults: number;
   children: any;
-  kiosks: any;
-  quads: any;
-  additionals: any;
-  has_donation: boolean | null;
-  is_associado: boolean | null;
+  kiosks?: any;
+  quads?: any;
+  additionals?: any;
+  has_donation?: boolean | null;
+  is_associado?: boolean | null;
   total_amount: number;
   status: string;
   notes: string | null;
   checked_in_at: string | null;
   created_at: string;
+  is_order?: boolean;
 }
 
 interface BookingTableProps {
   bookings: Booking[];
-  onStatusChange: (bookingId: string, status: string) => void;
-  onAddNote: (bookingId: string, notes: string) => void;
+  onStatusChange: (bookingId: string, status: string, isOrder?: boolean) => void;
+  onAddNote: (bookingId: string, notes: string, isOrder?: boolean) => void;
   updatingId: string | null;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive'; icon: React.ElementType }> = {
   pending: { label: 'Pendente', variant: 'outline', icon: Clock },
   confirmed: { label: 'Confirmada', variant: 'secondary', icon: CheckCircle },
+  paid: { label: 'Pago', variant: 'secondary', icon: CheckCircle },
   'checked-in': { label: 'Check-in ✓', variant: 'default', icon: UserCheck },
   cancelled: { label: 'Cancelada', variant: 'destructive', icon: XCircle },
 };
@@ -56,7 +58,8 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, updatingId }
   }
 
   const handleSaveNote = (bookingId: string) => {
-    onAddNote(bookingId, noteText);
+    const booking = bookings.find(b => b.id === bookingId);
+    onAddNote(bookingId, noteText, booking?.is_order);
     setEditingNoteId(null);
   };
 
@@ -160,7 +163,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, updatingId }
                       size="sm"
                       variant="outline"
                       disabled={updatingId === booking.id}
-                      onClick={(e) => { e.stopPropagation(); onStatusChange(booking.id, 'confirmed'); }}
+                      onClick={(e) => { e.stopPropagation(); onStatusChange(booking.id, 'confirmed', booking.is_order); }}
                     >
                       <CheckCircle className="w-4 h-4 mr-1" /> Confirmar
                     </Button>
@@ -169,7 +172,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, updatingId }
                     <Button
                       size="sm"
                       disabled={updatingId === booking.id}
-                      onClick={(e) => { e.stopPropagation(); onStatusChange(booking.id, 'checked-in'); }}
+                      onClick={(e) => { e.stopPropagation(); onStatusChange(booking.id, 'checked-in', booking.is_order); }}
                       className="bg-whatsapp hover:bg-whatsapp/90"
                     >
                       <UserCheck className="w-4 h-4 mr-1" /> Check-in
@@ -180,7 +183,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, updatingId }
                       size="sm"
                       variant="destructive"
                       disabled={updatingId === booking.id}
-                      onClick={(e) => { e.stopPropagation(); onStatusChange(booking.id, 'cancelled'); }}
+                      onClick={(e) => { e.stopPropagation(); onStatusChange(booking.id, 'cancelled', booking.is_order); }}
                     >
                       <XCircle className="w-4 h-4 mr-1" /> Cancelar
                     </Button>

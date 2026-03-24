@@ -46,16 +46,47 @@ export default function Admin() {
   const fetchBookings = useCallback(async () => {
     setLoading(true);
     try {
+      // First try to fetch from 'orders' (the new unified source of truth)
       const { data, error } = await supabase
-        .from('bookings')
-        .select('*')
+        .from('orders')
+        .select(`
+          *,
+          order_items (*)
+        `)
+        .not('visit_date', 'is', null) // Only treat items with a visit date as bookings
         .order('visit_date', { ascending: true })
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setBookings(data || []);
-    } catch {
-      toast({ title: 'Erro ao carregar reservas', variant: 'destructive' });
+      if (error) {
+        console.warn('Orders fetch failed, trying legacy bookings:', error);
+        // Fallback to legacy 'bookings' if 'orders' unification hasn't happened yet
+        const { data: legacyData, error: legacyError } = await supabase
+          .from('bookings' as any)
+          .select('*')
+          .order('visit_date', { ascending: true });
+        
+        if (legacyError) throw legacyError;
+        setBookings(legacyData || []);
+      } else {
+        // Map 'orders' format back to what the UI expects for 'bookings'
+        const mapped = data?.map(o => ({
+           id: o.id,
+           name: o.customer_name,
+           phone: o.customer_phone,
+           visit_date: o.visit_date,
+           status: o.status === 'paid' ? 'confirmed' : o.status,
+           total_amount: o.total_amount,
+           confirmation_code: o.confirmation_code,
+           created_at: o.created_at,
+           is_order: true,
+           adults: o.order_items?.filter((i: any) => i.product_id.includes('Adulto')).reduce((acc: number, item: any) => acc + item.quantity, 0) || 0,
+           children: o.order_items?.filter((i: any) => i.product_id.includes('Criança')).reduce((acc: number, item: any) => acc + item.quantity, 0) || 0
+        }));
+        setBookings(mapped || []);
+      }
+    } catch (err: any) {
+      console.error('Admin fetch error:', err);
+      toast({ title: 'Erro ao carregar dados', description: err.message, variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -70,13 +101,15 @@ export default function Admin() {
     const bookingChannel = supabase
       .channel('admin-bookings')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, () => {
-        fetchBookings();
+        fetchBookings(); // Both tables update the same view now
+        fetchOrders();
       })
       .subscribe();
 
     const orderChannel = supabase
       .channel('admin-orders')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+        fetchBookings(); // Both tables update the same view now
         fetchOrders();
       })
       .subscribe();
@@ -87,20 +120,29 @@ export default function Admin() {
     };
   }, [token, fetchBookings, fetchOrders]);
 
-  const handleStatusChange = async (bookingId: string, status: string) => {
+  const handleStatusChange = async (bookingId: string, status: string, isOrder?: boolean) => {
     setUpdatingId(bookingId);
     try {
-      const { data, error } = await supabase.functions.invoke('update-booking-status', {
-        body: { bookingId, status, adminToken: token },
-      });
+      if (isOrder) {
+         // Direct update for orders
+         const { error } = await supabase.from('orders').update({ 
+           status: status === 'confirmed' ? 'paid' : status,
+           updated_at: new Date().toISOString()
+         }).eq('id', bookingId);
+         if (error) throw error;
+      } else {
+        const { data, error } = await supabase.functions.invoke('update-booking-status', {
+          body: { bookingId, status, adminToken: token },
+        });
 
-      if (error || !data?.success) {
-        if (data?.error === 'Token inválido' || data?.error === 'Não autorizado') {
-          localStorage.removeItem('admin_token');
-          setToken(null);
-          return;
+        if (error || !data?.success) {
+          if (data?.error === 'Token inválido' || data?.error === 'Não autorizado') {
+            localStorage.removeItem('admin_token');
+            setToken(null);
+            return;
+          }
+          throw new Error(data?.error || 'Erro');
         }
-        throw new Error(data?.error || 'Erro');
       }
 
       setBookings((prev) =>
@@ -109,19 +151,23 @@ export default function Admin() {
 
       const statusLabels: Record<string, string> = { confirmed: 'Confirmada', 'checked-in': 'Check-in realizado', cancelled: 'Cancelada', pending: 'Pendente' };
       toast({ title: `✅ ${statusLabels[status] || 'Atualizado'}` });
-    } catch {
-      toast({ title: 'Erro ao atualizar status', variant: 'destructive' });
+    } catch (err: any) {
+      toast({ title: 'Erro ao atualizar status', description: err.message, variant: 'destructive' });
     } finally {
       setUpdatingId(null);
     }
   };
 
-  const handleAddNote = async (bookingId: string, notes: string) => {
+  const handleAddNote = async (bookingId: string, notes: string, isOrder?: boolean) => {
     try {
-      const { error } = await supabase.functions.invoke('update-booking-status', {
-        body: { bookingId, notes, adminToken: token },
-      });
-      if (error) throw error;
+      if (isOrder) {
+        await supabase.from('orders').update({ notes }).eq('id', bookingId);
+      } else {
+        const { error } = await supabase.functions.invoke('update-booking-status', {
+          body: { bookingId, notes, adminToken: token },
+        });
+        if (error) throw error;
+      }
       setBookings((prev) => prev.map((b) => b.id === bookingId ? { ...b, notes } : b));
     } catch {
       toast({ title: 'Erro ao salvar observação', variant: 'destructive' });
@@ -136,16 +182,16 @@ export default function Admin() {
   const filtered = useMemo(() => {
     let result = bookings;
     if (dateFilter === 'today') {
-      result = result.filter((b) => isToday(parseISO(b.visit_date)));
+      result = result.filter((b) => b.visit_date && isToday(parseISO(b.visit_date)));
     } else if (dateFilter === 'tomorrow') {
-      result = result.filter((b) => isTomorrow(parseISO(b.visit_date)));
+      result = result.filter((b) => b.visit_date && isTomorrow(parseISO(b.visit_date)));
     } else if (dateFilter === 'week') {
-      result = result.filter((b) => isThisWeek(parseISO(b.visit_date), { locale: ptBR }));
+      result = result.filter((b) => b.visit_date && isThisWeek(parseISO(b.visit_date), { locale: ptBR }));
     }
     if (search.trim()) {
       const q = search.toLowerCase();
       result = result.filter((b) =>
-        b.name.toLowerCase().includes(q) ||
+        (b.name || '').toLowerCase().includes(q) ||
         (b.confirmation_code && b.confirmation_code.toLowerCase().includes(q)) ||
         (b.phone && b.phone.includes(q))
       );
@@ -154,17 +200,17 @@ export default function Admin() {
   }, [bookings, dateFilter, search]);
 
   const stats = useMemo(() => {
-    const todayBookings = bookings.filter((b) => isToday(parseISO(b.visit_date)));
-    const confirmedOrChecked = todayBookings.filter(b => b.status === 'confirmed' || b.status === 'checked-in');
+    const todayBookings = bookings.filter((b) => b.visit_date && isToday(parseISO(b.visit_date)));
+    const confirmedOrChecked = todayBookings.filter(b => b.status === 'confirmed' || b.status === 'checked-in' || b.status === 'paid');
     return {
       todayCount: todayBookings.length,
       todayPeople: todayBookings.reduce((sum, b) => {
-        const childrenCount = Array.isArray(b.children) ? b.children.length : 0;
-        return sum + b.adults + childrenCount;
+        const childrenCount = Array.isArray(b.children) ? b.children.length : (b.children || 0);
+        return sum + (b.adults || 0) + (typeof childrenCount === 'number' ? childrenCount : 0);
       }, 0),
       todayRevenue: confirmedOrChecked.reduce((sum, b) => sum + Number(b.total_amount), 0),
       checkedIn: todayBookings.filter((b) => b.status === 'checked-in').length,
-      confirmed: todayBookings.filter((b) => b.status === 'confirmed').length,
+      confirmed: todayBookings.filter((b) => b.status === 'confirmed' || b.status === 'paid').length,
       pending: todayBookings.filter((b) => b.status === 'pending').length,
     };
   }, [bookings]);
@@ -185,81 +231,92 @@ export default function Admin() {
       await markOrderAsPaid(orderId);
       toast({ title: '✅ Pedido pago e Voucher gerado!' });
       fetchOrders();
+      fetchBookings();
     } catch {
       toast({ title: 'Erro ao processar pagamento', variant: 'destructive' });
     }
   };
 
   return (
-    <div className="min-h-screen bg-muted">
+    <div className="min-h-screen bg-muted font-sans">
       {/* Header */}
       <div className="bg-primary text-primary-foreground px-4 py-3 flex items-center justify-between sticky top-0 z-50 shadow-lg">
         <div>
-          <h1 className="font-display font-bold text-lg">Painel de Reservas</h1>
-          <p className="text-primary-foreground/70 text-xs">Balneário Lessa</p>
+          <h1 className="font-display font-bold text-lg">Painel Lessa Reservas</h1>
+          <p className="text-primary-foreground/70 text-xs font-medium">Controle de Acesso & Vendas</p>
         </div>
         <div className="flex gap-2">
-          <Button size="icon" variant="ghost" className="text-primary-foreground hover:bg-primary-foreground/20" onClick={fetchBookings} disabled={loading}>
+          <Button size="icon" variant="ghost" className="text-primary-foreground hover:bg-white/10" onClick={() => { fetchBookings(); fetchOrders(); }} disabled={loading}>
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </Button>
-          <Button size="icon" variant="ghost" className="text-primary-foreground hover:bg-primary-foreground/20" onClick={handleLogout}>
+          <Button size="icon" variant="ghost" className="text-primary-foreground hover:bg-white/10" onClick={handleLogout}>
             <LogOut className="w-4 h-4" />
           </Button>
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto p-4 space-y-4">
-        {/* Tabs */}
-        <div className="flex bg-white/50 p-1 rounded-xl gap-1">
+      <div className="max-w-4xl mx-auto p-4 space-y-4">
+        {/* Tab Selector */}
+        <div className="flex bg-white/80 backdrop-blur-sm p-1.5 rounded-2xl gap-2 shadow-sm border border-white">
           <Button 
-            className="flex-1" 
+            className={`flex-1 rounded-xl font-bold transition-all ${activeTab === 'reservas' ? 'shadow-md scale-[1.02]' : ''}`} 
             variant={activeTab === 'reservas' ? 'default' : 'ghost'} 
             onClick={() => setActiveTab('reservas')}
           >
-            Reservas
+            <CalendarCheck className="w-4 h-4 mr-2" />
+            Agenda de Visitas
           </Button>
           <Button 
-            className="flex-1" 
+            className={`flex-1 rounded-xl font-bold transition-all ${activeTab === 'pedidos' ? 'shadow-md scale-[1.02]' : ''}`} 
             variant={activeTab === 'pedidos' ? 'default' : 'ghost'} 
             onClick={() => setActiveTab('pedidos')}
           >
-            Pedidos & Vouchers
+            <DollarSign className="w-4 h-4 mr-2" />
+            Vendas Diretas
           </Button>
         </div>
 
         {activeTab === 'reservas' ? (
           <>
-            {/* Stats cards */}
+            {/* Stats grid */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <Card>
-                <CardContent className="p-3 text-center">
-                  <Users className="w-5 h-5 mx-auto text-primary mb-1" />
-                  <p className="text-2xl font-bold text-foreground">{stats.todayPeople}</p>
-                  <p className="text-xs text-muted-foreground">Pessoas hoje</p>
+              <Card className="border-none shadow-sm bg-white/80">
+                <CardContent className="p-4 text-center">
+                  <div className="bg-primary/10 w-8 h-8 rounded-full flex items-center justify-center mx-auto mb-2 text-primary">
+                    <Users className="w-4 h-4" />
+                  </div>
+                  <p className="text-2xl font-black text-foreground">{stats.todayPeople}</p>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Pessoas Hoje</p>
                 </CardContent>
               </Card>
-              <Card>
-                <CardContent className="p-3 text-center">
-                  <UserCheck className="w-5 h-5 mx-auto text-whatsapp mb-1" />
-                  <p className="text-2xl font-bold text-foreground">{stats.checkedIn}<span className="text-sm text-muted-foreground">/{stats.todayCount}</span></p>
-                  <p className="text-xs text-muted-foreground">Check-ins</p>
+              <Card className="border-none shadow-sm bg-white/80">
+                <CardContent className="p-4 text-center">
+                  <div className="bg-whatsapp/10 w-8 h-8 rounded-full flex items-center justify-center mx-auto mb-2 text-whatsapp">
+                    <UserCheck className="w-4 h-4" />
+                  </div>
+                  <p className="text-2xl font-black text-foreground">{stats.checkedIn}</p>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Check-ins</p>
                 </CardContent>
               </Card>
-              <Card>
-                <CardContent className="p-3 text-center">
-                  <CalendarCheck className="w-5 h-5 mx-auto text-sun mb-1" />
-                  <p className="text-2xl font-bold text-foreground">{stats.confirmed}</p>
-                  <p className="text-xs text-muted-foreground">Confirmadas</p>
+              <Card className="border-none shadow-sm bg-white/80">
+                <CardContent className="p-4 text-center">
+                  <div className="bg-primary/10 w-8 h-8 rounded-full flex items-center justify-center mx-auto mb-2 text-primary">
+                    <CalendarCheck className="w-4 h-4" />
+                  </div>
+                  <p className="text-2xl font-black text-foreground">{stats.todayCount}</p>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Agendamentos</p>
                 </CardContent>
               </Card>
-              <Card>
-                <CardContent className="p-3 text-center">
-                  <TrendingUp className="w-5 h-5 mx-auto text-primary mb-1" />
-                  <p className="text-lg font-bold text-foreground">{formatCurrency(stats.todayRevenue)}</p>
-                  <p className="text-xs text-muted-foreground">Receita hoje</p>
+              <Card className="border-none shadow-sm bg-white/80">
+                <CardContent className="p-4 text-center">
+                  <div className="bg-sun/10 w-8 h-8 rounded-full flex items-center justify-center mx-auto mb-2 text-sun-dark">
+                    <TrendingUp className="w-4 h-4" />
+                  </div>
+                  <p className="text-xl font-black text-foreground">{formatCurrency(stats.todayRevenue)}</p>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Receita</p>
                 </CardContent>
               </Card>
-            </div>
+            </div>    </div>
 
             {/* Date filter */}
             <div className="flex gap-2">
@@ -336,6 +393,12 @@ export default function Admin() {
                               }`}>
                                 {order.status === 'paid' ? 'Pago' : 'Pendente'}
                               </span>
+                              {order.payments?.[0] && (
+                                <span className="text-[10px] font-medium text-muted-foreground mt-1">
+                                  {order.payments[0].metodo === 'local' ? '📍 Pagar no Local' : 
+                                   order.payments[0].metodo === 'PIX' ? '💠 PIX' : '💳 Cartão'}
+                                </span>
+                              )}
                             </div>
                           </CardContent>
                         </Card>
@@ -358,6 +421,16 @@ export default function Admin() {
                               <p className="font-medium">{format(new Date(order.created_at), "dd 'de' MMMM", { locale: ptBR })}</p>
                             </div>
                           </div>
+
+                          {order.payments?.[0] && (
+                            <div className="bg-primary/5 rounded-xl p-3 flex justify-between items-center text-sm">
+                              <span className="text-muted-foreground font-medium">Método de Pagamento:</span>
+                              <span className="font-bold flex items-center gap-1.5">
+                                {order.payments[0].metodo === 'local' ? '📍 Pagar no Local' : 
+                                 order.payments[0].metodo === 'PIX' ? '💠 PIX' : '💳 Cartão de Crédito'}
+                              </span>
+                            </div>
+                          )}
 
                           <div className="space-y-3">
                             <p className="text-xs font-bold text-muted-foreground uppercase">Itens Comprados</p>

@@ -24,7 +24,7 @@ interface Props {
 
 export function BookingOverview({ booking, totals }: Props) {
   const [saving, setSaving] = useState(false);
-  const [paymentData, setPaymentData] = useState<{ open: boolean; orderId: string } | null>(null);
+  const [paymentData, setPaymentData] = useState<{ open: boolean; orderId: string; confirmationCode?: string } | null>(null);
   const { getPrice } = useServices();
 
   function calculateMembershipCost(people: { adultsCount: number; halfPriceCount: number }): number {
@@ -33,9 +33,6 @@ export function BookingOverview({ booking, totals }: Props) {
     return (people.adultsCount * memberFull) + (people.halfPriceCount * memberHalf);
   }
 
-export function BookingOverview({ booking, totals }: Props) {
-  const [saving, setSaving] = useState(false);
-  const [paymentData, setPaymentData] = useState<{ open: boolean; orderId: string } | null>(null);
   const hasAnything = totals.total > 0 || booking.entry.adults.length > 0 || booking.entry.children.length > 0;
 
   const handleAction = async (isPrepay: boolean) => {
@@ -67,28 +64,77 @@ export function BookingOverview({ booking, totals }: Props) {
       return;
     }
 
+    const items: any[] = [];
+    const isSunday = booking.entry.dayOfWeek === 'domingo';
+    
+    booking.entry.adults.forEach(a => {
+      const price = getPersonPrice(a, a.age >= 60, isSunday, getPrice);
+      const label = a.isPCD ? 'Lessa Inclusão' : 
+                   a.age >= 60 ? 'Lessa Vitalício' : 
+                   a.isTeacher ? 'Lessa Professor Pass' :
+                   a.isStudent ? 'Lessa Estudante Pass' :
+                   a.isServer ? 'Lessa Servidor Pass' :
+                   'Adulto';
+      items.push({ product_id: label, quantity: a.quantity || 1, unit_price: price });
+    });
+
+    booking.entry.children.forEach(c => {
+      const price = getPersonPrice(c, c.age <= 11, isSunday, getPrice);
+      items.push({ product_id: 'Criança', quantity: c.quantity || 1, unit_price: price });
+    });
+
+    booking.kiosks.filter(k => k.quantity > 0).forEach(k => {
+      items.push({ 
+        product_id: KIOSK_INFO[k.type].label, 
+        quantity: k.quantity, 
+        unit_price: getPrice(`kiosk_${k.type}`, KIOSK_INFO[k.type].price) 
+      });
+    });
+
+    booking.quads.filter(q => q.quantity > 0).forEach(q => {
+      const fallbackMap: Record<string, number> = { individual: 150, dupla: 250, 'adulto-crianca': 200 };
+      const discount = getQuadDiscount(q.date);
+      const basePrice = getPrice(`quad_${q.type}`, fallbackMap[q.type]);
+      items.push({ 
+        product_id: `Quad ${QUAD_LABELS[q.type]}`, 
+        quantity: q.quantity, 
+        unit_price: basePrice * (1 - discount) 
+      });
+    });
+
+    booking.additionals.filter(a => a.quantity > 0).forEach(a => {
+      items.push({ 
+        product_id: ADDITIONAL_INFO[a.type].label, 
+        quantity: a.quantity, 
+        unit_price: getPrice(`add_${a.type}`, ADDITIONAL_INFO[a.type].price) 
+      });
+    });
+
     setSaving(true);
     try {
-      const result = await saveBooking(booking, totals.total);
+      const result = await saveBooking(booking, totals.total, null, items);
       
-      if (isPrepay && result?.orderId) {
-        setPaymentData({ open: true, orderId: result.orderId });
-      } else {
-        const code = result?.confirmationCode;
-        const msg = buildWhatsAppMessage(booking, totals.total, isPrepay, code, getPrice);
-        const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
-        window.open(whatsappUrl, '_blank');
+      if (result?.orderId) {
+        setPaymentData({ open: true, orderId: result.orderId, confirmationCode: result.confirmationCode });
       }
     } catch (err: any) {
       console.error("Booking Error:", err);
       toast({ 
-        title: 'Erro ao salvar', 
-        description: err?.message ? err.message : 'Tente novamente.', 
+        title: 'Erro ao salvar reserva', 
+        description: err?.message || 'Erro desconhecido ao processar pedido. Verifique o console.', 
         variant: 'destructive' 
       });
     } finally {
       setSaving(false);
     }
+  };
+
+  const handlePaymentSuccess = (method: string) => {
+    // If local, prepend with instruction for prepay word logic later
+    const isPrepay = method === 'local' ? false : true;
+    const msg = buildWhatsAppMessage(booking, totals.total, isPrepay, paymentData?.confirmationCode, getPrice);
+    const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
+    window.open(whatsappUrl, '_blank');
   };
 
   if (!hasAnything) {
@@ -322,22 +368,12 @@ export function BookingOverview({ booking, totals }: Props) {
           <div className="flex flex-col sm:flex-row gap-3">
             <Button
               size="lg"
-              onClick={() => handleAction(false)}
-              disabled={saving}
-              className="flex-1 bg-white hover:bg-black/5 text-foreground border border-black/10 shadow-sm font-display font-bold h-14"
-            >
-              {saving ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <MessageCircle className="mr-2 h-5 w-5 text-whatsapp" />}
-              Confirmar no WhatsApp
-            </Button>
-
-            <Button
-              size="lg"
               onClick={() => handleAction(true)}
               disabled={saving}
-              className="flex-1 bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-600/20 font-display font-bold h-14"
+              className="w-full bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-600/20 font-display font-bold h-14"
             >
               {saving ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <CheckCircle className="mr-2 h-5 w-5" />}
-              Já quero deixar pago
+              Finalizar Pedido
             </Button>
           </div>
         </div>
@@ -352,6 +388,7 @@ export function BookingOverview({ booking, totals }: Props) {
           name={booking.entry.name || ''}
           email={''} // Adicionado suporte de e-mail opcional no Asaas Edge function
           totalAmount={totals.total}
+          onSuccess={handlePaymentSuccess}
         />
       )}
     </div>

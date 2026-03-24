@@ -11,7 +11,8 @@ import {
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, CheckCircle } from 'lucide-react';
+import { PaymentModal } from './PaymentModal';
 
 import { buildWhatsAppMessage } from '@/lib/whatsapp';
 
@@ -25,7 +26,7 @@ function calculateMembershipCost(payingCount: number, getPrice: (t: string, fb: 
 export function BookingSummary({ booking, totals, hasItems }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [confirmationCode, setConfirmationCode] = useState<string | null>(null);
+  const [paymentData, setPaymentData] = useState<{ open: boolean; orderId: string; confirmationCode?: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const { userId } = useAuth();
   const { getPrice } = useServices();
@@ -41,33 +42,81 @@ export function BookingSummary({ booking, totals, hasItems }: Props) {
       toast({ title: 'Selecione uma data', description: 'Escolha a data da sua visita.', variant: 'destructive' });
       return;
     }
+
+    const items: any[] = [];
+    const isSunday = booking.entry.dayOfWeek === 'domingo';
+    
+    booking.entry.adults.forEach(a => {
+      const price = getPersonPrice(a, a.age >= 60, isSunday, getPrice);
+      const label = a.isPCD ? 'Lessa Inclusão' : 
+                   a.age >= 60 ? 'Lessa Vitalício' : 
+                   a.isTeacher ? 'Lessa Professor Pass' :
+                   a.isStudent ? 'Lessa Estudante Pass' :
+                   a.isServer ? 'Lessa Servidor Pass' :
+                   'Adulto';
+      items.push({ product_id: label, quantity: a.quantity || 1, unit_price: price });
+    });
+
+    booking.entry.children.forEach(c => {
+      const price = getPersonPrice(c, c.age <= 11, isSunday, getPrice);
+      items.push({ product_id: 'Criança', quantity: c.quantity || 1, unit_price: price });
+    });
+
+    booking.kiosks.filter(k => k.quantity > 0).forEach(k => {
+      items.push({ 
+        product_id: KIOSK_INFO[k.type].label, 
+        quantity: k.quantity, 
+        unit_price: getPrice(`kiosk_${k.type}`, KIOSK_INFO[k.type].price) 
+      });
+    });
+
+    booking.quads.filter(q => q.quantity > 0).forEach(q => {
+      const fallbackMap: Record<string, number> = { individual: 150, dupla: 250, 'adulto-crianca': 200 };
+      const discount = getQuadDiscount(q.date);
+      const basePrice = getPrice(`quad_${q.type}`, fallbackMap[q.type]);
+      items.push({ 
+        product_id: `Quad ${QUAD_LABELS[q.type]}`, 
+        quantity: q.quantity, 
+        unit_price: basePrice * (1 - discount) 
+      });
+    });
+
+    booking.additionals.filter(a => a.quantity > 0).forEach(a => {
+      items.push({ 
+        product_id: ADDITIONAL_INFO[a.type].label, 
+        quantity: a.quantity, 
+        unit_price: getPrice(`add_${a.type}`, ADDITIONAL_INFO[a.type].price) 
+      });
+    });
+
     setSaving(true);
     try {
-      const result = await saveBooking(booking, totals.total, userId);
-      if (result) {
-        setConfirmationCode(result.confirmationCode);
+      const result = await saveBooking(booking, totals.total, userId, items);
+      if (result?.orderId) {
+        setPaymentData({ open: true, orderId: result.orderId, confirmationCode: result.confirmationCode });
       } else {
         toast({ title: 'Erro ao salvar', description: 'Tente novamente.', variant: 'destructive' });
       }
-    } catch {
-      toast({ title: 'Erro ao salvar', description: 'Tente novamente.', variant: 'destructive' });
+    } catch (err: any) {
+      toast({ title: 'Erro ao salvar reserva', description: err?.message || 'Erro desconhecido. Tente novamente.', variant: 'destructive' });
     } finally {
       setSaving(false);
     }
   };
 
+  const handlePaymentSuccess = (method: string) => {
+    const isPrepay = method === 'local' ? false : true;
+    const msg = buildWhatsAppMessage(booking, totals.total, isPrepay, paymentData?.confirmationCode, getPrice);
+    const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
+    window.open(whatsappUrl, '_blank');
+  };
+
   const handleCopyCode = async () => {
-    if (confirmationCode) {
-      await navigator.clipboard.writeText(confirmationCode);
+    if (paymentData?.confirmationCode) {
+      await navigator.clipboard.writeText(paymentData.confirmationCode);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
-  };
-
-  const handleGoToWhatsApp = () => {
-    const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(buildWhatsAppMessage(booking, totals.total, false, confirmationCode || undefined, getPrice))}`;
-    window.open(whatsappUrl, '_blank');
-    setConfirmationCode(null);
   };
 
   return (
@@ -184,35 +233,18 @@ export function BookingSummary({ booking, totals, hasItems }: Props) {
         </div>
       </div>
 
-      {/* Confirmation Dialog */}
-      <Dialog open={!!confirmationCode} onOpenChange={(open) => !open && setConfirmationCode(null)}>
-        <DialogContent className="max-w-sm text-center">
-          <DialogHeader>
-            <DialogTitle className="font-display text-xl text-center">✅ Reserva Confirmada!</DialogTitle>
-            <DialogDescription className="text-center">
-              Guarde seu código de reserva. Apresente-o na chegada ao balneário.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <p className="text-xs text-muted-foreground mb-2">Código da Reserva</p>
-            <div className="flex items-center justify-center gap-2">
-              <span className="font-mono text-3xl font-bold tracking-[0.3em] text-primary bg-primary/10 px-6 py-3 rounded-xl">
-                {confirmationCode}
-              </span>
-              <Button variant="ghost" size="icon" onClick={handleCopyCode} className="shrink-0">
-                {copied ? <Check className="h-4 w-4 text-whatsapp" /> : <Copy className="h-4 w-4" />}
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground mt-4">
-              📱 Este código também será enviado na mensagem do WhatsApp
-            </p>
-          </div>
-          <Button onClick={handleGoToWhatsApp} className="w-full bg-green-600 hover:bg-green-700 text-white font-display font-bold">
-            <MessageCircle className="mr-2 h-5 w-5" />
-            Enviar pelo WhatsApp
-          </Button>
-        </DialogContent>
-      </Dialog>
+      {/* Payment Modal */}
+      {paymentData && (
+        <PaymentModal
+          open={paymentData.open}
+          onOpenChange={(op) => setPaymentData(prev => prev ? { ...prev, open: op } : null)}
+          orderId={paymentData.orderId}
+          name={booking.entry.name || ''}
+          email={''} 
+          totalAmount={totals.total}
+          onSuccess={handlePaymentSuccess}
+        />
+      )}
     </>
   );
 }

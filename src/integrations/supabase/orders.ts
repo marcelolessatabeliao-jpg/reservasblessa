@@ -176,7 +176,8 @@ export async function getAdminOrders() {
     .select(`
       *,
       order_items (*),
-      vouchers (*)
+      vouchers (*),
+      payments (*)
     `)
     .order('created_at', { ascending: false });
 

@@ -20,7 +20,7 @@ Deno.serve(async (req) => {
     }
 
     const ASAAS_API_KEY = Deno.env.get('ASAAS_API_KEY') || '$aact_hmlg_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OmNhYWE0MGM3LWUyYzgtNGU1Yy1hMjRjLWE0YmExZmY5MmUwNzo6JGFhY2hfODlkMDkwZDctMmJjZi00ZmI1LWE2NzEtMzJiOGM5MmI1NDNi';
-    const ASAAS_BASE_URL = Deno.env.get('ASAAS_BASE_URL') || 'https://sandbox.asaas.com/api/v3';
+    const ASAAS_BASE_URL = Deno.env.get('ASAAS_BASE_URL') || 'https://www.asaas.com/api/v3';
 
     // 1. Criar cliente no Asaas
     const customerReq = await fetch(`${ASAAS_BASE_URL}/customers`, {

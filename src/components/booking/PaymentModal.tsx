@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Loader2, QrCode, CreditCard, Copy, CheckCircle } from 'lucide-react';
+import { Loader2, QrCode, CreditCard, Copy, CheckCircle, Wallet } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency } from '@/lib/booking-types';
 import { useToast } from '@/hooks/use-toast';
@@ -13,15 +13,47 @@ interface Props {
   name: string;
   email: string;
   totalAmount: number;
+  onSuccess?: (method: string) => void;
 }
 
 type PaymentMethod = 'PIX' | 'CREDIT_CARD';
 
-export function PaymentModal({ open, onOpenChange, orderId, name, email, totalAmount }: Props) {
+export function PaymentModal({ open, onOpenChange, orderId, name, email, totalAmount, onSuccess }: Props) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [pixData, setPixData] = useState<{ encodedImage: string; payload: string } | null>(null);
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!orderId || !open) return;
+
+    const channel = supabase
+      .channel(`order-status-${orderId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'orders',
+          filter: `id=eq.${orderId}`,
+        },
+        (payload) => {
+          if (payload.new.status === 'paid') {
+            toast({
+              title: 'Pagamento Confirmado!',
+              description: 'Seu pagamento foi recebido com sucesso.',
+            });
+            onOpenChange(false);
+            onSuccess?.('paid_auto');
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [orderId, open, toast, onOpenChange, onSuccess]);
 
   const handleGeneratePayment = async (method: PaymentMethod) => {
     setLoading(true);
@@ -63,6 +95,42 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, totalAm
       toast({
         title: 'Erro no Pagamento',
         description: err.message || 'Falha ao processar pagamento.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLocalPayment = async () => {
+    setLoading(true);
+    try {
+      const { error } = await (supabase as any).from('payments').insert({
+        order_id: orderId,
+        gateway: 'local',
+        metodo: 'local',
+        status: 'pending'
+      });
+
+      if (error) throw error;
+      
+      // Update order status to waiting_local
+      await (supabase as any).from('orders').update({
+        status: 'waiting_local',
+        updated_at: new Date().toISOString()
+      }).eq('id', orderId);
+      
+      toast({
+        title: 'Reserva Confirmada',
+        description: 'Faça o pagamento na bilheteria.',
+      });
+      onOpenChange(false);
+      onSuccess?.('local');
+    } catch (err: any) {
+      console.error(err);
+      toast({
+        title: 'Erro no Pagamento',
+        description: err.message || 'Falha ao processar pagamento local.',
         variant: 'destructive',
       });
     } finally {
@@ -115,6 +183,17 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, totalAm
               {loading ? <Loader2 className="animate-spin h-5 w-5" /> : <CreditCard className="h-5 w-5" />}
               Cartão de Crédito
             </Button>
+
+            <Button 
+              size="lg" 
+              variant="ghost"
+              onClick={handleLocalPayment}
+              disabled={loading}
+              className="w-full h-14 bg-secondary/10 hover:bg-secondary/20 text-secondary-dark font-bold text-base rounded-2xl flex items-center justify-center gap-2 mt-2"
+            >
+              {loading ? <Loader2 className="animate-spin h-5 w-5" /> : <Wallet className="h-5 w-5" />}
+              Pagar no Local
+            </Button>
           </div>
         ) : (
           <div className="flex flex-col items-center mt-4 space-y-4">
@@ -132,6 +211,17 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, totalAm
             >
               {copied ? <CheckCircle className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
               {copied ? 'Código PIX Copiado' : 'Copiar Código PIX'}
+            </Button>
+
+            <Button 
+              onClick={() => {
+                onOpenChange(false);
+                onSuccess?.('pix');
+              }}
+              variant="ghost"
+              className="w-full h-12 font-bold text-xs sm:text-sm rounded-xl"
+            >
+              Já realizei o pagamento
             </Button>
           </div>
         )}
