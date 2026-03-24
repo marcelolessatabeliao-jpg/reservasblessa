@@ -5,7 +5,6 @@ import { EntrySelector } from '@/components/booking/EntrySelector';
 import { KioskSelector } from '@/components/booking/KioskSelector';
 import { QuadSelector } from '@/components/booking/QuadSelector';
 import { AdditionalSelector } from '@/components/booking/AdditionalSelector';
-import { BookingSummary } from '@/components/booking/BookingSummary';
 import { BookingOverview } from '@/components/booking/BookingOverview';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';

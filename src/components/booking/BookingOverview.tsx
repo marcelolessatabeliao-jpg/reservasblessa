@@ -110,16 +110,20 @@ export function BookingOverview({ booking, totals }: Props) {
         unit_price: getPrice(`add_${a.type}`, ADDITIONAL_INFO[a.type].price) 
       });
     });
-
     setSaving(true);
     try {
       const result = await saveBooking(booking, totals.total, null, items);
       
       if (result?.orderId) {
         if (isPrepay) {
+          // Virtual Payment Branch
           setPaymentData({ open: true, orderId: result.orderId, confirmationCode: result.confirmationCode });
+          toast({
+            title: 'Iniciando Pagamento',
+            description: 'Aguarde enquanto preparamos seu link de pagamento seguro.',
+          });
         } else {
-          // Update order to waiting_local
+          // WhatsApp / Local branch
           await (supabase as any).from('orders').update({ 
             status: 'waiting_local',
             updated_at: new Date().toISOString()
@@ -138,8 +142,8 @@ export function BookingOverview({ booking, totals }: Props) {
     } catch (err: any) {
       console.error("Booking Error:", err);
       toast({ 
-        title: 'Erro ao salvar reserva', 
-        description: err?.message || 'Erro desconhecido ao processar pedido. Verifique o console.', 
+        title: 'Erro ao salvar', 
+        description: err.message || 'Houve um problema ao salvar seu pedido.', 
         variant: 'destructive' 
       });
     } finally {
@@ -148,11 +152,18 @@ export function BookingOverview({ booking, totals }: Props) {
   };
 
   const handlePaymentSuccess = (method: string) => {
-    // If local, prepend with instruction for prepay word logic later
-    const isPrepay = method === 'local' ? false : true;
-    const msg = buildWhatsAppMessage(booking, totals.total, isPrepay, paymentData?.confirmationCode, getPrice);
-    const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
-    window.open(whatsappUrl, '_blank');
+    if (method === 'local' || method === 'manual') {
+      const msg = buildWhatsAppMessage(booking, totals.total, false, paymentData?.confirmationCode, getPrice);
+      const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
+      window.open(whatsappUrl, '_blank');
+    } else {
+      // For virtual payments (paid_auto, pix, etc.), show success but don't force WhatsApp redirect anymore
+      toast({
+        title: 'Sucesso!',
+        description: 'Seu pagamento foi reconhecido. Acompanhe seu e-mail para o voucher.',
+      });
+      setPaymentData(null);
+    }
   };
 
   if (!hasAnything) {
