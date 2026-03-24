@@ -316,7 +316,7 @@ export default function Admin() {
                   <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Receita</p>
                 </CardContent>
               </Card>
-            </div>    </div>
+            </div>
 
             {/* Date filter */}
             <div className="flex gap-2">

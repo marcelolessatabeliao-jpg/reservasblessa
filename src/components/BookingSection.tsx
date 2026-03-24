@@ -6,6 +6,7 @@ import { KioskSelector } from '@/components/booking/KioskSelector';
 import { QuadSelector } from '@/components/booking/QuadSelector';
 import { AdditionalSelector } from '@/components/booking/AdditionalSelector';
 import { BookingOverview } from '@/components/booking/BookingOverview';
+import { formatCurrency } from '@/lib/booking-types';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { 
