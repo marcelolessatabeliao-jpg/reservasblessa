@@ -118,6 +118,15 @@ export function BookingSection() {
             })}
           </div>
 
+          <div className="w-full bg-muted h-1 rounded-full mb-12 relative overflow-hidden hidden sm:block">
+            <motion.div 
+               className="absolute top-0 left-0 h-full bg-primary"
+               initial={{ width: "0%" }}
+               animate={{ width: currentStep === 'dados' ? '12.5%' : currentStep === 'entradas' ? '37.5%' : currentStep === 'extras' ? '62.5%' : '87.5%' }}
+               transition={{ duration: 0.5, ease: "easeInOut" }}
+            />
+          </div>
+
           {/* Step Content */}
           <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-primary/5 border border-primary/5 p-6 sm:p-10 min-h-[500px]">
             <AnimatePresence mode="wait">
@@ -157,12 +166,12 @@ export function BookingSection() {
                     </div>
                   </div>
 
-                  <div className="pt-6 flex justify-end">
+                  <div className="pt-8 flex flex-col sm:flex-row justify-end">
                     <Button 
                       size="lg"
                       disabled={!booking.entry.name || !booking.entry.phone}
                       onClick={() => nextStep('entradas')}
-                      className="bg-primary hover:bg-primary-dark text-white font-black h-16 px-12 rounded-2xl shadow-xl shadow-primary/20 text-lg group"
+                      className="w-full sm:w-auto bg-primary hover:bg-primary-dark text-white font-black h-16 px-12 rounded-2xl shadow-xl shadow-primary/20 text-lg group"
                     >
                       Continuar <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                     </Button>

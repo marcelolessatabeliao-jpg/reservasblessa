@@ -9,6 +9,8 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useServices } from '@/hooks/useServices';
+import { getQuadAvailability } from '@/lib/booking-service';
+import { useToast } from '@/hooks/use-toast';
 
 interface Props {
   quads: QuadItem[];
@@ -17,6 +19,7 @@ interface Props {
 
 export function QuadSelector({ quads, onUpdate }: Props) {
   const { getPrice, isLoading } = useServices();
+  const { toast } = useToast();
 
   if (isLoading) {
     return <div className="flex items-center justify-center p-6"><Loader2 className="animate-spin text-primary h-6 w-6" /></div>;
@@ -98,7 +101,21 @@ export function QuadSelector({ quads, onUpdate }: Props) {
                   </PopoverContent>
                 </Popover>
 
-                <Select value={quad.time || ''} onValueChange={(v) => onUpdate(i, { time: v as QuadTime })}>
+                <Select 
+                  value={quad.time || ''} 
+                  onValueChange={async (v) => {
+                    if (!quad.date) {
+                        toast({ title: 'Selecione uma data primeiro', variant: 'destructive' });
+                        return;
+                    }
+                    const used = await getQuadAvailability(format(quad.date, 'yyyy-MM-dd'), v);
+                    if (used + quad.quantity > 5) {
+                        toast({ title: 'Horário Lotado', description: `Restam apenas ${5 - used} vagas para este horário.`, variant: 'destructive' });
+                        return;
+                    }
+                    onUpdate(i, { time: v as QuadTime });
+                  }}
+                >
                   <SelectTrigger className="flex-1 text-xs sm:text-sm">
                     <SelectValue placeholder="Horário" />
                   </SelectTrigger>

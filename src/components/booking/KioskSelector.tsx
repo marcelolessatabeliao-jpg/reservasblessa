@@ -8,6 +8,8 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useServices } from '@/hooks/useServices';
+import { getKioskAvailability } from '@/lib/booking-service';
+import { toast } from '@/hooks/use-toast';
 
 interface Props {
   kiosks: KioskItem[];
@@ -66,7 +68,17 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
                     <Calendar
                       mode="single"
                       selected={kiosk.date || undefined}
-                      onSelect={(d) => onUpdate(i, { date: d || null })}
+                      onSelect={async (d) => {
+                        if (!d) return;
+                        const dateStr = format(d, 'yyyy-MM-dd');
+                        const used = await getKioskAvailability(dateStr, kiosk.type);
+                        const limit = kiosk.type === 'maior' ? 1 : 4;
+                        if (used >= limit) {
+                          toast({ title: 'Data Indisponível', description: 'Este quiosque já está reservado para esta data.', variant: 'destructive' });
+                          return;
+                        }
+                        onUpdate(i, { date: d });
+                      }}
                       disabled={(d) => {
                         const today = new Date();
                         today.setHours(0, 0, 0, 0);

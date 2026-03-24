@@ -152,6 +152,20 @@ export async function saveBooking(
     await (supabase.from('quad_reservations') as any).insert(quadReservations);
   }
 
+  // 4. Save kiosk reservations for availability tracking
+  const activeKiosks = booking.kiosks.filter(k => k.quantity > 0 && k.date);
+  if (activeKiosks.length > 0 && (legacyBookingId || finalOrderId)) {
+    const kioskReservations = activeKiosks.map(k => ({
+      booking_id: legacyBookingId,
+      order_id: finalOrderId,
+      kiosk_type: k.type,
+      reservation_date: format(new Date(k.date!), 'yyyy-MM-dd'),
+      quantity: k.quantity
+    }));
+
+    await (supabase.from('kiosk_reservations') as any).insert(kioskReservations);
+  }
+
   // Result: We need at least an orderId or bookingId to continue the process
   if (!finalOrderId && !legacyBookingId) {
     throw new Error('Não foi possível gerar a sua reserva. Tente novamente mais tarde.');
@@ -170,6 +184,17 @@ export async function getQuadAvailability(date: string, timeSlot: string): Promi
     .select('quantity')
     .eq('reservation_date', date)
     .eq('time_slot', timeSlot);
+
+  if (error || !data) return 0;
+  return data.reduce((sum, r) => sum + r.quantity, 0);
+}
+
+export async function getKioskAvailability(date: string, type: string): Promise<number> {
+  const { data, error } = await supabase
+    .from('kiosk_reservations')
+    .select('quantity')
+    .eq('reservation_date', date)
+    .eq('kiosk_type', type);
 
   if (error || !data) return 0;
   return data.reduce((sum, r) => sum + r.quantity, 0);
