@@ -59,7 +59,7 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, totalAm
     setLoading(true);
     setPixData(null);
     try {
-      const response = await supabase.functions.invoke('create-asaas-payment', {
+      const response = await supabase.functions.invoke('create-payment', {
         body: {
           orderId,
           name,

@@ -6,7 +6,7 @@ verify_jwt = false
 [functions.update-booking-status]
 verify_jwt = false
 
-[functions.create-asaas-payment]
+[functions.create-payment]
 verify_jwt = false
 
 [functions.asaas-webhook]
