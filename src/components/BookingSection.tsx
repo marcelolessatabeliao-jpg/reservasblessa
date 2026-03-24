@@ -94,7 +94,7 @@ export function BookingSection() {
               { id: 'dados', icon: User, label: 'Dados' },
               { id: 'entradas', icon: Ticket, label: 'Entradas' },
               { id: 'extras', icon: Fish, label: 'Extras' },
-              { id: 'pagamento', icon: ClipboardList, label: 'Checkout' }
+              { id: 'pagamento', icon: ClipboardList, label: 'Agendamento' }
             ].map((s, idx) => {
               const Icon = s.icon;
               const active = currentStep === s.id;
@@ -333,7 +333,7 @@ export function BookingSection() {
           </div>
           
           <p className="text-center mt-8 text-xs text-muted-foreground font-medium flex items-center justify-center gap-2">
-             <CheckCircle2 className="h-3 w-3 text-primary" /> Checkout Seguro & Processamento Garantido
+             <CheckCircle2 className="h-3 w-3 text-primary" /> Agendamento Seguro & Processamento Garantido
           </p>
         </div>
       </div>
