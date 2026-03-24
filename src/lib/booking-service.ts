@@ -72,11 +72,10 @@ export async function saveBooking(
     const orderPayload: any = {
       user_id: userId || null,
       customer_name: customerName,
-      customer_phone: customerPhone, // Using the new column
-      visit_date: visitDateStr,      // Using the new column
+      customer_phone: customerPhone,
+      visit_date: visitDateStr,
       total_amount: totalAmount,
-      status: 'pending',
-      booking_id: legacyBookingId
+      status: 'pending'
     };
 
     let { data: orderData, error: orderError } = await (supabase as any)

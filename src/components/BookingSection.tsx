@@ -6,7 +6,7 @@ import { KioskSelector } from '@/components/booking/KioskSelector';
 import { QuadSelector } from '@/components/booking/QuadSelector';
 import { AdditionalSelector } from '@/components/booking/AdditionalSelector';
 import { BookingOverview } from '@/components/booking/BookingOverview';
-import { formatCurrency } from '@/lib/booking-types';
+import { formatCurrency, isOperatingDay } from '@/lib/booking-types';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { 
@@ -80,7 +80,9 @@ export function BookingSection() {
           
           {/* Header */}
           <div className="text-center mb-10">
-            <h2 className="font-gliker text-4xl sm:text-5xl text-primary mb-4">Finalize sua Reserva</h2>
+          <h2 className="font-display font-black text-4xl sm:text-5xl md:text-6xl mb-6 text-primary drop-shadow-sm leading-tight">
+            Monte sua Experiência
+          </h2>
             <p className="text-muted-foreground font-medium">Siga os passos abaixo para garantir seu dia no paraíso.</p>
           </div>
 
@@ -174,7 +176,7 @@ export function BookingSection() {
                             mode="single"
                             selected={booking.entry.visitDate}
                             onSelect={(date) => updateEntry({ visitDate: date })}
-                            disabled={(date) => date < new Date() || date.getDay() === 1} // Exemplo: desabilitar segundas
+                            disabled={(date) => date < new Date() || !isOperatingDay(date)} 
                             initialFocus
                           />
                         </PopoverContent>
