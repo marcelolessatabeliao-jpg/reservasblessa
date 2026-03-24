@@ -14,6 +14,12 @@ export interface OrderItemInput {
   unit_price: number;
 }
 
+export interface SaveBookingResult {
+  id: string;
+  confirmationCode: string;
+  orderId: string | null;
+}
+
 export async function saveBooking(
   booking: BookingState, 
   totalAmount: number, 
@@ -42,7 +48,7 @@ export async function saveBooking(
         name: customerName,
         phone: customerPhone,
         visit_date: visitDateStr,
-        adults: entry.adults.length,
+        adults: entry.adults.reduce((acc, a) => acc + (a.quantity || 1), 0),
         children: entry.children as any,
         total_amount: totalAmount,
         status: 'pending'

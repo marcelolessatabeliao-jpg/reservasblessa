@@ -10,6 +10,7 @@ import { saveBooking } from '@/lib/booking-service';
 import { buildWhatsAppMessage } from '@/lib/whatsapp';
 import { PaymentModal } from './PaymentModal';
 import { useServices } from '@/hooks/useServices';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Props {
   booking: BookingState;
@@ -115,7 +116,24 @@ export function BookingOverview({ booking, totals }: Props) {
       const result = await saveBooking(booking, totals.total, null, items);
       
       if (result?.orderId) {
-        setPaymentData({ open: true, orderId: result.orderId, confirmationCode: result.confirmationCode });
+        if (isPrepay) {
+          setPaymentData({ open: true, orderId: result.orderId, confirmationCode: result.confirmationCode });
+        } else {
+          // Update order to waiting_local
+          await (supabase as any).from('orders').update({ 
+            status: 'waiting_local',
+            updated_at: new Date().toISOString()
+          }).eq('id', result.orderId);
+          
+          const msg = buildWhatsAppMessage(booking, totals.total, false, result.confirmationCode, getPrice);
+          const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
+          window.open(whatsappUrl, '_blank');
+          
+          toast({
+            title: 'Reserva via WhatsApp',
+            description: 'Sua reserva foi enviada. Confirme os detalhes com nossa equipe.',
+          });
+        }
       }
     } catch (err: any) {
       console.error("Booking Error:", err);
@@ -365,15 +383,26 @@ export function BookingOverview({ booking, totals }: Props) {
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <Button
+              size="lg"
+              variant="outline"
+              onClick={() => handleAction(false)}
+              disabled={saving}
+              className="flex-1 h-16 rounded-2xl border-2 border-primary/20 hover:bg-primary/5 font-bold text-base flex items-center justify-center gap-2"
+            >
+              <MessageCircle className="h-5 w-5 text-green-600" />
+              Confirmar no WhatsApp
+            </Button>
+
             <Button
               size="lg"
               onClick={() => handleAction(true)}
               disabled={saving}
-              className="w-full bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-600/20 font-display font-bold h-14"
+              className="flex-1 h-16 rounded-2xl bg-[#16a34a] hover:bg-[#15803d] text-white font-bold text-base flex items-center justify-center gap-2 shadow-lg shadow-green-600/20"
             >
-              {saving ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <CheckCircle className="mr-2 h-5 w-5" />}
-              Finalizar Pedido
+              {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle className="h-5 w-5" />}
+              Já quero deixar pago
             </Button>
           </div>
         </div>

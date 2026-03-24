@@ -38,6 +38,7 @@ interface BookingTableProps {
 
 const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive'; icon: React.ElementType }> = {
   pending: { label: 'Pendente', variant: 'outline', icon: Clock },
+  waiting_local: { label: 'Via WhatsApp', variant: 'outline', icon: Clock },
   confirmed: { label: 'Confirmada', variant: 'secondary', icon: CheckCircle },
   paid: { label: 'Pago', variant: 'secondary', icon: CheckCircle },
   'checked-in': { label: 'Check-in ✓', variant: 'default', icon: UserCheck },

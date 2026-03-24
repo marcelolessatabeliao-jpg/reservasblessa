@@ -8,7 +8,8 @@ import { AdditionalSelector } from '@/components/booking/AdditionalSelector';
 import { BookingSummary } from '@/components/booking/BookingSummary';
 import { BookingOverview } from '@/components/booking/BookingOverview';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Ticket, Home, Bike, Fish, Trophy, ClipboardList } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Ticket, Home, Bike, Fish, Trophy, ClipboardList, ArrowRight } from 'lucide-react';
 
 export function BookingSection() {
   const { booking, updateEntry, addAdult, removeAdult, updateAdult, addChild, removeChild, updateChild, updateKiosk, updateQuad, updateAdditional, totals, hasItems } = useBooking();
@@ -157,13 +158,42 @@ export function BookingSection() {
                   onRemoveChild={removeChild}
                   onUpdateChild={updateChild}
                 />
+                <div className="mt-8 flex justify-end">
+                  <Button 
+                    onClick={() => setActiveTab('quiosques')}
+                    className="bg-primary text-white font-bold h-12 px-8 rounded-xl shadow-lg shadow-primary/20"
+                  >
+                    Próximo Passo: Quiosques <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
               </TabsContent>
+
               <TabsContent value="quiosques" className="m-0 focus-visible:outline-none focus-visible:ring-0">
                 <KioskSelector kiosks={booking.kiosks} onUpdate={updateKiosk} />
+                <div className="mt-8 flex justify-between">
+                  <Button variant="ghost" onClick={() => setActiveTab('entrada')}>Voltar</Button>
+                  <Button 
+                    onClick={() => setActiveTab('quads')}
+                    className="bg-primary text-white font-bold h-12 px-8 rounded-xl shadow-lg shadow-primary/20"
+                  >
+                    Próximo Passo: Quadriciclos <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
               </TabsContent>
+
               <TabsContent value="quads" className="m-0 focus-visible:outline-none focus-visible:ring-0">
                 <QuadSelector quads={booking.quads} onUpdate={updateQuad} />
+                <div className="mt-8 flex justify-between">
+                  <Button variant="ghost" onClick={() => setActiveTab('quiosques')}>Voltar</Button>
+                  <Button 
+                    onClick={() => setActiveTab('futebol')}
+                    className="bg-primary text-white font-bold h-12 px-8 rounded-xl shadow-lg shadow-primary/20"
+                  >
+                    Próximo Passo: Futebol <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
               </TabsContent>
+
               <TabsContent value="futebol" className="m-0 focus-visible:outline-none focus-visible:ring-0">
                 <AdditionalSelector
                   additionals={booking.additionals.filter(a => a.type === 'futebol-sabao')}
@@ -172,7 +202,17 @@ export function BookingSection() {
                     updateAdditional(originalIndex, updates);
                   }}
                 />
+                <div className="mt-8 flex justify-between">
+                  <Button variant="ghost" onClick={() => setActiveTab('quads')}>Voltar</Button>
+                  <Button 
+                    onClick={() => setActiveTab('pesca')}
+                    className="bg-primary text-white font-bold h-12 px-8 rounded-xl shadow-lg shadow-primary/20"
+                  >
+                    Próximo Passo: Pesca <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
               </TabsContent>
+
               <TabsContent value="pesca" className="m-0 focus-visible:outline-none focus-visible:ring-0">
                 <AdditionalSelector
                   additionals={booking.additionals.filter(a => a.type === 'pesca')}
@@ -181,16 +221,27 @@ export function BookingSection() {
                     updateAdditional(originalIndex, updates);
                   }}
                 />
+                <div className="mt-8 flex justify-between">
+                  <Button variant="ghost" onClick={() => setActiveTab('futebol')}>Voltar</Button>
+                  <Button 
+                    onClick={() => setActiveTab('resumo')}
+                    className="bg-primary text-white font-black h-14 px-10 rounded-2xl shadow-xl shadow-primary/20 text-lg"
+                  >
+                    Ver Resumo Final <ArrowRight className="ml-2 h-5 w-5" />
+                  </Button>
+                </div>
               </TabsContent>
+
               <TabsContent value="resumo" className="m-0 focus-visible:outline-none focus-visible:ring-0">
                 <BookingOverview booking={booking} totals={totals} />
+                <div className="mt-8">
+                  <Button variant="ghost" onClick={() => setActiveTab('pesca')}>← Voltar para Opções</Button>
+                </div>
               </TabsContent>
             </div>
           </Tabs>
         </div>
       </div>
-
-      <BookingSummary booking={booking} totals={totals} hasItems={hasItems} />
     </section>
   );
 }
