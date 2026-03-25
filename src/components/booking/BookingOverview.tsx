@@ -583,14 +583,14 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
               variant="outline"
               onClick={() => handleAction('LOCAL')}
               disabled={saving}
-              className="w-full h-20 sm:h-24 rounded-[2rem] border-4 border-green-600/30 bg-white hover:bg-green-50 text-green-700 font-black text-lg sm:text-xl flex items-center justify-center gap-4 shadow-lg active:scale-[0.97] transition-all uppercase tracking-tighter"
+              className="w-full h-20 sm:h-24 rounded-[2rem] border-2 sm:border-4 border-green-600/30 bg-white hover:bg-green-50 text-green-700 font-black flex items-center justify-center gap-2 sm:gap-4 shadow-lg active:scale-[0.97] transition-all relative overflow-hidden group"
             >
-              <div className="p-3 bg-green-100 rounded-2xl">
-                <MessageCircle className="h-7 w-7 text-green-600" />
+              <div className="p-2 sm:p-3 bg-green-100 rounded-xl sm:rounded-2xl shrink-0">
+                <MessageCircle className="h-6 w-6 sm:h-7 sm:h-7 text-green-600" />
               </div>
-              <div className="text-left leading-tight">
-                <span className="block text-[10px] opacity-70 font-black uppercase tracking-widest mb-0.5">Pagar Presencialmente</span>
-                Confirmar no WhatsApp
+              <div className="text-left leading-tight min-w-0">
+                <span className="block text-[9px] sm:text-[10px] opacity-70 font-black uppercase tracking-widest mb-0.5 truncate">Pagar Presencialmente</span>
+                <span className="text-base sm:text-xl uppercase tracking-tighter block whitespace-nowrap overflow-hidden text-ellipsis">Confirmar no WhatsApp</span>
               </div>
             </Button>
           </div>
