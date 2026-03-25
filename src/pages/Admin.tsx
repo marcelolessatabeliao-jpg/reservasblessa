@@ -14,6 +14,7 @@ import { formatCurrency } from '@/lib/booking-types';
 import { getAdminOrders, markOrderAsPaid, redeemVoucher } from '@/integrations/supabase/orders';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { CheckCircle2, Circle, Eye, Copy, MessageCircle } from 'lucide-react';
+import { cn } from "@/lib/utils";
 
 type DateFilter = 'today' | 'tomorrow' | 'week' | 'all';
 type TabType = 'reservas' | 'pedidos';
@@ -391,10 +392,24 @@ export default function Admin() {
         ) : (
           <div className="space-y-4">
             <div className="flex items-center justify-between px-2">
-              <h2 className="text-xl font-bold">Vendas & Vouchers</h2>
+              <div className="flex flex-col">
+                <h2 className="text-xl font-bold">Vendas & Vouchers</h2>
+                <p className="text-xs text-muted-foreground">Total de {orders.length} pedidos registrados</p>
+              </div>
               <Button size="icon" variant="ghost" onClick={fetchOrders} disabled={loadingOrders}>
                 <RefreshCw className={`w-4 h-4 ${loadingOrders ? 'animate-spin' : ''}`} />
               </Button>
+            </div>
+
+            {/* Search for Orders */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar pedido por nome, código ou ID..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9"
+              />
             </div>
 
             {loadingOrders ? (
@@ -404,10 +419,21 @@ export default function Admin() {
               </div>
             ) : (
               <div className="grid gap-3">
-                {orders.length === 0 ? (
-                  <p className="text-center text-muted-foreground p-8">Nenhum pedido encontrado.</p>
-                ) : (
-                  orders.map(order => (
+                {(() => {
+                  const filteredOrders = orders.filter(order => {
+                    if (!search.trim()) return true;
+                    const q = search.toLowerCase();
+                    return (
+                      (order.customer_name || '').toLowerCase().includes(q) ||
+                      (order.id || '').toLowerCase().includes(q) ||
+                      (order.confirmation_code || '').toLowerCase().includes(q) ||
+                      (order.customer_phone || '').includes(q)
+                    );
+                  });
+
+                  if (filteredOrders.length === 0) return <p className="text-center text-muted-foreground p-8">Nenhum pedido encontrado.</p>;
+
+                  return filteredOrders.map(order => (
                     <Dialog key={order.id}>
                       <DialogTrigger asChild>
                         <Card className="cursor-pointer hover:border-primary/50 transition-colors border-2 border-transparent">
@@ -616,7 +642,7 @@ export default function Admin() {
                       </DialogContent>
                     </Dialog>
                   ))
-                )}
+                })()}
               </div>
             )}
           </div>

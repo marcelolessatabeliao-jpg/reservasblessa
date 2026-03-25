@@ -146,7 +146,14 @@ export async function markOrderAsPaid(orderId: string) {
  * Generates a unique voucher for an order.
  */
 export async function generateVoucher(orderId: string) {
-  const code = `BL-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+  // Try to get the confirmation_code from the order first for consistency
+  const { data: order } = await (supabase
+    .from('orders') as any)
+    .select('confirmation_code')
+    .eq('id', orderId)
+    .single();
+
+  const code = order?.confirmation_code || `BL-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${code}`;
 
   const { data, error } = await (supabase
@@ -155,7 +162,7 @@ export async function generateVoucher(orderId: string) {
       order_id: orderId,
       code: code,
       qr_code_url: qrCodeUrl,
-      status: 'active', // added status
+      status: 'active',
       is_redeemed: false,
       created_at: new Date().toISOString(),
       expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days expiry
