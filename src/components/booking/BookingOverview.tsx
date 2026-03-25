@@ -144,6 +144,7 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
       }
 
       if (method === 'PIX') {
+        setPaymentData(null); // Garantia de que o modal não abrirá para PIX
         const response = await supabase.functions.invoke('create-payment', {
           body: {
             orderId,
@@ -163,7 +164,7 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
 
         setPixData(response.data.pix);
         setActivePaymentMethod('PIX');
-        toast({ title: 'PIX Gerado!', description: 'Veja o código abaixo para pagar.' });
+        toast({ title: 'PIX Gerado com Sucesso!', description: 'Finalize o pagamento abaixo.' });
       } else if (method === 'CREDIT_CARD') {
         setActivePaymentMethod('CREDIT_CARD');
         setPaymentData({ open: true, orderId, confirmationCode: confCode || undefined });
@@ -218,7 +219,7 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
         <div className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-primary/10 text-primary shrink-0">
           <span className="text-base sm:text-lg">📝</span>
         </div>
-        <h3 className="font-display font-bold text-lg sm:text-xl">Resumo da Experiência</h3>
+        <h3 className="font-display font-bold text-lg sm:text-xl">Resumo da Experiência (v3)</h3>
       </div>
 
       <div className="bg-white/50 backdrop-blur-md rounded-2xl border border-white/60 p-5 sm:p-6 shadow-xl space-y-5">
@@ -451,14 +452,22 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
                 const val = e.target.value.replace(/\D/g, '').slice(0, 11);
                 updateEntry?.({ cpf: val });
               }}
-              placeholder="000.000.000-00"
-              className="rounded-xl border-primary/20 h-11 focus-visible:ring-primary font-medium"
-            />
+                placeholder="000.000.000-00"
+                className="rounded-xl border-primary/20 h-11 focus-visible:ring-primary font-medium"
+              />
+            </div>
           </div>
-        </div>
 
           <div className="flex flex-col gap-4">
-            {!pixData ? (
+            {saving && activePaymentMethod === 'PIX' && !pixData ? (
+              <div className="flex flex-col items-center justify-center py-12 space-y-4 bg-[#00bdae]/5 border-2 border-dashed border-[#00bdae]/30 rounded-[2rem] animate-pulse">
+                <Loader2 className="h-10 w-10 animate-spin text-[#00bdae]" />
+                <div className="text-center">
+                  <p className="font-black text-[#00bdae] text-lg uppercase tracking-tight">Gerando seu PIX...</p>
+                  <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">Aguarde, estamos preparando seu Voucher Seguro</p>
+                </div>
+              </div>
+            ) : !pixData ? (
               <>
                 <Button
                   size="lg"
@@ -552,8 +561,6 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
             </Button>
           </div>
         </div>
-
-      </div>
 
       {paymentData && (
         <PaymentModal
