@@ -28,8 +28,35 @@ export default function Admin() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [dateFilter, setDateFilter] = useState<DateFilter>('today');
+  const [dateFilter, setDateFilter] = useState<DateFilter>('all');
   const { toast } = useToast();
+
+  useEffect(() => {
+    // Real-time subscription for orders
+    const channel = supabase
+      .channel('admin-orders-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'orders' },
+        () => {
+          console.log('Real-time update detected, refetching...');
+          fetchBookings();
+          fetchOrders();
+        }
+      )
+      .subscribe();
+
+    // Auto-refresh every 30 seconds as fallback
+    const interval = setInterval(() => {
+        fetchBookings();
+        fetchOrders();
+    }, 30000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(interval);
+    };
+  }, [fetchBookings, fetchOrders]);
 
   const fetchOrders = useCallback(async () => {
     setLoadingOrders(true);
@@ -53,8 +80,6 @@ export default function Admin() {
           *,
           order_items (*)
         `)
-        .not('visit_date', 'is', null) // Only treat items with a visit date as bookings
-        .order('visit_date', { ascending: true })
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -69,19 +94,25 @@ export default function Admin() {
         setBookings(legacyData || []);
       } else {
         // Map 'orders' format back to what the UI expects for 'bookings'
-        const mapped = data?.map(o => ({
-           id: o.id,
-           name: o.customer_name,
-           phone: o.customer_phone,
-           visit_date: o.visit_date,
-           status: o.status === 'paid' ? 'confirmed' : o.status,
-           total_amount: o.total_amount,
-           confirmation_code: o.confirmation_code,
-           created_at: o.created_at,
-           is_order: true,
-           adults: o.order_items?.filter((i: any) => i.product_id.includes('Adulto')).reduce((acc: number, item: any) => acc + item.quantity, 0) || 0,
-           children: o.order_items?.filter((i: any) => i.product_id.includes('Criança')).reduce((acc: number, item: any) => acc + item.quantity, 0) || 0
-        }));
+        const mapped = data?.map(o => {
+           const items = o.order_items || [];
+           return {
+              id: o.id,
+              name: o.customer_name,
+              phone: o.customer_phone,
+              visit_date: o.visit_date,
+              status: o.status === 'paid' ? 'confirmed' : o.status,
+              total_amount: o.total_amount,
+              confirmation_code: o.confirmation_code,
+              created_at: o.created_at,
+              is_order: true,
+              adults: items.filter((i: any) => i.product_id.includes('Adulto') || i.product_id.includes('Professor') || i.product_id.includes('Estudante') || i.product_id.includes('Servidor') || i.product_id.includes('Vitalício') || i.product_id.includes('Inclusão')).reduce((acc: number, item: any) => acc + item.quantity, 0) || 0,
+              children: items.filter((i: any) => i.product_id.includes('Criança') || i.product_id.includes('Kids')).reduce((acc: number, item: any) => acc + item.quantity, 0) || 0,
+              kiosks: items.filter((i: any) => i.product_id.includes('Quiosque')).map((i: any) => ({ type: i.product_id.toLowerCase().includes('maior') ? 'maior' : 'menor', quantity: i.quantity })),
+              quads: items.filter((i: any) => i.product_id.includes('Quad')).map((i: any) => ({ type: i.product_id.toLowerCase().includes('individual') ? 'individual' : i.product_id.toLowerCase().includes('dupla') ? 'dupla' : 'adulto-crianca', quantity: i.quantity })),
+              additionals: items.filter((i: any) => i.product_id.includes('Pesca') || i.product_id.includes('Futebol')).map((i: any) => ({ type: i.product_id.toLowerCase().includes('pesca') ? 'pesca' : 'futebol-sabao', quantity: i.quantity }))
+           };
+        });
         setBookings(mapped || []);
       }
     } catch (err: any) {

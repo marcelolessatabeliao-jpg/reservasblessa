@@ -13,6 +13,8 @@ import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 
+import { formatPhone } from '@/lib/utils/format';
+
 interface Props {
   entry: BookingState['entry'];
   onUpdateEntry: (updates: Partial<BookingState['entry']>) => void;
@@ -112,14 +114,6 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
     resetWizard();
   };
 
-  const formatWhatsApp = (val: string) => {
-    const raw = val.replace(/\D/g, '').slice(0, 11);
-    if (!raw) return '';
-    if (raw.length <= 2) return `(${raw}`;
-    if (raw.length <= 6) return `(${raw.slice(0, 2)}) ${raw.slice(2)}`;
-    if (raw.length <= 10) return `(${raw.slice(0, 2)}) ${raw.slice(2, 6)}-${raw.slice(6)}`;
-    return `(${raw.slice(0, 2)}) ${raw.slice(2, 7)}-${raw.slice(7)}`;
-  };
 
   const renderWizardStep = () => {
     switch (wizardStep) {
@@ -458,96 +452,100 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
           hideMainInfo && "bg-transparent backdrop-blur-none border-none shadow-none p-0"
       )}>
         {/* Nome & Telefone Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-primary/5 p-4 rounded-3xl border border-primary/10 shadow-[inset_0_1px_4px_rgba(0,0,0,0.02)]">
-          <div>
-            <label className="text-xs font-black text-primary uppercase tracking-widest mb-2 flex items-center gap-1.5">
-              <User className="h-4 w-4" /> Seu nome
-            </label>
-            <Input
-              placeholder="Nome completo"
-              value={entry.name}
-              onChange={(e) => onUpdateEntry({ name: e.target.value })}
-              className="bg-white/90 backdrop-blur-sm border-primary/20 h-11 rounded-xl focus-visible:ring-primary/50 shadow-sm transition-all text-foreground font-medium"
-              maxLength={200}
-            />
-          </div>
-          <div>
-            <label className="text-xs font-black text-primary uppercase tracking-widest mb-2 flex items-center gap-1.5">
-              <Phone className="h-4 w-4" /> WhatsApp
-            </label>
-            <Input
-              placeholder="(00) 00000-0000"
-              value={formatWhatsApp(entry.phone || '')}
-              onChange={(e) => {
-                const val = e.target.value.replace(/\D/g, '').slice(0, 11);
-                onUpdateEntry({ phone: val });
-              }}
-              className="bg-white/90 backdrop-blur-sm border-primary/20 h-11 rounded-xl focus-visible:ring-primary/50 shadow-sm transition-all text-foreground font-medium"
-              maxLength={15}
-              type="tel"
-            />
-          </div>
-        </div>
-
-        {/* Dia & Data Row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-3 p-4 bg-primary/5 rounded-[2rem] border border-primary/10 shadow-[inset_0_1px_4px_rgba(0,0,0,0.02)]">
-            <label className="text-xs font-black flex items-center gap-2 text-primary uppercase tracking-widest">
-              <CalendarIcon className="h-4 w-4" /> 1. Escolha a Data
-            </label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className={cn("w-full h-11 justify-start text-left font-bold text-xs rounded-2xl border-white/80 bg-white/70 backdrop-blur-sm shadow-sm hover:bg-white hover:border-primary/30 hover:text-foreground transition-all", !entry.visitDate && "text-muted-foreground")}>
-                  <CalendarIcon className="mr-2 h-4 w-4 shrink-0 text-primary" />
-                  {entry.visitDate ? format(entry.visitDate, "dd/MM/yyyy", { locale: ptBR }) : "Clique para escolher a data..."}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0 rounded-[2rem] border-white shadow-2xl" align="start">
-                <Calendar
-                  mode="single"
-                  selected={entry.visitDate || undefined}
-                  onSelect={(d) => {
-                    if (d) {
-                      const dayMap: Record<number, any> = { 0: 'domingo', 1: 'segunda', 5: 'sexta', 6: 'sabado' };
-                      const dayOfWeek = dayMap[d.getDay()];
-                      if (dayOfWeek) {
-                        onUpdateEntry({ visitDate: d, dayOfWeek });
-                      } else {
-                        onUpdateEntry({ visitDate: d });
-                      }
-                    } else {
-                      onUpdateEntry({ visitDate: null, dayOfWeek: '' });
-                    }
-                  }}
-                  disabled={(d) => {
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-                    return d < today || !isOperatingDay(d);
-                  }}
-                  className="p-3 pointer-events-auto"
-                  locale={ptBR}
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-
-          <div className="space-y-3 p-4 bg-primary/5 rounded-[2rem] border border-primary/10 shadow-[inset_0_1px_4px_rgba(0,0,0,0.02)] flex flex-col justify-center">
-            <label className="text-xs font-black flex items-center gap-2 text-primary uppercase tracking-widest">
-              <CalendarIcon className="h-4 w-4" /> Dia Selecionado
-            </label>
-            <div className="h-11 bg-white/50 border border-primary/5 rounded-2xl flex items-center px-4">
-              {entry.dayOfWeek ? (
-                <span className="font-black text-primary uppercase text-sm flex items-center gap-2">
-                  ✅ {entry.dayOfWeek === 'sabado' ? 'Sábado' : 
-                     entry.dayOfWeek === 'domingo' ? 'Domingo' : 
-                     entry.dayOfWeek === 'segunda' ? 'Segunda-feira' : 'Sexta-feira'}
-                </span>
-              ) : (
-                <span className="text-muted-foreground text-xs font-medium">Aguardando calendário...</span>
-              )}
+        {!hideMainInfo && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-primary/5 p-4 rounded-3xl border border-primary/10 shadow-[inset_0_1px_4px_rgba(0,0,0,0.02)]">
+            <div>
+              <label className="text-xs font-black text-primary uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                <User className="h-4 w-4" /> Seu nome
+              </label>
+              <Input
+                placeholder="Nome completo"
+                value={entry.name}
+                onChange={(e) => onUpdateEntry({ name: e.target.value })}
+                className="bg-white/90 backdrop-blur-sm border-primary/20 h-11 rounded-xl focus-visible:ring-primary/50 shadow-sm transition-all text-foreground font-medium"
+                maxLength={200}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-black text-primary uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                <Phone className="h-4 w-4" /> WhatsApp
+              </label>
+              <Input
+                placeholder="(00) 00000-0000"
+                value={formatPhone(entry.phone || '')}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, '').slice(0, 11);
+                  onUpdateEntry({ phone: val });
+                }}
+                className="bg-white/90 backdrop-blur-sm border-primary/20 h-11 rounded-xl focus-visible:ring-primary/50 shadow-sm transition-all text-foreground font-medium"
+                maxLength={15}
+                type="tel"
+              />
             </div>
           </div>
-        </div>
+        )}
+
+        {/* Dia & Data Row */}
+        {!hideMainInfo && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-3 p-4 bg-primary/5 rounded-[2rem] border border-primary/10 shadow-[inset_0_1px_4px_rgba(0,0,0,0.02)]">
+              <label className="text-xs font-black flex items-center gap-2 text-primary uppercase tracking-widest">
+                <CalendarIcon className="h-4 w-4" /> 1. Escolha a Data
+              </label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn("w-full h-11 justify-start text-left font-bold text-xs rounded-2xl border-white/80 bg-white/70 backdrop-blur-sm shadow-sm hover:bg-white hover:border-primary/30 hover:text-foreground transition-all", !entry.visitDate && "text-muted-foreground")}>
+                    <CalendarIcon className="mr-2 h-4 w-4 shrink-0 text-primary" />
+                    {entry.visitDate ? format(entry.visitDate, "dd/MM/yyyy", { locale: ptBR }) : "Clique para escolher a data..."}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 rounded-[2rem] border-white shadow-2xl" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={entry.visitDate || undefined}
+                    onSelect={(d) => {
+                      if (d) {
+                        const dayMap: Record<number, any> = { 0: 'domingo', 1: 'segunda', 5: 'sexta', 6: 'sabado' };
+                        const dayOfWeek = dayMap[d.getDay()];
+                        if (dayOfWeek) {
+                          onUpdateEntry({ visitDate: d, dayOfWeek });
+                        } else {
+                          onUpdateEntry({ visitDate: d });
+                        }
+                      } else {
+                        onUpdateEntry({ visitDate: null, dayOfWeek: '' });
+                      }
+                    }}
+                    disabled={(d) => {
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      return d < today || !isOperatingDay(d);
+                    }}
+                    className="p-3 pointer-events-auto"
+                    locale={ptBR}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="space-y-3 p-4 bg-primary/5 rounded-[2rem] border border-primary/10 shadow-[inset_0_1px_4px_rgba(0,0,0,0.02)] flex flex-col justify-center">
+              <label className="text-xs font-black flex items-center gap-2 text-primary uppercase tracking-widest">
+                <CalendarIcon className="h-4 w-4" /> Dia Selecionado
+              </label>
+              <div className="h-11 bg-white/50 border border-primary/5 rounded-2xl flex items-center px-4">
+                {entry.dayOfWeek ? (
+                  <span className="font-black text-primary uppercase text-sm flex items-center gap-2">
+                    ✅ {entry.dayOfWeek === 'sabado' ? 'Sábado' : 
+                       entry.dayOfWeek === 'domingo' ? 'Domingo' : 
+                       entry.dayOfWeek === 'segunda' ? 'Segunda-feira' : 'Sexta-feira'}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground text-xs font-medium">Aguardando calendário...</span>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Participantes Summary Container */}
         <div className="space-y-6 pt-2">

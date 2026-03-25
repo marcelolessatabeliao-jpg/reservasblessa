@@ -26,6 +26,8 @@ interface Props {
 export function BookingOverview({ booking, totals }: Props) {
   const [saving, setSaving] = useState(false);
   const [paymentData, setPaymentData] = useState<{ open: boolean; orderId: string; confirmationCode?: string } | null>(null);
+  const [currentOrderId, setCurrentOrderId] = useState<string | null>(null);
+  const [currentConfirmationCode, setCurrentConfirmationCode] = useState<string | null>(null);
   const { getPrice } = useServices();
 
   function calculateMembershipCost(people: { adultsCount: number; halfPriceCount: number }): number {
@@ -37,20 +39,10 @@ export function BookingOverview({ booking, totals }: Props) {
   const hasAnything = totals.total > 0 || booking.entry.adults.length > 0 || booking.entry.children.length > 0;
 
   const handleAction = async (isPrepay: boolean) => {
-    // Validation Rule: Name, WhatsApp, Day of Week, and Date are mandatory
     if (!booking.entry.name?.trim() || !booking.entry.phone?.trim() || booking.entry.phone.length < 10) {
       toast({
         title: 'Informe seu nome e WhatsApp',
-        description: 'Preencha o campo de Nome e WhatsApp no topo do "Day Use" antes de finalizar para enviar.',
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    if (!booking.entry.dayOfWeek) {
-      toast({
-        title: 'Escolha o dia da semana',
-        description: 'Selecione o dia da semana na Etapa 1.',
+        description: 'Preencha o campo de Nome e WhatsApp no topo antes de finalizar.',
         variant: 'destructive'
       });
       return;
@@ -110,59 +102,42 @@ export function BookingOverview({ booking, totals }: Props) {
         unit_price: getPrice(`add_${a.type}`, ADDITIONAL_INFO[a.type].price) 
       });
     });
-    console.log("[Booking] handleAction started. isPrepay:", isPrepay);
+    
     setSaving(true);
     try {
-      const result = await saveBooking(booking, totals.total, null, items);
-      console.log("[Booking] saveBooking result:", result);
-      
-      if (!result?.orderId) {
-        throw new Error("Não foi possível gerar o ID do pedido.");
+      let orderId = currentOrderId;
+      let confCode = currentConfirmationCode;
+
+      if (!orderId) {
+        const result = await saveBooking(booking, totals.total, null, items);
+        if (!result?.orderId) throw new Error("Não foi possível gerar o ID do pedido.");
+        orderId = result.orderId;
+        confCode = result.confirmationCode;
+        setCurrentOrderId(orderId);
+        setCurrentConfirmationCode(confCode);
       }
 
-      if (isPrepay === true) {
-        console.log("[Booking] Entering Virtual Payment Flow");
-        // ABSOLUTE BLINDAGE: Stop here and open modal
-        setPaymentData({ 
-          open: true, 
-          orderId: result.orderId, 
-          confirmationCode: result.confirmationCode 
-        });
+      if (isPrepay) {
+        setPaymentData({ open: true, orderId, confirmationCode: confCode || undefined });
+        toast({ title: 'Iniciando Pagamento', description: 'Aguarde enquanto preparamos seu link seguro.' });
+      } else {
+        await (supabase as any).from('orders').update({ 
+          status: 'waiting_local',
+          updated_at: new Date().toISOString()
+        }).eq('id', orderId);
         
-        toast({
-          title: 'Iniciando Pagamento',
-          description: 'Aguarde enquanto preparamos seu link de pagamento seguro.',
-        });
-        return; // EXIT FUNCTION HERE
-      } 
-      
-      // WhatsApp / Local branch (ONLY if isPrepay is false)
-      console.log("[Booking] Entering WhatsApp Flow");
-      await (supabase as any).from('orders').update({ 
-        status: 'waiting_local',
-        updated_at: new Date().toISOString()
-      }).eq('id', result.orderId);
-      
-      const msg = buildWhatsAppMessage(booking, totals.total, false, result.confirmationCode, getPrice);
-      const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
-      window.open(whatsappUrl, '_blank');
-      
-      toast({
-        title: 'Reserva via WhatsApp',
-        description: 'Sua reserva foi enviada. Confirme os detalhes com nossa equipe.',
-      });
-      
+        const msg = buildWhatsAppMessage(booking, totals.total, false, confCode || undefined, getPrice);
+        window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`, '_blank');
+        toast({ title: 'Reserva via WhatsApp', description: 'Sua reserva foi enviada.' });
+      }
     } catch (err: any) {
-      console.error("[Booking] CRITICAL ERROR:", err);
-      toast({ 
-        title: 'Erro ao salvar', 
-        description: err.message || 'Houve um problema ao salvar seu pedido.', 
-        variant: 'destructive' 
-      });
+      console.error("[Booking] Error:", err);
+      toast({ title: 'Erro ao salvar', description: err.message || 'Erro desconhecido', variant: 'destructive' });
     } finally {
       setSaving(false);
     }
   };
+
 
   const handlePaymentSuccess = (method: string) => {
     console.log("[Booking] handlePaymentSuccess. Method:", method);
@@ -409,26 +384,37 @@ export function BookingOverview({ booking, totals }: Props) {
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex flex-col gap-5">
             <Button
               size="lg"
               variant="outline"
               onClick={() => handleAction(false)}
               disabled={saving}
-              className="flex-1 h-16 rounded-2xl border-2 border-primary/20 hover:bg-primary/5 font-bold text-base flex items-center justify-center gap-2"
+              className="w-full h-20 sm:h-24 rounded-[2rem] border-4 border-green-600/30 bg-white hover:bg-green-50 text-green-700 font-black text-lg sm:text-xl flex items-center justify-center gap-4 shadow-lg active:scale-[0.97] transition-all uppercase tracking-tighter"
             >
-              <MessageCircle className="h-5 w-5 text-green-600" />
-              Confirmar no WhatsApp
+              <div className="p-3 bg-green-100 rounded-2xl">
+                <MessageCircle className="h-7 w-7 text-green-600" />
+              </div>
+              <div className="text-left leading-tight">
+                <span className="block text-[11px] opacity-70 font-black uppercase tracking-widest mb-0.5">Pagar Presencialmente</span>
+                Confirmar no WhatsApp
+              </div>
             </Button>
 
             <Button
               size="lg"
               onClick={() => handleAction(true)}
               disabled={saving}
-              className="flex-1 h-16 rounded-2xl bg-[#16a34a] hover:bg-[#15803d] text-white font-bold text-base flex items-center justify-center gap-2 shadow-lg shadow-green-600/20"
+              className="w-full h-24 sm:h-28 rounded-[2rem] bg-gradient-to-br from-green-600 to-green-800 hover:from-green-700 hover:to-green-900 text-white font-black text-xl sm:text-2xl flex items-center justify-center gap-5 shadow-2xl shadow-green-900/40 active:scale-[0.97] transition-all group overflow-hidden relative border-b-8 border-green-900"
             >
-              {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle className="h-5 w-5" />}
-              Já quero deixar pago
+              <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 -translate-x-full group-hover:animate-shimmer" />
+              <div className="p-4 bg-white/20 rounded-[1.5rem] backdrop-blur-md">
+                {saving ? <Loader2 className="h-8 w-8 animate-spin" /> : <CheckCircle className="h-8 w-8 text-white" />}
+              </div>
+              <div className="text-left leading-tight">
+                <span className="block text-xs text-white/80 font-black uppercase tracking-widest mb-1">Pagamento Pix Autenticado</span>
+                Já quero deixar pago
+              </div>
             </Button>
           </div>
         </div>
@@ -441,7 +427,8 @@ export function BookingOverview({ booking, totals }: Props) {
           onOpenChange={(op) => setPaymentData(prev => prev ? { ...prev, open: op } : null)}
           orderId={paymentData.orderId}
           name={booking.entry.name || ''}
-          email={''} // Adicionado suporte de e-mail opcional no Asaas Edge function
+          email={''} 
+          phone={booking.entry.phone || ''}
           totalAmount={totals.total}
           onSuccess={handlePaymentSuccess}
         />

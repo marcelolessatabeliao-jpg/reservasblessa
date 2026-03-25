@@ -12,13 +12,14 @@ interface Props {
   orderId: string;
   name: string;
   email: string;
+  phone?: string;
   totalAmount: number;
   onSuccess?: (method: string) => void;
 }
 
 type PaymentMethod = 'PIX' | 'CREDIT_CARD';
 
-export function PaymentModal({ open, onOpenChange, orderId, name, email, totalAmount, onSuccess }: Props) {
+export function PaymentModal({ open, onOpenChange, orderId, name, email, phone, totalAmount, onSuccess }: Props) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [pixData, setPixData] = useState<{ encodedImage: string; payload: string } | null>(null);
@@ -62,11 +63,16 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, totalAm
     setLoading(true);
     setPixData(null);
     try {
+      // Get phone from booking state if needed, but the parent should ideally pass it.
+      // For now, we'll try to find it from the orders table if it's missing, 
+      // but let's assume we want to pass it from the form.
+      
       const response = await supabase.functions.invoke('create-payment', {
         body: {
           orderId,
           name,
           email,
+          phone,
           billingType: method,
           value: totalAmount,
           description: `Reserva Balneário Lessa - ${name}`,
@@ -74,7 +80,7 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, totalAm
       });
 
       if (response.error) {
-        throw new Error(response.error.message);
+        throw new Error(response.error.message || 'Erro na comunicação com o servidor de pagamento');
       }
 
       const { data } = response;
@@ -85,19 +91,23 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, totalAm
 
       if (method === 'PIX' && data.pix) {
         setPixData(data.pix);
+        toast({ title: 'Código PIX Gerado', description: 'Escaneie o QR Code ou copie o código.' });
       } else if (method === 'CREDIT_CARD' && data.invoiceUrl) {
-        window.open(data.invoiceUrl, '_blank');
         toast({
           title: 'Redirecionando...',
-          description: 'Você está sendo redirecionado para a plataforma de pagamento seguro.',
+          description: 'Aguarde um momento.',
         });
-        onOpenChange(false);
+        
+        // Use a safer redirection for mobile
+        setTimeout(() => {
+          window.location.href = data.invoiceUrl;
+        }, 100);
       }
     } catch (err: any) {
-      console.error(err);
+      console.error('[Payment] Error:', err);
       toast({
-        title: 'Erro no Pagamento',
-        description: err.message || 'Falha ao processar pagamento.',
+        title: 'Falha no Pagamento',
+        description: err.message || 'Não foi possível conectar ao Asaas. Tente novamente.',
         variant: 'destructive',
       });
     } finally {
@@ -256,15 +266,25 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, totalAm
             </Button>
 
             <Button 
-              onClick={() => {
-                // Ao clicar aqui, apenas fechamos se não confirmou ainda, ou mostramos aviso
-                // Mas o poller Postgres vai disparar se o pagamento cair
-                toast({ title: "Aguardando confirmação...", description: "Assim que o banco confirmar, seu código aparecerá aqui." });
+              onClick={async () => {
+                setLoading(true);
+                const { data, error } = await supabase.from('orders').select('status, confirmation_code').eq('id', orderId).single();
+                setLoading(false);
+                
+                if (data?.status === 'paid' || data?.status === 'confirmed') {
+                  setConfirmationCode(data.confirmation_code);
+                  setPaymentConfirmed(true);
+                  toast({ title: "Confirmado!", description: "Seu pagamento já foi identificado." });
+                } else {
+                  toast({ title: "Ainda não identificado", description: "O banco pode levar alguns minutos. Caso já tenha pago, aguarde um pouco." });
+                }
               }}
               variant="ghost"
-              className="w-full h-12 font-bold text-xs sm:text-sm rounded-xl"
+              className="w-full h-12 font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2"
+              disabled={loading}
             >
-              Aguardar confirmação na tela
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+              Já paguei, verificar agora
             </Button>
           </div>
         )}

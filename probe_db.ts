@@ -13,9 +13,19 @@ async function probe() {
 
   const { data: ordersData, error: ordersError } = await supabase.from('orders').select('*').limit(1);
   console.log('Orders table probe:', { exists: !ordersError, error: ordersError });
+  if (ordersData && ordersData.length > 0) {
+      console.log('Orders columns:', Object.keys(ordersData[0]));
+  } else {
+      console.log('Orders table is empty, trying to fetch columns via RPC or metadata if possible');
+  }
+
   
   const { data: servicesData, error: servicesError } = await supabase.from('services').select('*').limit(1);
   console.log('Services table probe:', { exists: !servicesError, error: servicesError });
+  if (servicesData && servicesData.length > 0) {
+      console.log('Services columns:', Object.keys(servicesData[0]));
+  }
 }
 
 probe();
+

@@ -11,7 +11,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { orderId, name, email, billingType, value, description } = await req.json()
+    const { orderId, name, email, phone, billingType, value, description } = await req.json()
 
     if (!orderId || !name || !billingType || !value) {
       return new Response(JSON.stringify({ error: 'Faltam parâmetros obrigatórios' }), { 
@@ -19,8 +19,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    const ASAAS_API_KEY = Deno.env.get('ASAAS_API_KEY') || '$aact_hmlg_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OmNhYWE0MGM3LWUyYzgtNGU1Yy1hMjRjLWE0YmExZmY5MmUwNzo6JGFhY2hfODlkMDkwZDctMmJjZi00ZmI1LWE2NzEtMzJiOGM5MmI1NDNi';
+    const ASAAS_API_KEY = Deno.env.get('ASAAS_API_KEY') || 'aact_hmlg_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OmNhYWE0MGM3LWUyYzgtNGU1Yy1hMjRjLWE0YmExZmY5MmUwNzo6JGFhY2hfODlkMDkwZDctMmJjZi00ZmI1LWE2NzEtMzJiOGM5MmI1NDNi';
     const ASAAS_BASE_URL = Deno.env.get('ASAAS_BASE_URL') || 'https://sandbox.asaas.com/api/v3';
+
+    console.log(`Processing payment for ${name} (${billingType}, Phone: ${phone}) - Value: ${value}`);
 
     // 1. Criar cliente no Asaas
     const customerReq = await fetch(`${ASAAS_BASE_URL}/customers`, {
@@ -31,13 +33,14 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         name,
-        email: email || 'cliente@asaas.com.br', // Email é recomendado
+        email: email || 'cliente@balneariolessa.com.br',
+        mobilePhone: phone || null
       })
     });
     
     const customerData = await customerReq.json();
     if (!customerReq.ok) {
-      console.error('Asaas Customer Error:', customerData);
+      console.error('Asaas Customer Error:', JSON.stringify(customerData));
       throw new Error(customerData.errors?.[0]?.description || 'Erro ao criar cliente no Asaas');
     }
 

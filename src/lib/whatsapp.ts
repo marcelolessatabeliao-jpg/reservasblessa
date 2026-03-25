@@ -2,6 +2,8 @@ import { BookingState, KIOSK_INFO, QUAD_LABELS, QUAD_PRICES, ADDITIONAL_INFO, ge
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
+import { formatPhone } from '@/lib/utils/format';
+
 export function buildWhatsAppMessage(booking: BookingState, total: number, isPrepay: boolean = false, code?: string, getPrice?: (type: string, fb: number) => number): string {
   const { entry } = booking;
   const safeGetPrice = getPrice || ((t: string, fb: number) => fb);
@@ -9,7 +11,7 @@ export function buildWhatsAppMessage(booking: BookingState, total: number, isPre
   let msg = `Olá, Balneário Lessa!\nGostaria de confirmar uma reserva${isPrepay ? ' e já realizar o pagamento via Pix' : ''}.\n\n`;
   if (code) msg += `*Código da Reserva:* ${code}\n`;
   if (entry.name) msg += `*Nome:* ${entry.name}\n`;
-  if (entry.phone) msg += `*Telefone:* ${entry.phone}\n`;
+  if (entry.phone) msg += `*Telefone:* ${formatPhone(entry.phone)}\n`;
   if (entry.visitDate) msg += `*Data da visita:* ${format(entry.visitDate, "dd/MM/yyyy (EEEE)", { locale: ptBR })}\n`;
   msg += '\n';
 

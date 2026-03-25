@@ -111,3 +111,12 @@ div[style*="Edit with Lovable"],
   position: absolute !important;
   z-index: -9999 !important;
 }
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite;
+}

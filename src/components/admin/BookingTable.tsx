@@ -8,6 +8,8 @@ import { formatCurrency } from '@/lib/booking-types';
 import { BookingDetail } from './BookingDetail';
 import { Textarea } from '@/components/ui/textarea';
 
+import { formatPhone } from '@/lib/utils/format';
+
 interface Booking {
   id: string;
   name: string;
@@ -96,7 +98,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, updatingId }
                   {booking.phone && (
                     <span className="inline-flex items-center gap-0.5 ml-2">
                       <Phone className="w-3 h-3" />
-                      {booking.phone}
+                      {formatPhone(booking.phone)}
                     </span>
                   )}
                 </p>

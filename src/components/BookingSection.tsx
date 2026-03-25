@@ -29,6 +29,8 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { CalendarIcon } from 'lucide-react';
 
+import { formatPhone, unformatPhone } from '@/lib/utils/format';
+
 type Step = 'dados' | 'entradas' | 'extras' | 'pagamento';
 
 export function BookingSection() {
@@ -129,57 +131,6 @@ export function BookingSection() {
                   exit={{ opacity: 0, y: -10 }}
                   className="space-y-6"
                 >
-                  <div className="bg-white p-5 rounded-3xl border border-primary/5 shadow-sm space-y-4">
-                     <div className="space-y-4">
-                        <div className="space-y-1.5">
-                           <Label className="font-bold text-[10px] uppercase text-primary/60 pl-1">Nome Completo</Label>
-                           <Input 
-                             placeholder="Nome do responsável" 
-                             className="h-16 rounded-2xl border-2 focus:border-primary text-base font-medium"
-                             value={booking.entry.name}
-                             onChange={(e) => updateEntry({ name: e.target.value })}
-                           />
-                        </div>
-                        <div className="space-y-1.5">
-                           <Label className="font-bold text-[10px] uppercase text-primary/60 pl-1">WhatsApp</Label>
-                           <Input 
-                             placeholder="(00) 00000-0000" 
-                             className="h-16 rounded-2xl border-2 focus:border-primary text-base font-medium"
-                             value={booking.entry.phone}
-                             onChange={(e) => updateEntry({ phone: e.target.value })}
-                           />
-                        </div>
-                     </div>
-
-                     <div className="pt-2 border-t border-dashed border-muted mt-4">
-                        <Label className="font-bold text-[10px] uppercase text-primary/60 pl-1 mb-2 block">Data da Visita</Label>
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button
-                                    variant={"outline"}
-                                    className={cn(
-                                        "w-full h-16 justify-start text-left font-medium text-base rounded-2xl border-2 bg-muted/20",
-                                        !booking.entry.visitDate && "text-muted-foreground"
-                                    )}
-                                >
-                                    <CalendarIcon className="mr-2 h-5 w-5 text-primary" />
-                                    {booking.entry.visitDate ? format(booking.entry.visitDate, "PPP", { locale: ptBR }) : <span>Clique para escolher o dia</span>}
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="center">
-                                <Calendar
-                                    mode="single"
-                                    selected={booking.entry.visitDate}
-                                    onSelect={(date) => updateEntry({ visitDate: date })}
-                                    disabled={(date) => date < new Date() || !isOperatingDay(date)} 
-                                    initialFocus
-                                    locale={ptBR}
-                                />
-                            </PopoverContent>
-                        </Popover>
-                     </div>
-                  </div>
-
                   <EntrySelector
                     entry={booking.entry}
                     onUpdateEntry={updateEntry}
@@ -187,7 +138,7 @@ export function BookingSection() {
                     onUpdateAdult={updateAdult}
                     onRemoveChild={removeChild}
                     onUpdateChild={updateChild}
-                    hideMainInfo={true}
+                    hideMainInfo={false}
                     hideTitle={true}
                   />
 
