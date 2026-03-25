@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ChevronDown, ChevronUp, CheckCircle, XCircle, Clock, UserCheck, Phone, Hash } from 'lucide-react';

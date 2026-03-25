@@ -32,33 +32,6 @@ export default function Admin() {
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
   const { toast } = useToast();
 
-  useEffect(() => {
-    // Real-time subscription for orders
-    const channel = supabase
-      .channel('admin-orders-realtime')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'orders' },
-        () => {
-          console.log('Real-time update detected, refetching...');
-          fetchBookings();
-          fetchOrders();
-        }
-      )
-      .subscribe();
-
-    // Auto-refresh every 30 seconds as fallback
-    const interval = setInterval(() => {
-        fetchBookings();
-        fetchOrders();
-    }, 30000);
-
-    return () => {
-      supabase.removeChannel(channel);
-      clearInterval(interval);
-    };
-  }, [fetchBookings, fetchOrders]);
-
   const fetchOrders = useCallback(async () => {
     setLoadingOrders(true);
     try {
@@ -123,6 +96,33 @@ export default function Admin() {
       setLoading(false);
     }
   }, [toast]);
+
+  useEffect(() => {
+    // Real-time subscription for orders
+    const channel = supabase
+      .channel('admin-orders-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'orders' },
+        () => {
+          console.log('Real-time update detected, refetching...');
+          fetchBookings();
+          fetchOrders();
+        }
+      )
+      .subscribe();
+
+    // Auto-refresh every 30 seconds as fallback
+    const interval = setInterval(() => {
+        fetchBookings();
+        fetchOrders();
+    }, 30000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(interval);
+    };
+  }, [fetchBookings, fetchOrders]);
 
   // Load bookings on mount + subscribe to realtime
   useEffect(() => {
@@ -644,9 +644,9 @@ export default function Admin() {
                   ))
                 })()}
               </div>
-            )}
-          </div>
-        )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
