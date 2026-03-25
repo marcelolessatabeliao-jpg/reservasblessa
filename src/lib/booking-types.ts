@@ -26,7 +26,10 @@ export interface ChildInfo {
 
 export interface EntryBooking {
   name: string;
+  lastName?: string;
   phone: string;
+  cpf?: string;
+  email?: string;
   visitDate: Date | null;
   adults: AdultInfo[];
   children: ChildInfo[];

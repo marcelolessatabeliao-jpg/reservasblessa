@@ -22,7 +22,9 @@ async function testPix() {
       orderId: order.id,
       name: 'TESTE PIX FINAL',
       billingType: 'PIX',
-      value: 10.00
+      value: 10.00,
+      cpf: '044.055.099-77',
+      phone: '47999887766'
     })
   });
 

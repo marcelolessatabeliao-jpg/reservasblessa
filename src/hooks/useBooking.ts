@@ -9,7 +9,10 @@ import { useServices } from '@/hooks/useServices';
 const initialState: BookingState = {
   entry: {
     name: '',
+    lastName: '',
     phone: '',
+    cpf: '',
+    email: '',
     visitDate: null,
     adults: [],
     children: [],

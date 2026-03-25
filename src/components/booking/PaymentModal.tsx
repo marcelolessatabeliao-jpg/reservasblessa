@@ -13,19 +13,37 @@ interface Props {
   name: string;
   email: string;
   phone?: string;
+  cpf?: string;
   totalAmount: number;
+  initialMethod?: PaymentMethod;
   onSuccess?: (method: string) => void;
 }
 
 type PaymentMethod = 'PIX' | 'CREDIT_CARD';
 
-export function PaymentModal({ open, onOpenChange, orderId, name, email, phone, totalAmount, onSuccess }: Props) {
+export function PaymentModal({ open, onOpenChange, orderId, name, email, phone, cpf: initialCpf, totalAmount, initialMethod, onSuccess }: Props) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [pixData, setPixData] = useState<{ encodedImage: string; payload: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
   const [confirmationCode, setConfirmationCode] = useState('');
+  const [cpf, setCpf] = useState(initialCpf || '');
+  const [methodStarted, setMethodStarted] = useState(false);
+
+  useEffect(() => {
+    if (open && initialMethod && !methodStarted && (initialCpf || cpf).length >= 11) {
+      setMethodStarted(true);
+      handleGeneratePayment(initialMethod);
+    }
+  }, [open, initialMethod, initialCpf, cpf, methodStarted]);
+
+  useEffect(() => {
+    if (!open) {
+      setMethodStarted(false);
+      setPixData(null);
+    }
+  }, [open]);
 
   useEffect(() => {
     if (!orderId || !open) return;
@@ -73,6 +91,7 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, phone, 
           name,
           email,
           phone,
+          cpf, // Passando o CPF para a função
           billingType: method,
           value: totalAmount,
           description: `Reserva Balneário Lessa - ${name}`,
@@ -213,13 +232,32 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, phone, 
               Enviamos os detalhes também para o seu e-mail e você pode tirar um print desta tela para agilizar seu check-in.
             </p>
           </div>
+        ) : loading && !pixData ? (
+          <div className="flex flex-col items-center justify-center py-12 space-y-4">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            <p className="text-sm font-bold text-primary animate-pulse tracking-widest uppercase">Processando Pagamento...</p>
+            <p className="text-xs text-muted-foreground">Aguarde enquanto geramos sua cobrança segura.</p>
+          </div>
         ) : !pixData ? (
           <div className="flex flex-col gap-4 mt-4">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase text-primary/60 tracking-widest ml-1">
+                CPF do Pagador (Obrigatório para Produção)
+              </label>
+              <input
+                type="text"
+                placeholder="000.000.000-00"
+                value={cpf}
+                onChange={(e) => setCpf(e.target.value.replace(/\D/g, '').slice(0, 11))}
+                className="w-full h-12 px-4 rounded-xl border-2 border-primary/10 focus:border-primary/30 focus:outline-none text-sm font-medium transition-all"
+              />
+            </div>
+
             <Button 
               size="lg" 
               onClick={() => handleGeneratePayment('PIX')}
-              disabled={loading}
-              className="w-full h-14 bg-[#00bdae] hover:bg-[#009b8f] text-white font-black text-lg rounded-2xl flex items-center justify-center gap-2"
+              disabled={loading || cpf.length < 11}
+              className="w-full h-14 bg-[#00bdae] hover:bg-[#009b8f] text-white font-black text-lg rounded-2xl flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {loading ? <Loader2 className="animate-spin h-5 w-5" /> : <QrCode className="h-6 w-6" />}
               PAGAR COM PIX
@@ -229,8 +267,8 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, phone, 
               size="lg" 
               variant="outline"
               onClick={() => handleGeneratePayment('CREDIT_CARD')}
-              disabled={loading}
-              className="w-full h-14 border-2 border-primary/20 hover:bg-primary/5 text-primary font-bold text-base rounded-2xl flex items-center justify-center gap-2"
+              disabled={loading || cpf.length < 11}
+              className="w-full h-14 border-2 border-primary/20 hover:bg-primary/5 text-primary font-bold text-base rounded-2xl flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {loading ? <Loader2 className="animate-spin h-5 w-5" /> : <CreditCard className="h-5 w-5" />}
               Cartão de Crédito

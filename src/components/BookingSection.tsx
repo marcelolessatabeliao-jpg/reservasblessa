@@ -241,7 +241,7 @@ export function BookingSection() {
                   </div>
 
                   <div className="bg-primary/5 rounded-3xl p-3 sm:p-8 border border-primary/10">
-                    <BookingOverview booking={booking} totals={totals} />
+                    <BookingOverview booking={booking} totals={totals} updateEntry={updateEntry} />
                   </div>
 
                   <div className="pt-6 flex justify-center px-4">

@@ -46,6 +46,7 @@ async function testPayment() {
       name: 'TESTE INTEGRACAO SCRIPT',
       email: 'teste@exemplo.com',
       phone: '69999999999',
+      cpf: '044.055.099-77',
       billingType: 'PIX',
       value: 50.00,
       description: 'Teste de Integração Balneário Lessa'

@@ -453,17 +453,29 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
       )}>
         {/* Nome & Telefone Row */}
         {!hideMainInfo && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-primary/5 p-4 rounded-3xl border border-primary/10 shadow-[inset_0_1px_4px_rgba(0,0,0,0.02)]">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-primary/5 p-4 rounded-3xl border border-primary/10 shadow-[inset_0_1px_4px_rgba(0,0,0,0.02)]">
             <div>
               <label className="text-xs font-black text-primary uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                <User className="h-4 w-4" /> Seu nome
+                <User className="h-4 w-4" /> Nome
               </label>
               <Input
-                placeholder="Nome completo"
+                placeholder="Nome"
                 value={entry.name}
                 onChange={(e) => onUpdateEntry({ name: e.target.value })}
                 className="bg-white/90 backdrop-blur-sm border-primary/20 h-11 rounded-xl focus-visible:ring-primary/50 shadow-sm transition-all text-foreground font-medium"
-                maxLength={200}
+                maxLength={100}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-black text-primary uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                <User className="h-4 w-4" /> Sobrenome
+              </label>
+              <Input
+                placeholder="Sobrenome"
+                value={entry.lastName || ''}
+                onChange={(e) => onUpdateEntry({ lastName: e.target.value })}
+                className="bg-white/90 backdrop-blur-sm border-primary/20 h-11 rounded-xl focus-visible:ring-primary/50 shadow-sm transition-all text-foreground font-medium"
+                maxLength={100}
               />
             </div>
             <div>

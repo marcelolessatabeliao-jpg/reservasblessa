@@ -4,13 +4,15 @@ import { BookingState, formatCurrency, KIOSK_INFO, QUAD_PRICES, QUAD_LABELS, ADD
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
-import { MessageCircle, CheckCircle, Loader2, ArrowRight } from 'lucide-react';
+import { MessageCircle, CheckCircle, Loader2, ArrowRight, User, CreditCard, QrCode } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { saveBooking } from '@/lib/booking-service';
 import { buildWhatsAppMessage } from '@/lib/whatsapp';
 import { PaymentModal } from './PaymentModal';
 import { useServices } from '@/hooks/useServices';
 import { supabase } from '@/integrations/supabase/client';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 interface Props {
   booking: BookingState;
@@ -21,13 +23,15 @@ interface Props {
     additionalsTotal: number;
     total: number;
   };
+  updateEntry?: (updates: Partial<BookingState['entry']>) => void;
 }
 
-export function BookingOverview({ booking, totals }: Props) {
+export function BookingOverview({ booking, totals, updateEntry }: Props) {
   const [saving, setSaving] = useState(false);
   const [paymentData, setPaymentData] = useState<{ open: boolean; orderId: string; confirmationCode?: string } | null>(null);
   const [currentOrderId, setCurrentOrderId] = useState<string | null>(null);
   const [currentConfirmationCode, setCurrentConfirmationCode] = useState<string | null>(null);
+  const [activePaymentMethod, setActivePaymentMethod] = useState<'PIX' | 'CREDIT_CARD' | null>(null);
   const { getPrice } = useServices();
 
   function calculateMembershipCost(people: { adultsCount: number; halfPriceCount: number }): number {
@@ -38,14 +42,25 @@ export function BookingOverview({ booking, totals }: Props) {
 
   const hasAnything = totals.total > 0 || booking.entry.adults.length > 0 || booking.entry.children.length > 0;
 
-  const handleAction = async (isPrepay: boolean) => {
-    if (!booking.entry.name?.trim() || !booking.entry.phone?.trim() || booking.entry.phone.length < 10) {
+  const handleAction = async (method: 'PIX' | 'CREDIT_CARD' | 'LOCAL') => {
+    const fullName = `${booking.entry.name || ''} ${booking.entry.lastName || ''}`.trim();
+
+    if (!fullName || !booking.entry.phone?.trim() || booking.entry.phone.length < 10) {
       toast({
-        title: 'Informe seu nome e WhatsApp',
-        description: 'Preencha o campo de Nome e WhatsApp no topo antes de finalizar.',
+        title: 'Informe seu nome completo e WhatsApp',
+        description: 'Preencha o campo de Nome, Sobrenome e WhatsApp.',
         variant: 'destructive'
       });
       return;
+    }
+
+    if (method !== 'LOCAL' && (!booking.entry.cpf || booking.entry.cpf.replace(/\D/g, '').length < 11)) {
+       toast({
+         title: 'CPF Obrigatório',
+         description: 'O CPF é necessário para pagamentos PIX ou Cartão.',
+         variant: 'destructive'
+       });
+       return;
     }
 
     if (!booking.entry.visitDate) {
@@ -109,7 +124,12 @@ export function BookingOverview({ booking, totals }: Props) {
       let confCode = currentConfirmationCode;
 
       if (!orderId) {
-        const result = await saveBooking(booking, totals.total, null, items);
+        // Usar nome completo ao salvar o pedido
+        const result = await saveBooking({
+          ...booking,
+          entry: { ...booking.entry, name: fullName }
+        }, totals.total, null, items);
+        
         if (!result?.orderId) throw new Error("Não foi possível gerar o ID do pedido.");
         orderId = result.orderId;
         confCode = result.confirmationCode;
@@ -117,9 +137,10 @@ export function BookingOverview({ booking, totals }: Props) {
         setCurrentConfirmationCode(confCode);
       }
 
-      if (isPrepay) {
+      if (method !== 'LOCAL') {
+        setActivePaymentMethod(method as 'PIX' | 'CREDIT_CARD');
         setPaymentData({ open: true, orderId, confirmationCode: confCode || undefined });
-        toast({ title: 'Iniciando Pagamento', description: 'Aguarde enquanto preparamos seu link seguro.' });
+        toast({ title: 'Preparando Pagamento', description: `Iniciando sua cobrança via ${method === 'PIX' ? 'PIX' : 'Cartão'}...` });
       } else {
         await (supabase as any).from('orders').update({ 
           status: 'waiting_local',
@@ -371,6 +392,45 @@ export function BookingOverview({ booking, totals }: Props) {
           return null;
         })()}
 
+        {/* Seção de Dados do Pagador */}
+        <div className="space-y-4 pt-4 border-t border-primary/10">
+          <h4 className="text-sm font-black text-primary uppercase tracking-widest flex items-center gap-2">
+            <User className="h-4 w-4" /> Dados do Pagador
+          </h4>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-[10px] uppercase font-black text-primary/60 ml-1">Nome</Label>
+              <Input
+                value={booking.entry.name}
+                onChange={(e) => updateEntry?.({ name: e.target.value })}
+                placeholder="Nome"
+                className="rounded-xl border-primary/20 h-11 focus-visible:ring-primary font-medium"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[10px] uppercase font-black text-primary/60 ml-1">Sobrenome</Label>
+              <Input
+                value={booking.entry.lastName || ''}
+                onChange={(e) => updateEntry?.({ lastName: e.target.value })}
+                placeholder="Sobrenome"
+                className="rounded-xl border-primary/20 h-11 focus-visible:ring-primary font-medium"
+              />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-[10px] uppercase font-black text-primary/60 ml-1">CPF (Obrigatório para Pix/Cartão)</Label>
+            <Input
+              value={booking.entry.cpf || ''}
+              onChange={(e) => {
+                const val = e.target.value.replace(/\D/g, '').slice(0, 11);
+                updateEntry?.({ cpf: val });
+              }}
+              placeholder="000.000.000-00"
+              className="rounded-xl border-primary/20 h-11 focus-visible:ring-primary font-medium"
+            />
+          </div>
+        </div>
+
         {/* Total Gigante */}
         <div className="pt-2">
           <div className="flex justify-between items-end mb-6">
@@ -384,11 +444,41 @@ export function BookingOverview({ booking, totals }: Props) {
             </div>
           </div>
 
-          <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-4">
+            <Button
+              size="lg"
+              onClick={() => handleAction('PIX')}
+              disabled={saving}
+              className="w-full h-20 sm:h-24 rounded-[2rem] bg-[#00bdae] hover:bg-[#009b8f] text-white font-black text-lg sm:text-xl flex items-center justify-center gap-4 shadow-xl active:scale-[0.97] transition-all group overflow-hidden relative border-b-8 border-[#007a71]"
+            >
+               <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md">
+                 <QrCode className="h-7 w-7 text-white" />
+               </div>
+               <div className="text-left leading-tight">
+                 <span className="block text-[10px] text-white/80 font-black uppercase tracking-widest mb-0.5">Pagar Agora Online</span>
+                 Gerar PIX
+               </div>
+            </Button>
+
+            <Button
+              size="lg"
+              onClick={() => handleAction('CREDIT_CARD')}
+              disabled={saving}
+              className="w-full h-20 sm:h-24 rounded-[2rem] bg-primary hover:bg-primary-dark text-white font-black text-lg sm:text-xl flex items-center justify-center gap-4 shadow-xl active:scale-[0.97] transition-all group overflow-hidden relative border-b-8 border-primary-dark"
+            >
+               <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md">
+                 <CreditCard className="h-7 w-7 text-white" />
+               </div>
+               <div className="text-left leading-tight">
+                 <span className="block text-[10px] text-white/80 font-black uppercase tracking-widest mb-0.5">Pagar Agora Online</span>
+                 Cartão de Crédito
+               </div>
+            </Button>
+
             <Button
               size="lg"
               variant="outline"
-              onClick={() => handleAction(false)}
+              onClick={() => handleAction('LOCAL')}
               disabled={saving}
               className="w-full h-20 sm:h-24 rounded-[2rem] border-4 border-green-600/30 bg-white hover:bg-green-50 text-green-700 font-black text-lg sm:text-xl flex items-center justify-center gap-4 shadow-lg active:scale-[0.97] transition-all uppercase tracking-tighter"
             >
@@ -396,24 +486,8 @@ export function BookingOverview({ booking, totals }: Props) {
                 <MessageCircle className="h-7 w-7 text-green-600" />
               </div>
               <div className="text-left leading-tight">
-                <span className="block text-[11px] opacity-70 font-black uppercase tracking-widest mb-0.5">Pagar Presencialmente</span>
+                <span className="block text-[10px] opacity-70 font-black uppercase tracking-widest mb-0.5">Pagar Presencialmente</span>
                 Confirmar no WhatsApp
-              </div>
-            </Button>
-
-            <Button
-              size="lg"
-              onClick={() => handleAction(true)}
-              disabled={saving}
-              className="w-full h-24 sm:h-28 rounded-[2rem] bg-gradient-to-br from-green-600 to-green-800 hover:from-green-700 hover:to-green-900 text-white font-black text-xl sm:text-2xl flex items-center justify-center gap-5 shadow-2xl shadow-green-900/40 active:scale-[0.97] transition-all group overflow-hidden relative border-b-8 border-green-900"
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 -translate-x-full group-hover:animate-shimmer" />
-              <div className="p-4 bg-white/20 rounded-[1.5rem] backdrop-blur-md">
-                {saving ? <Loader2 className="h-8 w-8 animate-spin" /> : <CheckCircle className="h-8 w-8 text-white" />}
-              </div>
-              <div className="text-left leading-tight">
-                <span className="block text-xs text-white/80 font-black uppercase tracking-widest mb-1">Pagamento Pix Autenticado</span>
-                Já quero deixar pago
               </div>
             </Button>
           </div>
@@ -426,10 +500,12 @@ export function BookingOverview({ booking, totals }: Props) {
           open={paymentData.open}
           onOpenChange={(op) => setPaymentData(prev => prev ? { ...prev, open: op } : null)}
           orderId={paymentData.orderId}
-          name={booking.entry.name || ''}
-          email={''} 
+          name={`${booking.entry.name || ''} ${booking.entry.lastName || ''}`.trim()}
+          email={booking.entry.email || ''} 
           phone={booking.entry.phone || ''}
+          cpf={booking.entry.cpf || ''}
           totalAmount={totals.total}
+          initialMethod={activePaymentMethod || undefined}
           onSuccess={handlePaymentSuccess}
         />
       )}

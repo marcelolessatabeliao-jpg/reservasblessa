@@ -11,139 +11,93 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { orderId, name, email, phone, billingType, value, description } = await req.json()
+    const { orderId, name, email, phone, cpf, billingType, value, description } = await req.json()
 
-    if (!orderId || !name || !billingType || !value) {
-      return new Response(JSON.stringify({ error: 'Faltam parâmetros obrigatórios' }), { 
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      });
-    }
+    // 1. Chave de API e URL (Ambiente Real)
     const ASAAS_API_KEY = Deno.env.get('ASAAS_API_KEY');
-    
-    if (!ASAAS_API_KEY) {
-      console.error('ASAAS_API_KEY and ASAAS_BASE_URL must be set in Supabase Secrets');
-      return new Response(JSON.stringify({ error: 'Configuração do gateway pendente (Chave ausente)' }), { 
-        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      });
-    }
+    if (!ASAAS_API_KEY) throw new Error('A variável ASAAS_API_KEY não foi configurada.');
 
-    // Auto-detect environment based on key prefix
-    const isProduction = ASAAS_API_KEY.startsWith('aact_live_');
-    const DEFAULT_BASE_URL = isProduction ? 'https://www.asaas.com/api/v3' : 'https://sandbox.asaas.com/api/v3';
-    const ASAAS_BASE_URL = Deno.env.get('ASAAS_BASE_URL') || DEFAULT_BASE_URL;
+    const isProd = ASAAS_API_KEY.startsWith('aact_live_');
+    const DEFAULT_URL = isProd ? 'https://www.asaas.com/api/v3' : 'https://sandbox.asaas.com/api/v3';
+    const ASAAS_URL = Deno.env.get('ASAAS_BASE_URL') || DEFAULT_URL;
 
-    console.log(`Environment: ${isProduction ? 'PRODUCTION' : 'SANDBOX'}`);
-    console.log(`Processing payment for ${name} (${billingType}, Phone: ${phone}) - Value: ${value}`);
+    // 2. Limpeza de Dados
+    const cleanPhone = phone ? phone.replace(/\D/g, '') : '';
+    const cleanCpf = cpf ? cpf.replace(/\D/g, '') : '';
 
-    // 1. Criar/Buscar cliente no Asaas
-    console.log('Step 1: Creating/Finding customer...');
-    // Dica: Para evitar duplicados, em produção o ideal seria buscar por email primeiro, 
-    // mas para reservas rápidas a criação direta funciona bem.
-    const customerReq = await fetch(`${ASAAS_BASE_URL}/customers`, {
+    if (!cleanCpf) throw new Error('Para cobranças reais em produção, o CPF é obrigatório.');
+
+    // 3. Criar/Vincular Cliente no Asaas
+    const customerReq = await fetch(`${ASAAS_URL}/customers`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'access_token': ASAAS_API_KEY
-      },
+      headers: { 'Content-Type': 'application/json', 'access_token': ASAAS_API_KEY },
       body: JSON.stringify({
-        name: name || 'Cliente Site',
+        name: name,
+        cpfCnpj: cleanCpf,
         email: email || 'cliente@balneariolessa.com.br',
-        mobilePhone: phone || null
+        mobilePhone: cleanPhone
       })
     });
-    
+
     const customerData = await customerReq.json();
     if (!customerReq.ok) {
-      console.error('Asaas Customer Error:', JSON.stringify(customerData));
-      return new Response(JSON.stringify({ error: customerData.errors?.[0]?.description || 'Erro ao preparar cadastro no Asaas' }), { 
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      });
+       throw new Error(`Asaas (Cliente): ${customerData.errors?.[0]?.description || 'Erro ao criar cadastro'}`);
     }
 
-    const customerId = customerData.id;
-    console.log('Customer ID created/found:', customerId);
-
-    // 2. Criar cobrança no Asaas
-    console.log('Step 2: Creating charge...');
-    const dueDate = new Date().toISOString().split('T')[0];
-
-    const paymentReq = await fetch(`${ASAAS_BASE_URL}/payments`, {
+    // 4. Gerar Cobrança (PIX ou CARTÃO)
+    const paymentReq = await fetch(`${ASAAS_URL}/payments`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'access_token': ASAAS_API_KEY
-      },
+      headers: { 'Content-Type': 'application/json', 'access_token': ASAAS_API_KEY },
       body: JSON.stringify({
-        customer: customerId,
-        billingType,
+        customer: customerData.id,
+        billingType: billingType,
         value: Number(Number(value).toFixed(2)),
-        dueDate,
-        description: description || 'Reserva Balneário Lessa',
+        dueDate: new Date().toISOString().split('T')[0],
+        description: description || `Reserva Balneário Lessa`,
         externalReference: orderId
       })
     });
 
     const paymentData = await paymentReq.json();
     if (!paymentReq.ok) {
-      console.error('Asaas Payment Error:', JSON.stringify(paymentData));
-      return new Response(JSON.stringify({ error: paymentData.errors?.[0]?.description || 'Erro ao gerar boleto/pix' }), { 
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      });
+        throw new Error(`Asaas (Cobrança): ${paymentData.errors?.[0]?.description || 'Erro ao gerar cobrança'}`);
     }
 
-    console.log('Payment created:', paymentData.id);
-
-    // 3. Obter QR Code / Pix Payload (se aplicável)
-    let pixDetails = null;
+    // 5. Dados do PIX (Se for PIX)
+    let pixData = null;
     if (billingType === 'PIX') {
-      console.log('Step 3: Getting PIX QR Code details...');
-      const pixReq = await fetch(`${ASAAS_BASE_URL}/payments/${paymentData.id}/pixQrCode`, {
-        headers: {
-          'access_token': ASAAS_API_KEY
-        }
+      const pixReq = await fetch(`${ASAAS_URL}/payments/${paymentData.id}/pixQrCode`, {
+        headers: { 'access_token': ASAAS_API_KEY }
       });
-      pixDetails = await pixReq.json();
-      console.log('PIX details received.');
+      pixData = await pixReq.json();
     }
 
-    // Initialize Supabase admin client to bypass RLS
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') || '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
-    );
-
-    // 4. Salvar registro no banco (opcional, para controle interno)
+    // 6. Registro no Supabase (Opcional - mas ajuda no Dashboard)
+    const supabaseAdmin = createClient(Deno.env.get('SUPABASE_URL') || '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '');
     try {
-      await supabaseAdmin.from('payments').insert({
-        order_id: orderId,
-        gateway: 'asaas',
-        metodo: billingType,
-        status: 'pending',
-        external_id: paymentData.id,
-        payment_url: billingType === 'CREDIT_CARD' ? paymentData.invoiceUrl : null
-      });
-    } catch (dbErr) {
-      console.warn('Silent failure saving payment record:', dbErr);
-    }
+        await supabaseAdmin.from('payments').insert({
+            order_id: orderId,
+            gateway: 'asaas',
+            metodo: billingType,
+            status: 'pending',
+            external_id: paymentData.id,
+            payment_url: paymentData.invoiceUrl
+        });
+    } catch (e) { console.warn('Erro ao salvar log de pagamento:', e); }
 
-    // Retorno ao Front-End
     return new Response(JSON.stringify({
       success: true,
-      paymentId: paymentData.id,
-      invoiceUrl: paymentData.invoiceUrl,
-      pix: pixDetails ? {
-        encodedImage: pixDetails.encodedImage, 
-        payload: pixDetails.payload 
-      } : null
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+      data: {
+        paymentId: paymentData.id,
+        invoiceUrl: paymentData.invoiceUrl,
+        pix: pixData ? { encodedImage: pixData.encodedImage, payload: pixData.payload } : null
+      }
+    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });
 
-  } catch (error) {
-    console.error('Internal Error:', error);
-    return new Response(JSON.stringify({ error: error.message || 'Erro inesperado no servidor' }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  } catch (err: any) {
+    return new Response(JSON.stringify({ success: false, error: err.message }), { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }, 
+        status: 200 
     });
   }
 })
