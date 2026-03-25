@@ -102,16 +102,13 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, phone, 
         throw new Error(response.error.message || 'Erro na comunicação com o servidor de pagamento');
       }
 
-      const { data } = response;
+      const { data: body } = response;
+      const data = body.data;
 
-      if (data.error) {
-         throw new Error(data.error);
-      }
-
-      if (method === 'PIX' && data.pix) {
+      if (method === 'PIX' && data?.pix) {
         setPixData(data.pix);
         toast({ title: 'Código PIX Gerado', description: 'Escaneie o QR Code ou copie o código.' });
-      } else if (method === 'CREDIT_CARD' && data.invoiceUrl) {
+      } else if (method === 'CREDIT_CARD' && data?.invoiceUrl) {
         toast({
           title: 'Redirecionando...',
           description: 'Aguarde um momento.',

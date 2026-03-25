@@ -151,7 +151,7 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
       }
 
       if (method === 'PIX') {
-        setPaymentData(null); // Garantia de que o modal não abrirá para PIX
+        setPaymentData(null);
         const response = await supabase.functions.invoke('create-payment', {
           body: {
             orderId,
@@ -169,12 +169,39 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
           throw new Error(response.error?.message || response.data?.error || 'Erro ao gerar PIX');
         }
 
-        setPixData(response.data.pix);
+        const data = response.data.data;
+        if (!data?.pix) throw new Error("A resposta do servidor não contém dados de PIX.");
+
+        setPixData(data.pix);
         setActivePaymentMethod('PIX');
         toast({ title: 'PIX Gerado com Sucesso!', description: 'Finalize o pagamento abaixo.' });
       } else if (method === 'CREDIT_CARD') {
-        setActivePaymentMethod('CREDIT_CARD');
-        setPaymentData({ open: true, orderId, confirmationCode: confCode || undefined });
+        const response = await supabase.functions.invoke('create-payment', {
+          body: {
+            orderId,
+            name: fullName,
+            email: booking.entry.email || '',
+            phone: booking.entry.phone,
+            cpf: booking.entry.cpf,
+            billingType: 'CREDIT_CARD',
+            value: totals.total,
+            description: `Reserva Balneário Lessa - ${fullName}`,
+          }
+        });
+
+        if (response.error || response.data?.error) {
+          throw new Error(response.error?.message || response.data?.error || 'Erro ao preparar Cartão');
+        }
+
+        const data = response.data.data;
+        if (data?.invoiceUrl) {
+           toast({ title: 'Redirecionando...', description: 'Aguarde um momento para o pagamento seguro.' });
+           setTimeout(() => {
+              window.location.href = data.invoiceUrl;
+           }, 500);
+        } else {
+           throw new Error("URL do checkout não encontrada.");
+        }
       } else {
         await (supabase as any).from('orders').update({ 
           status: 'waiting_local',
