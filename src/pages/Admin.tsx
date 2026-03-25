@@ -107,11 +107,11 @@ export default function Admin() {
               confirmation_code: o.confirmation_code,
               created_at: o.created_at,
               is_order: true,
-              adults: items.filter((i: any) => i.product_id.includes('Adulto') || i.product_id.includes('Professor') || i.product_id.includes('Estudante') || i.product_id.includes('Servidor') || i.product_id.includes('Vitalício') || i.product_id.includes('Inclusão')).reduce((acc: number, item: any) => acc + item.quantity, 0) || 0,
-              children: items.filter((i: any) => i.product_id.includes('Criança') || i.product_id.includes('Kids')).reduce((acc: number, item: any) => acc + item.quantity, 0) || 0,
-              kiosks: items.filter((i: any) => i.product_id.includes('Quiosque')).map((i: any) => ({ type: i.product_id.toLowerCase().includes('maior') ? 'maior' : 'menor', quantity: i.quantity })),
-              quads: items.filter((i: any) => i.product_id.includes('Quad')).map((i: any) => ({ type: i.product_id.toLowerCase().includes('individual') ? 'individual' : i.product_id.toLowerCase().includes('dupla') ? 'dupla' : 'adulto-crianca', quantity: i.quantity })),
-              additionals: items.filter((i: any) => i.product_id.includes('Pesca') || i.product_id.includes('Futebol')).map((i: any) => ({ type: i.product_id.toLowerCase().includes('pesca') ? 'pesca' : 'futebol-sabao', quantity: i.quantity }))
+              adults: items.filter((i: any) => i.product_id?.includes('Adulto') || i.product_id?.includes('Professor') || i.product_id?.includes('Estudante') || i.product_id?.includes('Servidor') || i.product_id?.includes('Vitalício') || i.product_id?.includes('Inclusão')).reduce((acc: number, item: any) => acc + (item.quantity || 0), 0) || 0,
+              children: items.filter((i: any) => i.product_id?.includes('Criança') || i.product_id?.includes('Kids')).reduce((acc: number, item: any) => acc + (item.quantity || 0), 0) || 0,
+              kiosks: items.filter((i: any) => i.product_id?.includes('Quiosque')).map((i: any) => ({ type: i.product_id?.toLowerCase().includes('maior') ? 'maior' : 'menor', quantity: i.quantity || 0 })),
+              quads: items.filter((i: any) => i.product_id?.includes('Quad')).map((i: any) => ({ type: i.product_id?.toLowerCase().includes('individual') ? 'individual' : i.product_id?.toLowerCase().includes('dupla') ? 'dupla' : 'adulto-crianca', quantity: i.quantity || 0 })),
+              additionals: items.filter((i: any) => i.product_id?.includes('Pesca') || i.product_id?.includes('Futebol')).map((i: any) => ({ type: i.product_id?.toLowerCase().includes('pesca') ? 'pesca' : 'futebol-sabao', quantity: i.quantity || 0 }))
            };
         });
         setBookings(mapped || []);

@@ -35,7 +35,30 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
   const [activePaymentMethod, setActivePaymentMethod] = useState<'PIX' | 'CREDIT_CARD' | null>(null);
   const [pixData, setPixData] = useState<{ encodedImage: string; payload: string } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [paymentConfirmed, setPaymentConfirmed] = useState(false);
   const { getPrice } = useServices();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (!currentOrderId || paymentConfirmed) return;
+
+    const channel = supabase
+      .channel(`order-overview-${currentOrderId}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${currentOrderId}` },
+        (payload) => {
+          if (payload.new.status === 'paid' || payload.new.status === 'confirmed') {
+            setCurrentConfirmationCode(payload.new.confirmation_code);
+            setPaymentConfirmed(true);
+            toast({ title: 'Pagamento Confirmado!', description: 'Sua reserva está garantida!' });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [currentOrderId, paymentConfirmed, toast]);
 
   function calculateMembershipCost(people: { adultsCount: number; halfPriceCount: number }): number {
     const memberHalf = getPrice('entry_half', 25.0);
@@ -493,14 +516,41 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
           </div>
 
           <div className="flex flex-col gap-4">
-            {saving && activePaymentMethod === 'PIX' && !pixData ? (
-              <div className="flex flex-col items-center justify-center py-12 space-y-4 bg-[#00bdae]/5 border-2 border-dashed border-[#00bdae]/30 rounded-[2rem] animate-pulse">
-                <Loader2 className="h-10 w-10 animate-spin text-[#00bdae]" />
-                <div className="text-center">
-                  <p className="font-black text-[#00bdae] text-lg uppercase tracking-tight">Gerando seu PIX...</p>
-                  <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">Aguarde, estamos preparando seu Voucher Seguro</p>
+            {paymentConfirmed ? (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="bg-white rounded-[2rem] p-8 space-y-6 shadow-2xl border-4 border-green-500 flex flex-col items-center"
+              >
+                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center text-green-600 mb-2">
+                  <CheckCircle className="w-12 h-12" />
                 </div>
-              </div>
+                
+                <div className="text-center space-y-2">
+                  <h3 className="text-2xl font-gliker text-primary">Reserva Garantida!</h3>
+                  <p className="text-sm text-muted-foreground font-medium">Apresente o código abaixo na bilheteria</p>
+                </div>
+
+                <div className="bg-primary/5 border-2 border-dashed border-primary/20 rounded-3xl p-8 w-full text-center space-y-4">
+                  <div>
+                    <p className="text-[10px] font-black uppercase text-primary/60 tracking-widest mb-1">CÓDIGO VOUCHER</p>
+                    <p className="text-4xl font-mono font-black text-primary tracking-[0.2em]">{currentConfirmationCode}</p>
+                  </div>
+                  
+                  <div className="flex justify-center bg-white p-4 rounded-2xl border shadow-sm max-w-[180px] mx-auto">
+                    <img 
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${currentConfirmationCode}`} 
+                      alt="QR Code" 
+                      className="w-32 h-32"
+                    />
+                  </div>
+                </div>
+
+                <p className="text-[10px] text-muted-foreground text-center px-4">
+                  Tire um print desta tela para agilizar seu check-in. Enviamos os detalhes também para o seu WhatsApp/E-mail.
+                </p>
+                <Button onClick={() => window.location.reload()} variant="outline" className="w-full h-12 rounded-xl font-bold">FECHAR E VOLTAR</Button>
+              </motion.div>
             ) : !pixData ? (
               <>
                 <Button
