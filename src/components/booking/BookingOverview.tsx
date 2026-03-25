@@ -1,10 +1,4 @@
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { BookingState, formatCurrency, KIOSK_INFO, QUAD_PRICES, QUAD_LABELS, ADDITIONAL_INFO, getQuadDiscount, getPersonPrice, WHATSAPP_NUMBER } from '@/lib/booking-types';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { Button } from '@/components/ui/button';
-import { MessageCircle, CheckCircle, Loader2, ArrowRight, User, CreditCard, QrCode } from 'lucide-react';
+import { MessageCircle, CheckCircle, Loader2, ArrowRight, User, CreditCard, QrCode, Copy } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { saveBooking } from '@/lib/booking-service';
 import { buildWhatsAppMessage } from '@/lib/whatsapp';
@@ -32,6 +26,8 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
   const [currentOrderId, setCurrentOrderId] = useState<string | null>(null);
   const [currentConfirmationCode, setCurrentConfirmationCode] = useState<string | null>(null);
   const [activePaymentMethod, setActivePaymentMethod] = useState<'PIX' | 'CREDIT_CARD' | null>(null);
+  const [pixData, setPixData] = useState<{ encodedImage: string; payload: string } | null>(null);
+  const [copied, setCopied] = useState(false);
   const { getPrice } = useServices();
 
   function calculateMembershipCost(people: { adultsCount: number; halfPriceCount: number }): number {
@@ -42,12 +38,23 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
 
   const hasAnything = totals.total > 0 || booking.entry.adults.length > 0 || booking.entry.children.length > 0;
 
+  const handleCopyPix = () => {
+    if (!pixData) return;
+    navigator.clipboard.writeText(pixData.payload);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+    toast({
+      title: 'PIX Copiado!',
+      description: 'Código PIX Copia e Cola copiado.',
+    });
+  };
+
   const handleAction = async (method: 'PIX' | 'CREDIT_CARD' | 'LOCAL') => {
     const fullName = `${booking.entry.name || ''} ${booking.entry.lastName || ''}`.trim();
 
     if (!fullName || !booking.entry.phone?.trim() || booking.entry.phone.length < 10) {
       toast({
-        title: 'Informe seu nome completo e WhatsApp',
+        title: 'Dados Incompletos',
         description: 'Preencha o campo de Nome, Sobrenome e WhatsApp.',
         variant: 'destructive'
       });
@@ -124,23 +131,42 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
       let confCode = currentConfirmationCode;
 
       if (!orderId) {
-        // Usar nome completo ao salvar o pedido
         const result = await saveBooking({
           ...booking,
           entry: { ...booking.entry, name: fullName }
         }, totals.total, null, items);
         
-        if (!result?.orderId) throw new Error("Não foi possível gerar o ID do pedido.");
+        if (!result?.orderId) throw new Error("Erro ao salvar pedido.");
         orderId = result.orderId;
         confCode = result.confirmationCode;
         setCurrentOrderId(orderId);
         setCurrentConfirmationCode(confCode);
       }
 
-      if (method !== 'LOCAL') {
-        setActivePaymentMethod(method as 'PIX' | 'CREDIT_CARD');
+      if (method === 'PIX') {
+        const response = await supabase.functions.invoke('create-payment', {
+          body: {
+            orderId,
+            name: fullName,
+            email: booking.entry.email || '',
+            phone: booking.entry.phone,
+            cpf: booking.entry.cpf,
+            billingType: 'PIX',
+            value: totals.total,
+            description: `Reserva Balneário Lessa - ${fullName}`,
+          }
+        });
+
+        if (response.error || response.data?.error) {
+          throw new Error(response.error?.message || response.data?.error || 'Erro ao gerar PIX');
+        }
+
+        setPixData(response.data.pix);
+        setActivePaymentMethod('PIX');
+        toast({ title: 'PIX Gerado!', description: 'Veja o código abaixo para pagar.' });
+      } else if (method === 'CREDIT_CARD') {
+        setActivePaymentMethod('CREDIT_CARD');
         setPaymentData({ open: true, orderId, confirmationCode: confCode || undefined });
-        toast({ title: 'Preparando Pagamento', description: `Iniciando sua cobrança via ${method === 'PIX' ? 'PIX' : 'Cartão'}...` });
       } else {
         await (supabase as any).from('orders').update({ 
           status: 'waiting_local',
@@ -149,11 +175,11 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
         
         const msg = buildWhatsAppMessage(booking, totals.total, false, confCode || undefined, getPrice);
         window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`, '_blank');
-        toast({ title: 'Reserva via WhatsApp', description: 'Sua reserva foi enviada.' });
+        toast({ title: 'Enviado ao WhatsApp', description: 'Finalize o pagamento no local.' });
       }
     } catch (err: any) {
       console.error("[Booking] Error:", err);
-      toast({ title: 'Erro ao salvar', description: err.message || 'Erro desconhecido', variant: 'destructive' });
+      toast({ title: 'Falha no Agendamento', description: err.message || 'Erro desconhecido', variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -431,49 +457,83 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
           </div>
         </div>
 
-        {/* Total Gigante */}
-        <div className="pt-2">
-          <div className="flex justify-between items-end mb-6">
-            <div>
-              <p className="text-[10px] sm:text-xs text-muted-foreground uppercase font-black tracking-widest mb-1.5 flex items-center gap-1.5">
-                Total da Reserva
-              </p>
-              <h2 className="font-display font-black text-4xl sm:text-5xl text-primary leading-none">
-                {formatCurrency(totals.total)}
-              </h2>
-            </div>
-          </div>
-
           <div className="flex flex-col gap-4">
-            <Button
-              size="lg"
-              onClick={() => handleAction('PIX')}
-              disabled={saving}
-              className="w-full h-20 sm:h-24 rounded-[2rem] bg-[#00bdae] hover:bg-[#009b8f] text-white font-black text-lg sm:text-xl flex items-center justify-center gap-4 shadow-xl active:scale-[0.97] transition-all group overflow-hidden relative border-b-8 border-[#007a71]"
-            >
-               <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md">
-                 <QrCode className="h-7 w-7 text-white" />
-               </div>
-               <div className="text-left leading-tight">
-                 <span className="block text-[10px] text-white/80 font-black uppercase tracking-widest mb-0.5">Pagar Agora Online</span>
-                 Gerar PIX
-               </div>
-            </Button>
+            {!pixData ? (
+              <>
+                <Button
+                  size="lg"
+                  onClick={() => handleAction('PIX')}
+                  disabled={saving}
+                  className="w-full h-20 sm:h-24 rounded-[2rem] bg-[#00bdae] hover:bg-[#009b8f] text-white font-black text-lg sm:text-xl flex items-center justify-center gap-4 shadow-xl active:scale-[0.97] transition-all group overflow-hidden relative border-b-8 border-[#007a71]"
+                >
+                  <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md">
+                    {saving && activePaymentMethod === 'PIX' ? <Loader2 className="h-7 w-7 animate-spin" /> : <QrCode className="h-7 w-7 text-white" />}
+                  </div>
+                  <div className="text-left leading-tight">
+                    <span className="block text-[10px] text-white/80 font-black uppercase tracking-widest mb-0.5">Pagar Agora Online</span>
+                    Gerar PIX
+                  </div>
+                </Button>
 
-            <Button
-              size="lg"
-              onClick={() => handleAction('CREDIT_CARD')}
-              disabled={saving}
-              className="w-full h-20 sm:h-24 rounded-[2rem] bg-primary hover:bg-primary-dark text-white font-black text-lg sm:text-xl flex items-center justify-center gap-4 shadow-xl active:scale-[0.97] transition-all group overflow-hidden relative border-b-8 border-primary-dark"
-            >
-               <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md">
-                 <CreditCard className="h-7 w-7 text-white" />
-               </div>
-               <div className="text-left leading-tight">
-                 <span className="block text-[10px] text-white/80 font-black uppercase tracking-widest mb-0.5">Pagar Agora Online</span>
-                 Cartão de Crédito
-               </div>
-            </Button>
+                <Button
+                  size="lg"
+                  onClick={() => handleAction('CREDIT_CARD')}
+                  disabled={saving}
+                  className="w-full h-20 sm:h-24 rounded-[2rem] bg-primary hover:bg-primary-dark text-white font-black text-lg sm:text-xl flex items-center justify-center gap-4 shadow-xl active:scale-[0.97] transition-all group overflow-hidden relative border-b-8 border-primary-dark"
+                >
+                  <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md">
+                    {saving && activePaymentMethod === 'CREDIT_CARD' ? <Loader2 className="h-7 w-7 animate-spin" /> : <CreditCard className="h-7 w-7 text-white" />}
+                  </div>
+                  <div className="text-left leading-tight">
+                    <span className="block text-[10px] text-white/80 font-black uppercase tracking-widest mb-0.5">Pagar Agora Online</span>
+                    Cartão de Crédito
+                  </div>
+                </Button>
+              </>
+            ) : (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white rounded-[2rem] border-2 border-[#00bdae] p-6 space-y-4 shadow-lg"
+              >
+                <div className="text-center">
+                   <h4 className="text-[#00bdae] font-black text-lg uppercase tracking-wider">PIX Copia e Cola Gerado!</h4>
+                   <p className="text-xs text-muted-foreground font-medium">Escaneie o QR Code ou use o botão abaixo:</p>
+                </div>
+                
+                <div className="flex justify-center bg-white p-4 rounded-3xl border border-primary/5 shadow-inner">
+                   <img 
+                     src={`data:image/png;base64,${pixData.encodedImage}`} 
+                     alt="QR Code PIX" 
+                     className="w-48 h-48"
+                   />
+                </div>
+
+                <div className="space-y-3">
+                  <Button 
+                    onClick={handleCopyPix}
+                    className={cn(
+                      "w-full h-14 rounded-2xl font-black text-base flex items-center justify-center gap-2 transition-all",
+                      copied ? "bg-green-600 hover:bg-green-700 text-white" : "bg-[#00bdae] hover:bg-[#009b8f] text-white"
+                    )}
+                  >
+                    {copied ? <CheckCircle className="h-5 w-5" /> : <Copy className="h-5 w-5" />}
+                    {copied ? 'Código Copiado!' : 'Copiar Código PIX'}
+                  </Button>
+                  
+                  <Button 
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                        setPaymentData({ open: true, orderId: currentOrderId!, confirmationCode: currentConfirmationCode || undefined });
+                    }}
+                    className="w-full text-xs font-bold text-muted-foreground uppercase"
+                  >
+                    Já paguei, ver meu voucher
+                  </Button>
+                </div>
+              </motion.div>
+            )}
 
             <Button
               size="lg"
