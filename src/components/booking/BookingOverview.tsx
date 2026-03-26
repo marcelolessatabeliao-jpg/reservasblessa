@@ -1,4 +1,5 @@
 import { MessageCircle, CheckCircle, Loader2, ArrowRight, User, CreditCard, QrCode, Copy } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { saveBooking } from '@/lib/booking-service';
 import { buildWhatsAppMessage } from '@/lib/whatsapp';
@@ -546,10 +547,17 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
                   </div>
                 </div>
 
+                <div className="flex flex-col gap-3 w-full">
+                  <Link to={`/voucher/${currentConfirmationCode}`} target="_blank" className="w-full">
+                    <Button className="w-full h-14 rounded-2xl bg-sun hover:bg-sun/90 text-primary-dark font-black shadow-lg flex gap-2">
+                       VER MEU VOUCHER DIGITAL <QrCode className="w-5 h-5" />
+                    </Button>
+                  </Link>
+                  <Button onClick={() => window.location.reload()} variant="outline" className="w-full h-12 rounded-2xl font-bold">FECHAR E VOLTAR</Button>
+                </div>
                 <p className="text-[10px] text-muted-foreground text-center px-4">
-                  Tire um print desta tela para agilizar seu check-in. Enviamos os detalhes também para o seu WhatsApp/E-mail.
+                  Clique no botão acima para abrir seu voucher oficial. Enviamos os detalhes também para o seu WhatsApp/E-mail.
                 </p>
-                <Button onClick={() => window.location.reload()} variant="outline" className="w-full h-12 rounded-xl font-bold">FECHAR E VOLTAR</Button>
               </motion.div>
             ) : !pixData ? (
               <>

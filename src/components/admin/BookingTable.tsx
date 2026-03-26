@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ChevronDown, ChevronUp, CheckCircle, XCircle, Clock, UserCheck, Phone, Hash } from 'lucide-react';
+import { ChevronDown, ChevronUp, CheckCircle, XCircle, Clock, UserCheck, Phone, Hash, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/booking-types';
@@ -35,6 +35,7 @@ interface BookingTableProps {
   bookings: Booking[];
   onStatusChange: (bookingId: string, status: string, isOrder?: boolean) => void;
   onAddNote: (bookingId: string, notes: string, isOrder?: boolean) => void;
+  onReschedule: (bookingId: string, newDate: string, isOrder?: boolean) => void;
   updatingId: string | null;
 }
 
@@ -47,7 +48,7 @@ const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secon
   cancelled: { label: 'Cancelada', variant: 'destructive', icon: XCircle },
 };
 
-export function BookingTable({ bookings, onStatusChange, onAddNote, updatingId }: BookingTableProps) {
+export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule, updatingId }: BookingTableProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [noteText, setNoteText] = useState('');
@@ -199,7 +200,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, updatingId }
                     className="border-whatsapp text-whatsapp hover:bg-whatsapp hover:text-white"
                     onClick={(e) => {
                        e.stopPropagation();
-                       const msg = `Olá ${booking.name}, aqui está o seu voucher para o Balneário Lessa ✨\n\nCódigo: *${booking.confirmation_code}*\nVeja seu voucher aqui: https://reservas.balneariolessa.com.br/voucher/${booking.id}\n\nApresente este código na bilheteria.`;
+                       const msg = `Olá ${booking.name}, aqui está o seu voucher para o Balneário Lessa ✨\n\nCódigo: *${booking.confirmation_code}*\nVeja seu voucher aqui: https://reservas.balneariolessa.com.br/voucher/${booking.confirmation_code}\n\nApresente este código na bilheteria.`;
                        window.open(`https://wa.me/55${booking.phone?.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
                     }}
                   >
@@ -214,8 +215,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, updatingId }
                        e.stopPropagation();
                        const newDate = prompt("Digite a nova data (AAAA-MM-DD):", booking.visit_date);
                        if (newDate && newDate !== booking.visit_date) {
-                          onStatusChange(booking.id, booking.status, booking.is_order); // Re-trigger fetch for now or actual update logic
-                          // Ideally I should have an onReschedule prop, but I'll use onStatusChange as a proxy if I update it in Admin.tsx
+                          onReschedule(booking.id, newDate, booking.is_order);
                        }
                     }}
                   >

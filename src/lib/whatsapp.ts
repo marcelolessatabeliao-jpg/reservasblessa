@@ -9,7 +9,10 @@ export function buildWhatsAppMessage(booking: BookingState, total: number, isPre
   const safeGetPrice = getPrice || ((t: string, fb: number) => fb);
   const isSunday = entry.dayOfWeek === 'domingo';
   let msg = `Olá, Balneário Lessa!\nGostaria de confirmar uma reserva${isPrepay ? ' e já realizar o pagamento via Pix' : ''}.\n\n`;
-  if (code) msg += `*Código da Reserva:* ${code}\n`;
+  if (code) {
+    msg += `*Código da Reserva:* ${code}\n`;
+    msg += `*Voucher Digital:* https://reservas.balneariolessa.com.br/voucher/${code}\n`;
+  }
   if (entry.name) msg += `*Nome:* ${entry.name}\n`;
   if (entry.phone) msg += `*Telefone:* ${formatPhone(entry.phone)}\n`;
   if (entry.visitDate) msg += `*Data da visita:* ${format(entry.visitDate, "dd/MM/yyyy (EEEE)", { locale: ptBR })}\n`;
