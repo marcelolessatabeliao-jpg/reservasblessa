@@ -236,6 +236,20 @@ export default function Admin() {
              <div><h1 className="font-display font-black text-xl md:text-2xl leading-none">Balneário Lessa</h1><p className="text-primary-foreground/60 text-[10px] font-black uppercase tracking-[0.2em] mt-1">Management Portal v2.0</p></div>
           </div>
           <div className="flex gap-2">
+            <Button size="sm" variant="destructive" onClick={async () => {
+              if (confirm('Limpar todos os dados de teste?')) {
+                await supabase.from('order_items').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+                await supabase.from('orders').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+                await supabase.from('bookings' as any).delete().neq('id', '00000000-0000-0000-0000-000000000000');
+                await supabase.from('vouchers').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+                await supabase.from('payments').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+                await supabase.from('quad_reservations').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+                await supabase.from('kiosk_reservations').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+                alert('Dashboard limpa!');
+                fetchBookings(); 
+                fetchOrders();
+              }
+            }}>LIMPAR TESTES</Button>
             <Button size="icon" variant="ghost" onClick={fetchBookings} disabled={loading}><RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} /></Button>
             <Button size="icon" variant="ghost" onClick={() => { localStorage.removeItem('admin_token'); setToken(null); }}><LogOut className="w-5 h-5" /></Button>
           </div>
@@ -294,8 +308,13 @@ export default function Admin() {
               <Card><CardContent className="p-4 text-center"><TrendingUp className="w-5 h-5 mx-auto mb-1 text-sun-dark" /><p className="text-lg font-black">{formatCurrency(stats.revenue)}</p><p className="text-[10px] font-bold text-muted-foreground uppercase">Receita</p></CardContent></Card>
             </div>
             <div className="flex gap-2">
-              {['today', 'tomorrow', 'week', 'all'].map(f => (
-                <Button key={f} size="sm" variant={dateFilter === f ? 'default' : 'outline'} onClick={() => setDateFilter(f as any)} className="flex-1 uppercase text-[10px] font-black">{f}</Button>
+              {[
+                { key: 'today', label: 'HOJE' },
+                { key: 'tomorrow', label: 'AMANHÃ' },
+                { key: 'week', label: 'SEMANA' },
+                { key: 'all', label: 'TODAS' }
+              ].map(f => (
+                <Button key={f.key} size="sm" variant={dateFilter === f.key ? 'default' : 'outline'} onClick={() => setDateFilter(f.key as any)} className="flex-1 uppercase text-[10px] font-black">{f.label}</Button>
               ))}
             </div>
             <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" /><Input placeholder="Buscar reservas..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" /></div>
