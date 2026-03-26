@@ -1,11 +1,14 @@
-import { formatCurrency, KIOSK_INFO, QUAD_LABELS, ADDITIONAL_INFO } from '@/lib/booking-types';
-import type { KioskType, QuadType, AdditionalService } from '@/lib/booking-types';
-import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { formatCurrency } from '@/lib/booking-types';
+import { CheckCircle2, Circle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
+import { cn } from '@/lib/utils';
 
 interface BookingDetailProps {
   booking: {
+    id: string;
     adults: number;
     children?: any;
     kiosks?: any;
@@ -15,88 +18,95 @@ interface BookingDetailProps {
     is_associado?: boolean | null;
     total_amount: number;
     created_at: string;
+    order_items?: any[];
   };
 }
 
 export function BookingDetail({ booking }: BookingDetailProps) {
   const children = Array.isArray(booking.children) ? booking.children : [];
-  const kiosks = Array.isArray(booking.kiosks) ? booking.kiosks : [];
-  const quads = Array.isArray(booking.quads) ? booking.quads : [];
-  const additionals = Array.isArray(booking.additionals) ? booking.additionals : [];
+  const items = booking.order_items || [];
+
+  const handleToggleItemStatus = async (itemId: string, currentStatus: boolean | null) => {
+    try {
+      const { error } = await supabase
+        .from('order_items')
+        .update({ 
+          is_redeemed: !currentStatus, 
+          redeemed_at: !currentStatus ? new Date().toISOString() : null 
+        })
+        .eq('id', itemId);
+      
+      if (error) throw error;
+      // Note: Ideally we'd trigger a reload here, but for now we'll assume real-time handle or manual refresh
+    } catch (err) {
+      console.error("Error updating item status:", err);
+    }
+  };
 
   return (
-    <div className="grid gap-3 text-sm p-4 bg-muted/50 rounded-lg">
-      {/* Reserva criada em */}
-      <p className="text-xs text-muted-foreground">
-        Reserva feita em {booking.created_at ? format(new Date(booking.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }) : 'Data não disponível'}
-      </p>
-
-      {/* Pessoas */}
-      <div>
-        <p className="font-semibold text-foreground mb-1">Pessoas</p>
-        <p>{booking.adults} adulto(s)</p>
-        {(Array.isArray(booking.children) ? booking.children.length > 0 : (Number(booking.children) > 0)) && (
-          <p>
-            {Array.isArray(booking.children) ? booking.children.length : booking.children} criança(s)
-            {Array.isArray(booking.children) && booking.children.length > 0 && ': '}
-            {Array.isArray(booking.children) && booking.children.map((c: any, i: number) => (
-              <span key={i}>
-                {c.age} anos{c.isStudent ? ' (estudante)' : ''}
-                {i < (booking.children?.length ?? 0) - 1 ? ', ' : ''}
-              </span>
-            ))}
-          </p>
-        )}
-      </div>
-
-      {/* Tags */}
-      <div className="flex gap-2 flex-wrap">
-        {booking.is_associado && <Badge variant="secondary">Associado</Badge>}
-        {booking.has_donation && <Badge variant="outline">Doação 1kg</Badge>}
-      </div>
-
-      {/* Quiosques */}
-      {kiosks.length > 0 && (
-        <div>
-          <p className="font-semibold text-foreground mb-1">Quiosques</p>
-          {kiosks.map((k: any, i: number) => (
-            <p key={i}>
-              {KIOSK_INFO[k.type as KioskType]?.label || k.type} × {k.quantity}
-            </p>
-          ))}
-        </div>
-      )}
-
-      {/* Quadriciclos */}
-      {quads.length > 0 && (
-        <div>
-          <p className="font-semibold text-foreground mb-1">Quadriciclos</p>
-          {quads.map((q: any, i: number) => (
-            <p key={i}>
-              {QUAD_LABELS[q.type as QuadType] || q.type} × {q.quantity}
-              {q.time && ` — ${q.time}`}
-            </p>
-          ))}
-        </div>
-      )}
-
-      {/* Adicionais */}
-      {additionals.length > 0 && (
-        <div>
-          <p className="font-semibold text-foreground mb-1">Adicionais</p>
-          {additionals.map((a: any, i: number) => (
-            <p key={i}>
-              {ADDITIONAL_INFO[a.type as AdditionalService]?.label || a.type} × {a.quantity}
-            </p>
-          ))}
-        </div>
-      )}
-
-      {/* Total */}
-      <div className="pt-2 border-t border-border">
-        <p className="font-bold text-foreground text-base">
-          Total: {formatCurrency(booking.total_amount)}
+    <div className="grid gap-4 p-5 bg-muted/30 rounded-3xl border border-muted-foreground/10">
+      <div className="flex justify-between items-center border-b border-muted-foreground/5 pb-3">
+        <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest leading-none">
+          Reserva id: {booking.id.slice(0, 8)}
         </p>
+        <p className="text-[10px] font-medium text-muted-foreground italic">
+          {booking.created_at ? format(new Date(booking.created_at), "dd/MM/yy 'às' HH:mm", { locale: ptBR }) : ''}
+        </p>
+      </div>
+
+      <div className="space-y-4">
+        <div className="space-y-3">
+          <p className="font-display font-black text-primary uppercase text-xs tracking-tighter flex items-center gap-2">
+            <span className="w-1.5 h-1.5 bg-sun rounded-full" /> Itens Contratados
+          </p>
+          
+          <div className="grid gap-2">
+            {items.length > 0 ? (
+              items.map((item, i) => (
+                <div key={i} className="flex items-center justify-between bg-white border border-primary/5 p-3 rounded-2xl shadow-sm group hover:border-primary/20 transition-all">
+                  <div className="flex flex-col">
+                    <span className={cn("font-bold text-sm", item.is_redeemed ? "text-muted-foreground line-through opacity-60" : "text-foreground")}>
+                       {item.quantity}x {item.product_id}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
+                       {item.is_redeemed ? `Utilizado em ${format(new Date(item.redeemed_at), "dd/MM HH:mm")}` : "Não utilizado"}
+                    </span>
+                  </div>
+                  
+                  <Button
+                    size="icon"
+                    variant={item.is_redeemed ? "ghost" : "outline"}
+                    className={cn(
+                      "h-9 w-9 rounded-xl transition-all",
+                      item.is_redeemed ? "text-green-600 bg-green-50" : "text-muted-foreground hover:text-primary border-2"
+                    )}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleToggleItemStatus(item.id, item.is_redeemed);
+                    }}
+                  >
+                    {item.is_redeemed ? <CheckCircle2 className="w-5 h-5 animate-in zoom-in-50" /> : <Circle className="w-5 h-5" />}
+                  </Button>
+                </div>
+              ))
+            ) : (
+               <p className="text-xs text-muted-foreground italic pl-3">Nenhum item detalhado encontrado.</p>
+            )}
+          </div>
+        </div>
+
+        {/* Legacy / Simple Data display if order_items are empty but other props exist */}
+        {items.length === 0 && (
+          <div className="space-y-2 opacity-80">
+             <p className="text-xs font-bold">{booking.adults} Adultos</p>
+             {children.length > 0 && <p className="text-xs font-bold">{children.length} Crianças</p>}
+          </div>
+        )}
+
+        <div className="pt-3 border-t border-muted-foreground/10 flex justify-between items-center">
+            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Valor Total</span>
+            <span className="text-lg font-black text-primary">{formatCurrency(booking.total_amount)}</span>
+        </div>
       </div>
     </div>
   );

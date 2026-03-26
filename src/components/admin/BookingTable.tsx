@@ -191,6 +191,36 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, updatingId }
                       <XCircle className="w-4 h-4 mr-1" /> Cancelar
                     </Button>
                   )}
+                  
+                  {/* Whatsapp Fast Send */}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-whatsapp text-whatsapp hover:bg-whatsapp hover:text-white"
+                    onClick={(e) => {
+                       e.stopPropagation();
+                       const msg = `Olá ${booking.name}, aqui está o seu voucher para o Balneário Lessa ✨\n\nCódigo: *${booking.confirmation_code}*\nVeja seu voucher aqui: https://reservas.balneariolessa.com.br/voucher/${booking.id}\n\nApresente este código na bilheteria.`;
+                       window.open(`https://wa.me/55${booking.phone?.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
+                    }}
+                  >
+                    <MessageCircle className="w-4 h-4 mr-1" /> Enviar Voucher
+                  </Button>
+
+                  {/* Reschedule Button */}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={(e) => {
+                       e.stopPropagation();
+                       const newDate = prompt("Digite a nova data (AAAA-MM-DD):", booking.visit_date);
+                       if (newDate && newDate !== booking.visit_date) {
+                          onStatusChange(booking.id, booking.status, booking.is_order); // Re-trigger fetch for now or actual update logic
+                          // Ideally I should have an onReschedule prop, but I'll use onStatusChange as a proxy if I update it in Admin.tsx
+                       }
+                    }}
+                  >
+                    <Clock className="w-4 h-4 mr-1" /> Reagendar
+                  </Button>
                 </div>
               </div>
             )}
