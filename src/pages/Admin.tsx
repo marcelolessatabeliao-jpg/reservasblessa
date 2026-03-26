@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { format, isToday, isTomorrow, isThisWeek, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Search, LogOut, RefreshCw, Users, DollarSign, CalendarCheck, TrendingUp, UserCheck, Hash, ArrowRight, MessageCircle, Clock } from 'lucide-react';
+import { Search, LogOut, RefreshCw, Users, DollarSign, CalendarCheck, TrendingUp, UserCheck, Hash, ArrowRight, MessageCircle, Clock, Circle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { AdminLogin } from '@/components/admin/AdminLogin';
@@ -9,15 +9,15 @@ import { BookingTable } from '@/components/admin/BookingTable';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/booking-types';
 
-import { getAdminOrders, markOrderAsPaid, redeemVoucher } from '@/integrations/supabase/orders';
+import { getAdminOrders, markOrderAsPaid } from '@/integrations/supabase/orders';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { CheckCircle2, Circle, Eye, Copy } from 'lucide-react';
 import { cn } from "@/lib/utils";
 
 type DateFilter = 'today' | 'tomorrow' | 'week' | 'all';
-type TabType = 'reservas' | 'pedidos';
+type TabType = 'reservas' | 'pedidos' | 'inventario';
 
 export default function Admin() {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('admin_token'));
@@ -30,6 +30,18 @@ export default function Admin() {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
   const { toast } = useToast();
+
+  // Inventory logic
+  const [kioskUsage, setKioskUsage] = useState<any[]>([]);
+  const [quadUsage, setQuadUsage] = useState<any[]>([]);
+
+  const fetchInventory = useCallback(async () => {
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const { data: kiosks } = await supabase.from('kiosk_reservations').select('*').gte('reservation_date', today).order('reservation_date');
+    const { data: quads } = await supabase.from('quad_reservations').select('*').gte('reservation_date', today).order('reservation_date');
+    setKioskUsage(kiosks || []);
+    setQuadUsage(quads || []);
+  }, []);
 
   const fetchOrders = useCallback(async () => {
     setLoadingOrders(true);
@@ -46,12 +58,10 @@ export default function Admin() {
   const fetchBookings = useCallback(async () => {
     setLoading(true);
     try {
+      fetchInventory();
       const { data, error } = await supabase
         .from('orders')
-        .select(`
-          *,
-          order_items (*)
-        `)
+        .select(`*, order_items (*)`)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -91,355 +101,205 @@ export default function Admin() {
     } finally {
       setLoading(false);
     }
-  }, [toast]);
-
-  useEffect(() => {
-    const channel = supabase
-      .channel('admin-orders-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
-        fetchBookings();
-        fetchOrders();
-      })
-      .subscribe();
-
-    const orderItemsChannel = supabase
-      .channel('admin-order-items-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, () => {
-        fetchBookings();
-        fetchOrders();
-      })
-      .subscribe();
-
-    const interval = setInterval(() => {
-        fetchBookings();
-        fetchOrders();
-    }, 45000);
-
-    return () => {
-      supabase.removeChannel(channel);
-      supabase.removeChannel(orderItemsChannel);
-      clearInterval(interval);
-    };
-  }, [fetchBookings, fetchOrders]);
+  }, [toast, fetchInventory]);
 
   useEffect(() => {
     if (!token) return;
     fetchBookings();
     fetchOrders();
+
+    const channel = supabase
+      .channel('admin-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => { fetchBookings(); fetchOrders(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, () => { fetchBookings(); fetchOrders(); })
+      .subscribe();
+
+    const interval = setInterval(() => { fetchBookings(); fetchOrders(); }, 60000);
+    return () => { supabase.removeChannel(channel); clearInterval(interval); };
   }, [token, fetchBookings, fetchOrders]);
 
   const handleStatusChange = async (bookingId: string, status: string, isOrder?: boolean) => {
     setUpdatingId(bookingId);
     try {
       if (isOrder) {
-         const { error } = await supabase.from('orders').update({ 
-           status: status === 'confirmed' ? 'paid' : status
-         }).eq('id', bookingId);
-         if (error) throw error;
+         await supabase.from('orders').update({ status: status === 'confirmed' ? 'paid' : status }).eq('id', bookingId);
       } else {
-        const { data, error } = await supabase.functions.invoke('update-booking-status', {
-          body: { bookingId, status, adminToken: token },
-        });
-
-        if (error || !data?.success) {
-          if (data?.error === 'Token inválido' || data?.error === 'Não autorizado') {
-            localStorage.removeItem('admin_token');
-            setToken(null);
-            return;
-          }
-          throw new Error(data?.error || 'Erro');
-        }
+        await supabase.functions.invoke('update-booking-status', { body: { bookingId, status, adminToken: token } });
       }
-
-      const statusLabels: Record<string, string> = { confirmed: 'Confirmada', 'checked-in': 'Check-in realizado', cancelled: 'Cancelada', pending: 'Pendente' };
-      toast({ title: `✅ ${statusLabels[status] || 'Atualizado'}` });
+      toast({ title: `✓ Atualizado` });
       fetchBookings();
     } catch (err: any) {
-      toast({ title: 'Erro ao atualizar status', description: err.message, variant: 'destructive' });
-    } finally {
-      setUpdatingId(null);
-    }
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' });
+    } finally { setUpdatingId(null); }
   };
 
   const handleReschedule = async (bookingId: string, newDate: string, isOrder?: boolean) => {
     try {
-      if (isOrder) {
-        await supabase.from('orders').update({ visit_date: newDate }).eq('id', bookingId);
-      } else {
-        const { error } = await supabase.from('bookings').update({ visit_date: newDate }).eq('id', bookingId);
-        if (error) throw error;
-      }
-      toast({ title: '📅 Reserva Reagendada!' });
+      if (isOrder) await supabase.from('orders').update({ visit_date: newDate }).eq('id', bookingId);
+      else await supabase.from('bookings').update({ visit_date: newDate }).eq('id', bookingId);
+      toast({ title: '📅 Reagendado!' });
       fetchBookings();
-    } catch (err: any) {
-      toast({ title: 'Erro ao reagendar', description: err.message, variant: 'destructive' });
-    }
+    } catch (err: any) { toast({ title: 'Erro', description: err.message, variant: 'destructive' }); }
   };
 
   const handleAddNote = async (bookingId: string, notes: string, isOrder?: boolean) => {
     try {
-      if (isOrder) {
-        await supabase.from('orders').update({ notes }).eq('id', bookingId);
-      } else {
-        const { error } = await supabase.functions.invoke('update-booking-status', {
-          body: { bookingId, notes, adminToken: token },
-        });
-        if (error) throw error;
-      }
-      setBookings((prev) => prev.map((b) => b.id === bookingId ? { ...b, notes } : b));
-    } catch {
-      toast({ title: 'Erro ao salvar observação', variant: 'destructive' });
-    }
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('admin_token');
-    setToken(null);
+      if (isOrder) await supabase.from('orders').update({ notes }).eq('id', bookingId);
+      else await supabase.functions.invoke('update-booking-status', { body: { bookingId, notes, adminToken: token } });
+      fetchBookings();
+    } catch { toast({ title: 'Erro ao salvar', variant: 'destructive' }); }
   };
 
   const [validationValue, setValidationValue] = useState('');
-  
   const handleValidateVoucher = () => {
     if (!validationValue.trim()) return;
     const code = validationValue.trim().toUpperCase();
     const found = bookings.find(b => b.confirmation_code?.toUpperCase() === code);
-    
-    if (found) {
-      setSearch(code);
-      setActiveTab('reservas');
-      window.scrollTo({ top: 300, behavior: 'smooth' });
-      toast({ title: "Reserva Encontrada!", description: `Cliente: ${found.name}` });
-    } else {
-      toast({ title: "Voucher não encontrado", description: "Verifique o código ou tente novamente.", variant: "destructive" });
-    }
+    if (found) { setSearch(code); setActiveTab('reservas'); toast({ title: "Encontrado!" }); }
+    else { toast({ title: "Não encontrado", variant: "destructive" }); }
   };
 
   const filtered = useMemo(() => {
     let result = bookings;
-    if (dateFilter === 'today') {
-      result = result.filter((b) => b.visit_date && isToday(parseISO(b.visit_date)));
-    } else if (dateFilter === 'tomorrow') {
-      result = result.filter((b) => b.visit_date && isTomorrow(parseISO(b.visit_date)));
-    } else if (dateFilter === 'week') {
-      result = result.filter((b) => b.visit_date && isThisWeek(parseISO(b.visit_date), { locale: ptBR }));
-    }
+    if (dateFilter === 'today') result = result.filter(b => b.visit_date && isToday(parseISO(b.visit_date)));
+    else if (dateFilter === 'tomorrow') result = result.filter(b => b.visit_date && isTomorrow(parseISO(b.visit_date)));
+    else if (dateFilter === 'week') result = result.filter(b => b.visit_date && isThisWeek(parseISO(b.visit_date), { locale: ptBR }));
     if (search.trim()) {
       const q = search.toLowerCase();
-      result = result.filter((b) =>
-        (b.name || '').toLowerCase().includes(q) ||
-        (b.confirmation_code && b.confirmation_code.toLowerCase().includes(q)) ||
-        (b.phone && b.phone.includes(q))
-      );
+      result = result.filter(b => (b.name || '').toLowerCase().includes(q) || (b.confirmation_code && b.confirmation_code.toLowerCase().includes(q)) || (b.phone && b.phone.includes(q)));
     }
     return result;
   }, [bookings, dateFilter, search]);
 
   const stats = useMemo(() => {
-    const todayBookings = bookings.filter((b) => b.visit_date && isToday(parseISO(b.visit_date)));
-    const confirmedOrChecked = todayBookings.filter(b => b.status === 'confirmed' || b.status === 'checked-in' || b.status === 'paid');
+    const todayBookings = bookings.filter(b => b.visit_date && isToday(parseISO(b.visit_date)));
+    const confirmed = todayBookings.filter(b => b.status === 'confirmed' || b.status === 'paid' || b.status === 'checked-in');
     return {
-      todayCount: todayBookings.length,
-      todayPeople: todayBookings.reduce((sum, b) => {
-        const childrenCount = typeof b.children === 'number' ? b.children : (Array.isArray(b.children) ? b.children.length : 0);
-        return sum + (b.adults || 0) + childrenCount;
-      }, 0),
-      todayRevenue: confirmedOrChecked.reduce((sum, b) => sum + Number(b.total_amount), 0),
-      checkedIn: todayBookings.filter((b) => b.status === 'checked-in').length,
+      people: todayBookings.reduce((sum, b) => sum + (b.adults || 0) + (typeof b.children === 'number' ? b.children : (b.children?.length || 0)), 0),
+      revenue: confirmed.reduce((sum, b) => sum + Number(b.total_amount), 0),
+      count: todayBookings.length,
+      checked: todayBookings.filter(b => b.status === 'checked-in').length
     };
   }, [bookings]);
 
-  if (!token) {
-    return <AdminLogin onLogin={(t) => setToken(t)} />;
-  }
-
-  const DATE_FILTERS: { key: DateFilter; label: string }[] = [
-    { key: 'today', label: 'Hoje' },
-    { key: 'tomorrow', label: 'Amanhã' },
-    { key: 'week', label: 'Semana' },
-    { key: 'all', label: 'Todas' },
-  ];
-
-  const filteredOrders = orders.filter(order => {
-    if (!search.trim()) return true;
-    const q = search.toLowerCase();
+  const inventoryView = useMemo(() => {
+    const dates = Array.from(new Set([...kioskUsage, ...quadUsage].map(u => u.reservation_date))).sort();
     return (
-      (order.customer_name || '').toLowerCase().includes(q) ||
-      (order.id || '').toLowerCase().includes(q) ||
-      (order.confirmation_code || '').toLowerCase().includes(q) ||
-      (order.customer_phone || '').includes(q)
+      <div className="space-y-6">
+        {dates.length === 0 && <p className="text-center py-10 text-muted-foreground font-medium italic">Nenhuma reserva futura de Quiosque ou Quadriciclo encontrada.</p>}
+        {dates.map(date => {
+          const kiosksOnDate = kioskUsage.filter(u => u.reservation_date === date);
+          const quadsOnDate = quadUsage.filter(u => u.reservation_date === date);
+          const smallUsed = kiosksOnDate.filter(k => k.kiosk_type === 'menor').reduce((s, k) => s + k.quantity, 0);
+          const largeUsed = kiosksOnDate.filter(k => k.kiosk_type === 'maior').reduce((s, k) => s + k.quantity, 0);
+          return (
+            <div key={date} className="bg-white rounded-[2rem] p-6 shadow-sm border border-primary/5 space-y-4">
+              <h4 className="font-black text-primary uppercase border-b pb-3">{format(new Date(date + 'T12:00:00'), "dd/MM/yyyy (EEEE)", { locale: ptBR })}</h4>
+              <div className="grid md:grid-cols-2 gap-8">
+                <div className="space-y-4">
+                   <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-2">Quiosques</p>
+                   <div className="space-y-4">
+                      <div><div className="flex justify-between text-xs font-bold mb-1"><span>Pequenos</span><span>{smallUsed} / 4</span></div><div className="h-2 bg-muted rounded-full overflow-hidden"><div className={cn("h-full", smallUsed >= 4 ? "bg-red-500" : "bg-sun")} style={{ width: `${(smallUsed/4)*100}%` }} /></div></div>
+                      <div><div className="flex justify-between text-xs font-bold mb-1"><span>Grande</span><span>{largeUsed} / 1</span></div><div className="h-2 bg-muted rounded-full overflow-hidden"><div className={cn("h-full", largeUsed >= 1 ? "bg-red-500" : "bg-sun")} style={{ width: `${(largeUsed/1)*100}%` }} /></div></div>
+                   </div>
+                </div>
+                <div className="space-y-4">
+                   <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Quadriciclos (5 por horário)</p>
+                   <div className="grid grid-cols-2 gap-4">
+                      {['09:00', '10:30', '14:00', '15:30'].map(slot => {
+                        const used = quadsOnDate.filter(q => q.time_slot === slot).reduce((s, q) => s + q.quantity, 0);
+                        return (
+                          <div key={slot} className="space-y-1">
+                            <div className="flex justify-between text-[10px] font-black"><span>{slot}</span><span className={used >= 5 ? "text-red-600" : ""}>{used}/5</span></div>
+                            <div className="h-1.5 bg-muted rounded-full overflow-hidden"><div className={cn("h-full", used >= 5 ? "bg-red-500" : "bg-primary")} style={{ width: `${(used/5)*100}%` }} /></div>
+                          </div>
+                        );
+                      })}
+                   </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     );
-  });
+  }, [kioskUsage, quadUsage]);
+
+  if (!token) return <AdminLogin onLogin={(t) => setToken(t)} />;
 
   return (
     <div className="min-h-screen bg-[#f1f5f9] font-sans pb-20">
-      <div className="bg-primary text-primary-foreground px-4 py-4 md:py-6 sticky top-0 z-50 shadow-2xl border-b-4 border-sun/30">
+      <div className="bg-primary text-primary-foreground p-4 md:p-6 sticky top-0 z-50 shadow-xl border-b-4 border-sun/30">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-             <div className="p-2 bg-white/10 rounded-xl backdrop-blur-md border border-white/20 hidden sm:block">
-                <CalendarCheck className="w-6 h-6 text-sun" />
-             </div>
-             <div>
-               <h1 className="font-display font-black text-xl md:text-2xl leading-none tracking-tight">Balneário Lessa</h1>
-               <p className="text-primary-foreground/60 text-[10px] md:text-xs font-black uppercase tracking-[0.2em] mt-1">Management Portal v2.0</p>
-             </div>
+             <CalendarCheck className="w-6 h-6 text-sun hidden sm:block" />
+             <div><h1 className="font-display font-black text-xl md:text-2xl leading-none">Balneário Lessa</h1><p className="text-primary-foreground/60 text-[10px] font-black uppercase tracking-[0.2em] mt-1">Management Portal v2.0</p></div>
           </div>
-          <div className="flex items-center gap-2 md:gap-4">
-            <div className="hidden lg:flex bg-white/10 rounded-full px-4 py-1.5 items-center gap-2 border border-white/10">
-               <div className="w-2 h-2 bg-sun animate-pulse rounded-full" />
-               <span className="text-xs font-bold uppercase tracking-widest text-primary-foreground/80">Live Server</span>
-            </div>
-            <div className="flex gap-1 md:gap-2">
-              <Button size="icon" variant="ghost" className="text-primary-foreground hover:bg-white/10" onClick={() => { fetchBookings(); fetchOrders(); }} disabled={loading}>
-                <RefreshCw className={`w-4 h-4 md:w-5 md:h-5 ${loading ? 'animate-spin' : ''}`} />
-              </Button>
-              <Button size="icon" variant="ghost" className="text-primary-foreground hover:bg-white/10" onClick={handleLogout}>
-                <LogOut className="w-4 h-4 md:w-5 md:h-5" />
-              </Button>
-            </div>
+          <div className="flex gap-2">
+            <Button size="icon" variant="ghost" onClick={fetchBookings} disabled={loading}><RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} /></Button>
+            <Button size="icon" variant="ghost" onClick={() => { localStorage.removeItem('admin_token'); setToken(null); }}><LogOut className="w-5 h-5" /></Button>
           </div>
         </div>
       </div>
 
       <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-6">
         <div className="bg-white rounded-[2rem] p-6 shadow-xl border-4 border-primary/5 flex flex-col md:flex-row items-center gap-4">
-           <div className="flex-1 space-y-1 w-full text-center md:text-left">
-              <h3 className="text-lg font-black text-primary uppercase tracking-tight">Validação de Entrada</h3>
-              <p className="text-xs text-muted-foreground font-medium">Digite o código ou escaneie o voucher do cliente.</p>
-           </div>
+           <div className="flex-1 space-y-1 w-full text-center md:text-left"><h3 className="text-lg font-black text-primary uppercase">Validação de Entrada</h3><p className="text-xs text-muted-foreground font-medium">Digite o código do voucher.</p></div>
            <div className="flex w-full md:w-auto gap-2">
-              <div className="relative flex-1 md:w-64">
-                 <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-primary/40" />
-                 <Input 
-                   placeholder="Código (Ex: E31357)" 
-                   className="pl-9 h-14 rounded-2xl border-2 border-primary/10 focus:border-primary font-mono font-bold text-lg uppercase"
-                   value={validationValue}
-                   onChange={(e) => setValidationValue(e.target.value)}
-                   onKeyDown={(e) => e.key === 'Enter' && handleValidateVoucher()}
-                 />
-              </div>
-              <Button onClick={handleValidateVoucher} className="h-14 px-8 rounded-2xl bg-primary hover:bg-primary-dark text-white font-black shadow-lg shadow-primary/20 flex gap-2">
-                VALIDAR <ArrowRight className="w-5 h-5" />
-              </Button>
+              <Input placeholder="E31357" className="h-14 rounded-2xl border-2 border-primary/10 font-mono font-bold text-lg uppercase pl-4" value={validationValue} onChange={(e) => setValidationValue(e.target.value)} />
+              <Button onClick={handleValidateVoucher} className="h-14 px-8 rounded-2xl bg-primary hover:bg-primary-dark text-white font-black">VALIDAR</Button>
            </div>
         </div>
 
         <div className="flex bg-white/60 backdrop-blur-md p-2 rounded-[2rem] gap-2 shadow-inner border border-white">
-          <Button className={`flex-1 rounded-xl font-bold transition-all ${activeTab === 'reservas' ? 'shadow-md scale-[1.02]' : ''}`} variant={activeTab === 'reservas' ? 'default' : 'ghost'} onClick={() => setActiveTab('reservas')}>
-            <CalendarCheck className="w-4 h-4 mr-2" /> Agenda de Visitas
-          </Button>
-          <Button className={`flex-1 rounded-xl font-bold transition-all ${activeTab === 'pedidos' ? 'shadow-md scale-[1.02]' : ''}`} variant={activeTab === 'pedidos' ? 'default' : 'ghost'} onClick={() => setActiveTab('pedidos')}>
-            <DollarSign className="w-4 h-4 mr-2" /> Vendas Diretas
-          </Button>
+          <Button className="flex-1 rounded-xl font-bold" variant={activeTab === 'reservas' ? 'default' : 'ghost'} onClick={() => setActiveTab('reservas')}><CalendarCheck className="w-4 h-4 mr-2" /> Agenda</Button>
+          <Button className="flex-1 rounded-xl font-bold" variant={activeTab === 'pedidos' ? 'default' : 'ghost'} onClick={() => setActiveTab('pedidos')}><DollarSign className="w-4 h-4 mr-2" /> Vendas</Button>
+          <Button className="flex-1 rounded-xl font-bold" variant={activeTab === 'inventario' ? 'default' : 'ghost'} onClick={() => setActiveTab('inventario')}><TrendingUp className="w-4 h-4 mr-2" /> Inventário</Button>
         </div>
 
-        {activeTab === 'reservas' ? (
-          <>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <Card className="border-none shadow-sm bg-white/80">
-                <CardContent className="p-4 text-center">
-                  <div className="bg-primary/10 w-8 h-8 rounded-full flex items-center justify-center mx-auto mb-2 text-primary"><Users className="w-4 h-4" /></div>
-                  <p className="text-2xl font-black text-foreground">{stats.todayPeople}</p>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Pessoas Hoje</p>
-                </CardContent>
-              </Card>
-              <Card className="border-none shadow-sm bg-white/80">
-                <CardContent className="p-4 text-center">
-                  <div className="bg-whatsapp/10 w-8 h-8 rounded-full flex items-center justify-center mx-auto mb-2 text-whatsapp"><UserCheck className="w-4 h-4" /></div>
-                  <p className="text-2xl font-black text-foreground">{stats.checkedIn}</p>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Check-ins</p>
-                </CardContent>
-              </Card>
-              <Card className="border-none shadow-sm bg-white/80">
-                <CardContent className="p-4 text-center">
-                  <div className="bg-primary/10 w-8 h-8 rounded-full flex items-center justify-center mx-auto mb-2 text-primary"><CalendarCheck className="w-4 h-4" /></div>
-                  <p className="text-2xl font-black text-foreground">{stats.todayCount}</p>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Agendamentos</p>
-                </CardContent>
-              </Card>
-              <Card className="border-none shadow-sm bg-white/80">
-                <CardContent className="p-4 text-center">
-                  <div className="bg-sun/10 w-8 h-8 rounded-full flex items-center justify-center mx-auto mb-2 text-sun-dark"><TrendingUp className="w-4 h-4" /></div>
-                  <p className="text-xl font-black text-foreground">{formatCurrency(stats.todayRevenue)}</p>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Receita</p>
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="flex gap-2">
-              {DATE_FILTERS.map((f) => (
-                <Button key={f.key} size="sm" variant={dateFilter === f.key ? 'default' : 'outline'} onClick={() => setDateFilter(f.key)} className="flex-1">{f.label}</Button>
-              ))}
-            </div>
-
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input placeholder="Buscar por nome, código ou telefone..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
-            </div>
-
-            <p className="text-sm text-muted-foreground">{filtered.length} reserva(s) encontrada(s)</p>
-
-            <BookingTable
-              bookings={filtered}
-              onStatusChange={handleStatusChange}
-              onAddNote={handleAddNote}
-              onReschedule={handleReschedule}
-              updatingId={updatingId}
-            />
-          </>
-        ) : (
-          /* Pedidos Tab */
+        {activeTab === 'inventario' ? inventoryView : activeTab === 'pedidos' ? (
           <div className="space-y-4">
-             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input placeholder="Buscar pedido por nome, código ou ID..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
-            </div>
-
-            {loadingOrders ? <div className="p-12 text-center text-muted-foreground">Carregando...</div> : (
-              <div className="grid gap-3">
-                {filteredOrders.map(order => (
+             <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" /><Input placeholder="Buscar pedidos..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" /></div>
+             <div className="grid gap-3">
+                {orders.filter(o => !search || o.customer_name?.toLowerCase().includes(search.toLowerCase())).map(order => (
                   <Dialog key={order.id}>
                     <DialogTrigger asChild>
-                      <Card className="cursor-pointer hover:border-primary/50 transition-colors">
-                        <CardContent className="p-4 flex items-center justify-between">
-                          <div className="flex flex-col">
-                            <span className="text-[10px] font-black text-muted-foreground">#{order.id.slice(0, 8)}</span>
-                            <span className="text-sm font-bold">{order.customer_name || 'Cliente'}</span>
-                            <span className="text-xs text-muted-foreground">{order.created_at ? format(new Date(order.created_at), 'dd/MM/yy HH:mm') : ''}</span>
-                          </div>
-                          <div className="text-right">
-                             <div className="text-lg font-black text-primary">{formatCurrency(order.total_amount)}</div>
-                             <span className={cn("text-[10px] font-black px-2 py-0.5 rounded-full uppercase", order.status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700')}>
-                                {order.status === 'paid' ? 'Pago' : 'Pendente'}
-                             </span>
-                          </div>
+                      <Card className="cursor-pointer">
+                        <CardContent className="p-4 flex justify-between items-center">
+                          <div className="flex flex-col"><span className="text-[10px] font-black text-muted-foreground">#{order.id.slice(0, 8)}</span><span className="text-sm font-bold">{order.customer_name}</span></div>
+                          <div className="text-right"><div className="text-lg font-black text-primary">{formatCurrency(order.total_amount)}</div><Badge variant={order.status === 'paid' ? 'default' : 'outline'}>{order.status === 'paid' ? 'Pago' : 'Pendente'}</Badge></div>
                         </CardContent>
                       </Card>
                     </DialogTrigger>
                     <DialogContent>
-                       <DialogHeader><DialogTitle>Detalhes do Pedido</DialogTitle></DialogHeader>
-                       <div className="space-y-4 pt-4">
-                          <div className="bg-muted/50 p-4 rounded-2xl">
-                             <p className="text-xs font-bold uppercase text-muted-foreground mb-2">Itens</p>
-                             {order.order_items?.map((item: any, id: number) => (
-                               <div key={id} className="flex justify-between items-center py-2 border-b last:border-0 border-black/5">
-                                  <span className="text-sm font-bold">{item.quantity}x {item.product_id}</span>
-                                  <span className="font-black text-sm">{formatCurrency(item.unit_price * item.quantity)}</span>
-                               </div>
-                             ))}
-                             <div className="mt-3 flex justify-between font-black text-lg"><span>Total</span><span>{formatCurrency(order.total_amount)}</span></div>
-                          </div>
-                          
-                          {order.status !== 'paid' && (
-                             <Button className="w-full bg-sun text-white font-bold" onClick={() => markOrderAsPaid(order.id).then(() => { fetchOrders(); fetchBookings(); toast({title: "Pago!"}); })}>
-                                Confirmar Pagamento Manual
-                             </Button>
-                          )}
+                       <DialogHeader><DialogTitle>Itens do Pedido</DialogTitle></DialogHeader>
+                       <div className="space-y-2 pt-4">
+                          {order.order_items?.map((item: any, id: number) => (
+                             <div key={id} className="flex justify-between text-sm"><span>{item.quantity}x {item.product_id}</span><span>{formatCurrency(item.unit_price * item.quantity)}</span></div>
+                          ))}
+                          <div className="border-t pt-2 mt-2 font-black text-lg flex justify-between"><span>Total</span><span>{formatCurrency(order.total_amount)}</span></div>
+                          {order.status !== 'paid' && <Button className="w-full mt-4 bg-sun text-white font-bold" onClick={() => markOrderAsPaid(order.id).then(() => { fetchOrders(); fetchBookings(); })}>Confirmar Pagamento</Button>}
                        </div>
                     </DialogContent>
                   </Dialog>
                 ))}
-              </div>
-            )}
+             </div>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <Card><CardContent className="p-4 text-center"><Users className="w-5 h-5 mx-auto mb-1 text-primary" /><p className="text-2xl font-black">{stats.people}</p><p className="text-[10px] font-bold text-muted-foreground uppercase">Pessoas Hoje</p></CardContent></Card>
+              <Card><CardContent className="p-4 text-center"><UserCheck className="w-5 h-5 mx-auto mb-1 text-whatsapp" /><p className="text-2xl font-black">{stats.checked}</p><p className="text-[10px] font-bold text-muted-foreground uppercase">Check-ins</p></CardContent></Card>
+              <Card><CardContent className="p-4 text-center"><CalendarCheck className="w-5 h-5 mx-auto mb-1 text-primary" /><p className="text-2xl font-black">{stats.count}</p><p className="text-[10px] font-bold text-muted-foreground uppercase">Agendamentos</p></CardContent></Card>
+              <Card><CardContent className="p-4 text-center"><TrendingUp className="w-5 h-5 mx-auto mb-1 text-sun-dark" /><p className="text-lg font-black">{formatCurrency(stats.revenue)}</p><p className="text-[10px] font-bold text-muted-foreground uppercase">Receita</p></CardContent></Card>
+            </div>
+            <div className="flex gap-2">
+              {['today', 'tomorrow', 'week', 'all'].map(f => (
+                <Button key={f} size="sm" variant={dateFilter === f ? 'default' : 'outline'} onClick={() => setDateFilter(f as any)} className="flex-1 uppercase text-[10px] font-black">{f}</Button>
+              ))}
+            </div>
+            <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" /><Input placeholder="Buscar reservas..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" /></div>
+            <BookingTable bookings={filtered} onStatusChange={handleStatusChange} onAddNote={handleAddNote} onReschedule={handleReschedule} updatingId={updatingId} />
           </div>
         )}
       </div>
