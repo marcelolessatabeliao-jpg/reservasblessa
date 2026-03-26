@@ -115,7 +115,7 @@ export function BookingSection() {
             <motion.div 
                className="absolute top-0 left-0 h-full bg-primary"
                initial={{ width: "0%" }}
-               animate={{ width: currentStep === 'dados' ? '12.5%' : currentStep === 'entradas' ? '37.5%' : currentStep === 'extras' ? '62.5%' : '87.5%' }}
+               animate={{ width: currentStep === 'dados' ? '16.6%' : currentStep === 'extras' ? '50%' : '100%' }}
                transition={{ duration: 0.5, ease: "easeInOut" }}
             />
           </div>
@@ -221,7 +221,7 @@ export function BookingSection() {
                     </Button>
                     <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto order-2">
                         <Button variant="outline" onClick={() => nextStep('pagamento')} className="w-full sm:w-auto font-bold h-12 px-8 rounded-2xl border-2">Pular Extras</Button>
-                        <Button variant="ghost" onClick={() => prevStep('entradas')} className="w-full sm:w-auto font-bold text-muted-foreground h-12"><ArrowLeft className="mr-2 h-4 w-4" /> Voltar</Button>
+                        <Button variant="ghost" onClick={() => prevStep('dados')} className="w-full sm:w-auto font-bold text-muted-foreground h-12"> <ArrowLeft className="mr-2 h-4 w-4" /> Voltar</Button>
                     </div>
                   </div>
                 </motion.div>

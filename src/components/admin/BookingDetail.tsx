@@ -7,12 +7,12 @@ import { ptBR } from 'date-fns/locale';
 interface BookingDetailProps {
   booking: {
     adults: number;
-    children: any[] | null;
-    kiosks: any[] | null;
-    quads: any[] | null;
-    additionals: any[] | null;
-    has_donation: boolean | null;
-    is_associado: boolean | null;
+    children?: any;
+    kiosks?: any;
+    quads?: any;
+    additionals?: any;
+    has_donation?: boolean | null;
+    is_associado?: boolean | null;
     total_amount: number;
     created_at: string;
   };
@@ -35,13 +35,14 @@ export function BookingDetail({ booking }: BookingDetailProps) {
       <div>
         <p className="font-semibold text-foreground mb-1">Pessoas</p>
         <p>{booking.adults} adulto(s)</p>
-        {children.length > 0 && (
+        {(Array.isArray(booking.children) ? booking.children.length > 0 : (Number(booking.children) > 0)) && (
           <p>
-            {children.length} criança(s):{' '}
-            {children.map((c: any, i: number) => (
+            {Array.isArray(booking.children) ? booking.children.length : booking.children} criança(s)
+            {Array.isArray(booking.children) && booking.children.length > 0 && ': '}
+            {Array.isArray(booking.children) && booking.children.map((c: any, i: number) => (
               <span key={i}>
                 {c.age} anos{c.isStudent ? ' (estudante)' : ''}
-                {i < children.length - 1 ? ', ' : ''}
+                {i < (booking.children?.length ?? 0) - 1 ? ', ' : ''}
               </span>
             ))}
           </p>

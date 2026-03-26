@@ -1,5 +1,5 @@
 import { MessageCircle, CheckCircle, Loader2, ArrowRight, User, CreditCard, QrCode, Copy } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { saveBooking } from '@/lib/booking-service';
 import { buildWhatsAppMessage } from '@/lib/whatsapp';
 import { PaymentModal } from './PaymentModal';

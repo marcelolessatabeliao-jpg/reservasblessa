@@ -72,7 +72,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, updatingId }
         const expanded = expandedId === booking.id;
         const config = STATUS_CONFIG[booking.status] || STATUS_CONFIG.pending;
         const StatusIcon = config.icon;
-        const childrenCount = Array.isArray(booking.children) ? booking.children.length : 0;
+        const childrenCount = Array.isArray(booking.children) ? booking.children.length : (typeof booking.children === 'number' ? booking.children : 0);
         const totalPeople = booking.adults + childrenCount;
 
         return (
