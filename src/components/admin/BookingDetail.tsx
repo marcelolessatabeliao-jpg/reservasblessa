@@ -5,6 +5,7 @@ import { CheckCircle2, Circle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 interface BookingDetailProps {
   booking: {
@@ -23,10 +24,11 @@ interface BookingDetailProps {
 }
 
 export function BookingDetail({ booking }: BookingDetailProps) {
+  const { toast } = useToast();
   const children = Array.isArray(booking.children) ? booking.children : [];
   const items = booking.order_items || [];
 
-  const handleToggleItemStatus = async (itemId: string, currentStatus: boolean | null) => {
+  const handleToggleItemStatus = async (itemId: string, currentStatus: boolean | null, productName: string) => {
     try {
       const { error } = await supabase
         .from('order_items')
@@ -37,9 +39,13 @@ export function BookingDetail({ booking }: BookingDetailProps) {
         .eq('id', itemId);
       
       if (error) throw error;
-      // Note: Ideally we'd trigger a reload here, but for now we'll assume real-time handle or manual refresh
+      toast({ 
+        title: !currentStatus ? "Item Utilizado" : "Item Estornado",
+        description: `${productName} foi marcado como ${!currentStatus ? 'utilizado' : 'não utilizado'}.`,
+      });
     } catch (err) {
       console.error("Error updating item status:", err);
+      toast({ title: "Erro ao atualizar item", variant: "destructive" });
     }
   };
 
@@ -96,7 +102,7 @@ export function BookingDetail({ booking }: BookingDetailProps) {
                     )}
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleToggleItemStatus(item.id, item.is_redeemed);
+                      handleToggleItemStatus(item.id, item.is_redeemed, item.product_id);
                     }}
                   >
                     {item.is_redeemed ? <CheckCircle2 className="w-5 h-5 animate-in zoom-in-50" /> : <Circle className="w-5 h-5" />}
