@@ -158,8 +158,7 @@ export default function Admin() {
       if (isOrder) {
          // Direct update for orders
          const { error } = await supabase.from('orders').update({ 
-           status: status === 'confirmed' ? 'paid' : status,
-           updated_at: new Date().toISOString()
+           status: status === 'confirmed' ? 'paid' : status
          }).eq('id', bookingId);
          if (error) throw error;
       } else {
