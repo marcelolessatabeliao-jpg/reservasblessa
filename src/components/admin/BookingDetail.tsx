@@ -28,7 +28,7 @@ export function BookingDetail({ booking }: BookingDetailProps) {
     <div className="grid gap-3 text-sm p-4 bg-muted/50 rounded-lg">
       {/* Reserva criada em */}
       <p className="text-xs text-muted-foreground">
-        Reserva feita em {format(new Date(booking.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+        Reserva feita em {booking.created_at ? format(new Date(booking.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }) : 'Data não disponível'}
       </p>
 
       {/* Pessoas */}

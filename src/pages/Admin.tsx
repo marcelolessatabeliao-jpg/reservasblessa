@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { format, isToday, isTomorrow, isThisWeek, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Search, LogOut, RefreshCw, Users, DollarSign, CalendarCheck, TrendingUp, UserCheck } from 'lucide-react';
@@ -269,6 +269,17 @@ export default function Admin() {
     }
   };
 
+  const filteredOrders = orders.filter(order => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return (
+      (order.customer_name || '').toLowerCase().includes(q) ||
+      (order.id || '').toLowerCase().includes(q) ||
+      (order.confirmation_code || '').toLowerCase().includes(q) ||
+      (order.customer_phone || '').includes(q)
+    );
+  });
+
   return (
     <div className="min-h-screen bg-muted font-sans">
       {/* Header */}
@@ -376,12 +387,10 @@ export default function Admin() {
               />
             </div>
 
-            {/* Results count */}
             <p className="text-sm text-muted-foreground">
               {filtered.length} reserva(s) encontrada(s)
             </p>
 
-            {/* Booking list */}
             <BookingTable
               bookings={filtered}
               onStatusChange={handleStatusChange}
@@ -401,7 +410,6 @@ export default function Admin() {
               </Button>
             </div>
 
-            {/* Search for Orders */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
@@ -419,21 +427,10 @@ export default function Admin() {
               </div>
             ) : (
               <div className="grid gap-3">
-                {(() => {
-                  const filteredOrders = orders.filter(order => {
-                    if (!search.trim()) return true;
-                    const q = search.toLowerCase();
-                    return (
-                      (order.customer_name || '').toLowerCase().includes(q) ||
-                      (order.id || '').toLowerCase().includes(q) ||
-                      (order.confirmation_code || '').toLowerCase().includes(q) ||
-                      (order.customer_phone || '').includes(q)
-                    );
-                  });
-
-                  if (filteredOrders.length === 0) return <p className="text-center text-muted-foreground p-8">Nenhum pedido encontrado.</p>;
-
-                  return filteredOrders.map(order => (
+                {filteredOrders.length === 0 ? (
+                  <p className="text-center text-muted-foreground p-8">Nenhum pedido encontrado.</p>
+                ) : (
+                  filteredOrders.map(order => (
                     <Dialog key={order.id}>
                       <DialogTrigger asChild>
                         <Card className="cursor-pointer hover:border-primary/50 transition-colors border-2 border-transparent">
@@ -441,7 +438,7 @@ export default function Admin() {
                             <div className="flex flex-col">
                               <span className="text-[10px] font-black uppercase text-muted-foreground">Pedido #{order.id.slice(0, 8)}</span>
                               <span className="text-sm font-bold truncate max-w-[150px]">{order.customer_name || 'Cliente'}</span>
-                              <span className="text-xs text-muted-foreground">{format(new Date(order.created_at), 'dd/MM/yy HH:mm')}</span>
+                              <span className="text-xs text-muted-foreground">{order.created_at ? format(new Date(order.created_at), 'dd/MM/yy HH:mm') : '00/00/00'}</span>
                             </div>
                             <div className="text-right flex flex-col items-end">
                               <span className="text-lg font-black text-primary">{formatCurrency(order.total_amount)}</span>
@@ -450,12 +447,6 @@ export default function Admin() {
                               }`}>
                                 {order.status === 'paid' ? 'Pago' : 'Pendente'}
                               </span>
-                              {order.payments?.[0] && (
-                                <span className="text-[10px] font-medium text-muted-foreground mt-1">
-                                  {order.payments[0].metodo === 'local' ? '📍 Pagar no Local' : 
-                                   order.payments[0].metodo === 'PIX' ? '💠 PIX' : '💳 Cartão'}
-                                </span>
-                              )}
                             </div>
                           </CardContent>
                         </Card>
@@ -475,178 +466,80 @@ export default function Admin() {
                             </div>
                             <div className="text-right">
                               <p className="text-xs font-bold text-muted-foreground uppercase">Data</p>
-                              <p className="font-medium">{format(new Date(order.created_at), "dd 'de' MMMM", { locale: ptBR })}</p>
+                              <p className="font-medium">{order.created_at ? format(new Date(order.created_at), "dd 'de' MMMM", { locale: ptBR }) : '-'}</p>
                             </div>
                           </div>
-
-                          {order.payments?.[0] && (
-                            <div className="bg-primary/5 rounded-xl p-3 flex justify-between items-center text-sm">
-                              <span className="text-muted-foreground font-medium">Método de Pagamento:</span>
-                              <span className="font-bold flex items-center gap-1.5">
-                                {order.payments[0].metodo === 'local' ? '📍 Pagar no Local' : 
-                                 order.payments[0].metodo === 'PIX' ? '💠 PIX' : '💳 Cartão de Crédito'}
-                              </span>
-                            </div>
-                          )}
 
                           <div className="space-y-3">
                             <p className="text-xs font-bold text-muted-foreground uppercase">Itens Comprados</p>
-                              <div className="bg-muted/30 rounded-2xl p-4 space-y-4 border border-muted">
-                                {order.order_items?.map((item: any, idx: number) => (
-                                  <div key={idx} className={cn(
-                                    "flex justify-between items-center transition-opacity",
-                                    item.is_redeemed && "opacity-60"
-                                  )}>
-                                    <div className="flex items-center gap-3">
-                                      <div className={cn(
-                                        "p-2 rounded-xl border font-bold",
-                                        item.is_redeemed ? "bg-green-100 text-green-700 border-green-200" : "bg-white text-primary"
-                                      )}>
-                                        {item.quantity}x
-                                      </div>
-                                      <div>
-                                        <p className="font-bold text-sm leading-tight flex items-center gap-2">
-                                          {item.product_id}
-                                          {item.is_redeemed && <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />}
-                                        </p>
-                                        <p className="text-[10px] text-muted-foreground uppercase font-black">{formatCurrency(item.unit_price)} unit.</p>
-                                      </div>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                      <p className="font-black text-sm">{formatCurrency(item.unit_price * item.quantity)}</p>
-                                      <Button
-                                        size="sm"
-                                        variant={item.is_redeemed ? "ghost" : "outline"}
-                                        className={cn(
-                                          "h-9 w-9 p-0 rounded-full",
-                                          item.is_redeemed ? "text-green-600 hover:text-green-700 hover:bg-green-50" : "border-primary/20 text-primary hover:bg-primary/5"
-                                        )}
-                                        onClick={async (e) => {
-                                          e.stopPropagation();
-                                          try {
-                                             const { error } = await supabase
-                                               .from('order_items')
-                                               .update({ 
-                                                 is_redeemed: !item.is_redeemed, 
-                                                 redeemed_at: !item.is_redeemed ? new Date().toISOString() : null 
-                                               })
-                                               .eq('id', item.id);
-                                             if (error) throw error;
-                                             toast({ title: item.is_redeemed ? 'Item revertido' : 'Item marcado como USADO' });
-                                             fetchOrders();
-                                          } catch {
-                                             toast({ title: 'Erro ao validar item', variant: 'destructive' });
-                                          }
-                                        }}
-                                      >
-                                        <CheckCircle2 className="h-5 w-5" />
-                                      </Button>
-                                    </div>
+                            <div className="bg-muted/30 rounded-2xl p-4 space-y-4 border border-muted">
+                              {order.order_items?.map((item: any, idx: number) => (
+                                <div key={idx} className={item.is_redeemed ? "opacity-60 flex justify-between" : "flex justify-between"}>
+                                  <div>
+                                    <p className="font-bold text-sm">{item.quantity}x {item.product_id}</p>
+                                    <p className="text-[10px] text-muted-foreground">{formatCurrency(item.unit_price)} unit.</p>
                                   </div>
-                                ))}
-                                <div className="pt-3 border-t flex justify-between items-center">
-                                  <span className="font-bold">Valor Total</span>
-                                  <span className="text-xl font-black text-primary">{formatCurrency(order.total_amount)}</span>
-                                </div>
-                              </div>
-                          </div>
-
-                          {order.vouchers && order.vouchers.length > 0 ? (
-                            <div className="bg-primary/5 rounded-2xl p-5 border-2 border-primary/10 space-y-4">
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <p className="text-xs font-bold text-muted-foreground uppercase">Voucher de Acesso</p>
-                                  <p className="text-3xl font-mono font-black tracking-widest text-primary">{order.vouchers[0].code}</p>
-                                </div>
-                                {order.vouchers[0].qr_code_url && (
-                                  <img src={order.vouchers[0].qr_code_url} alt="QR" className="w-20 h-20 bg-white p-2 rounded-xl shadow-sm" />
-                                )}
-                              </div>
-                              
-                              <div className="flex gap-2 mb-2">
-                                <Button
-                                  variant="outline"
-                                  className="flex-1 font-bold gap-2"
-                                  onClick={() => {
-                                    const itemsList = order.order_items?.map((item: any) => `- ${item.quantity}x ${item.product_id}`).join('\n') || '';
-                                    const msg = `Olá! Aqui está seu voucher:\n\nCódigo: ${order.vouchers[0].code}\n\nServiços:\n${itemsList}\n\nApresente na entrada.`;
-                                    navigator.clipboard.writeText(msg);
-                                    toast({ title: '✅ Mensagem copiada para transferência!' });
-                                  }}
-                                >
-                                  <Copy className="w-4 h-4" />
-                                  Copiar
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  className="flex-1 font-bold gap-2 text-whatsapp border-whatsapp/50 hover:bg-whatsapp hover:text-white"
-                                  onClick={() => {
-                                    const itemsList = order.order_items?.map((item: any) => `- ${item.quantity}x ${item.product_id}`).join('\n') || '';
-                                    const msg = `Olá! Aqui está seu voucher:\n\nCódigo: ${order.vouchers[0].code}\n\nServiços:\n${itemsList}\n\nApresente na entrada.`;
-                                    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
-                                  }}
-                                >
-                                  <MessageCircle className="w-4 h-4" />
-                                  WhatsApp
-                                </Button>
-                              </div>
-
-                               <div className="pt-2">
-                                 {order.order_items?.every((i: any) => i.is_redeemed) ? (
-                                    <div className="w-full flex items-center justify-center gap-2 bg-green-100 text-green-700 p-4 rounded-xl font-black text-sm">
-                                      <CheckCircle2 className="w-5 h-5" />
-                                      TUDO UTILIZADO (AGENDAMENTO COMPLETO)
-                                    </div>
-                                 ) : (
-                                    <Button 
-                                      className="w-full h-14 bg-primary hover:bg-primary-dark text-white font-black text-base gap-2 rounded-xl shadow-lg"
+                                  <div className="flex items-center gap-3">
+                                    <span className="font-black text-sm">{formatCurrency(item.unit_price * item.quantity)}</span>
+                                    <Button
+                                      size="sm"
+                                      variant={item.is_redeemed ? "ghost" : "outline"}
+                                      className="h-8 w-8 p-0"
                                       onClick={async () => {
-                                        try {
-                                          const itemIds = order.order_items?.map((i: any) => i.id) || [];
-                                          const { error } = await supabase
-                                            .from('order_items')
-                                            .update({ is_redeemed: true, redeemed_at: new Date().toISOString() })
-                                            .in('id', itemIds);
-                                          
-                                          if (error) throw error;
-
-                                          if (order.vouchers?.[0]) {
-                                             await redeemVoucher(order.vouchers[0].id);
-                                          }
-                                          
-                                          toast({ title: '✅ Agendamento Completo!', description: 'Todos os serviços marcados como usados.' });
-                                          fetchOrders();
-                                        } catch {
-                                          toast({ title: 'Erro ao validar agendamento', variant: 'destructive' });
-                                        }
+                                        const { error } = await supabase.from('order_items').update({ is_redeemed: !item.is_redeemed, redeemed_at: !item.is_redeemed ? new Date().toISOString() : null }).eq('id', item.id);
+                                        if (!error) fetchOrders();
                                       }}
                                     >
-                                      <CheckCircle2 className="w-6 h-6" />
-                                       MARCAR TUDO COMO USADO
+                                      <CheckCircle2 className={cn("h-4 w-4", item.is_redeemed ? "text-green-600" : "text-muted-foreground")} />
                                     </Button>
-                                 )}
-                               </div>
+                                  </div>
+                                </div>
+                              ))}
+                              <div className="pt-2 border-t flex justify-between items-center font-black">
+                                <span>Total</span>
+                                <span className="text-primary">{formatCurrency(order.total_amount)}</span>
+                              </div>
                             </div>
-                          ) : (
-                            <div className="p-6 text-center bg-sun/10 rounded-2xl border-2 border-sun/20">
-                              <p className="text-sun-dark font-bold mb-3">Pagamento ainda não confirmado.</p>
+                          </div>
+
+                          {order.vouchers?.[0] ? (
+                            <div className="bg-primary/5 rounded-2xl p-4 border border-primary/20 space-y-3">
+                              <div className="flex justify-between items-center">
+                                <div>
+                                  <p className="text-xs font-bold uppercase text-muted-foreground">Código Voucher</p>
+                                  <p className="text-2xl font-black text-primary">{order.vouchers[0].code}</p>
+                                </div>
+                                {order.vouchers[0].qr_code_url && <img src={order.vouchers[0].qr_code_url} className="w-16 h-16 bg-white p-1 rounded-lg" />}
+                              </div>
                               <Button 
-                                onClick={() => handleMarkAsPaid(order.id)}
-                                className="w-full bg-sun hover:bg-sun-light text-foreground font-black"
+                                className="w-full h-12 bg-primary text-white font-bold rounded-xl"
+                                onClick={async () => {
+                                  const itemIds = order.order_items?.map((i: any) => i.id) || [];
+                                  await supabase.from('order_items').update({ is_redeemed: true, redeemed_at: new Date().toISOString() }).in('id', itemIds);
+                                  if (order.vouchers?.[0]) await redeemVoucher(order.vouchers[0].id);
+                                  fetchOrders();
+                                }}
                               >
-                                Confirmar Pagamento agora
+                                MARCAR TUDO COMO USADO
                               </Button>
+                            </div>
+                          ) : order.status === 'paid' ? (
+                             <p className="text-center text-xs text-muted-foreground">Gerando voucher...</p>
+                          ) : (
+                            <div className="p-4 text-center bg-sun/10 rounded-xl">
+                              <p className="text-sun-dark font-bold mb-2">Aguardando Pagamento</p>
+                              <Button size="sm" onClick={() => handleMarkAsPaid(order.id)} className="bg-sun text-foreground font-bold w-full">Confirmar Manualmente</Button>
                             </div>
                           )}
                         </div>
                       </DialogContent>
                     </Dialog>
                   ))
-                })()}
+                )}
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

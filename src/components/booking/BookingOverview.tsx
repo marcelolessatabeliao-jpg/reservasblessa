@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { getPersonPrice, formatCurrency, KIOSK_INFO, QUAD_LABELS, getQuadDiscount, ADDITIONAL_INFO, WHATSAPP_NUMBER, type BookingState, type AdultInfo, type ChildInfo } from '@/lib/booking-types';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface Props {
   booking: BookingState;

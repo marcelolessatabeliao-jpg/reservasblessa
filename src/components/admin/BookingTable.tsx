@@ -93,7 +93,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, updatingId }
                   )}
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  {format(new Date(booking.visit_date + 'T12:00:00'), "dd/MM (EEE)", { locale: ptBR })}
+                  {booking.visit_date ? format(new Date(booking.visit_date + 'T12:00:00'), "dd/MM (EEE)", { locale: ptBR }) : 'Data pendente'}
                   {' · '}{totalPeople} pessoa(s)
                   {booking.phone && (
                     <span className="inline-flex items-center gap-0.5 ml-2">
