@@ -50,7 +50,13 @@ export function BookingDetail({ booking }: BookingDetailProps) {
           Reserva id: {booking.id.slice(0, 8)}
         </p>
         <p className="text-[10px] font-medium text-muted-foreground italic">
-          {booking.created_at ? format(new Date(booking.created_at), "dd/MM/yy 'às' HH:mm", { locale: ptBR }) : ''}
+          {booking.created_at ? (() => {
+            try {
+              return format(new Date(booking.created_at), "dd/MM/yy 'às' HH:mm", { locale: ptBR });
+            } catch (e) {
+              return 'Data Inválida';
+            }
+          })() : ''}
         </p>
       </div>
 
@@ -69,7 +75,15 @@ export function BookingDetail({ booking }: BookingDetailProps) {
                        {item.quantity}x {item.product_id}
                     </span>
                     <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
-                       {item.is_redeemed ? `Utilizado em ${format(new Date(item.redeemed_at), "dd/MM HH:mm")}` : "Não utilizado"}
+                       {item.is_redeemed ? (
+                         `Utilizado em ${(() => {
+                            try {
+                              return item.redeemed_at ? format(new Date(item.redeemed_at), "dd/MM HH:mm") : '???';
+                            } catch (e) {
+                              return 'Data Erro';
+                            }
+                         })()}`
+                       ) : "Não utilizado"}
                     </span>
                   </div>
                   
