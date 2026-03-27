@@ -85,6 +85,8 @@ export default function Admin() {
         .select('*')
         .order('visit_date', { ascending: true });
 
+      const linkedBookingIds = new Set((ordersData || []).map((o: any) => o.booking_id).filter(id => id));
+      
       const mappedOrders = (ordersData || []).map(o => {
         let items = itemsMap[o.id] || [];
         const entries = items.filter((i: any) => {
@@ -119,6 +121,7 @@ export default function Admin() {
           created_at: o.created_at,
           notes: o.notes,
           is_order: true,
+          booking_id: o.booking_id,
           order_items: items,
           adults: adultsCount,
           children: childrenCount,
@@ -133,7 +136,7 @@ export default function Admin() {
         };
       });
 
-      const mappedLegacy = (legacyData || []).map(b => {
+      const mappedLegacy = (legacyData || []).filter(b => !linkedBookingIds.has(b.id)).map(b => {
         const virtualItems: any[] = [];
         const adults = b.adults || 0;
         const kidsCount = Array.isArray(b.children) ? b.children.length : 0;
@@ -202,19 +205,36 @@ export default function Admin() {
     if (!confirm('Excluir permanentemente?')) return;
     setUpdatingId(bookingId);
     try {
-      if (isOrder) {
+      // 1. Identify the record to delete
+      const bookingRecord = bookings.find(b => b.id === bookingId);
+      
+      // 2. Cascade cleanup across all possible tables
+      if (isOrder || bookingRecord?.is_order) {
+        // Delete items and reservations linked to the order
         await supabase.from('order_items').delete().eq('order_id', bookingId);
         await supabase.from('kiosk_reservations').delete().eq('order_id', bookingId);
         await supabase.from('quad_reservations').delete().eq('order_id', bookingId);
+        
+        // If it has a linked legacy booking, delete that too
+        if (bookingRecord?.booking_id) {
+          await supabase.from('bookings').delete().eq('id', bookingRecord.booking_id);
+        }
+        
+        // Finally, delete the order itself
         const { error } = await supabase.from('orders').delete().eq('id', bookingId);
         if (error) throw error;
       } else {
+        // For legacy records, also check if any orders were linked informally
+        await supabase.from('orders').delete().eq('booking_id', bookingId);
         const { error } = await supabase.from('bookings').delete().eq('id', bookingId);
         if (error) throw error;
       }
+      
       setBookings(prev => prev.filter(b => b.id !== bookingId));
-      toast({ title: '🗑️ Excluído' });
-      fetchBookings();
+      toast({ title: '🗑️ Registro removido com sucesso' });
+      
+      // Delay fetch to allow DB to propagate
+      setTimeout(() => fetchBookings(), 1000);
     } catch (err: any) {
       console.error('Delete Error:', err);
       toast({ title: 'Erro ao excluir', description: err.message, variant: 'destructive' });
