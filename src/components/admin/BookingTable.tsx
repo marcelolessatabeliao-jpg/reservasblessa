@@ -9,6 +9,7 @@ import { BookingDetail } from './BookingDetail';
 import { Textarea } from '@/components/ui/textarea';
 
 import { formatPhone } from '@/lib/utils/format';
+import { cn } from '@/lib/utils';
 
 interface Booking {
   id: string;
