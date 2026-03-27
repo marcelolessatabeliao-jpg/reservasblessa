@@ -468,14 +468,34 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
 
         {/* Vale mais a pena ser Sócio */}
         {totals.entriesTotal > 0 && (() => {
-          const payingAdults = booking.entry.adults
-            .filter(a => getEntryDisplayPrice(a, a.age >= 60) > 0)
-            .reduce((sum, a) => sum + (a.quantity || 1), 0);
+          let membershipTotal = 0;
+          let validPeopleForMembership = 0;
+          
+          booking.entry.adults.forEach(a => {
+             const isFree = a.age >= 60 || a.isPCD || (a as any).isTEA || a.isBirthday;
+             if (!isFree) {
+                const qty = a.quantity || 1;
+                validPeopleForMembership += qty;
+                const isHalf = a.isTeacher || a.isServer || a.isStudent || (a as any).isBloodDonor;
+                // De acordo com regras passadas: Adulto Cheia/Solidário = 49,90, Estudante/Professor/Servidor/Doador = 25,00
+                if (isHalf) {
+                   membershipTotal += (25.00 * qty);
+                } else {
+                   membershipTotal += (49.90 * qty);
+                }
+             }
+          });
+          
+          booking.entry.children.forEach(c => {
+             const isFree = c.age <= 11;
+             if (!isFree) {
+                const qty = c.quantity || 1;
+                validPeopleForMembership += qty;
+                membershipTotal += (25.00 * qty);
+             }
+          });
 
-          if (payingAdults === 0) return null;
-
-          const MEMBERSHIP_PRICE_PER_PERSON = 49.90;
-          const membershipTotal = payingAdults * MEMBERSHIP_PRICE_PER_PERSON;
+          if (validPeopleForMembership === 0 || membershipTotal === 0) return null;
 
           return (
             <motion.div

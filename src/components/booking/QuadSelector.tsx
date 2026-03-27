@@ -135,44 +135,55 @@ export function QuadSelector({ quads, onUpdate }: Props) {
                   onUpdate(i, { quantity: Math.min(q, maxForSlot) });
                 }} 
                 max={(() => {
+                  if (!quad.time) return 0; // cannot increase if no time
                   const sameSlotOthers = quads.reduce((acc, qry, idx) => {
                     if (idx !== i && qry.time && quad.time && qry.time === quad.time) return acc + qry.quantity;
                     return acc;
                   }, 0);
-                  return quad.time ? MAX_QUADS_PER_SLOT - sameSlotOthers : MAX_QUADS_PER_SLOT;
+                  const dbUsed = quad.time && checkDate ? slotAvailabilities[quad.time] || 0 : 0;
+                  return MAX_QUADS_PER_SLOT - sameSlotOthers - dbUsed;
                 })()}
+                disabled={!quad.time || isFetchingAvailability}
               />
             </div>
 
-            {quad.quantity > 0 && (
-              <div className="pt-3 border-t flex flex-col gap-3">
-                 <div className="flex items-center gap-2 bg-primary/5 px-4 h-12 rounded-2xl border border-primary/10 shadow-sm">
-                   <CalendarIcon className="h-4 w-4 text-primary" />
-                   <div>
-                     <p className="text-[10px] font-black uppercase text-primary/60 tracking-wider leading-none mb-1">Data Sincronizada</p>
-                     <p className="font-black text-sm text-primary uppercase leading-none">
-                       {quad.date ? format(quad.date, "dd/MM/yyyy (EEE)", { locale: ptBR }) : "--/--/----"}
-                     </p>
-                   </div>
+            <div className="pt-3 border-t flex flex-col gap-3">
+               <div className="flex items-center gap-2 bg-primary/5 px-4 h-12 rounded-2xl border border-primary/10 shadow-sm">
+                 <CalendarIcon className="h-4 w-4 text-primary" />
+                 <div>
+                   <p className="text-[10px] font-black uppercase text-primary/60 tracking-wider leading-none mb-1">Data Sincronizada</p>
+                   <p className="font-black text-sm text-primary uppercase leading-none">
+                     {quad.date ? format(quad.date, "dd/MM/yyyy (EEE)", { locale: ptBR }) : "--/--/----"}
+                   </p>
                  </div>
+               </div>
 
-                <Select 
-                  value={quad.time || ''} 
-                  onValueChange={async (v) => {
-                    if (!quad.date) {
-                        toast({ title: 'Escolha uma data primeiro', variant: 'destructive' });
-                        return;
-                    }
-                    const checkDate = quad.date;
-                    const used = await getQuadAvailability(format(checkDate, 'yyyy-MM-dd'), v);
-                    if (used + quad.quantity > MAX_QUADS_PER_SLOT) {
-                        toast({ title: 'Horário Lotado', description: `Restam apenas ${MAX_QUADS_PER_SLOT - used} quadriciclos para as ${v}.`, variant: 'destructive' });
-                        return;
-                    }
-                    onUpdate(i, { time: v as QuadTime });
-                  }}
-                  disabled={!quad.date || isFetchingAvailability} // Disable if no date or fetching
-                >
+              <Select 
+                value={quad.time || ''} 
+                onValueChange={async (v) => {
+                  if (!quad.date) {
+                      toast({ title: 'Escolha uma data primeiro', variant: 'destructive' });
+                      return;
+                  }
+                  const dbUsed = slotAvailabilities[v] || 0;
+                  const localUsedOthers = quads.reduce((acc, q, idx) => {
+                    if (idx !== i && q.time === v) return acc + q.quantity;
+                    return acc;
+                  }, 0);
+                  
+                  const availableInSlot = MAX_QUADS_PER_SLOT - dbUsed - localUsedOthers;
+                  
+                  if (availableInSlot <= 0) {
+                      toast({ title: 'Horário Lotado', description: `Não há quadriciclos disponíveis às ${v}.`, variant: 'destructive' });
+                      return;
+                  }
+                  
+                  // Se a quantidade atual de quadriciclos for maior que o disponível no novo horário, ajustamos
+                  const newQuantity = quad.quantity > availableInSlot ? availableInSlot : quad.quantity;
+                  onUpdate(i, { time: v as QuadTime, quantity: newQuantity });
+                }}
+                disabled={!quad.date || isFetchingAvailability} 
+              >
                   <SelectTrigger className="w-full h-12 rounded-2xl border-white/80 bg-white/70 backdrop-blur-sm shadow-sm hover:bg-white hover:border-primary/30 font-black text-sm uppercase tracking-tight">
                     <SelectValue placeholder="Escolha o Horário" />
                   </SelectTrigger>
@@ -217,8 +228,12 @@ export function QuadSelector({ quads, onUpdate }: Props) {
                       Horário selecionado. Lotação máx: {MAX_QUADS_PER_SLOT} quads/slot.
                    </p>
                 )}
+                {!quad.time && (
+                   <p className="text-[10.5px] text-destructive/80 font-black uppercase text-center py-1 bg-destructive/5 rounded-lg border-destructive/20 border">
+                     ⚠️ Selecione o horário antes de escolher a quantidade
+                   </p>
+                )}
               </div>
-            )}
           </div>
         );
       })}
