@@ -207,7 +207,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
         const entryHalfStr = formatCurrency(getPrice('entry_half', 25)).replace(',00', '');
 
         const categories = [
-          { id: 'inteira', label: 'Inteira', sublabel: 'Entrada normal', price: entryFullStr, emoji: '🎟️', bg: 'bg-slate-50', border: 'border-slate-200', selectedBg: 'bg-slate-100', selectedBorder: 'border-slate-500', priceColor: 'text-slate-700', labelColor: 'text-slate-800' },
+          { id: 'inteira', label: 'Entradas normais', sublabel: 'Inteira', price: entryFullStr, emoji: '🎟️', bg: 'bg-slate-50', border: 'border-slate-200', selectedBg: 'bg-slate-100', selectedBorder: 'border-slate-500', priceColor: 'text-slate-700', labelColor: 'text-slate-800' },
           { id: 'professor', label: 'Professor', sublabel: 'Lessa Professor Pass', price: entryHalfStr, emoji: '📚', bg: 'bg-blue-50', border: 'border-blue-100', selectedBg: 'bg-blue-100', selectedBorder: 'border-blue-500', priceColor: 'text-blue-700', labelColor: 'text-blue-900' },
           { id: 'estudante', label: 'Estudante', sublabel: 'Lessa Estudante Pass', price: entryHalfStr, emoji: '🎓', bg: 'bg-violet-50', border: 'border-violet-100', selectedBg: 'bg-violet-100', selectedBorder: 'border-violet-500', priceColor: 'text-violet-700', labelColor: 'text-violet-900' },
           { id: 'servidor', label: 'Servidor Público', sublabel: 'Lessa Servidor Pass', price: entryHalfStr, emoji: '🏛️', bg: 'bg-emerald-50', border: 'border-emerald-100', selectedBg: 'bg-emerald-100', selectedBorder: 'border-emerald-500', priceColor: 'text-emerald-700', labelColor: 'text-emerald-900' },
@@ -259,8 +259,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
               <Button 
                 variant="ghost" 
                 className={cn(
-                  "flex-1 text-xs font-black uppercase text-muted-foreground hover:text-primary hover:bg-transparent hover:underline transition-all",
-                  wizardType === 'adult' && "hidden"
+                  "flex-1 text-xs font-black uppercase text-muted-foreground hover:text-primary hover:bg-transparent hover:underline transition-all"
                 )}
                 onClick={() => setWizardStep(1)}
               >
@@ -289,8 +288,8 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                 variant="outline"
                 className="w-full h-14 rounded-2xl border-2 border-amber-300 bg-amber-50 text-amber-900 font-black text-sm hover:bg-amber-100 hover:text-amber-900 transition-all leading-tight"
                 onClick={() => {
-                  resetWizard();
-                  setIsWizardOpen(false);
+                  setWizardType('adult');
+                  setWizardStep(3);
                 }}
               >
                 ❌ Não — Adicionar como Adulto
@@ -362,7 +361,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
         );
       }
 
-      case 4: // Donation Check or Special Case Final Message
+      case 4: {
         if (wizardData.isPCD) {
           return (
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-6 py-4 text-center">
@@ -388,7 +387,6 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                 >
                   Confirmar e Adicionar
                 </Button>
-                
                 <Button 
                   variant="outline" 
                   className={cn(
@@ -420,7 +418,6 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                 Sim, trará doação
                 <span className="text-[10px] opacity-80 uppercase font-black">Pagar Meia-Entrada</span>
               </Button>
-
               <Button 
                 variant="outline"
                 className="w-full h-14 rounded-2xl border-2 border-primary/20 text-lg font-black opacity-80 hover:opacity-100 hover:border-primary/40 transition-all flex flex-col leading-tight py-2"
@@ -429,6 +426,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                 Não, prefiro Inteira
                 <span className="text-[10px] opacity-60 uppercase font-black">Pagar {formatCurrency(getPrice('entry_full', 50))}</span>
               </Button>
+            </div>
 
             <div className="flex gap-2 mt-6">
               <Button 
@@ -441,8 +439,9 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
             </div>
           </motion.div>
         );
+      }
 
-      case 7: { // Senior age check
+      case 7: {
         return (
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-5 py-2 text-center">
             <div className="flex flex-col items-center gap-2">
@@ -534,50 +533,60 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
             <label className="text-xs font-black flex items-center gap-2 text-primary uppercase tracking-widest">
               <CalendarIcon className="h-4 w-4" /> Escolha a Data da Reserva
             </label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className={cn("w-full h-12 justify-start text-left font-black text-sm rounded-2xl border-white/80 bg-white/70 backdrop-blur-sm shadow-sm hover:bg-white hover:border-primary/30 hover:text-foreground transition-all uppercase tracking-tight", !entry.visitDate && "text-muted-foreground")}>
-                  <CalendarIcon className="mr-2 h-5 w-5 shrink-0 text-primary" />
-                  {entry.visitDate ? (
-                    <span className="flex items-center gap-2">
-                      {format(entry.visitDate, "dd/MM/yyyy", { locale: ptBR })}
-                      <span className="bg-primary text-white px-2 py-0.5 rounded-lg text-[10px] uppercase font-black">
-                        {format(entry.visitDate, "EEE", { locale: ptBR })}
-                      </span>
-                    </span>
-                  ) : "Clique para escolher a data..."}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0 rounded-[2rem] border-white shadow-2xl" align="start">
-                <Calendar
-                  mode="single"
-                  selected={entry.visitDate || undefined}
-                  onSelect={(d) => {
-                    if (d) {
-                      const dayMap: Record<number, any> = { 0: 'domingo', 1: 'segunda', 5: 'sexta', 6: 'sabado' };
-                      const dayOfWeek = dayMap[d.getDay()];
-                      if (dayOfWeek) {
-                        onUpdateEntry({ visitDate: d, dayOfWeek });
+            {entry.visitDate ? (
+              <Button 
+                variant="outline" 
+                className="w-full h-12 justify-center text-center font-black text-sm rounded-2xl border-primary/20 bg-primary/5 text-primary shadow-sm hover:bg-primary/10 transition-all uppercase tracking-tight"
+                onClick={() => onUpdateEntry({ visitDate: null, dayOfWeek: '' })}
+              >
+                <CalendarIcon className="mr-2 h-5 w-5 shrink-0" />
+                <span className="flex items-center gap-2">
+                  {format(entry.visitDate, "dd/MM/yyyy", { locale: ptBR })}
+                  <span className="bg-primary text-white px-2 py-0.5 rounded-lg text-[10px] uppercase font-black">
+                    {format(entry.visitDate, "EEE", { locale: ptBR })}
+                  </span>
+                </span>
+                <span className="ml-auto text-[10px] opacity-60 underline">Mudar data</span>
+              </Button>
+            ) : (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full h-12 justify-start text-left font-black text-sm rounded-2xl border-white/80 bg-white/70 backdrop-blur-sm shadow-sm hover:bg-white hover:border-primary/30 hover:text-foreground transition-all uppercase tracking-tight text-muted-foreground">
+                    <CalendarIcon className="mr-2 h-5 w-5 shrink-0 text-primary" />
+                    Clique para escolher a data...
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 rounded-[2rem] border-white shadow-2xl" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={entry.visitDate || undefined}
+                    onSelect={(d) => {
+                      if (d) {
+                        const dayMap: Record<number, any> = { 0: 'domingo', 1: 'segunda', 5: 'sexta', 6: 'sabado' };
+                        const dayOfWeek = dayMap[d.getDay()];
+                        if (dayOfWeek) {
+                          onUpdateEntry({ visitDate: d, dayOfWeek });
+                        } else {
+                          onUpdateEntry({ visitDate: d });
+                        }
                       } else {
-                        onUpdateEntry({ visitDate: d });
+                        onUpdateEntry({ visitDate: null, dayOfWeek: '' });
                       }
-                    } else {
-                      onUpdateEntry({ visitDate: null, dayOfWeek: '' });
-                    }
-                  }}
-                  disabled={(d) => {
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-                    return d < today || !isOperatingDay(d);
-                  }}
-                  className="p-3 pointer-events-auto"
-                  locale={ptBR}
-                  classNames={{
-                    day_today: entry.visitDate ? "bg-transparent text-foreground border border-primary/10" : "bg-accent text-accent-foreground"
-                  }}
-                />
-              </PopoverContent>
-            </Popover>
+                    }}
+                    disabled={(d) => {
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      return d < today || !isOperatingDay(d);
+                    }}
+                    className="p-3 pointer-events-auto"
+                    locale={ptBR}
+                    classNames={{
+                      day_today: entry.visitDate ? "bg-transparent text-foreground border border-primary/10" : "bg-accent text-accent-foreground"
+                    }}
+                  />
+                </PopoverContent>
+              </Popover>
+            )}
           </div>
         )}
 
@@ -591,18 +600,20 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
             </div>
             
             <div className="flex flex-col gap-2">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 <Button 
                     onClick={() => handleStartWizard('adult')} 
-                    className="w-full h-14 rounded-2xl bg-[#006020] text-white hover:bg-[#004d1a] font-black text-sm shadow-md transition-all active:scale-95 flex items-center justify-center gap-2"
+                    className="w-full h-14 rounded-2xl bg-[#006020] text-white hover:bg-[#004d1a] font-black text-xs sm:text-sm shadow-md transition-all active:scale-95 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-1 py-1"
                 >
-                    🎟️ Adicionar Adulto
+                    <span className="text-sm">🎟️</span>
+                    <span>Adulto</span>
                 </Button>
                 <Button 
                     onClick={() => handleStartWizard('child')} 
-                    className="w-full h-14 rounded-2xl bg-[#006020] text-white hover:bg-[#004d1a] font-black text-sm shadow-md transition-all active:scale-95 flex items-center justify-center gap-2"
+                    className="w-full h-14 rounded-2xl bg-[#006020] text-white hover:bg-[#004d1a] font-black text-xs sm:text-sm shadow-md transition-all active:scale-95 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-1 py-1"
                 >
-                    👶 Adicionar Criança
+                    <span className="text-sm">👶</span>
+                    <span>Criança</span>
                 </Button>
               </div>
               <div className="grid grid-cols-2 gap-2">
@@ -769,17 +780,17 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
       <Dialog open={isWizardOpen} onOpenChange={(open) => { if(!open) resetWizard(); setIsWizardOpen(open); }}>
         <DialogContent className="sm:max-w-md w-[100vw] h-full sm:h-auto sm:w-[95vw] bg-white rounded-none sm:rounded-[3rem] border-white shadow-2xl p-4 sm:p-6 overflow-y-auto">
           <DialogHeader className="mb-0 sm:mb-2 sticky top-0 bg-white z-20 py-2 border-b sm:border-none">
-            <div className="flex items-center justify-between">
-              <DialogTitle className="text-xl sm:text-2xl font-black text-left text-primary font-gliker mt-2">
+            <div className="flex items-center justify-center relative px-10">
+              <DialogTitle className="text-xl sm:text-2xl font-black text-center text-primary font-gliker mt-2">
                 {wizardType === 'pcd' ? 'PCD / TEA' : 
                   wizardType === 'senior' ? 'Acesso Melhor Idade' :
                   wizardType === 'child' ? 'Acesso Kids' :
-                  'Novo Participante'}
+                  'Participante'}
               </DialogTitle>
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="rounded-full hover:bg-primary/5 text-primary"
+                className="absolute right-[-10px] top-[-10px] rounded-full hover:bg-primary/5 text-primary z-50 bg-white/80 backdrop-blur-sm shadow-sm"
                 onClick={() => { resetWizard(); setIsWizardOpen(false); }}
               >
                 <X className="h-6 w-6" />
