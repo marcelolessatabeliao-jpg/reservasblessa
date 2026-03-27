@@ -94,7 +94,23 @@ export function QuadSelector({ quads, onUpdate }: Props) {
                   )}
                 </div>
               </div>
-              <QuantityStepper value={quad.quantity} onChange={(q) => onUpdate(i, { quantity: q })} />
+              <QuantityStepper 
+                value={quad.quantity} 
+                onChange={async (q) => {
+                  if (q > quad.quantity && quad.time) {
+                    const used = await getQuadAvailability(format(checkDate!, 'yyyy-MM-dd'), quad.time);
+                    if (used + q > MAX_QUADS_PER_SLOT) {
+                       toast({ 
+                         title: 'Quantidade indisponível', 
+                         description: `Não há vagas suficientes às ${quad.time}. Máximo permitido: ${MAX_QUADS_PER_SLOT - used} adicionais.`, 
+                         variant: 'destructive' 
+                       });
+                       return;
+                    }
+                  }
+                  onUpdate(i, { quantity: q });
+                }} 
+              />
             </div>
 
             {quad.quantity > 0 && (

@@ -74,19 +74,41 @@ export function BookingSection() {
 
   // Sync dates for kiosks and quads whenever main visit date changes
   useEffect(() => {
-    if (booking.entry.visitDate) {
+    if (!booking.entry.visitDate) return;
+
+    const mainDate = booking.entry.visitDate.getTime();
+    
+    // Use a flag to check if any update is actually needed to avoid loops
+    let needsKioskUpdate = false;
+    booking.kiosks.forEach((k) => {
+      if (k.quantity > 0 && (!k.date || k.date.getTime() !== mainDate)) {
+        needsKioskUpdate = true;
+      }
+    });
+
+    let needsQuadUpdate = false;
+    booking.quads.forEach((q) => {
+      if (q.quantity > 0 && (!q.date || q.date.getTime() !== mainDate)) {
+        needsQuadUpdate = true;
+      }
+    });
+
+    if (needsKioskUpdate) {
       booking.kiosks.forEach((k, i) => {
-        if (k.quantity > 0 && (!k.date || k.date.getTime() !== booking.entry.visitDate?.getTime())) {
+        if (k.quantity > 0 && (!k.date || k.date.getTime() !== mainDate)) {
           updateKiosk(i, { date: booking.entry.visitDate });
         }
       });
+    }
+
+    if (needsQuadUpdate) {
       booking.quads.forEach((q, i) => {
-        if (q.quantity > 0 && (!q.date || q.date.getTime() !== booking.entry.visitDate?.getTime())) {
+        if (q.quantity > 0 && (!q.date || q.date.getTime() !== mainDate)) {
           updateQuad(i, { date: booking.entry.visitDate });
         }
       });
     }
-  }, [booking.entry.visitDate, booking.kiosks, booking.quads, updateKiosk, updateQuad]);
+  }, [booking.entry.visitDate, updateKiosk, updateQuad]); // Removed booking.kiosks/quads from deps to prevent loop
 
   // Handle external "Reservar" button clicks
   useEffect(() => {
