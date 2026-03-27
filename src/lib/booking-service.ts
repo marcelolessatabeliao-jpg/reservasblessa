@@ -99,8 +99,7 @@ export async function saveBooking(
             order_id: finalOrderId, 
             product_id: c.isPCD ? 'Lessa Kids PCD' : 'Lessa Kids',
             quantity: c.quantity || 1, 
-            unit_price: 0,
-            is_redeemed: false
+            unit_price: 0
           });
         });
 
@@ -110,8 +109,7 @@ export async function saveBooking(
             order_id: finalOrderId, 
             product_id: `Quiosque ${k.type === 'maior' ? 'Maior' : 'Menor'}`,
             quantity: k.quantity, 
-            unit_price: k.type === 'maior' ? 100 : 75,
-            is_redeemed: false
+            unit_price: k.type === 'maior' ? 100 : 75
           });
         });
 
@@ -123,8 +121,7 @@ export async function saveBooking(
             order_id: finalOrderId, 
             product_id: `Quadriciclo ${labelMap[q.type]}`,
             quantity: q.quantity, 
-            unit_price: baseMap[q.type] || 0,
-            is_redeemed: false
+            unit_price: baseMap[q.type] || 0
           });
         });
 
@@ -137,8 +134,7 @@ export async function saveBooking(
               order_id: finalOrderId,
               product_id: labelMap[id] || id,
               quantity,
-              unit_price: priceMap[id] || 0,
-              is_redeemed: false
+              unit_price: priceMap[id] || 0
             });
           }
         });
