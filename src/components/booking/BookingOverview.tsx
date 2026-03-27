@@ -497,7 +497,7 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
                 </div>
 
                 <p className="text-white/90 text-sm leading-relaxed">
-                  Suas entradas hoje custam{' '}
+                  Sua reserva para a data escolhida, considerando apenas as entradas (Day Use), custará{' '}
                   <span className="bg-yellow-400/20 text-yellow-300 font-black px-2 py-0.5 rounded-lg">
                     {formatCurrency(totals.entriesTotal)}
                   </span>
@@ -505,11 +505,12 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
                   <span className="text-yellow-400 font-black">Lessa Club</span>
                   , você paga apenas{' '}
                   <span className="bg-green-400/20 text-green-400 font-black px-2 py-0.5 rounded-lg border border-green-400/30">
-                    {formatCurrency(membershipTotal)}
+                    {formatCurrency(membershipTotal)}/mês
                   </span>
-                  {' '}e tem{' '}
-                  <span className="font-black text-white bg-white/10 px-2 py-0.5 rounded-lg">ENTRADAS ILIMITADAS</span>
-                  {' '}o mês inteiro!
+                  {' '}e tem entradas ilimitadas o mês inteiro!
+                </p>
+                <p className="text-white/60 text-[11px] italic leading-relaxed">
+                  (Os demais serviços são à parte em qualquer opção.)
                 </p>
 
                 <button
