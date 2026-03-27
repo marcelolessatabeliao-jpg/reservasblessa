@@ -127,14 +127,29 @@ export async function saveBooking(
             is_redeemed: false
           });
         });
+
+        // 5. Additional Services
+        Object.entries(booking.additionalServices).forEach(([id, quantity]) => {
+          if (quantity > 0) {
+            const labelMap: Record<string, string> = { 'soap-football': 'Futebol de Sabão', 'sport-fishing': 'Pesca Esportiva' };
+            const priceMap: Record<string, number> = { 'soap-football': 10, 'sport-fishing': 20 };
+            orderItems.push({
+              order_id: finalOrderId,
+              product_id: labelMap[id] || id,
+              quantity,
+              unit_price: priceMap[id] || 0,
+              is_redeemed: false
+            });
+          }
+        });
       }
 
       if (orderItems.length > 0) {
-        console.log('Inserting order items:', orderItems.length);
+        console.log('📦 Inserindo itens do pedido:', orderItems.length);
         const { error: itemsErr } = await (supabase as any).from('order_items').insert(orderItems);
         if (itemsErr) {
-          console.error('CRITICAL: Error inserting order items:', itemsErr);
-          // Don't throw, let the order survive but log it
+          console.error('❌ ERRO CRÍTICO ao inserir itens:', itemsErr);
+          throw new Error(`Falha ao salvar itens do pedido: ${itemsErr.message}`);
         }
       }
     }
