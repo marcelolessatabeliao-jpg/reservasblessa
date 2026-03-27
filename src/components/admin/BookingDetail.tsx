@@ -1,7 +1,7 @@
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { formatCurrency } from '@/lib/booking-types';
-import { CheckCircle2, Circle, Clock } from 'lucide-react';
+import { CheckCircle2, Circle, Clock, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
@@ -22,9 +22,10 @@ interface BookingDetailProps {
     created_at: string;
     order_items?: any[];
   };
+  onRemoveItem?: (orderId: string, itemId: string, productId: string) => void;
 }
 
-export function BookingDetail({ booking }: BookingDetailProps) {
+export function BookingDetail({ booking, onRemoveItem }: BookingDetailProps) {
   const { toast } = useToast();
   const children = Array.isArray(booking.children) ? booking.children : [];
   const items = booking.order_items || [];
@@ -82,41 +83,61 @@ export function BookingDetail({ booking }: BookingDetailProps) {
                     ? "bg-green-50/50 border-green-100 opacity-80" 
                     : "bg-white border-primary/5 hover:border-primary/20"
                 )}>
-                  <div className="flex flex-col">
-                    <div className="flex items-center gap-2">
-                       <span className={cn("font-bold text-sm", item.is_redeemed ? "text-green-700 line-through" : "text-foreground")}>
-                          {item.quantity}x {item.product_id}
-                       </span>
-                       {item.is_redeemed && (
-                         <Badge variant="default" className="bg-green-600 text-[8px] h-4 px-1.5 font-black uppercase">UTILIZADO</Badge>
-                       )}
-                    </div>
-                    <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider flex items-center gap-1.5">
-                       {item.is_redeemed ? (
-                         <>
-                           <Clock className="w-3 h-3" />
-                           {item.redeemed_at ? format(new Date(item.redeemed_at), "dd/MM HH:mm") : "Confirmado"}
-                         </>
-                       ) : "Aguardando utilização"}
-                    </span>
+                  <div className="flex items-center gap-4 flex-1">
+                     <div className="flex flex-col">
+                        <div className="flex items-center gap-2">
+                           <span className={cn("font-bold text-sm", item.is_redeemed ? "text-green-700 line-through" : "text-foreground")}>
+                              {item.quantity}x {item.product_id}
+                           </span>
+                           {item.is_redeemed && (
+                             <Badge variant="default" className="bg-green-600 text-[8px] h-4 px-1.5 font-black uppercase">UTILIZADO</Badge>
+                           )}
+                        </div>
+                        <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider flex items-center gap-1.5">
+                           {item.is_redeemed ? (
+                             <>
+                               <Clock className="w-3 h-3" />
+                               {item.redeemed_at ? format(new Date(item.redeemed_at), "dd/MM HH:mm") : "Confirmado"}
+                             </>
+                           ) : "Aguardando utilização"}
+                        </span>
+                     </div>
                   </div>
                   
-                  <Button
-                    size="sm"
-                    variant={item.is_redeemed ? "default" : "outline"}
-                    className={cn(
-                      "rounded-xl font-black text-[10px] uppercase h-9 shadow-none",
-                      item.is_redeemed 
-                        ? "bg-green-100 hover:bg-green-200 text-green-700 border-none px-3" 
-                        : "border-2 hover:bg-primary hover:text-white px-4"
+                  <div className="flex items-center gap-2">
+                    {onRemoveItem && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-9 w-9 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm(`Remover "${item.product_id}" desta reserva?`)) {
+                            onRemoveItem(booking.id, item.id, item.product_id);
+                          }
+                        }}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     )}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleToggleItemStatus(item.id, item.is_redeemed, item.product_id);
-                    }}
-                  >
-                    {item.is_redeemed ? "ESTORNAR" : "MARCAR USO"}
-                  </Button>
+                    
+                    <Button
+                      size="sm"
+                      variant={item.is_redeemed ? "default" : "outline"}
+                      className={cn(
+                        "rounded-xl font-black text-[10px] uppercase h-9 shadow-none",
+                        item.is_redeemed 
+                          ? "bg-green-100 hover:bg-green-200 text-green-700 border-none px-3" 
+                          : "border-2 hover:bg-primary hover:text-white px-4"
+                      )}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleToggleItemStatus(item.id, item.is_redeemed, item.product_id);
+                      }}
+                    >
+                      {item.is_redeemed ? "ESTORNAR" : "MARCAR USO"}
+                    </Button>
+                  </div>
                 </div>
               ))
             ) : (
@@ -125,7 +146,6 @@ export function BookingDetail({ booking }: BookingDetailProps) {
           </div>
         </div>
 
-        {/* Legacy / Simple Data display if order_items are empty but other props exist */}
         {items.length === 0 && (
           <div className="space-y-2 opacity-80">
              <p className="text-xs font-bold">{booking.adults} Adultos</p>

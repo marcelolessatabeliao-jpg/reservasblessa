@@ -40,6 +40,7 @@ interface BookingTableProps {
   onAddNote: (bookingId: string, notes: string, isOrder?: boolean) => void;
   onReschedule: (bookingId: string, newDate: string, isOrder?: boolean) => void;
   onDelete: (bookingId: string, isOrder?: boolean) => void;
+  onRemoveItem: (orderId: string, itemId: string, productId: string) => void;
   updatingId: string | null;
 }
 
@@ -51,7 +52,7 @@ const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secon
   cancelled: { label: 'Cancelada', variant: 'destructive', icon: XCircle },
 };
 
-export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule, onDelete, updatingId }: BookingTableProps) {
+export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule, onDelete, onRemoveItem, updatingId }: BookingTableProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [noteText, setNoteText] = useState('');

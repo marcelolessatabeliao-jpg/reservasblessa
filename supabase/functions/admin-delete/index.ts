@@ -44,6 +44,8 @@ Deno.serve(async (req) => {
       await supabase.from('order_items').delete().eq('order_id', bookingId);
       await supabase.from('kiosk_reservations').delete().eq('order_id', bookingId);
       await supabase.from('quad_reservations').delete().eq('order_id', bookingId);
+      await supabase.from('payments').delete().eq('order_id', bookingId);
+      await supabase.from('vouchers').delete().eq('order_id', bookingId);
       
       const { error } = await supabase.from('orders').delete().eq('id', bookingId);
       if (error) throw error;
