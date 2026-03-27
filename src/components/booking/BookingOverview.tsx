@@ -465,7 +465,7 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
 
           if (payingAdults === 0) return null;
 
-          const MEMBERSHIP_PRICE_PER_PERSON = 64.90;
+          const MEMBERSHIP_PRICE_PER_PERSON = 49.90;
           const membershipTotal = payingAdults * MEMBERSHIP_PRICE_PER_PERSON;
 
           return (

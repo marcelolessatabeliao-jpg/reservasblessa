@@ -81,15 +81,15 @@ export function LessaClubSimulator() {
                 { key: 'teacher', label: 'Professor', price: 25, emoji: '📚', color: 'bg-green-600/5 border-green-600/10' },
                 { key: 'server', label: 'Servidor', price: 25, emoji: '🏛️', color: 'bg-primary/5 border-primary/10' },
               ].map((item) => (
-                <div key={item.key} className={`flex items-center justify-between p-2 sm:p-4 rounded-2xl border shadow-sm transition-colors gap-2 sm:gap-4 ${item.color}`}>
-                  <div className="min-w-0 flex-1">
+                <div key={item.key} className={`flex items-center justify-between p-3 sm:p-4 rounded-2xl border shadow-sm transition-colors gap-2 sm:gap-4 overflow-hidden ${item.color}`}>
+                  <div className="min-w-0 flex-1 overflow-hidden">
                     <div className="flex items-center gap-1.5 sm:gap-2">
                        <span className="text-lg sm:text-2xl shrink-0">{item.emoji}</span>
-                       <h4 className="font-bold text-foreground text-[11px] sm:text-lg italic leading-tight truncate">
+                       <h4 className="font-bold text-foreground text-xs sm:text-lg italic leading-tight truncate">
                          {item.label}
                        </h4>
                     </div>
-                    <p className="text-primary font-black text-[9px] sm:text-sm uppercase tracking-widest mt-0.5">
+                    <p className="text-primary font-black text-[10px] sm:text-sm uppercase tracking-widest mt-0.5">
                       {formatCurrency(item.price)} <span className="text-[8px] sm:text-xs text-muted-foreground font-medium opacity-70">/mês</span>
                     </p>
                   </div>

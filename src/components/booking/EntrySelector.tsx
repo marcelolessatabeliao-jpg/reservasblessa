@@ -286,14 +286,14 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
               </Button>
               <Button
                 variant="outline"
-                className="w-full h-14 rounded-2xl border-2 border-amber-300 bg-amber-50 text-amber-900 font-black text-sm hover:bg-amber-100 hover:text-amber-900 transition-all leading-tight"
+                className="w-full h-auto min-h-[3.5rem] rounded-2xl border-2 border-amber-300 bg-amber-50 text-amber-900 font-black text-sm hover:bg-amber-100 hover:text-amber-900 transition-all flex flex-col items-center justify-center gap-0.5 py-3 px-4 overflow-hidden"
                 onClick={() => {
                   setWizardType('adult');
                   setWizardStep(3);
                 }}
               >
-                ❌ Não — Adicionar como Adulto
-                <span className="block text-[10px] font-semibold opacity-70">Use o botão “🎟️ + Adulto”</span>
+                <span className="truncate max-w-full">❌ Não — Adicionar como Adulto</span>
+                <span className="text-[10px] font-semibold opacity-70 whitespace-normal text-center leading-tight">Use o botão "+ Adulto"</span>
               </Button>
             </div>
             
@@ -681,7 +681,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                   )}>
                     {(adult.age >= 60 || adult.isPCD || adult.isBirthday) 
                       ? "GRÁTIS" 
-                      : formatCurrency(((adult.isTeacher || adult.isStudent || adult.isServer || (adult as any).isBloodDonor || adult.takeDonation) ? 25 : 49.9) * (adult.quantity || 1))
+                      : formatCurrency(((adult.isTeacher || adult.isStudent || adult.isServer || (adult as any).isBloodDonor || adult.takeDonation) ? 25 : 50) * (adult.quantity || 1))
                     }
                   </span>
                   <Button 

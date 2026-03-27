@@ -128,14 +128,14 @@ export function getPersonPrice(
     return 0;
   }
   
-  // Meia-entrada (R$ 25): Professor, Servidor, Estudante, Doador de Sangue
-  const hasProfessionalDiscount = person.isTeacher || person.isServer || person.isStudent || (person as any).isBloodDonor;
+  // Meia-entrada (R$ 25): Professor, Servidor, Estudante, Doador de Sangue, Adulto Solidário (traz doação)
+  const hasProfessionalDiscount = person.isTeacher || person.isServer || person.isStudent || (person as any).isBloodDonor || (person as any).takeDonation;
   if (hasProfessionalDiscount) {
     return getPrice('entry_half', 25);
   }
 
-  // Adulto Solidário (com doação) e Adulto Normal: R$ 49,90
-  return getPrice('entry_full', 49.90);
+  // Adulto Normal: R$ 50,00
+  return getPrice('entry_full', 50);
 }
 
 export function calculateEntryTotal(entry: EntryBooking, getPrice: (type: string, fb: number) => number): number {
