@@ -88,8 +88,7 @@ export async function saveBooking(
             order_id: finalOrderId, 
             product_id: label,
             quantity: a.quantity || 1, 
-            unit_price: (a.age >= 60 || a.isPCD || a.isBirthday) ? 0 : price,
-            is_redeemed: false
+            unit_price: (a.age >= 60 || a.isPCD || a.isBirthday) ? 0 : price
           });
         });
 
