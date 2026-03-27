@@ -205,24 +205,24 @@ export default function Admin() {
     try {
       if (isOrder) {
          if (status === 'cancelled') {
-             await supabase.from('quad_reservations').delete().eq('order_id', bookingId);
-             await supabase.from('kiosk_reservations').delete().eq('order_id', bookingId);
+             await supabase.from('quad_reservations').delete().eq('order_id', bookingId).select('id');
+             await supabase.from('kiosk_reservations').delete().eq('order_id', bookingId).select('id');
          }
          const { error } = await supabase.from('orders').update({ 
            status: status === 'confirmed' ? 'paid' : status
-         }).eq('id', bookingId);
+         }).eq('id', bookingId).select('id');
          if (error) throw error;
       } else {
          const { error } = await supabase.from('bookings').update({ 
             status: status === 'confirmed' ? 'paid' : status
-         }).eq('id', bookingId);
+         }).eq('id', bookingId).select('id');
          if (error) throw error;
       }
       toast({ title: `✓ Status: ${status}` });
       fetchBookings();
     } catch (err: any) { 
       console.error(err);
-      toast({ title: 'Erro de Conexão', description: 'Não foi possível atualizar status (RLS). Verifique permissões no dashboard.', variant: 'destructive' }); 
+      toast({ title: 'Erro de Conexão', description: 'Não foi possível atualizar status (RLS). Verifique permissões.', variant: 'destructive' }); 
     }
     finally { setUpdatingId(null); }
   };
@@ -230,11 +230,11 @@ export default function Admin() {
   const handleReschedule = async (bookingId: string, newDate: string, isOrder?: boolean) => {
     try {
       if (isOrder) {
-        await supabase.from('orders').update({ visit_date: newDate }).eq('id', bookingId);
-        await supabase.from('kiosk_reservations').update({ reservation_date: newDate }).eq('order_id', bookingId);
-        await supabase.from('quad_reservations').update({ reservation_date: newDate }).eq('order_id', bookingId);
+        await supabase.from('orders').update({ visit_date: newDate }).eq('id', bookingId).select('id');
+        await supabase.from('kiosk_reservations').update({ reservation_date: newDate }).eq('order_id', bookingId).select('id');
+        await supabase.from('quad_reservations').update({ reservation_date: newDate }).eq('order_id', bookingId).select('id');
       } else {
-        await supabase.from('bookings').update({ visit_date: newDate }).eq('id', bookingId);
+        await supabase.from('bookings').update({ visit_date: newDate }).eq('id', bookingId).select('id');
       }
       toast({ title: '📅 Agenda Reagendada!' });
       fetchBookings();
@@ -245,15 +245,15 @@ export default function Admin() {
     setUpdatingId(bookingId);
     try {
       if (isOrder) {
-         await supabase.from('quad_reservations').delete().eq('order_id', bookingId);
-         await supabase.from('kiosk_reservations').delete().eq('order_id', bookingId);
-         await supabase.from('payments').delete().eq('order_id', bookingId);
-         await supabase.from('vouchers').delete().eq('order_id', bookingId);
-         await supabase.from('order_items').delete().eq('order_id', bookingId);
-         const { error } = await supabase.from('orders').delete().eq('id', bookingId);
+         await supabase.from('quad_reservations').delete().eq('order_id', bookingId).select('id');
+         await supabase.from('kiosk_reservations').delete().eq('order_id', bookingId).select('id');
+         await supabase.from('payments').delete().eq('order_id', bookingId).select('id');
+         await supabase.from('vouchers').delete().eq('order_id', bookingId).select('id');
+         await supabase.from('order_items').delete().eq('order_id', bookingId).select('id');
+         const { error } = await supabase.from('orders').delete().eq('id', bookingId).select('id');
          if (error) throw error;
       } else {
-         const { error } = await supabase.from('bookings').delete().eq('id', bookingId);
+         const { error } = await supabase.from('bookings').delete().eq('id', bookingId).select('id');
          if (error) throw error;
       }
       
@@ -261,24 +261,24 @@ export default function Admin() {
       fetchBookings();
     } catch (err: any) {
       console.error('Delete Error:', err);
-      toast({ title: 'Erro ao excluir', description: 'Não foi possível apagar via cliente (RLS). Verifique permissões.', variant: 'destructive' });
+      toast({ title: 'Erro ao excluir', description: 'RLS impede acesso direto.', variant: 'destructive' });
     } finally { setUpdatingId(null); }
   };
 
   const handleAddNote = async (bookingId: string, notes: string, isOrder?: boolean) => {
     try {
       if (isOrder) {
-          const { error } = await supabase.from('orders').update({ notes }).eq('id', bookingId);
+          const { error } = await supabase.from('orders').update({ notes }).eq('id', bookingId).select('id');
           if (error) throw error;
       } else {
-          const { error } = await supabase.from('bookings').update({ notes }).eq('id', bookingId);
+          const { error } = await supabase.from('bookings').update({ notes }).eq('id', bookingId).select('id');
           if (error) throw error;
       }
       toast({ title: '📝 Nota salva!' });
       fetchBookings();
     } catch (err: any) { 
       console.error('AddNote Error:', err);
-      toast({ title: 'Erro ao salvar nota', description: 'Não foi possível salvar via cliente (RLS). Verifique permissões.', variant: 'destructive' }); 
+      toast({ title: 'Erro ao salvar nota', description: 'RLS impediu salvamento.', variant: 'destructive' }); 
     }
   };
 
