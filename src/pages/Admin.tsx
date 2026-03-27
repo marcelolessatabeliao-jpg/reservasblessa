@@ -564,23 +564,23 @@ export default function Admin() {
     return (
       <div className="animate-in fade-in duration-700">
          <div className="bg-white rounded-[3rem] overflow-hidden border border-slate-100 shadow-xl shadow-slate-200/40">
-            <div className="p-8 border-b border-slate-50 flex justify-between items-center bg-slate-50/30">
+            <div className="p-8 border-b border-slate-50 flex justify-between items-center bg-slate-50/10">
                <div>
                   <h3 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Listagem de Quiosques</h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Sincronizado com Banco de Dados</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Gestão de Inventário e Check-ins</p>
                </div>
-               <Badge className="bg-whatsapp text-white font-black px-4 py-2 rounded-xl">⛺ TOTAL: {kioskUsage.reduce((s,k)=>s+k.quantity,0)}</Badge>
+               <Badge className="bg-[#14532d] text-white font-black px-4 py-2 rounded-xl">⛺ TOTAL: {kioskUsage.reduce((s,k)=>s+k.quantity,0)}</Badge>
             </div>
             <div className="overflow-x-auto">
                <table className="w-full text-left">
                   <thead className="text-[10px] font-black uppercase text-slate-400 tracking-widest">
-                     <tr><th className="p-8">Check-in</th><th className="p-8">Cliente</th><th className="p-8">Tipo</th><th className="p-8">Qtd</th><th className="p-8">Detalhes</th></tr>
+                     <tr><th className="p-8">Check-in</th><th className="p-8">Cliente</th><th className="p-8">Tipo</th><th className="p-8">Qtd</th><th className="p-8">Ações</th></tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
                      {kioskUsage.map((k, i) => {
                        const b = bookings.find(book => book.id === k.order_id);
                        return (
-                         <tr key={i} className="hover:bg-whatsapp/5 transition-colors group">
+                         <tr key={i} className="hover:bg-[#14532d]/5 transition-colors group">
                             <td className="p-8 text-sm font-black text-slate-600">{format(parseISO(k.reservation_date), 'dd/MM')}</td>
                             <td className="p-8">
                                <div className="flex flex-col">
@@ -590,7 +590,28 @@ export default function Admin() {
                             </td>
                             <td className="p-8"><Badge variant="outline" className="text-[10px] font-black uppercase bg-white border-slate-100 rounded-lg">{k.kiosk_type === 'maior' ? 'Grande' : 'Pequeno'}</Badge></td>
                             <td className="p-8 text-sm font-black text-slate-900">{k.quantity}</td>
-                            <td className="p-8"><Button size="sm" variant="ghost" className="h-8 rounded-lg font-bold text-[10px] text-whatsapp hover:bg-whatsapp/10">PEDIDO</Button></td>
+                            <td className="p-8">
+                               <Dialog>
+                                 <DialogTrigger asChild>
+                                    <Button size="sm" variant="outline" className="h-10 rounded-xl font-bold text-[10px] text-[#14532d] border-[#14532d]/20 hover:bg-[#14532d] hover:text-white uppercase tracking-widest transition-all">GERENCIAR</Button>
+                                 </DialogTrigger>
+                                 <DialogContent className="rounded-[2.5rem] p-10 max-w-md">
+                                    <DialogHeader><DialogTitle className="text-xl font-black text-slate-800 uppercase text-center mb-6">Ações da Reserva</DialogTitle></DialogHeader>
+                                    <div className="grid gap-3">
+                                       <Button className="h-14 bg-whatsapp hover:bg-[#166534] text-white font-black uppercase text-[11px] rounded-2xl flex items-center gap-3" onClick={() => handleReschedule(k.order_id, k.reservation_date, true)}>📅 REAGENDAR DATA</Button>
+                                       <Button className="h-14 bg-red-500 hover:bg-red-600 text-white font-black uppercase text-[11px] rounded-2xl flex items-center gap-3" onClick={() => handleStatusChange(k.order_id, 'cancelled', true)}>❌ CANCELAR PEDIDO</Button>
+                                       <Button className="h-14 bg-red-900 hover:bg-black text-white font-black uppercase text-[11px] rounded-2xl flex items-center gap-3" onClick={() => handleDelete(k.order_id, true)}>🗑️ EXCLUIR PERMANENTE</Button>
+                                       <div className="mt-4 pt-4 border-t space-y-2">
+                                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Anexar Comprovante (URL)</p>
+                                          <div className="flex gap-2">
+                                             <Input placeholder="https://..." className="h-12 rounded-xl" />
+                                             <Button className="h-12 bg-sun text-sun-dark font-black px-4 rounded-xl">SALVAR</Button>
+                                          </div>
+                                       </div>
+                                    </div>
+                                 </DialogContent>
+                               </Dialog>
+                            </td>
                          </tr>
                        );
                      })}
@@ -600,23 +621,23 @@ export default function Admin() {
          </div>
       </div>
     );
-  }, [kioskUsage, bookings]);
+  }, [kioskUsage, bookings, handleStatusChange, handleReschedule, handleDelete]);
 
   const quadsView = useMemo(() => {
     return (
       <div className="animate-in fade-in duration-700">
          <div className="bg-white rounded-[3rem] overflow-hidden border border-slate-100 shadow-xl shadow-slate-200/40">
-            <div className="p-8 border-b border-slate-50 flex justify-between items-center bg-slate-50/30">
+            <div className="p-8 border-b border-slate-50 flex justify-between items-center bg-slate-50/10">
                <div>
                   <h3 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Frota de Quadriciclos</h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Controle de Saídas e Retornos</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Gestão de Saídas e Horários</p>
                </div>
-               <Badge className="bg-blue-600 text-white font-black px-4 py-2 rounded-xl">🚜 TOTAL: {quadUsage.reduce((s,q)=>s+q.quantity,0)}</Badge>
+               <Badge className="bg-blue-800 text-white font-black px-4 py-2 rounded-xl">🚜 TOTAL: {quadUsage.reduce((s,q)=>s+q.quantity,0)}</Badge>
             </div>
             <div className="overflow-x-auto">
                <table className="w-full text-left">
                   <thead className="text-[10px] font-black uppercase text-slate-400 tracking-widest">
-                     <tr><th className="p-8">Data</th><th className="p-8">Horário</th><th className="p-8">Cliente</th><th className="p-8">Modelo</th><th className="p-8">Qtd</th></tr>
+                     <tr><th className="p-8">Data</th><th className="p-8">Horário</th><th className="p-8">Cliente</th><th className="p-8">Modelo</th><th className="p-8">Ações</th></tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
                      {quadUsage.map((q, i) => {
@@ -624,10 +645,31 @@ export default function Admin() {
                        return (
                          <tr key={i} className="hover:bg-blue-50/50 transition-colors">
                             <td className="p-8 text-sm font-black text-slate-600">{format(parseISO(q.reservation_date), 'dd/MM')}</td>
-                            <td className="p-8 text-sm font-black text-blue-600">{q.time_slot}</td>
+                            <td className="p-8 text-sm font-black text-blue-700">{q.time_slot}</td>
                             <td className="p-8 text-sm font-bold text-slate-800 uppercase">{b?.name || '---'}</td>
                             <td className="p-8"><Badge variant="outline" className="text-[10px] font-black uppercase bg-white border-blue-50 text-blue-500 rounded-lg">{q.quad_type}</Badge></td>
-                            <td className="p-8 text-sm font-black text-slate-900">{q.quantity}</td>
+                            <td className="p-8">
+                               <Dialog>
+                                 <DialogTrigger asChild>
+                                    <Button size="sm" variant="outline" className="h-10 rounded-xl font-bold text-[10px] text-blue-700 border-blue-100 hover:bg-blue-700 hover:text-white uppercase tracking-widest transition-all">GERENCIAR</Button>
+                                 </DialogTrigger>
+                                 <DialogContent className="rounded-[2.5rem] p-10 max-w-md">
+                                    <DialogHeader><DialogTitle className="text-xl font-black text-slate-800 uppercase text-center mb-6">Ações da Reserva</DialogTitle></DialogHeader>
+                                    <div className="grid gap-3">
+                                       <Button className="h-14 bg-whatsapp hover:bg-[#166534] text-white font-black uppercase text-[11px] rounded-2xl flex items-center gap-3" onClick={() => handleReschedule(q.order_id, q.reservation_date, true)}>📅 REAGENDAR DATA</Button>
+                                       <Button className="h-14 bg-red-500 hover:bg-red-600 text-white font-black uppercase text-[11px] rounded-2xl flex items-center gap-3" onClick={() => handleStatusChange(q.order_id, 'cancelled', true)}>❌ CANCELAR PEDIDO</Button>
+                                       <Button className="h-14 bg-red-900 hover:bg-black text-white font-black uppercase text-[11px] rounded-2xl flex items-center gap-3" onClick={() => handleDelete(q.order_id, true)}>🗑️ EXCLUIR PERMANENTE</Button>
+                                       <div className="mt-4 pt-4 border-t space-y-2">
+                                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Anexar Comprovante (URL)</p>
+                                          <div className="flex gap-2">
+                                             <Input placeholder="https://..." className="h-12 rounded-xl" />
+                                             <Button className="h-12 bg-sun text-sun-dark font-black px-4 rounded-xl">SALVAR</Button>
+                                          </div>
+                                       </div>
+                                    </div>
+                                 </DialogContent>
+                               </Dialog>
+                            </td>
                          </tr>
                        );
                      })}
@@ -637,14 +679,14 @@ export default function Admin() {
          </div>
       </div>
     );
-  }, [quadUsage, bookings]);
+  }, [quadUsage, bookings, handleStatusChange, handleReschedule, handleDelete]);
 
   if (!token) return <AdminLogin onLogin={(t) => setToken(t)} />;
 
   return (
     <div className="min-h-screen bg-[#f8fafc] font-sans pb-32">
       {/* BRAND HEADER */}
-      <div className="bg-[#1e4d2b] py-8 px-6 md:px-12 border-b-[6px] border-[#22c55e]/30 shadow-2xl relative overflow-hidden">
+      <div className="bg-[#052e16] py-8 px-6 md:px-12 border-b-[6px] border-[#166534]/30 shadow-2xl relative overflow-hidden">
         <div className="absolute right-0 top-0 w-[40%] h-full bg-gradient-to-l from-white/5 to-transparent pointer-events-none" />
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-8 relative z-10">
           <div className="flex items-center gap-6">
@@ -653,12 +695,12 @@ export default function Admin() {
              </div>
              <div className="text-center md:text-left">
                 <h1 className="text-3xl font-black text-white uppercase tracking-tighter leading-none">Balneário Lessa</h1>
-                <p className="text-[#22c55e] font-black text-[12px] uppercase tracking-[0.4em] mt-2">Sistema de Reservas</p>
+                <p className="text-[#166534] font-black text-[12px] uppercase tracking-[0.4em] mt-2">Sistema de Reservas</p>
              </div>
           </div>
           
           <div className="flex items-center gap-4">
-            <Button size="lg" className="bg-[#22c55e] hover:bg-[#16a34a] text-white font-black px-10 rounded-2xl shadow-xl shadow-green-900/40 border-b-4 border-green-800 transition-all active:translate-y-1 active:border-b-0 flex items-center gap-3" onClick={() => { fetchBookings(); fetchOrders(); toast({title:"Dados Sincronizados"}); }}>
+            <Button size="lg" className="bg-[#166534] hover:bg-[#14532d] text-white font-black px-10 rounded-2xl shadow-xl shadow-green-900/40 border-b-4 border-green-800 transition-all active:translate-y-1 active:border-b-0 flex items-center gap-3" onClick={() => { fetchBookings(); fetchOrders(); toast({title:"Dados Sincronizados"}); }}>
                <RefreshCw className={cn("w-5 h-5", loading && "animate-spin")} /> ATUALIZAR
             </Button>
             <Button size="icon" variant="ghost" className="text-white h-14 w-14 rounded-2xl hover:bg-white/10" onClick={() => { localStorage.removeItem('admin_token'); setToken(null); }}>
