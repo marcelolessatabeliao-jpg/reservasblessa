@@ -207,7 +207,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
         const entryHalfStr = formatCurrency(getPrice('entry_half', 25)).replace(',00', '');
 
         const categories = [
-          { id: 'inteira', label: 'Entradas normais', sublabel: '', price: entryFullStr, emoji: '🎟️', bg: 'bg-slate-50', border: 'border-slate-200', selectedBg: 'bg-slate-100', selectedBorder: 'border-slate-500', priceColor: 'text-slate-700', labelColor: 'text-slate-800' },
+          { id: 'inteira', label: 'Entradas normais', sublabel: '', price: `${entryFullStr} e ${entryHalfStr}`, emoji: '🎟️', bg: 'bg-slate-50', border: 'border-slate-200', selectedBg: 'bg-slate-100', selectedBorder: 'border-slate-500', priceColor: 'text-slate-700', labelColor: 'text-slate-800' },
           { id: 'professor', label: 'Professor', sublabel: 'Lessa Professor Pass', price: entryHalfStr, emoji: '📚', bg: 'bg-blue-50', border: 'border-blue-100', selectedBg: 'bg-blue-100', selectedBorder: 'border-blue-500', priceColor: 'text-blue-700', labelColor: 'text-blue-900' },
           { id: 'estudante', label: 'Estudante', sublabel: 'Lessa Estudante Pass', price: entryHalfStr, emoji: '🎓', bg: 'bg-violet-50', border: 'border-violet-100', selectedBg: 'bg-violet-100', selectedBorder: 'border-violet-500', priceColor: 'text-violet-700', labelColor: 'text-violet-900' },
           { id: 'servidor', label: 'Servidor Público', sublabel: 'Lessa Servidor Pass', price: entryHalfStr, emoji: '🏛️', bg: 'bg-emerald-50', border: 'border-emerald-100', selectedBg: 'bg-emerald-100', selectedBorder: 'border-emerald-500', priceColor: 'text-emerald-700', labelColor: 'text-emerald-900' },
@@ -539,7 +539,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                   "w-full h-12 justify-start font-black text-sm rounded-2xl transition-all uppercase tracking-tight",
                   entry.visitDate 
                     ? "border-primary/40 bg-primary/5 text-primary hover:bg-primary/10 shadow-sm" 
-                    : "border-primary/20 bg-white hover:bg-primary/[0.03] hover:border-primary/40 text-muted-foreground shadow-sm"
+                    : "border-primary/20 bg-white hover:bg-primary/[0.05] hover:border-primary/50 hover:text-primary text-muted-foreground shadow-sm"
                 )}>
                   <CalendarIcon className="mr-2 h-5 w-5 shrink-0 text-primary" />
                   {entry.visitDate ? (
@@ -785,14 +785,6 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                   wizardType === 'child' ? 'Acesso Kids' :
                   'Participante'}
               </DialogTitle>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="absolute right-[-10px] top-[-10px] rounded-full hover:bg-primary/5 text-primary z-50 bg-white/80 backdrop-blur-sm shadow-sm"
-                onClick={() => { resetWizard(); setIsWizardOpen(false); }}
-              >
-                <X className="h-6 w-6" />
-              </Button>
             </div>
           </DialogHeader>
 

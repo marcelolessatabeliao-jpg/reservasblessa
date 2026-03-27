@@ -311,7 +311,7 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
                   <div key={`free-${i}`} className="flex justify-between items-start text-green-800 font-bold bg-green-50/50 p-2 rounded-lg border border-green-100/50">
                     <div>
                       <span>{qty}x {label}</span>
-                      <span className="block text-[10px] uppercase tracking-tighter opacity-70">Acesso Gratuito (Promoção)</span>
+                      <span className="block text-[10px] uppercase tracking-tighter opacity-70">Acesso Gratuito</span>
                     </div>
                     <span className="whitespace-nowrap uppercase text-xs">Grátis</span>
                   </div>
@@ -322,19 +322,20 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
               {booking.entry.adults.filter(a => getPersonPrice(a, a.age >= 60, booking.entry.dayOfWeek === 'domingo', getPrice) > 0).map((a, i) => {
                 const qty = a.quantity || 1;
                 const price = getPersonPrice(a, a.age >= 60, booking.entry.dayOfWeek === 'domingo', getPrice);
-                let label = 'Adulto';
                 let details = [];
                 if (a.isTeacher) details.push('Professor');
                 if (a.isServer) details.push('Servidor');
                 if (a.isStudent) details.push('Estudante');
-                if (a.takeDonation && booking.entry.dayOfWeek !== 'domingo') details.push('Social');
+                if (a.takeDonation && booking.entry.dayOfWeek !== 'domingo') details.push('Adulto Solidário');
                 if ((a as any).isBloodDonor) details.push('Doador');
                 
+                const mainLabel = details.length > 0 ? `${qty}x ${details.join(', ')}` : `${qty}x Adulto`;
+
                 return (
                   <div key={`adult-pay-${i}`} className="flex justify-between items-start">
                     <div>
-                      <span>{qty}x {label}</span>
-                      {details.length > 0 && <span className="block text-[11px] font-medium text-primary/70">{details.join(', ')} (Benefício)</span>}
+                      <span>{mainLabel}</span>
+                      {details.length > 0 && <span className="block text-[11px] font-medium text-primary/70">(Meia-Entrada)</span>}
                     </div>
                     <span className="font-medium whitespace-nowrap">{formatCurrency(price * qty)}</span>
                   </div>
@@ -403,6 +404,9 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
                     <div>
                       <span>{q.quantity}x Quad. {QUAD_LABELS[q.type]}</span>
                       <span className="block text-[10px] text-muted-foreground/80">📅 {q.date ? format(q.date, "dd/MM/yyyy", { locale: ptBR }) : booking.entry.visitDate ? format(booking.entry.visitDate, "dd/MM/yyyy", { locale: ptBR }) : '—'} às {q.time || '—'}</span>
+                      {discount > 0 && (
+                        <span className="block text-[10px] text-green-700 font-bold uppercase tracking-tight">Economia de {formatCurrency((basePrice - final_) * q.quantity)} (Desconto {discount * 100}%)</span>
+                      )}
                     </div>
                     <span>{formatCurrency(q.quantity * final_)}</span>
                   </div>
@@ -475,10 +479,9 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
 
                 <div className="space-y-4 relative z-10">
                   <p className="text-blue-100/90 text-sm sm:text-base leading-relaxed font-medium">
-                    Sua reserva de hoje custa <span className="bg-sun/20 text-sun font-black px-2 py-0.5 rounded-lg border border-sun/20">{formatCurrency(entriesTotal)}</span>.
-                    No <span className="text-sun font-black underline decoration-sun/30 underline-offset-4">Lessa Club</span>, 
-                    você paga apenas <span className="bg-green-500/20 text-green-400 font-black px-2 py-0.5 rounded-lg border border-green-500/20">{formatCurrency(membershipPrice)}</span> e tem 
-                    <span className="text-white font-black mx-1 uppercase tracking-wider bg-white/10 px-2 py-0.5 rounded-md">Entradas Ilimitadas</span> o mês inteiro!
+                    Suas entradas hoje custam <span className="bg-sun/20 text-sun font-black px-2 py-0.5 rounded-lg border border-sun/20">{formatCurrency(entriesTotal)}</span>.
+                    Por apenas <span className="bg-green-500/20 text-green-400 font-black px-2 py-0.5 rounded-lg border border-green-500/20">{formatCurrency(membershipPrice)} mensais</span>, você garante o <span className="text-sun font-black underline decoration-sun/30 underline-offset-4">Lessa Club</span> com
+                    <span className="text-white font-black mx-1 uppercase tracking-wider bg-white/10 px-2 py-0.5 rounded-md">Entradas Ilimitadas</span> todos os dias!
                   </p>
 
                   <Button 
