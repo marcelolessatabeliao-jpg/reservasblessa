@@ -206,11 +206,17 @@ export default function Admin() {
       if (isOrder) {
          await supabase.from('orders').update({ status: status === 'confirmed' ? 'paid' : status }).eq('id', bookingId);
       } else {
-        await supabase.functions.invoke('update-booking-status', { body: { bookingId, status, adminToken: token } });
+        // Legacy system edge function 'update-booking-status' only accepts 'confirmed', not 'paid'
+        const legacyStatus = status === 'paid' ? 'confirmed' : status;
+        const res = await supabase.functions.invoke('update-booking-status', { body: { bookingId, status: legacyStatus, adminToken: token } });
+        if (res.error) throw new Error(res.error.message || 'Erro ao atualizar (Verifique os logs)');
       }
       toast({ title: `✓ Atualizado` });
       fetchBookings();
-    } catch (err: any) { toast({ title: 'Erro', description: err.message, variant: 'destructive' }); }
+    } catch (err: any) { 
+      console.error(err);
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' }); 
+    }
     finally { setUpdatingId(null); }
   };
 
@@ -220,23 +226,25 @@ export default function Admin() {
         await supabase.from('orders').update({ visit_date: newDate }).eq('id', bookingId);
         await supabase.from('kiosk_reservations').update({ reservation_date: newDate }).eq('order_id', bookingId);
         await supabase.from('quad_reservations').update({ reservation_date: newDate }).eq('order_id', bookingId);
-      } else await supabase.from('bookings').update({ visit_date: newDate }).eq('id', bookingId);
+      } else {
+        const res = await supabase.from('bookings').update({ visit_date: newDate }).eq('id', bookingId);
+        if (res.error) throw res.error;
+      }
       toast({ title: '📅 Reagendado!' });
       fetchBookings();
     } catch (err: any) { toast({ title: 'Erro', description: err.message, variant: 'destructive' }); }
   };
 
   const handleDelete = async (bookingId: string, isOrder?: boolean) => {
-    if (!confirm('Excluir permanentemente?')) return;
+    // A confirmação já foi feita no BookingTable.tsx, para não pedir duas vezes:
     setUpdatingId(bookingId);
     try {
-      console.log(`🧹 Iniciando expulsão segura do registro via Edge Function: ${bookingId}`);
-      
       const { error } = await supabase.functions.invoke('admin-delete', {
         body: { bookingId, isOrder, adminToken: token }
       });
 
       if (error) throw error;
+
 
       setBookings(prev => prev.filter(b => b.id !== bookingId));
       toast({ title: '🗑️ Registro expulso com sucesso!' });
@@ -430,21 +438,29 @@ export default function Admin() {
            </div>
           <div className="flex gap-2">
             <Button size="sm" variant="outline" className="bg-sun/20 text-sun border-sun/40 hover:bg-sun/40" onClick={() => window.open('/', '_blank')}>NOVA RESERVA</Button>
-            <Button size="sm" variant="destructive" onClick={async () => {
-              if (confirm('Limpar todos os dados de teste?')) {
-                await supabase.from('order_items').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-                await supabase.from('orders').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-                await supabase.from('bookings' as any).delete().neq('id', '00000000-0000-0000-0000-000000000000');
-                await supabase.from('vouchers').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-                await supabase.from('payments').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-                await supabase.from('quad_reservations').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-                await supabase.from('kiosk_reservations').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-                alert('Dashboard limpa!');
-                fetchBookings(); 
-                fetchOrders();
+            <Button size="sm" variant="destructive" disabled={loading} onClick={async () => {
+              if (confirm('Limpar TODOS os dados de teste na tela agora mesmo? Essa ação utilizará a Edge Function.')) {
+                setLoading(true);
+                try {
+                  let deleted = 0;
+                  // Limpa pedidos / ordens virtuais e os legados da array atual
+                  for (const b of bookings) {
+                    await supabase.functions.invoke('admin-delete', { 
+                      body: { bookingId: b.id, isOrder: b.is_order, adminToken: token } 
+                    });
+                    deleted++;
+                  }
+                  alert(`Sucesso! ${deleted} reservas foram expulsas.`);
+                  fetchBookings(); 
+                  fetchOrders();
+                } catch(e: any) {
+                  alert('Erro ao limpar testes: ' + e.message);
+                } finally {
+                  setLoading(false);
+                }
               }
             }}>LIMPAR TESTES</Button>
-            <Button size="icon" variant="ghost" onClick={fetchBookings} disabled={loading}><RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} /></Button>
+            <Button size="icon" variant="ghost" onClick={() => { fetchBookings(); fetchOrders(); }} disabled={loading}><RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} /></Button>
             <Button size="icon" variant="ghost" onClick={() => { localStorage.removeItem('admin_token'); setToken(null); }}><LogOut className="w-5 h-5" /></Button>
           </div>
         </div>
@@ -504,7 +520,7 @@ export default function Admin() {
               <Card><CardContent className="p-4 text-center"><TrendingUp className="w-5 h-5 mx-auto mb-1 text-sun-dark" /><p className="text-lg font-black">{formatCurrency(stats.revenue)}</p><p className="text-[10px] font-bold text-muted-foreground uppercase">Receita</p></CardContent></Card>
             </div>
             <div className="flex flex-wrap gap-2">
-              {[{k:'today',l:'HOJE'},{k:'tomorrow',l:'AMANHÃ'},{k:'week',l:'SEMANA'},{k:'all',l:'ATIVAS'},{k:'past',l:'HISTÓRICO'}].map(f=>(<Button key={f.k} size="sm" variant={dateFilter===f.k?'default':'outline'} onClick={()=>{setDateFilter(f.k as any); setSelectedDate(undefined);}} className="flex-1 uppercase text-[10px] font-black">{f.l}</Button>))}
+              {[{k:'today',l:'HOJE'},{k:'tomorrow',l:'AMANHÃ'},{k:'past',l:'HISTÓRICO'}].map(f=>(<Button key={f.k} size="sm" variant={dateFilter===f.k?'default':'outline'} onClick={()=>{setDateFilter(f.k as any); setSelectedDate(undefined);}} className="flex-1 uppercase text-[10px] font-black">{f.l}</Button>))}
               
               <Popover>
                 <PopoverTrigger asChild>
