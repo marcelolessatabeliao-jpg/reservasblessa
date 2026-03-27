@@ -208,22 +208,23 @@ export default function Admin() {
              await supabase.from('quad_reservations').delete().eq('order_id', bookingId);
              await supabase.from('kiosk_reservations').delete().eq('order_id', bookingId);
          }
-         await supabase.from('orders').update({ status: status === 'confirmed' ? 'paid' : status }).eq('id', bookingId);
+         const { error } = await supabase.from('orders').update({ 
+           status: status === 'confirmed' ? 'paid' : status,
+           updated_at: new Date().toISOString()
+         }).eq('id', bookingId);
+         if (error) throw error;
       } else {
-         if (status === 'cancelled') {
-             // Só temos o 'admin-delete' online pra legacy. update-booking-status retorna 404.
-             const res = await supabase.functions.invoke('admin-delete', { body: { bookingId, isOrder: false, adminToken: token } });
-             if (res.error) throw new Error(res.error.message || 'Erro ao cancelar reserva antiga.');
-             setBookings(prev => prev.filter(b => b.id !== bookingId));
-         } else {
-             throw new Error("Atualizar status de reserva antiga está inativo no servidor. Apague e recrie.");
-         }
+         const { error } = await supabase.from('bookings').update({ 
+            status: status === 'confirmed' ? 'paid' : status,
+            updated_at: new Date().toISOString()
+         }).eq('id', bookingId);
+         if (error) throw error;
       }
-      toast({ title: `✓ Atualizado` });
+      toast({ title: `✓ Status: ${status}` });
       fetchBookings();
     } catch (err: any) { 
       console.error(err);
-      toast({ title: 'Erro', description: err.message, variant: 'destructive' }); 
+      toast({ title: 'Erro de Conexão', description: 'Não foi possível atualizar status (RLS). Verifique permissões no dashboard.', variant: 'destructive' }); 
     }
     finally { setUpdatingId(null); }
   };
@@ -235,40 +236,34 @@ export default function Admin() {
         await supabase.from('kiosk_reservations').update({ reservation_date: newDate }).eq('order_id', bookingId);
         await supabase.from('quad_reservations').update({ reservation_date: newDate }).eq('order_id', bookingId);
       } else {
-        throw new Error("Reagendar reservas antigas está inativo no servidor devido a regras RLS. Cancele e recrie.");
+        await supabase.from('bookings').update({ visit_date: newDate }).eq('id', bookingId);
       }
-      toast({ title: '📅 Reagendado!' });
+      toast({ title: '📅 Agenda Reagendada!' });
       fetchBookings();
     } catch (err: any) { toast({ title: 'Erro', description: err.message, variant: 'destructive' }); }
   };
 
   const handleDelete = async (bookingId: string, isOrder?: boolean) => {
-    // A confirmação já foi feita no BookingTable.tsx, para não pedir duas vezes:
     setUpdatingId(bookingId);
     try {
       if (isOrder) {
-         // Soft delete V3 order
          await supabase.from('quad_reservations').delete().eq('order_id', bookingId);
          await supabase.from('kiosk_reservations').delete().eq('order_id', bookingId);
-         const { error } = await supabase.from('orders').update({ status: 'cancelled' }).eq('id', bookingId);
+         await supabase.from('payments').delete().eq('order_id', bookingId);
+         await supabase.from('vouchers').delete().eq('order_id', bookingId);
+         await supabase.from('order_items').delete().eq('order_id', bookingId);
+         const { error } = await supabase.from('orders').delete().eq('id', bookingId);
          if (error) throw error;
       } else {
-         // Physical delete Legacy order using the Edge Function that works
-         const { error } = await supabase.functions.invoke('admin-delete', {
-           body: { bookingId, isOrder: false, adminToken: token }
-         });
+         const { error } = await supabase.from('bookings').delete().eq('id', bookingId);
          if (error) throw error;
       }
-
-      setBookings(prev => prev.filter(b => b.id !== bookingId));
-      toast({ title: '🗑️ Registro expulso com sucesso!' });
-
       
-      // Delay extra para o Supabase propagar
-      setTimeout(() => fetchBookings(), 1000);
+      toast({ title: '✓ Excluído permanentemente' });
+      fetchBookings();
     } catch (err: any) {
       console.error('Delete Error:', err);
-      toast({ title: 'Erro ao excluir', description: err.message, variant: 'destructive' });
+      toast({ title: 'Erro ao excluir', description: 'Não foi possível apagar via cliente (RLS). Verifique permissões.', variant: 'destructive' });
     } finally { setUpdatingId(null); }
   };
 
@@ -278,12 +273,14 @@ export default function Admin() {
           const { error } = await supabase.from('orders').update({ notes }).eq('id', bookingId);
           if (error) throw error;
       } else {
-          // Legacy bookings update disabled on server (RLS)
-          console.warn('Salvamento de notas em reservas legadas está inativo no servidor.');
+          const { error } = await supabase.from('bookings').update({ notes }).eq('id', bookingId);
+          if (error) throw error;
       }
+      toast({ title: '📝 Nota salva!' });
       fetchBookings();
     } catch (err: any) { 
-      toast({ title: 'Erro ao salvar nota', description: err.message, variant: 'destructive' }); 
+      console.error('AddNote Error:', err);
+      toast({ title: 'Erro ao salvar nota', description: 'Não foi possível salvar via cliente (RLS). Verifique permissões.', variant: 'destructive' }); 
     }
   };
 
