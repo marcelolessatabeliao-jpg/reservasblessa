@@ -240,21 +240,21 @@ export default function Admin() {
         <div className="space-y-8">
           {/* STATS */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-             <Card className="bg-white border-border/50 shadow-sm rounded-2xl p-4 flex flex-col items-center text-center">
-                <span className="text-3xl font-bold text-primary">{currentKiosks.length}</span>
-                <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Quiosques Ativos</span>
+             <Card className="bg-gradient-to-br from-white to-emerald-50 border-emerald-100 shadow-sm rounded-2xl p-4 flex flex-col items-center text-center hover:shadow-md transition-all border-l-4 border-l-emerald-500">
+                <span className="text-3xl font-extrabold text-emerald-600">{currentKiosks.length}</span>
+                <span className="text-[10px] uppercase font-bold text-emerald-800/60 tracking-wider">Quiosques Ativos</span>
              </Card>
-             <Card className="bg-white border-border/50 shadow-sm rounded-2xl p-4 flex flex-col items-center text-center">
-                <span className="text-3xl font-bold text-blue-600">{currentQuads.length}</span>
-                <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Quadriciclos Ativos</span>
+             <Card className="bg-gradient-to-br from-white to-blue-50 border-blue-100 shadow-sm rounded-2xl p-4 flex flex-col items-center text-center hover:shadow-md transition-all border-l-4 border-l-blue-500">
+                <span className="text-3xl font-extrabold text-blue-600">{currentQuads.length}</span>
+                <span className="text-[10px] uppercase font-bold text-blue-800/60 tracking-wider">Quadriciclos Ativos</span>
              </Card>
-             <Card className="bg-white border-border/50 shadow-sm rounded-2xl p-4 flex flex-col items-center text-center">
-                <span className="text-2xl font-bold text-foreground">{formatCurrency(currentKiosks.reduce((s, r) => s + (r.price || 0), 0))}</span>
-                <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Receita Quiosques</span>
+             <Card className="bg-gradient-to-br from-white to-amber-50 border-amber-100 shadow-sm rounded-2xl p-4 flex flex-col items-center text-center hover:shadow-md transition-all border-l-4 border-l-amber-500">
+                <span className="text-2xl font-extrabold text-amber-600">{formatCurrency(currentKiosks.reduce((s, r) => s + (r.price || 0), 0))}</span>
+                <span className="text-[10px] uppercase font-bold text-amber-800/60 tracking-wider">Receita Quiosques</span>
              </Card>
-             <Card className="bg-white border-border/50 shadow-sm rounded-2xl p-4 flex flex-col items-center text-center">
-                <span className="text-2xl font-bold text-foreground">{formatCurrency(currentQuads.reduce((s, r) => s + (r.price || 0), 0))}</span>
-                <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Receita Quadriciclos</span>
+             <Card className="bg-gradient-to-br from-white to-orange-50 border-orange-100 shadow-sm rounded-2xl p-4 flex flex-col items-center text-center hover:shadow-md transition-all border-l-4 border-l-orange-500">
+                <span className="text-2xl font-extrabold text-orange-600">{formatCurrency(currentQuads.reduce((s, r) => s + (r.price || 0), 0))}</span>
+                <span className="text-[10px] uppercase font-bold text-orange-800/60 tracking-wider">Receita Quadriciclos</span>
              </Card>
           </div>
 
@@ -275,11 +275,11 @@ export default function Admin() {
                    </h4>
                    <div className="grid grid-cols-5 gap-3">
                       {KIOSKS.map(k => {
-                        const booking = dayKiosks.find(b => b.kiosk_id === k.id);
+                        const booking = dayKiosks.find(b => Number(b.kiosk_id) === k.id);
                         return (
                           <div key={k.id} className={cn(
                             "group relative aspect-square rounded-2xl border transition-all flex flex-col items-center justify-center gap-1",
-                            booking ? "bg-primary text-white border-primary shadow-lg shadow-primary/20" : "bg-muted/30 border-dashed border-border text-muted-foreground hover:bg-muted/50"
+                            booking ? "bg-emerald-500 text-white border-emerald-500 shadow-lg shadow-emerald-500/20 scale-105" : "bg-muted/30 border-dashed border-border text-muted-foreground hover:bg-muted/50"
                           )}>
                              <span className="text-[10px] font-bold opacity-60">Q-{k.id}</span>
                              {booking ? <UserCheck className="w-5 h-5" /> : <Circle className="w-4 h-4 opacity-20" />}
@@ -384,27 +384,27 @@ export default function Admin() {
                         <tr key={r.id} className={cn("hover:bg-muted/20 transition-colors", isEditing && "bg-amber-50/50")}>
                            <td className="px-6 py-4 font-semibold text-sm">
                               {isEditing ? (
-                                <Input type="date" value={editData.reservation_date} onChange={e => setEditData({...editData, reservation_date: e.target.value})} className="h-9 rounded-lg" />
-                              ) : format(parseISO(r.reservation_date), 'dd/MM/yyyy')}
+                                <Input type="date" value={editData.reservation_date} onChange={e => setEditData({...editData, reservation_date: e.target.value})} className="h-9 rounded-lg bg-white text-emerald-950 font-bold border-emerald-200" />
+                              ) : <span className="text-emerald-900">{format(parseISO(r.reservation_date), 'dd/MM/yyyy')}</span>}
                            </td>
                            <td className="px-6 py-4 font-bold text-foreground">
                               {isEditing ? (
-                                <Input value={editData.customer_name} onChange={e => setEditData({...editData, customer_name: e.target.value})} className="h-9 rounded-lg" />
-                              ) : r.customer_name}
+                                <Input value={editData.customer_name} onChange={e => setEditData({...editData, customer_name: e.target.value})} className="h-9 rounded-lg bg-white text-emerald-950 font-bold border-emerald-200" />
+                              ) : <span className="text-emerald-950">{r.customer_name}</span>}
                            </td>
                            <td className="px-6 py-4">
                               {isEditing ? (
                                 <Select value={String(editData.kiosk_id)} onValueChange={v => setEditData({...editData, kiosk_id: parseInt(v)})}>
-                                   <SelectTrigger className="h-9 rounded-lg"><SelectValue /></SelectTrigger>
-                                   <SelectContent>{KIOSKS.map(k => <SelectItem key={k.id} value={String(k.id)}>{k.name}</SelectItem>)}</SelectContent>
+                                   <SelectTrigger className="h-9 rounded-lg bg-white text-emerald-950 font-bold border-emerald-200"><SelectValue /></SelectTrigger>
+                                   <SelectContent className="bg-white border-emerald-200">{KIOSKS.map(k => <SelectItem key={k.id} value={String(k.id)} className="text-emerald-950">{k.name}</SelectItem>)}</SelectContent>
                                 </Select>
-                              ) : <Badge className="bg-primary/10 text-primary border-0 font-bold">{KIOSKS.find(k => k.id === r.kiosk_id)?.name || `Q-${r.kiosk_id}`}</Badge>}
+                              ) : <Badge className="bg-emerald-100 text-emerald-700 border-0 font-bold">{KIOSKS.find(k => k.id === Number(r.kiosk_id))?.name || `Q-${r.kiosk_id || '?'}`}</Badge>}
                            </td>
                            <td className="px-6 py-4 font-bold text-primary">
                               {isEditing ? (
                                 <div className="flex items-center gap-1">
-                                   <span className="text-xs">R$</span>
-                                   <Input type="number" value={editData.price} onChange={e => setEditData({...editData, price: parseFloat(e.target.value)})} className="h-9 rounded-lg w-20" />
+                                   <span className="text-xs text-emerald-900 font-bold">R$</span>
+                                   <Input type="number" value={editData.price} onChange={e => setEditData({...editData, price: parseFloat(e.target.value)})} className="h-9 rounded-lg w-24 bg-white text-emerald-950 font-bold border-emerald-200" />
                                 </div>
                               ) : formatCurrency(r.price || 0)}
                            </td>
@@ -517,13 +517,13 @@ export default function Admin() {
                               </div>
                            </td>
                            <td className="px-6 py-4 font-bold text-foreground">
-                              {isEditing ? <Input value={editData.customer_name} onChange={e => setEditData({...editData, customer_name: e.target.value})} className="h-9" /> : r.customer_name}
+                              {isEditing ? <Input value={editData.customer_name} onChange={e => setEditData({...editData, customer_name: e.target.value})} className="h-9 bg-white text-emerald-950 font-bold border-blue-200" /> : <span className="text-emerald-950">{r.customer_name}</span>}
                            </td>
                            <td className="px-6 py-4 text-center">
-                              {isEditing ? <Input type="number" value={editData.quantity} onChange={e => setEditData({...editData, quantity: parseInt(e.target.value)})} className="h-9 w-16" /> : <Badge className="bg-blue-100 text-blue-700 border-0">{r.quantity} quad.</Badge>}
+                              {isEditing ? <Input type="number" value={editData.quantity} onChange={e => setEditData({...editData, quantity: parseInt(e.target.value)})} className="h-9 w-16 bg-white text-emerald-950 font-bold border-blue-200" /> : <Badge className="bg-blue-100 text-blue-700 border-0 font-extrabold">{r.quantity} quad.</Badge>}
                            </td>
                            <td className="px-6 py-4 font-bold text-blue-700">
-                              {isEditing ? <Input type="number" value={editData.price} onChange={e => setEditData({...editData, price: parseFloat(e.target.value)})} className="h-9 w-20" /> : formatCurrency(r.price || 0)}
+                              {isEditing ? <Input type="number" value={editData.price} onChange={e => setEditData({...editData, price: parseFloat(e.target.value)})} className="h-9 w-24 bg-white text-emerald-950 font-bold border-blue-200" /> : formatCurrency(r.price || 0)}
                            </td>
                            <td className="px-6 py-4 text-right">
                               <div className="flex items-center justify-end gap-2">
