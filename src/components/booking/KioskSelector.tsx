@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from 'react';
 import { Home, AlertTriangle, CalendarIcon, Loader2 } from 'lucide-react';
 import { QuantityStepper } from '@/components/QuantityStepper';
 import { KioskItem, KIOSK_INFO, formatCurrency, isOperatingDay } from '@/lib/booking-types';
