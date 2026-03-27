@@ -31,7 +31,6 @@ export default function Admin() {
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
   const { toast } = useToast();
 
-  // Inventory logic
   const [kioskUsage, setKioskUsage] = useState<any[]>([]);
   const [quadUsage, setQuadUsage] = useState<any[]>([]);
 
@@ -60,7 +59,6 @@ export default function Admin() {
     try {
       fetchInventory();
       
-      // 1. Fetch Orders (Master) - Limited to 100 to stay fast and avoid query limits
       const { data: ordersData, error: ordersError } = await supabase
         .from('orders')
         .select('*')
@@ -69,17 +67,11 @@ export default function Admin() {
 
       if (ordersError) throw ordersError;
 
-      // 2. Fetch Order Items for THESE orders only
       const orderIds = (ordersData || []).map(o => o.id);
       let itemsData: any[] = [];
-      
       if (orderIds.length > 0) {
-        const { data: items, error: itemsError } = await supabase
-          .from('order_items')
-          .select('*')
-          .in('order_id', orderIds);
-        
-        if (!itemsError) itemsData = items || [];
+        const { data: items } = await supabase.from('order_items').select('*').in('order_id', orderIds);
+        itemsData = items || [];
       }
 
       const itemsMap = itemsData.reduce((acc: any, item: any) => {
@@ -88,16 +80,13 @@ export default function Admin() {
         return acc;
       }, {});
 
-      // 3. Fetch Legacy Bookings
       const { data: legacyData } = await supabase
         .from('bookings' as any)
         .select('*')
         .order('visit_date', { ascending: true });
 
       const mappedOrders = (ordersData || []).map(o => {
-        const items = itemsMap[o.id] || [];
-        
-        // Items that are NOT kiosks, quads or additions are likely people (entries)
+        let items = itemsMap[o.id] || [];
         const entries = items.filter((i: any) => {
           const pid = i.product_id?.toLowerCase() || '';
           return !pid.includes('quiosque') && !pid.includes('quad') && !pid.includes('pesca') && !pid.includes('futebol');
@@ -105,6 +94,14 @@ export default function Admin() {
         
         const adultItems = entries.filter((i: any) => !i.product_id?.toLowerCase().includes('criança') && !i.product_id?.toLowerCase().includes('kids'));
         const childItems = entries.filter((i: any) => i.product_id?.toLowerCase().includes('criança') || i.product_id?.toLowerCase().includes('kids'));
+
+        let adultsCount = adultItems.reduce((acc: number, it: any) => acc + (it.quantity || 0), 0) || 0;
+        const childrenCount = childItems.reduce((acc: number, it: any) => acc + (it.quantity || 0), 0) || 0;
+
+        if (items.length === 0 && o.total_amount > 0) {
+           items = [{ id: `v-${o.id}-u`, product_id: 'Entrada (Sem detalhes)', quantity: 1, unit_price: o.total_amount, is_redeemed: false }];
+           adultsCount = 1;
+        }
 
         return {
           id: o.id,
@@ -118,8 +115,8 @@ export default function Admin() {
           notes: o.notes,
           is_order: true,
           order_items: items,
-          adults: adultItems.reduce((acc: number, it: any) => acc + (it.quantity || 0), 0) || 0,
-          children: childItems.reduce((acc: number, it: any) => acc + (it.quantity || 0), 0) || 0,
+          adults: adultsCount,
+          children: childrenCount,
           kiosks: items.filter((i: any) => i.product_id?.includes('Quiosque')).map((i: any) => ({ 
             type: i.product_id?.toLowerCase().includes('maior') ? 'maior' : 'menor', 
             quantity: i.quantity || 0 
@@ -132,34 +129,31 @@ export default function Admin() {
       });
 
       const mappedLegacy = (legacyData || []).map(b => {
-        // Create virtual items for legacy records so they aren't empty in Detail view
         const virtualItems: any[] = [];
-        if (b.adults > 0) virtualItems.push({ id: `v-${b.id}-a`, product_id: 'Adulto (Legado)', quantity: b.adults, is_redeemed: b.status === 'checked-in' });
-        if (Array.isArray(b.children) && b.children.length > 0) {
-            virtualItems.push({ id: `v-${b.id}-c`, product_id: 'Criança (Legado)', quantity: b.children.length, is_redeemed: b.status === 'checked-in' });
-        }
+        const adults = b.adults || 0;
+        const kidsCount = Array.isArray(b.children) ? b.children.length : 0;
+        if (adults > 0) virtualItems.push({ id: `v-${b.id}-a`, product_id: 'Adulto (Legado)', quantity: adults, is_redeemed: b.status === 'checked-in' });
+        if (kidsCount > 0) virtualItems.push({ id: `v-${b.id}-c`, product_id: 'Criança (Legado)', quantity: kidsCount, is_redeemed: b.status === 'checked-in' });
 
         return {
           ...b,
           is_order: false,
-          adults: b.adults || 0,
-          children: Array.isArray(b.children) ? b.children.length : 0,
+          adults,
+          children: kidsCount,
           total_amount: Number(b.total_amount),
           status: b.status === 'confirmed' || b.status === 'paid' ? 'confirmed' : (b.status || 'pending'),
           order_items: virtualItems
         };
       });
 
-      // Combined and sorted by sequence: confirmed/pending first, then visit date
       setBookings([...mappedOrders, ...mappedLegacy].sort((a, b) => {
-          const dateA = new Date(a.visit_date).getTime();
-          const dateB = new Date(b.visit_date).getTime();
+          const dateA = new Date(a.visit_date || '').getTime();
+          const dateB = new Date(b.visit_date || '').getTime();
           return dateA - dateB;
       }));
-      
     } catch (err: any) {
-      console.error('Admin sync error:', err);
-      toast({ title: 'Erro ao carregar dados', description: err.message, variant: 'destructive' });
+      console.error('Fetch Error:', err);
+      toast({ title: 'Erro de sincronização', description: err.message, variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -169,15 +163,8 @@ export default function Admin() {
     if (!token) return;
     fetchBookings();
     fetchOrders();
-
-    const channel = supabase
-      .channel('admin-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => fetchBookings())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, () => fetchBookings())
-      .subscribe();
-
-    const interval = setInterval(() => fetchBookings(), 60000);
-    return () => { supabase.removeChannel(channel); clearInterval(interval); };
+    const ch = supabase.channel('adm').on('postgres_changes',{event:'*',schema:'public',table:'orders'},()=>fetchBookings()).subscribe();
+    return () => { supabase.removeChannel(ch); };
   }, [token, fetchBookings, fetchOrders]);
 
   const handleStatusChange = async (bookingId: string, status: string, isOrder?: boolean) => {
@@ -185,18 +172,13 @@ export default function Admin() {
     try {
       if (isOrder) {
          await supabase.from('orders').update({ status: status === 'confirmed' ? 'paid' : status }).eq('id', bookingId);
-         if (status === 'cancelled') {
-           await supabase.from('kiosk_reservations').delete().eq('order_id', bookingId);
-           await supabase.from('quad_reservations').delete().eq('order_id', bookingId);
-         }
       } else {
         await supabase.functions.invoke('update-booking-status', { body: { bookingId, status, adminToken: token } });
       }
       toast({ title: `✓ Atualizado` });
       fetchBookings();
-    } catch (err: any) {
-      toast({ title: 'Erro', description: err.message, variant: 'destructive' });
-    } finally { setUpdatingId(null); }
+    } catch (err: any) { toast({ title: 'Erro', description: err.message, variant: 'destructive' }); }
+    finally { setUpdatingId(null); }
   };
 
   const handleReschedule = async (bookingId: string, newDate: string, isOrder?: boolean) => {
@@ -205,42 +187,33 @@ export default function Admin() {
         await supabase.from('orders').update({ visit_date: newDate }).eq('id', bookingId);
         await supabase.from('kiosk_reservations').update({ reservation_date: newDate }).eq('order_id', bookingId);
         await supabase.from('quad_reservations').update({ reservation_date: newDate }).eq('order_id', bookingId);
-      }
-      else await supabase.from('bookings').update({ visit_date: newDate }).eq('id', bookingId);
+      } else await supabase.from('bookings').update({ visit_date: newDate }).eq('id', bookingId);
       toast({ title: '📅 Reagendado!' });
       fetchBookings();
     } catch (err: any) { toast({ title: 'Erro', description: err.message, variant: 'destructive' }); }
   };
 
   const handleDelete = async (bookingId: string, isOrder?: boolean) => {
+    if (!confirm('Excluir permanentemente?')) return;
     setUpdatingId(bookingId);
     try {
       if (isOrder) {
-        // Cascade delete all related data
         await supabase.from('order_items').delete().eq('order_id', bookingId);
         await supabase.from('kiosk_reservations').delete().eq('order_id', bookingId);
         await supabase.from('quad_reservations').delete().eq('order_id', bookingId);
-        await supabase.from('orders').delete().eq('id', bookingId);
+        const { error } = await supabase.from('orders').delete().eq('id', bookingId);
+        if (error) throw error;
       } else {
-        await supabase.from('bookings').delete().eq('id', bookingId);
+        const { error } = await supabase.from('bookings').delete().eq('id', bookingId);
+        if (error) throw error;
       }
-      
-      // Update local state immediately for instant feedback
       setBookings(prev => prev.filter(b => b.id !== bookingId));
-      
-      toast({ title: '🗑️ Registro excluído permanentemente.' });
-      fetchBookings(); // Still fetch to be sure and refresh stats
+      toast({ title: '🗑️ Excluído' });
+      fetchBookings();
     } catch (err: any) {
-      console.error('CRITICAL: Delete failed!', err);
-      toast({ 
-        title: 'Erro ao excluir', 
-        description: `Não foi possível remover do banco de dados: ${err.message}`, 
-        variant: 'destructive' 
-      });
-      fetchBookings(); // Refresh to restore local state if delete failed
-    } finally {
-      setUpdatingId(null);
-    }
+      console.error('Delete Error:', err);
+      toast({ title: 'Erro ao excluir', description: err.message, variant: 'destructive' });
+    } finally { setUpdatingId(null); }
   };
 
   const handleAddNote = async (bookingId: string, notes: string, isOrder?: boolean) => {
@@ -276,7 +249,7 @@ export default function Admin() {
     const todayBookings = bookings.filter(b => b.visit_date && isToday(parseISO(b.visit_date)));
     const confirmed = todayBookings.filter(b => b.status === 'confirmed' || b.status === 'paid' || b.status === 'checked-in');
     return {
-      people: todayBookings.reduce((sum, b) => sum + (b.adults || 0) + (typeof b.children === 'number' ? b.children : (b.children?.length || 0)), 0),
+      people: todayBookings.reduce((sum, b) => sum + (b.adults || 0) + (b.children || 0), 0),
       revenue: confirmed.reduce((sum, b) => sum + Number(b.total_amount), 0),
       count: todayBookings.length,
       checked: todayBookings.filter(b => b.status === 'checked-in').length
@@ -334,7 +307,7 @@ export default function Admin() {
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
              <CalendarCheck className="w-6 h-6 text-sun hidden sm:block" />
-             <div><h1 className="font-display font-black text-xl md:text-2xl leading-none">Balneário Lessa</h1><p className="text-primary-foreground/60 text-[10px] font-black uppercase tracking-[0.2em] mt-1">Management Portal v2.0</p></div>
+             <div><h1 className="font-display font-black text-xl md:text-2xl leading-none">Balneário Lessa</h1><p className="text-primary-foreground/60 text-[10px] font-black uppercase tracking-[0.2em] mt-1">Management Portal v3.0</p></div>
           </div>
           <div className="flex gap-2">
             <Button size="sm" variant="destructive" onClick={async () => {
@@ -409,14 +382,7 @@ export default function Admin() {
               <Card><CardContent className="p-4 text-center"><TrendingUp className="w-5 h-5 mx-auto mb-1 text-sun-dark" /><p className="text-lg font-black">{formatCurrency(stats.revenue)}</p><p className="text-[10px] font-bold text-muted-foreground uppercase">Receita</p></CardContent></Card>
             </div>
             <div className="flex gap-2">
-              {[
-                { key: 'today', label: 'HOJE' },
-                { key: 'tomorrow', label: 'AMANHÃ' },
-                { key: 'week', label: 'SEMANA' },
-                { key: 'all', label: 'TODAS' }
-              ].map(f => (
-                <Button key={f.key} size="sm" variant={dateFilter === f.key ? 'default' : 'outline'} onClick={() => setDateFilter(f.key as any)} className="flex-1 uppercase text-[10px] font-black">{f.label}</Button>
-              ))}
+              {[{k:'today',l:'HOJE'},{k:'tomorrow',l:'AMANHÃ'},{k:'week',l:'SEMANA'},{k:'all',l:'TODAS'}].map(f=>(<Button key={f.k} size="sm" variant={dateFilter===f.k?'default':'outline'} onClick={()=>setDateFilter(f.k as any)} className="flex-1 uppercase text-[10px] font-black">{f.l}</Button>))}
             </div>
             <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" /><Input placeholder="Buscar reservas..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" /></div>
             <BookingTable bookings={filtered} onStatusChange={handleStatusChange} onAddNote={handleAddNote} onReschedule={handleReschedule} onDelete={handleDelete} updatingId={updatingId} />
