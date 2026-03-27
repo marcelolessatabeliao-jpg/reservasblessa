@@ -50,6 +50,24 @@ const PAYMENT_METHODS = [
 
 type TabType = 'painel' | 'quiosques' | 'quads' | 'vendas';
 
+const BR_HOLIDAYS_2026 = [
+  "2026-01-01", "2026-02-16", "2026-02-17", "2026-04-03", "2026-04-21",
+  "2026-05-01", "2026-06-04", "2026-09-07", "2026-10-12", "2026-11-02",
+  "2026-11-15", "2026-11-20", "2026-12-25",
+];
+
+const isHoliday = (date: Date) => {
+  const dateStr = format(date, 'yyyy-MM-dd');
+  return BR_HOLIDAYS_2026.includes(dateStr);
+};
+
+const isAllowedDay = (date: Date) => {
+  const day = date.getDay();
+  // 0: Dom, 1: Seg, 5: Sex, 6: Sab
+  const isOperating = day === 5 || day === 6 || day === 0 || day === 1;
+  return isOperating || isHoliday(date);
+};
+
 export default function Admin() {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('admin_token'));
   const [activeTab, setActiveTab] = useState<TabType>('painel');
@@ -309,6 +327,13 @@ export default function Admin() {
                  onSelect={(d) => d && setTargetDate(d)}
                  className="rounded-xl border border-border"
                  locale={ptBR}
+                 disabled={(date) => !isAllowedDay(date)}
+                 modifiers={{
+                   holiday: (day) => isHoliday(day),
+                 }}
+                 modifiersStyles={{
+                   holiday: { border: '2px solid rgb(16 185 129)', fontWeight: 'bold', color: 'rgb(5 150 105)' }
+                 }}
               />
            </Card>
            
@@ -647,17 +672,29 @@ export default function Admin() {
           </div>
 
           {/* TABS */}
-          <div className="flex items-center p-1.5 bg-muted/50 rounded-[2rem] w-fit border border-border/50 shadow-inner">
-             <button onClick={() => setActiveTab('painel')} className={cn("px-6 py-3 rounded-[1.5rem] text-sm font-bold flex items-center gap-2 transition-all", activeTab === 'painel' ? "bg-white text-primary shadow-md" : "text-muted-foreground hover:text-foreground")}>
+          <div className="flex items-center p-1.5 bg-muted/50 rounded-[2rem] w-fit border border-border/50 shadow-inner overflow-hidden">
+             <button onClick={() => setActiveTab('painel')} className={cn(
+               "px-6 py-3 rounded-[1.5rem] text-sm font-bold flex items-center gap-2 transition-all hover:bg-white/50 active:scale-95", 
+               activeTab === 'painel' ? "bg-white text-emerald-600 shadow-lg shadow-emerald-500/10 scale-105" : "text-muted-foreground hover:text-foreground"
+             )}>
                 <LayoutDashboard className="w-4 h-4" /> Painel
              </button>
-             <button onClick={() => setActiveTab('quiosques')} className={cn("px-6 py-3 rounded-[1.5rem] text-sm font-bold flex items-center gap-2 transition-all", activeTab === 'quiosques' ? "bg-white text-primary shadow-md" : "text-muted-foreground hover:text-foreground")}>
+             <button onClick={() => setActiveTab('quiosques')} className={cn(
+               "px-6 py-3 rounded-[1.5rem] text-sm font-bold flex items-center gap-2 transition-all hover:bg-white/50 active:scale-95", 
+               activeTab === 'quiosques' ? "bg-white text-emerald-600 shadow-lg shadow-emerald-500/10 scale-105" : "text-muted-foreground hover:text-foreground"
+             )}>
                 <Tent className="w-4 h-4" /> Quiosques
              </button>
-             <button onClick={() => setActiveTab('quads')} className={cn("px-6 py-3 rounded-[1.5rem] text-sm font-bold flex items-center gap-2 transition-all", activeTab === 'quads' ? "bg-white text-blue-600 shadow-md" : "text-muted-foreground hover:text-foreground")}>
+             <button onClick={() => setActiveTab('quads')} className={cn(
+               "px-6 py-3 rounded-[1.5rem] text-sm font-bold flex items-center gap-2 transition-all hover:bg-white/50 active:scale-95", 
+               activeTab === 'quads' ? "bg-white text-blue-600 shadow-lg shadow-blue-500/10 scale-105" : "text-muted-foreground hover:text-foreground"
+             )}>
                 <Bike className="w-4 h-4" /> Quadriciclos
              </button>
-             <button onClick={() => setActiveTab('vendas')} className={cn("px-6 py-3 rounded-[1.5rem] text-sm font-bold flex items-center gap-2 transition-all", activeTab === 'vendas' ? "bg-white text-amber-600 shadow-md" : "text-muted-foreground hover:text-foreground")}>
+             <button onClick={() => setActiveTab('vendas')} className={cn(
+               "px-6 py-3 rounded-[1.5rem] text-sm font-bold flex items-center gap-2 transition-all hover:bg-white/50 active:scale-95", 
+               activeTab === 'vendas' ? "bg-white text-amber-600 shadow-lg shadow-amber-500/10 scale-105" : "text-muted-foreground hover:text-foreground"
+             )}>
                 <ShoppingBag className="w-4 h-4" /> Vendas
              </button>
           </div>
