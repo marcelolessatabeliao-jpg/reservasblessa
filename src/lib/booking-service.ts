@@ -67,8 +67,7 @@ export async function saveBooking(
       if (orderItemsInput && orderItemsInput.length > 0) {
         orderItems = orderItemsInput.map(item => ({
           ...item,
-          order_id: finalOrderId,
-          is_redeemed: false
+          order_id: finalOrderId
         }));
       } else {
         // Fallback mapping if input is missing - Capture everything!
