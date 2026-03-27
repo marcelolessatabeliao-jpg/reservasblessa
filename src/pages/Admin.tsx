@@ -80,6 +80,11 @@ export default function Admin() {
         return acc;
       }, {});
 
+      const { data: legacyData } = await supabase
+        .from('bookings' as any)
+        .select('*')
+        .order('visit_date', { ascending: true });
+
       const linkedBookingIds = new Set((ordersData || []).map((o: any) => o.booking_id).filter(id => id));
       const linkedCodes = new Set((ordersData || []).map((o: any) => o.confirmation_code?.toUpperCase()).filter(c => c));
       
