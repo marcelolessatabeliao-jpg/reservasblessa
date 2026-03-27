@@ -15,6 +15,8 @@ import { formatCurrency } from '@/lib/booking-types';
 import { getAdminOrders, markOrderAsPaid } from '@/integrations/supabase/orders';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { cn } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 
 type DateFilter = 'today' | 'tomorrow' | 'week' | 'month' | 'past' | 'all';
 type TabType = 'reservas' | 'pedidos' | 'quiosques' | 'quads' | 'inventario';
