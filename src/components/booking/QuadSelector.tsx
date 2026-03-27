@@ -102,36 +102,45 @@ export function QuadSelector({ quads, onUpdate }: Props) {
               <QuantityStepper 
                 value={quad.quantity} 
                 onChange={async (q) => {
-                  const currentTotalOtherQuadsBySession = quads.reduce((acc, qry, idx) => idx !== i ? acc + qry.quantity : acc, 0);
-                  const newTotalPossible = currentTotalOtherQuadsBySession + q;
-                  if (newTotalPossible > 5) {
+                  // Calculate how many quads OTHER entries are using in the SAME time slot
+                  const sameSlotOthers = quads.reduce((acc, qry, idx) => {
+                    if (idx !== i && qry.time && quad.time && qry.time === quad.time) return acc + qry.quantity;
+                    return acc;
+                  }, 0);
+
+                  // If this quad has a time slot selected, check the per-slot limit
+                  if (quad.time && sameSlotOthers + q > MAX_QUADS_PER_SLOT) {
                     toast({ 
-                      title: 'Limite atingido', 
-                      description: 'Temos apenas 5 quadriciclos disponíveis no total.', 
+                      title: 'Limite do horário atingido', 
+                      description: `Temos apenas ${MAX_QUADS_PER_SLOT} quadriciclos disponíveis por horário. Restam ${MAX_QUADS_PER_SLOT - sameSlotOthers} vagas às ${quad.time}.`, 
                       variant: 'destructive' 
                     });
                     return;
                   }
 
-                  if (q > quad.quantity && quad.time) {
-                    const dbUsed = await getQuadAvailability(format(checkDate!, 'yyyy-MM-dd'), quad.time);
-                    const localUsedOthersInSlot = quads.reduce((acc, qry, idx) => {
-                      if (idx !== i && qry.time === quad.time) return acc + qry.quantity;
-                      return acc;
-                    }, 0);
-
-                    if (dbUsed + localUsedOthersInSlot + q > MAX_QUADS_PER_SLOT) {
+                  // Also check against DB availability for the slot
+                  if (q > quad.quantity && quad.time && checkDate) {
+                    const dbUsed = await getQuadAvailability(format(checkDate, 'yyyy-MM-dd'), quad.time);
+                    if (dbUsed + sameSlotOthers + q > MAX_QUADS_PER_SLOT) {
                        toast({ 
                          title: 'Quantidade indisponível', 
-                         description: `Não há vagas suficientes às ${quad.time}. Máximo permitido para este horário: ${MAX_QUADS_PER_SLOT - dbUsed - localUsedOthersInSlot} adicionais.`, 
+                         description: `Não há vagas suficientes às ${quad.time}. Máximo permitido: ${MAX_QUADS_PER_SLOT - dbUsed - sameSlotOthers}.`, 
                          variant: 'destructive' 
                        });
                        return;
                     }
                   }
-                  onUpdate(i, { quantity: Math.min(q, 5 - currentTotalOtherQuadsBySession) });
+
+                  const maxForSlot = quad.time ? MAX_QUADS_PER_SLOT - sameSlotOthers : MAX_QUADS_PER_SLOT;
+                  onUpdate(i, { quantity: Math.min(q, maxForSlot) });
                 }} 
-                max={5 - quads.reduce((acc, qry, idx) => idx !== i ? acc + qry.quantity : acc, 0)}
+                max={(() => {
+                  const sameSlotOthers = quads.reduce((acc, qry, idx) => {
+                    if (idx !== i && qry.time && quad.time && qry.time === quad.time) return acc + qry.quantity;
+                    return acc;
+                  }, 0);
+                  return quad.time ? MAX_QUADS_PER_SLOT - sameSlotOthers : MAX_QUADS_PER_SLOT;
+                })()}
               />
             </div>
 

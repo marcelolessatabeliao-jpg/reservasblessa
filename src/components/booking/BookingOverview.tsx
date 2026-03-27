@@ -446,81 +446,12 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
           </div>
         )}
 
-        {/* Membership Comparison Action Card */}
+        {/* Total */}
         {(() => {
-          const allAdults = booking.entry.adults;
-          // Membros que pagam R$ 25 no plano (Estudante, Professor, Servidor)
-          const restrictedHalfPriceMembers = allAdults.filter(a => a.isTeacher || a.isServer || a.isStudent).reduce((acc, a) => acc + (a.quantity || 1), 0);
-          // O resto (Inteira, Solidário/Social, Doador) paga R$ 49,90 no plano
-          const fullPriceMembers = allAdults.reduce((acc, a) => acc + (a.quantity || 1), 0) - restrictedHalfPriceMembers;
-
-          const membershipPrice = calculateMembershipCost({ adultsCount: fullPriceMembers, halfPriceCount: restrictedHalfPriceMembers });
-          const entriesTotal = totals.entriesTotal;
-
-          if ((fullPriceMembers + restrictedHalfPriceMembers) > 0) {
-            return (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-950 border-2 border-sun/30 rounded-3xl p-5 sm:p-6 relative overflow-hidden group shadow-2xl"
-              >
-                {/* Decoration */}
-                <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-sun/10 rounded-full blur-3xl group-hover:bg-sun/20 transition-all duration-500" />
-                <div className="absolute bottom-0 left-0 -ml-8 -mb-8 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl" />
-
-                <div className="flex items-center gap-3 mb-4 relative z-10">
-                  <div className="w-10 h-10 rounded-xl bg-sun/20 flex items-center justify-center border border-sun/30 shadow-inner">
-                    <Sparkles className="w-6 h-6 text-sun animate-pulse" />
-                  </div>
-                  <h3 className="font-display font-black text-white text-lg sm:text-xl tracking-tight">
-                    Vale mais a pena ser Sócio!
-                  </h3>
-                </div>
-
-                <div className="space-y-4 relative z-10">
-                  <p className="text-blue-100/90 text-sm sm:text-base leading-relaxed font-medium">
-                    Suas entradas hoje custam <span className="bg-sun/20 text-sun font-black px-2 py-0.5 rounded-lg border border-sun/20">{formatCurrency(entriesTotal)}</span>.
-                    Por apenas <span className="bg-green-500/20 text-green-400 font-black px-2 py-0.5 rounded-lg border border-green-500/20">{formatCurrency(membershipPrice)} mensais</span>, você garante o <span className="text-sun font-black underline decoration-sun/30 underline-offset-4">Lessa Club</span> com
-                    <span className="text-white font-black mx-1 uppercase tracking-wider bg-white/10 px-2 py-0.5 rounded-md">Entradas Ilimitadas</span> todos os dias!
-                  </p>
-
-                  <Button 
-                    variant="default"
-                    className="w-full h-14 bg-white hover:bg-slate-50 text-slate-950 font-black text-base uppercase tracking-widest rounded-2xl shadow-xl transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3 group"
-                    onClick={() => {
-                      const element = document.getElementById('especiais');
-                      if (element) {
-                        element.scrollIntoView({ behavior: 'smooth' });
-                      }
-                    }}
-                  >
-                    Ativar Plano Dourado <ArrowRight className="ml-1.5 h-4 w-4" />
-                  </Button>
-                </div>
-              </motion.div>
-            );
-          }
-          return null;
-        })()}
-
-        {/* Total Bruto e Descontos */}
-        {(() => {
-           // Calculate potential "savings"
-           // For simplicity, let's just show a row summarizing the total and maybe the "Economia"
-           const totalFullPrice = [...booking.entry.adults, ...booking.entry.children].reduce((acc, p) => acc + ((p.quantity || 1) * 50), 0);
-           const savings = totalFullPrice - totals.entriesTotal;
-           
            return (
              <div className="pt-4 space-y-2">
                <div className="flex justify-between items-center bg-primary/5 rounded-2xl p-4 border border-primary/10">
-                 <div>
-                   <span className="text-xl sm:text-2xl font-black text-primary">Total: {formatCurrency(totals.total)}</span>
-                   {savings > 0 && (
-                     <span className="block text-[10px] sm:text-xs text-whatsapp font-bold uppercase tracking-widest mt-0.5">
-                       ✨ VOCÊ ESTÁ ECONOMIZANDO {formatCurrency(savings)} NESTA RESERVA!
-                     </span>
-                   )}
-                 </div>
+                 <span className="text-xl sm:text-2xl font-black text-primary">Total: {formatCurrency(totals.total)}</span>
                </div>
              </div>
            );
