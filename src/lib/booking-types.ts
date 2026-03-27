@@ -67,7 +67,7 @@ export interface BookingState {
   additionals: AdditionalItem[];
 }
 
-export const ENTRY_PRICE = 50;
+export const ENTRY_PRICE = 49.90;
 export const ENTRY_HALF_PRICE = 25;
 
 export const KIOSK_INFO: Record<KioskType, { price: number; capacity: string; available: number; label: string }> = {
@@ -123,21 +123,19 @@ export function getPersonPrice(
   isSunday: boolean,
   getPrice: (type: string, fallback: number) => number
 ): number {
+  // Gratuidades: PCD/TEA, Aniversariante, Idoso (60+), Criança (≤11)
   if (defaultGratuity || person.isPCD || person.isTEA || person.isBirthday) {
     return 0;
   }
   
+  // Meia-entrada (R$ 25): Professor, Servidor, Estudante, Doador de Sangue
   const hasProfessionalDiscount = person.isTeacher || person.isServer || person.isStudent || (person as any).isBloodDonor;
-  const hasDonationDiscount = person.takeDonation && !isSunday;
-
-  if (hasProfessionalDiscount || hasDonationDiscount) {
+  if (hasProfessionalDiscount) {
     return getPrice('entry_half', 25);
   }
 
-  // Adulto normal (inteira ou solidário no domingo) é 50 nos cálculos atuais do sistema, 
-  // mas o usuário citou 49,90 no plano de sócio. 
-  // Manteremos 50 aqui para o preço de hoje e usaremos 49,90 na comparação do Sócio se necessário.
-  return getPrice('entry_full', 50);
+  // Adulto Solidário (com doação) e Adulto Normal: R$ 49,90
+  return getPrice('entry_full', 49.90);
 }
 
 export function calculateEntryTotal(entry: EntryBooking, getPrice: (type: string, fb: number) => number): number {

@@ -538,7 +538,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                 <Button variant="outline" className={cn(
                   "w-full h-12 justify-start font-black text-sm rounded-2xl transition-all uppercase tracking-tight",
                   entry.visitDate 
-                    ? "border-primary/40 bg-primary/5 text-primary hover:bg-primary/10 shadow-sm" 
+                    ? "border-primary/40 bg-primary/5 text-primary hover:!bg-primary/10 hover:!text-primary shadow-sm" 
                     : "border-primary/20 bg-white hover:bg-primary/[0.05] hover:border-primary/50 hover:text-primary text-muted-foreground shadow-sm"
                 )}>
                   <CalendarIcon className="mr-2 h-5 w-5 shrink-0 text-primary" />
@@ -681,7 +681,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                   )}>
                     {(adult.age >= 60 || adult.isPCD || adult.isBirthday) 
                       ? "GRÁTIS" 
-                      : formatCurrency(((adult.isTeacher || adult.isStudent || adult.isServer || (adult as any).isBloodDonor || adult.takeDonation) ? 25 : 50) * (adult.quantity || 1))
+                      : formatCurrency(((adult.isTeacher || adult.isStudent || adult.isServer || (adult as any).isBloodDonor || adult.takeDonation) ? 25 : 49.9) * (adult.quantity || 1))
                     }
                   </span>
                   <Button 

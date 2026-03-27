@@ -457,6 +457,59 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
            );
         })()}
 
+        {/* Vale mais a pena ser Sócio */}
+        {totals.entriesTotal > 0 && (() => {
+          const payingAdults = booking.entry.adults
+            .filter(a => getPersonPrice(a, a.age >= 60, booking.entry.dayOfWeek === 'domingo', getPrice) > 0)
+            .reduce((sum, a) => sum + (a.quantity || 1), 0);
+
+          if (payingAdults === 0) return null;
+
+          const MEMBERSHIP_PRICE_PER_PERSON = 64.90;
+          const membershipTotal = payingAdults * MEMBERSHIP_PRICE_PER_PERSON;
+
+          return (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="rounded-[1.5rem] overflow-hidden shadow-xl"
+              style={{ background: 'linear-gradient(135deg, #0c1a4e 0%, #172d80 60%, #0c1a4e 100%)' }}
+            >
+              <div className="p-5 space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-9 h-9 rounded-xl bg-yellow-400/20 flex items-center justify-center shrink-0">
+                    <Sparkles className="h-5 w-5 text-yellow-400" />
+                  </div>
+                  <span className="text-white font-black text-base leading-tight">Vale mais a pena ser Sócio!</span>
+                </div>
+
+                <p className="text-white/90 text-sm leading-relaxed">
+                  Sua reserva de hoje custa{' '}
+                  <span className="bg-yellow-400/20 text-yellow-300 font-black px-2 py-0.5 rounded-lg">
+                    {formatCurrency(totals.total)}
+                  </span>
+                  . No{' '}
+                  <span className="text-yellow-400 font-black">Lessa Club</span>
+                  , você paga apenas{' '}
+                  <span className="bg-green-400/20 text-green-400 font-black px-2 py-0.5 rounded-lg border border-green-400/30">
+                    {formatCurrency(membershipTotal)}
+                  </span>
+                  {' '}e tem{' '}
+                  <span className="font-black text-white bg-white/10 px-2 py-0.5 rounded-lg">ENTRADAS ILIMITADAS</span>
+                  {' '}o mês inteiro!
+                </p>
+
+                <button
+                  className="w-full bg-white text-[#0c1a4e] font-black text-sm py-3.5 rounded-xl hover:bg-yellow-50 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-md"
+                  onClick={() => window.open(`https://wa.me/556992626140?text=${encodeURIComponent('Olá! Quero saber mais sobre o Lessa Club e ativar o Plano Dourado!')}`, '_blank')}
+                >
+                  ATIVAR PLANO DOURADO <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
+            </motion.div>
+          );
+        })()}
+
         {/* Seção de Dados do Pagador */}
         <div className="space-y-4 pt-4 border-t border-primary/10">
           <h4 className="text-sm font-black text-primary uppercase tracking-widest flex items-center gap-2">
