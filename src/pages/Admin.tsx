@@ -179,7 +179,7 @@ export default function Admin() {
         };
       });
 
-      setBookings([...mappedOrders, ...mappedLegacy].sort((a, b) => {
+      setBookings([...mappedOrders, ...mappedLegacy].filter(b => b.status !== 'cancelled').sort((a, b) => {
           const dateA = new Date(a.visit_date || '').getTime();
           const dateB = new Date(b.visit_date || '').getTime();
           return dateA - dateB;
@@ -240,8 +240,9 @@ export default function Admin() {
     setUpdatingId(bookingId);
     try {
       if (isOrder) {
-         // Soft delete: set status to cancelled instead of deleting physical rows,
-         // bypassing any RLS constraints that block deletions while preserving referential integrity.
+         // Soft delete bypassing RLS payments constraints, but freeing up inventory.
+         await supabase.from('quad_reservations').delete().eq('order_id', bookingId);
+         await supabase.from('kiosk_reservations').delete().eq('order_id', bookingId);
          const { error } = await supabase.from('orders').update({ status: 'cancelled' }).eq('id', bookingId);
          if (error) throw error;
       } else {
@@ -450,14 +451,20 @@ export default function Admin() {
                 try {
                   let deleted = 0;
                   for (const b of bookings) {
-                    if (b.is_order) {
-                       await supabase.from('orders').update({ status: 'cancelled' }).eq('id', b.id);
-                    } else {
-                       await supabase.functions.invoke('admin-delete', { 
-                         body: { bookingId: b.id, isOrder: false, adminToken: token } 
-                       });
+                    try {
+                      if (b.is_order) {
+                         await supabase.from('quad_reservations').delete().eq('order_id', b.id);
+                         await supabase.from('kiosk_reservations').delete().eq('order_id', b.id);
+                         await supabase.from('orders').update({ status: 'cancelled' }).eq('id', b.id);
+                      } else {
+                         await supabase.functions.invoke('admin-delete', { 
+                           body: { bookingId: b.id, isOrder: false, adminToken: token } 
+                         });
+                      }
+                      deleted++;
+                    } catch (errInner) {
+                      console.error("Falha ao remover item único:", b.id, errInner);
                     }
-                    deleted++;
                   }
                   alert(`Sucesso! ${deleted} reservas foram expulsas.`);
                   fetchBookings(); 
