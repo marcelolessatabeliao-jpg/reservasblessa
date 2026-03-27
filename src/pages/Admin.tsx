@@ -17,7 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { cn } from "@/lib/utils";
 
 type DateFilter = 'today' | 'tomorrow' | 'week' | 'month' | 'past' | 'all';
-type TabType = 'reservas' | 'pedidos' | 'inventario';
+type TabType = 'reservas' | 'pedidos' | 'quiosques' | 'quads' | 'inventario';
 
 export default function Admin() {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('admin_token'));
@@ -351,6 +351,71 @@ export default function Admin() {
     );
   }, [kioskUsage, quadUsage]);
 
+  const kiosksView = useMemo(() => {
+    const dates = Array.from(new Set(kioskUsage.map(u => u.reservation_date))).sort();
+    return (
+      <div className="space-y-6">
+        {dates.length === 0 && <p className="text-center py-10 text-muted-foreground font-medium italic">Nenhuma reserva de Quiosque encontrada.</p>}
+        {dates.map(date => {
+          const items = kioskUsage.filter(u => u.reservation_date === date);
+          return (
+            <div key={date} className="bg-white rounded-[2rem] p-6 shadow-sm border border-primary/5 space-y-4">
+              <h4 className="font-black text-primary uppercase border-b pb-3">{format(new Date(date + 'T12:00:00'), "dd/MM/yyyy (EEEE)", { locale: ptBR })}</h4>
+              <div className="grid gap-2">
+                {items.map((k, i) => {
+                  const b = bookings.find(book => book.id === k.order_id);
+                  return (
+                    <div key={i} className="flex justify-between items-center p-3 bg-muted/20 rounded-xl">
+                      <div className="flex flex-col">
+                        <span className="font-black text-sm uppercase">{b?.name || 'Cliente'}</span>
+                        <span className="text-[10px] font-bold text-muted-foreground">Pedido #{k.order_id?.slice(0, 8)}</span>
+                      </div>
+                      <Badge className="bg-sun text-white font-black uppercase text-[10px]">{k.quantity}x {k.kiosk_type === 'maior' ? 'Maior' : 'Menor'}</Badge>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }, [kioskUsage, bookings]);
+
+  const quadsView = useMemo(() => {
+    const dates = Array.from(new Set(quadUsage.map(u => u.reservation_date))).sort();
+    return (
+      <div className="space-y-6">
+        {dates.length === 0 && <p className="text-center py-10 text-muted-foreground font-medium italic">Nenhuma reserva de Quadriciclo encontrada.</p>}
+        {dates.map(date => {
+          const items = quadUsage.filter(u => u.reservation_date === date).sort((a, b) => (a.time_slot || '').localeCompare(b.time_slot || ''));
+          return (
+            <div key={date} className="bg-white rounded-[2rem] p-6 shadow-sm border border-primary/5 space-y-4">
+              <h4 className="font-black text-primary uppercase border-b pb-3">{format(new Date(date + 'T12:00:00'), "dd/MM/yyyy (EEEE)", { locale: ptBR })}</h4>
+              <div className="grid gap-2">
+                {items.map((q, i) => {
+                  const b = bookings.find(book => book.id === q.order_id);
+                  return (
+                    <div key={i} className="flex justify-between items-center p-3 bg-muted/20 rounded-xl">
+                      <div className="flex items-center gap-4">
+                        <div className="bg-primary text-white p-2 rounded-lg font-black text-xs">{q.time_slot}</div>
+                        <div className="flex flex-col">
+                          <span className="font-black text-sm uppercase">{b?.name || 'Cliente'}</span>
+                          <span className="text-[10px] font-bold text-muted-foreground">Pedido #{q.order_id?.slice(0, 8)}</span>
+                        </div>
+                      </div>
+                      <Badge className="bg-primary/10 text-primary border-primary/20 font-black uppercase text-[10px]">{q.quantity}x {q.quad_type}</Badge>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }, [quadUsage, bookings]);
+
   if (!token) return <AdminLogin onLogin={(t) => setToken(t)} />;
 
   return (
@@ -392,13 +457,15 @@ export default function Admin() {
            </div>
         </div>
 
-        <div className="flex bg-white/60 backdrop-blur-md p-2 rounded-[2rem] gap-2 shadow-inner border border-white">
-          <Button className="flex-1 rounded-xl font-bold" variant={activeTab === 'reservas' ? 'default' : 'ghost'} onClick={() => setActiveTab('reservas')}><CalendarCheck className="w-4 h-4 mr-2" /> Agenda</Button>
-          <Button className="flex-1 rounded-xl font-bold" variant={activeTab === 'pedidos' ? 'default' : 'ghost'} onClick={() => setActiveTab('pedidos')}><DollarSign className="w-4 h-4 mr-2" /> Vendas</Button>
-          <Button className="flex-1 rounded-xl font-bold" variant={activeTab === 'inventario' ? 'default' : 'ghost'} onClick={() => setActiveTab('inventario')}><TrendingUp className="w-4 h-4 mr-2" /> Inventário</Button>
+        <div className="flex bg-white/60 backdrop-blur-md p-1.5 rounded-[2rem] gap-1 shadow-inner border border-white overflow-x-auto no-scrollbar">
+          <Button className="flex-1 rounded-xl font-bold whitespace-nowrap px-3 text-xs" variant={activeTab === 'reservas' ? 'default' : 'ghost'} onClick={() => setActiveTab('reservas')}><Users className="w-3.5 h-3.5 mr-1.5" /> Agenda</Button>
+          <Button className="flex-1 rounded-xl font-bold whitespace-nowrap px-3 text-xs" variant={activeTab === 'quiosques' ? 'default' : 'ghost'} onClick={() => setActiveTab('quiosques')}>⛺ Quiosques</Button>
+          <Button className="flex-1 rounded-xl font-bold whitespace-nowrap px-3 text-xs" variant={activeTab === 'quads' ? 'default' : 'ghost'} onClick={() => setActiveTab('quads')}>🚜 Quads</Button>
+          <Button className="flex-1 rounded-xl font-bold whitespace-nowrap px-3 text-xs" variant={activeTab === 'pedidos' ? 'default' : 'ghost'} onClick={() => setActiveTab('pedidos')}><DollarSign className="w-3.5 h-3.5 mr-1.5" /> Vendas</Button>
+          <Button className="flex-1 rounded-xl font-bold whitespace-nowrap px-3 text-xs" variant={activeTab === 'inventario' ? 'default' : 'ghost'} onClick={() => setActiveTab('inventario')}><TrendingUp className="w-3.5 h-3.5 mr-1.5" /> Mapa</Button>
         </div>
 
-        {activeTab === 'inventario' ? inventoryView : activeTab === 'pedidos' ? (
+        {activeTab === 'inventario' ? inventoryView : activeTab === 'quiosques' ? kiosksView : activeTab === 'quads' ? quadsView : activeTab === 'pedidos' ? (
           <div className="space-y-4">
              <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" /><Input placeholder="Buscar pedidos..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" /></div>
              <div className="grid gap-3">
