@@ -209,14 +209,12 @@ export default function Admin() {
              await supabase.from('kiosk_reservations').delete().eq('order_id', bookingId);
          }
          const { error } = await supabase.from('orders').update({ 
-           status: status === 'confirmed' ? 'paid' : status,
-           updated_at: new Date().toISOString()
+           status: status === 'confirmed' ? 'paid' : status
          }).eq('id', bookingId);
          if (error) throw error;
       } else {
          const { error } = await supabase.from('bookings').update({ 
-            status: status === 'confirmed' ? 'paid' : status,
-            updated_at: new Date().toISOString()
+            status: status === 'confirmed' ? 'paid' : status
          }).eq('id', bookingId);
          if (error) throw error;
       }
