@@ -186,6 +186,7 @@ export async function getAdminOrders() {
       vouchers (*),
       payments (*)
     `)
+    .neq('status', 'cancelled')
     .order('created_at', { ascending: false });
 
   if (error) throw error;

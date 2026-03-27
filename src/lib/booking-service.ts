@@ -124,18 +124,18 @@ export async function saveBooking(
         });
 
         // 5. Additional Services
-        Object.entries(booking.additionalServices).forEach(([id, quantity]) => {
-          if (quantity > 0) {
-            const labelMap: Record<string, string> = { 'soap-football': 'Futebol de Sabão', 'sport-fishing': 'Pesca Esportiva' };
-            const priceMap: Record<string, number> = { 'soap-football': 10, 'sport-fishing': 20 };
+        if (booking.additionals && Array.isArray(booking.additionals)) {
+          booking.additionals.filter(a => a.quantity > 0).forEach(a => {
+            const labelMap: Record<string, string> = { 'soap-football': 'Futebol de Sabão', 'sport-fishing': 'Pesca Esportiva', 'pesca': 'Pesca Esportiva', 'futebol-sabao': 'Futebol de Sabão' };
+            const priceMap: Record<string, number> = { 'soap-football': 10, 'sport-fishing': 20, 'pesca': 20, 'futebol-sabao': 10 };
             orderItems.push({
               order_id: finalOrderId,
-              product_id: labelMap[id] || id,
-              quantity,
-              unit_price: priceMap[id] || 0
+              product_id: labelMap[a.type] || a.type,
+              quantity: a.quantity,
+              unit_price: priceMap[a.type] || 0
             });
-          }
-        });
+          });
+        }
       }
 
       if (orderItems.length > 0) {
