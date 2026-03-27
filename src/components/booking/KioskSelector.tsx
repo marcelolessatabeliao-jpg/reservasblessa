@@ -81,7 +81,7 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
                   </div>
                   <QuantityStepper 
                     value={kiosk.quantity} 
-                    onChange={(q) => onUpdate(i, { quantity: q })} 
+                    onChange={(q) => onUpdate(i, { quantity: Math.min(q, remaining) })} 
                     max={remaining} 
                   />
                 </div>

@@ -102,8 +102,9 @@ export function QuadSelector({ quads, onUpdate }: Props) {
               <QuantityStepper 
                 value={quad.quantity} 
                 onChange={async (q) => {
-                  const currentTotalOtherQuads = quads.reduce((acc, qry, idx) => idx !== i ? acc + qry.quantity : acc, 0);
-                  if (currentTotalOtherQuads + q > 5) {
+                  const currentTotalOtherQuadsBySession = quads.reduce((acc, qry, idx) => idx !== i ? acc + qry.quantity : acc, 0);
+                  const newTotalPossible = currentTotalOtherQuadsBySession + q;
+                  if (newTotalPossible > 5) {
                     toast({ 
                       title: 'Limite atingido', 
                       description: 'Temos apenas 5 quadriciclos disponíveis no total.', 
@@ -128,7 +129,7 @@ export function QuadSelector({ quads, onUpdate }: Props) {
                        return;
                     }
                   }
-                  onUpdate(i, { quantity: q });
+                  onUpdate(i, { quantity: Math.min(q, 5 - currentTotalOtherQuadsBySession) });
                 }} 
                 max={5 - quads.reduce((acc, qry, idx) => idx !== i ? acc + qry.quantity : acc, 0)}
               />

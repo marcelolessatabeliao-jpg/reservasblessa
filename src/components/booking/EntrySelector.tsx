@@ -207,7 +207,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
         const entryHalfStr = formatCurrency(getPrice('entry_half', 25)).replace(',00', '');
 
         const categories = [
-          { id: 'inteira', label: 'Entradas normais', sublabel: 'Inteira', price: entryFullStr, emoji: '🎟️', bg: 'bg-slate-50', border: 'border-slate-200', selectedBg: 'bg-slate-100', selectedBorder: 'border-slate-500', priceColor: 'text-slate-700', labelColor: 'text-slate-800' },
+          { id: 'inteira', label: 'Entradas normais', sublabel: '', price: entryFullStr, emoji: '🎟️', bg: 'bg-slate-50', border: 'border-slate-200', selectedBg: 'bg-slate-100', selectedBorder: 'border-slate-500', priceColor: 'text-slate-700', labelColor: 'text-slate-800' },
           { id: 'professor', label: 'Professor', sublabel: 'Lessa Professor Pass', price: entryHalfStr, emoji: '📚', bg: 'bg-blue-50', border: 'border-blue-100', selectedBg: 'bg-blue-100', selectedBorder: 'border-blue-500', priceColor: 'text-blue-700', labelColor: 'text-blue-900' },
           { id: 'estudante', label: 'Estudante', sublabel: 'Lessa Estudante Pass', price: entryHalfStr, emoji: '🎓', bg: 'bg-violet-50', border: 'border-violet-100', selectedBg: 'bg-violet-100', selectedBorder: 'border-violet-500', priceColor: 'text-violet-700', labelColor: 'text-violet-900' },
           { id: 'servidor', label: 'Servidor Público', sublabel: 'Lessa Servidor Pass', price: entryHalfStr, emoji: '🏛️', bg: 'bg-emerald-50', border: 'border-emerald-100', selectedBg: 'bg-emerald-100', selectedBorder: 'border-emerald-500', priceColor: 'text-emerald-700', labelColor: 'text-emerald-900' },
@@ -261,7 +261,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                 className={cn(
                   "flex-1 text-xs font-black uppercase text-muted-foreground hover:text-primary hover:bg-transparent hover:underline transition-all"
                 )}
-                onClick={() => setWizardStep(1)}
+                onClick={() => { resetWizard(); setIsWizardOpen(false); }}
               >
                 ← Voltar
               </Button>
@@ -305,7 +305,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                <Button
                 variant="ghost"
                 className="flex-1 text-xs font-black uppercase text-muted-foreground"
-                onClick={() => setWizardStep(1)}
+                onClick={() => { resetWizard(); setIsWizardOpen(false); }}
               >
                 ← Voltar
               </Button>
@@ -533,60 +533,58 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
             <label className="text-xs font-black flex items-center gap-2 text-primary uppercase tracking-widest">
               <CalendarIcon className="h-4 w-4" /> Escolha a Data da Reserva
             </label>
-            {entry.visitDate ? (
-              <Button 
-                variant="outline" 
-                className="w-full h-12 justify-center text-center font-black text-sm rounded-2xl border-primary/20 bg-primary/5 text-primary shadow-sm hover:bg-primary/10 transition-all uppercase tracking-tight"
-                onClick={() => onUpdateEntry({ visitDate: null, dayOfWeek: '' })}
-              >
-                <CalendarIcon className="mr-2 h-5 w-5 shrink-0" />
-                <span className="flex items-center gap-2">
-                  {format(entry.visitDate, "dd/MM/yyyy", { locale: ptBR })}
-                  <span className="bg-primary text-white px-2 py-0.5 rounded-lg text-[10px] uppercase font-black">
-                    {format(entry.visitDate, "EEE", { locale: ptBR })}
-                  </span>
-                </span>
-                <span className="ml-auto text-[10px] opacity-60 underline">Mudar data</span>
-              </Button>
-            ) : (
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full h-12 justify-start text-left font-black text-sm rounded-2xl border-white/80 bg-white/70 backdrop-blur-sm shadow-sm hover:bg-white hover:border-primary/30 hover:text-foreground transition-all uppercase tracking-tight text-muted-foreground">
-                    <CalendarIcon className="mr-2 h-5 w-5 shrink-0 text-primary" />
-                    Clique para escolher a data...
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 rounded-[2rem] border-white shadow-2xl" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={entry.visitDate || undefined}
-                    onSelect={(d) => {
-                      if (d) {
-                        const dayMap: Record<number, any> = { 0: 'domingo', 1: 'segunda', 5: 'sexta', 6: 'sabado' };
-                        const dayOfWeek = dayMap[d.getDay()];
-                        if (dayOfWeek) {
-                          onUpdateEntry({ visitDate: d, dayOfWeek });
-                        } else {
-                          onUpdateEntry({ visitDate: d });
-                        }
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn(
+                  "w-full h-12 justify-start font-black text-sm rounded-2xl transition-all uppercase tracking-tight",
+                  entry.visitDate 
+                    ? "border-primary/40 bg-primary/5 text-primary hover:bg-primary/10 shadow-sm" 
+                    : "border-primary/20 bg-white hover:bg-primary/[0.03] hover:border-primary/40 text-muted-foreground shadow-sm"
+                )}>
+                  <CalendarIcon className="mr-2 h-5 w-5 shrink-0 text-primary" />
+                  {entry.visitDate ? (
+                    <span className="flex items-center gap-2 flex-1">
+                      {format(entry.visitDate, "dd/MM/yyyy", { locale: ptBR })}
+                      <span className="bg-primary text-white px-2 py-0.5 rounded-lg text-[10px] uppercase font-black">
+                        {format(entry.visitDate, "EEE", { locale: ptBR })}
+                      </span>
+                      <span className="ml-auto text-[10px] opacity-60 underline font-black">Mudar data</span>
+                    </span>
+                  ) : (
+                    "Clique para escolher a data..."
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0 rounded-[2rem] border-white shadow-2xl" align="start">
+                <Calendar
+                  mode="single"
+                  selected={entry.visitDate || undefined}
+                  onSelect={(d) => {
+                    if (d) {
+                      const dayMap: Record<number, any> = { 0: 'domingo', 1: 'segunda', 5: 'sexta', 6: 'sabado' };
+                      const dayOfWeek = dayMap[d.getDay()];
+                      if (dayOfWeek) {
+                        onUpdateEntry({ visitDate: d, dayOfWeek });
                       } else {
-                        onUpdateEntry({ visitDate: null, dayOfWeek: '' });
+                        onUpdateEntry({ visitDate: d });
                       }
-                    }}
-                    disabled={(d) => {
-                      const today = new Date();
-                      today.setHours(0, 0, 0, 0);
-                      return d < today || !isOperatingDay(d);
-                    }}
-                    className="p-3 pointer-events-auto"
-                    locale={ptBR}
-                    classNames={{
-                      day_today: entry.visitDate ? "bg-transparent text-foreground border border-primary/10" : "bg-accent text-accent-foreground"
-                    }}
-                  />
-                </PopoverContent>
-              </Popover>
-            )}
+                    } else {
+                      onUpdateEntry({ visitDate: null, dayOfWeek: '' as any });
+                    }
+                  }}
+                  disabled={(d) => {
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    return d < today || !isOperatingDay(d);
+                  }}
+                  className="p-3 pointer-events-auto"
+                  locale={ptBR}
+                  classNames={{
+                    day_today: entry.visitDate ? "bg-transparent text-foreground border border-primary/10" : "bg-accent text-accent-foreground"
+                  }}
+                />
+              </PopoverContent>
+            </Popover>
           </div>
         )}
 
