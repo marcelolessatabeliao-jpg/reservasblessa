@@ -204,12 +204,20 @@ export default function Admin() {
     setUpdatingId(bookingId);
     try {
       if (isOrder) {
+         if (status === 'cancelled') {
+             await supabase.from('quad_reservations').delete().eq('order_id', bookingId);
+             await supabase.from('kiosk_reservations').delete().eq('order_id', bookingId);
+         }
          await supabase.from('orders').update({ status: status === 'confirmed' ? 'paid' : status }).eq('id', bookingId);
       } else {
-        // Legacy system edge function 'update-booking-status' only accepts 'confirmed', not 'paid'
-        const legacyStatus = status === 'paid' ? 'confirmed' : status;
-        const res = await supabase.functions.invoke('update-booking-status', { body: { bookingId, status: legacyStatus, adminToken: token } });
-        if (res.error) throw new Error(res.error.message || 'Erro ao atualizar (Verifique os logs)');
+         if (status === 'cancelled') {
+             // Só temos o 'admin-delete' online pra legacy. update-booking-status retorna 404.
+             const res = await supabase.functions.invoke('admin-delete', { body: { bookingId, isOrder: false, adminToken: token } });
+             if (res.error) throw new Error(res.error.message || 'Erro ao cancelar reserva antiga.');
+             setBookings(prev => prev.filter(b => b.id !== bookingId));
+         } else {
+             throw new Error("Atualizar status de reserva antiga está inativo no servidor. Apague e recrie.");
+         }
       }
       toast({ title: `✓ Atualizado` });
       fetchBookings();
@@ -227,8 +235,7 @@ export default function Admin() {
         await supabase.from('kiosk_reservations').update({ reservation_date: newDate }).eq('order_id', bookingId);
         await supabase.from('quad_reservations').update({ reservation_date: newDate }).eq('order_id', bookingId);
       } else {
-        const res = await supabase.from('bookings').update({ visit_date: newDate }).eq('id', bookingId);
-        if (res.error) throw res.error;
+        throw new Error("Reagendar reservas antigas está inativo no servidor devido a regras RLS. Cancele e recrie.");
       }
       toast({ title: '📅 Reagendado!' });
       fetchBookings();
@@ -240,14 +247,15 @@ export default function Admin() {
     setUpdatingId(bookingId);
     try {
       if (isOrder) {
-         // Soft delete bypassing RLS payments constraints, but freeing up inventory.
+         // Soft delete V3 order
          await supabase.from('quad_reservations').delete().eq('order_id', bookingId);
          await supabase.from('kiosk_reservations').delete().eq('order_id', bookingId);
          const { error } = await supabase.from('orders').update({ status: 'cancelled' }).eq('id', bookingId);
          if (error) throw error;
       } else {
+         // Physical delete Legacy order using the Edge Function that works
          const { error } = await supabase.functions.invoke('admin-delete', {
-           body: { bookingId, isOrder, adminToken: token }
+           body: { bookingId, isOrder: false, adminToken: token }
          });
          if (error) throw error;
       }
