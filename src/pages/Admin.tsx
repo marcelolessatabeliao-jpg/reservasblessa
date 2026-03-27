@@ -59,81 +59,106 @@ export default function Admin() {
     setLoading(true);
     try {
       fetchInventory();
-      // Use a explicit select for all related tables
-      const { data, error } = await supabase
+      
+      // 1. Fetch Orders (Master) - Limited to 100 to stay fast and avoid query limits
+      const { data: ordersData, error: ordersError } = await supabase
         .from('orders')
-        .select(`
-          *,
-          order_items (*)
-        `)
-        .order('created_at', { ascending: false });
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100);
 
-      if (error) {
-        console.error('Order fetch error, falling back to legacy:', error);
-        const { data: legacyData, error: legacyError } = await supabase
-          .from('bookings' as any)
+      if (ordersError) throw ordersError;
+
+      // 2. Fetch Order Items for THESE orders only
+      const orderIds = (ordersData || []).map(o => o.id);
+      let itemsData: any[] = [];
+      
+      if (orderIds.length > 0) {
+        const { data: items, error: itemsError } = await supabase
+          .from('order_items')
           .select('*')
-          .order('visit_date', { ascending: true });
+          .in('order_id', orderIds);
         
-        if (legacyError) throw legacyError;
-        setBookings(legacyData || []);
-      } else {
-        const mapped = data?.map(o => {
-          const items = o.order_items || [];
-          
-          // Debug items if empty but total is high
-          if (items.length === 0 && o.total_amount > 50) {
-            console.warn(`Order ${o.id} has total ${o.total_amount} but no items!`);
-          }
-
-          const adultItems = items.filter((i: any) => 
-            i.product_id?.includes('Adulto') || 
-            i.product_id?.includes('Professor') || 
-            i.product_id?.includes('Estudante') || 
-            i.product_id?.includes('Servidor') || 
-            i.product_id?.includes('Vitalício') || 
-            i.product_id?.includes('Doador') ||
-            i.product_id?.includes('Aniversariante') ||
-            i.product_id?.includes('Inclusão')
-          );
-          
-          const childItems = items.filter((i: any) => 
-            i.product_id?.includes('Criança') || 
-            i.product_id?.includes('Kids')
-          );
-
-          return {
-            id: o.id,
-            name: o.customer_name,
-            phone: o.customer_phone,
-            visit_date: o.visit_date,
-            status: o.status === 'paid' ? 'confirmed' : o.status,
-            total_amount: o.total_amount,
-            confirmation_code: o.confirmation_code,
-            created_at: o.created_at,
-            notes: o.notes,
-            is_order: true,
-            order_items: items,
-            adults: adultItems.reduce((acc: number, item: any) => acc + (item.quantity || 0), 0) || 0,
-            children: childItems.reduce((acc: number, item: any) => acc + (item.quantity || 0), 0) || 0,
-            kiosks: items.filter((i: any) => i.product_id?.includes('Quiosque')).map((i: any) => ({ 
-              type: i.product_id?.toLowerCase().includes('maior') ? 'maior' : 'menor', 
-              quantity: i.quantity || 0 
-            })),
-            quads: items.filter((i: any) => i.product_id?.includes('Quad')).map((i: any) => ({ 
-              type: i.product_id?.toLowerCase().includes('individual') ? 'individual' : i.product_id?.toLowerCase().includes('dupla') ? 'dupla' : 'adulto-crianca', 
-              quantity: i.quantity || 0 
-            })),
-            additionals: items.filter((i: any) => i.product_id?.includes('Pesca') || i.product_id?.includes('Futebol')).map((i: any) => ({ 
-              type: i.product_id?.toLowerCase().includes('pesca') ? 'pesca' : 'futebol-sabao', 
-              quantity: i.quantity || 0 
-            }))
-          };
-        });
-        setBookings(mapped || []);
+        if (!itemsError) itemsData = items || [];
       }
+
+      const itemsMap = itemsData.reduce((acc: any, item: any) => {
+        if (!acc[item.order_id]) acc[item.order_id] = [];
+        acc[item.order_id].push(item);
+        return acc;
+      }, {});
+
+      // 3. Fetch Legacy Bookings
+      const { data: legacyData } = await supabase
+        .from('bookings' as any)
+        .select('*')
+        .order('visit_date', { ascending: true });
+
+      const mappedOrders = (ordersData || []).map(o => {
+        const items = itemsMap[o.id] || [];
+        
+        // Items that are NOT kiosks, quads or additions are likely people (entries)
+        const entries = items.filter((i: any) => {
+          const pid = i.product_id?.toLowerCase() || '';
+          return !pid.includes('quiosque') && !pid.includes('quad') && !pid.includes('pesca') && !pid.includes('futebol');
+        });
+        
+        const adultItems = entries.filter((i: any) => !i.product_id?.toLowerCase().includes('criança') && !i.product_id?.toLowerCase().includes('kids'));
+        const childItems = entries.filter((i: any) => i.product_id?.toLowerCase().includes('criança') || i.product_id?.toLowerCase().includes('kids'));
+
+        return {
+          id: o.id,
+          name: o.customer_name,
+          phone: o.customer_phone,
+          visit_date: o.visit_date,
+          status: o.status === 'paid' || o.status === 'confirmed' ? 'confirmed' : (o.status || 'pending'),
+          total_amount: Number(o.total_amount),
+          confirmation_code: o.confirmation_code,
+          created_at: o.created_at,
+          notes: o.notes,
+          is_order: true,
+          order_items: items,
+          adults: adultItems.reduce((acc: number, it: any) => acc + (it.quantity || 0), 0) || 0,
+          children: childItems.reduce((acc: number, it: any) => acc + (it.quantity || 0), 0) || 0,
+          kiosks: items.filter((i: any) => i.product_id?.includes('Quiosque')).map((i: any) => ({ 
+            type: i.product_id?.toLowerCase().includes('maior') ? 'maior' : 'menor', 
+            quantity: i.quantity || 0 
+          })),
+          quads: items.filter((i: any) => i.product_id?.includes('Quad')).map((i: any) => ({ 
+            type: i.product_id?.toLowerCase().includes('individual') ? 'individual' : i.product_id?.toLowerCase().includes('dupla') ? 'dupla' : 'adulto-crianca', 
+            quantity: i.quantity || 0 
+          }))
+        };
+      });
+
+      const mappedLegacy = (legacyData || []).map(b => {
+        // Create virtual items for legacy records so they aren't empty in Detail view
+        const virtualItems: any[] = [];
+        if (b.adults > 0) virtualItems.push({ id: `v-${b.id}-a`, product_id: 'Adulto (Legado)', quantity: b.adults, is_redeemed: b.status === 'checked-in' });
+        if (Array.isArray(b.children) && b.children.length > 0) {
+            virtualItems.push({ id: `v-${b.id}-c`, product_id: 'Criança (Legado)', quantity: b.children.length, is_redeemed: b.status === 'checked-in' });
+        }
+
+        return {
+          ...b,
+          is_order: false,
+          adults: b.adults || 0,
+          children: Array.isArray(b.children) ? b.children.length : 0,
+          total_amount: Number(b.total_amount),
+          status: b.status === 'confirmed' || b.status === 'paid' ? 'confirmed' : (b.status || 'pending'),
+          order_items: virtualItems
+        };
+      });
+
+      // Combined and sorted by sequence: confirmed/pending first, then visit date
+      setBookings([...mappedOrders, ...mappedLegacy].sort((a, b) => {
+          const dateA = new Date(a.visit_date).getTime();
+          const dateB = new Date(b.visit_date).getTime();
+          return dateA - dateB;
+      }));
+      
     } catch (err: any) {
-      console.error('Admin fetch error:', err);
+      console.error('Admin sync error:', err);
       toast({ title: 'Erro ao carregar dados', description: err.message, variant: 'destructive' });
     } finally {
       setLoading(false);
@@ -206,7 +231,13 @@ export default function Admin() {
       toast({ title: '🗑️ Registro excluído permanentemente.' });
       fetchBookings(); // Still fetch to be sure and refresh stats
     } catch (err: any) {
-      toast({ title: 'Erro ao excluir', description: err.message, variant: 'destructive' });
+      console.error('CRITICAL: Delete failed!', err);
+      toast({ 
+        title: 'Erro ao excluir', 
+        description: `Não foi possível remover do banco de dados: ${err.message}`, 
+        variant: 'destructive' 
+      });
+      fetchBookings(); // Refresh to restore local state if delete failed
     } finally {
       setUpdatingId(null);
     }

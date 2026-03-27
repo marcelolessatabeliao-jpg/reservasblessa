@@ -443,24 +443,32 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="bg-gradient-to-br from-yellow-400 via-sun to-yellow-600 border-2 border-sun/50 rounded-3xl p-5 sm:p-6 relative overflow-hidden group shadow-2xl"
+                className="bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-950 border-2 border-sun/30 rounded-3xl p-5 sm:p-6 relative overflow-hidden group shadow-2xl"
               >
-                <div className="absolute top-0 right-0 p-3 opacity-20 group-hover:opacity-40 transition-opacity">
-                  <span className="text-5xl text-white font-black">⭐</span>
+                {/* Decoration */}
+                <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-sun/10 rounded-full blur-3xl group-hover:bg-sun/20 transition-all duration-500" />
+                <div className="absolute bottom-0 left-0 -ml-8 -mb-8 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl" />
+
+                <div className="flex items-center gap-3 mb-4 relative z-10">
+                  <div className="w-10 h-10 rounded-xl bg-sun/20 flex items-center justify-center border border-sun/30 shadow-inner">
+                    <Sparkles className="w-6 h-6 text-sun animate-pulse" />
+                  </div>
+                  <h3 className="font-display font-black text-white text-lg sm:text-xl tracking-tight">
+                    Vale mais a pena ser Sócio!
+                  </h3>
                 </div>
 
-                <div className="relative z-10 text-slate-900">
-                  <h4 className="font-gliker font-normal text-lg sm:text-xl mb-2 flex items-center gap-2 text-white drop-shadow-sm">
-                    ✨ Vale mais a pena ser Sócio!
-                  </h4>
-                  <p className="text-xs sm:text-sm text-white/90 font-bold mb-4 leading-relaxed">
-                    Sua reserva de hoje custa <span className="font-black bg-white/20 px-1.5 rounded">{formatCurrency(entriesTotal)}</span>.<br/>
-                    No <span className="font-black underline decoration-white">Lessa Club</span>, você paga apenas <span className="font-black bg-white text-primary px-1.5 rounded-lg shadow-sm">{formatCurrency(membershipPrice)}/mês</span> e tem <span className="font-black bg-yellow-300 text-slate-900 px-1.5 rounded-lg">ENTRADAS ILIMITADAS</span> o mês inteiro!
+                <div className="space-y-4 relative z-10">
+                  <p className="text-blue-100/90 text-sm sm:text-base leading-relaxed font-medium">
+                    Sua reserva de hoje custa <span className="bg-sun/20 text-sun font-black px-2 py-0.5 rounded-lg border border-sun/20">{formatCurrency(entriesTotal)}</span>.
+                    No <span className="text-sun font-black underline decoration-sun/30 underline-offset-4">Lessa Club</span>, 
+                    você paga apenas <span className="bg-green-500/20 text-green-400 font-black px-2 py-0.5 rounded-lg border border-green-500/20">R$ 25,00/mês</span> e tem 
+                    <span className="text-white font-black mx-1 uppercase tracking-wider bg-white/10 px-2 py-0.5 rounded-md">Entradas Ilimitadas</span> o mês inteiro!
                   </p>
 
-                  <Button
-                    size="lg"
-                    className="w-full bg-white hover:bg-slate-100 text-primary-dark font-display font-black text-xs sm:text-sm uppercase tracking-widest h-12 shadow-md transition-all active:scale-95"
+                  <Button 
+                    variant="default"
+                    className="w-full h-14 bg-white hover:bg-slate-50 text-slate-950 font-black text-base uppercase tracking-widest rounded-2xl shadow-xl transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3 group"
                     onClick={() => {
                       const element = document.getElementById('especiais');
                       if (element) {
