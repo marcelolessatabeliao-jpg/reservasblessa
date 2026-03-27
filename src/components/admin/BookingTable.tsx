@@ -60,7 +60,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
 
   if (bookings.length === 0) {
     return (
-      <div className="text-center py-20 bg-white/50 rounded-3xl border border-dashed border-slate-200 text-muted-foreground font-medium italic animate-in fade-in zoom-in-95 duration-500">
+      <div className="text-center py-16 bg-muted/30 rounded-3xl border border-dashed border-border text-muted-foreground font-medium animate-in fade-in zoom-in-95 duration-500">
         Nenhuma reserva encontrada para este período.
       </div>
     );
@@ -98,7 +98,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
     <div className="space-y-4 relative pb-28">
        {/* BARRA DE AÇÕES FLUTUANTE PREMIUM */}
        {selectedIds.size > 0 && (
-         <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] bg-slate-900/95 backdrop-blur-xl text-white px-10 py-6 rounded-[3rem] shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-white/10 flex items-center gap-12 animate-in slide-in-from-bottom-10 duration-500">
+         <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] bg-foreground text-background px-8 py-5 rounded-2xl shadow-2xl border border-white/10 flex items-center gap-8 animate-in slide-in-from-bottom-10 duration-500">
             <div className="flex flex-col">
               <span className="text-[10px] font-black uppercase tracking-[0.2em] text-sun opacity-90 mb-1">Ações em Massa</span>
               <span className="text-2xl font-black tabular-nums">{selectedIds.size} <span className="text-sm font-medium opacity-60">selecionados</span></span>
@@ -114,11 +114,11 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
          </div>
        )}
 
-       <div className="bg-white rounded-[2.5rem] overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100">
+       <div className="bg-white rounded-2xl overflow-hidden shadow-card border border-border/50">
          <div className="overflow-x-auto">
            <table className="w-full text-left border-collapse">
               <thead className="bg-slate-50/50 border-b border-slate-100">
-                 <tr className="text-[10px] font-black uppercase text-slate-400 tracking-[0.15em]">
+                 <tr className="text-[10px] font-bold uppercase text-muted-foreground/60 tracking-wider">
                     <th className="p-6 w-12 text-center">
                        <input 
                          type="checkbox" 
@@ -127,7 +127,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                          className="w-5 h-5 rounded-lg border-slate-300 text-primary cursor-pointer transition-all focus:ring-primary/20" 
                        />
                     </th>
-                    <th className="p-6">Agenda / Status</th>
+                    <th className="p-5">Agenda / Status</th>
                     <th className="p-6">Cliente (Identificação)</th>
                     <th className="p-6 text-center">Visitantes</th>
                     <th className="p-6 text-right">Montante</th>
@@ -234,50 +234,50 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                          {expanded && (
                            <tr>
                               <td colSpan={6} className="p-0 border-b border-slate-100">
-                                 <div className="p-10 bg-slate-50/50 space-y-10 animate-in slide-in-from-top-4 duration-500 ease-out">
-                                    <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100">
+                                 <div className="p-6 bg-muted/20 space-y-6 animate-in slide-in-from-top-4 duration-500 ease-out">
+                                    <div className="bg-white rounded-2xl p-6 shadow-sm border border-border/50">
                                        <BookingDetail booking={booking} />
                                     </div>
                                     
                                     <div className="grid lg:grid-cols-2 gap-10 items-stretch">
                                        {/* PAINEL DE CONTROLE DE STATUS */}
-                                       <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100 flex flex-col justify-between">
+                                       <div className="bg-white p-6 rounded-2xl shadow-sm border border-border/50 flex flex-col justify-between">
                                           <div>
-                                             <div className="flex items-center gap-3 mb-8">
-                                                <div className="p-3 bg-primary/5 rounded-2xl">
-                                                   <Calendar className="w-6 h-6 text-primary" />
+                                             <div className="flex items-center gap-3 mb-6">
+                                                <div className="p-2.5 bg-primary/5 rounded-xl">
+                                                   <Calendar className="w-5 h-5 text-primary" />
                                                 </div>
-                                                <h4 className="text-xs font-black uppercase text-slate-400 tracking-[0.2em]">Fluxo de Gestão</h4>
+                                                <h4 className="text-[10px] font-bold uppercase text-muted-foreground/60 tracking-wider">Gestão da Reserva</h4>
                                              </div>
                                              
-                                             <div className="grid grid-cols-2 gap-3 mb-6">
+                                             <div className="grid grid-cols-2 gap-2.5 mb-5">
                                                 <Button 
                                                   onClick={() => onStatusChange(booking.id, 'paid', booking.is_order)} 
                                                   disabled={booking.status === 'paid' || updatingId === booking.id} 
-                                                  className="bg-primary hover:bg-primary-dark text-white font-black uppercase text-[10px] h-12 rounded-2xl tracking-widest shadow-xl shadow-primary/20"
+                                                  className="bg-primary hover:bg-primary-dark text-white font-bold uppercase text-[9px] h-10 rounded-xl tracking-wider shadow-md shadow-primary/10"
                                                 >
-                                                   Confirmar Pago
+                                                   PAGO (CONFIRMAR)
                                                 </Button>
                                                 <Button 
                                                   onClick={() => onStatusChange(booking.id, 'checked-in', booking.is_order)} 
                                                   variant="outline" 
-                                                  className="border-whatsapp text-whatsapp hover:bg-whatsapp/10 font-black uppercase text-[10px] h-12 rounded-2xl tracking-widest"
+                                                  className="border-whatsapp text-whatsapp hover:bg-whatsapp/10 font-bold uppercase text-[9px] h-10 rounded-xl tracking-wider"
                                                 >
-                                                   Finalizar Visita
+                                                   CHECK-IN / VISITA
                                                 </Button>
                                                 <Button 
                                                   onClick={() => onStatusChange(booking.id, 'cancelled', booking.is_order)} 
                                                   variant="ghost" 
-                                                  className="text-red-500 hover:bg-red-50 font-black uppercase text-[10px] h-12 rounded-2xl tracking-widest"
+                                                  className="text-red-500 hover:bg-red-50 font-bold uppercase text-[9px] h-10 rounded-xl tracking-wider"
                                                 >
-                                                   Cancelar
+                                                   CANCELAR
                                                 </Button>
                                                 <Button 
                                                   onClick={(e) => { e.stopPropagation(); if (confirm('Excluir permanentemente do banco de dados?')) onDelete(booking.id, booking.is_order); }} 
                                                   variant="ghost" 
-                                                  className="text-slate-300 hover:text-red-600 font-black uppercase text-[10px] h-12 rounded-2xl flex gap-2"
+                                                  className="text-muted-foreground/40 hover:text-red-600 font-bold uppercase text-[9px] h-10 rounded-xl flex gap-2"
                                                 >
-                                                   <Trash2 className="w-4 h-4" /> Apagar
+                                                   <Trash2 className="w-3.5 h-3.5" /> APAGAR
                                                 </Button>
                                              </div>
                                           </div>
@@ -292,43 +292,43 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                        </div>
 
                                        {/* PAINEL DE NOTAS DO STAFF */}
-                                       <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100">
-                                          <div className="flex items-center gap-3 mb-8">
-                                             <div className="p-3 bg-sun/5 rounded-2xl">
-                                                <Plus className="w-6 h-6 text-sun-dark" />
+                                       <div className="bg-white p-6 rounded-2xl shadow-sm border border-border/50">
+                                          <div className="flex items-center gap-3 mb-6">
+                                             <div className="p-2.5 bg-sun/5 rounded-xl">
+                                                <Plus className="w-5 h-5 text-sun-dark" />
                                              </div>
-                                             <h4 className="text-xs font-black uppercase text-slate-400 tracking-[0.2em]">Notas do Administrador</h4>
+                                             <h4 className="text-[10px] font-bold uppercase text-muted-foreground/60 tracking-wider">Notas Internas</h4>
                                           </div>
 
                                           {editingNoteId === booking.id ? (
-                                             <div className="space-y-4">
+                                             <div className="space-y-3">
                                                 <Textarea 
                                                    value={noteText} 
                                                    onChange={e => setNoteText(e.target.value)} 
-                                                   placeholder="Descreva observações importantes sobre este cliente ou reserva..." 
-                                                   className="rounded-3xl border-slate-200 focus:border-primary/50 min-h-[140px] text-sm font-medium p-6 bg-slate-50/50" 
+                                                   placeholder="Observações importantes..." 
+                                                   className="rounded-xl border-border focus:ring-primary/20 min-h-[120px] text-sm font-medium p-4 bg-muted/20" 
                                                 />
-                                                <div className="flex gap-3">
-                                                   <Button onClick={() => { onAddNote(booking.id, noteText, booking.is_order); setEditingNoteId(null); }} className="flex-1 bg-slate-900 text-white font-black uppercase text-[11px] h-12 rounded-2xl tracking-wider">Salvar Nota</Button>
-                                                   <Button onClick={() => setEditingNoteId(null)} variant="ghost" className="font-black uppercase text-[10px] px-6 h-12 rounded-2xl">Voltar</Button>
+                                                <div className="flex gap-2">
+                                                   <Button onClick={() => { onAddNote(booking.id, noteText, booking.is_order); setEditingNoteId(null); }} className="flex-1 bg-foreground text-background font-bold uppercase text-[10px] h-10 rounded-xl tracking-wider">Salvar</Button>
+                                                   <Button onClick={() => setEditingNoteId(null)} variant="ghost" className="font-bold uppercase text-[10px] px-5 h-10 rounded-xl tracking-wider">Cancelar</Button>
                                                 </div>
                                              </div>
                                           ) : (
                                              <div 
                                                onClick={() => { setEditingNoteId(booking.id); setNoteText(booking.notes || ''); }} 
-                                               className="group cursor-pointer min-h-[180px] p-8 rounded-[2.5rem] border-2 border-dashed border-slate-100 flex flex-col items-center justify-center transition-all hover:bg-primary/[0.02] hover:border-primary/20"
+                                               className="group cursor-pointer min-h-[160px] p-6 rounded-2xl border-2 border-dashed border-border/40 flex flex-col items-center justify-center transition-all hover:bg-primary/[0.02] hover:border-primary/20"
                                              >
                                                 {booking.notes ? (
                                                   <div className="w-full">
-                                                    <p className="text-sm font-medium text-slate-700 leading-relaxed mb-4">{booking.notes}</p>
-                                                    <span className="text-[10px] font-black uppercase text-primary opacity-0 group-hover:opacity-100 transition-opacity">Cliquem para editar</span>
+                                                    <p className="text-sm font-medium text-muted-foreground leading-relaxed mb-3">{booking.notes}</p>
+                                                    <span className="text-[10px] font-bold uppercase text-primary opacity-0 group-hover:opacity-100 transition-opacity">Editar nota</span>
                                                   </div>
                                                 ) : (
                                                   <>
-                                                    <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mb-4 group-hover:bg-primary/10 transition-colors">
-                                                      <Plus className="w-6 h-6 text-slate-300 group-hover:text-primary transition-colors" />
+                                                    <div className="w-10 h-10 bg-muted/50 rounded-full flex items-center justify-center mb-3 group-hover:bg-primary/5 transition-colors">
+                                                      <Plus className="w-5 h-5 text-muted-foreground/30 group-hover:text-primary transition-colors" />
                                                     </div>
-                                                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.15em] group-hover:text-primary transition-colors">Incluir Observação</p>
+                                                    <p className="text-[9px] font-bold uppercase text-muted-foreground/40 tracking-wider group-hover:text-primary transition-colors">Adicionar Observação</p>
                                                   </>
                                                 )}
                                              </div>

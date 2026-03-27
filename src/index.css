@@ -6,7 +6,7 @@
 
 @layer base {
   :root {
-    --background: 210 20% 98%;
+    --background: 150 25% 98%;
     --foreground: 220 20% 14%;
 
     --card: 0 0% 100%;
@@ -15,49 +15,45 @@
     --popover: 0 0% 100%;
     --popover-foreground: 220 20% 14%;
 
-    --primary: 140 100% 19%;
+    --primary: 161 88% 19%; /* Emerald Green #065F46 */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 24 41% 39%;
+    --secondary: 161 88% 19%;
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 210 20% 95%;
+    --muted: 150 20% 95%;
     --muted-foreground: 220 10% 45%;
 
-    --accent: 140 100% 19%;
+    --accent: 161 88% 19%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 210 15% 88%;
-    --input: 210 15% 88%;
-    --ring: 140 100% 19%;
+    --border: 156 30% 92%;
+    --input: 156 30% 92%;
+    --ring: 161 88% 19%;
 
-    --radius: 0.75rem;
+    --radius: 1rem;
 
     /* Custom tokens */
-    --forest: 140 100% 19%;
+    --forest: 161 88% 19%;
     --earth: 24 41% 39%;
-    --whatsapp: 140 100% 19%;
-    --sun: 48 96% 53%;
+    --whatsapp: 142 70% 29%;
+    --sun: 45 93% 47%; /* Refined Orange/Yellow */
+    --sun-dark: 35 90% 40%;
     --slate-deep: 220 20% 14%;
 
-    --shadow-card: 0 4px 20px -4px hsl(140 100% 19% / 0.08);
-    --shadow-elevated: 0 12px 40px -8px hsl(140 100% 19% / 0.15);
+    --shadow-card: 0 4px 12px -2px rgba(6, 95, 70, 0.08);
+    --shadow-elevated: 0 10px 30px -10px rgba(6, 95, 70, 0.15);
 
     --font-display: 'Montserrat', sans-serif;
     --font-gliker: 'Gliker', 'Montserrat', sans-serif;
     --font-body: 'Inter', sans-serif;
 
-    --sidebar-background: 0 0% 98%;
+    --sidebar-background: 150 25% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-border: 156 30% 92%;
   }
 }
 

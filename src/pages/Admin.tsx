@@ -1,862 +1,696 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { format, isToday, isTomorrow, isThisWeek, parseISO } from 'date-fns';
+import { format, isToday, isTomorrow, isThisWeek, parseISO, isBefore, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Search, LogOut, RefreshCw, Users, DollarSign, CalendarCheck, TrendingUp, UserCheck, Hash, ArrowRight, MessageCircle, Clock, Circle, Trash2 } from 'lucide-react';
+import { 
+  Search, LogOut, RefreshCw, Users, DollarSign, CalendarCheck, TrendingUp, 
+  UserCheck, Hash, ArrowRight, MessageCircle, Clock, Circle, Trash2,
+  Tent, Bike, History, ChevronDown, ChevronUp, AlertTriangle, FileText,
+  Pencil, X, Check, Upload, FileCheck, Loader2, LayoutDashboard, ShoppingBag
+} from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { AdminLogin } from '@/components/admin/AdminLogin';
-import { BookingTable } from '@/components/admin/BookingTable';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/booking-types';
-
 import { getAdminOrders, markOrderAsPaid } from '@/integrations/supabase/orders';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-type DateFilter = 'today' | 'tomorrow' | 'week' | 'month' | 'past' | 'all';
-type TabType = 'reservas' | 'pedidos' | 'quiosques' | 'quads' | 'inventario';
-
-const BR_HOLIDAYS_2026 = [
-  "2026-01-01", // Ano Novo
-  "2026-02-16", "2026-02-17", // Carnaval
-  "2026-04-03", // Sexta-feira Santa
-  "2026-04-21", // Tiradentes
-  "2026-05-01", // Dia do Trabalho
-  "2026-06-04", // Corpus Christi
-  "2026-09-07", // Independência
-  "2026-10-12", // Aparecida
-  "2026-11-02", // Finados
-  "2026-11-15", // Proclamação da República
-  "2026-11-20", // Zumbi dos Palmares
-  "2026-12-25", // Natal
+// Constants from common types
+const KIOSKS = [
+  { id: 1, name: 'Quiosque 1 (Grande)', price: 100 },
+  { id: 2, name: 'Quiosque 2', price: 75 },
+  { id: 3, name: 'Quiosque 3', price: 75 },
+  { id: 4, name: 'Quiosque 4', price: 75 },
+  { id: 5, name: 'Quiosque 5', price: 75 }
 ];
+
+const QUAD_TIMES = ['09:00', '10:30', '14:00', '15:30'];
+const PAYMENT_METHODS = [
+  { value: 'pix', label: 'PIX / Transferência' },
+  { value: 'credit_card', label: 'Cartão de Crédito' },
+  { value: 'cash', label: 'Dinheiro (Local)' }
+];
+
+type TabType = 'painel' | 'quiosques' | 'quads' | 'vendas';
 
 export default function Admin() {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('admin_token'));
-  const [bookings, setBookings] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabType>('painel');
   const [search, setSearch] = useState('');
-  const [activeTab, setActiveTab] = useState<TabType>('reservas');
-  const [orders, setOrders] = useState<any[]>([]);
-  const [loadingOrders, setLoadingOrders] = useState(false);
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [dateFilter, setDateFilter] = useState<DateFilter>('all');
+  const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  const [kioskUsage, setKioskUsage] = useState<any[]>([]);
-  const [quadUsage, setQuadUsage] = useState<any[]>([]);
+  // Data States
+  const [kioskReservations, setKioskReservations] = useState<any[]>([]);
+  const [quadReservations, setQuadReservations] = useState<any[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [targetDate, setTargetDate] = useState<Date>(new Date());
 
-  const fetchInventory = useCallback(async () => {
-    const today = format(new Date(), 'yyyy-MM-dd');
-    const { data: kiosks } = await supabase.from('kiosk_reservations').select('*').gte('reservation_date', today).order('reservation_date');
-    const { data: quads } = await supabase.from('quad_reservations').select('*').gte('reservation_date', today).order('reservation_date');
-    setKioskUsage(kiosks || []);
-    setQuadUsage(quads || []);
-  }, []);
+  // Editing States
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editData, setEditData] = useState<any>({});
+  const [isUploading, setIsUploading] = useState(false);
 
-  const fetchOrders = useCallback(async () => {
-    setLoadingOrders(true);
-    try {
-      const data = await getAdminOrders();
-      setOrders(data || []);
-    } catch {
-      toast({ title: 'Erro ao carregar pedidos', variant: 'destructive' });
-    } finally {
-      setLoadingOrders(false);
-    }
-  }, [toast]);
+  // Delete Dialog States
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
 
-  const fetchBookings = useCallback(async () => {
+  // History States
+  const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set());
+
+  // --- DATA FETCHING ---
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      fetchInventory();
+      const { data: kiosks } = await supabase.from('kiosk_reservations').select('*').order('reservation_date', { ascending: false });
+      const { data: quads } = await supabase.from('quad_reservations').select('*').order('reservation_date', { ascending: false });
+      const orderData = await getAdminOrders();
       
-      const { data: ordersData, error: ordersError } = await supabase
-        .from('orders')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(300);
-
-      if (ordersError) throw ordersError;
-
-      const orderIds = (ordersData || []).map(o => o.id);
-      let itemsData: any[] = [];
-      if (orderIds.length > 0) {
-        const { data: items } = await supabase.from('order_items').select('*').in('order_id', orderIds);
-        itemsData = items || [];
-      }
-
-      const itemsMap = itemsData.reduce((acc: any, item: any) => {
-        if (!acc[item.order_id]) acc[item.order_id] = [];
-        acc[item.order_id].push(item);
-        return acc;
-      }, {});
-
-      const { data: legacyData } = await supabase
-        .from('bookings' as any)
-        .select('*')
-        .order('visit_date', { ascending: true });
-
-      const linkedBookingIds = new Set((ordersData || []).map((o: any) => o.booking_id).filter(id => id));
-      const linkedCodes = new Set((ordersData || []).map((o: any) => o.confirmation_code?.toUpperCase()).filter(c => c));
-      
-      const mappedOrders = (ordersData || []).map(o => {
-        let items = itemsMap[o.id] || [];
-        const entries = items.filter((i: any) => {
-          const pid = i.product_id?.toLowerCase() || '';
-          return !pid.includes('quiosque') && !pid.includes('quad') && !pid.includes('pesca') && !pid.includes('futebol');
-        });
-        
-        const adultItems = entries.filter((i: any) => !i.product_id?.toLowerCase().includes('criança') && !i.product_id?.toLowerCase().includes('kids'));
-        const childItems = entries.filter((i: any) => i.product_id?.toLowerCase().includes('criança') || i.product_id?.toLowerCase().includes('kids'));
-
-        let adultsCount = adultItems.reduce((acc: number, it: any) => acc + (it.quantity || 0), 0) || 0;
-        const childrenCount = childItems.reduce((acc: number, it: any) => acc + (it.quantity || 0), 0) || 0;
-
-        if (items.length === 0 && o.total_amount > 0) {
-           items = [{ id: `v-${o.id}-u`, product_id: 'Entrada (Sem detalhes)', quantity: 1, unit_price: o.total_amount, is_redeemed: false }];
-           adultsCount = 1;
-        }
-
-        // Se houver itens mas 0 adultos (ex: só escolheu quadriciclo), garantimos ao menos 1 adulto para visibilidade
-        if (items.length > 0 && adultsCount === 0) {
-            adultsCount = 1; 
-        }
-
-        return {
-          id: o.id,
-          name: o.customer_name,
-          phone: o.customer_phone,
-          visit_date: o.visit_date,
-          status: o.status === 'paid' || o.status === 'confirmed' ? 'confirmed' : (o.status || 'pending'),
-          total_amount: Number(o.total_amount),
-          confirmation_code: o.confirmation_code,
-          created_at: o.created_at,
-          notes: o.notes,
-          is_order: true,
-          booking_id: o.booking_id,
-          order_items: items,
-          adults: adultsCount,
-          children: childrenCount,
-          kiosks: items.filter((i: any) => i.product_id?.includes('Quiosque')).map((i: any) => ({ 
-            type: i.product_id?.toLowerCase().includes('maior') ? 'maior' : 'menor', 
-            quantity: i.quantity || 0 
-          })),
-          quads: items.filter((i: any) => i.product_id?.includes('Quad')).map((i: any) => ({ 
-            type: i.product_id?.toLowerCase().includes('individual') ? 'individual' : i.product_id?.toLowerCase().includes('dupla') ? 'dupla' : 'adulto-crianca', 
-            quantity: i.quantity || 0 
-          })),
-          additionals: items.filter((i: any) => {
-            const pid = i.product_id?.toLowerCase() || '';
-            const isEntry = !pid.includes('quiosque') && !pid.includes('quad') && !pid.includes('pesca') && !pid.includes('futebol');
-            return !pid.includes('quiosque') && !pid.includes('quad') && !isEntry;
-          }).map((i: any) => ({
-            name: i.product_id,
-            quantity: i.quantity || 0
-          }))
-        };
-      });
-
-      const mappedLegacy = (legacyData || []).filter(b => !linkedBookingIds.has(b.id)).map(b => {
-        const virtualItems: any[] = [];
-        const adults = b.adults || 0;
-        const kidsCount = Array.isArray(b.children) ? b.children.length : 0;
-        if (kidsCount > 0) virtualItems.push({ id: `v-${b.id}-c`, product_id: 'Criança (Legado)', quantity: kidsCount, is_redeemed: b.status === 'checked-in' });
-        
-        // Map legacy quads/kiosks into virtual items for detail view
-        const legacyKiosks = Array.isArray(b.kiosks) ? b.kiosks : [];
-        const legacyQuads = Array.isArray(b.quads) ? b.quads : [];
-        const legacyAdds = Array.isArray(b.additionals) ? b.additionals : [];
-        
-        legacyKiosks.forEach((k: any) => {
-          if (k.quantity > 0) virtualItems.push({ id: `v-${b.id}-k-${k.type}`, product_id: `Quiosque ${k.type}`, quantity: k.quantity, is_redeemed: b.status === 'checked-in' });
-        });
-        legacyQuads.forEach((q: any) => {
-          if (q.quantity > 0) virtualItems.push({ id: `v-${b.id}-q-${q.type}`, product_id: `Quad ${q.type}`, quantity: q.quantity, is_redeemed: b.status === 'checked-in' });
-        });
-        legacyAdds.forEach((a: any) => {
-          if (a.quantity > 0) virtualItems.push({ id: `v-${b.id}-a-${a.type}`, product_id: a.type, quantity: a.quantity, is_redeemed: b.status === 'checked-in' });
-        });
-
-        return {
-          ...b,
-          is_order: false,
-          adults,
-          children: kidsCount,
-          total_amount: Number(b.total_amount),
-          status: b.status === 'confirmed' || b.status === 'paid' ? 'confirmed' : (b.status || 'pending'),
-          order_items: virtualItems
-        };
-      });
-
-      setBookings([...mappedOrders, ...mappedLegacy].filter(b => b.status !== 'cancelled').sort((a, b) => {
-          const dateA = new Date(a.visit_date || '').getTime();
-          const dateB = new Date(b.visit_date || '').getTime();
-          return dateA - dateB;
-      }));
-    } catch (err: any) {
-      console.error('Fetch Error:', err);
-      toast({ title: 'Erro de sincronização', description: err.message, variant: 'destructive' });
+      setKioskReservations(kiosks || []);
+      setQuadReservations(quads || []);
+      setOrders(orderData || []);
+    } catch (err) {
+      console.error(err);
+      toast({ title: "Erro ao carregar dados", variant: "destructive" });
     } finally {
       setLoading(false);
     }
-  }, [toast, fetchInventory]);
+  }, [toast]);
 
   useEffect(() => {
-    if (!token) return;
-    fetchBookings();
-    fetchOrders();
-    const ch = supabase.channel('adm').on('postgres_changes',{event:'*',schema:'public',table:'orders'},()=>fetchBookings()).subscribe();
-    return () => { supabase.removeChannel(ch); };
-  }, [token, fetchBookings, fetchOrders]);
+    if (token) fetchData();
+  }, [token, fetchData]);
 
-   const handleStatusChange = async (bookingId: string, status: string, isOrder?: boolean) => {
-    setUpdatingId(bookingId);
-    try {
-      if (isOrder) {
-         // Na Versão 3, o botão CANCELAR deve APENAS mudar o status.
-         // A exclusão física é feita no botão APAGAR separadamente.
-         const { error } = await supabase.from('orders').update({ 
-           status: status === 'confirmed' ? 'paid' : status
-         }).eq('id', bookingId).select('id');
-         if (error) throw error;
-      } else {
-         const { error } = await supabase.from('bookings').update({ 
-            status: status === 'confirmed' ? 'paid' : status
-         }).eq('id', bookingId).select('id');
-         if (error) throw error;
-      }
-      toast({ title: `✓ Status: ${status}` });
-      fetchBookings();
-    } catch (err: any) { 
-      console.error(err);
-      toast({ title: 'Erro de Conexão', description: 'Não foi possível atualizar status (RLS). Verifique permissões.', variant: 'destructive' }); 
-    }
-    finally { setUpdatingId(null); }
+  // --- ACTIONS ---
+  const handleLogout = () => {
+    localStorage.removeItem('admin_token');
+    setToken(null);
   };
 
-  const handleReschedule = async (bookingId: string, newDate: string, isOrder?: boolean) => {
-    try {
-      if (isOrder) {
-        await supabase.from('orders').update({ visit_date: newDate }).eq('id', bookingId).select('id');
-        await supabase.from('kiosk_reservations').update({ reservation_date: newDate }).eq('order_id', bookingId).select('id');
-        await supabase.from('quad_reservations').update({ reservation_date: newDate }).eq('order_id', bookingId).select('id');
-      } else {
-        await supabase.from('bookings').update({ visit_date: newDate }).eq('id', bookingId).select('id');
-      }
-      toast({ title: '📅 Agenda Reagendada!' });
-      fetchBookings();
-    } catch (err: any) { toast({ title: 'Erro', description: err.message, variant: 'destructive' }); }
+  const startEditing = (item: any) => {
+    setEditingId(item.id);
+    setEditData({ ...item });
   };
 
-  const handleDelete = async (bookingId: string, isOrder?: boolean) => {
-    setUpdatingId(bookingId);
+  const cancelEditing = () => {
+    setEditingId(null);
+    setEditData({});
+  };
+
+  const saveEditing = async (type: 'kiosk' | 'quad') => {
     try {
-      if (isOrder) {
-         await supabase.from('quad_reservations').delete().eq('order_id', bookingId).select('id');
-         await supabase.from('kiosk_reservations').delete().eq('order_id', bookingId).select('id');
-         await supabase.from('payments').delete().eq('order_id', bookingId).select('id');
-         await supabase.from('vouchers').delete().eq('order_id', bookingId).select('id');
-         await supabase.from('order_items').delete().eq('order_id', bookingId).select('id');
-         const { error } = await supabase.from('orders').delete().eq('id', bookingId).select('id');
-         if (error) throw error;
-      } else {
-         const { error } = await supabase.from('bookings').delete().eq('id', bookingId).select('id');
-         if (error) throw error;
-      }
+      const table = type === 'kiosk' ? 'kiosk_reservations' : 'quad_reservations';
+      const { error } = await supabase.from(table).update(editData).eq('id', editingId);
+      if (error) throw error;
       
-      toast({ title: '✓ Excluído permanentemente' });
-      fetchBookings();
-    } catch (err: any) {
-      console.error('Delete Error:', err);
-      toast({ title: 'Erro ao excluir', description: 'RLS impede acesso direto.', variant: 'destructive' });
-    } finally { setUpdatingId(null); }
+      toast({ title: "✓ Alterações salvas" });
+      setEditingId(null);
+      fetchData();
+    } catch (err) {
+      toast({ title: "Erro ao salvar", variant: "destructive" });
+    }
   };
 
-  const handleRemoveItem = async (orderId: string, itemId: string, productId: string) => {
+  const handleFileUpload = async (file: File) => {
+    setIsUploading(true);
     try {
-      // 1. Apagar da tabela de itens do pedido
-      await supabase.from('order_items').delete().eq('id', itemId).select('id');
-      
-      // 2. Se for quiosque ou quadriciclo, apagar da tabela de inventário correspondente
-      const name = productId.toLowerCase();
-      if (name.includes('quiosque')) {
-          const type = name.includes('maior') ? 'maior' : 'menor';
-          await supabase.from('kiosk_reservations').delete().eq('order_id', orderId).eq('kiosk_type', type).select('id');
-      } else if (name.includes('quad')) {
-          const type = name.includes('dupla') ? 'dupla' : name.includes('individual') ? 'individual' : 'adulto-crianca';
-          await supabase.from('quad_reservations').delete().eq('order_id', orderId).eq('quad_type', type).select('id');
-      }
-      
-      toast({ title: 'Item removido da reserva' });
-      fetchBookings();
-    } catch (err: any) {
-      toast({ title: 'Erro ao remover item', description: err.message, variant: 'destructive' });
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${crypto.randomUUID()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage.from('receipts').upload(fileName, file);
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage.from('receipts').getPublicUrl(fileName);
+      setEditData((prev: any) => ({ ...prev, receipt_url: publicUrl }));
+      toast({ title: "Comprovante enviado!" });
+    } catch (err) {
+      toast({ title: "Erro no upload", variant: "destructive" });
+    } finally {
+      setIsUploading(false);
     }
   };
 
-  const handleAddNote = async (bookingId: string, notes: string, isOrder?: boolean) => {
+  const requestDelete = (item: any, type: 'kiosk' | 'quad' | 'order') => {
+    setDeleteTarget({ ...item, type });
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      if (isOrder) {
-          const { error } = await supabase.from('orders').update({ notes }).eq('id', bookingId).select('id');
-          if (error) throw error;
-      } else {
-          const { error } = await supabase.from('bookings').update({ notes }).eq('id', bookingId).select('id');
-          if (error) throw error;
-      }
-      toast({ title: '📝 Nota salva!' });
-      fetchBookings();
-    } catch (err: any) { 
-      console.error('AddNote Error:', err);
-      toast({ title: 'Erro ao salvar nota', description: 'RLS impediu salvamento.', variant: 'destructive' }); 
+      let table = '';
+      if (deleteTarget.type === 'kiosk') table = 'kiosk_reservations';
+      else if (deleteTarget.type === 'quad') table = 'quad_reservations';
+      else if (deleteTarget.type === 'order') table = 'orders';
+
+      const { error } = await supabase.from(table).delete().eq('id', deleteTarget.id);
+      if (error) throw error;
+
+      toast({ title: "Removido com sucesso" });
+      fetchData();
+    } catch (err) {
+      toast({ title: "Erro ao remover", variant: "destructive" });
+    } finally {
+      setDeleteDialogOpen(false);
+      setDeleteTarget(null);
     }
   };
 
-  const clearTestOrders = async () => {
-    if (!confirm('Você deseja remover todos os pedidos PENDENTES com valor R$ 0,00?')) return;
-    try {
-       const { data: tests } = await supabase.from('orders').select('id').eq('status', 'pending').eq('total_amount', 0);
-       if (!tests || tests.length === 0) {
-         toast({ title: 'Nenhum teste encontrado' });
-         return;
-       }
-       for (const t of tests) {
-         await supabase.from('order_items').delete().eq('order_id', t.id);
-         await supabase.from('orders').delete().eq('id', t.id);
-       }
-       toast({ title: `${tests.length} testes removidos!` });
-       fetchOrders();
-       fetchBookings();
-    } catch (err: any) {
-       toast({ title: 'Erro ao limpar', description: err.message, variant: 'destructive' });
-    }
-  };
+  // --- GROUPING & FILTERING ---
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  
+  const currentKiosks = kioskReservations.filter(r => !isBefore(parseISO(r.reservation_date), startOfDay(new Date())));
+  const pastKiosks = kioskReservations.filter(r => isBefore(parseISO(r.reservation_date), startOfDay(new Date())));
 
-  const [validationValue, setValidationValue] = useState('');
-  const handleValidateVoucher = () => {
-    if (!validationValue.trim()) return;
-    const code = validationValue.trim().toUpperCase();
-    const found = bookings.find(b => b.confirmation_code?.toUpperCase() === code);
-    if (found) { setSearch(code); setActiveTab('reservas'); toast({ title: "Encontrado!" }); }
-    else { toast({ title: "Não encontrado", variant: "destructive" }); }
-  };
+  const currentQuads = quadReservations.filter(r => !isBefore(parseISO(r.reservation_date), startOfDay(new Date())));
+  const pastQuads = quadReservations.filter(r => isBefore(parseISO(r.reservation_date), startOfDay(new Date())));
 
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-
-  const filtered = useMemo(() => {
-    let result = bookings;
-    
-    // First apply the specific date if selected via calendar
-    if (selectedDate) {
-      result = result.filter(b => b.visit_date === format(selectedDate, 'yyyy-MM-dd'));
-      return result;
-    }
-
-    if (dateFilter === 'today') result = result.filter(b => b.visit_date && isToday(parseISO(b.visit_date)));
-    else if (dateFilter === 'tomorrow') result = result.filter(b => b.visit_date && isTomorrow(parseISO(b.visit_date)));
-    else if (dateFilter === 'week') result = result.filter(b => b.visit_date && isThisWeek(parseISO(b.visit_date), { locale: ptBR }));
-    else if (dateFilter === 'past') {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      result = result.filter(b => b.visit_date && parseISO(b.visit_date) < today);
-    } else if (dateFilter === 'all') {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        result = result.filter(b => b.visit_date && parseISO(b.visit_date) >= today);
-    }
-
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      result = result.filter(b => (b.name || '').toLowerCase().includes(q) || (b.confirmation_code && b.confirmation_code.toLowerCase().includes(q)) || (b.phone && b.phone.includes(q)));
-    }
-    return result;
-  }, [bookings, dateFilter, search, selectedDate]);
-
-  const stats = useMemo(() => {
-    const todayStr = format(new Date(), 'yyyy-MM-dd');
-    const todayBookings = bookings.filter(b => b.visit_date && isToday(parseISO(b.visit_date)));
-    const confirmedToday = todayBookings.filter(b => b.status === 'confirmed' || b.status === 'paid' || b.status === 'checked-in');
-    
-    // Receitas específicas
-    let kRev = 0;
-    let qRev = 0;
-    bookings.forEach(b => {
-      if ((b.status === 'confirmed' || b.status === 'paid' || b.status === 'checked-in') && b.is_order && b.order_items) {
-        b.order_items.forEach((i: any) => {
-          const pid = (i.product_id || '').toLowerCase();
-          if (pid.includes('quiosque')) kRev += (i.unit_price * i.quantity);
-          if (pid.includes('quad')) qRev += (i.unit_price * i.quantity);
-        });
-      }
+  const kioskHistory = useMemo(() => {
+    const groups: Record<string, any[]> = {};
+    pastKiosks.forEach(r => {
+      const month = format(parseISO(r.reservation_date), 'yyyy-MM');
+      if (!groups[month]) groups[month] = [];
+      groups[month].push(r);
     });
+    return Object.entries(groups).sort((a,b) => b[0].localeCompare(a[0]));
+  }, [pastKiosks]);
 
-    return {
-      people: todayBookings.reduce((sum, b) => sum + (b.adults || 0) + (b.children || 0), 0),
-      revenue: confirmedToday.reduce((sum, b) => sum + Number(b.total_amount), 0),
-      count: bookings.filter(b => b.visit_date && b.visit_date >= todayStr).length,
-      checked: todayBookings.filter(b => b.status === 'checked-in').length,
-      kioskRevenue: kRev,
-      quadRevenue: qRev
-    };
-  }, [bookings]);
+  const quadHistory = useMemo(() => {
+    const groups: Record<string, any[]> = {};
+    pastQuads.forEach(r => {
+      const month = format(parseISO(r.reservation_date), 'yyyy-MM');
+      if (!groups[month]) groups[month] = [];
+      groups[month].push(r);
+    });
+    return Object.entries(groups).sort((a,b) => b[0].localeCompare(a[0]));
+  }, [pastQuads]);
 
-  const inventoryView = useMemo(() => {
-    const targetDate = selectedDate || new Date();
-    const dateStr = format(targetDate, 'yyyy-MM-dd');
+  const toggleMonth = (month: string) => {
+    setExpandedMonths(prev => {
+      const next = new Set(prev);
+      next.has(month) ? next.delete(month) : next.add(month);
+      return next;
+    });
+  };
+
+  if (!token) return <AdminLogin onLogin={setToken} />;
+
+  // --- VIEW RENDERERS ---
+
+  const renderDashboard = () => {
+    const dayKiosks = kioskReservations.filter(r => r.reservation_date === format(targetDate, 'yyyy-MM-dd'));
+    const dayQuads = quadReservations.filter(r => r.reservation_date === format(targetDate, 'yyyy-MM-dd'));
     
-    const kOnDate = kioskUsage.filter(u => u.reservation_date === dateStr);
-    const qOnDate = quadUsage.filter(u => u.reservation_date === dateStr);
-    
-    const smallCount = kOnDate.filter(k => k.kiosk_type === 'menor').reduce((s, k) => s + k.quantity, 0);
-    const largeCount = kOnDate.filter(k => k.kiosk_type === 'maior').reduce((s, k) => s + k.quantity, 0);
-
-    const kioskUnits = [
-      { id: 'maior', name: 'Quiosque Grande', occupied: largeCount > 0 },
-      { id: 'menor1', name: 'Quiosque 2', occupied: smallCount > 0 },
-      { id: 'menor2', name: 'Quiosque 3', occupied: smallCount > 1 },
-      { id: 'menor3', name: 'Quiosque 4', occupied: smallCount > 2 },
-      { id: 'menor4', name: 'Quiosque 5', occupied: smallCount > 3 },
-    ];
-
-    const timeSlots = [
-      { label: '09:00 - 10:30', key: '09:00' },
-      { label: '10:30 - 12:00', key: '10:30' },
-      { label: '13:00 - 14:30', key: '14:00' },
-      { label: '14:30 - 16:00', key: '15:30' },
-    ];
-
     return (
-      <div className="grid lg:grid-cols-[1fr_380px] gap-10 animate-in fade-in slide-in-from-bottom-6 duration-1000">
-        {/* LEFT: DAILY OPERATION */}
-        <div className="bg-white rounded-[3.5rem] p-12 shadow-2xl shadow-slate-200/50 border border-slate-100/50">
-           <div className="flex items-center gap-6 mb-12">
-              <div className="w-16 h-16 bg-[#1e4d2b] text-white rounded-[1.5rem] flex items-center justify-center font-black text-3xl shadow-lg shadow-green-900/20">
-                {format(targetDate, 'dd')}
-              </div>
-              <div className="space-y-1">
-                 <h3 className="text-3xl font-black text-slate-800 tracking-tighter uppercase">Operação Diária</h3>
-                 <p className="text-sm font-bold text-slate-400 capitalize">{format(targetDate, 'EEEE, yyyy', { locale: ptBR })}</p>
-              </div>
-           </div>
-           
-           <div className="bg-[#fffdf2] rounded-[3rem] border border-sun/20 shadow-sm overflow-hidden">
-              <div className="p-8 bg-[#fffbe6] flex items-center gap-4">
-                 <div className="w-10 h-10 rounded-full bg-sun/20 flex items-center justify-center text-sun-dark">
-                    <TrendingUp className="w-5 h-5" />
-                 </div>
-                 <span className="font-black text-sun-dark uppercase text-lg tracking-tight">Resumo de {format(targetDate, "dd 'de' MMMM", { locale: ptBR })}</span>
-              </div>
-              
-              <div className="grid md:grid-cols-2 divide-x divide-sun/10">
-                 {/* KIOSKS */}
-                 <div className="p-10 space-y-8">
-                    <h4 className="flex items-center gap-3 text-whatsapp font-black uppercase text-sm tracking-widest">
-                       <Users className="w-5 h-5" /> Quiosques ({smallCount + largeCount}/5)
-                    </h4>
-                    <div className="space-y-3">
-                       {kioskUnits.map((ku, idx) => (
-                         <div key={idx} className={cn(
-                           "p-5 border-2 rounded-[1.5rem] flex justify-between items-center transition-all",
-                           ku.occupied ? "bg-whatsapp/5 border-whatsapp/20" : "bg-white border-slate-50 opacity-60"
-                         )}>
-                            <span className={cn("font-bold text-sm", ku.occupied ? "text-whatsapp font-black" : "text-slate-400")}>{ku.name}</span>
-                            <span className={cn("italic text-[10px] font-black uppercase tracking-widest", ku.occupied ? "text-whatsapp opacity-100" : "text-slate-300 opacity-50")}>
-                               {ku.occupied ? 'Ocupado' : 'Livre'}
-                            </span>
-                         </div>
-                       ))}
-                    </div>
-                 </div>
+      <div className="grid lg:grid-cols-[1fr_360px] gap-8 animate-in fade-in duration-500">
+        <div className="space-y-8">
+          {/* STATS */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+             <Card className="bg-white border-border/50 shadow-sm rounded-2xl p-4 flex flex-col items-center text-center">
+                <span className="text-3xl font-bold text-primary">{currentKiosks.length}</span>
+                <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Quiosques Ativos</span>
+             </Card>
+             <Card className="bg-white border-border/50 shadow-sm rounded-2xl p-4 flex flex-col items-center text-center">
+                <span className="text-3xl font-bold text-blue-600">{currentQuads.length}</span>
+                <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Quadriciclos Ativos</span>
+             </Card>
+             <Card className="bg-white border-border/50 shadow-sm rounded-2xl p-4 flex flex-col items-center text-center">
+                <span className="text-2xl font-bold text-foreground">{formatCurrency(currentKiosks.reduce((s, r) => s + (r.price || 0), 0))}</span>
+                <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Receita Quiosques</span>
+             </Card>
+             <Card className="bg-white border-border/50 shadow-sm rounded-2xl p-4 flex flex-col items-center text-center">
+                <span className="text-2xl font-bold text-foreground">{formatCurrency(currentQuads.reduce((s, r) => s + (r.price || 0), 0))}</span>
+                <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Receita Quadriciclos</span>
+             </Card>
+          </div>
 
-                 {/* QUADS */}
-                 <div className="p-10 space-y-8 bg-blue-50/10">
-                    <h4 className="flex items-center gap-3 text-blue-600 font-black uppercase text-sm tracking-widest">
-                       <RefreshCw className="w-5 h-5" /> Quadriciclos
-                    </h4>
-                    <div className="space-y-5">
-                       {timeSlots.map((slot, idx) => {
-                          const used = qOnDate.filter(q => q.time_slot === slot.key).reduce((s,q)=>s+q.quantity,0);
-                          const slotUsage = qOnDate.filter(q => q.time_slot === slot.key);
-                          return (
-                            <div key={idx} className={cn(
-                              "p-6 rounded-[2rem] border-2 transition-all",
-                              used > 0 ? "bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-200" : "bg-white border-blue-50"
-                            )}>
-                               <div className="flex justify-between items-center mb-3">
-                                  <span className={cn("text-xs font-black uppercase tracking-wider", used > 0 ? "text-white" : "text-blue-900")}>{slot.label}</span>
-                                  <span className={cn("text-[10px] font-bold", used > 0 ? "text-blue-100" : "text-blue-400")}>{used}/5 ocupados</span>
+          <Card className="bg-white border-border/50 shadow-card rounded-3xl p-8">
+             <div className="flex items-center justify-between mb-8">
+                <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
+                   <TrendingUp className="w-5 h-5 text-primary" /> Ocupação Diária
+                </h3>
+                <Badge variant="outline" className="border-primary/20 text-primary bg-primary/5">
+                   {format(targetDate, "dd 'de' MMMM", { locale: ptBR })}
+                </Badge>
+             </div>
+             
+             <div className="space-y-10">
+                <div>
+                   <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
+                      <Tent className="w-4 h-4" /> Quiosques
+                   </h4>
+                   <div className="grid grid-cols-5 gap-3">
+                      {KIOSKS.map(k => {
+                        const booking = dayKiosks.find(b => b.kiosk_id === k.id);
+                        return (
+                          <div key={k.id} className={cn(
+                            "group relative aspect-square rounded-2xl border transition-all flex flex-col items-center justify-center gap-1",
+                            booking ? "bg-primary text-white border-primary shadow-lg shadow-primary/20" : "bg-muted/30 border-dashed border-border text-muted-foreground hover:bg-muted/50"
+                          )}>
+                             <span className="text-[10px] font-bold opacity-60">Q-{k.id}</span>
+                             {booking ? <UserCheck className="w-5 h-5" /> : <Circle className="w-4 h-4 opacity-20" />}
+                             {booking && (
+                               <div className="absolute inset-0 bg-primary opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl flex items-center justify-center p-2 text-center">
+                                  <span className="text-[9px] font-bold whitespace-nowrap overflow-hidden text-ellipsis">{booking.customer_name}</span>
                                </div>
-                               {slotUsage.length > 0 ? (
-                                 <div className="space-y-1">
-                                    {slotUsage.map((val, i) => (
-                                      <p key={i} className="text-[10px] font-bold opacity-80 truncate">🏷️ {bookings.find(b => b.id === val.order_id)?.name || 'Cliente'}</p>
-                                    ))}
-                                 </div>
-                               ) : (
-                                 <p className="text-[10px] text-slate-300 italic text-center py-2 border border-dashed rounded-xl border-slate-100">Nenhuma reserva</p>
-                               )}
-                            </div>
-                          );
-                       })}
-                    </div>
-                 </div>
-              </div>
-           </div>
+                             )}
+                          </div>
+                        );
+                      })}
+                   </div>
+                </div>
+
+                <div>
+                   <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
+                      <Bike className="w-4 h-4" /> Quadriciclos
+                   </h4>
+                   <div className="grid grid-cols-4 gap-3">
+                      {QUAD_TIMES.map(slot => {
+                        const bookings = dayQuads.filter(b => b.time_slot === slot);
+                        const count = bookings.reduce((s, r) => s + (r.quantity || 1), 0);
+                        return (
+                          <div key={slot} className={cn(
+                            "p-4 rounded-2xl border transition-all flex flex-col items-center gap-1",
+                            count > 0 ? "bg-blue-50 border-blue-100 text-blue-700" : "bg-muted/20 border-border/50 text-muted-foreground opacity-50"
+                          )}>
+                             <span className="text-[10px] font-bold uppercase">{slot}</span>
+                             <span className="text-lg font-bold">{count}/5</span>
+                          </div>
+                        );
+                      })}
+                   </div>
+                </div>
+             </div>
+          </Card>
         </div>
 
-        {/* RIGHT: SIDEBAR */}
-        <div className="space-y-8">
-           <div className="bg-white rounded-[3.5rem] p-10 shadow-2xl shadow-slate-200/50 border border-slate-100/50">
-              <div className="flex items-center gap-3 mb-8">
-                 <div className="p-3 bg-whatsapp/5 rounded-2xl text-whatsapp"><CalendarCheck className="w-6 h-6" /></div>
-                 <h3 className="font-black text-slate-800 text-xl tracking-tight">Resumo Geral</h3>
-              </div>
-              <p className="text-[11px] font-medium text-slate-400 leading-relaxed mb-10">Selecione uma data para organizar seu dia de operações no Balneário.</p>
-              
-              <div className="space-y-4 mb-12">
-                 <div className="h-14 bg-whatsapp flex items-center justify-center rounded-2xl text-[10px] font-black text-white uppercase tracking-[0.2em] shadow-lg shadow-whatsapp/20">
-                    ⛺ Quiosques Ocupados
-                 </div>
-                 <div className="h-14 bg-blue-600 flex items-center justify-center rounded-2xl text-[10px] font-black text-white uppercase tracking-[0.2em] shadow-lg shadow-blue-600/20">
-                    🚜 Quadriciclos Alugados
-                 </div>
-              </div>
-              
-              <div className="border-t border-slate-50 pt-10">
-                 <Calendar 
-                    mode="single" 
-                    selected={selectedDate} 
-                    onSelect={(d) => { if(d) setSelectedDate(d); setDateFilter('all'); }} 
-                    initialFocus 
-                    locale={ptBR}
-                    modifiers={{
-                      booked: (date) => bookings.some(b => b.visit_date === format(date, 'yyyy-MM-dd')),
-                      holiday: (date) => BR_HOLIDAYS_2026.includes(format(date, 'yyyy-MM-dd'))
-                    }}
-                    modifiersStyles={{
-                      booked: { outline: '3px solid #22c55e', outlineOffset: '-3px', fontWeight: '900', borderRadius: '12px' },
-                      holiday: { color: 'var(--sun-dark)', backgroundColor: 'rgba(255,183,1,0.1)' }
-                    }}
-                    className="w-full pointer-events-auto"
-                 />
-              </div>
-           </div>
+        <div className="space-y-6">
+           <Card className="bg-white border-border/50 shadow-card rounded-3xl p-6">
+              <h4 className="text-sm font-bold text-foreground mb-4">Selecione uma Data</h4>
+              <Calendar
+                 mode="single"
+                 selected={targetDate}
+                 onSelect={(d) => d && setTargetDate(d)}
+                 className="rounded-xl border border-border"
+                 locale={ptBR}
+              />
+           </Card>
            
-           <Card className="bg-whatsapp rounded-[3rem] p-8 border-none text-white overflow-hidden relative group cursor-pointer hover:scale-[1.02] transition-all" onClick={() => setActiveTab('reservas')}>
-              <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-3xl group-hover:scale-150 transition-all duration-1000" />
-              <h4 className="text-[10px] font-black uppercase tracking-[0.3em] mb-4 opacity-70">Acesso Rápido</h4>
-              <p className="text-2xl font-black leading-tight mb-4">Gerenciar<br/>Vouchers</p>
-              <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md">
-                 <ArrowRight className="w-6 h-6" />
+           <Card className="bg-primary/5 border-primary/10 shadow-sm rounded-3xl p-6">
+              <div className="flex items-center gap-3 mb-4">
+                 <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center">
+                    <History className="w-5 h-5" />
+                 </div>
+                 <h4 className="text-sm font-bold text-primary">Resumo do Dia</h4>
               </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                 Visualize a ocupação programada para qualquer data. Use o calendário para navegar e planejar sua operação.
+              </p>
            </Card>
         </div>
       </div>
     );
-  }, [kioskUsage, quadUsage, selectedDate, bookings]);
+  };
 
-  const kiosksView = useMemo(() => {
-    return (
-      <div className="animate-in fade-in duration-700">
-         <div className="bg-white rounded-[3rem] overflow-hidden border border-slate-100 shadow-xl shadow-slate-200/40">
-            <div className="p-8 border-b border-slate-50 flex justify-between items-center bg-slate-50/10">
-               <div>
-                  <h3 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Listagem de Quiosques</h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Gestão de Inventário e Check-ins</p>
-               </div>
-               <Badge className="bg-[#14532d] text-white font-black px-4 py-2 rounded-xl">⛺ TOTAL: {kioskUsage.reduce((s,k)=>s+k.quantity,0)}</Badge>
-            </div>
-            <div className="overflow-x-auto">
-               <table className="w-full text-left">
-                  <thead className="text-[10px] font-black uppercase text-slate-400 tracking-widest">
-                     <tr><th className="p-8">Check-in</th><th className="p-8">Cliente</th><th className="p-8">Tipo</th><th className="p-8">Qtd</th><th className="p-8">Ações</th></tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-50">
-                     {kioskUsage.map((k, i) => {
-                       const b = bookings.find(book => book.id === k.order_id);
-                       return (
-                         <tr key={i} className="hover:bg-[#14532d]/5 transition-colors group">
-                            <td className="p-8 text-sm font-black text-slate-600">{format(parseISO(k.reservation_date), 'dd/MM')}</td>
-                            <td className="p-8">
-                               <div className="flex flex-col">
-                                  <span className="text-sm font-black text-slate-800 uppercase">{b?.name || '---'}</span>
-                                  <span className="text-[9px] font-bold text-slate-300 uppercase tracking-wider">#{k.order_id?.slice(0,8)}</span>
-                               </div>
-                            </td>
-                            <td className="p-8"><Badge variant="outline" className="text-[10px] font-black uppercase bg-white border-slate-100 rounded-lg">{k.kiosk_type === 'maior' ? 'Grande' : 'Pequeno'}</Badge></td>
-                            <td className="p-8 text-sm font-black text-slate-900">{k.quantity}</td>
-                            <td className="p-8">
-                               <Dialog>
-                                 <DialogTrigger asChild>
-                                    <Button size="sm" variant="outline" className="h-10 rounded-xl font-bold text-[10px] text-[#14532d] border-[#14532d]/20 hover:bg-[#14532d] hover:text-white uppercase tracking-widest transition-all">GERENCIAR</Button>
-                                 </DialogTrigger>
-                                 <DialogContent className="rounded-[2.5rem] p-10 max-w-md">
-                                    <DialogHeader><DialogTitle className="text-xl font-black text-slate-800 uppercase text-center mb-6">Ações da Reserva</DialogTitle></DialogHeader>
-                                    <div className="grid gap-3">
-                                       <Button className="h-14 bg-whatsapp hover:bg-[#166534] text-white font-black uppercase text-[11px] rounded-2xl flex items-center gap-3" onClick={() => handleReschedule(k.order_id, k.reservation_date, true)}>📅 REAGENDAR DATA</Button>
-                                       <Button className="h-14 bg-red-500 hover:bg-red-600 text-white font-black uppercase text-[11px] rounded-2xl flex items-center gap-3" onClick={() => handleStatusChange(k.order_id, 'cancelled', true)}>❌ CANCELAR PEDIDO</Button>
-                                       <Button className="h-14 bg-red-900 hover:bg-black text-white font-black uppercase text-[11px] rounded-2xl flex items-center gap-3" onClick={() => handleDelete(k.order_id, true)}>🗑️ EXCLUIR PERMANENTE</Button>
-                                       <div className="mt-4 pt-4 border-t space-y-2">
-                                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Anexar Comprovante (URL)</p>
-                                          <div className="flex gap-2">
-                                             <Input placeholder="https://..." className="h-12 rounded-xl" />
-                                             <Button className="h-12 bg-sun text-sun-dark font-black px-4 rounded-xl">SALVAR</Button>
-                                          </div>
-                                       </div>
-                                    </div>
-                                 </DialogContent>
-                               </Dialog>
-                            </td>
-                         </tr>
-                       );
-                     })}
-                  </tbody>
-               </table>
-            </div>
-         </div>
-      </div>
-    );
-  }, [kioskUsage, bookings, handleStatusChange, handleReschedule, handleDelete]);
+  const renderKioskTab = () => (
+    <div className="space-y-8 animate-in fade-in duration-500">
+       <div className="bg-white rounded-3xl border border-border/50 shadow-card overflow-hidden">
+          <div className="p-6 border-b border-border/50 flex items-center justify-between bg-primary/5">
+             <div>
+                <h3 className="text-lg font-bold text-primary">Reservas Ativas de Quiosques</h3>
+                <p className="text-xs text-muted-foreground">Reservas de hoje em diante</p>
+             </div>
+             <div className="relative w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/30" />
+                <Input placeholder="Buscar cliente..." className="pl-9 h-10 rounded-xl" />
+             </div>
+          </div>
+          <div className="overflow-x-auto">
+             <table className="w-full text-left">
+                <thead className="bg-muted/50 text-[10px] font-bold uppercase text-muted-foreground tracking-widest border-b border-border/50">
+                   <tr>
+                      <th className="px-6 py-4">Data</th>
+                      <th className="px-6 py-4">Cliente</th>
+                      <th className="px-6 py-4">Quiosque</th>
+                      <th className="px-6 py-4">Preço</th>
+                      <th className="px-6 py-4 text-right">Ações</th>
+                   </tr>
+                </thead>
+                <tbody className="divide-y divide-border/30">
+                   {currentKiosks.map(r => {
+                      const isEditing = editingId === r.id;
+                      return (
+                        <tr key={r.id} className={cn("hover:bg-muted/20 transition-colors", isEditing && "bg-amber-50/50")}>
+                           <td className="px-6 py-4 font-semibold text-sm">
+                              {isEditing ? (
+                                <Input type="date" value={editData.reservation_date} onChange={e => setEditData({...editData, reservation_date: e.target.value})} className="h-9 rounded-lg" />
+                              ) : format(parseISO(r.reservation_date), 'dd/MM/yyyy')}
+                           </td>
+                           <td className="px-6 py-4 font-bold text-foreground">
+                              {isEditing ? (
+                                <Input value={editData.customer_name} onChange={e => setEditData({...editData, customer_name: e.target.value})} className="h-9 rounded-lg" />
+                              ) : r.customer_name}
+                           </td>
+                           <td className="px-6 py-4">
+                              {isEditing ? (
+                                <Select value={String(editData.kiosk_id)} onValueChange={v => setEditData({...editData, kiosk_id: parseInt(v)})}>
+                                   <SelectTrigger className="h-9 rounded-lg"><SelectValue /></SelectTrigger>
+                                   <SelectContent>{KIOSKS.map(k => <SelectItem key={k.id} value={String(k.id)}>{k.name}</SelectItem>)}</SelectContent>
+                                </Select>
+                              ) : <Badge className="bg-primary/10 text-primary border-0 font-bold">{KIOSKS.find(k => k.id === r.kiosk_id)?.name || `Q-${r.kiosk_id}`}</Badge>}
+                           </td>
+                           <td className="px-6 py-4 font-bold text-primary">
+                              {isEditing ? (
+                                <div className="flex items-center gap-1">
+                                   <span className="text-xs">R$</span>
+                                   <Input type="number" value={editData.price} onChange={e => setEditData({...editData, price: parseFloat(e.target.value)})} className="h-9 rounded-lg w-20" />
+                                </div>
+                              ) : formatCurrency(r.price || 0)}
+                           </td>
+                           <td className="px-6 py-4 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                 {isEditing ? (
+                                   <>
+                                      <input type="file" id={`upload-${r.id}`} className="hidden" onChange={e => e.target.files && handleFileUpload(e.target.files[0])} />
+                                      <label htmlFor={`upload-${r.id}`} className="p-2 rounded-lg bg-blue-100 text-blue-600 cursor-pointer hover:bg-blue-200 transition-colors">
+                                         {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : editData.receipt_url ? <FileCheck className="w-4 h-4" /> : <Upload className="w-4 h-4" />}
+                                      </label>
+                                      <Button size="icon" className="h-8 w-8 rounded-lg bg-primary hover:bg-primary/90" onClick={() => saveEditing('kiosk')}><Check className="w-4 h-4" /></Button>
+                                      <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg" onClick={cancelEditing}><X className="w-4 h-4" /></Button>
+                                   </>
+                                 ) : (
+                                   <>
+                                      {r.receipt_url && <Button size="icon" variant="ghost" className="h-8 w-8 text-primary" onClick={() => window.open(r.receipt_url)}><FileText className="w-4 h-4" /></Button>}
+                                      <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600" onClick={() => startEditing(r)}><Pencil className="w-4 h-4" /></Button>
+                                      <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500" onClick={() => requestDelete(r, 'kiosk')}><Trash2 className="w-4 h-4" /></Button>
+                                   </>
+                                 )}
+                              </div>
+                           </td>
+                        </tr>
+                      );
+                   })}
+                </tbody>
+             </table>
+          </div>
+       </div>
 
-  const quadsView = useMemo(() => {
-    return (
-      <div className="animate-in fade-in duration-700">
-         <div className="bg-white rounded-[3rem] overflow-hidden border border-slate-100 shadow-xl shadow-slate-200/40">
-            <div className="p-8 border-b border-slate-50 flex justify-between items-center bg-slate-50/10">
-               <div>
-                  <h3 className="text-xl font-black text-slate-800 uppercase tracking-tighter">Frota de Quadriciclos</h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Gestão de Saídas e Horários</p>
-               </div>
-               <Badge className="bg-blue-800 text-white font-black px-4 py-2 rounded-xl">🚜 TOTAL: {quadUsage.reduce((s,q)=>s+q.quantity,0)}</Badge>
-            </div>
-            <div className="overflow-x-auto">
-               <table className="w-full text-left">
-                  <thead className="text-[10px] font-black uppercase text-slate-400 tracking-widest">
-                     <tr><th className="p-8">Data</th><th className="p-8">Horário</th><th className="p-8">Cliente</th><th className="p-8">Modelo</th><th className="p-8">Ações</th></tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-50">
-                     {quadUsage.map((q, i) => {
-                       const b = bookings.find(book => book.id === q.order_id);
-                       return (
-                         <tr key={i} className="hover:bg-blue-50/50 transition-colors">
-                            <td className="p-8 text-sm font-black text-slate-600">{format(parseISO(q.reservation_date), 'dd/MM')}</td>
-                            <td className="p-8 text-sm font-black text-blue-700">{q.time_slot}</td>
-                            <td className="p-8 text-sm font-bold text-slate-800 uppercase">{b?.name || '---'}</td>
-                            <td className="p-8"><Badge variant="outline" className="text-[10px] font-black uppercase bg-white border-blue-50 text-blue-500 rounded-lg">{q.quad_type}</Badge></td>
-                            <td className="p-8">
-                               <Dialog>
-                                 <DialogTrigger asChild>
-                                    <Button size="sm" variant="outline" className="h-10 rounded-xl font-bold text-[10px] text-blue-700 border-blue-100 hover:bg-blue-700 hover:text-white uppercase tracking-widest transition-all">GERENCIAR</Button>
-                                 </DialogTrigger>
-                                 <DialogContent className="rounded-[2.5rem] p-10 max-w-md">
-                                    <DialogHeader><DialogTitle className="text-xl font-black text-slate-800 uppercase text-center mb-6">Ações da Reserva</DialogTitle></DialogHeader>
-                                    <div className="grid gap-3">
-                                       <Button className="h-14 bg-whatsapp hover:bg-[#166534] text-white font-black uppercase text-[11px] rounded-2xl flex items-center gap-3" onClick={() => handleReschedule(q.order_id, q.reservation_date, true)}>📅 REAGENDAR DATA</Button>
-                                       <Button className="h-14 bg-red-500 hover:bg-red-600 text-white font-black uppercase text-[11px] rounded-2xl flex items-center gap-3" onClick={() => handleStatusChange(q.order_id, 'cancelled', true)}>❌ CANCELAR PEDIDO</Button>
-                                       <Button className="h-14 bg-red-900 hover:bg-black text-white font-black uppercase text-[11px] rounded-2xl flex items-center gap-3" onClick={() => handleDelete(q.order_id, true)}>🗑️ EXCLUIR PERMANENTE</Button>
-                                       <div className="mt-4 pt-4 border-t space-y-2">
-                                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Anexar Comprovante (URL)</p>
-                                          <div className="flex gap-2">
-                                             <Input placeholder="https://..." className="h-12 rounded-xl" />
-                                             <Button className="h-12 bg-sun text-sun-dark font-black px-4 rounded-xl">SALVAR</Button>
-                                          </div>
-                                       </div>
-                                    </div>
-                                 </DialogContent>
-                               </Dialog>
-                            </td>
-                         </tr>
-                       );
-                     })}
-                  </tbody>
-               </table>
-            </div>
-         </div>
-      </div>
-    );
-  }, [quadUsage, bookings, handleStatusChange, handleReschedule, handleDelete]);
+       {/* HISTORY */}
+       <div className="space-y-4">
+          <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+             <History className="w-4 h-4" /> Histórico Mensal
+          </h4>
+          {kioskHistory.map(([month, data]) => {
+            const isOpen = expandedMonths.has('k-' + month);
+            return (
+              <div key={month} className="bg-white rounded-2xl border border-border/50 shadow-sm overflow-hidden">
+                 <button onClick={() => toggleMonth('k-' + month)} className="w-full p-4 flex items-center justify-between hover:bg-muted/10 transition-colors">
+                    <div className="flex items-center gap-4">
+                       <Badge className="bg-primary/10 text-primary border-0 font-bold px-3">{data.length} reservas</Badge>
+                       <span className="font-bold text-foreground capitalize">{format(parseISO(month + '-01'), 'MMMM yyyy', { locale: ptBR })}</span>
+                    </div>
+                    {isOpen ? <ChevronUp className="w-5 h-5 text-muted-foreground" /> : <ChevronDown className="w-5 h-5 text-muted-foreground" />}
+                 </button>
+                 {isOpen && (
+                   <div className="px-4 pb-4 animate-in slide-in-from-top-2">
+                      <div className="grid gap-2">
+                         {data.map(r => (
+                           <div key={r.id} className="p-3 bg-muted/20 rounded-xl flex items-center justify-between text-sm">
+                              <div className="flex items-center gap-4">
+                                 <span className="font-mono text-muted-foreground">{format(parseISO(r.reservation_date), 'dd/MM')}</span>
+                                 <span className="font-bold">{r.customer_name}</span>
+                                 <Badge variant="outline" className="text-[9px] border-primary/20 text-primary">{KIOSKS.find(k => k.id === r.kiosk_id)?.name}</Badge>
+                              </div>
+                              <span className="font-bold text-primary">{formatCurrency(r.price)}</span>
+                           </div>
+                         ))}
+                      </div>
+                   </div>
+                 )}
+              </div>
+            );
+          })}
+       </div>
+    </div>
+  );
 
-  if (!token) return <AdminLogin onLogin={(t) => setToken(t)} />;
+  const renderQuadTab = () => (
+    <div className="space-y-8 animate-in fade-in duration-500">
+       <div className="bg-white rounded-3xl border border-border/50 shadow-card overflow-hidden">
+          <div className="p-6 border-b border-border/50 flex items-center justify-between bg-blue-50/30">
+             <div>
+                <h3 className="text-lg font-bold text-blue-700">Reservas Ativas de Quadriciclos</h3>
+                <p className="text-xs text-muted-foreground">Reservas de hoje em diante</p>
+             </div>
+             <Input placeholder="Buscar cliente..." className="w-64 h-10 rounded-xl" />
+          </div>
+          <div className="overflow-x-auto">
+             <table className="w-full text-left">
+                <thead className="bg-muted/50 text-[10px] font-bold uppercase text-muted-foreground tracking-widest border-b border-border/50">
+                   <tr>
+                      <th className="px-6 py-4">Data/Horário</th>
+                      <th className="px-6 py-4">Cliente</th>
+                      <th className="px-6 py-4">Qtd</th>
+                      <th className="px-6 py-4">Preço</th>
+                      <th className="px-6 py-4 text-right">Ações</th>
+                   </tr>
+                </thead>
+                <tbody className="divide-y divide-border/30">
+                   {currentQuads.map(r => {
+                      const isEditing = editingId === r.id;
+                      return (
+                        <tr key={r.id} className={cn("hover:bg-muted/20 transition-colors", isEditing && "bg-amber-50/50")}>
+                           <td className="px-6 py-4">
+                              <div className="flex flex-col">
+                                 <span className="font-bold text-sm">
+                                    {isEditing ? <Input type="date" value={editData.reservation_date} onChange={e => setEditData({...editData, reservation_date: e.target.value})} className="h-8" /> : format(parseISO(r.reservation_date), 'dd/MM/yyyy')}
+                                 </span>
+                                 <span className="text-[10px] uppercase font-bold text-blue-600">
+                                    {isEditing ? (
+                                      <Select value={editData.time_slot} onValueChange={v => setEditData({...editData, time_slot: v})}>
+                                         <SelectTrigger className="h-6 text-[10px]"><SelectValue /></SelectTrigger>
+                                         <SelectContent>{QUAD_TIMES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                                      </Select>
+                                    ) : r.time_slot}
+                                 </span>
+                              </div>
+                           </td>
+                           <td className="px-6 py-4 font-bold text-foreground">
+                              {isEditing ? <Input value={editData.customer_name} onChange={e => setEditData({...editData, customer_name: e.target.value})} className="h-9" /> : r.customer_name}
+                           </td>
+                           <td className="px-6 py-4 text-center">
+                              {isEditing ? <Input type="number" value={editData.quantity} onChange={e => setEditData({...editData, quantity: parseInt(e.target.value)})} className="h-9 w-16" /> : <Badge className="bg-blue-100 text-blue-700 border-0">{r.quantity} quad.</Badge>}
+                           </td>
+                           <td className="px-6 py-4 font-bold text-blue-700">
+                              {isEditing ? <Input type="number" value={editData.price} onChange={e => setEditData({...editData, price: parseFloat(e.target.value)})} className="h-9 w-20" /> : formatCurrency(r.price || 0)}
+                           </td>
+                           <td className="px-6 py-4 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                 {isEditing ? (
+                                   <>
+                                      <Button size="icon" className="h-8 w-8 rounded-lg bg-blue-600" onClick={() => saveEditing('quad')}><Check className="w-4 h-4" /></Button>
+                                      <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg" onClick={cancelEditing}><X className="w-4 h-4" /></Button>
+                                   </>
+                                 ) : (
+                                   <>
+                                      {r.receipt_url && <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600" onClick={() => window.open(r.receipt_url)}><FileText className="w-4 h-4" /></Button>}
+                                      <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600" onClick={() => startEditing(r)}><Pencil className="w-4 h-4" /></Button>
+                                      <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500" onClick={() => requestDelete(r, 'quad')}><Trash2 className="w-4 h-4" /></Button>
+                                   </>
+                                 )}
+                              </div>
+                           </td>
+                        </tr>
+                      );
+                   })}
+                </tbody>
+             </table>
+          </div>
+       </div>
+
+       {/* HISTORY */}
+       <div className="space-y-4">
+          <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+             <History className="w-4 h-4" /> Histórico Mensal
+          </h4>
+          {quadHistory.map(([month, data]) => {
+            const isOpen = expandedMonths.has('q-' + month);
+            return (
+              <div key={month} className="bg-white rounded-2xl border border-border/50 shadow-sm overflow-hidden">
+                 <button onClick={() => toggleMonth('q-' + month)} className="w-full p-4 flex items-center justify-between hover:bg-muted/10 transition-colors">
+                    <div className="flex items-center gap-4">
+                       <Badge className="bg-blue-50 text-blue-700 border-0 font-bold px-3">{data.length} passeios</Badge>
+                       <span className="font-bold text-foreground capitalize">{format(parseISO(month + '-01'), 'MMMM yyyy', { locale: ptBR })}</span>
+                    </div>
+                    {isOpen ? <ChevronUp className="w-5 h-5 text-muted-foreground" /> : <ChevronDown className="w-5 h-5 text-muted-foreground" />}
+                 </button>
+                 {isOpen && (
+                   <div className="px-4 pb-4 animate-in slide-in-from-top-2">
+                      <div className="grid gap-2">
+                         {data.map(r => (
+                           <div key={r.id} className="p-3 bg-muted/20 rounded-xl flex items-center justify-between text-sm">
+                              <div className="flex items-center gap-4">
+                                 <span className="font-mono text-muted-foreground">{format(parseISO(r.reservation_date), 'dd/MM')}</span>
+                                 <span className="font-bold">{r.customer_name}</span>
+                                 <Badge variant="outline" className="text-[9px] border-blue-200 text-blue-700">{r.time_slot}</Badge>
+                              </div>
+                              <span className="font-bold text-blue-700">{formatCurrency(r.price)}</span>
+                           </div>
+                         ))}
+                      </div>
+                   </div>
+                 )}
+              </div>
+            );
+          })}
+       </div>
+    </div>
+  );
+
+  const renderOrderTab = () => (
+    <div className="bg-white rounded-3xl border border-border/50 shadow-card overflow-hidden animate-in fade-in duration-500">
+       <div className="p-6 border-b border-border/50 bg-amber-50/30 flex items-center justify-between">
+          <div>
+             <h3 className="text-lg font-bold text-amber-900">Histórico de Vendas e Pedidos</h3>
+             <p className="text-xs text-muted-foreground">Gestão financeira centralizada</p>
+          </div>
+          <div className="flex items-center gap-2">
+             <Badge className="bg-amber-100 text-amber-900 border-0 font-bold">Total: {orders.length}</Badge>
+          </div>
+       </div>
+       <div className="overflow-x-auto">
+          <table className="w-full text-left">
+             <thead className="bg-muted/50 text-[10px] font-bold uppercase text-muted-foreground tracking-widest border-b border-border/50">
+                <tr>
+                   <th className="px-6 py-4">ID / Data</th>
+                   <th className="px-6 py-4">Cliente</th>
+                   <th className="px-6 py-4">Total</th>
+                   <th className="px-6 py-4">Status</th>
+                   <th className="px-6 py-4 text-right">Ações</th>
+                </tr>
+             </thead>
+             <tbody className="divide-y divide-border/30">
+                {orders.map(order => (
+                  <tr key={order.id} className="hover:bg-muted/20 transition-colors">
+                     <td className="px-6 py-4">
+                        <div className="flex flex-col">
+                           <span className="font-mono text-[10px] text-muted-foreground">#{order.id.slice(0,8)}</span>
+                           <span className="text-sm font-bold">{format(parseISO(order.created_at), 'dd/MM/yyyy')}</span>
+                        </div>
+                     </td>
+                     <td className="px-6 py-4 font-bold text-foreground">
+                        {order.customer_name || 'Cliente Geral'}
+                     </td>
+                     <td className="px-6 py-4 font-bold text-primary">
+                        {formatCurrency(order.total_amount)}
+                     </td>
+                     <td className="px-6 py-4">
+                        <Badge className={cn(
+                          "rounded-md font-bold text-[9px]",
+                          order.status === 'paid' ? "bg-whatsapp/10 text-whatsapp border-whatsapp/20" : "bg-red-50 text-red-500 border-red-100"
+                        )} variant="outline">
+                           {order.status === 'paid' ? 'PAGO' : 'PENDENTE'}
+                        </Badge>
+                     </td>
+                     <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                           {order.status !== 'paid' && (
+                             <Button size="sm" className="h-8 bg-primary rounded-lg text-[10px] font-bold" onClick={() => markOrderAsPaid(order.id).then(() => fetchData())}>Efetivar</Button>
+                           )}
+                           <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500" onClick={() => requestDelete(order, 'order')}><Trash2 className="w-4 h-4" /></Button>
+                        </div>
+                     </td>
+                  </tr>
+                ))}
+             </tbody>
+          </table>
+       </div>
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] font-sans pb-32">
-      {/* BRAND HEADER */}
-      <div className="bg-[#052e16] py-8 px-6 md:px-12 border-b-[6px] border-[#166534]/30 shadow-2xl relative overflow-hidden">
-        <div className="absolute right-0 top-0 w-[40%] h-full bg-gradient-to-l from-white/5 to-transparent pointer-events-none" />
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-8 relative z-10">
-          <div className="flex items-center gap-6">
-             <div className="w-16 h-16 bg-sun rounded-[1.5rem] flex items-center justify-center p-3 shadow-xl">
-                <CalendarCheck className="w-full h-full text-sun-dark" />
+    <div className="min-h-screen bg-background p-4 md:p-8">
+       <div className="max-w-7xl mx-auto space-y-8">
+          {/* HEADER */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+             <div className="space-y-1">
+                <h1 className="text-4xl font-extrabold text-foreground tracking-tight flex items-center gap-3">
+                   Painel de <span className="text-primary">Controle</span>
+                </h1>
+                <p className="text-muted-foreground font-medium">Gestão Integrada Balneário Lessa</p>
              </div>
-             <div className="text-center md:text-left">
-                <h1 className="text-3xl font-black text-white uppercase tracking-tighter leading-none">Balneário Lessa</h1>
-                <p className="text-[#166534] font-black text-[12px] uppercase tracking-[0.4em] mt-2">Sistema de Reservas</p>
+             <div className="flex items-center gap-3">
+                <Button variant="outline" className="rounded-2xl border-border bg-white font-bold h-12 shadow-sm" onClick={fetchData} disabled={loading}>
+                   {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5 text-primary" />}
+                   <span className="ml-2">Sincronizar</span>
+                </Button>
+                <Button className="rounded-2xl bg-foreground text-background font-bold h-12 px-6 shadow-card" onClick={handleLogout}>
+                   <LogOut className="w-5 h-5 mr-2" /> Sair
+                </Button>
              </div>
           </div>
-          
-          <div className="flex items-center gap-4">
-            <Button size="lg" className="bg-[#166534] hover:bg-[#14532d] text-white font-black px-10 rounded-2xl shadow-xl shadow-green-900/40 border-b-4 border-green-800 transition-all active:translate-y-1 active:border-b-0 flex items-center gap-3" onClick={() => { fetchBookings(); fetchOrders(); toast({title:"Dados Sincronizados"}); }}>
-               <RefreshCw className={cn("w-5 h-5", loading && "animate-spin")} /> ATUALIZAR
-            </Button>
-            <Button size="icon" variant="ghost" className="text-white h-14 w-14 rounded-2xl hover:bg-white/10" onClick={() => { localStorage.removeItem('admin_token'); setToken(null); }}>
-               <LogOut className="w-6 h-6" />
-            </Button>
+
+          {/* TABS */}
+          <div className="flex items-center p-1.5 bg-muted/50 rounded-[2rem] w-fit border border-border/50 shadow-inner">
+             <button onClick={() => setActiveTab('painel')} className={cn("px-6 py-3 rounded-[1.5rem] text-sm font-bold flex items-center gap-2 transition-all", activeTab === 'painel' ? "bg-white text-primary shadow-md" : "text-muted-foreground hover:text-foreground")}>
+                <LayoutDashboard className="w-4 h-4" /> Painel
+             </button>
+             <button onClick={() => setActiveTab('quiosques')} className={cn("px-6 py-3 rounded-[1.5rem] text-sm font-bold flex items-center gap-2 transition-all", activeTab === 'quiosques' ? "bg-white text-primary shadow-md" : "text-muted-foreground hover:text-foreground")}>
+                <Tent className="w-4 h-4" /> Quiosques
+             </button>
+             <button onClick={() => setActiveTab('quads')} className={cn("px-6 py-3 rounded-[1.5rem] text-sm font-bold flex items-center gap-2 transition-all", activeTab === 'quads' ? "bg-white text-blue-600 shadow-md" : "text-muted-foreground hover:text-foreground")}>
+                <Bike className="w-4 h-4" /> Quadriciclos
+             </button>
+             <button onClick={() => setActiveTab('vendas')} className={cn("px-6 py-3 rounded-[1.5rem] text-sm font-bold flex items-center gap-2 transition-all", activeTab === 'vendas' ? "bg-white text-amber-600 shadow-md" : "text-muted-foreground hover:text-foreground")}>
+                <ShoppingBag className="w-4 h-4" /> Vendas
+             </button>
           </div>
-        </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-6 md:px-12 -translate-y-10">
-        <div className="bg-white/90 backdrop-blur-3xl p-3 rounded-[3rem] shadow-2xl shadow-slate-200 border border-white flex flex-col md:flex-row gap-2 mb-12">
-          {[
-            { id: 'inventario', label: '📊 Visão Geral', color: 'bg-sun text-sun-dark shadow-sun/20' },
-            { id: 'quiosques', label: '⛺ Quiosques', color: 'bg-whatsapp text-white shadow-whatsapp/20' },
-            { id: 'quads', label: '🚜 Quadriciclos', color: 'bg-blue-600 text-white shadow-blue-600/20' },
-            { id: 'reservas', label: '🕒 Agenda', color: 'bg-slate-800 text-white shadow-slate-800/20' },
-            { id: 'pedidos', label: '💰 Vendas', color: 'bg-slate-800 text-white shadow-slate-800/20' },
-          ].map((tab) => (
-            <Button 
-               key={tab.id}
-               className={cn(
-                 "flex-1 h-16 rounded-[2.5rem] font-bold text-xs uppercase tracking-widest transition-all", 
-                 activeTab === tab.id ? `${tab.color} shadow-xl` : "bg-transparent text-slate-400 hover:text-slate-600"
-               )}
-               onClick={() => setActiveTab(tab.id as any)}
-            >
-               {tab.label}
-            </Button>
-          ))}
-        </div>
+          {/* CONTENT */}
+          <div className="min-h-[600px]">
+             {activeTab === 'painel' && renderDashboard()}
+             {activeTab === 'quiosques' && renderKioskTab()}
+             {activeTab === 'quads' && renderQuadTab()}
+             {activeTab === 'vendas' && renderOrderTab()}
+          </div>
+       </div>
 
-        {/* TAB CONTENT */}
-        <div className="space-y-10">
-           {activeTab === 'inventario' ? inventoryView : activeTab === 'quiosques' ? kiosksView : activeTab === 'quads' ? quadsView : activeTab === 'pedidos' ? (
-             <div className="space-y-6">
-                <div className="relative group">
-                   <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-6 h-6 text-slate-300 group-focus-within:text-[#1e4d2b] transition-colors" />
-                   <Input 
-                      placeholder="Buscar vendas por nome ou valor..." 
-                      value={search} 
-                      onChange={(e) => setSearch(e.target.value)} 
-                      className="h-20 pl-16 rounded-[2.5rem] border-none shadow-xl shadow-slate-200/50 bg-white font-bold text-lg placeholder:text-slate-200 focus:ring-4 focus:ring-primary/5 transition-all w-full" 
-                   />
+       {/* DELETE DIALOG */}
+       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent className="rounded-3xl border-none shadow-2xl">
+             <AlertDialogHeader>
+                <div className="flex items-center gap-3 mb-4">
+                   <div className="w-12 h-12 rounded-2xl bg-red-100 flex items-center justify-center">
+                      <AlertTriangle className="w-6 h-6 text-red-600" />
+                   </div>
+                   <AlertDialogTitle className="text-xl font-bold text-foreground">Confirmar Exclusão</AlertDialogTitle>
                 </div>
-                <div className="grid gap-4">
-                   {orders.filter(o => !search || o.customer_name?.toLowerCase().includes(search.toLowerCase())).map(order => (
-                     <Dialog key={order.id}>
-                       <DialogTrigger asChild>
-                         <Card className="cursor-pointer bg-white rounded-[2.5rem] border-none shadow-lg hover:shadow-2xl transition-all p-8 flex items-center justify-between group">
-                            <div className="flex items-center gap-6">
-                               <div className="w-14 h-14 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-300 group-hover:bg-primary/10 group-hover:text-primary transition-all">
-                                  <DollarSign className="w-6 h-6" />
-                               </div>
-                               <div>
-                                  <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest leading-none">Venda #{order.id.slice(0, 8)}</span>
-                                  <h4 className="text-lg font-black text-slate-800 uppercase tracking-tighter mt-1">{order.customer_name}</h4>
-                               </div>
-                            </div>
-                            <div className="text-right">
-                               <div className="text-2xl font-black text-primary tabular-nums tracking-tighter">{formatCurrency(order.total_amount)}</div>
-                               <Badge className={cn(
-                                 "mt-1 rounded-lg font-black text-[9px] px-3",
-                                 order.status === 'paid' ? "bg-whatsapp/10 text-whatsapp border-whatsapp/20" : "bg-red-50 text-red-500 border-red-100"
-                               )} variant="outline">
-                                  {order.status === 'paid' ? 'CONCLUÍDO' : 'PENDENTE'}
-                               </Badge>
-                            </div>
-                         </Card>
-                       </DialogTrigger>
-                       <DialogContent className="rounded-[3rem] p-10 border-none max-w-lg">
-                          <DialogHeader><DialogTitle className="text-2xl font-black text-slate-800 uppercase text-center mb-6">Detalhamento Financeiro</DialogTitle></DialogHeader>
-                          <div className="space-y-6">
-                             {order.order_items?.map((item: any, id: number) => (
-                                <div key={id} className="flex justify-between items-center p-5 bg-slate-50 rounded-2xl border border-slate-100">
-                                   <div className="flex flex-col">
-                                      <span className="text-sm font-black text-slate-800">{item.quantity}x {item.product_id}</span>
-                                      <span className="text-[10px] font-bold text-slate-400 capitalize">Preço Unitário: {formatCurrency(item.unit_price)}</span>
-                                   </div>
-                                   <span className="font-black text-primary">{formatCurrency(item.unit_price * item.quantity)}</span>
-                                </div>
-                             ))}
-                             <div className="bg-primary p-8 rounded-[2.5rem] text-white flex justify-between items-center shadow-xl shadow-primary/20">
-                                <span className="font-black uppercase tracking-widest text-sm opacity-70">Total Recebido</span>
-                                <span className="text-3xl font-black tabular-nums tracking-tighter">{formatCurrency(order.total_amount)}</span>
-                             </div>
-                             {order.status !== 'paid' && (
-                               <Button className="w-full h-16 bg-sun text-sun-dark font-black text-lg rounded-2xl shadow-xl shadow-sun/20 border-b-4 border-sun-dark transition-all active:translate-y-1 active:border-b-0" onClick={() => markOrderAsPaid(order.id).then(() => { fetchOrders(); fetchBookings(); toast({title:"Pagamento Confirmado!"}); })}>
-                                  EFETIVAR PAGAMENTO
-                               </Button>
-                             )}
-                          </div>
-                       </DialogContent>
-                     </Dialog>
-                   ))}
-                </div>
-             </div>
-           ) : (
-             <div className="space-y-12">
-               <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-                  {[
-                    { label: 'Visitantes Hoje', val: stats.people, icon: Users, color: 'text-primary bg-primary/5 border-primary/10' },
-                    { label: 'Rec. Quiosques', val: formatCurrency(stats.kioskRevenue), icon: TrendingUp, color: 'text-sun-dark bg-sun/5 border-sun/20' },
-                    { label: 'Rec. Quadriciclos', val: formatCurrency(stats.quadRevenue), icon: DollarSign, color: 'text-sun-dark bg-sun/5 border-sun/20' },
-                    { label: 'Check-ins', val: stats.checked, icon: UserCheck, color: 'text-whatsapp bg-whatsapp/5 border-whatsapp/10' },
-                  ].map((s, i) => (
-                    <Card key={i} className={cn("rounded-[2.5rem] border p-8 bg-white/80 backdrop-blur-md shadow-lg group transition-all hover:scale-[1.03]", s.color)}>
-                       <div className="flex flex-col items-center gap-4 text-center">
-                          <div className="w-14 h-14 rounded-2xl flex items-center justify-center bg-white shadow-sm group-hover:shadow-md transition-all">
-                             <s.icon className="w-6 h-6" />
-                          </div>
-                          <div>
-                             <p className="text-2xl font-black tracking-tighter">{s.val}</p>
-                             <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mt-1">{s.label}</p>
-                          </div>
-                       </div>
-                    </Card>
-                  ))}
-               </div>
-
-               <div className="flex flex-col lg:flex-row gap-6">
-                  <div className="flex bg-white rounded-[2.5rem] p-2 shadow-xl shadow-slate-200/50 border border-slate-100 flex-1">
-                     {[{k:'today',l:'Hoje'},{k:'tomorrow',l:'Amanhã'},{k:'week',l:'Semana'},{k:'all',l:'Próximos'}].map(f=>(
-                       <Button 
-                          key={f.k} 
-                          onClick={()=>{setDateFilter(f.k as any); setSelectedDate(undefined);}} 
-                          variant={dateFilter===f.k?'default':'ghost'} 
-                          className={cn("flex-1 h-14 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all", dateFilter===f.k ? "bg-primary text-white shadow-lg" : "text-slate-400")}
-                       >
-                          {f.l}
-                       </Button>
-                     ))}
-                  </div>
-                  <div className="relative group flex-[1.5]">
-                     <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-6 h-6 text-slate-300 group-focus-within:text-primary transition-colors" />
-                     <Input 
-                        placeholder="Buscar reserva por nome, código ou celular..." 
-                        value={search} 
-                        onChange={(e) => setSearch(e.target.value)} 
-                        className="h-20 pl-16 rounded-[2.5rem] border-none shadow-xl shadow-slate-200/50 bg-white font-bold text-lg placeholder:text-slate-200 focus:ring-4 focus:ring-primary/5 transition-all w-full" 
-                     />
-                  </div>
-               </div>
-
-               <div className="flex justify-end gap-3 px-4">
-                  <Button onClick={clearTestOrders} variant="ghost" className="h-12 px-6 text-red-500 hover:bg-red-50 font-black uppercase text-[10px] tracking-widest flex items-center gap-2 rounded-2xl border border-red-100/50">
-                     <Trash2 className="w-4 h-4" /> ZERAR FILA DE TESTES (R$ 0,00)
-                  </Button>
-               </div>
-
-               <div className="bg-white rounded-[3.5rem] p-10 shadow-2xl shadow-slate-200/50 border border-slate-100/50 overflow-hidden">
-                  <BookingTable bookings={filtered} onStatusChange={handleStatusChange} onAddNote={handleAddNote} onReschedule={handleReschedule} onDelete={handleDelete} onRemoveItem={handleRemoveItem} updatingId={updatingId} />
-               </div>
-             </div>
-           )}
-        </div>
-      </div>
+                <AlertDialogDescription className="text-muted-foreground font-medium">
+                   Deseja realmente remover esta reserva? Esta ação não pode ser desfeita e liberará o horário/espaço para novos clientes.
+                </AlertDialogDescription>
+             </AlertDialogHeader>
+             <AlertDialogFooter className="gap-2">
+                <AlertDialogCancel className="rounded-xl border-none bg-muted font-bold">Cancelar</AlertDialogCancel>
+                <Button onClick={confirmDelete} className="rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold h-10 px-6 shadow-md">Sim, Excluir</Button>
+             </AlertDialogFooter>
+          </AlertDialogContent>
+       </AlertDialog>
     </div>
   );
 }
