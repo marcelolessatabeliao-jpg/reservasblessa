@@ -308,10 +308,10 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
                 if (p.isBirthday) label = 'Aniversariante';
 
                 return (
-                  <div key={`free-${i}`} className="flex justify-between items-start text-green-600 font-bold bg-green-50/50 p-2 rounded-lg border border-green-100/50">
+                  <div key={`free-${i}`} className="flex justify-between items-start text-green-800 font-bold bg-green-50/50 p-2 rounded-lg border border-green-100/50">
                     <div>
                       <span>{qty}x {label}</span>
-                      <span className="block text-[10px] uppercase tracking-tighter opacity-70">Acesso Gratuito</span>
+                      <span className="block text-[10px] uppercase tracking-tighter opacity-70">Acesso Gratuito (Promoção)</span>
                     </div>
                     <span className="whitespace-nowrap uppercase text-xs">Grátis</span>
                   </div>
@@ -334,7 +334,7 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
                   <div key={`adult-pay-${i}`} className="flex justify-between items-start">
                     <div>
                       <span>{qty}x {label}</span>
-                      {details.length > 0 && <span className="block text-[11px] font-medium text-primary/70">{details.join(', ')}</span>}
+                      {details.length > 0 && <span className="block text-[11px] font-medium text-primary/70">{details.join(', ')} (Benefício)</span>}
                     </div>
                     <span className="font-medium whitespace-nowrap">{formatCurrency(price * qty)}</span>
                   </div>
@@ -445,13 +445,15 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
         {/* Membership Comparison Action Card */}
         {(() => {
           const allAdults = booking.entry.adults;
-          const halfPriceAdults = allAdults.filter(a => a.isTeacher || a.isServer || a.isStudent || (a as any).isBloodDonor || a.takeDonation).reduce((acc, a) => acc + (a.quantity || 1), 0);
-          const fullPriceAdults = allAdults.reduce((acc, a) => acc + (a.quantity || 1), 0) - halfPriceAdults;
+          // Membros que pagam R$ 25 no plano (Estudante, Professor, Servidor)
+          const restrictedHalfPriceMembers = allAdults.filter(a => a.isTeacher || a.isServer || a.isStudent).reduce((acc, a) => acc + (a.quantity || 1), 0);
+          // O resto (Inteira, Solidário/Social, Doador) paga R$ 49,90 no plano
+          const fullPriceMembers = allAdults.reduce((acc, a) => acc + (a.quantity || 1), 0) - restrictedHalfPriceMembers;
 
-          const membershipPrice = calculateMembershipCost({ adultsCount: fullPriceAdults, halfPriceCount: halfPriceAdults });
+          const membershipPrice = calculateMembershipCost({ adultsCount: fullPriceMembers, halfPriceCount: restrictedHalfPriceMembers });
           const entriesTotal = totals.entriesTotal;
 
-          if ((fullPriceAdults + halfPriceAdults) > 0) {
+          if ((fullPriceMembers + restrictedHalfPriceMembers) > 0) {
             return (
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}

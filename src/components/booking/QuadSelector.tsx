@@ -13,6 +13,11 @@ import { useServices } from '@/hooks/useServices';
 import { getQuadAvailability } from '@/lib/booking-service';
 import { useToast } from '@/hooks/use-toast';
 
+interface Props {
+  quads: QuadItem[];
+  onUpdate: (index: number, updates: Partial<QuadItem>) => void;
+}
+
 export function QuadSelector({ quads, onUpdate }: Props) {
   const { getPrice, isLoading } = useServices();
   const { toast } = useToast();
@@ -97,18 +102,27 @@ export function QuadSelector({ quads, onUpdate }: Props) {
               <QuantityStepper 
                 value={quad.quantity} 
                 onChange={async (q) => {
+                  const currentTotalOtherQuads = quads.reduce((acc, qry, idx) => idx !== i ? acc + qry.quantity : acc, 0);
+                  if (currentTotalOtherQuads + q > 5) {
+                    toast({ 
+                      title: 'Limite atingido', 
+                      description: 'Temos apenas 5 quadriciclos disponíveis no total.', 
+                      variant: 'destructive' 
+                    });
+                    return;
+                  }
+
                   if (q > quad.quantity && quad.time) {
                     const dbUsed = await getQuadAvailability(format(checkDate!, 'yyyy-MM-dd'), quad.time);
-                    const localUsedOthers = quads.reduce((acc, qry, idx) => {
+                    const localUsedOthersInSlot = quads.reduce((acc, qry, idx) => {
                       if (idx !== i && qry.time === quad.time) return acc + qry.quantity;
                       return acc;
                     }, 0);
 
-                    if (dbUsed + localUsedOthers + q > MAX_QUADS_PER_SLOT) {
-                       const rest = MAX_QUADS_PER_SLOT - (dbUsed + localUsedOthers);
+                    if (dbUsed + localUsedOthersInSlot + q > MAX_QUADS_PER_SLOT) {
                        toast({ 
                          title: 'Quantidade indisponível', 
-                         description: `Não há vagas suficientes às ${quad.time}. Máximo permitido: ${MAX_QUADS_PER_SLOT - used} adicionais.`, 
+                         description: `Não há vagas suficientes às ${quad.time}. Máximo permitido para este horário: ${MAX_QUADS_PER_SLOT - dbUsed - localUsedOthersInSlot} adicionais.`, 
                          variant: 'destructive' 
                        });
                        return;
@@ -116,6 +130,7 @@ export function QuadSelector({ quads, onUpdate }: Props) {
                   }
                   onUpdate(i, { quantity: q });
                 }} 
+                max={5 - quads.reduce((acc, qry, idx) => idx !== i ? acc + qry.quantity : acc, 0)}
               />
             </div>
 

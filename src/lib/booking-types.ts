@@ -134,6 +134,9 @@ export function getPersonPrice(
     return getPrice('entry_half', 25);
   }
 
+  // Adulto normal (inteira ou solidário no domingo) é 50 nos cálculos atuais do sistema, 
+  // mas o usuário citou 49,90 no plano de sócio. 
+  // Manteremos 50 aqui para o preço de hoje e usaremos 49,90 na comparação do Sócio se necessário.
   return getPrice('entry_full', 50);
 }
 
