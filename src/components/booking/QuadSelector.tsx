@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from 'react';
 import { Bike, Tag, CalendarIcon, Loader2 } from 'lucide-react';
 import { QuantityStepper } from '@/components/QuantityStepper';
 import { QuadItem, QUAD_LABELS, QUAD_TIMES, getQuadDiscount, formatCurrency, QuadTime, isOperatingDay } from '@/lib/booking-types';
@@ -12,14 +13,34 @@ import { useServices } from '@/hooks/useServices';
 import { getQuadAvailability } from '@/lib/booking-service';
 import { useToast } from '@/hooks/use-toast';
 
-interface Props {
-  quads: QuadItem[];
-  onUpdate: (index: number, updates: Partial<QuadItem>) => void;
-}
-
 export function QuadSelector({ quads, onUpdate }: Props) {
   const { getPrice, isLoading } = useServices();
   const { toast } = useToast();
+  const [slotAvailabilities, setSlotAvailabilities] = useState<Record<string, number>>({});
+  const [isFetchingAvailability, setIsFetchingAvailability] = useState(false);
+  const MAX_QUADS_PER_SLOT = 5;
+
+  // Fetch slot availability whenever the date of the first quad changes
+  const checkDate = quads[0]?.date;
+  
+  useEffect(() => {
+    async function fetchAvailability() {
+      if (!checkDate) return;
+      setIsFetchingAvailability(true);
+      try {
+        const avail: Record<string, number> = {};
+        for (const t of QUAD_TIMES) {
+          avail[t] = await getQuadAvailability(format(checkDate, 'yyyy-MM-dd'), t);
+        }
+        setSlotAvailabilities(avail);
+      } catch (error) {
+        console.error("Error fetching quad availability:", error);
+      } finally {
+        setIsFetchingAvailability(false);
+      }
+    }
+    fetchAvailability();
+  }, [checkDate]);
 
   if (isLoading) {
     return <div className="flex items-center justify-center p-6"><Loader2 className="animate-spin text-primary h-6 w-6" /></div>;
@@ -91,24 +112,57 @@ export function QuadSelector({ quads, onUpdate }: Props) {
                 <Select 
                   value={quad.time || ''} 
                   onValueChange={async (v) => {
-                    const checkDate = quad.date || new Date();
+                    if (!quad.date) {
+                        toast({ title: 'Escolha uma data primeiro', variant: 'destructive' });
+                        return;
+                    }
+                    const checkDate = quad.date;
                     const used = await getQuadAvailability(format(checkDate, 'yyyy-MM-dd'), v);
-                    if (used + quad.quantity > 30) {
-                        toast({ title: 'Horário Lotado', description: `Restam apenas ${30 - used} vagas para este horário.`, variant: 'destructive' });
+                    if (used + quad.quantity > MAX_QUADS_PER_SLOT) {
+                        toast({ title: 'Horário Lotado', description: `Restam apenas ${MAX_QUADS_PER_SLOT - used} quadriciclos para as ${v}.`, variant: 'destructive' });
                         return;
                     }
                     onUpdate(i, { time: v as QuadTime });
                   }}
+                  disabled={!quad.date || isFetchingAvailability} // Disable if no date or fetching
                 >
                   <SelectTrigger className="w-full h-12 rounded-2xl border-white/80 bg-white/70 backdrop-blur-sm shadow-sm hover:bg-white hover:border-primary/30 font-black text-sm uppercase tracking-tight">
                     <SelectValue placeholder="Escolha o Horário" />
                   </SelectTrigger>
                   <SelectContent className="rounded-2xl">
-                    {QUAD_TIMES.map(t => (
-                      <SelectItem key={t} value={t} className="font-bold py-3">{t} — Passeio de 1h30</SelectItem>
-                    ))}
+                    {isFetchingAvailability ? (
+                      <div className="flex items-center justify-center p-2">
+                        <Loader2 className="animate-spin text-primary h-4 w-4" />
+                      </div>
+                    ) : (
+                      QUAD_TIMES.map(t => {
+                        const used = slotAvailabilities[t] || 0;
+                        const remaining = MAX_QUADS_PER_SLOT - used;
+                        const isFull = remaining <= 0;
+                        const canSelect = quad.time === t || remaining >= quad.quantity; // Allow selecting current time or if enough slots
+
+                        return (
+                          <SelectItem 
+                            key={t} 
+                            value={t} 
+                            className={cn("font-bold py-3", {
+                              "text-muted-foreground cursor-not-allowed": isFull,
+                              "text-red-500": isFull && quad.time !== t, // Highlight full slots not currently selected
+                            })}
+                            disabled={isFull && quad.time !== t} // Disable if full and not the currently selected time
+                          >
+                            {t} — Passeio de 1h30 ({isFull ? 'Lotado' : `${remaining} vagas`})
+                          </SelectItem>
+                        );
+                      })
+                    )}
                   </SelectContent>
                 </Select>
+                {quad.time && (
+                   <p className="text-[10px] text-primary/60 font-black uppercase text-center py-1 bg-white/40 rounded-lg">
+                      Horário selecionado. Lotação máx: {MAX_QUADS_PER_SLOT} quads/slot.
+                   </p>
+                )}
               </div>
             )}
           </div>

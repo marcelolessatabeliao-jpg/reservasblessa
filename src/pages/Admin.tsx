@@ -191,7 +191,7 @@ export default function Admin() {
     setUpdatingId(bookingId);
     try {
       if (isOrder) {
-        // Delete related items first due to FK constraints if any (though quads/kiosks are usually linked by order_id)
+        // Cascade delete all related data
         await supabase.from('order_items').delete().eq('order_id', bookingId);
         await supabase.from('kiosk_reservations').delete().eq('order_id', bookingId);
         await supabase.from('quad_reservations').delete().eq('order_id', bookingId);
@@ -199,8 +199,12 @@ export default function Admin() {
       } else {
         await supabase.from('bookings').delete().eq('id', bookingId);
       }
+      
+      // Update local state immediately for instant feedback
+      setBookings(prev => prev.filter(b => b.id !== bookingId));
+      
       toast({ title: '🗑️ Registro excluído permanentemente.' });
-      fetchBookings();
+      fetchBookings(); // Still fetch to be sure and refresh stats
     } catch (err: any) {
       toast({ title: 'Erro ao excluir', description: err.message, variant: 'destructive' });
     } finally {

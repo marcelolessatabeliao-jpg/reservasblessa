@@ -1,8 +1,9 @@
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { formatCurrency } from '@/lib/booking-types';
-import { CheckCircle2, Circle } from 'lucide-react';
+import { CheckCircle2, Circle, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -75,37 +76,46 @@ export function BookingDetail({ booking }: BookingDetailProps) {
           <div className="grid gap-2">
             {items.length > 0 ? (
               items.map((item, i) => (
-                <div key={i} className="flex items-center justify-between bg-white border border-primary/5 p-3 rounded-2xl shadow-sm group hover:border-primary/20 transition-all">
+                <div key={i} className={cn(
+                  "flex items-center justify-between border-2 p-3 rounded-2xl shadow-sm transition-all animate-in fade-in slide-in-from-bottom-2",
+                  item.is_redeemed 
+                    ? "bg-green-50/50 border-green-100 opacity-80" 
+                    : "bg-white border-primary/5 hover:border-primary/20"
+                )}>
                   <div className="flex flex-col">
-                    <span className={cn("font-bold text-sm", item.is_redeemed ? "text-muted-foreground line-through opacity-60" : "text-foreground")}>
-                       {item.quantity}x {item.product_id}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
+                    <div className="flex items-center gap-2">
+                       <span className={cn("font-bold text-sm", item.is_redeemed ? "text-green-700 line-through" : "text-foreground")}>
+                          {item.quantity}x {item.product_id}
+                       </span>
+                       {item.is_redeemed && (
+                         <Badge variant="default" className="bg-green-600 text-[8px] h-4 px-1.5 font-black uppercase">UTILIZADO</Badge>
+                       )}
+                    </div>
+                    <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider flex items-center gap-1.5">
                        {item.is_redeemed ? (
-                         `Utilizado em ${(() => {
-                            try {
-                              return item.redeemed_at ? format(new Date(item.redeemed_at), "dd/MM HH:mm") : '???';
-                            } catch (e) {
-                              return 'Data Erro';
-                            }
-                         })()}`
-                       ) : "Não utilizado"}
+                         <>
+                           <Clock className="w-3 h-3" />
+                           {item.redeemed_at ? format(new Date(item.redeemed_at), "dd/MM HH:mm") : "Confirmado"}
+                         </>
+                       ) : "Aguardando utilização"}
                     </span>
                   </div>
                   
                   <Button
-                    size="icon"
-                    variant={item.is_redeemed ? "ghost" : "outline"}
+                    size="sm"
+                    variant={item.is_redeemed ? "default" : "outline"}
                     className={cn(
-                      "h-9 w-9 rounded-xl transition-all",
-                      item.is_redeemed ? "text-green-600 bg-green-50" : "text-muted-foreground hover:text-primary border-2"
+                      "rounded-xl font-black text-[10px] uppercase h-9 shadow-none",
+                      item.is_redeemed 
+                        ? "bg-green-100 hover:bg-green-200 text-green-700 border-none px-3" 
+                        : "border-2 hover:bg-primary hover:text-white px-4"
                     )}
                     onClick={(e) => {
                       e.stopPropagation();
                       handleToggleItemStatus(item.id, item.is_redeemed, item.product_id);
                     }}
                   >
-                    {item.is_redeemed ? <CheckCircle2 className="w-5 h-5 animate-in zoom-in-50" /> : <Circle className="w-5 h-5" />}
+                    {item.is_redeemed ? "ESTORNAR" : "MARCAR USO"}
                   </Button>
                 </div>
               ))
