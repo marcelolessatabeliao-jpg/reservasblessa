@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.asaas-webhook]
 verify_jwt = false
+
+[functions.admin-delete]
+verify_jwt = false

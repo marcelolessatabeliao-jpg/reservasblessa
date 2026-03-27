@@ -274,10 +274,17 @@ export default function Admin() {
 
   const handleAddNote = async (bookingId: string, notes: string, isOrder?: boolean) => {
     try {
-      if (isOrder) await supabase.from('orders').update({ notes }).eq('id', bookingId);
-      else await supabase.functions.invoke('update-booking-status', { body: { bookingId, notes, adminToken: token } });
+      if (isOrder) {
+          const { error } = await supabase.from('orders').update({ notes }).eq('id', bookingId);
+          if (error) throw error;
+      } else {
+          // Legacy bookings update disabled on server (RLS)
+          console.warn('Salvamento de notas em reservas legadas está inativo no servidor.');
+      }
       fetchBookings();
-    } catch { toast({ title: 'Erro ao salvar', variant: 'destructive' }); }
+    } catch (err: any) { 
+      toast({ title: 'Erro ao salvar nota', description: err.message, variant: 'destructive' }); 
+    }
   };
 
   const [validationValue, setValidationValue] = useState('');
