@@ -300,47 +300,60 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
           <div className="pb-5 border-b border-primary/10">
             <h4 className="font-bold text-primary mb-3 uppercase tracking-widest text-[10px] sm:text-xs">Day Use (Entradas)</h4>
             <div className="space-y-3 text-sm sm:text-base text-muted-foreground">
-              {booking.entry.adults.map((a, i) => {
+              {/* Gratuidades Primeiro */}
+              {[...booking.entry.adults, ...booking.entry.children].filter(p => getPersonPrice(p, (p as any).age >= 60 || (p as any).age <= 11, booking.entry.dayOfWeek === 'domingo', getPrice) === 0).map((p, i) => {
+                const qty = p.quantity || 1;
+                let label = (p as any).age >= 60 ? 'Idoso' : (p as any).age <= 11 ? 'Criança' : 'Entrada';
+                if (p.isPCD) label = 'PCD/TEA';
+                if (p.isBirthday) label = 'Aniversariante';
+
+                return (
+                  <div key={`free-${i}`} className="flex justify-between items-start text-green-600 font-bold bg-green-50/50 p-2 rounded-lg border border-green-100/50">
+                    <div>
+                      <span>{qty}x {label}</span>
+                      <span className="block text-[10px] uppercase tracking-tighter opacity-70">Acesso Gratuito</span>
+                    </div>
+                    <span className="whitespace-nowrap uppercase text-xs">Grátis</span>
+                  </div>
+                );
+              })}
+
+              {/* Pagantes */}
+              {booking.entry.adults.filter(a => getPersonPrice(a, a.age >= 60, booking.entry.dayOfWeek === 'domingo', getPrice) > 0).map((a, i) => {
                 const qty = a.quantity || 1;
                 const price = getPersonPrice(a, a.age >= 60, booking.entry.dayOfWeek === 'domingo', getPrice);
+                let label = 'Adulto';
                 let details = [];
                 if (a.isTeacher) details.push('Professor');
                 if (a.isServer) details.push('Servidor');
                 if (a.isStudent) details.push('Estudante');
-                if (a.isPCD) details.push('PCD/TEA');
-                if (a.isBirthday) details.push('Aniversariante');
-                if (a.takeDonation && booking.entry.dayOfWeek !== 'domingo') details.push('Solidária');
+                if (a.takeDonation && booking.entry.dayOfWeek !== 'domingo') details.push('Social');
                 if ((a as any).isBloodDonor) details.push('Doador');
-                if (a.age >= 60) details.push('Idoso');
-
+                
                 return (
-                  <div key={`adult-${i}`} className="flex justify-between items-start">
+                  <div key={`adult-pay-${i}`} className="flex justify-between items-start">
                     <div>
-                      <span>{qty}x Adulto</span>
+                      <span>{qty}x {label}</span>
                       {details.length > 0 && <span className="block text-[11px] font-medium text-primary/70">{details.join(', ')}</span>}
                     </div>
-                    <span className="font-medium whitespace-nowrap">{price === 0 ? 'Grátis' : formatCurrency(price * qty)}</span>
+                    <span className="font-medium whitespace-nowrap">{formatCurrency(price * qty)}</span>
                   </div>
                 );
               })}
 
-              {booking.entry.children.map((c, i) => {
+              {booking.entry.children.filter(c => getPersonPrice(c, c.age <= 11, booking.entry.dayOfWeek === 'domingo', getPrice) > 0).map((c, i) => {
                 const qty = c.quantity || 1;
                 const price = getPersonPrice(c, c.age <= 11, booking.entry.dayOfWeek === 'domingo', getPrice);
-                let details = [];
-                if (c.isPCD) details.push('PCD/TEA');
-                if (c.isBirthday) details.push('Aniversariante');
-
                 return (
-                  <div key={`child-${i}`} className="flex justify-between items-start mt-2">
+                  <div key={`child-pay-${i}`} className="flex justify-between items-start mt-2">
                     <div>
                       <span>{qty}x Criança</span>
-                      {details.length > 0 && <span className="block text-[11px] font-medium text-primary/70">{details.join(', ')}</span>}
                     </div>
-                    <span className="font-medium whitespace-nowrap">{price === 0 ? 'Grátis' : formatCurrency(price * qty)}</span>
+                    <span className="font-medium whitespace-nowrap">{formatCurrency(price * qty)}</span>
                   </div>
                 );
               })}
+              
               <div className="flex justify-between font-bold text-foreground pt-2 mt-2 border-t border-primary/5">
                 <span>Subtotal Entradas</span>
                 <span>{formatCurrency(totals.entriesTotal)}</span>
@@ -462,7 +475,7 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
                   <p className="text-blue-100/90 text-sm sm:text-base leading-relaxed font-medium">
                     Sua reserva de hoje custa <span className="bg-sun/20 text-sun font-black px-2 py-0.5 rounded-lg border border-sun/20">{formatCurrency(entriesTotal)}</span>.
                     No <span className="text-sun font-black underline decoration-sun/30 underline-offset-4">Lessa Club</span>, 
-                    você paga apenas <span className="bg-green-500/20 text-green-400 font-black px-2 py-0.5 rounded-lg border border-green-500/20">R$ 25,00/mês</span> e tem 
+                    você paga apenas <span className="bg-green-500/20 text-green-400 font-black px-2 py-0.5 rounded-lg border border-green-500/20">{formatCurrency(membershipPrice)}</span> e tem 
                     <span className="text-white font-black mx-1 uppercase tracking-wider bg-white/10 px-2 py-0.5 rounded-md">Entradas Ilimitadas</span> o mês inteiro!
                   </p>
 
@@ -483,6 +496,29 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
             );
           }
           return null;
+        })()}
+
+        {/* Total Bruto e Descontos */}
+        {(() => {
+           // Calculate potential "savings"
+           // For simplicity, let's just show a row summarizing the total and maybe the "Economia"
+           const totalFullPrice = [...booking.entry.adults, ...booking.entry.children].reduce((acc, p) => acc + ((p.quantity || 1) * 50), 0);
+           const savings = totalFullPrice - totals.entriesTotal;
+           
+           return (
+             <div className="pt-4 space-y-2">
+               <div className="flex justify-between items-center bg-primary/5 rounded-2xl p-4 border border-primary/10">
+                 <div>
+                   <span className="text-xl sm:text-2xl font-black text-primary">Total: {formatCurrency(totals.total)}</span>
+                   {savings > 0 && (
+                     <span className="block text-[10px] sm:text-xs text-whatsapp font-bold uppercase tracking-widest mt-0.5">
+                       ✨ VOCÊ ESTÁ ECONOMIZANDO {formatCurrency(savings)} NESTA RESERVA!
+                     </span>
+                   )}
+                 </div>
+               </div>
+             </div>
+           );
         })()}
 
         {/* Seção de Dados do Pagador */}
@@ -557,7 +593,7 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
                 </p>
               </motion.div>
             ) : !pixData ? (
-              <>
+              <div className="flex flex-col gap-4 w-full">
                 <Button
                   size="lg"
                   onClick={() => handleAction('PIX')}
@@ -587,12 +623,12 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
                     Cartão de Crédito
                   </div>
                 </Button>
-              </>
+              </div>
             ) : (
               <motion.div 
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white rounded-[2rem] border-2 border-[#00bdae] p-6 space-y-4 shadow-lg"
+                className="bg-white rounded-[2rem] border-2 border-[#00bdae] p-6 space-y-4 shadow-lg w-full"
               >
                 <div className="text-center">
                    <h4 className="text-[#00bdae] font-black text-lg uppercase tracking-wider">PIX Copia e Cola Gerado!</h4>

@@ -16,7 +16,7 @@ import { getAdminOrders, markOrderAsPaid } from '@/integrations/supabase/orders'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { cn } from "@/lib/utils";
 
-type DateFilter = 'today' | 'tomorrow' | 'week' | 'all';
+type DateFilter = 'today' | 'tomorrow' | 'week' | 'month' | 'past' | 'all';
 type TabType = 'reservas' | 'pedidos' | 'inventario';
 
 export default function Admin() {
@@ -228,46 +228,19 @@ export default function Admin() {
     if (!confirm('Excluir permanentemente?')) return;
     setUpdatingId(bookingId);
     try {
-      const record = bookings.find(b => b.id === bookingId);
-      const code = record?.confirmation_code;
+      console.log(`🧹 Iniciando expulsão segura do registro via Edge Function: ${bookingId}`);
       
-      console.log(`🧹 Iniciando expulsão agressiva do registro: ${bookingId} (Código: ${code})`);
-      
-      // 1. Se for pedido (ou estiver vinculado), deleta cascata completa
-      if (isOrder || record?.is_order) {
-        await supabase.from('order_items').delete().eq('order_id', bookingId);
-        await supabase.from('kiosk_reservations').delete().eq('order_id', bookingId);
-        await supabase.from('quad_reservations').delete().eq('order_id', bookingId);
-        if (record?.booking_id) await supabase.from('bookings').delete().eq('id', record.booking_id);
-        const { error } = await supabase.from('orders').delete().eq('id', bookingId);
-        if (error) console.warn('Order delete partial error:', error);
-      } 
-      
-      // 2. Independente de ser pedido ou não, busca por código para garantir
-      if (code) {
-        await supabase.from('bookings').delete().eq('confirmation_code', code);
-        await supabase.from('orders').delete().eq('confirmation_code', code);
-      }
+      const { error } = await supabase.functions.invoke('admin-delete', {
+        body: { bookingId, isOrder, adminToken: token }
+      });
 
-      // 3. Deleta da bookings por ID (caso legado puro)
-      const { data: delResult, error: legacyErr } = await supabase.from('bookings').delete().eq('id', bookingId).select('id');
-      
-      // Verificação final: se não deletou nem do orders nem do bookings, o RLS tá bloqueando
-      if ((!delResult || delResult.length === 0) && !isOrder) {
-         console.warn('RLS Bloqueou a exclusão ou registro não existe.');
-         toast({ 
-           title: '⚠️ Exclusão BLOQUEADA pelo banco', 
-           description: 'Você precisa rodar o comando SQL de permissão no Supabase Dashboard (SQL Editor) para habilitar exclusões pelo Admin.',
-           variant: 'destructive' 
-         });
-         return;
-      }
+      if (error) throw error;
 
       setBookings(prev => prev.filter(b => b.id !== bookingId));
       toast({ title: '🗑️ Registro expulso com sucesso!' });
       
       // Delay extra para o Supabase propagar
-      setTimeout(() => fetchBookings(), 1500);
+      setTimeout(() => fetchBookings(), 1000);
     } catch (err: any) {
       console.error('Delete Error:', err);
       toast({ title: 'Erro ao excluir', description: err.message, variant: 'destructive' });
@@ -291,25 +264,46 @@ export default function Admin() {
     else { toast({ title: "Não encontrado", variant: "destructive" }); }
   };
 
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+
   const filtered = useMemo(() => {
     let result = bookings;
+    
+    // First apply the specific date if selected via calendar
+    if (selectedDate) {
+      result = result.filter(b => b.visit_date === format(selectedDate, 'yyyy-MM-dd'));
+      return result;
+    }
+
     if (dateFilter === 'today') result = result.filter(b => b.visit_date && isToday(parseISO(b.visit_date)));
     else if (dateFilter === 'tomorrow') result = result.filter(b => b.visit_date && isTomorrow(parseISO(b.visit_date)));
     else if (dateFilter === 'week') result = result.filter(b => b.visit_date && isThisWeek(parseISO(b.visit_date), { locale: ptBR }));
+    else if (dateFilter === 'past') {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      result = result.filter(b => b.visit_date && parseISO(b.visit_date) < today);
+    } else if (dateFilter === 'all') {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        result = result.filter(b => b.visit_date && parseISO(b.visit_date) >= today);
+    }
+
     if (search.trim()) {
       const q = search.toLowerCase();
       result = result.filter(b => (b.name || '').toLowerCase().includes(q) || (b.confirmation_code && b.confirmation_code.toLowerCase().includes(q)) || (b.phone && b.phone.includes(q)));
     }
     return result;
-  }, [bookings, dateFilter, search]);
+  }, [bookings, dateFilter, search, selectedDate]);
 
   const stats = useMemo(() => {
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    const activeOnes = bookings.filter(b => b.visit_date && b.visit_date >= todayStr);
     const todayBookings = bookings.filter(b => b.visit_date && isToday(parseISO(b.visit_date)));
-    const confirmed = todayBookings.filter(b => b.status === 'confirmed' || b.status === 'paid' || b.status === 'checked-in');
+    const confirmedToday = todayBookings.filter(b => b.status === 'confirmed' || b.status === 'paid' || b.status === 'checked-in');
     return {
       people: todayBookings.reduce((sum, b) => sum + (b.adults || 0) + (b.children || 0), 0),
-      revenue: confirmed.reduce((sum, b) => sum + Number(b.total_amount), 0),
-      count: todayBookings.length,
+      revenue: confirmedToday.reduce((sum, b) => sum + Number(b.total_amount), 0),
+      count: activeOnes.length, // Showing only active ones for main counter
       checked: todayBookings.filter(b => b.status === 'checked-in').length
     };
   }, [bookings]);
@@ -366,8 +360,9 @@ export default function Admin() {
           <div className="flex items-center gap-3">
              <CalendarCheck className="w-6 h-6 text-sun hidden sm:block" />
              <div><h1 className="font-display font-black text-xl md:text-2xl leading-none">Balneário Lessa</h1><p className="text-primary-foreground/60 text-[10px] font-black uppercase tracking-[0.2em] mt-1">Management Portal v3.0</p></div>
-          </div>
+           </div>
           <div className="flex gap-2">
+            <Button size="sm" variant="outline" className="bg-sun/20 text-sun border-sun/40 hover:bg-sun/40" onClick={() => window.open('/', '_blank')}>NOVA RESERVA</Button>
             <Button size="sm" variant="destructive" onClick={async () => {
               if (confirm('Limpar todos os dados de teste?')) {
                 await supabase.from('order_items').delete().neq('id', '00000000-0000-0000-0000-000000000000');
@@ -439,8 +434,26 @@ export default function Admin() {
               <Card><CardContent className="p-4 text-center"><CalendarCheck className="w-5 h-5 mx-auto mb-1 text-primary" /><p className="text-2xl font-black">{stats.count}</p><p className="text-[10px] font-bold text-muted-foreground uppercase">Agendamentos</p></CardContent></Card>
               <Card><CardContent className="p-4 text-center"><TrendingUp className="w-5 h-5 mx-auto mb-1 text-sun-dark" /><p className="text-lg font-black">{formatCurrency(stats.revenue)}</p><p className="text-[10px] font-bold text-muted-foreground uppercase">Receita</p></CardContent></Card>
             </div>
-            <div className="flex gap-2">
-              {[{k:'today',l:'HOJE'},{k:'tomorrow',l:'AMANHÃ'},{k:'week',l:'SEMANA'},{k:'all',l:'TODAS'}].map(f=>(<Button key={f.k} size="sm" variant={dateFilter===f.k?'default':'outline'} onClick={()=>setDateFilter(f.k as any)} className="flex-1 uppercase text-[10px] font-black">{f.l}</Button>))}
+            <div className="flex flex-wrap gap-2">
+              {[{k:'today',l:'HOJE'},{k:'tomorrow',l:'AMANHÃ'},{k:'week',l:'SEMANA'},{k:'all',l:'ATIVAS'},{k:'past',l:'HISTÓRICO'}].map(f=>(<Button key={f.k} size="sm" variant={dateFilter===f.k?'default':'outline'} onClick={()=>{setDateFilter(f.k as any); setSelectedDate(undefined);}} className="flex-1 uppercase text-[10px] font-black">{f.l}</Button>))}
+              
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className={cn("uppercase text-[10px] font-black gap-2 h-9", selectedDate && "bg-primary text-white border-primary")}>
+                    <CalendarCheck className="w-3 h-3" />
+                    {selectedDate ? format(selectedDate, 'dd/MM/yyyy') : 'BUSCAR DATA'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={(d) => { setSelectedDate(d); setDateFilter('all'); }}
+                    initialFocus
+                    locale={ptBR}
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" /><Input placeholder="Buscar reservas..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" /></div>
             <BookingTable bookings={filtered} onStatusChange={handleStatusChange} onAddNote={handleAddNote} onReschedule={handleReschedule} onDelete={handleDelete} updatingId={updatingId} />

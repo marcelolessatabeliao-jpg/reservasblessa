@@ -48,17 +48,9 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
     setWizardType(type);
     
     if (type === 'senior') {
-      const flags = { 
-        age: 60, quantity: 1, isPCD: false, isTeacher: false, isStudent: false, isServer: false, isBloodDonor: false, isBirthday: false, takeDonation: false 
-      };
-      const existingIdx = entry.adults.findIndex(a => 
-        a.age === flags.age && a.isPCD === flags.isPCD && a.isTeacher === flags.isTeacher && a.isStudent === flags.isStudent && a.isServer === flags.isServer && (a as any).isBloodDonor === flags.isBloodDonor && a.isBirthday === flags.isBirthday && a.takeDonation === flags.takeDonation
-      );
-      if (existingIdx >= 0) {
-        onUpdateAdult(existingIdx, { quantity: (entry.adults[existingIdx].quantity || 1) + 1 });
-      } else {
-        onUpdateEntry({ adults: [...entry.adults, flags] });
-      }
+      setWizardData({ age: 60, category: 'inteira', isPCD: false });
+      setWizardStep(7); // Senior warning step
+      setIsWizardOpen(true);
       return;
     } else if (type === 'pcd') {
       setWizardData({ age: 30, category: 'pcd', isPCD: true });
@@ -195,16 +187,18 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
               </Button>
             </div>
 
-            <Button 
-              variant="ghost" 
-              className={cn(
-                "w-full text-xs font-black uppercase text-muted-foreground hover:text-primary hover:bg-transparent hover:underline transition-all",
-                (wizardType === 'child' || wizardType === 'senior') && "hidden"
-              )}
-              onClick={() => setWizardStep(1)}
-            >
-              ← Voltar
-            </Button>
+            <div className="flex gap-2 mt-4">
+              <Button 
+                variant="ghost" 
+                className={cn(
+                  "flex-1 text-xs font-black uppercase text-muted-foreground hover:text-primary hover:bg-transparent hover:underline transition-all",
+                  (wizardType === 'child' || wizardType === 'senior') && "hidden"
+                )}
+                onClick={() => setWizardStep(1)}
+              >
+                ← Voltar
+              </Button>
+            </div>
           </motion.div>
         );
 
@@ -223,9 +217,9 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
 
         return (
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-3 py-2">
-            <div className="text-center mb-1">
-              <h4 className="text-lg font-black text-primary">Qual a categoria?</h4>
-              <p className="text-xs text-muted-foreground font-bold">Escolha a opção para ativar descontos.</p>
+            <div className="text-center mb-4">
+              <h4 className="text-xl font-black text-primary">Entradas</h4>
+              <p className="text-sm text-muted-foreground font-bold italic">R$ 50 ou R$ 25 para categorias especiais</p>
             </div>
             <div className="grid grid-cols-2 gap-2">
               {categories.map((cat) => {
@@ -261,16 +255,18 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
               })}
             </div>
             
-            <Button 
-              variant="ghost" 
-              className={cn(
-                "w-full text-xs font-black uppercase text-muted-foreground hover:text-primary hover:bg-transparent hover:underline transition-all",
-                wizardType === 'adult' && "hidden"
-              )}
-              onClick={() => setWizardStep(1)}
-            >
-              ← Voltar
-            </Button>
+            <div className="flex gap-2 mt-4">
+              <Button 
+                variant="ghost" 
+                className={cn(
+                  "flex-1 text-xs font-black uppercase text-muted-foreground hover:text-primary hover:bg-transparent hover:underline transition-all",
+                  wizardType === 'adult' && "hidden"
+                )}
+                onClick={() => setWizardStep(1)}
+              >
+                ← Voltar
+              </Button>
+            </div>
           </motion.div>
         );
 
@@ -280,7 +276,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
             <div className="flex flex-col items-center gap-2">
               <span className="text-5xl">👶</span>
               <h4 className="text-xl font-black text-primary">A criança tem até 11 anos?</h4>
-              <p className="text-sm text-muted-foreground font-bold">Crianças até 11 anos têm entrada gratuita.</p>
+              <p className="text-sm text-muted-foreground font-bold leading-tight">Crianças até 11 anos têm entrada gratuita.</p>
             </div>
             <div className="space-y-3">
               <Button
@@ -291,7 +287,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
               </Button>
               <Button
                 variant="outline"
-                className="w-full h-14 rounded-2xl border-2 border-amber-300 bg-amber-50 text-amber-900 font-black text-sm hover:bg-amber-100 hover:text-amber-900 transition-all"
+                className="w-full h-14 rounded-2xl border-2 border-amber-300 bg-amber-50 text-amber-900 font-black text-sm hover:bg-amber-100 hover:text-amber-900 transition-all leading-tight"
                 onClick={() => {
                   resetWizard();
                   setIsWizardOpen(false);
@@ -299,6 +295,20 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
               >
                 ❌ Não — Adicionar como Adulto
                 <span className="block text-[10px] font-semibold opacity-70">Use o botão “🎟️ + Adulto”</span>
+              </Button>
+            </div>
+            
+            <div className="bg-amber-100/50 border border-amber-200 rounded-2xl px-4 py-3 text-[10px] text-amber-900 font-bold leading-snug mt-2">
+              ⚠️ <span className="font-black">Importante:</span> Por precaução, leve um documento (RG ou certidão) para comprovar a idade se solicitado.
+            </div>
+
+            <div className="flex gap-2 pt-2">
+               <Button
+                variant="ghost"
+                className="flex-1 text-xs font-black uppercase text-muted-foreground"
+                onClick={() => setWizardStep(1)}
+              >
+                ← Voltar
               </Button>
             </div>
           </motion.div>
@@ -368,22 +378,21 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                 </div>
                 <div className="bg-blue-100 border border-blue-200 rounded-2xl px-4 py-3 text-xs text-[#0077b6] font-bold leading-snug">
                   ⚠️ Necessário apresentar comprovação na entrada:<br/>
-                  <span className="font-black">laudo médico, carteirinha PCD/TEA ou documento que comprove a idade</span>
+                  <span className="font-black">laudo médico, carteirinha PCD/TEA ou documento que comprove a condição</span>
                 </div>
               </div>
-
-              <div className="space-y-3">
+              <div className="flex gap-2">
                 <Button 
                   onClick={() => handleFinishWizard()}
-                  className="w-full h-14 rounded-2xl bg-[#0077b6] text-white font-black text-lg hover:bg-[#03045e] transition-all shadow-lg"
+                  className="flex-[2] h-14 rounded-2xl bg-[#0077b6] text-white font-black text-lg hover:bg-[#03045e] transition-all shadow-lg"
                 >
-                  Concluir e Adicionar
+                  Confirmar e Adicionar
                 </Button>
                 
                 <Button 
-                  variant="ghost" 
+                  variant="outline" 
                   className={cn(
-                    "w-full text-xs font-black uppercase text-muted-foreground hover:text-primary hover:bg-transparent hover:underline transition-all",
+                    "flex-1 h-14 rounded-2xl border-2 border-primary/20 text-xs font-black uppercase text-muted-foreground",
                     wizardType === 'pcd' && "hidden"
                   )}
                   onClick={() => setWizardStep(2)}
@@ -421,9 +430,10 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                 <span className="text-[10px] opacity-60 uppercase font-black">Pagar {formatCurrency(getPrice('entry_full', 50))}</span>
               </Button>
 
+            <div className="flex gap-2 mt-6">
               <Button 
                 variant="ghost" 
-                className="w-full text-xs font-black uppercase text-muted-foreground hover:text-primary hover:bg-transparent hover:underline transition-all"
+                className="flex-1 text-xs font-black uppercase text-muted-foreground hover:text-primary hover:bg-transparent hover:underline transition-all"
                 onClick={() => setWizardStep(3)}
               >
                 ← Voltar
@@ -431,6 +441,39 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
             </div>
           </motion.div>
         );
+
+      case 7: { // Senior age check
+        return (
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-5 py-2 text-center">
+            <div className="flex flex-col items-center gap-2">
+              <span className="text-5xl">🧓</span>
+              <h4 className="text-xl font-black text-primary">O participante tem 60 anos ou mais?</h4>
+              <p className="text-sm text-muted-foreground font-bold leading-tight">Idosos acima de 60 anos têm entrada gratuita.</p>
+            </div>
+            <div className="space-y-3">
+              <Button
+                className="w-full h-14 rounded-2xl bg-[#006020] text-white font-black text-base hover:bg-[#004d1a] transition-all shadow-lg"
+                onClick={() => handleFinishWizard('inteira', false)}
+              >
+                ✅ Sim, tem 60 anos ou mais
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full h-12 rounded-2xl border-2 border-primary/10 text-xs font-black"
+                onClick={() => {
+                  resetWizard();
+                  setIsWizardOpen(false);
+                }}
+              >
+                Cancelar
+              </Button>
+            </div>
+            <div className="bg-blue-50 border border-blue-200 rounded-2xl px-4 py-3 text-[10px] text-blue-900 font-bold leading-snug mt-2">
+              ⚠️ <span className="font-black text-blue-950">Importante:</span> Por precaução, leve um documento com foto (RG ou CNH) para comprovar a idade se solicitado.
+            </div>
+          </motion.div>
+        );
+      }
     }
   };
 
@@ -529,6 +572,9 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                   }}
                   className="p-3 pointer-events-auto"
                   locale={ptBR}
+                  classNames={{
+                    day_today: entry.visitDate ? "bg-transparent text-foreground border border-primary/10" : "bg-accent text-accent-foreground"
+                  }}
                 />
               </PopoverContent>
             </Popover>
@@ -722,12 +768,23 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
       {/* Simplified Guided Wizard Modal */}
       <Dialog open={isWizardOpen} onOpenChange={(open) => { if(!open) resetWizard(); setIsWizardOpen(open); }}>
         <DialogContent className="sm:max-w-md w-[100vw] h-full sm:h-auto sm:w-[95vw] bg-white rounded-none sm:rounded-[3rem] border-white shadow-2xl p-4 sm:p-6 overflow-y-auto">
-          <DialogHeader className="mb-0 sm:mb-2 sticky top-0 bg-white z-10 py-2">
-            <DialogTitle className="text-xl sm:text-2xl font-black text-center text-primary font-gliker mt-2">
-               {wizardType === 'pcd' ? 'Cadastro PCD/TEA' : 
-                wizardType === 'senior' ? 'Cadastro Idoso' :
-                'Participante'}
-            </DialogTitle>
+          <DialogHeader className="mb-0 sm:mb-2 sticky top-0 bg-white z-20 py-2 border-b sm:border-none">
+            <div className="flex items-center justify-between">
+              <DialogTitle className="text-xl sm:text-2xl font-black text-left text-primary font-gliker mt-2">
+                {wizardType === 'pcd' ? 'PCD / TEA' : 
+                  wizardType === 'senior' ? 'Acesso Melhor Idade' :
+                  wizardType === 'child' ? 'Acesso Kids' :
+                  'Novo Participante'}
+              </DialogTitle>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="rounded-full hover:bg-primary/5 text-primary"
+                onClick={() => { resetWizard(); setIsWizardOpen(false); }}
+              >
+                <X className="h-6 w-6" />
+              </Button>
+            </div>
           </DialogHeader>
 
           <div className="relative px-2 pb-8">
