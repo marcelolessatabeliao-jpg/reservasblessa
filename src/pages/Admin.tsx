@@ -573,35 +573,83 @@ export default function Admin() {
              </div>
           </div>
         ) : (
-          <div className="space-y-6">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              <Card className="bg-green-50/30 border-green-100"><CardContent className="p-4 text-center"><Users className="w-5 h-5 mx-auto mb-1 text-green-700" /><p className="text-2xl font-black text-green-900">{stats.people}</p><p className="text-[10px] font-bold text-green-800/60 uppercase">Pessoas Hoje</p></CardContent></Card>
-              <Card className="bg-blue-50/30 border-blue-100"><CardContent className="p-4 text-center"><Badge className="w-fit mx-auto mb-1 bg-blue-600">🚜</Badge><p className="text-2xl font-black text-blue-900">{quadUsage.length}</p><p className="text-[10px] font-bold text-blue-800/60 uppercase">Quadriciclos Ativos</p></CardContent></Card>
-              <Card className="bg-sun/10 border-sun/20"><CardContent className="p-4 text-center"><TrendingUp className="w-5 h-5 mx-auto mb-1 text-sun-dark" /><p className="text-lg font-black text-sun-900">{formatCurrency(stats.kioskRevenue)}</p><p className="text-[10px] font-bold text-sun-800/60 uppercase">Receita Quiosques</p></CardContent></Card>
-              <Card className="bg-sun/10 border-sun/20"><CardContent className="p-4 text-center"><DollarSign className="w-5 h-5 mx-auto mb-1 text-sun-dark" /><p className="text-lg font-black text-sun-900">{formatCurrency(stats.quadRevenue)}</p><p className="text-[10px] font-bold text-sun-800/60 uppercase">Receita Quads</p></CardContent></Card>
+          <div className="space-y-8 animate-in fade-in duration-700">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card className="bg-white/80 backdrop-blur-md border-primary/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-xl transition-all duration-300 rounded-[2.5rem] overflow-hidden group">
+                 <CardContent className="p-6 text-center flex flex-col items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-primary/5 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+                       <Users className="w-6 h-6 text-primary" />
+                    </div>
+                    <div className="flex flex-col">
+                       <p className="text-3xl font-black text-slate-900 tabular-nums">{stats.people}</p>
+                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-1">Visitantes Hoje</p>
+                    </div>
+                 </CardContent>
+              </Card>
+              <Card className="bg-white/80 backdrop-blur-md border-blue-100/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-xl transition-all duration-300 rounded-[2.5rem] overflow-hidden group">
+                 <CardContent className="p-6 text-center flex flex-col items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center group-hover:bg-blue-100 transition-colors">
+                       <Badge className="bg-blue-600 scale-125">🚜</Badge>
+                    </div>
+                    <div className="flex flex-col">
+                       <p className="text-3xl font-black text-slate-900 tabular-nums">{quadUsage.length}</p>
+                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-1">Quads Ativos</p>
+                    </div>
+                 </CardContent>
+              </Card>
+              <Card className="bg-white/80 backdrop-blur-md border-sun/20 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-xl transition-all duration-300 rounded-[2.5rem] overflow-hidden group">
+                 <CardContent className="p-6 text-center flex flex-col items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-sun/5 flex items-center justify-center group-hover:bg-sun/10 transition-colors">
+                       <TrendingUp className="w-6 h-6 text-sun-dark" />
+                    </div>
+                    <div className="flex flex-col">
+                       <p className="text-2xl font-black text-sun-dark tabular-nums">{formatCurrency(stats.kioskRevenue)}</p>
+                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-1">Rec. Quiosques</p>
+                    </div>
+                 </CardContent>
+              </Card>
+              <Card className="bg-white/80 backdrop-blur-md border-sun/20 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-xl transition-all duration-300 rounded-[2.5rem] overflow-hidden group">
+                 <CardContent className="p-6 text-center flex flex-col items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-sun/5 flex items-center justify-center group-hover:bg-sun/10 transition-colors">
+                       <DollarSign className="w-6 h-6 text-sun-dark" />
+                    </div>
+                    <div className="flex flex-col">
+                       <p className="text-2xl font-black text-sun-dark tabular-nums">{formatCurrency(stats.quadRevenue)}</p>
+                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-1">Rec. Quadriciclos</p>
+                    </div>
+                 </CardContent>
+              </Card>
             </div>
-            <div className="flex flex-wrap gap-2">
-              {[{k:'today',l:'HOJE'},{k:'tomorrow',l:'AMANHÃ'},{k:'past',l:'HISTÓRICO'}].map(f=>(<Button key={f.k} size="sm" variant={dateFilter===f.k?'default':'outline'} onClick={()=>{setDateFilter(f.k as any); setSelectedDate(undefined);}} className="flex-1 uppercase text-[10px] font-black">{f.l}</Button>))}
+
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex bg-white/80 backdrop-blur-md p-1.5 rounded-2xl shadow-sm border border-slate-100 flex-1">
+                {[{k:'today',l:'Hoje'},{k:'tomorrow',l:'Amanhã'},{k:'past',l:'Histórico'}].map(f=>(
+                  <Button key={f.k} onClick={()=>{setDateFilter(f.k as any); setSelectedDate(undefined);}} variant={dateFilter===f.k?'default':'ghost'} className={cn("flex-1 rounded-xl font-black text-[10px] uppercase tracking-widest h-10 transition-all", dateFilter===f.k && "shadow-lg shadow-primary/20")}>{f.l}</Button>
+                ))}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost" className={cn("flex-1 rounded-xl font-black text-[10px] uppercase tracking-widest h-10 gap-2", selectedDate && "text-primary bg-primary/5")}>
+                      <CalendarCheck className="w-4 h-4" />
+                      {selectedDate ? format(selectedDate, 'dd/MM/yyyy') : 'Calendário'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="end">
+                    <Calendar mode="single" selected={selectedDate} onSelect={(d) => { setSelectedDate(d); setDateFilter('all'); }} initialFocus locale={ptBR} />
+                  </PopoverContent>
+                </Popover>
+              </div>
               
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className={cn("uppercase text-[10px] font-black gap-2 h-9", selectedDate && "bg-primary text-white border-primary")}>
-                    <CalendarCheck className="w-3 h-3" />
-                    {selectedDate ? format(selectedDate, 'dd/MM/yyyy') : 'BUSCAR DATA'}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="end">
-                  <Calendar
-                    mode="single"
-                    selected={selectedDate}
-                    onSelect={(d) => { setSelectedDate(d); setDateFilter('all'); }}
-                    initialFocus
-                    locale={ptBR}
-                  />
-                </PopoverContent>
-              </Popover>
+              <div className="relative flex-[1.5]">
+                <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <Input 
+                  placeholder="Busque por nome do cliente ou código..." 
+                  value={search} 
+                  onChange={(e) => setSearch(e.target.value)} 
+                  className="h-14 pl-14 pr-6 rounded-2xl border-none bg-white/80 backdrop-blur-md shadow-sm focus:ring-2 focus:ring-primary/20 font-medium placeholder:text-slate-300" 
+                />
+              </div>
             </div>
-            <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" /><Input placeholder="Buscar reservas..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" /></div>
+
             <BookingTable bookings={filtered} onStatusChange={handleStatusChange} onAddNote={handleAddNote} onReschedule={handleReschedule} onDelete={handleDelete} updatingId={updatingId} />
           </div>
         )}
