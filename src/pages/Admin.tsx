@@ -245,8 +245,19 @@ export default function Admin() {
       }
 
       // 3. Deleta da bookings por ID (caso legado puro)
-      const { error: legacyErr } = await supabase.from('bookings').delete().eq('id', bookingId);
+      const { data: delResult, error: legacyErr } = await supabase.from('bookings').delete().eq('id', bookingId).select('id');
       
+      // Verificação final: se não deletou nem do orders nem do bookings, o RLS tá bloqueando
+      if ((!delResult || delResult.length === 0) && !isOrder) {
+         console.warn('RLS Bloqueou a exclusão ou registro não existe.');
+         toast({ 
+           title: '⚠️ Exclusão BLOQUEADA pelo banco', 
+           description: 'Você precisa rodar o comando SQL de permissão no Supabase Dashboard (SQL Editor) para habilitar exclusões pelo Admin.',
+           variant: 'destructive' 
+         });
+         return;
+      }
+
       setBookings(prev => prev.filter(b => b.id !== bookingId));
       toast({ title: '🗑️ Registro expulso com sucesso!' });
       

@@ -98,8 +98,14 @@ export function QuadSelector({ quads, onUpdate }: Props) {
                 value={quad.quantity} 
                 onChange={async (q) => {
                   if (q > quad.quantity && quad.time) {
-                    const used = await getQuadAvailability(format(checkDate!, 'yyyy-MM-dd'), quad.time);
-                    if (used + q > MAX_QUADS_PER_SLOT) {
+                    const dbUsed = await getQuadAvailability(format(checkDate!, 'yyyy-MM-dd'), quad.time);
+                    const localUsedOthers = quads.reduce((acc, qry, idx) => {
+                      if (idx !== i && qry.time === quad.time) return acc + qry.quantity;
+                      return acc;
+                    }, 0);
+
+                    if (dbUsed + localUsedOthers + q > MAX_QUADS_PER_SLOT) {
+                       const rest = MAX_QUADS_PER_SLOT - (dbUsed + localUsedOthers);
                        toast({ 
                          title: 'Quantidade indisponível', 
                          description: `Não há vagas suficientes às ${quad.time}. Máximo permitido: ${MAX_QUADS_PER_SLOT - used} adicionais.`, 
@@ -152,10 +158,17 @@ export function QuadSelector({ quads, onUpdate }: Props) {
                       </div>
                     ) : (
                       QUAD_TIMES.map(t => {
-                        const used = slotAvailabilities[t] || 0;
-                        const remaining = MAX_QUADS_PER_SLOT - used;
+                        const dbUsed = slotAvailabilities[t] || 0;
+                        // Calculamos o quanto JÁ foi selecionado localmente em OUTROS tipos de quadriciclo para esse mesmo horário
+                        const localUsedOthers = quads.reduce((acc, q, idx) => {
+                          if (idx !== i && q.time === t) return acc + q.quantity;
+                          return acc;
+                        }, 0);
+
+                        const totalUsed = dbUsed + localUsedOthers;
+                        const remaining = MAX_QUADS_PER_SLOT - totalUsed;
                         const isFull = remaining <= 0;
-                        const canSelect = quad.time === t || remaining >= quad.quantity; // Allow selecting current time or if enough slots
+                        const canSelect = quad.time === t || remaining >= quad.quantity;
 
                         return (
                           <SelectItem 
