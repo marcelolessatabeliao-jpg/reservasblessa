@@ -322,14 +322,29 @@ export default function Admin() {
 
   const stats = useMemo(() => {
     const todayStr = format(new Date(), 'yyyy-MM-dd');
-    const activeOnes = bookings.filter(b => b.visit_date && b.visit_date >= todayStr);
     const todayBookings = bookings.filter(b => b.visit_date && isToday(parseISO(b.visit_date)));
     const confirmedToday = todayBookings.filter(b => b.status === 'confirmed' || b.status === 'paid' || b.status === 'checked-in');
+    
+    // Receitas específicas
+    let kRev = 0;
+    let qRev = 0;
+    bookings.forEach(b => {
+      if ((b.status === 'confirmed' || b.status === 'paid' || b.status === 'checked-in') && b.is_order && b.order_items) {
+        b.order_items.forEach((i: any) => {
+          const pid = (i.product_id || '').toLowerCase();
+          if (pid.includes('quiosque')) kRev += (i.unit_price * i.quantity);
+          if (pid.includes('quad')) qRev += (i.unit_price * i.quantity);
+        });
+      }
+    });
+
     return {
       people: todayBookings.reduce((sum, b) => sum + (b.adults || 0) + (b.children || 0), 0),
       revenue: confirmedToday.reduce((sum, b) => sum + Number(b.total_amount), 0),
-      count: activeOnes.length, // Showing only active ones for main counter
-      checked: todayBookings.filter(b => b.status === 'checked-in').length
+      count: bookings.filter(b => b.visit_date && b.visit_date >= todayStr).length,
+      checked: todayBookings.filter(b => b.status === 'checked-in').length,
+      kioskRevenue: kRev,
+      quadRevenue: qRev
     };
   }, [bookings]);
 
@@ -377,66 +392,81 @@ export default function Admin() {
   }, [kioskUsage, quadUsage]);
 
   const kiosksView = useMemo(() => {
-    const dates = Array.from(new Set(kioskUsage.map(u => u.reservation_date))).sort();
     return (
       <div className="space-y-6">
-        {dates.length === 0 && <p className="text-center py-10 text-muted-foreground font-medium italic">Nenhuma reserva de Quiosque encontrada.</p>}
-        {dates.map(date => {
-          const items = kioskUsage.filter(u => u.reservation_date === date);
-          return (
-            <div key={date} className="bg-white rounded-[2rem] p-6 shadow-sm border border-primary/5 space-y-4">
-              <h4 className="font-black text-primary uppercase border-b pb-3">{format(new Date(date + 'T12:00:00'), "dd/MM/yyyy (EEEE)", { locale: ptBR })}</h4>
-              <div className="grid gap-2">
-                {items.map((k, i) => {
-                  const b = bookings.find(book => book.id === k.order_id);
-                  return (
-                    <div key={i} className="flex justify-between items-center p-3 bg-muted/20 rounded-xl">
-                      <div className="flex flex-col">
-                        <span className="font-black text-sm uppercase">{b?.name || 'Cliente'}</span>
-                        <span className="text-[10px] font-bold text-muted-foreground">Pedido #{k.order_id?.slice(0, 8)}</span>
-                      </div>
-                      <Badge className="bg-sun text-white font-black uppercase text-[10px]">{k.quantity}x {k.kiosk_type === 'maior' ? 'Maior' : 'Menor'}</Badge>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
+        {kioskUsage.length === 0 && <p className="text-center py-10 text-muted-foreground font-medium italic">Nenhuma reserva de Quiosque encontrada.</p>}
+        <div className="bg-white rounded-[2rem] overflow-hidden shadow-xl border border-green-100">
+           <table className="w-full text-left border-collapse">
+              <thead className="bg-green-50">
+                 <tr>
+                    <th className="p-4 text-[10px] font-black uppercase text-green-800 tracking-widest">📅 Data</th>
+                    <th className="p-4 text-[10px] font-black uppercase text-green-800 tracking-widest">👤 Cliente</th>
+                    <th className="p-4 text-[10px] font-black uppercase text-green-800 tracking-widest">🛖 Item</th>
+                    <th className="p-4 text-[10px] font-black uppercase text-green-800 tracking-widest">🔢 Qtd</th>
+                    <th className="p-4 text-[10px] font-black uppercase text-green-800 tracking-widest">💰 Valor</th>
+                 </tr>
+              </thead>
+              <tbody className="divide-y divide-green-50">
+                 {kioskUsage.sort((a,b) => a.reservation_date.localeCompare(b.reservation_date)).map((k, i) => {
+                   const b = bookings.find(book => book.id === k.order_id);
+                   return (
+                     <tr key={i} className="hover:bg-green-50/50 transition-colors">
+                        <td className="p-4 text-xs font-bold text-green-900">{format(new Date(k.reservation_date + 'T12:00:00'), "dd/MM")}</td>
+                        <td className="p-4">
+                           <div className="flex flex-col">
+                             <span className="font-black text-xs uppercase text-green-950">{b?.name || '---'}</span>
+                             <span className="text-[9px] font-bold text-green-600/60 uppercase">#{k.order_id?.slice(0, 8)}</span>
+                           </div>
+                        </td>
+                        <td className="p-4"><Badge variant="outline" className="bg-green-100 text-green-800 border-green-200 uppercase font-black text-[9px]">{k.kiosk_type === 'maior' ? 'Quiosque Maior' : 'Quiosque Menor'}</Badge></td>
+                        <td className="p-4 text-xs font-black text-green-900">{k.quantity}x</td>
+                        <td className="p-4 text-xs font-black text-green-900">{k.kiosk_type === 'maior' ? 'R$ 100,00' : 'R$ 75,00'}</td>
+                     </tr>
+                   );
+                 })}
+              </tbody>
+           </table>
+        </div>
       </div>
     );
   }, [kioskUsage, bookings]);
 
   const quadsView = useMemo(() => {
-    const dates = Array.from(new Set(quadUsage.map(u => u.reservation_date))).sort();
     return (
       <div className="space-y-6">
-        {dates.length === 0 && <p className="text-center py-10 text-muted-foreground font-medium italic">Nenhuma reserva de Quadriciclo encontrada.</p>}
-        {dates.map(date => {
-          const items = quadUsage.filter(u => u.reservation_date === date).sort((a, b) => (a.time_slot || '').localeCompare(b.time_slot || ''));
-          return (
-            <div key={date} className="bg-white rounded-[2rem] p-6 shadow-sm border border-primary/5 space-y-4">
-              <h4 className="font-black text-primary uppercase border-b pb-3">{format(new Date(date + 'T12:00:00'), "dd/MM/yyyy (EEEE)", { locale: ptBR })}</h4>
-              <div className="grid gap-2">
-                {items.map((q, i) => {
-                  const b = bookings.find(book => book.id === q.order_id);
-                  return (
-                    <div key={i} className="flex justify-between items-center p-3 bg-muted/20 rounded-xl">
-                      <div className="flex items-center gap-4">
-                        <div className="bg-primary text-white p-2 rounded-lg font-black text-xs">{q.time_slot}</div>
-                        <div className="flex flex-col">
-                          <span className="font-black text-sm uppercase">{b?.name || 'Cliente'}</span>
-                          <span className="text-[10px] font-bold text-muted-foreground">Pedido #{q.order_id?.slice(0, 8)}</span>
-                        </div>
-                      </div>
-                      <Badge className="bg-primary/10 text-primary border-primary/20 font-black uppercase text-[10px]">{q.quantity}x {q.quad_type}</Badge>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
+        {quadUsage.length === 0 && <p className="text-center py-10 text-muted-foreground font-medium italic">Nenhuma reserva de Quadriciclo encontrada.</p>}
+        <div className="bg-white rounded-[2rem] overflow-hidden shadow-xl border border-blue-100">
+           <table className="w-full text-left border-collapse">
+              <thead className="bg-blue-50">
+                 <tr>
+                    <th className="p-4 text-[10px] font-black uppercase text-blue-800 tracking-widest">📅 Data</th>
+                    <th className="p-4 text-[10px] font-black uppercase text-blue-800 tracking-widest">🕒 Horário</th>
+                    <th className="p-4 text-[10px] font-black uppercase text-blue-800 tracking-widest">👤 Cliente</th>
+                    <th className="p-4 text-[10px] font-black uppercase text-blue-800 tracking-widest">🚜 Tipo</th>
+                    <th className="p-4 text-[10px] font-black uppercase text-blue-800 tracking-widest">🔢 Qtd</th>
+                 </tr>
+              </thead>
+              <tbody className="divide-y divide-blue-50">
+                 {quadUsage.sort((a,b) => a.reservation_date.localeCompare(b.reservation_date) || (a.time_slot||'').localeCompare(b.time_slot||'')).map((q, i) => {
+                   const b = bookings.find(book => book.id === q.order_id);
+                   return (
+                     <tr key={i} className="hover:bg-blue-50/50 transition-colors">
+                        <td className="p-4 text-xs font-bold text-blue-900">{format(new Date(q.reservation_date + 'T12:00:00'), "dd/MM")}</td>
+                        <td className="p-4"><div className="bg-blue-600 text-white px-2 py-1 rounded-lg text-[10px] font-black w-fit">{q.time_slot}</div></td>
+                        <td className="p-4">
+                           <div className="flex flex-col">
+                             <span className="font-black text-xs uppercase text-blue-950">{b?.name || '---'}</span>
+                             <span className="text-[9px] font-bold text-blue-600/60 uppercase">#{q.order_id?.slice(0, 8)}</span>
+                           </div>
+                        </td>
+                        <td className="p-4"><Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200 uppercase font-black text-[9px]">{q.quad_type}</Badge></td>
+                        <td className="p-4 text-xs font-black text-blue-900">{q.quantity}x</td>
+                     </tr>
+                   );
+                 })}
+              </tbody>
+           </table>
+        </div>
       </div>
     );
   }, [quadUsage, bookings]);
@@ -538,10 +568,10 @@ export default function Admin() {
         ) : (
           <div className="space-y-6">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              <Card><CardContent className="p-4 text-center"><Users className="w-5 h-5 mx-auto mb-1 text-primary" /><p className="text-2xl font-black">{stats.people}</p><p className="text-[10px] font-bold text-muted-foreground uppercase">Pessoas Hoje</p></CardContent></Card>
-              <Card><CardContent className="p-4 text-center"><UserCheck className="w-5 h-5 mx-auto mb-1 text-whatsapp" /><p className="text-2xl font-black">{stats.checked}</p><p className="text-[10px] font-bold text-muted-foreground uppercase">Check-ins</p></CardContent></Card>
-              <Card><CardContent className="p-4 text-center"><CalendarCheck className="w-5 h-5 mx-auto mb-1 text-primary" /><p className="text-2xl font-black">{stats.count}</p><p className="text-[10px] font-bold text-muted-foreground uppercase">Agendamentos</p></CardContent></Card>
-              <Card><CardContent className="p-4 text-center"><TrendingUp className="w-5 h-5 mx-auto mb-1 text-sun-dark" /><p className="text-lg font-black">{formatCurrency(stats.revenue)}</p><p className="text-[10px] font-bold text-muted-foreground uppercase">Receita</p></CardContent></Card>
+              <Card className="bg-green-50/30 border-green-100"><CardContent className="p-4 text-center"><Users className="w-5 h-5 mx-auto mb-1 text-green-700" /><p className="text-2xl font-black text-green-900">{stats.people}</p><p className="text-[10px] font-bold text-green-800/60 uppercase">Pessoas Hoje</p></CardContent></Card>
+              <Card className="bg-blue-50/30 border-blue-100"><CardContent className="p-4 text-center"><Badge className="w-fit mx-auto mb-1 bg-blue-600">🚜</Badge><p className="text-2xl font-black text-blue-900">{quadUsage.length}</p><p className="text-[10px] font-bold text-blue-800/60 uppercase">Quadriciclos Ativos</p></CardContent></Card>
+              <Card className="bg-sun/10 border-sun/20"><CardContent className="p-4 text-center"><TrendingUp className="w-5 h-5 mx-auto mb-1 text-sun-dark" /><p className="text-lg font-black text-sun-900">{formatCurrency(stats.kioskRevenue)}</p><p className="text-[10px] font-bold text-sun-800/60 uppercase">Receita Quiosques</p></CardContent></Card>
+              <Card className="bg-sun/10 border-sun/20"><CardContent className="p-4 text-center"><DollarSign className="w-5 h-5 mx-auto mb-1 text-sun-dark" /><p className="text-lg font-black text-sun-900">{formatCurrency(stats.quadRevenue)}</p><p className="text-[10px] font-bold text-sun-800/60 uppercase">Receita Quads</p></CardContent></Card>
             </div>
             <div className="flex flex-wrap gap-2">
               {[{k:'today',l:'HOJE'},{k:'tomorrow',l:'AMANHÃ'},{k:'past',l:'HISTÓRICO'}].map(f=>(<Button key={f.k} size="sm" variant={dateFilter===f.k?'default':'outline'} onClick={()=>{setDateFilter(f.k as any); setSelectedDate(undefined);}} className="flex-1 uppercase text-[10px] font-black">{f.l}</Button>))}
