@@ -18,6 +18,27 @@ interface Props {
 
 export function KioskSelector({ kiosks, onUpdate }: Props) {
   const { getPrice, isLoading } = useServices();
+  const [availabilities, setAvailabilities] = useState<Record<string, number>>({});
+  const [isFetching, setIsFetching] = useState(false);
+
+  const checkDate = kiosks[0]?.date;
+
+  useEffect(() => {
+    async function fetchAvail() {
+      if (!checkDate) return;
+      setIsFetching(true);
+      try {
+        const minor = await getKioskAvailability(format(checkDate, 'yyyy-MM-dd'), 'menor');
+        const major = await getKioskAvailability(format(checkDate, 'yyyy-MM-dd'), 'maior');
+        setAvailabilities({ menor: minor, maior: major });
+      } catch (err) {
+        console.error("Error fetching kiosk availability:", err);
+      } finally {
+        setIsFetching(false);
+      }
+    }
+    fetchAvail();
+  }, [checkDate]);
 
   if (isLoading) {
     return <div className="flex items-center justify-center p-6"><Loader2 className="animate-spin text-primary h-6 w-6" /></div>;
@@ -38,18 +59,34 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
         
         return (
           <div key={kiosk.type} className="bg-white/50 backdrop-blur-md rounded-2xl border border-white/60 p-4 sm:p-5 shadow-xl">
-            <div className="flex items-center justify-between gap-2 mb-3">
-              <div className="min-w-0">
-                <p className="font-display font-bold text-sm sm:text-base">{info.label}</p>
-                <p className="text-[10px] sm:text-xs text-muted-foreground">{info.capacity} - {info.available} {info.available === 1 ? 'unidade' : 'unidades'}</p>
-                <p className="text-primary font-bold text-base sm:text-lg">
-                  {kiosk.quantity > 1 
-                    ? `${formatCurrency(basePrice)} x ${kiosk.quantity} = ${formatCurrency(basePrice * kiosk.quantity)}` 
-                    : formatCurrency(basePrice)}
-                </p>
-              </div>
-              <QuantityStepper value={kiosk.quantity} onChange={(q) => onUpdate(i, { quantity: q })} max={info.available} />
-            </div>
+            {(() => {
+              const used = availabilities[kiosk.type] || 0;
+              const remaining = info.available - used;
+              return (
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <div className="min-w-0">
+                    <p className="font-display font-bold text-sm sm:text-base">{info.label}</p>
+                    <div className="flex flex-col gap-0.5">
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">Capacidade: {info.capacity}</p>
+                      <p className={cn("text-[10px] sm:text-xs font-bold", remaining > 0 ? "text-green-600" : "text-destructive")}>
+                        {isFetching ? 'Verificando...' : (remaining > 0 ? `${remaining} disponíveis para este dia` : 'Lotado para este dia')}
+                      </p>
+                    </div>
+                    <p className="text-primary font-bold text-base sm:text-lg">
+                      {kiosk.quantity > 1 
+                        ? `${formatCurrency(basePrice)} x ${kiosk.quantity} = ${formatCurrency(basePrice * kiosk.quantity)}` 
+                        : formatCurrency(basePrice)}
+                    </p>
+                  </div>
+                  <QuantityStepper 
+                    value={kiosk.quantity} 
+                    onChange={(q) => onUpdate(i, { quantity: q })} 
+                    max={Math.max(0, remaining + kiosk.quantity)} 
+                    disabled={remaining <= 0 && kiosk.quantity === 0}
+                  />
+                </div>
+              );
+            })()}
             
             <div className="text-[10px] sm:text-xs text-muted-foreground mb-3">
               Inclui: churrasqueira, pia, grelha, mesas e cadeiras
