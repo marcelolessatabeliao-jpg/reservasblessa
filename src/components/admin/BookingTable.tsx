@@ -127,6 +127,15 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                       </span>
                     </>
                   )}
+
+                  {booking.additionals?.some((a: any) => a.quantity > 0) && (
+                    <>
+                      <span>•</span>
+                      <span className="text-blue-600 font-black flex items-center gap-1 uppercase text-[9px]">
+                        ✨ {booking.additionals.reduce((acc: number, a: any) => acc + a.quantity, 0)} Extra(s)
+                      </span>
+                    </>
+                  )}
                 </p>
               </div>
 
@@ -185,7 +194,34 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                   <div className="bg-whatsapp/5 p-3 rounded-2xl space-y-2 border border-whatsapp/10">
                     <p className="text-[10px] font-black text-whatsapp-dark uppercase tracking-widest pl-1">Comprovante de Pagamento</p>
                     <div className="flex flex-col gap-2">
-                       <Button size="sm" variant="ghost" className="bg-white/50 hover:bg-white border-2 border-dashed border-whatsapp/20 h-14 rounded-xl text-whatsapp-dark font-black text-[10px] uppercase flex flex-col leading-tight">
+                       <input 
+                         type="file" 
+                         id={`upload-${booking.id}`} 
+                         hidden 
+                         accept="image/*,.pdf" 
+                         onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            try {
+                               const ext = file.name.split('.').pop();
+                               const path = `proofs/${booking.id}_${Date.now()}.${ext}`;
+                               const { data, error } = await supabase.storage.from('vouchers' as any).upload(path, file);
+                               if (error) throw error;
+                               const link = supabase.storage.from('vouchers' as any).getPublicUrl(path).data.publicUrl;
+                               const newNote = (booking.notes || '') + `\n[COMPROVANTE]: ${link}`;
+                               onAddNote(booking.id, newNote, booking.is_order);
+                               alert('Comprovante enviado!');
+                            } catch (err: any) {
+                               alert('Erro ao enviar: ' + err.message);
+                            }
+                         }}
+                       />
+                       <Button 
+                         size="sm" 
+                         variant="ghost" 
+                         className="bg-white/50 hover:bg-white border-2 border-dashed border-whatsapp/20 h-14 rounded-xl text-whatsapp-dark font-black text-[10px] uppercase flex flex-col leading-tight"
+                         onClick={() => document.getElementById(`upload-${booking.id}`)?.click()}
+                       >
                           <Plus className="w-4 h-4 mb-1" />
                           Adicionar Comprovante
                           <span className="font-medium opacity-60">(PDF ou Imagem)</span>

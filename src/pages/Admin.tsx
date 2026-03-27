@@ -132,6 +132,14 @@ export default function Admin() {
           quads: items.filter((i: any) => i.product_id?.includes('Quad')).map((i: any) => ({ 
             type: i.product_id?.toLowerCase().includes('individual') ? 'individual' : i.product_id?.toLowerCase().includes('dupla') ? 'dupla' : 'adulto-crianca', 
             quantity: i.quantity || 0 
+          })),
+          additionals: items.filter((i: any) => {
+            const pid = i.product_id?.toLowerCase() || '';
+            const isEntry = !pid.includes('quiosque') && !pid.includes('quad') && !pid.includes('pesca') && !pid.includes('futebol');
+            return !pid.includes('quiosque') && !pid.includes('quad') && !isEntry;
+          }).map((i: any) => ({
+            name: i.product_id,
+            quantity: i.quantity || 0
           }))
         };
       });
@@ -140,8 +148,22 @@ export default function Admin() {
         const virtualItems: any[] = [];
         const adults = b.adults || 0;
         const kidsCount = Array.isArray(b.children) ? b.children.length : 0;
-        if (adults > 0) virtualItems.push({ id: `v-${b.id}-a`, product_id: 'Adulto (Legado)', quantity: adults, is_redeemed: b.status === 'checked-in' });
         if (kidsCount > 0) virtualItems.push({ id: `v-${b.id}-c`, product_id: 'Criança (Legado)', quantity: kidsCount, is_redeemed: b.status === 'checked-in' });
+        
+        // Map legacy quads/kiosks into virtual items for detail view
+        const legacyKiosks = Array.isArray(b.kiosks) ? b.kiosks : [];
+        const legacyQuads = Array.isArray(b.quads) ? b.quads : [];
+        const legacyAdds = Array.isArray(b.additionals) ? b.additionals : [];
+        
+        legacyKiosks.forEach((k: any) => {
+          if (k.quantity > 0) virtualItems.push({ id: `v-${b.id}-k-${k.type}`, product_id: `Quiosque ${k.type}`, quantity: k.quantity, is_redeemed: b.status === 'checked-in' });
+        });
+        legacyQuads.forEach((q: any) => {
+          if (q.quantity > 0) virtualItems.push({ id: `v-${b.id}-q-${q.type}`, product_id: `Quad ${q.type}`, quantity: q.quantity, is_redeemed: b.status === 'checked-in' });
+        });
+        legacyAdds.forEach((a: any) => {
+          if (a.quantity > 0) virtualItems.push({ id: `v-${b.id}-a-${a.type}`, product_id: a.type, quantity: a.quantity, is_redeemed: b.status === 'checked-in' });
+        });
 
         return {
           ...b,
