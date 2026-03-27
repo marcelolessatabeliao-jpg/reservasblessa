@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/booking-types';
+import { BookingTable } from '@/components/admin/BookingTable';
 import { getAdminOrders, markOrderAsPaid } from '@/integrations/supabase/orders';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { cn } from "@/lib/utils";
@@ -48,7 +49,7 @@ const PAYMENT_METHODS = [
   { value: 'cash', label: 'Dinheiro (Local)' }
 ];
 
-type TabType = 'painel' | 'quiosques' | 'quads' | 'vendas';
+type TabType = 'painel' | 'reservas' | 'quiosques' | 'quads' | 'vendas';
 
 const BR_HOLIDAYS_2026 = [
   "2026-01-01", "2026-02-16", "2026-02-17", "2026-04-03", "2026-04-21",
@@ -76,6 +77,7 @@ export default function Admin() {
   const { toast } = useToast();
 
   // Data States
+  const [bookings, setBookings] = useState<any[]>([]);
   const [kioskReservations, setKioskReservations] = useState<any[]>([]);
   const [quadReservations, setQuadReservations] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
@@ -83,6 +85,7 @@ export default function Admin() {
 
   // Editing States
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [editData, setEditData] = useState<any>({});
   const [isUploading, setIsUploading] = useState(false);
 
@@ -97,10 +100,12 @@ export default function Admin() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
+      const { data: bks } = await supabase.from('bookings').select('*').order('visit_date', { ascending: false });
       const { data: kiosks } = await supabase.from('kiosk_reservations').select('*').order('reservation_date', { ascending: false });
       const { data: quads } = await supabase.from('quad_reservations').select('*').order('reservation_date', { ascending: false });
       const orderData = await getAdminOrders();
       
+      setBookings(bks || []);
       setKioskReservations(kiosks || []);
       setQuadReservations(quads || []);
       setOrders(orderData || []);
@@ -164,9 +169,35 @@ export default function Admin() {
     }
   };
 
-  const requestDelete = (item: any, type: 'kiosk' | 'quad' | 'order') => {
+  const requestDelete = (item: any, type: 'kiosk' | 'quad' | 'order' | 'reservas') => {
     setDeleteTarget({ ...item, type });
     setDeleteDialogOpen(true);
+  };
+
+  const updateBookingStatus = async (bookingId: string, status: string, isOrder?: boolean) => {
+    setUpdatingId(bookingId);
+    try {
+      const table = isOrder ? 'orders' : 'bookings';
+      const { error } = await supabase.from(table).update({ status }).eq('id', bookingId);
+      if (error) throw error;
+      toast({ title: "✓ Status atualizado" });
+      fetchData();
+    } catch (err) {
+      toast({ title: "Erro ao atualizar", variant: "destructive" });
+    } finally { setUpdatingId(null); }
+  };
+
+  const addBookingNote = async (bookingId: string, notes: string, isOrder?: boolean) => {
+    setUpdatingId(bookingId);
+    try {
+      const table = isOrder ? 'orders' : 'bookings';
+      const { error } = await supabase.from(table).update({ notes }).eq('id', bookingId);
+      if (error) throw error;
+      toast({ title: "✓ Nota adicionada" });
+      fetchData();
+    } catch (err) {
+      toast({ title: "Erro ao adicionar nota", variant: "destructive" });
+    } finally { setUpdatingId(null); }
   };
 
   const confirmDelete = async () => {
@@ -176,6 +207,7 @@ export default function Admin() {
       if (deleteTarget.type === 'kiosk') table = 'kiosk_reservations';
       else if (deleteTarget.type === 'quad') table = 'quad_reservations';
       else if (deleteTarget.type === 'order') table = 'orders';
+      else if (deleteTarget.type === 'reservas') table = 'bookings';
 
       const { error } = await supabase.from(table).delete().eq('id', deleteTarget.id);
       if (error) throw error;
@@ -679,6 +711,12 @@ export default function Admin() {
              )}>
                 <LayoutDashboard className="w-4 h-4" /> Painel
              </button>
+             <button onClick={() => setActiveTab('reservas')} className={cn(
+               "px-6 py-3 rounded-[1.5rem] text-sm font-bold flex items-center gap-2 transition-all hover:bg-white/50 active:scale-95", 
+               activeTab === 'reservas' ? "bg-white text-emerald-600 shadow-lg shadow-emerald-500/10 scale-105" : "text-muted-foreground hover:text-foreground"
+             )}>
+                <CalendarCheck className="w-4 h-4" /> Agenda
+             </button>
              <button onClick={() => setActiveTab('quiosques')} className={cn(
                "px-6 py-3 rounded-[1.5rem] text-sm font-bold flex items-center gap-2 transition-all hover:bg-white/50 active:scale-95", 
                activeTab === 'quiosques' ? "bg-white text-emerald-600 shadow-lg shadow-emerald-500/10 scale-105" : "text-muted-foreground hover:text-foreground"
@@ -702,6 +740,33 @@ export default function Admin() {
           {/* CONTENT */}
           <div className="min-h-[600px]">
              {activeTab === 'painel' && renderDashboard()}
+             {activeTab === 'reservas' && (
+               <div className="space-y-6">
+                 <div className="relative w-full max-w-lg">
+                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                   <Input placeholder="Filtrar por nome, telefone ou código..." className="pl-10 h-12 rounded-2xl bg-white shadow-sm" value={search} onChange={e => setSearch(e.target.value)} />
+                 </div>
+                 <BookingTable 
+                   bookings={[...bookings, ...orders.map(o => ({...o, is_order: true}))].filter(b => 
+                     !search || 
+                     b.name?.toLowerCase().includes(search.toLowerCase()) || 
+                     b.customer_name?.toLowerCase().includes(search.toLowerCase()) ||
+                     b.phone?.includes(search) || 
+                     b.confirmation_code?.includes(search)
+                   )}
+                   onStatusChange={updateBookingStatus}
+                   onAddNote={addBookingNote}
+                   onReschedule={(id, date, isOrder) => {
+                     const table = isOrder ? 'orders' : 'bookings';
+                     const col = isOrder ? 'created_at' : 'visit_date'; // simplified mapping
+                     supabase.from(table).update({ [col]: date }).eq('id', id).then(() => fetchData());
+                   }}
+                   onDelete={(id, isOrder) => requestDelete({id}, isOrder ? 'order' : 'reservas' as any)}
+                   onRemoveItem={() => {}} // simplified
+                   updatingId={updatingId}
+                 />
+               </div>
+             )}
              {activeTab === 'quiosques' && renderKioskTab()}
              {activeTab === 'quads' && renderQuadTab()}
              {activeTab === 'vendas' && renderOrderTab()}
