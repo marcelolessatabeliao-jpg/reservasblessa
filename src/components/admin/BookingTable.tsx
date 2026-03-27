@@ -53,6 +53,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [noteText, setNoteText] = useState('');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   if (bookings.length === 0) {
     return (
@@ -68,22 +69,75 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
     setEditingNoteId(null);
   };
 
+  const toggleSelect = (id: string) => {
+    const newSet = new Set(selectedIds);
+    if (newSet.has(id)) newSet.delete(id);
+    else newSet.add(id);
+    setSelectedIds(newSet);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === bookings.length) {
+      setSelectedIds(newSet => new Set());
+    } else {
+      setSelectedIds(new Set(bookings.map(b => b.id)));
+    }
+  };
+
+  const handleBulkAction = async (action: 'confirm' | 'cancel' | 'delete') => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    if (action === 'delete' && !confirm(`Atenção: Você irá apagar ${ids.length} reservas. Continuar?`)) return;
+    
+    for (const id of ids) {
+       const b = bookings.find(x => x.id === id);
+       if (!b) continue;
+       if (action === 'confirm') onStatusChange(b.id, 'paid', b.is_order);
+       if (action === 'cancel') onStatusChange(b.id, 'cancelled', b.is_order);
+       if (action === 'delete') onDelete(b.id, b.is_order);
+    }
+    
+    // Clear selection after triggering the actions (state will update gradually via Admin.tsx)
+    setSelectedIds(new Set());
+  };
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 relative pb-20">
+      {/* Selecionar Todos Superior */}
+      <div className="flex items-center gap-3 px-2">
+        <input 
+          type="checkbox" 
+          checked={selectedIds.size === bookings.length && bookings.length > 0} 
+          onChange={toggleSelectAll} 
+          className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+        />
+        <span className="text-xs font-bold text-muted-foreground uppercase">Selecionar Todos ({selectedIds.size})</span>
+      </div>
+
       {bookings.map((booking) => {
         const expanded = expandedId === booking.id;
+        const isSelected = selectedIds.has(booking.id);
         const config = STATUS_CONFIG[booking.status] || STATUS_CONFIG.pending;
         const StatusIcon = config.icon;
         const childrenCount = Array.isArray(booking.children) ? booking.children.length : (typeof booking.children === 'number' ? booking.children : 0);
         const totalPeople = (booking.adults || 0) + childrenCount;
 
         return (
-          <div key={booking.id} className="border border-border rounded-[1.5rem] bg-card overflow-hidden shadow-sm hover:shadow-md transition-all">
+          <div key={booking.id} className={cn("border rounded-[1.5rem] bg-card overflow-hidden shadow-sm hover:shadow-md transition-all", isSelected ? "border-primary/50 shadow-md ring-1 ring-primary/20" : "border-border")}>
             {/* Row */}
             <div
               className="flex items-center gap-3 p-4 cursor-pointer hover:bg-muted/30 transition-colors"
               onClick={() => setExpandedId(expanded ? null : booking.id)}
             >
+              <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                <input 
+                  type="checkbox" 
+                  checked={isSelected}
+                  onChange={() => toggleSelect(booking.id)}
+                  className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer mb-1"
+                />
+              </div>
+
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   <a 
@@ -310,6 +364,24 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
           </div>
         );
       })}
+
+      {selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-white rounded-2xl shadow-2xl border-2 border-primary/20 p-3 z-50 flex items-center gap-3 animate-in slide-in-from-bottom-5">
+           <span className="font-black text-primary text-sm whitespace-nowrap px-2">
+              {selectedIds.size} selecionado(s)
+           </span>
+           <div className="w-px h-8 bg-border"></div>
+           <Button size="sm" variant="outline" className="h-10 border-green-600/30 text-green-700 hover:bg-green-50" onClick={() => handleBulkAction('confirm')}>
+             <CheckCircle className="w-4 h-4 mr-2" /> Confirmar
+           </Button>
+           <Button size="sm" variant="outline" className="h-10 text-destructive border-destructive/20 hover:bg-destructive/5" onClick={() => handleBulkAction('cancel')}>
+             <XCircle className="w-4 h-4 mr-2" /> Cancelar
+           </Button>
+           <Button size="sm" className="h-10 bg-red-600 hover:bg-red-700 text-white" onClick={() => handleBulkAction('delete')}>
+             <Trash2 className="w-4 h-4 mr-2" /> Excluir
+           </Button>
+        </div>
+      )}
     </div>
   );
 }
