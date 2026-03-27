@@ -239,12 +239,20 @@ export default function Admin() {
     // A confirmação já foi feita no BookingTable.tsx, para não pedir duas vezes:
     setUpdatingId(bookingId);
     try {
-      const { error } = await supabase.functions.invoke('admin-delete', {
-        body: { bookingId, isOrder, adminToken: token }
-      });
-
-      if (error) throw error;
-
+      if (isOrder) {
+         await supabase.from('order_items').delete().eq('order_id', bookingId);
+         await supabase.from('kiosk_reservations').delete().eq('order_id', bookingId);
+         await supabase.from('quad_reservations').delete().eq('order_id', bookingId);
+         await supabase.from('payments').delete().eq('order_id', bookingId);
+         await supabase.from('vouchers').delete().eq('order_id', bookingId);
+         const { error } = await supabase.from('orders').delete().eq('id', bookingId);
+         if (error) throw error;
+      } else {
+         const { error } = await supabase.functions.invoke('admin-delete', {
+           body: { bookingId, isOrder, adminToken: token }
+         });
+         if (error) throw error;
+      }
 
       setBookings(prev => prev.filter(b => b.id !== bookingId));
       toast({ title: '🗑️ Registro expulso com sucesso!' });
@@ -439,15 +447,23 @@ export default function Admin() {
           <div className="flex gap-2">
             <Button size="sm" variant="outline" className="bg-sun/20 text-sun border-sun/40 hover:bg-sun/40" onClick={() => window.open('/', '_blank')}>NOVA RESERVA</Button>
             <Button size="sm" variant="destructive" disabled={loading} onClick={async () => {
-              if (confirm('Limpar TODOS os dados de teste na tela agora mesmo? Essa ação utilizará a Edge Function.')) {
+              if (confirm('Limpar TODOS os dados de teste na tela agora mesmo?')) {
                 setLoading(true);
                 try {
                   let deleted = 0;
-                  // Limpa pedidos / ordens virtuais e os legados da array atual
                   for (const b of bookings) {
-                    await supabase.functions.invoke('admin-delete', { 
-                      body: { bookingId: b.id, isOrder: b.is_order, adminToken: token } 
-                    });
+                    if (b.is_order) {
+                       await supabase.from('order_items').delete().eq('order_id', b.id);
+                       await supabase.from('kiosk_reservations').delete().eq('order_id', b.id);
+                       await supabase.from('quad_reservations').delete().eq('order_id', b.id);
+                       await supabase.from('payments').delete().eq('order_id', b.id);
+                       await supabase.from('vouchers').delete().eq('order_id', b.id);
+                       await supabase.from('orders').delete().eq('id', b.id);
+                    } else {
+                       await supabase.functions.invoke('admin-delete', { 
+                         body: { bookingId: b.id, isOrder: false, adminToken: token } 
+                       });
+                    }
                     deleted++;
                   }
                   alert(`Sucesso! ${deleted} reservas foram expulsas.`);
