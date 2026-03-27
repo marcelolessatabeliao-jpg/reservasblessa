@@ -63,7 +63,7 @@ export default function Admin() {
         .from('orders')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(100);
+        .limit(300);
 
       if (ordersError) throw ordersError;
 
@@ -101,6 +101,11 @@ export default function Admin() {
         if (items.length === 0 && o.total_amount > 0) {
            items = [{ id: `v-${o.id}-u`, product_id: 'Entrada (Sem detalhes)', quantity: 1, unit_price: o.total_amount, is_redeemed: false }];
            adultsCount = 1;
+        }
+
+        // Se houver itens mas 0 adultos (ex: só escolheu quadriciclo), garantimos ao menos 1 adulto para visibilidade
+        if (items.length > 0 && adultsCount === 0) {
+            adultsCount = 1; 
         }
 
         return {

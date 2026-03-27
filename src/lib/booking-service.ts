@@ -54,18 +54,8 @@ export async function saveBooking(
       .single();
 
     if (orderError) {
-       console.warn('Master orders insert failed, retrying without extended columns...', orderError);
-       delete orderPayload.customer_phone;
-       delete orderPayload.visit_date;
-       
-       const { data: retryData, error: retryError } = await (supabase as any)
-         .from('orders')
-         .insert(orderPayload)
-         .select('id, confirmation_code')
-         .single();
-       
-       if (retryError) throw retryError;
-       orderData = retryData;
+       console.error('CRITICAL ERROR SAVING ORDER:', orderError);
+       throw new Error(`Erro ao salvar pedido: ${orderError.message}. Por favor, verifique sua conexão ou tente novamente.`);
     }
 
     if (orderData) {

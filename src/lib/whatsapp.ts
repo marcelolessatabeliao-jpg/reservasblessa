@@ -8,10 +8,15 @@ export function buildWhatsAppMessage(booking: BookingState, total: number, isPre
   const { entry } = booking;
   const safeGetPrice = getPrice || ((t: string, fb: number) => fb);
   const isSunday = entry.dayOfWeek === 'domingo';
+  // Removido o código do WhatsApp conforme solicitado pelo usuário para segurança (cliente só recebe após pagar).
   let msg = `Olá, Balneário Lessa!\nGostaria de confirmar uma reserva${isPrepay ? ' e já realizar o pagamento via Pix' : ''}.\n\n`;
-  if (code) {
-    msg += `*Código da Reserva:* ${code}\n`;
-    msg += `*Voucher Digital:* https://reservas.balneariolessa.com.br/voucher/${code}\n`;
+  // O código e voucher só aparecem se JÁ for um processo de pré-pagamento confirmado ou se explicitamente solicitado.
+  // Por padrão, para contato inicial, omitimos para que o cliente pague primeiro e receba o voucher depois.
+  if (code && isPrepay) {
+    msg += `*Confirmação:* Pago ✅\n`;
+    msg += `*Código do Voucher:* ${code}\n`;
+    msg += `*Link do Voucher:* https://reservas.balneariolessa.com.br/voucher/${code}\n`;
+    msg += `*Pré-reserva:* #${code}\n`;
   }
   if (entry.name) msg += `*Nome:* ${entry.name}\n`;
   if (entry.phone) msg += `*Telefone:* ${formatPhone(entry.phone)}\n`;
