@@ -40,13 +40,13 @@ export function useBooking() {
     setBooking(prev => {
       const newEntry = { ...prev.entry, ...updates };
       
-      // If visitDate changed, sync it to extras that don't have a date yet
+      // If visitDate changed, sync it to all extras to ensure they match (as requested by user)
       let newKiosks = prev.kiosks;
       let newQuads = prev.quads;
       
       if (updates.visitDate) {
-        newKiosks = prev.kiosks.map(k => ({ ...k, date: k.date || updates.visitDate }));
-        newQuads = prev.quads.map(q => ({ ...q, date: q.date || updates.visitDate }));
+        newKiosks = prev.kiosks.map(k => ({ ...k, date: updates.visitDate }));
+        newQuads = prev.quads.map(q => ({ ...q, date: updates.visitDate }));
       }
       
       return {

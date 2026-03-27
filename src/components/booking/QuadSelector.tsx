@@ -77,51 +77,35 @@ export function QuadSelector({ quads, onUpdate }: Props) {
             </div>
 
             {quad.quantity > 0 && (
-              <div className="pt-3 border-t flex flex-col gap-2 sm:flex-row sm:gap-3">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className={cn("justify-start text-left font-normal flex-1 text-xs sm:text-sm", !quad.date && "text-muted-foreground")}>
-                      <CalendarIcon className="mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
-                      {quad.date ? format(quad.date, "dd/MM/yyyy", { locale: ptBR }) : "Selecionar data"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={quad.date || undefined}
-                      onSelect={(d) => onUpdate(i, { date: d || null })}
-                      disabled={(d) => {
-                        const today = new Date();
-                        today.setHours(0, 0, 0, 0);
-                        return d < today || !isOperatingDay(d);
-                      }}
-                      className="p-3 pointer-events-auto"
-                      locale={ptBR}
-                    />
-                  </PopoverContent>
-                </Popover>
+              <div className="pt-3 border-t flex flex-col gap-3">
+                 <div className="flex items-center gap-2 bg-primary/5 px-4 h-12 rounded-2xl border border-primary/10 shadow-sm">
+                   <CalendarIcon className="h-4 w-4 text-primary" />
+                   <div>
+                     <p className="text-[10px] font-black uppercase text-primary/60 tracking-wider leading-none mb-1">Data Sincronizada</p>
+                     <p className="font-black text-sm text-primary uppercase leading-none">
+                       {quad.date ? format(quad.date, "dd/MM/yyyy (EEE)", { locale: ptBR }) : "--/--/----"}
+                     </p>
+                   </div>
+                 </div>
 
                 <Select 
                   value={quad.time || ''} 
                   onValueChange={async (v) => {
-                    if (!quad.date) {
-                        toast({ title: 'Selecione uma data primeiro', variant: 'destructive' });
-                        return;
-                    }
-                    const used = await getQuadAvailability(format(quad.date, 'yyyy-MM-dd'), v);
-                    if (used + quad.quantity > 5) {
-                        toast({ title: 'Horário Lotado', description: `Restam apenas ${5 - used} vagas para este horário.`, variant: 'destructive' });
+                    const checkDate = quad.date || new Date();
+                    const used = await getQuadAvailability(format(checkDate, 'yyyy-MM-dd'), v);
+                    if (used + quad.quantity > 30) {
+                        toast({ title: 'Horário Lotado', description: `Restam apenas ${30 - used} vagas para este horário.`, variant: 'destructive' });
                         return;
                     }
                     onUpdate(i, { time: v as QuadTime });
                   }}
                 >
-                  <SelectTrigger className="flex-1 text-xs sm:text-sm">
-                    <SelectValue placeholder="Horário" />
+                  <SelectTrigger className="w-full h-12 rounded-2xl border-white/80 bg-white/70 backdrop-blur-sm shadow-sm hover:bg-white hover:border-primary/30 font-black text-sm uppercase tracking-tight">
+                    <SelectValue placeholder="Escolha o Horário" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="rounded-2xl">
                     {QUAD_TIMES.map(t => (
-                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                      <SelectItem key={t} value={t} className="font-bold py-3">{t} — Passeio de 1h30</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

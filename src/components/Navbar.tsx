@@ -78,12 +78,12 @@ export function Navbar() {
             ))}
             
             <div className="flex flex-col gap-3 pt-2">
-              <Button asChild variant="outline" className="text-white border-white/20 hover:bg-white/10 h-12 font-bold w-full">
+              <Button asChild variant="ghost" className="text-white border border-white/20 hover:bg-white/10 h-12 font-bold w-full">
                 <a href="/admin" className="flex items-center justify-center gap-2">
                   <Settings className="h-5 w-5" /> Admin Dashboard
                 </a>
               </Button>
-              <Button asChild variant="outline" className="text-white border-white/20 hover:bg-white/10 h-12 font-bold" onClick={() => setOpen(false)}>
+              <Button asChild variant="ghost" className="text-white border border-white/20 hover:bg-white/10 h-12 font-bold" onClick={() => setOpen(false)}>
                 <a href="#especiais" className="flex items-center justify-center gap-2">
                   <Calculator className="h-5 w-5" /> Simule seu plano
                 </a>

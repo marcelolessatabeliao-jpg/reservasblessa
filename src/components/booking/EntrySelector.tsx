@@ -453,29 +453,17 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
       )}>
         {/* Nome & Telefone Row */}
         {!hideMainInfo && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-primary/5 p-4 rounded-3xl border border-primary/10 shadow-[inset_0_1px_4px_rgba(0,0,0,0.02)]">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-primary/5 p-4 rounded-3xl border border-primary/10 shadow-[inset_0_1px_4px_rgba(0,0,0,0.02)]">
             <div>
               <label className="text-xs font-black text-primary uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                <User className="h-4 w-4" /> Nome
+                <User className="h-4 w-4" /> Nome Completo
               </label>
               <Input
-                placeholder="Nome"
+                placeholder="Ex: João Silva"
                 value={entry.name}
                 onChange={(e) => onUpdateEntry({ name: e.target.value })}
                 className="bg-white/90 backdrop-blur-sm border-primary/20 h-11 rounded-xl focus-visible:ring-primary/50 shadow-sm transition-all text-foreground font-medium"
-                maxLength={100}
-              />
-            </div>
-            <div>
-              <label className="text-xs font-black text-primary uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                <User className="h-4 w-4" /> Sobrenome
-              </label>
-              <Input
-                placeholder="Sobrenome"
-                value={entry.lastName || ''}
-                onChange={(e) => onUpdateEntry({ lastName: e.target.value })}
-                className="bg-white/90 backdrop-blur-sm border-primary/20 h-11 rounded-xl focus-visible:ring-primary/50 shadow-sm transition-all text-foreground font-medium"
-                maxLength={100}
+                maxLength={200}
               />
             </div>
             <div>
@@ -497,65 +485,53 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
           </div>
         )}
 
-        {/* Dia & Data Row */}
+        {/* 1. Escolha a Data Row */}
         {!hideMainInfo && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-3 p-4 bg-primary/5 rounded-[2rem] border border-primary/10 shadow-[inset_0_1px_4px_rgba(0,0,0,0.02)]">
-              <label className="text-xs font-black flex items-center gap-2 text-primary uppercase tracking-widest">
-                <CalendarIcon className="h-4 w-4" /> 1. Escolha a Data
-              </label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className={cn("w-full h-11 justify-start text-left font-bold text-xs rounded-2xl border-white/80 bg-white/70 backdrop-blur-sm shadow-sm hover:bg-white hover:border-primary/30 hover:text-foreground transition-all", !entry.visitDate && "text-muted-foreground")}>
-                    <CalendarIcon className="mr-2 h-4 w-4 shrink-0 text-primary" />
-                    {entry.visitDate ? format(entry.visitDate, "dd/MM/yyyy", { locale: ptBR }) : "Clique para escolher a data..."}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 rounded-[2rem] border-white shadow-2xl" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={entry.visitDate || undefined}
-                    onSelect={(d) => {
-                      if (d) {
-                        const dayMap: Record<number, any> = { 0: 'domingo', 1: 'segunda', 5: 'sexta', 6: 'sabado' };
-                        const dayOfWeek = dayMap[d.getDay()];
-                        if (dayOfWeek) {
-                          onUpdateEntry({ visitDate: d, dayOfWeek });
-                        } else {
-                          onUpdateEntry({ visitDate: d });
-                        }
+          <div className="space-y-3 p-4 bg-primary/5 rounded-[2rem] border border-primary/10 shadow-[inset_0_1px_4px_rgba(0,0,0,0.02)]">
+            <label className="text-xs font-black flex items-center gap-2 text-primary uppercase tracking-widest">
+              <CalendarIcon className="h-4 w-4" /> Escolha a Data da Reserva
+            </label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn("w-full h-12 justify-start text-left font-black text-sm rounded-2xl border-white/80 bg-white/70 backdrop-blur-sm shadow-sm hover:bg-white hover:border-primary/30 hover:text-foreground transition-all uppercase tracking-tight", !entry.visitDate && "text-muted-foreground")}>
+                  <CalendarIcon className="mr-2 h-5 w-5 shrink-0 text-primary" />
+                  {entry.visitDate ? (
+                    <span className="flex items-center gap-2">
+                      {format(entry.visitDate, "dd/MM/yyyy", { locale: ptBR })}
+                      <span className="bg-primary text-white px-2 py-0.5 rounded-lg text-[10px] uppercase font-black">
+                        {format(entry.visitDate, "EEE", { locale: ptBR })}
+                      </span>
+                    </span>
+                  ) : "Clique para escolher a data..."}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0 rounded-[2rem] border-white shadow-2xl" align="start">
+                <Calendar
+                  mode="single"
+                  selected={entry.visitDate || undefined}
+                  onSelect={(d) => {
+                    if (d) {
+                      const dayMap: Record<number, any> = { 0: 'domingo', 1: 'segunda', 5: 'sexta', 6: 'sabado' };
+                      const dayOfWeek = dayMap[d.getDay()];
+                      if (dayOfWeek) {
+                        onUpdateEntry({ visitDate: d, dayOfWeek });
                       } else {
-                        onUpdateEntry({ visitDate: null, dayOfWeek: '' });
+                        onUpdateEntry({ visitDate: d });
                       }
-                    }}
-                    disabled={(d) => {
-                      const today = new Date();
-                      today.setHours(0, 0, 0, 0);
-                      return d < today || !isOperatingDay(d);
-                    }}
-                    className="p-3 pointer-events-auto"
-                    locale={ptBR}
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            <div className="space-y-3 p-4 bg-primary/5 rounded-[2rem] border border-primary/10 shadow-[inset_0_1px_4px_rgba(0,0,0,0.02)] flex flex-col justify-center">
-              <label className="text-xs font-black flex items-center gap-2 text-primary uppercase tracking-widest">
-                <CalendarIcon className="h-4 w-4" /> Dia Selecionado
-              </label>
-              <div className="h-11 bg-white/50 border border-primary/5 rounded-2xl flex items-center px-4">
-                {entry.dayOfWeek ? (
-                  <span className="font-black text-primary uppercase text-sm flex items-center gap-2">
-                    ✅ {entry.dayOfWeek === 'sabado' ? 'Sábado' : 
-                       entry.dayOfWeek === 'domingo' ? 'Domingo' : 
-                       entry.dayOfWeek === 'segunda' ? 'Segunda-feira' : 'Sexta-feira'}
-                  </span>
-                ) : (
-                  <span className="text-muted-foreground text-xs font-medium">Aguardando calendário...</span>
-                )}
-              </div>
-            </div>
+                    } else {
+                      onUpdateEntry({ visitDate: null, dayOfWeek: '' });
+                    }
+                  }}
+                  disabled={(d) => {
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    return d < today || !isOperatingDay(d);
+                  }}
+                  className="p-3 pointer-events-auto"
+                  locale={ptBR}
+                />
+              </PopoverContent>
+            </Popover>
           </div>
         )}
 
@@ -745,20 +721,20 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
 
       {/* Simplified Guided Wizard Modal */}
       <Dialog open={isWizardOpen} onOpenChange={(open) => { if(!open) resetWizard(); setIsWizardOpen(open); }}>
-        <DialogContent className="sm:max-w-md w-[95vw] bg-white rounded-[3rem] border-white shadow-2xl p-6 overflow-hidden">
-          <DialogHeader className="mb-2">
-            <DialogTitle className="text-2xl font-black text-center text-primary font-gliker mt-4">
+        <DialogContent className="sm:max-w-md w-[100vw] h-full sm:h-auto sm:w-[95vw] bg-white rounded-none sm:rounded-[3rem] border-white shadow-2xl p-4 sm:p-6 overflow-y-auto">
+          <DialogHeader className="mb-0 sm:mb-2 sticky top-0 bg-white z-10 py-2">
+            <DialogTitle className="text-xl sm:text-2xl font-black text-center text-primary font-gliker mt-2">
                {wizardType === 'pcd' ? 'Cadastro PCD/TEA' : 
                 wizardType === 'senior' ? 'Cadastro Idoso' :
-                'Novo Participante'}
+                'Participante'}
             </DialogTitle>
           </DialogHeader>
 
-          <AnimatePresence mode="wait">
-            {renderWizardStep()}
-          </AnimatePresence>
-
-
+          <div className="relative px-2 pb-8">
+            <AnimatePresence mode="wait">
+              {renderWizardStep()}
+            </AnimatePresence>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

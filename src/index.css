@@ -120,3 +120,43 @@ div[style*="Edit with Lovable"],
 .animate-shimmer {
   animation: shimmer 2s infinite;
 }
+
+@media print {
+  body {
+    background: white !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  .no-print,
+  button,
+  footer,
+  nav,
+  a {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  .min-h-screen {
+    min-height: auto !important;
+    padding: 0 !important;
+    background: white !important;
+  }
+  .shadow-2xl, .shadow-xl, .shadow-lg, .shadow-sm {
+    box-shadow: none !important;
+    border: 1px solid #eee !important;
+  }
+  .rounded-\[2\.5rem\] {
+    border-radius: 20px !important;
+  }
+  .bg-primary {
+    background-color: #1a1a1a !important; /* Standard black for printers */
+    color: white !important;
+    -webkit-print-color-adjust: exact;
+  }
+  .bg-sun {
+    background-color: #f7b731 !important;
+    -webkit-print-color-adjust: exact;
+  }
+}
+

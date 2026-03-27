@@ -72,6 +72,34 @@ export function BookingSection() {
     setCurrentStep(step);
   };
 
+  // Sync dates for kiosks and quads whenever main visit date changes
+  useEffect(() => {
+    if (booking.entry.visitDate) {
+      booking.kiosks.forEach((k, i) => {
+        if (k.quantity > 0 && (!k.date || k.date.getTime() !== booking.entry.visitDate?.getTime())) {
+          updateKiosk(i, { date: booking.entry.visitDate });
+        }
+      });
+      booking.quads.forEach((q, i) => {
+        if (q.quantity > 0 && (!q.date || q.date.getTime() !== booking.entry.visitDate?.getTime())) {
+          updateQuad(i, { date: booking.entry.visitDate });
+        }
+      });
+    }
+  }, [booking.entry.visitDate, booking.kiosks, booking.quads, updateKiosk, updateQuad]);
+
+  // Handle external "Reservar" button clicks
+  useEffect(() => {
+    const handleTabChange = () => {
+      const element = document.getElementById('reservas');
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    };
+    window.addEventListener('changeBookingTab', handleTabChange);
+    return () => window.removeEventListener('changeBookingTab', handleTabChange);
+  }, []);
+
   const isStepDone = (step: Step) => completedSteps.includes(step);
 
   return (

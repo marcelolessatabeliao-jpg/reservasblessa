@@ -81,12 +81,12 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
   };
 
   const handleAction = async (method: 'PIX' | 'CREDIT_CARD' | 'LOCAL') => {
-    const fullName = `${booking.entry.name || ''} ${booking.entry.lastName || ''}`.trim();
+    const fullName = booking.entry.name?.trim();
 
     if (!fullName || !booking.entry.phone?.trim() || booking.entry.phone.length < 10) {
       toast({
         title: 'Dados Incompletos',
-        description: 'Preencha o campo de Nome, Sobrenome e WhatsApp.',
+        description: 'Preencha o campo de Nome e WhatsApp.',
         variant: 'destructive'
       });
       return;
@@ -120,6 +120,8 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
                    a.isTeacher ? 'Lessa Professor Pass' :
                    a.isStudent ? 'Lessa Estudante Pass' :
                    a.isServer ? 'Lessa Servidor Pass' :
+                   (a as any).isBloodDonor ? 'Lessa Doador Pass' :
+                   a.isBirthday ? 'Aniversariante' :
                    'Adulto';
       items.push({ product_id: label, quantity: a.quantity || 1, unit_price: price });
     });
@@ -308,6 +310,7 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
                 if (a.isPCD) details.push('PCD/TEA');
                 if (a.isBirthday) details.push('Aniversariante');
                 if (a.takeDonation && booking.entry.dayOfWeek !== 'domingo') details.push('Solidária');
+                if ((a as any).isBloodDonor) details.push('Doador');
                 if (a.age >= 60) details.push('Idoso');
 
                 return (
@@ -429,38 +432,35 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
         {/* Membership Comparison Action Card */}
         {(() => {
           const allAdults = booking.entry.adults;
-          const halfPriceAdults = allAdults.filter(a => a.isTeacher || a.isServer || a.isStudent).reduce((acc, a) => acc + (a.quantity || 1), 0);
+          const halfPriceAdults = allAdults.filter(a => a.isTeacher || a.isServer || a.isStudent || (a as any).isBloodDonor || a.takeDonation).reduce((acc, a) => acc + (a.quantity || 1), 0);
           const fullPriceAdults = allAdults.reduce((acc, a) => acc + (a.quantity || 1), 0) - halfPriceAdults;
 
-          // Children that pay in day use (though they are usually free < 11, the user's logic focuses more on adults)
-          // For now let's assume membership pricing follows the user's explicit example with adults
           const membershipPrice = calculateMembershipCost({ adultsCount: fullPriceAdults, halfPriceCount: halfPriceAdults });
           const entriesTotal = totals.entriesTotal;
 
-          if ((fullPriceAdults + halfPriceAdults) > 0 && entriesTotal >= membershipPrice * 0.8) {
+          if ((fullPriceAdults + halfPriceAdults) > 0) {
             return (
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="bg-gradient-to-br from-sun/20 via-sun/10 to-transparent border-2 border-sun/30 rounded-2xl p-4 sm:p-5 relative overflow-hidden group"
+                className="bg-gradient-to-br from-yellow-400 via-sun to-yellow-600 border-2 border-sun/50 rounded-3xl p-5 sm:p-6 relative overflow-hidden group shadow-2xl"
               >
-                <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
-                  <span className="text-4xl text-sun-dark font-black">⭐</span>
+                <div className="absolute top-0 right-0 p-3 opacity-20 group-hover:opacity-40 transition-opacity">
+                  <span className="text-5xl text-white font-black">⭐</span>
                 </div>
 
-                <div className="relative z-10">
-                  <h4 className="font-gliker font-normal text-primary text-sm sm:text-base mb-2 flex items-center gap-2">
-                    💡 Dica: Vale mais a pena ser Sócio!
+                <div className="relative z-10 text-slate-900">
+                  <h4 className="font-gliker font-normal text-lg sm:text-xl mb-2 flex items-center gap-2 text-white drop-shadow-sm">
+                    ✨ Vale mais a pena ser Sócio!
                   </h4>
-                  <p className="text-xs sm:text-sm text-foreground font-medium mb-4 leading-relaxed">
-                    Sua reserva de hoje custa <span className="font-bold text-primary">{formatCurrency(entriesTotal)}</span>.
-                    No <span className="font-bold">Lessa Club</span>, você paga apenas <span className="font-bold text-primary-dark">{formatCurrency(membershipPrice)}/mês</span> e tem <span className="underline decoration-sun font-bold">entradas ilimitadas</span> o mês inteiro!
+                  <p className="text-xs sm:text-sm text-white/90 font-bold mb-4 leading-relaxed">
+                    Sua reserva de hoje custa <span className="font-black bg-white/20 px-1.5 rounded">{formatCurrency(entriesTotal)}</span>.<br/>
+                    No <span className="font-black underline decoration-white">Lessa Club</span>, você paga apenas <span className="font-black bg-white text-primary px-1.5 rounded-lg shadow-sm">{formatCurrency(membershipPrice)}/mês</span> e tem <span className="font-black bg-yellow-300 text-slate-900 px-1.5 rounded-lg">ENTRADAS ILIMITADAS</span> o mês inteiro!
                   </p>
 
                   <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full bg-white/80 hover:bg-sun hover:text-foreground border-sun/50 font-display font-black text-[10px] sm:text-xs uppercase tracking-widest h-10 shadow-sm transition-all"
+                    size="lg"
+                    className="w-full bg-white hover:bg-slate-100 text-primary-dark font-display font-black text-xs sm:text-sm uppercase tracking-widest h-12 shadow-md transition-all active:scale-95"
                     onClick={() => {
                       const element = document.getElementById('especiais');
                       if (element) {
@@ -468,7 +468,7 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
                       }
                     }}
                   >
-                    Quero ver os Planos <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                    Ativar Plano Dourado <ArrowRight className="ml-1.5 h-4 w-4" />
                   </Button>
                 </div>
               </motion.div>
@@ -480,27 +480,16 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
         {/* Seção de Dados do Pagador */}
         <div className="space-y-4 pt-4 border-t border-primary/10">
           <h4 className="text-sm font-black text-primary uppercase tracking-widest flex items-center gap-2">
-            <User className="h-4 w-4" /> Dados do Pagador
+            <User className="h-4 w-4" /> Dados do Responsável
           </h4>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-[10px] uppercase font-black text-primary/60 ml-1">Nome</Label>
-              <Input
-                value={booking.entry.name}
-                onChange={(e) => updateEntry?.({ name: e.target.value })}
-                placeholder="Nome"
-                className="rounded-xl border-primary/20 h-11 focus-visible:ring-primary font-medium"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-[10px] uppercase font-black text-primary/60 ml-1">Sobrenome</Label>
-              <Input
-                value={booking.entry.lastName || ''}
-                onChange={(e) => updateEntry?.({ lastName: e.target.value })}
-                placeholder="Sobrenome"
-                className="rounded-xl border-primary/20 h-11 focus-visible:ring-primary font-medium"
-              />
-            </div>
+          <div className="space-y-1.5 flex-1">
+            <Label className="text-[10px] uppercase font-black text-primary/60 ml-1">Nome Completo</Label>
+            <Input
+              value={booking.entry.name}
+              onChange={(e) => updateEntry?.({ name: e.target.value })}
+              placeholder="Nome completo do responsável"
+              className="rounded-xl border-primary/20 h-11 focus-visible:ring-primary font-medium"
+            />
           </div>
           <div className="space-y-1.5">
             <Label className="text-[10px] uppercase font-black text-primary/60 ml-1">CPF (Obrigatório para Pix/Cartão)</Label>
@@ -510,11 +499,11 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
                 const val = e.target.value.replace(/\D/g, '').slice(0, 11);
                 updateEntry?.({ cpf: val });
               }}
-                placeholder="000.000.000-00"
-                className="rounded-xl border-primary/20 h-11 focus-visible:ring-primary font-medium"
-              />
-            </div>
+              placeholder="000.000.000-00"
+              className="rounded-xl border-primary/20 h-11 focus-visible:ring-primary font-medium"
+            />
           </div>
+        </div>
 
           <div className="flex flex-col gap-4">
             {paymentConfirmed ? (
@@ -638,17 +627,16 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
 
             <Button
               size="lg"
-              variant="outline"
               onClick={() => handleAction('LOCAL')}
               disabled={saving}
-              className="w-full h-20 sm:h-24 rounded-[2rem] border-2 sm:border-4 border-green-600/30 bg-white hover:bg-green-50 text-green-700 font-black flex items-center justify-center gap-2 sm:gap-4 shadow-lg active:scale-[0.97] transition-all relative overflow-hidden group"
+              className="w-full h-20 sm:h-24 rounded-[2rem] bg-[#006020] hover:bg-[#004d1a] border-b-8 border-[#004015] text-white font-black flex items-center justify-center gap-2 sm:gap-4 shadow-lg active:scale-[0.97] transition-all relative overflow-hidden group"
             >
-              <div className="p-2 sm:p-3 bg-green-100 rounded-xl sm:rounded-2xl shrink-0">
-                <MessageCircle className="h-6 w-6 sm:h-7 sm:h-7 text-green-600" />
+              <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md shrink-0">
+                <MessageCircle className="h-7 w-7 text-white" />
               </div>
               <div className="text-left leading-tight min-w-0">
-                <span className="block text-[9px] sm:text-[10px] opacity-70 font-black uppercase tracking-widest mb-0.5 truncate">Pagar Presencialmente</span>
-                <span className="text-base sm:text-xl uppercase tracking-tighter block whitespace-nowrap overflow-hidden text-ellipsis">Confirmar no WhatsApp</span>
+                <span className="block text-[10px] sm:text-[11px] text-white/80 font-black uppercase tracking-widest mb-0.5 truncate uppercase">Pagar Presencialmente</span>
+                <span className="text-lg sm:text-2xl uppercase tracking-tighter block whitespace-nowrap overflow-hidden text-ellipsis">Confirmar no WhatsApp</span>
               </div>
             </Button>
           </div>

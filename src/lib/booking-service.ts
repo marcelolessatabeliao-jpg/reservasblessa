@@ -6,12 +6,7 @@ export interface OrderItemInput {
   product_id: string;
   quantity: number;
   unit_price: number;
-}
-
-export interface OrderItemInput {
-  product_id: string;
-  quantity: number;
-  unit_price: number;
+  is_redeemed?: boolean;
 }
 
 export interface SaveBookingResult {
@@ -38,11 +33,10 @@ export async function saveBooking(
   const customerName = entry.name.trim().slice(0, 200);
   const customerPhone = entry.phone?.trim()?.slice(0, 20) || null;
   
-  let legacyBookingId: string | null = null;
+  let finalOrderId = null;
   let confirmationCode: string | null = null;
 
   // 2. Integration: Save to orders and order_items tables (MASTER DATA)
-  let finalOrderId = null;
   try {
     const orderPayload: any = {
       user_id: userId || null,
@@ -56,19 +50,18 @@ export async function saveBooking(
     let { data: orderData, error: orderError } = await (supabase as any)
       .from('orders')
       .insert(orderPayload)
-      .select('id, confirmation_code') // Orders now has confirmation_code via trigger
+      .select('id, confirmation_code') 
       .single();
 
     if (orderError) {
-       // Fallback: If columns missing, retry without new ones
-       console.warn('master orders sync failed, retrying without new columns:', orderError);
+       console.warn('Master orders insert failed, retrying without extended columns...', orderError);
        delete orderPayload.customer_phone;
        delete orderPayload.visit_date;
        
        const { data: retryData, error: retryError } = await (supabase as any)
          .from('orders')
          .insert(orderPayload)
-         .select('id')
+         .select('id, confirmation_code')
          .single();
        
        if (retryError) throw retryError;
@@ -77,38 +70,87 @@ export async function saveBooking(
 
     if (orderData) {
       finalOrderId = orderData.id;
-      // Use code from order if legacy didn't provide one
-      if (!confirmationCode && orderData.confirmation_code) {
-        confirmationCode = orderData.confirmation_code;
-      }
+      confirmationCode = orderData.confirmation_code;
       
       let orderItems: any[] = [];
       
       if (orderItemsInput && orderItemsInput.length > 0) {
         orderItems = orderItemsInput.map(item => ({
           ...item,
-          order_id: orderData.id
+          order_id: finalOrderId,
+          is_redeemed: false
         }));
       } else {
-        // Fallback mapping
+        // Fallback mapping if input is missing - Capture everything!
+        const isSunday = booking.entry.dayOfWeek === 'domingo';
+        
+        // 1. Adults
         booking.entry.adults.forEach((a) => {
+          const price = ((a.isTeacher || a.isStudent || a.isServer || (a as any).isBloodDonor || a.takeDonation) && !isSunday) ? 25 : 50;
+          const label = a.isPCD ? 'Lessa Inclusão' : 
+                       a.age >= 60 ? 'Lessa Vitalício' : 
+                       a.isTeacher ? 'Lessa Professor Pass' :
+                       (a as any).isBloodDonor ? 'Lessa Doador Pass' :
+                       a.isStudent ? 'Lessa Estudante Pass' :
+                       a.isServer ? 'Lessa Servidor Pass' :
+                       a.isBirthday ? 'Lessa Aniversariante Pass' : 'Adulto';
           orderItems.push({ 
-            order_id: orderData.id, 
-            product_id: a.isPCD ? 'Lessa Inclusão' : a.isTeacher ? 'Lessa Professor Pass' : 'Adulto',
+            order_id: finalOrderId, 
+            product_id: label,
             quantity: a.quantity || 1, 
-            unit_price: 50 // This will be updated if passed correctly
+            unit_price: (a.age >= 60 || a.isPCD || a.isBirthday) ? 0 : price,
+            is_redeemed: false
+          });
+        });
+
+        // 2. Children
+        booking.entry.children.forEach((c) => {
+          orderItems.push({ 
+            order_id: finalOrderId, 
+            product_id: c.isPCD ? 'Lessa Kids PCD' : 'Lessa Kids',
+            quantity: c.quantity || 1, 
+            unit_price: 0,
+            is_redeemed: false
+          });
+        });
+
+        // 3. Kiosks
+        booking.kiosks.filter(k => k.quantity > 0).forEach(k => {
+          orderItems.push({ 
+            order_id: finalOrderId, 
+            product_id: `Quiosque ${k.type === 'maior' ? 'Maior' : 'Menor'}`,
+            quantity: k.quantity, 
+            unit_price: k.type === 'maior' ? 100 : 75,
+            is_redeemed: false
+          });
+        });
+
+        // 4. Quads
+        booking.quads.filter(q => q.quantity > 0).forEach(q => {
+          const baseMap: Record<string, number> = { individual: 150, dupla: 250, 'adulto-crianca': 200 };
+          const labelMap: Record<string, string> = { individual: 'Individual', dupla: 'Dupla', 'adulto-crianca': 'Adulto + Criança' };
+          orderItems.push({ 
+            order_id: finalOrderId, 
+            product_id: `Quadriciclo ${labelMap[q.type]}`,
+            quantity: q.quantity, 
+            unit_price: baseMap[q.type] || 0,
+            is_redeemed: false
           });
         });
       }
 
       if (orderItems.length > 0) {
+        console.log('Inserting order items:', orderItems.length);
         const { error: itemsErr } = await (supabase as any).from('order_items').insert(orderItems);
-        if (itemsErr) console.error('Error inserting order items:', itemsErr);
+        if (itemsErr) {
+          console.error('CRITICAL: Error inserting order items:', itemsErr);
+          // Don't throw, let the order survive but log it
+        }
       }
     }
   } catch (err: any) {
-    console.error('Master orders sync failed:', err);
-    throw new Error(`Falha no Sistema de Pedidos: ${err.message || 'Erro desconhecido'}`); 
+    console.error('Master sync process failed:', err);
+    throw new Error(`Erro Crítico no Sistema: ${err.message || 'Falha ao sincronizar dados'}`); 
   }
 
   // 3. Save quad reservations for slot tracking

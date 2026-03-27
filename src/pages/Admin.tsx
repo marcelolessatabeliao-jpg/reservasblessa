@@ -59,12 +59,17 @@ export default function Admin() {
     setLoading(true);
     try {
       fetchInventory();
+      // Use a explicit select for all related tables
       const { data, error } = await supabase
         .from('orders')
-        .select(`*, order_items (*)`)
+        .select(`
+          *,
+          order_items (*)
+        `)
         .order('created_at', { ascending: false });
 
       if (error) {
+        console.error('Order fetch error, falling back to legacy:', error);
         const { data: legacyData, error: legacyError } = await supabase
           .from('bookings' as any)
           .select('*')
@@ -75,6 +80,28 @@ export default function Admin() {
       } else {
         const mapped = data?.map(o => {
           const items = o.order_items || [];
+          
+          // Debug items if empty but total is high
+          if (items.length === 0 && o.total_amount > 50) {
+            console.warn(`Order ${o.id} has total ${o.total_amount} but no items!`);
+          }
+
+          const adultItems = items.filter((i: any) => 
+            i.product_id?.includes('Adulto') || 
+            i.product_id?.includes('Professor') || 
+            i.product_id?.includes('Estudante') || 
+            i.product_id?.includes('Servidor') || 
+            i.product_id?.includes('Vitalício') || 
+            i.product_id?.includes('Doador') ||
+            i.product_id?.includes('Aniversariante') ||
+            i.product_id?.includes('Inclusão')
+          );
+          
+          const childItems = items.filter((i: any) => 
+            i.product_id?.includes('Criança') || 
+            i.product_id?.includes('Kids')
+          );
+
           return {
             id: o.id,
             name: o.customer_name,
@@ -84,13 +111,23 @@ export default function Admin() {
             total_amount: o.total_amount,
             confirmation_code: o.confirmation_code,
             created_at: o.created_at,
+            notes: o.notes,
             is_order: true,
             order_items: items,
-            adults: items.filter((i: any) => i.product_id?.includes('Adulto') || i.product_id?.includes('Professor') || i.product_id?.includes('Estudante') || i.product_id?.includes('Servidor') || i.product_id?.includes('Vitalício') || i.product_id?.includes('Inclusão')).reduce((acc: number, item: any) => acc + (item.quantity || 0), 0) || 0,
-            children: items.filter((i: any) => i.product_id?.includes('Criança') || i.product_id?.includes('Kids')).reduce((acc: number, item: any) => acc + (item.quantity || 0), 0) || 0,
-            kiosks: items.filter((i: any) => i.product_id?.includes('Quiosque')).map((i: any) => ({ type: i.product_id?.toLowerCase().includes('maior') ? 'maior' : 'menor', quantity: i.quantity || 0 })),
-            quads: items.filter((i: any) => i.product_id?.includes('Quad')).map((i: any) => ({ type: i.product_id?.toLowerCase().includes('individual') ? 'individual' : i.product_id?.toLowerCase().includes('dupla') ? 'dupla' : 'adulto-crianca', quantity: i.quantity || 0 })),
-            additionals: items.filter((i: any) => i.product_id?.includes('Pesca') || i.product_id?.includes('Futebol')).map((i: any) => ({ type: i.product_id?.toLowerCase().includes('pesca') ? 'pesca' : 'futebol-sabao', quantity: i.quantity || 0 }))
+            adults: adultItems.reduce((acc: number, item: any) => acc + (item.quantity || 0), 0) || 0,
+            children: childItems.reduce((acc: number, item: any) => acc + (item.quantity || 0), 0) || 0,
+            kiosks: items.filter((i: any) => i.product_id?.includes('Quiosque')).map((i: any) => ({ 
+              type: i.product_id?.toLowerCase().includes('maior') ? 'maior' : 'menor', 
+              quantity: i.quantity || 0 
+            })),
+            quads: items.filter((i: any) => i.product_id?.includes('Quad')).map((i: any) => ({ 
+              type: i.product_id?.toLowerCase().includes('individual') ? 'individual' : i.product_id?.toLowerCase().includes('dupla') ? 'dupla' : 'adulto-crianca', 
+              quantity: i.quantity || 0 
+            })),
+            additionals: items.filter((i: any) => i.product_id?.includes('Pesca') || i.product_id?.includes('Futebol')).map((i: any) => ({ 
+              type: i.product_id?.toLowerCase().includes('pesca') ? 'pesca' : 'futebol-sabao', 
+              quantity: i.quantity || 0 
+            }))
           };
         });
         setBookings(mapped || []);
@@ -110,11 +147,11 @@ export default function Admin() {
 
     const channel = supabase
       .channel('admin-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => { fetchBookings(); fetchOrders(); })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, () => { fetchBookings(); fetchOrders(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => fetchBookings())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, () => fetchBookings())
       .subscribe();
 
-    const interval = setInterval(() => { fetchBookings(); fetchOrders(); }, 60000);
+    const interval = setInterval(() => fetchBookings(), 60000);
     return () => { supabase.removeChannel(channel); clearInterval(interval); };
   }, [token, fetchBookings, fetchOrders]);
 
@@ -123,6 +160,10 @@ export default function Admin() {
     try {
       if (isOrder) {
          await supabase.from('orders').update({ status: status === 'confirmed' ? 'paid' : status }).eq('id', bookingId);
+         if (status === 'cancelled') {
+           await supabase.from('kiosk_reservations').delete().eq('order_id', bookingId);
+           await supabase.from('quad_reservations').delete().eq('order_id', bookingId);
+         }
       } else {
         await supabase.functions.invoke('update-booking-status', { body: { bookingId, status, adminToken: token } });
       }
@@ -135,11 +176,36 @@ export default function Admin() {
 
   const handleReschedule = async (bookingId: string, newDate: string, isOrder?: boolean) => {
     try {
-      if (isOrder) await supabase.from('orders').update({ visit_date: newDate }).eq('id', bookingId);
+      if (isOrder) {
+        await supabase.from('orders').update({ visit_date: newDate }).eq('id', bookingId);
+        await supabase.from('kiosk_reservations').update({ reservation_date: newDate }).eq('order_id', bookingId);
+        await supabase.from('quad_reservations').update({ reservation_date: newDate }).eq('order_id', bookingId);
+      }
       else await supabase.from('bookings').update({ visit_date: newDate }).eq('id', bookingId);
       toast({ title: '📅 Reagendado!' });
       fetchBookings();
     } catch (err: any) { toast({ title: 'Erro', description: err.message, variant: 'destructive' }); }
+  };
+
+  const handleDelete = async (bookingId: string, isOrder?: boolean) => {
+    setUpdatingId(bookingId);
+    try {
+      if (isOrder) {
+        // Delete related items first due to FK constraints if any (though quads/kiosks are usually linked by order_id)
+        await supabase.from('order_items').delete().eq('order_id', bookingId);
+        await supabase.from('kiosk_reservations').delete().eq('order_id', bookingId);
+        await supabase.from('quad_reservations').delete().eq('order_id', bookingId);
+        await supabase.from('orders').delete().eq('id', bookingId);
+      } else {
+        await supabase.from('bookings').delete().eq('id', bookingId);
+      }
+      toast({ title: '🗑️ Registro excluído permanentemente.' });
+      fetchBookings();
+    } catch (err: any) {
+      toast({ title: 'Erro ao excluir', description: err.message, variant: 'destructive' });
+    } finally {
+      setUpdatingId(null);
+    }
   };
 
   const handleAddNote = async (bookingId: string, notes: string, isOrder?: boolean) => {
@@ -318,7 +384,7 @@ export default function Admin() {
               ))}
             </div>
             <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" /><Input placeholder="Buscar reservas..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" /></div>
-            <BookingTable bookings={filtered} onStatusChange={handleStatusChange} onAddNote={handleAddNote} onReschedule={handleReschedule} updatingId={updatingId} />
+            <BookingTable bookings={filtered} onStatusChange={handleStatusChange} onAddNote={handleAddNote} onReschedule={handleReschedule} onDelete={handleDelete} updatingId={updatingId} />
           </div>
         )}
       </div>

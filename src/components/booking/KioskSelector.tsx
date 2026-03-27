@@ -57,38 +57,15 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
 
             {kiosk.quantity > 0 && (
               <div className="pt-3 border-t">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal text-xs sm:text-sm", !kiosk.date && "text-muted-foreground")}>
-                      <CalendarIcon className="mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
-                      {kiosk.date ? format(kiosk.date, "dd/MM/yyyy", { locale: ptBR }) : "Selecionar data da reserva"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={kiosk.date || undefined}
-                      onSelect={async (d) => {
-                        if (!d) return;
-                        const dateStr = format(d, 'yyyy-MM-dd');
-                        const used = await getKioskAvailability(dateStr, kiosk.type);
-                        const limit = kiosk.type === 'maior' ? 1 : 4;
-                        if (used >= limit) {
-                          toast({ title: 'Data Indisponível', description: 'Este quiosque já está reservado para esta data.', variant: 'destructive' });
-                          return;
-                        }
-                        onUpdate(i, { date: d });
-                      }}
-                      disabled={(d) => {
-                        const today = new Date();
-                        today.setHours(0, 0, 0, 0);
-                        return d < today || !isOperatingDay(d);
-                      }}
-                      className="p-3 pointer-events-auto"
-                      locale={ptBR}
-                    />
-                  </PopoverContent>
-                </Popover>
+                 <div className="flex items-center gap-2 bg-primary/5 px-4 h-12 rounded-2xl border border-primary/10 shadow-sm">
+                   <CalendarIcon className="h-4 w-4 text-primary" />
+                   <div>
+                     <p className="text-[10px] font-black uppercase text-primary/60 tracking-wider leading-none mb-1">Data Sincronizada</p>
+                     <p className="font-black text-sm text-primary uppercase leading-none">
+                       {kiosk.date ? format(kiosk.date, "dd/MM/yyyy (EEE)", { locale: ptBR }) : "--/--/----"}
+                     </p>
+                   </div>
+                 </div>
               </div>
             )}
           </div>
