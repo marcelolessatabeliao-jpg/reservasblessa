@@ -16,6 +16,14 @@ import { ptBR } from 'date-fns/locale';
 import { getPersonPrice, formatCurrency, KIOSK_INFO, QUAD_LABELS, getQuadDiscount, ADDITIONAL_INFO, WHATSAPP_NUMBER, type BookingState, type AdultInfo, type ChildInfo } from '@/lib/booking-types';
 import { useState, useEffect } from 'react';
 
+// Preços fixos de exibição (independente do BD)
+function getEntryDisplayPrice(person: AdultInfo | ChildInfo, defaultFree: boolean): number {
+  if (defaultFree || person.isPCD || (person as any).isTEA || person.isBirthday) return 0;
+  const hasHalf = person.isTeacher || person.isServer || person.isStudent ||
+                  (person as any).isBloodDonor || (person as any).takeDonation;
+  return hasHalf ? 25 : 50;
+}
+
 interface Props {
   booking: BookingState;
   totals: {
@@ -37,6 +45,7 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
   const [pixData, setPixData] = useState<{ encodedImage: string; payload: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
+  const [goldMode, setGoldMode] = useState(false);
   const { getPrice } = useServices();
   const { toast } = useToast();
 
@@ -319,9 +328,9 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
               })}
 
               {/* Pagantes */}
-              {booking.entry.adults.filter(a => getPersonPrice(a, a.age >= 60, booking.entry.dayOfWeek === 'domingo', getPrice) > 0).map((a, i) => {
+              {booking.entry.adults.filter(a => getEntryDisplayPrice(a, a.age >= 60) > 0).map((a, i) => {
                 const qty = a.quantity || 1;
-                const price = getPersonPrice(a, a.age >= 60, booking.entry.dayOfWeek === 'domingo', getPrice);
+                const price = getEntryDisplayPrice(a, a.age >= 60);
                 let details = [];
                 if (a.isTeacher) details.push('Professor');
                 if (a.isServer) details.push('Servidor');
@@ -342,9 +351,9 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
                 );
               })}
 
-              {booking.entry.children.filter(c => getPersonPrice(c, c.age <= 11, booking.entry.dayOfWeek === 'domingo', getPrice) > 0).map((c, i) => {
+              {booking.entry.children.filter(c => getEntryDisplayPrice(c, c.age <= 11) > 0).map((c, i) => {
                 const qty = c.quantity || 1;
-                const price = getPersonPrice(c, c.age <= 11, booking.entry.dayOfWeek === 'domingo', getPrice);
+                const price = getEntryDisplayPrice(c, c.age <= 11);
                 return (
                   <div key={`child-pay-${i}`} className="flex justify-between items-start mt-2">
                     <div>
@@ -460,7 +469,7 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
         {/* Vale mais a pena ser Sócio */}
         {totals.entriesTotal > 0 && (() => {
           const payingAdults = booking.entry.adults
-            .filter(a => getPersonPrice(a, a.age >= 60, booking.entry.dayOfWeek === 'domingo', getPrice) > 0)
+            .filter(a => getEntryDisplayPrice(a, a.age >= 60) > 0)
             .reduce((sum, a) => sum + (a.quantity || 1), 0);
 
           if (payingAdults === 0) return null;
@@ -472,21 +481,25 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
             <motion.div
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              className="rounded-[1.5rem] overflow-hidden shadow-xl"
-              style={{ background: 'linear-gradient(135deg, #0c1a4e 0%, #172d80 60%, #0c1a4e 100%)' }}
+              className="rounded-[1.5rem] overflow-hidden shadow-xl transition-all duration-500"
+              style={{ background: goldMode 
+                ? 'linear-gradient(135deg, #92600a 0%, #c8860a 40%, #e6a817 60%, #92600a 100%)'
+                : 'linear-gradient(135deg, #0c1a4e 0%, #172d80 60%, #0c1a4e 100%)' }}
             >
               <div className="p-5 space-y-3">
                 <div className="flex items-center gap-2">
-                  <div className="w-9 h-9 rounded-xl bg-yellow-400/20 flex items-center justify-center shrink-0">
-                    <Sparkles className="h-5 w-5 text-yellow-400" />
+                  <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center shrink-0", goldMode ? "bg-white/20" : "bg-yellow-400/20")}>
+                    <Sparkles className={cn("h-5 w-5", goldMode ? "text-white" : "text-yellow-400")} />
                   </div>
-                  <span className="text-white font-black text-base leading-tight">Vale mais a pena ser Sócio!</span>
+                  <span className="text-white font-black text-base leading-tight">
+                    {goldMode ? '✨ Plano Dourado Ativado!' : 'Vale mais a pena ser Sócio!'}
+                  </span>
                 </div>
 
                 <p className="text-white/90 text-sm leading-relaxed">
-                  Sua reserva de hoje custa{' '}
+                  Suas entradas hoje custam{' '}
                   <span className="bg-yellow-400/20 text-yellow-300 font-black px-2 py-0.5 rounded-lg">
-                    {formatCurrency(totals.total)}
+                    {formatCurrency(totals.entriesTotal)}
                   </span>
                   . No{' '}
                   <span className="text-yellow-400 font-black">Lessa Club</span>
@@ -500,10 +513,18 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
                 </p>
 
                 <button
-                  className="w-full bg-white text-[#0c1a4e] font-black text-sm py-3.5 rounded-xl hover:bg-yellow-50 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-md"
-                  onClick={() => window.open(`https://wa.me/556992626140?text=${encodeURIComponent('Olá! Quero saber mais sobre o Lessa Club e ativar o Plano Dourado!')}`, '_blank')}
+                  className={cn(
+                    "w-full font-black text-sm py-3.5 rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-md",
+                    goldMode 
+                      ? "bg-yellow-400 text-yellow-900 hover:bg-yellow-300" 
+                      : "bg-white text-[#0c1a4e] hover:bg-yellow-50"
+                  )}
+                  onClick={() => {
+                    setGoldMode(true);
+                    window.open(`https://wa.me/556992626140?text=${encodeURIComponent('Olá! Quero saber mais sobre o Lessa Club e ativar o Plano Dourado!')}`, '_blank');
+                  }}
                 >
-                  ATIVAR PLANO DOURADO <ArrowRight className="h-4 w-4" />
+                  {goldMode ? '✨ PLANO DOURADO ATIVADO' : 'ATIVAR PLANO DOURADO'} <ArrowRight className="h-4 w-4" />
                 </button>
               </div>
             </motion.div>

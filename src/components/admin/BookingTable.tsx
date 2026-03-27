@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/booking-types';
 import { BookingDetail } from './BookingDetail';
 import { Textarea } from '@/components/ui/textarea';
-
+import { supabase } from '@/integrations/supabase/client';
 import { formatPhone } from '@/lib/utils/format';
 import { cn } from '@/lib/utils';
 
