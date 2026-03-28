@@ -134,13 +134,14 @@ export default function Admin() {
             
             o.order_items.forEach((item: any) => {
                const pId = (item.product_id || '').toLowerCase();
+               const pName = (item.product_name || '').toLowerCase();
                
                // Only add Kiosks from orders if NOT already in parsedKiosks (via order_id)
-               if (pId.includes('quiosque') && !parsedKiosks.some(pk => pk.order_id === o.id)) {
+               if ((pId.includes('quiosque') || pName.includes('quiosque')) && !parsedKiosks.some(pk => pk.order_id === o.id)) {
                  for(let i=0; i<item.quantity; i++) {
                    parsedKiosks.push({
                      id: `order-${o.id}-k-${i}`,
-                     kiosk_id: pId.includes('maior') ? 1 : 'MENOR',
+                     kiosk_id: (pId.includes('maior') || pName.includes('maior')) ? 1 : 'MENOR',
                      reservation_date: resDate,
                      customer_name: customerName,
                      price: item.unit_price,
@@ -150,21 +151,21 @@ export default function Admin() {
                }
 
                // Only add Quads from orders if NOT already in parsedQuads (via order_id)
-               if (pId.includes('quad') && !parsedQuads.some(pq => pq.order_id === o.id)) {
+               if ((pId.includes('quad') || pName.includes('quad')) && !parsedQuads.some(pq => pq.order_id === o.id)) {
                   // Try to find a time slot (HH:MM or HHhMM) in name or metadata
-                  const searchStr = `${item.product_name || ''} ${JSON.stringify(item.metadata || {})} ${o.notes || ''}`.toUpperCase();
+                  const searchStr = `${pName} ${pId} ${JSON.stringify(item.metadata || {})} ${o.notes || ''}`.toUpperCase();
                   const timeMatch = searchStr.match(/(\d{2}[:H]\d{2})/);
                   let finalSlot = timeMatch ? timeMatch[1].replace('H', ':') : null;
                   
                   if (!finalSlot) {
                     const standardSlot = QUAD_TIMES.find(t => searchStr.includes(t));
-                    finalSlot = standardSlot || (pId.includes('dupla') ? 'DUPLA' : 'INDIV');
+                    finalSlot = standardSlot || (searchStr.includes('DUPLA') ? 'DUPLA' : 'INDIV');
                   }
 
                   parsedQuads.push({
                      id: `order-${o.id}-q-${item.id}`,
                      time_slot: finalSlot,
-                     quad_type: pId.includes('dupla') ? 'dupla' : (pId.includes('crianca') ? 'adulto-crianca' : 'individual'),
+                     quad_type: searchStr.includes('DUPLA') ? 'dupla' : (searchStr.includes('CRIANCA') ? 'adulto-crianca' : 'individual'),
                      quantity: item.quantity,
                      reservation_date: resDate,
                      customer_name: customerName,
@@ -211,7 +212,15 @@ export default function Admin() {
   const saveEditing = async (type: 'kiosk' | 'quad') => {
     try {
       const table = type === 'kiosk' ? 'kiosk_reservations' : 'quad_reservations';
-      const { bookings, is_from_order, bookings_kiosk, customer_name, receipt_url, ...payload } = editData;
+      // Only send fields that exist in the database schema
+      const payload: any = {};
+      const fields = type === 'kiosk' 
+        ? ['kiosk_id', 'reservation_date', 'notes', 'price', 'receipt_url'] 
+        : ['time_slot', 'quad_type', 'quantity', 'reservation_date', 'notes', 'price', 'receipt_url'];
+      
+      fields.forEach(f => {
+        if (editData[f] !== undefined) payload[f] = editData[f];
+      });
       
       const { error } = await supabase.from(table).update(payload).eq('id', editingId);
       if (error) throw error;
@@ -220,6 +229,7 @@ export default function Admin() {
       setEditingId(null);
       fetchData();
     } catch (err) {
+      console.error('Save error:', err);
       toast({ title: "Erro ao salvar", variant: "destructive" });
     }
   };
@@ -256,6 +266,7 @@ export default function Admin() {
       toast({ title: "✓ Status atualizado" });
       fetchData();
     } catch (err) {
+      console.error('Update status error:', err);
       toast({ title: "Erro ao atualizar", variant: "destructive" });
     } finally { setUpdatingId(null); }
   };
