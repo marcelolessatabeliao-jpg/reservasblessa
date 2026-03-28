@@ -49,24 +49,35 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
     setWizardType(type);
     
     if (type === 'senior') {
-      setWizardData({ age: 60, category: 'inteira', isPCD: false });
-      setWizardStep(7); // Senior warning step
-      setIsWizardOpen(true);
+      const flags = { age: 60, quantity: 1, isPCD: false };
+      const isSamePerson = (p1: any, p2: any) => p1.age === p2.age && !p1.isTeacher && !p1.isStudent && !p1.isServer && !p1.isBloodDonor && !p1.isBirthday && !p1.takeDonation;
+      const existingIdx = entry.adults.findIndex(a => isSamePerson(a, flags));
+      if (existingIdx >= 0) {
+        onUpdateAdult(existingIdx, { quantity: (entry.adults[existingIdx].quantity || 1) + 1 });
+      } else {
+        onUpdateEntry({ adults: [...entry.adults, flags] });
+      }
       return;
     } else if (type === 'pcd') {
       setWizardData({ age: 30, category: 'pcd', isPCD: true });
-      setWizardStep(4); // Final display for PCD
+      setWizardStep(4);
+      setIsWizardOpen(true);
+      return;
     } else if (type === 'child') {
-      setWizardData({ age: 5, category: 'inteira', isPCD: false });
-      setWizardStep(6); // New age check step
+      const flags = { age: 5, quantity: 1, isPCD: false };
+      const isSamePerson = (p1: any, p2: any) => p1.age === p2.age && !p1.isPCD;
+      const existingIdx = entry.children.findIndex(c => isSamePerson(c, flags));
+      if (existingIdx >= 0) {
+        onUpdateChild(existingIdx, { quantity: (entry.children[existingIdx].quantity || 1) + 1 });
+      } else {
+        onUpdateEntry({ children: [...entry.children, flags] });
+      }
+      return;
     } else if (type === 'adult') {
       setWizardData({ age: 30, category: 'inteira', isPCD: false });
-      setWizardStep(3); // Skip to step 3 (Categories)
-    } else {
-      setWizardStep(1);
+      setWizardStep(3);
+      setIsWizardOpen(true);
     }
-    
-    setIsWizardOpen(true);
   };
 
   const handleFinishWizard = (categoryOverride?: string, takeDonationOverride?: boolean) => {
@@ -208,11 +219,11 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
         const entryHalfStr = formatCurrency(getPrice('entry_half', 25)).replace(',00', '');
 
         const categories = [
-          { id: 'inteira', label: 'Entradas normais', sublabel: 'Inteira ou Solidária', price: `${entryFullStr} ou ${entryHalfStr}`, emoji: '🎟️', bg: 'bg-slate-50', border: 'border-slate-200', selectedBg: 'bg-slate-100', selectedBorder: 'border-slate-500', priceColor: 'text-slate-700', labelColor: 'text-slate-800' },
+          { id: 'inteira', label: 'Inteira', sublabel: 'Acesso Normal', price: entryFullStr, emoji: '🎟️', bg: 'bg-emerald-50', border: 'border-emerald-100', selectedBg: 'bg-emerald-100', selectedBorder: 'border-emerald-500', priceColor: 'text-emerald-700', labelColor: 'text-emerald-900' },
+          { id: 'solidaria', label: 'Solidária', sublabel: 'Leve 1kg Alimento', price: entryHalfStr, emoji: '❤️', bg: 'bg-sun/10', border: 'border-sun/20', selectedBg: 'bg-sun/20', selectedBorder: 'border-sun-dark', priceColor: 'text-sun-dark', labelColor: 'text-sun-dark' },
           { id: 'professor', label: 'Professor', sublabel: 'Lessa Professor Pass', price: entryHalfStr, emoji: '📚', bg: 'bg-blue-50', border: 'border-blue-100', selectedBg: 'bg-blue-100', selectedBorder: 'border-blue-500', priceColor: 'text-blue-700', labelColor: 'text-blue-900' },
           { id: 'estudante', label: 'Estudante', sublabel: 'Lessa Estudante Pass', price: entryHalfStr, emoji: '🎓', bg: 'bg-violet-50', border: 'border-violet-100', selectedBg: 'bg-violet-100', selectedBorder: 'border-violet-500', priceColor: 'text-violet-700', labelColor: 'text-violet-900' },
-          { id: 'servidor', label: 'Servidor Público', sublabel: 'Lessa Servidor Pass', price: entryHalfStr, emoji: '🏛️', bg: 'bg-emerald-50', border: 'border-emerald-100', selectedBg: 'bg-emerald-100', selectedBorder: 'border-emerald-500', priceColor: 'text-emerald-700', labelColor: 'text-emerald-900' },
-          { id: 'doador', label: 'Doador Sangue/Medula', sublabel: 'Benefício 50% OFF', price: entryHalfStr, emoji: '🩸', bg: 'bg-red-50', border: 'border-red-100', selectedBg: 'bg-red-100', selectedBorder: 'border-red-500', priceColor: 'text-red-700', labelColor: 'text-red-900' },
+          { id: 'servidor', label: 'Servidor Público', sublabel: 'Lessa Servidor Pass', price: entryHalfStr, emoji: '🏛️', bg: 'bg-indigo-50', border: 'border-indigo-100', selectedBg: 'bg-indigo-100', selectedBorder: 'border-indigo-500', priceColor: 'text-indigo-700', labelColor: 'text-indigo-900' },
           { id: 'aniversariante', label: 'Aniversariante', sublabel: 'Da semana · com comprovação', price: 'GRÁTIS', emoji: '🎂', bg: 'bg-amber-50', border: 'border-amber-100', selectedBg: 'bg-amber-100', selectedBorder: 'border-amber-500', priceColor: 'text-amber-700', labelColor: 'text-amber-900' },
         ];
 
@@ -234,12 +245,12 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                     )}
                     onClick={() => {
                       setWizardData({ ...wizardData, category: cat.id });
-                      if (cat.id === 'inteira' && entry.dayOfWeek !== 'domingo') {
-                        setWizardStep(4); // Donation check
-                      } else if (['professor', 'estudante', 'servidor', 'doador', 'aniversariante'].includes(cat.id)) {
-                        setWizardStep(5); // Proof warning
+                      if (cat.id === 'inteira') {
+                        handleFinishWizard('inteira', false);
+                      } else if (cat.id === 'solidaria') {
+                        handleFinishWizard('inteira', true);
                       } else {
-                        handleFinishWizard(cat.id);
+                        setWizardStep(5); // Proof warning
                       }
                     }}
                   >
@@ -259,9 +270,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
             <div className="flex gap-2 mt-4">
               <Button 
                 variant="ghost" 
-                className={cn(
-                  "flex-1 text-xs font-black uppercase text-muted-foreground hover:text-primary hover:bg-transparent hover:underline transition-all"
-                )}
+                className="hidden"
                 onClick={() => setWizardStep(1)}
               >
                 ← Voltar
