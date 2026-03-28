@@ -64,7 +64,7 @@
 
   body {
     @apply text-foreground;
-    background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 50%, #ecfdf5 100%);
+    background: linear-gradient(135deg, #ECFDF5 0%, #F0FDF4 50%, #ECFDF5 100%);
     background-attachment: fixed;
     font-family: var(--font-body);
     min-height: 100vh;

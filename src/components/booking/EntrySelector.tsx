@@ -533,57 +533,59 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
             <label className="text-xs font-black flex items-center gap-2 text-primary uppercase tracking-widest">
               <CalendarIcon className="h-4 w-4" /> Escolha a Data da Reserva
             </label>
-            {entry.visitDate ? (
-              <Button 
-                variant="outline" 
-                className="w-full h-12 justify-center text-center font-bold text-sm rounded-2xl border-primary/20 bg-primary/5 text-primary shadow-sm hover:bg-primary/20 transition-all uppercase tracking-tight"
-                onClick={() => onUpdateEntry({ visitDate: null, dayOfWeek: 'segunda' })}
-              >
-                <CalendarIcon className="mr-2 h-5 w-5 shrink-0" />
-                <span className="flex items-center gap-2">
-                  {format(entry.visitDate, "dd/MM/yyyy", { locale: ptBR })}
-                  <span className="bg-primary text-white px-2 py-0.5 rounded-lg text-[10px] uppercase font-black">
-                    {format(entry.visitDate, "EEE", { locale: ptBR })}
-                  </span>
-                </span>
-                <span className="ml-auto text-[10px] opacity-60 underline">Mudar data</span>
-              </Button>
-            ) : (
-            <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full h-12 justify-start text-left font-bold text-sm rounded-2xl border-primary/20 bg-white shadow-sm hover:bg-primary hover:text-white transition-all uppercase tracking-tight text-muted-foreground group">
+            
+            <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen} modal={true}>
+              <PopoverTrigger asChild>
+                {entry.visitDate ? (
+                  <Button 
+                    variant="outline" 
+                    className="w-full h-12 justify-between px-4 font-sans font-bold text-sm rounded-2xl border-emerald-500/30 bg-emerald-100/50 text-emerald-900 shadow-sm hover:bg-emerald-200/50 transition-all uppercase tracking-tight"
+                  >
+                    <div className="flex items-center gap-2">
+                      <CalendarIcon className="h-4 w-4 text-emerald-600" />
+                      <span>{format(entry.visitDate, "dd/MM/yyyy", { locale: ptBR })}</span>
+                      <span className="bg-emerald-700 text-white px-2 py-0.5 rounded-lg text-[10px] font-black">
+                        {format(entry.visitDate, "EEEE", { locale: ptBR })}
+                      </span>
+                    </div>
+                    <span className="text-[10px] opacity-60 underline">Mudar data</span>
+                  </Button>
+                ) : (
+                  <Button 
+                    variant="outline" 
+                    className="w-full h-12 justify-start px-4 font-sans font-bold text-sm rounded-2xl border-primary/20 bg-white text-muted-foreground shadow-sm hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 transition-all uppercase tracking-tight group"
+                  >
                     <CalendarIcon className="mr-2 h-5 w-5 shrink-0 text-primary group-hover:scale-110 transition-transform" />
                     Clique para escolher a data...
                   </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 rounded-3xl border-primary/10 shadow-2xl" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={entry.visitDate || undefined}
-                    onSelect={(d) => {
-                      const finalDate = d || entry.visitDate;
-                      if (finalDate) {
-                        const dayMap: Record<number, any> = { 0: 'domingo', 1: 'segunda', 5: 'sexta', 6: 'sabado' };
-                        const dayOfWeek = dayMap[finalDate.getDay()] || 'segunda';
-                        onUpdateEntry({ visitDate: finalDate, dayOfWeek });
-                      }
-                      setIsCalendarOpen(false);
-                    }}
-                    disabled={(d) => {
-                      const today = new Date();
-                      today.setHours(0, 0, 0, 0);
-                      return d < today || !isOperatingDay(d);
-                    }}
-                    className="p-3 pointer-events-auto"
-                    locale={ptBR}
-                    classNames={{
-                      day_today: "bg-primary/10 text-primary font-bold",
-                      day_selected: "bg-primary text-white font-bold hover:bg-primary hover:text-white",
-                    }}
-                  />
-                </PopoverContent>
-              </Popover>
-            )}
+                )}
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0 rounded-3xl border-primary/10 shadow-2xl" align="start">
+                <Calendar
+                  mode="single"
+                  selected={entry.visitDate || undefined}
+                  onSelect={(d) => {
+                    if (d) {
+                      const dayMap: Record<number, any> = { 0: 'domingo', 1: 'segunda', 5: 'sexta', 6: 'sabado' };
+                      const dayOfWeek = dayMap[d.getDay()] || 'segunda';
+                      onUpdateEntry({ visitDate: d, dayOfWeek });
+                    }
+                    setTimeout(() => setIsCalendarOpen(false), 50);
+                  }}
+                  disabled={(d) => {
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    return d < today || !isOperatingDay(d);
+                  }}
+                  className="p-3 pointer-events-auto"
+                  locale={ptBR}
+                  classNames={{
+                    day_today: "bg-primary/10 text-primary font-bold",
+                    day_selected: "bg-primary text-white font-bold hover:bg-primary hover:text-white",
+                  }}
+                />
+              </PopoverContent>
+            </Popover>
           </div>
         )}
 
