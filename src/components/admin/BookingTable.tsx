@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { format, parseISO, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { 
-  ChevronDown, ChevronUp, CheckCircle, XCircle, Clock, 
-  UserCheck, Phone, Hash, MessageCircle, Trash2, Plus, 
-  Users, DollarSign, Calendar, Upload, FileCheck, Loader2
+  ChevronDown, CheckCircle, XCircle, Clock, 
+  UserCheck, Trash2, Plus, 
+  Users, Calendar, Upload, FileCheck, Loader2,
+  CalendarClock, StickyNote
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -47,12 +48,12 @@ interface BookingTableProps {
   isUploading?: boolean;
 }
 
-const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive'; icon: React.ElementType }> = {
-  pending: { label: 'Pendente', variant: 'outline', icon: Clock },
-  waiting_local: { label: 'Via WhatsApp', variant: 'outline', icon: Clock },
-  paid: { label: 'Pago', variant: 'secondary', icon: CheckCircle },
-  'checked-in': { label: 'Check-in ✓', variant: 'default', icon: UserCheck },
-  cancelled: { label: 'Cancelada', variant: 'destructive', icon: XCircle },
+const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive'; icon: React.ElementType; color: string; bgColor: string; borderColor: string }> = {
+  pending: { label: 'PENDENTE', variant: 'outline', icon: Clock, color: 'text-amber-600', bgColor: 'bg-amber-50', borderColor: 'border-amber-200' },
+  waiting_local: { label: 'WHATSAPP', variant: 'outline', icon: Clock, color: 'text-blue-600', bgColor: 'bg-blue-50', borderColor: 'border-blue-200' },
+  paid: { label: 'PAGO OK', variant: 'secondary', icon: CheckCircle, color: 'text-emerald-700', bgColor: 'bg-emerald-50', borderColor: 'border-emerald-200' },
+  'checked-in': { label: 'CHECK-IN ✓', variant: 'default', icon: UserCheck, color: 'text-white', bgColor: 'bg-emerald-600', borderColor: 'border-emerald-700' },
+  cancelled: { label: 'CANCELADA', variant: 'destructive', icon: XCircle, color: 'text-red-600', bgColor: 'bg-red-50', borderColor: 'border-red-200' },
 };
 
 export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule, onDelete, onRemoveItem, updatingId, onFileUpload, isUploading }: BookingTableProps) {
@@ -64,7 +65,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
   if (bookings.length === 0) {
     return (
       <div className="text-center py-20 bg-emerald-50/30 rounded-3xl border-2 border-dashed border-emerald-100/50 text-emerald-900/40 font-black animate-in fade-in zoom-in-95 duration-500 uppercase tracking-widest">
-        Nenhuma reserva encontrada para este período.
+        Nenhuma reserva encontrada.
       </div>
     );
   }
@@ -93,8 +94,6 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
        if (action === 'confirm') onStatusChange(b.id, 'paid', b.is_order);
        else if (action === 'cancel') onStatusChange(b.id, 'cancelled', b.is_order);
        else if (action === 'delete') {
-         // Chama onDelete diretamente (o Admin vai abrir o diálogo)
-         // Para bulk, chamamos um por um com pequeno delay
          onDelete(b.id, b.is_order);
          await new Promise(r => setTimeout(r, 200));
        }
@@ -104,35 +103,35 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
 
   return (
     <div className="space-y-6 relative pb-28">
-        {/* BARRA DE AÇÕES FLUTUANTE PREMIUM */}
+        {/* BARRA DE AÇÕES FLUTUANTE */}
         {selectedIds.size > 0 && (
-          <div className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[100] bg-emerald-950 text-white px-10 py-6 rounded-[2.5rem] shadow-[0_30px_60px_-15px_rgba(6,78,59,0.5)] border border-white/10 flex items-center gap-10 animate-in slide-in-from-bottom-12 duration-500 transition-all backdrop-blur-2xl">
+          <div className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[100] bg-emerald-950 text-white px-10 py-6 rounded-[2.5rem] shadow-2xl border border-white/10 flex items-center gap-10 animate-in slide-in-from-bottom-12 duration-500 backdrop-blur-2xl">
              <div className="flex flex-col">
-               <span className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-400 mb-1">Painel Gerencial</span>
-               <span className="text-3xl font-black tabular-nums">{selectedIds.size} <span className="text-xs font-bold opacity-40 uppercase tracking-widest ml-1">itens</span></span>
+               <span className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-400 mb-1">Ações em Massa</span>
+               <span className="text-3xl font-black tabular-nums">{selectedIds.size}</span>
              </div>
              <div className="h-14 w-px bg-white/10" />
              <div className="flex gap-4">
-                <Button onClick={() => handleBulkAction('confirm')} className="bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-black text-xs h-14 px-8 rounded-2xl uppercase tracking-wider transition-all hover:scale-105 active:scale-95 shadow-xl shadow-emerald-500/20">Confirmar Seleção</Button>
-                <Button onClick={() => handleBulkAction('cancel')} className="bg-red-500 hover:bg-red-400 text-white font-black text-xs h-14 px-8 rounded-2xl uppercase tracking-wider transition-all hover:scale-105 active:scale-95 shadow-xl shadow-red-500/20">Cancelar Todos</Button>
-                <Button onClick={() => handleBulkAction('delete')} variant="ghost" className="text-red-300 hover:text-red-100 hover:bg-red-950/40 font-black text-xs h-14 px-8 rounded-2xl uppercase tracking-wider">Apagar Dados</Button>
+                <Button onClick={() => handleBulkAction('confirm')} className="bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-black text-xs h-14 px-8 rounded-2xl uppercase tracking-wider transition-all shadow-xl shadow-emerald-500/20">Confirmar</Button>
+                <Button onClick={() => handleBulkAction('cancel')} className="bg-amber-500 hover:bg-amber-400 text-white font-black text-xs h-14 px-8 rounded-2xl uppercase tracking-wider transition-all shadow-xl shadow-amber-500/20">Cancelar</Button>
+                <Button onClick={() => handleBulkAction('delete')} variant="ghost" className="text-red-400 hover:text-red-100 hover:bg-red-950/40 font-black text-xs h-14 px-8 rounded-2xl">Excluir</Button>
              </div>
              <div className="h-14 w-px bg-white/10" />
-             <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())} className="text-white/40 font-black uppercase text-[10px] hover:text-white hover:bg-white/5 px-6 h-14 rounded-2xl tracking-[0.2em] transition-all">Limpar</Button>
+             <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())} className="text-white/40 font-black uppercase text-[10px] tracking-widest px-6 h-14 rounded-2xl">Limpar</Button>
           </div>
         )}
 
-        <div className="bg-white rounded-[2.5rem] overflow-hidden shadow-premium border border-emerald-100/50">
+        <div className="bg-white rounded-[2.5rem] overflow-hidden shadow-2xl border-2 border-emerald-100/50">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
-               <thead className="bg-[#0b2b24] border-b border-emerald-900 border-separate">
-                  <tr className="text-[11px] font-black uppercase text-emerald-200/40 tracking-[0.2em]">
+               <thead className="bg-[#0b2b24]">
+                  <tr className="text-[11px] font-black uppercase text-emerald-400/60 tracking-[0.2em]">
                      <th className="p-8 w-16 text-center">
                         <input 
                           type="checkbox" 
                           checked={selectedIds.size === bookings.length && bookings.length > 0} 
                           onChange={toggleSelectAll} 
-                          className="w-6 h-6 rounded-lg border-emerald-800 bg-emerald-900/50 text-emerald-400 cursor-pointer transition-all focus:ring-emerald-500/20" 
+                          className="w-6 h-6 rounded-lg border-emerald-800 bg-emerald-900 shadow-sm cursor-pointer accent-emerald-500" 
                         />
                      </th>
                      <th className="p-8">Agenda / Operação</th>
@@ -142,7 +141,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                      <th className="p-8 text-center opacity-0">Ações</th>
                   </tr>
                </thead>
-               <tbody className="divide-y divide-emerald-50/60">
+               <tbody className="divide-y divide-emerald-50">
                   {bookings.map((booking) => {
                     const expanded = expandedId === booking.id;
                     const isSelected = selectedIds.has(booking.id);
@@ -158,8 +157,8 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                           <tr 
                             onClick={() => setExpandedId(expanded ? null : booking.id)} 
                             className={cn(
-                              "group transition-all cursor-pointer duration-500",
-                              isSelected ? "bg-emerald-50" : "hover:bg-emerald-50/30",
+                              "group transition-all cursor-pointer duration-300",
+                              isSelected ? "bg-emerald-50" : "hover:bg-emerald-50/20",
                               expanded && "bg-emerald-50/50"
                             )}
                           >
@@ -169,64 +168,68 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                   checked={isSelected} 
                                   onClick={(e) => toggleSelect(booking.id, e)} 
                                   onChange={() => {}} 
-                                  className="w-6 h-6 rounded-lg border-emerald-200 bg-white text-emerald-600 cursor-pointer transition-all focus:ring-emerald-500/20" 
+                                  className="w-6 h-6 rounded-lg border-emerald-200 bg-white cursor-pointer accent-emerald-600" 
                                 />
                              </td>
                              <td className="p-8">
-                                <div className="flex flex-col gap-1.5">
-                                   <span className={cn(
-                                     "text-[13px] font-black uppercase tracking-tight",
-                                     isToday(bookingDate) ? "text-emerald-600" : "text-emerald-950"
-                                   )}>
-                                      {format(bookingDate, "dd 'de' MMMM", { locale: ptBR })}
-                                      <span className="ml-2 text-[10px] opacity-30">({format(bookingDate, "EEEE", { locale: ptBR })})</span>
-                                   </span>
-                                   <div className={cn(
-                                     "flex items-center gap-2 font-black uppercase text-[9px] tracking-[0.15em] w-fit px-2.5 py-1 rounded-lg border",
-                                     booking.status === 'paid' ? "text-emerald-600 bg-emerald-50 border-emerald-100" : 
-                                     booking.status === 'cancelled' ? "text-red-500 bg-red-50 border-red-100" : 
-                                     "text-emerald-950/40 bg-white border-emerald-100/50"
-                                   )}>
-                                      <StatusIcon className="w-3 h-3" />
-                                      <span>{config.label}</span>
+                                <div className="space-y-1.5 min-w-[140px]">
+                                   <div className="flex items-center gap-2">
+                                      <Calendar className={cn("w-4 h-4", isToday(bookingDate) ? "text-emerald-600" : "text-emerald-900/30")} />
+                                      <span className={cn(
+                                        "text-sm font-black uppercase tracking-tight",
+                                        isToday(bookingDate) ? "text-emerald-600" : "text-emerald-950"
+                                      )}>
+                                         {format(bookingDate, "dd/MM/yyyy", { locale: ptBR })}
+                                      </span>
+                                   </div>
+                                   <div className="flex items-center gap-2">
+                                      <span className="text-[10px] font-black text-emerald-900/40 uppercase tracking-widest pl-6">
+                                         {format(bookingDate, "EEEE", { locale: ptBR })}
+                                      </span>
+                                   </div>
+                                   <div className="pl-6 pt-1">
+                                      <div className={cn(
+                                        "flex items-center gap-1.5 font-black uppercase text-[8px] tracking-[0.15em] w-fit px-2 py-0.5 rounded-md border",
+                                        config.bgColor, config.color, config.borderColor
+                                      )}>
+                                         <StatusIcon className="w-2.5 h-2.5" />
+                                         <span>{config.label}</span>
+                                      </div>
                                    </div>
                                 </div>
                              </td>
                              <td className="p-8">
-                                <div className="flex flex-col gap-1">
-                                   <div className="flex items-center gap-3">
-                                      <span className="font-black text-lg text-emerald-950 uppercase tracking-tighter leading-none">
-                                        {booking.name || (booking as any).customer_name || 'CLIENTE NÃO IDENTIFICADO'}
+                                <div className="flex flex-col gap-1.5">
+                                   <span className="font-black text-xl text-emerald-950 uppercase tracking-tighter leading-none hover:text-emerald-600 transition-colors">
+                                     {booking.name || (booking as any).customer_name || 'CLIENTE GERAL'}
+                                   </span>
+                                   <div className="flex items-center gap-2">
+                                      <span className="bg-emerald-50 text-emerald-800/40 border border-emerald-100 px-2 py-0.5 rounded-lg font-black text-[9px] uppercase tracking-widest">
+                                         ID: {booking.id.slice(0, 8)}
                                       </span>
                                       {booking.is_associado && (
-                                        <Badge className="bg-amber-400 text-amber-950 border-none text-[8px] font-black uppercase px-2.5 h-4 rounded-full shadow-lg shadow-amber-400/20">Sócio VIP</Badge>
+                                        <Badge className="bg-sun text-sun-dark border-none text-[8px] font-black uppercase px-2 h-4 rounded-full">Sócio</Badge>
                                       )}
-                                   </div>
-                                   <div className="flex items-center gap-4 mt-2 text-[11px] font-bold text-emerald-900/30 uppercase tracking-widest">
-                                      <span className="bg-emerald-50/50 text-emerald-900/40 px-3 py-1 rounded-xl font-black text-[9px] border border-emerald-100/50">ID: {booking.id.slice(0, 8)}</span>
-                                      <span className="flex items-center gap-2 text-emerald-950/40 hover:text-emerald-600 transition-colors">
-                                        <Phone className="w-4 h-4" />
-                                        {booking.phone || (booking as any).customer_phone || 'Sem contato'}
-                                      </span>
                                    </div>
                                 </div>
                              </td>
                              <td className="p-8 text-center">
-                                <div className="inline-flex items-center gap-2 bg-emerald-900/5 px-5 py-2.5 rounded-2xl border border-emerald-900/5">
-                                   <Users className="w-4.5 h-4.5 text-emerald-900/20" />
-                                   <span className="text-base font-black text-emerald-950 tracking-tighter">{totalPeople} <span className="text-[10px] opacity-30">PESSOAS</span></span>
+                                <div className="inline-flex flex-col items-center justify-center bg-emerald-900/5 w-24 h-24 rounded-3xl border-2 border-emerald-900/5 hover:border-emerald-900/10 transition-all">
+                                   <Users className="w-5 h-5 text-emerald-900/20 mb-1" />
+                                   <span className="text-2xl font-black text-emerald-950 tracking-tighter">{totalPeople}</span>
+                                   <span className="text-[8px] font-black opacity-30 uppercase tracking-[0.2em] leading-none">Pessoas</span>
                                 </div>
                              </td>
                              <td className="p-8 text-right">
                                 <div className="flex flex-col items-end">
-                                   <span className="text-2xl font-black text-emerald-600 tracking-tighter">{formatCurrency(booking.total_amount)}</span>
-                                   <span className="text-[10px] font-black text-emerald-200 uppercase tracking-[0.2em] mt-1">Valor Auditado</span>
+                                   <span className="text-3xl font-black text-emerald-600 tracking-tighter drop-shadow-sm">{formatCurrency(booking.total_amount)}</span>
+                                   <span className="text-[10px] font-black text-emerald-200 uppercase tracking-[0.2em] mt-1">Auditado OK</span>
                                 </div>
                              </td>
                              <td className="p-8 text-center">
                                 <Button size="icon" variant="ghost" className={cn(
-                                  "h-12 w-12 rounded-[1.2rem] transition-all duration-500",
-                                  expanded ? "bg-emerald-950 text-white rotate-180 scale-110 shadow-xl shadow-emerald-950/20" : "hover:bg-emerald-900/5 text-emerald-300"
+                                  "h-12 w-12 rounded-2xl transition-all duration-300",
+                                  expanded ? "bg-emerald-950 text-white rotate-180 shadow-lg shadow-emerald-950/20" : "text-emerald-300 hover:bg-emerald-50"
                                 )}>
                                    <ChevronDown className="w-6 h-6" />
                                 </Button>
@@ -235,131 +238,142 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                           
                           {expanded && (
                             <tr>
-                               <td colSpan={6} className="p-0 bg-emerald-50/30 border-y border-emerald-100/50">
-                                  <div className="p-10 space-y-10 animate-in slide-in-from-top-6 duration-700 ease-out">
-                                     <div className="bg-white rounded-[2.5rem] p-10 shadow-premium border border-emerald-100/20">
+                               <td colSpan={6} className="p-0 bg-emerald-50/30 border-y-2 border-emerald-100/50">
+                                  <div className="p-10 space-y-10 animate-in slide-in-from-top-6 duration-500">
+                                     <div className="bg-white rounded-[2.5rem] p-8 shadow-2xl border-2 border-emerald-200">
                                         <BookingDetail booking={booking} />
                                      </div>
                                      
-                                     <div className="grid lg:grid-cols-2 gap-12 items-stretch">
-                                        <div className="bg-white p-10 rounded-[2.5rem] shadow-premium border border-emerald-100/20 flex flex-col justify-between space-y-8">
-                                           <div>
-                                              <div className="flex items-center justify-between mb-8">
+                                     <div className="grid lg:grid-cols-2 gap-8 items-stretch">
+                                        {/* PAINEL DE AÇÕES RÁPIDAS */}
+                                        <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border-2 border-emerald-100 flex flex-col justify-between space-y-8 relative overflow-hidden group">
+                                           <div className="absolute top-0 right-0 p-10 opacity-5 group-hover:scale-110 transition-transform"><CalendarClock className="w-24 h-24 text-emerald-900" /></div>
+                                           <div className="relative z-10 space-y-8">
+                                              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-emerald-50 pb-6">
                                                  <div className="flex items-center gap-4">
-                                                    <div className="p-3.5 bg-emerald-50 rounded-2xl border border-emerald-100 shadow-sm">
-                                                       <Calendar className="w-6 h-6 text-emerald-600" />
+                                                    <div className="p-3.5 bg-emerald-50 rounded-2xl border border-emerald-100 shadow-sm text-emerald-600">
+                                                      <CalendarClock className="w-6 h-6" />
                                                     </div>
                                                     <div>
-                                                       <h4 className="text-[11px] font-black uppercase text-emerald-900/30 tracking-[0.2em]">Painel Operacional</h4>
-                                                       <p className="text-sm font-black text-emerald-950">Ações Rápidas de Reserva</p>
+                                                       <h4 className="text-[10px] font-black uppercase text-emerald-900/30 tracking-[0.3em]">Painel de Controle</h4>
+                                                       <p className="text-lg font-black text-emerald-950">Gerenciar Reserva</p>
                                                     </div>
                                                  </div>
-                                                 
+
                                                  {onFileUpload && (
-                                                    <div className="flex items-center gap-2">
-                                                       <input type="file" id={`upload-${booking.id}`} className="hidden" onChange={e => e.target.files && onFileUpload(e.target.files[0], booking.id, !!booking.is_order)} />
-                                                       <label htmlFor={`upload-${booking.id}`} className={cn(
-                                                          "flex items-center gap-2.5 px-5 py-2.5 rounded-2xl cursor-pointer transition-all border font-black text-[10px] uppercase tracking-widest",
-                                                          booking.receipt_url 
-                                                            ? "bg-emerald-500 text-white border-emerald-500 shadow-lg shadow-emerald-500/20" 
-                                                            : "bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100 shadow-sm"
-                                                       )}>
-                                                          {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : booking.receipt_url ? <FileCheck className="w-4 h-4 text-white" /> : <Upload className="w-4 h-4" />}
-                                                          {booking.receipt_url ? 'PAGAMENTO AUDITADO' : 'ANEXAR COMPROVANTE'}
-                                                       </label>
-                                                    </div>
+                                                   <div className="flex items-center gap-2">
+                                                      <input type="file" id={`upload-${booking.id}`} className="hidden" onChange={e => e.target.files && onFileUpload(e.target.files[0], booking.id, !!booking.is_order)} />
+                                                      <label htmlFor={`upload-${booking.id}`} className={cn(
+                                                         "flex items-center gap-2.5 px-6 py-3 rounded-2xl cursor-pointer transition-all border-2 font-black text-[10px] uppercase tracking-widest shadow-sm hover:scale-105 active:scale-95",
+                                                         booking.receipt_url 
+                                                           ? "bg-emerald-600 border-emerald-600 text-white" 
+                                                           : "bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+                                                      )}>
+                                                         {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : booking.receipt_url ? <FileCheck className="w-4 h-4" /> : <Upload className="w-4 h-4" />}
+                                                         {booking.receipt_url ? 'COMPROVANTE OK' : 'ANEXAR COMPROVANTE'}
+                                                      </label>
+                                                   </div>
                                                  )}
                                               </div>
                                               
-                                              <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                                              {/* BOTÕES EM UMA LINHA */}
+                                              <div className="flex flex-wrap md:flex-nowrap items-center gap-3 overflow-x-auto pb-2 no-scrollbar">
                                                  <Button 
                                                    onClick={() => onStatusChange(booking.id, 'paid', booking.is_order)} 
                                                    disabled={booking.status === 'paid' || updatingId === booking.id} 
-                                                   className="bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase text-[10px] h-14 rounded-2xl tracking-wider shadow-xl shadow-emerald-600/20"
+                                                   className="flex-1 min-w-[110px] bg-[#006020] hover:bg-[#004d1a] text-white font-black uppercase text-[9px] h-14 rounded-2xl shadow-lg shadow-emerald-900/20 px-4 flex flex-col pt-1.5"
                                                  >
-                                                    <CheckCircle className="w-4 h-4 mr-2" /> EFETIVAR
+                                                    <CheckCircle className="w-4 h-4 mb-0.5" /> 
+                                                    <span>EFETIVAR</span>
                                                  </Button>
                                                  
                                                  <Button 
                                                    onClick={() => onStatusChange(booking.id, 'checked-in', booking.is_order)} 
-                                                   variant="outline" 
                                                    className={cn(
-                                                     "border-emerald-200 text-emerald-900 hover:bg-emerald-50 font-black uppercase text-[10px] h-14 rounded-2xl tracking-wider shadow-sm",
-                                                     booking.status === 'checked-in' && "bg-emerald-950 text-white border-emerald-950"
+                                                     "flex-1 min-w-[110px] border-2 font-black uppercase text-[9px] h-14 rounded-2xl shadow-sm px-4 flex flex-col pt-1.5",
+                                                     booking.status === 'checked-in' 
+                                                       ? "bg-[#006020] border-[#006020] text-white" 
+                                                       : "bg-white border-[#006020] text-[#006020] hover:bg-emerald-50"
                                                    )}
                                                  >
-                                                    <UserCheck className="w-4 h-4 mr-2" /> CHECK-IN
+                                                    <UserCheck className="w-4 h-4 mb-0.5" /> 
+                                                    <span>CHECK-IN</span>
                                                  </Button>
+
                                                  <Button 
                                                    variant="outline" 
                                                    onClick={() => { const d = prompt("Nova Data (AAAA-MM-DD):", booking.visit_date); if (d) onReschedule(booking.id, d, booking.is_order); }} 
-                                                   className="border-blue-100 text-blue-600 hover:bg-blue-50 font-black uppercase text-[10px] h-14 rounded-2xl tracking-wider shadow-sm"
+                                                   className="flex-1 min-w-[110px] border-2 border-[#0077b6] text-[#0077b6] hover:bg-blue-50 bg-white font-black uppercase text-[9px] h-14 rounded-2xl shadow-sm px-4 flex flex-col pt-1.5"
                                                  >
-                                                    <Clock className="w-4 h-4 mr-2" /> REAGENDAR
+                                                    <Clock className="w-4 h-4 mb-0.5" /> 
+                                                    <span>REAGENDAR</span>
                                                  </Button>
+
                                                  <Button 
                                                    onClick={() => onStatusChange(booking.id, 'cancelled', booking.is_order)} 
-                                                   variant="ghost" 
-                                                   className="text-red-500 hover:bg-red-50 font-black uppercase text-[10px] h-14 rounded-2xl tracking-wider border border-transparent hover:border-red-100 transition-all"
+                                                   className="flex-1 min-w-[110px] border-2 border-amber-500 text-amber-600 hover:bg-amber-50 bg-white font-black uppercase text-[9px] h-14 rounded-2xl shadow-sm px-4 flex flex-col pt-1.5"
                                                  >
-                                                    <XCircle className="w-4 h-4 mr-2" /> CANCELAR
+                                                    <XCircle className="w-4 h-4 mb-0.5" /> 
+                                                    <span>CANCELAR</span>
                                                  </Button>
+
                                                  <Button 
-                                                   onClick={(e) => { e.stopPropagation(); if (confirm('Atenção: A deleção é PERMANENTE e remove todos os itens vinculados. Confirmar?')) onDelete(booking.id, booking.is_order); }} 
-                                                   variant="ghost" 
-                                                   className="text-emerald-950/20 hover:text-red-600 font-black uppercase text-[10px] h-14 rounded-2xl flex gap-2 hover:bg-red-50 border border-transparent hover:border-red-100 transition-all"
+                                                   onClick={(e) => { e.stopPropagation(); if (confirm('DELETAR AGORA? Esta ação é irreversível.')) onDelete(booking.id, booking.is_order); }} 
+                                                   className="flex-1 min-w-[110px] border-2 border-red-500 text-red-600 hover:bg-red-50 bg-white font-black uppercase text-[9px] h-14 rounded-2xl shadow-sm px-4 flex flex-col pt-1.5"
                                                  >
-                                                    <Trash2 className="w-4 h-4 mr-2" /> EXCLUIR DEFINITIVO
+                                                    <Trash2 className="w-4 h-4 mb-0.5" /> 
+                                                    <span>EXCLUIR</span>
                                                  </Button>
                                               </div>
                                            </div>
                                         </div>
 
-                                        {/* PAINEL DE NOTAS DO STAFF */}
-                                        <div className="bg-white p-10 rounded-[2.5rem] shadow-premium border border-emerald-100/20">
-                                           <div className="flex items-center gap-4 mb-8">
-                                              <div className="p-3.5 bg-amber-50 rounded-2xl border border-amber-100 shadow-sm">
-                                                 <Plus className="w-6 h-6 text-amber-600" />
-                                              </div>
-                                              <div>
-                                                 <h4 className="text-[11px] font-black uppercase text-amber-900/30 tracking-[0.2em]">Memorial Interno</h4>
-                                                 <p className="text-sm font-black text-amber-950">Observações Operacionais</p>
-                                              </div>
-                                           </div>
-
-                                           {editingNoteId === booking.id ? (
-                                              <div className="space-y-4">
-                                                 <Textarea 
-                                                    value={noteText} 
-                                                    onChange={e => setNoteText(e.target.value)} 
-                                                    placeholder="Digite observações importantes sobre este cliente ou pedido..." 
-                                                    className="rounded-[2rem] border-emerald-100 focus:ring-emerald-500/20 min-h-[160px] text-sm font-black p-8 bg-emerald-50/30 text-emerald-950 placeholder:text-emerald-950/20 leading-relaxed shadow-inner" 
-                                                 />
-                                                 <div className="flex gap-3">
-                                                    <Button onClick={() => { onAddNote(booking.id, noteText, booking.is_order); setEditingNoteId(null); }} className="flex-1 bg-emerald-950 text-white font-black uppercase text-[11px] h-14 rounded-2xl tracking-[0.2em] shadow-xl shadow-emerald-950/30">Gravar Nota</Button>
-                                                    <Button onClick={() => setEditingNoteId(null)} variant="ghost" className="font-black uppercase text-[11px] px-8 h-14 rounded-2xl tracking-widest text-emerald-950/40 hover:text-emerald-950">Descartar</Button>
+                                        {/* PAINEL DE OBSERVAÇÕES */}
+                                        <div className="bg-emerald-950 text-white p-8 rounded-[2.5rem] shadow-xl border-2 border-emerald-900 flex flex-col space-y-6 relative overflow-hidden group">
+                                           <div className="absolute -bottom-6 -right-6 p-10 opacity-5 group-hover:scale-110 transition-transform rotate-12"><StickyNote className="w-48 h-48" /></div>
+                                           <div className="relative z-10">
+                                              <div className="flex items-center gap-4 mb-6">
+                                                 <div className="p-3.5 bg-white/10 rounded-2xl backdrop-blur-md">
+                                                   <Plus className="w-6 h-6 text-emerald-400" />
+                                                 </div>
+                                                 <div>
+                                                    <h4 className="text-[10px] font-black uppercase text-white/30 tracking-[0.3em]">Staff Only</h4>
+                                                    <p className="text-lg font-black text-white">Observações Internas</p>
                                                  </div>
                                               </div>
-                                           ) : (
-                                              <div 
-                                                onClick={() => { setEditingNoteId(booking.id); setNoteText(booking.notes || ''); }} 
-                                                className="group cursor-pointer min-h-[224px] p-10 rounded-[2.5rem] border-2 border-dashed border-emerald-100 flex flex-col items-center justify-center transition-all hover:bg-emerald-50 hover:border-emerald-200 shadow-sm hover:shadow-lg"
-                                              >
-                                                 {booking.notes ? (
-                                                   <div className="w-full text-center">
-                                                     <p className="text-base font-black text-emerald-900/60 italic leading-relaxed mb-6">"{booking.notes}"</p>
-                                                     <span className="text-[10px] font-black uppercase text-emerald-600 bg-emerald-100 px-4 py-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-all tracking-widest">Clique para Editar</span>
-                                                   </div>
-                                                 ) : (
-                                                   <>
-                                                     <div className="w-14 h-14 bg-emerald-50 rounded-[1.5rem] flex items-center justify-center mb-5 group-hover:bg-emerald-600 group-hover:scale-110 transition-all shadow-sm">
-                                                       <Plus className="w-7 h-7 text-emerald-400 group-hover:text-white transition-colors" />
+
+                                              {editingNoteId === booking.id ? (
+                                                 <div className="space-y-4">
+                                                    <Textarea 
+                                                       value={noteText} 
+                                                       onChange={e => setNoteText(e.target.value)} 
+                                                       placeholder="Digite os detalhes importantes..." 
+                                                       className="rounded-3xl border-white/10 focus:ring-emerald-500/20 min-h-[160px] text-sm font-medium p-6 bg-white/5 text-white placeholder:text-white/20 leading-relaxed shadow-inner" 
+                                                    />
+                                                    <div className="flex gap-3">
+                                                       <Button onClick={() => { onAddNote(booking.id, noteText, booking.is_order); setEditingNoteId(null); }} className="flex-1 bg-emerald-500 text-emerald-950 font-black uppercase text-[10px] h-12 rounded-xl tracking-widest shadow-lg shadow-emerald-500/20">SALVAR NOTA</Button>
+                                                       <Button onClick={() => setEditingNoteId(null)} variant="ghost" className="font-black uppercase text-[10px] px-6 h-12 rounded-xl tracking-widest text-white/40 hover:text-white hover:bg-white/5">CANCELAR</Button>
+                                                    </div>
+                                                 </div>
+                                              ) : (
+                                                 <div 
+                                                   onClick={() => { setEditingNoteId(booking.id); setNoteText(booking.notes || ''); }} 
+                                                   className="group/note cursor-pointer min-h-[160px] p-8 rounded-[2rem] border-2 border-dashed border-white/10 flex flex-col items-center justify-center transition-all hover:bg-white/5 hover:border-white/20 shadow-sm"
+                                                 >
+                                                   {booking.notes ? (
+                                                     <div className="w-full text-center">
+                                                       <p className="text-base font-medium text-emerald-100 italic leading-relaxed mb-4">"{booking.notes}"</p>
+                                                       <div className="inline-flex items-center gap-2 text-[8px] font-black uppercase text-emerald-400 opacity-0 group-hover/note:opacity-100 transition-all tracking-[0.2em] bg-white/10 px-3 py-1 rounded-full">Clique para Editar</div>
                                                      </div>
-                                                     <p className="text-[10px] font-black uppercase text-emerald-950/20 tracking-[0.3em] group-hover:text-emerald-600 transition-colors">Adicionar Observação</p>
-                                                   </>
-                                                 )}
-                                              </div>
-                                           )}
+                                                   ) : (
+                                                     <div className="flex flex-col items-center gap-3">
+                                                       <Plus className="w-8 h-8 text-white/20 group-hover/note:text-emerald-400 group-hover/note:scale-110 transition-all" />
+                                                       <span className="text-[9px] font-black uppercase text-white/20 tracking-[0.3em]">Clique para anotar</span>
+                                                     </div>
+                                                   )}
+                                                 </div>
+                                              )}
+                                           </div>
                                         </div>
                                      </div>
                                   </div>

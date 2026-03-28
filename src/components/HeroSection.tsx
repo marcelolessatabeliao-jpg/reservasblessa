@@ -4,7 +4,7 @@ import { Sparkles } from 'lucide-react';
 
 export function HeroSection() {
   return (
-    <section id="inicio" className="relative min-h-[70vh] sm:min-h-[85vh] flex items-center justify-center overflow-hidden">
+    <section id="inicio" className="relative min-h-[50vh] sm:min-h-[65vh] flex items-center justify-center overflow-hidden">
       <div
         className="absolute inset-0 bg-cover bg-[center_35%]"
         style={{ backgroundImage: `url(/images/cachoeira-nova-larga.jpg)` }}
@@ -71,7 +71,7 @@ export function HeroSection() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3 }}
-          className="text-white/90 font-bold text-[10px] sm:text-sm mb-10 px-4 py-2.5 bg-black/40 backdrop-blur-md block max-w-[280px] sm:max-w-none mx-auto rounded-xl border border-white/20 leading-tight"
+          className="text-white/90 font-bold text-[9px] sm:text-[10px] mb-10 px-4 py-1.5 bg-black/40 backdrop-blur-md block max-w-[280px] sm:max-w-none mx-auto rounded-xl border border-white/20 leading-tight w-fit"
         >
           📍 Aberto das 9h às 17h • Sextas, Sábados, Domingos, Segun. e Feriados
         </motion.p>

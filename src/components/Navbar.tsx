@@ -41,9 +41,9 @@ export function Navbar() {
           </div>
           
           <div className="flex items-center gap-3">
-            <Button asChild variant="outline" size="icon" className="text-primary-foreground border-white/20 hover:bg-white/10 shrink-0">
-              <a href="/admin" title="Painel de Administração">
-                <Settings className="h-5 w-5" />
+            <Button asChild size="icon" className="bg-gradient-to-br from-emerald-500 to-emerald-700 hover:from-emerald-400 hover:to-emerald-600 text-white shadow-xl shadow-emerald-500/30 shrink-0 transition-all hover:scale-110 rounded-2xl border-2 border-emerald-400/50">
+              <a href="/admin" target="_blank" rel="noopener noreferrer" title="Painel de Administração">
+                <Settings className="h-5 w-5 animate-[spin_4s_linear_infinite]" />
               </a>
             </Button>
             
@@ -78,9 +78,9 @@ export function Navbar() {
             ))}
             
             <div className="flex flex-col gap-3 pt-2">
-              <Button asChild variant="ghost" className="text-white border border-white/20 hover:bg-white/10 h-12 font-bold w-full">
-                <a href="/admin" className="flex items-center justify-center gap-2">
-                  <Settings className="h-5 w-5" /> Admin Dashboard
+              <Button asChild className="bg-gradient-to-r from-emerald-600 to-emerald-800 hover:from-emerald-500 hover:to-emerald-700 text-white h-12 font-black w-full rounded-2xl shadow-xl border-2 border-emerald-400/30">
+                <a href="/admin" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2">
+                  <Settings className="h-5 w-5" /> Painel Admin
                 </a>
               </Button>
               <Button asChild variant="ghost" className="text-white border border-white/20 hover:bg-white/10 h-12 font-bold" onClick={() => setOpen(false)}>

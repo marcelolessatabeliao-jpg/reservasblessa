@@ -5,7 +5,8 @@ import {
   Search, LogOut, RefreshCw, Users, DollarSign, CalendarCheck, TrendingUp, 
   UserCheck, Hash, ArrowRight, MessageCircle, Clock, Circle, Trash2,
   Tent, Bike, History, ChevronDown, ChevronUp, AlertTriangle, FileText,
-  Pencil, X, Check, Upload, FileCheck, Loader2, LayoutDashboard, ShoppingBag, HelpCircle
+  Pencil, X, Check, Upload, FileCheck, Loader2, LayoutDashboard, ShoppingBag, HelpCircle,
+  Plus
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -178,7 +179,9 @@ export default function Admin() {
   const saveEditing = async (type: 'kiosk' | 'quad') => {
     try {
       const table = type === 'kiosk' ? 'kiosk_reservations' : 'quad_reservations';
-      const { error } = await supabase.from(table).update(editData).eq('id', editingId);
+      const { bookings, is_from_order, bookings_kiosk, customer_name, receipt_url, ...payload } = editData;
+      
+      const { error } = await supabase.from(table).update(payload).eq('id', editingId);
       if (error) throw error;
       
       toast({ title: "✓ Alterações salvas" });
@@ -309,61 +312,78 @@ export default function Admin() {
       <div className="grid lg:grid-cols-[1fr_360px] gap-8 animate-in fade-in duration-500">
         <div className="space-y-8">
           {/* STATS */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-             <Card className="bg-emerald-950 text-white border-none shadow-lg rounded-2xl p-4 flex flex-col items-start hover:scale-[1.02] transition-all group overflow-hidden relative">
-                <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:scale-110 transition-transform"><Tent className="w-10 h-10" /></div>
-                <div className="p-2 rounded-xl bg-white/10 mb-2"><Tent className="w-4 h-4 text-emerald-400" /></div>
-                <span className="text-2xl font-black">{currentKiosks.length}</span>
-                <span className="text-[9px] font-bold uppercase tracking-widest mt-1 text-emerald-400">Quiosques Ativos</span>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+             <Card className="bg-white border-2 border-emerald-600/20 text-emerald-950 shadow-xl rounded-[2.5rem] p-6 flex flex-col items-start hover:shadow-emerald-200/50 transition-all group overflow-hidden relative">
+                <div className="absolute -top-4 -right-4 p-4 opacity-[0.03] group-hover:scale-110 group-hover:opacity-10 transition-all"><Tent className="w-32 h-32" /></div>
+                <div className="p-3.5 rounded-2xl bg-emerald-50 text-emerald-600 mb-4 border border-emerald-100 shadow-sm">
+                   <Tent className="w-5 h-5" />
+                </div>
+                <span className="text-4xl font-black tabular-nums tracking-tighter">{currentKiosks.length}</span>
+                <span className="text-[10px] font-black uppercase tracking-widest mt-1 text-emerald-600">Quiosques Ativos</span>
              </Card>
-             <Card className="bg-blue-600 text-white border-none shadow-lg rounded-2xl p-4 flex flex-col items-start hover:scale-[1.02] transition-all group overflow-hidden relative">
-                <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:scale-110 transition-transform"><Bike className="w-10 h-10" /></div>
-                <div className="p-2 rounded-xl bg-white/10 mb-2"><Bike className="w-4 h-4 text-blue-200" /></div>
-                <span className="text-2xl font-black">{currentQuads.length}</span>
-                <span className="text-[9px] font-bold uppercase tracking-widest mt-1 text-blue-200">Quadriciclos</span>
+             <Card className="bg-white border-2 border-blue-600/20 text-blue-950 shadow-xl rounded-[2.5rem] p-6 flex flex-col items-start hover:shadow-blue-200/50 transition-all group overflow-hidden relative">
+                <div className="absolute -top-4 -right-4 p-4 opacity-[0.03] group-hover:scale-110 group-hover:opacity-10 transition-all"><Bike className="w-32 h-32" /></div>
+                <div className="p-3.5 rounded-2xl bg-blue-50 text-blue-600 mb-4 border border-blue-100 shadow-sm">
+                   <Bike className="w-5 h-5" />
+                </div>
+                <span className="text-4xl font-black tabular-nums tracking-tighter">{currentQuads.length}</span>
+                <span className="text-[10px] font-black uppercase tracking-widest mt-1 text-blue-600">Quad Agendados</span>
              </Card>
-             <Card className="bg-amber-500 text-white border-none shadow-lg rounded-2xl p-4 flex flex-col items-start hover:scale-[1.02] transition-all group overflow-hidden relative">
-                <div className="p-2 rounded-xl bg-white/10 mb-2"><TrendingUp className="w-4 h-4 text-amber-100" /></div>
-                <span className="text-xl font-black">{formatCurrency(currentKiosks.reduce((s, r) => s + (r.price || 0), 0))}</span>
-                <span className="text-[9px] font-bold uppercase tracking-widest mt-1 text-amber-100">Receita Espaços</span>
+             <Card className="bg-white border-2 border-amber-500/20 text-amber-950 shadow-xl rounded-[2.5rem] p-6 flex flex-col items-start hover:shadow-amber-200/50 transition-all group overflow-hidden relative">
+                <div className="absolute -top-4 -right-4 p-4 opacity-[0.03] group-hover:scale-110 group-hover:opacity-10 transition-all"><TrendingUp className="w-32 h-32" /></div>
+                <div className="p-3.5 rounded-2xl bg-amber-50 text-amber-600 mb-4 border border-amber-100 shadow-sm">
+                   <TrendingUp className="w-5 h-5" />
+                </div>
+                <span className="text-2xl font-black tabular-nums tracking-tighter">{formatCurrency(currentKiosks.reduce((s, r) => s + (r.price || 0), 0))}</span>
+                <span className="text-[10px] font-black uppercase tracking-widest mt-1 text-amber-600">Receita Espaços</span>
              </Card>
-             <Card className="bg-emerald-600 text-white border-none shadow-lg rounded-2xl p-4 flex flex-col items-start hover:scale-[1.02] transition-all group overflow-hidden relative">
-                <div className="p-2 rounded-xl bg-white/10 mb-2"><ShoppingBag className="w-4 h-4 text-white" /></div>
-                <span className="text-xl font-black">{formatCurrency(orders.reduce((s, r) => s + (r.total_amount || 0), 0))}</span>
-                <span className="text-[9px] font-bold uppercase tracking-widest mt-1 text-emerald-100">Vendas Loja</span>
+             <Card className="bg-emerald-950 border-2 border-emerald-800 text-white shadow-2xl rounded-[2.5rem] p-6 flex flex-col items-start hover:scale-[1.02] transition-all group overflow-hidden relative">
+                <div className="absolute -top-4 -right-4 p-4 opacity-10 group-hover:scale-110 transition-all"><ShoppingBag className="w-32 h-32" /></div>
+                <div className="p-3.5 rounded-2xl bg-white/10 text-emerald-400 mb-4 border border-white/10 backdrop-blur-md">
+                   <ShoppingBag className="w-5 h-5" />
+                </div>
+                <span className="text-2xl font-black tabular-nums tracking-tighter">{formatCurrency(orders.reduce((s, r) => s + (r.total_amount || 0), 0))}</span>
+                <span className="text-[10px] font-black uppercase tracking-widest mt-1 text-emerald-400">Vendas Loja</span>
              </Card>
           </div>
 
-          <Card className="bg-white border-border/50 shadow-card rounded-[2.5rem] p-8">
-             <div className="flex items-center justify-between mb-8">
-                <h3 className="text-2xl font-black text-emerald-950 flex items-center gap-3">
-                   <Users className="w-6 h-6 text-emerald-600" /> Ocupação Diária
-                </h3>
-                <Badge variant="outline" className="border-emerald-200 text-emerald-700 bg-emerald-50 font-black px-4 py-1.5 rounded-xl">
-                   {format(targetDate, "dd 'de' MMMM", { locale: ptBR })}
+          <Card className="bg-white border-2 border-emerald-100/50 shadow-premium rounded-[3.5rem] p-10">
+             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
+                <div className="flex items-center gap-4">
+                   <div className="w-16 h-16 bg-emerald-600 rounded-[2rem] flex items-center justify-center text-white shadow-xl shadow-emerald-600/20">
+                      <Users className="w-8 h-8" />
+                   </div>
+                   <div>
+                      <h3 className="text-3xl font-black text-emerald-950 tracking-tighter leading-none">Mapa de Ocupação</h3>
+                      <p className="text-[10px] font-black uppercase text-emerald-900/30 tracking-[0.3em] mt-1">Status de Reservas Confirmadas</p>
+                   </div>
+                </div>
+                <Badge className="bg-emerald-50 text-emerald-700 border-2 border-emerald-200 font-black px-8 py-3 rounded-2xl text-[11px] uppercase tracking-widest">
+                   {format(targetDate, "dd 'de' MMMM, yyyy", { locale: ptBR })}
                 </Badge>
              </div>
              
-             <div className="space-y-10">
-                <div>
-                   <h4 className="text-[10px] font-black text-emerald-900/40 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
-                      <Tent className="w-4 h-4" /> Quiosques Disponíveis
+             <div className="grid xl:grid-cols-2 gap-16">
+                <div className="space-y-10">
+                   <h4 className="text-[12px] font-black text-emerald-900/40 uppercase tracking-[0.4em] flex items-center gap-3">
+                      <Tent className="w-4 h-4 text-emerald-600" /> Quiosques 
+                      <span className="h-px bg-emerald-100 flex-1" />
                    </h4>
-                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                   <div className="grid grid-cols-3 sm:grid-cols-5 gap-4">
                       {KIOSKS.map(k => {
                         const booking = dayKiosks.find(b => Number(b.kiosk_id) === k.id);
                         return (
                           <div key={k.id} className={cn(
                             "group relative aspect-square rounded-[2rem] border-2 transition-all flex flex-col items-center justify-center gap-1",
                             booking 
-                              ? "bg-emerald-600 text-white border-emerald-600 shadow-xl shadow-emerald-600/20 scale-105" 
-                              : "bg-emerald-50/30 border-emerald-100 text-emerald-950/20 hover:bg-emerald-50 hover:border-emerald-200"
+                              ? "bg-emerald-600 text-white border-emerald-600 shadow-xl shadow-emerald-500/20 scale-105" 
+                              : "bg-emerald-50/40 border-emerald-100 text-emerald-900/10 hover:border-emerald-300"
                           )}>
-                             <span className="text-[10px] font-black opacity-40 uppercase">Q-{k.id}</span>
-                             {booking ? <UserCheck className="w-6 h-6" /> : <Circle className="w-5 h-5 opacity-20" />}
+                             <span className={cn("text-[9px] font-black uppercase tracking-tighter opacity-50", booking ? "text-white" : "text-emerald-900")}>Q-{k.id}</span>
+                             {booking ? <UserCheck className="w-6 h-6" /> : <Plus className="w-5 h-5 opacity-20 group-hover:scale-125 transition-all" />}
                              {booking && (
-                               <div className="absolute inset-0 bg-emerald-900 opacity-0 group-hover:opacity-100 transition-opacity rounded-[2rem] flex items-center justify-center p-3 text-center backdrop-blur-sm">
-                                  <span className="text-[10px] font-black leading-tight">{booking.customer_name}</span>
+                               <div className="absolute inset-0 bg-emerald-950/95 opacity-0 group-hover:opacity-100 transition-all rounded-[2rem] flex items-center justify-center p-3 text-center backdrop-blur-md">
+                                  <span className="text-[9px] font-black leading-tight uppercase tracking-widest">{booking.customer_name}</span>
                                </div>
                              )}
                           </div>
@@ -372,23 +392,25 @@ export default function Admin() {
                    </div>
                 </div>
 
-                <div>
-                   <h4 className="text-[10px] font-black text-emerald-900/40 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
-                      <Bike className="w-4 h-4" /> Horários Quadriciclos
+                <div className="space-y-10">
+                   <h4 className="text-[12px] font-black text-emerald-900/40 uppercase tracking-[0.4em] flex items-center gap-3">
+                      <Bike className="w-4 h-4 text-blue-600" /> Quadriciclos
+                      <span className="h-px bg-emerald-100 flex-1" />
                    </h4>
-                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                   <div className="grid grid-cols-2 gap-4">
                       {QUAD_TIMES.map(slot => {
                         const bookings = dayQuads.filter(b => b.time_slot === slot);
                         const count = bookings.reduce((s, r) => s + (r.quantity || 1), 0);
                         return (
                           <div key={slot} className={cn(
-                            "p-6 rounded-[2rem] border-2 transition-all flex flex-col items-center gap-2",
+                            "p-6 rounded-[2.5rem] border-2 transition-all flex flex-col items-center gap-2",
                             count > 0 
                               ? "bg-blue-600 border-blue-600 text-white shadow-xl shadow-blue-600/20" 
-                              : "bg-blue-50/30 border-blue-100 text-blue-900/20"
+                              : "bg-blue-50/20 border-blue-100 text-blue-900/10 hover:border-blue-300"
                           )}>
-                             <span className="text-[10px] font-black uppercase tracking-widest">{slot}</span>
-                             <span className="text-2xl font-black">{count}/5</span>
+                             <span className={cn("text-[10px] font-black uppercase tracking-widest", count > 0 ? "text-blue-100" : "text-blue-900")}>{slot}</span>
+                             <span className="text-3xl font-black tabular-nums">{count}/5</span>
+                             <span className="text-[8px] font-black uppercase opacity-50">Vagas Ocupadas</span>
                           </div>
                         );
                       })}
@@ -778,7 +800,7 @@ export default function Admin() {
   );
 
   return (
-    <div className="min-h-screen p-4 md:p-8 relative overflow-hidden bg-emerald-50/40">
+    <div className="min-h-screen p-4 md:p-8 relative overflow-hidden bg-gradient-to-br from-emerald-50 via-white to-emerald-50 bg-fixed">
        {/* Ambient Glows */}
        <div className="absolute -top-24 -right-24 w-96 h-96 bg-emerald-200/20 blur-[120px] rounded-full" />
        <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-blue-200/20 blur-[120px] rounded-full" />

@@ -31,7 +31,7 @@ import { CalendarIcon } from 'lucide-react';
 
 import { formatPhone, unformatPhone } from '@/lib/utils/format';
 
-type Step = 'dados' | 'entradas' | 'extras' | 'pagamento';
+type Step = 'dados' | 'quiosques' | 'quads' | 'servicos' | 'pagamento';
 
 export function BookingSection() {
   const { 
@@ -125,7 +125,7 @@ export function BookingSection() {
   const isStepDone = (step: Step) => completedSteps.includes(step);
 
   return (
-    <section id="reservas" className="relative pt-6 pb-12 sm:pt-32 sm:pb-28 bg-[#f8fafc] min-h-screen">
+    <section id="reservas" className="relative pt-6 pb-12 sm:pt-32 sm:pb-28 bg-transparent min-h-screen">
       {/* Background decoration - only desktop */}
       <div className="absolute top-0 left-0 w-full h-full pointer-events-none opacity-40 hidden sm:block">
         <div className="absolute top-[10%] left-[5%] w-64 h-64 bg-primary/10 rounded-full blur-3xl" />
@@ -146,17 +146,20 @@ export function BookingSection() {
           <div className="mb-8 px-4">
              <div className="flex flex-col items-center justify-center gap-1">
                 <span className="text-[10px] font-black uppercase text-primary/60 tracking-widest">
-                   Etapa {currentStep === 'dados' ? 1 : currentStep === 'extras' ? 2 : 3} de 3
+                   Etapa {currentStep === 'dados' ? 1 : currentStep === 'quiosques' ? 2 : currentStep === 'quads' ? 3 : currentStep === 'servicos' ? 4 : 5} de 5
                 </span>
                 <h2 className="font-gliker text-2xl text-primary text-center">
                   {currentStep === 'dados' ? 'Quem vai e Quando?' : 
-                   currentStep === 'extras' ? 'Adicionar Extras?' : 'Resumo e Pagamento'}
+                   currentStep === 'quiosques' ? 'Escolha seu Quiosque' :
+                   currentStep === 'quads' ? 'Aventura de Quadriciclo' :
+                   currentStep === 'servicos' ? 'Diversão e Pesca' : 
+                   'Resumo e Pagamento'}
                 </h2>
              </div>
              <div className="w-full bg-muted h-1.5 rounded-full mt-4 overflow-hidden max-w-[200px] mx-auto">
                 <div 
-                  className="h-full bg-primary transition-all duration-500" 
-                  style={{ width: currentStep === 'dados' ? '33%' : currentStep === 'extras' ? '66%' : '100%' }}
+                   className="h-full bg-primary transition-all duration-500" 
+                   style={{ width: currentStep === 'dados' ? '20%' : currentStep === 'quiosques' ? '40%' : currentStep === 'quads' ? '60%' : currentStep === 'servicos' ? '80%' : '100%' }}
                 />
              </div>
           </div>
@@ -165,7 +168,7 @@ export function BookingSection() {
             <motion.div 
                className="absolute top-0 left-0 h-full bg-primary"
                initial={{ width: "0%" }}
-               animate={{ width: currentStep === 'dados' ? '16.6%' : currentStep === 'extras' ? '50%' : '100%' }}
+               animate={{ width: currentStep === 'dados' ? '10%' : currentStep === 'quiosques' ? '30%' : currentStep === 'quads' ? '50%' : currentStep === 'servicos' ? '70%' : '100%' }}
                transition={{ duration: 0.5, ease: "easeInOut" }}
             />
           </div>
@@ -196,7 +199,7 @@ export function BookingSection() {
                     <Button 
                       size="lg"
                       disabled={!booking.entry.name || !booking.entry.phone || !booking.entry.visitDate || (booking.entry.adults.length === 0 && booking.entry.children.length === 0)}
-                      onClick={() => nextStep('extras')}
+                      onClick={() => nextStep('quiosques')}
                       className="w-full sm:w-auto bg-primary hover:bg-primary-dark text-white font-black h-16 px-12 rounded-2xl shadow-xl shadow-primary/20 text-lg group"
                     >
                       Continuar Agendamento <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
@@ -205,42 +208,96 @@ export function BookingSection() {
                 </motion.div>
               )}
 
-
-
-              {currentStep === 'extras' && (
+              {currentStep === 'quiosques' && (
                 <motion.div
-                  key="extras"
+                  key="quiosques"
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
                   className="space-y-10"
                 >
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="p-2 bg-primary/10 rounded-lg text-primary"><Sparkles className="h-5 w-5" /></div>
-                    <h3 className="font-gliker text-2xl text-primary">Deseja adicionar mais algo?</h3>
-                  </div>
-
-                  <div className="space-y-12">
+                  <div className="space-y-8">
                      <div className="space-y-4">
-                        <div className="flex items-center gap-2 pl-2 border-l-4 border-sun">
-                           <Home className="h-5 w-5 text-secondary" />
-                           <h4 className="font-bold text-sm uppercase tracking-widest text-muted-foreground">Quiosques para seu conforto</h4>
+                        <div className="flex items-center gap-3 mb-6">
+                           <div className="p-3 bg-secondary/10 rounded-2xl text-secondary shadow-sm shadow-secondary/10"><Home className="h-6 w-6" /></div>
+                           <div>
+                              <h3 className="font-gliker text-2xl text-emerald-950">Quiosques para seu conforto</h3>
+                              <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Garanta um espaço exclusivo para sua família</p>
+                           </div>
                         </div>
                         <KioskSelector kiosks={booking.kiosks} onUpdate={updateKiosk} />
                      </div>
+                  </div>
 
+                  <div className="pt-8 flex flex-col gap-4 items-center px-4">
+                    <Button 
+                      size="lg"
+                      onClick={() => nextStep('quads')}
+                      className="w-full sm:w-auto bg-primary hover:bg-primary-dark text-white font-black h-16 px-10 rounded-2xl shadow-lg order-1"
+                    >
+                      Continuar Agendamento <ArrowRight className="ml-2 h-5 w-5" />
+                    </Button>
+                    <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto order-2">
+                        <Button variant="outline" onClick={() => nextStep('quads')} className="w-full sm:w-auto font-bold h-12 px-8 rounded-2xl border-2">Pular Quiosques</Button>
+                        <Button variant="ghost" onClick={() => prevStep('dados')} className="w-full sm:w-auto font-bold text-muted-foreground h-12"> <ArrowLeft className="mr-2 h-4 w-4" /> Voltar</Button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {currentStep === 'quads' && (
+                <motion.div
+                  key="quads"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="space-y-10"
+                >
+                  <div className="space-y-8">
                      <div className="space-y-4">
-                        <div className="flex items-center gap-2 pl-2 border-l-4 border-primary">
-                           <Bike className="h-5 w-5 text-primary" />
-                           <h4 className="font-bold text-sm uppercase tracking-widest text-muted-foreground">Aventura com Quadriciclo</h4>
+                        <div className="flex items-center gap-3 mb-6">
+                           <div className="p-3 bg-primary/10 rounded-2xl text-primary shadow-sm shadow-primary/10"><Bike className="h-6 w-6" /></div>
+                           <div>
+                              <h3 className="font-gliker text-2xl text-emerald-950">Aventura e Diversão</h3>
+                              <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Passeios incríveis com quadriciclo</p>
+                           </div>
                         </div>
                         <QuadSelector quads={booking.quads} onUpdate={updateQuad} />
                      </div>
+                  </div>
 
+                  <div className="pt-8 flex flex-col gap-4 items-center px-4">
+                    <Button 
+                      size="lg"
+                      onClick={() => nextStep('servicos')}
+                      className="w-full sm:w-auto bg-primary hover:bg-primary-dark text-white font-black h-16 px-10 rounded-2xl shadow-lg order-1"
+                    >
+                      Continuar Agendamento <ArrowRight className="ml-2 h-5 w-5" />
+                    </Button>
+                    <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto order-2">
+                        <Button variant="outline" onClick={() => nextStep('servicos')} className="w-full sm:w-auto font-bold h-12 px-8 rounded-2xl border-2">Pular Quadriciclo</Button>
+                        <Button variant="ghost" onClick={() => prevStep('quiosques')} className="w-full sm:w-auto font-bold text-muted-foreground h-12"> <ArrowLeft className="mr-2 h-4 w-4" /> Voltar</Button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {currentStep === 'servicos' && (
+                <motion.div
+                  key="servicos"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="space-y-10"
+                >
+                  <div className="space-y-8">
                      <div className="space-y-4">
-                        <div className="flex items-center gap-2 pl-2 border-l-4 border-secondary">
-                           <Fish className="h-5 w-5 text-secondary" />
-                           <h4 className="font-bold text-sm uppercase tracking-widest text-muted-foreground">Diversão e Pesca</h4>
+                        <div className="flex items-center gap-3 mb-6">
+                           <div className="p-3 bg-secondary/10 rounded-2xl text-secondary shadow-sm shadow-secondary/10"><Fish className="h-6 w-6" /></div>
+                           <div>
+                              <h3 className="font-gliker text-2xl text-emerald-950">Outros Serviços</h3>
+                              <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Pesca esportiva e futebol de sabão</p>
+                           </div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <AdditionalSelector
@@ -271,7 +328,7 @@ export function BookingSection() {
                     </Button>
                     <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto order-2">
                         <Button variant="outline" onClick={() => nextStep('pagamento')} className="w-full sm:w-auto font-bold h-12 px-8 rounded-2xl border-2">Pular Extras</Button>
-                        <Button variant="ghost" onClick={() => prevStep('dados')} className="w-full sm:w-auto font-bold text-muted-foreground h-12"> <ArrowLeft className="mr-2 h-4 w-4" /> Voltar</Button>
+                        <Button variant="ghost" onClick={() => prevStep('quads')} className="w-full sm:w-auto font-bold text-muted-foreground h-12"> <ArrowLeft className="mr-2 h-4 w-4" /> Voltar</Button>
                     </div>
                   </div>
                 </motion.div>
@@ -295,7 +352,7 @@ export function BookingSection() {
                   </div>
 
                   <div className="pt-6 flex justify-center px-4">
-                    <Button variant="ghost" onClick={() => prevStep('extras')} className="w-full sm:w-auto font-bold text-muted-foreground h-12"><ArrowLeft className="mr-2 h-4 w-4" /> Alterar Pedido</Button>
+                    <Button variant="ghost" onClick={() => prevStep('servicos')} className="w-full sm:w-auto font-bold text-muted-foreground h-12"><ArrowLeft className="mr-2 h-4 w-4" /> Alterar Pedido</Button>
                   </div>
                 </motion.div>
               )}
