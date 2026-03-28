@@ -36,11 +36,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 // Constants from common types
 const KIOSKS = [
-  { id: 1, name: 'Quiosque 1 (Grande)', price: 100 },
-  { id: 2, name: 'Quiosque 2', price: 75 },
-  { id: 3, name: 'Quiosque 3', price: 75 },
-  { id: 4, name: 'Quiosque 4', price: 75 },
-  { id: 5, name: 'Quiosque 5', price: 75 }
+  { id: 1, name: 'Quiosque 1 (Grande)', price: 100, capacity: 'Até 15 pessoas', type: 'Maior' },
+  { id: 2, name: 'Quiosque 2', price: 75, capacity: 'Até 6 pessoas', type: 'Menor' },
+  { id: 3, name: 'Quiosque 3', price: 75, capacity: 'Até 6 pessoas', type: 'Menor' },
+  { id: 4, name: 'Quiosque 4', price: 75, capacity: 'Até 6 pessoas', type: 'Menor' },
+  { id: 5, name: 'Quiosque 5', price: 75, capacity: 'Até 6 pessoas', type: 'Menor' }
 ];
 
 const QUAD_TIMES = ['09:00', '10:30', '14:00', '15:30'];
@@ -596,7 +596,8 @@ export default function Admin() {
                    <tr>
                       <th className="px-6 py-4">Data</th>
                       <th className="px-6 py-4">Cliente</th>
-                      <th className="px-6 py-4">Quiosque</th>
+                      <th className="px-6 py-4">Modelo/Capacidade</th>
+                      <th className="px-6 py-4">Valor</th>
                       <th className="px-6 py-4 text-right">Ações</th>
                    </tr>
                 </thead>
@@ -621,7 +622,19 @@ export default function Admin() {
                                    <SelectTrigger className="h-9 rounded-lg bg-white text-emerald-950 font-bold border-emerald-200"><SelectValue /></SelectTrigger>
                                    <SelectContent className="bg-white border-emerald-200">{KIOSKS.map(k => <SelectItem key={k.id} value={String(k.id)} className="text-emerald-950">{k.name}</SelectItem>)}</SelectContent>
                                 </Select>
-                              ) : <Badge className="bg-emerald-100 text-emerald-700 border-0 font-bold">{KIOSKS.find(k => k.id === Number(r.kiosk_id))?.name || `Q-${r.kiosk_id || '?'}`}</Badge>}
+                              ) : (
+                                 <div className="flex flex-col">
+                                    <Badge className="bg-emerald-100 text-emerald-700 border-0 font-bold w-fit">
+                                       {KIOSKS.find(k => k.id === Number(r.kiosk_id))?.name || `Q-${r.kiosk_id || '?'}`}
+                                    </Badge>
+                                    <span className="text-[9px] font-black uppercase text-emerald-600/60 mt-1 ml-1">
+                                       {KIOSKS.find(k => k.id === Number(r.kiosk_id))?.capacity || (r.kiosk_id === 'MENOR' ? 'Até 6 pessoas' : '')}
+                                    </span>
+                                 </div>
+                               )}
+                           </td>
+                           <td className="px-6 py-4 font-bold text-emerald-700">
+                              {isEditing ? <Input type="number" value={editData.price} onChange={e => setEditData({...editData, price: parseFloat(e.target.value)})} className="h-9 w-24 bg-white text-emerald-950 font-bold border-emerald-200" /> : formatCurrency(r.price || (KIOSKS.find(k => k.id === Number(r.kiosk_id))?.price || 75))}
                            </td>
                            <td className="px-6 py-4 text-right">
                               <div className="flex items-center justify-end gap-2">
@@ -675,9 +688,16 @@ export default function Admin() {
                               <div className="flex items-center gap-4">
                                  <span className="font-mono text-muted-foreground">{format(parseISO(r.reservation_date), 'dd/MM')}</span>
                                  <span className="font-bold">{r.customer_name}</span>
-                                 <Badge variant="outline" className="text-[9px] border-primary/20 text-primary">{KIOSKS.find(k => k.id === r.kiosk_id)?.name}</Badge>
+                                 <div className="flex flex-col items-start min-w-[100px]">
+                                    <Badge variant="outline" className="text-[9px] border-primary/20 text-primary">
+                                       {KIOSKS.find(k => k.id === Number(r.kiosk_id))?.name || `Quiosque ${r.kiosk_id}`}
+                                    </Badge>
+                                    <span className="text-[8px] font-black uppercase text-emerald-500 mt-1">
+                                       {KIOSKS.find(k => k.id === Number(r.kiosk_id))?.capacity || (r.kiosk_id === 'MENOR' ? 'Até 6 pessoas' : '')}
+                                    </span>
+                                 </div>
                               </div>
-                              <span className="font-bold text-primary">{formatCurrency(r.price)}</span>
+                              <span className="font-bold text-primary">{formatCurrency(r.price || (KIOSKS.find(k => k.id === Number(r.kiosk_id))?.price || 75))}</span>
                            </div>
                          ))}
                       </div>
