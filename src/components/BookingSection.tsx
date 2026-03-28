@@ -136,7 +136,7 @@ export function BookingSection() {
         <div className="max-w-4xl mx-auto">
           
           <div className="text-center mb-8 px-2">
-          <h2 className="font-display font-black text-3xl sm:text-5xl md:text-6xl mb-4 text-primary drop-shadow-sm leading-tight text-balance">
+          <h2 className="font-sans font-bold text-3xl sm:text-5xl md:text-6xl mb-4 text-primary drop-shadow-sm leading-tight text-balance">
             Agende sua Experiência
           </h2>
             <p className="text-xs sm:text-sm text-muted-foreground font-medium">Fácil, rápido e seguro.</p>
@@ -145,10 +145,10 @@ export function BookingSection() {
           {/* Step Indicator - Simplificado para Mobile */}
           <div className="mb-8 px-4">
              <div className="flex flex-col items-center justify-center gap-1">
-                <span className="text-[10px] font-black uppercase text-primary/60 tracking-widest">
+                <span className="text-[10px] font-bold uppercase text-primary/60 tracking-widest">
                    Etapa {currentStep === 'dados' ? 1 : currentStep === 'quiosques' ? 2 : currentStep === 'quads' ? 3 : currentStep === 'servicos' ? 4 : 5} de 5
                 </span>
-                <h2 className="font-gliker text-2xl text-primary text-center">
+                <h2 className="font-sans font-semibold text-2xl text-primary text-center">
                   {currentStep === 'dados' ? 'Quem vai e Quando?' : 
                    currentStep === 'quiosques' ? 'Escolha seu Quiosque' :
                    currentStep === 'quads' ? 'Aventura de Quadriciclo' :
@@ -200,7 +200,7 @@ export function BookingSection() {
                       size="lg"
                       disabled={!booking.entry.name || !booking.entry.phone || !booking.entry.visitDate || (booking.entry.adults.length === 0 && booking.entry.children.length === 0)}
                       onClick={() => nextStep('quiosques')}
-                      className="w-full sm:w-auto bg-primary hover:bg-primary-dark text-white font-black h-16 px-12 rounded-2xl shadow-xl shadow-primary/20 text-lg group"
+                      className="w-full sm:w-auto bg-primary hover:bg-primary-dark text-white font-bold h-16 px-12 rounded-2xl shadow-xl shadow-primary/20 text-lg group"
                     >
                       Continuar Agendamento <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                     </Button>

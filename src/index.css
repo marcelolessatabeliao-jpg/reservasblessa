@@ -44,8 +44,8 @@
     --shadow-premium: 0 20px 40px -15px rgba(6, 95, 70, 0.1);
     --shadow-soft: 0 8px 30px rgba(0, 0, 0, 0.04);
 
-    --font-display: 'Montserrat', sans-serif;
-    --font-gliker: 'Gliker', 'Montserrat', sans-serif;
+    --font-display: 'Inter', 'Montserrat', sans-serif;
+    --font-gliker: 'Inter', 'Montserrat', sans-serif;
     --font-body: 'Inter', sans-serif;
 
     --sidebar-background: 150 25% 98%;

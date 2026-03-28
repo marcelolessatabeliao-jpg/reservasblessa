@@ -71,7 +71,7 @@ export function HeroSection() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3 }}
-          className="text-white/90 font-bold text-[9px] sm:text-[10px] mb-10 px-4 py-1.5 bg-black/40 backdrop-blur-md block max-w-[280px] sm:max-w-none mx-auto rounded-xl border border-white/20 leading-tight w-fit"
+          className="text-white/90 font-bold text-xs sm:text-base mb-10 px-6 py-3 bg-black/40 backdrop-blur-md block max-w-none mx-auto rounded-2xl border border-white/20 leading-tight w-fit shadow-2xl"
         >
           📍 Aberto das 9h às 17h • Sextas, Sábados, Domingos, Segun. e Feriados
         </motion.p>

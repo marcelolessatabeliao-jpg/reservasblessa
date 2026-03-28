@@ -16,14 +16,6 @@ import { ptBR } from 'date-fns/locale';
 import { getPersonPrice, formatCurrency, KIOSK_INFO, QUAD_LABELS, getQuadDiscount, ADDITIONAL_INFO, WHATSAPP_NUMBER, type BookingState, type AdultInfo, type ChildInfo } from '@/lib/booking-types';
 import { useState, useEffect } from 'react';
 
-// Preços fixos de exibição (independente do BD)
-function getEntryDisplayPrice(person: AdultInfo | ChildInfo, defaultFree: boolean): number {
-  if (defaultFree || person.isPCD || (person as any).isTEA || person.isBirthday) return 0;
-  const hasHalf = person.isTeacher || person.isServer || person.isStudent ||
-                  (person as any).isBloodDonor || (person as any).takeDonation;
-  return hasHalf ? 25 : 50;
-}
-
 interface Props {
   booking: BookingState;
   totals: {
@@ -45,7 +37,6 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
   const [pixData, setPixData] = useState<{ encodedImage: string; payload: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
-  const [goldMode, setGoldMode] = useState(false);
   const { getPrice } = useServices();
   const { toast } = useToast();
 
@@ -317,7 +308,7 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
                 if (p.isBirthday) label = 'Aniversariante';
 
                 return (
-                  <div key={`free-${i}`} className="flex justify-between items-start text-green-800 font-bold bg-green-50/50 p-2 rounded-lg border border-green-100/50">
+                  <div key={`free-${i}`} className="flex justify-between items-start text-green-600 font-bold bg-green-50/50 p-2 rounded-lg border border-green-100/50">
                     <div>
                       <span>{qty}x {label}</span>
                       <span className="block text-[10px] uppercase tracking-tighter opacity-70">Acesso Gratuito</span>
@@ -328,32 +319,31 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
               })}
 
               {/* Pagantes */}
-              {booking.entry.adults.filter(a => getEntryDisplayPrice(a, a.age >= 60) > 0).map((a, i) => {
+              {booking.entry.adults.filter(a => getPersonPrice(a, a.age >= 60, booking.entry.dayOfWeek === 'domingo', getPrice) > 0).map((a, i) => {
                 const qty = a.quantity || 1;
-                const price = getEntryDisplayPrice(a, a.age >= 60);
+                const price = getPersonPrice(a, a.age >= 60, booking.entry.dayOfWeek === 'domingo', getPrice);
+                let label = 'Adulto';
                 let details = [];
                 if (a.isTeacher) details.push('Professor');
                 if (a.isServer) details.push('Servidor');
                 if (a.isStudent) details.push('Estudante');
-                if (a.takeDonation && booking.entry.dayOfWeek !== 'domingo') details.push('Adulto Solidário');
+                if (a.takeDonation && booking.entry.dayOfWeek !== 'domingo') details.push('Social');
                 if ((a as any).isBloodDonor) details.push('Doador');
                 
-                const mainLabel = details.length > 0 ? `${qty}x ${details.join(', ')}` : `${qty}x Adulto`;
-
                 return (
                   <div key={`adult-pay-${i}`} className="flex justify-between items-start">
                     <div>
-                      <span>{mainLabel}</span>
-                      {details.length > 0 && <span className="block text-[11px] font-medium text-primary/70">(Meia-Entrada)</span>}
+                      <span>{qty}x {label}</span>
+                      {details.length > 0 && <span className="block text-[11px] font-medium text-primary/70">{details.join(', ')}</span>}
                     </div>
                     <span className="font-medium whitespace-nowrap">{formatCurrency(price * qty)}</span>
                   </div>
                 );
               })}
 
-              {booking.entry.children.filter(c => getEntryDisplayPrice(c, c.age <= 11) > 0).map((c, i) => {
+              {booking.entry.children.filter(c => getPersonPrice(c, c.age <= 11, booking.entry.dayOfWeek === 'domingo', getPrice) > 0).map((c, i) => {
                 const qty = c.quantity || 1;
-                const price = getEntryDisplayPrice(c, c.age <= 11);
+                const price = getPersonPrice(c, c.age <= 11, booking.entry.dayOfWeek === 'domingo', getPrice);
                 return (
                   <div key={`child-pay-${i}`} className="flex justify-between items-start mt-2">
                     <div>
@@ -413,9 +403,6 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
                     <div>
                       <span>{q.quantity}x Quad. {QUAD_LABELS[q.type]}</span>
                       <span className="block text-[10px] text-muted-foreground/80">📅 {q.date ? format(q.date, "dd/MM/yyyy", { locale: ptBR }) : booking.entry.visitDate ? format(booking.entry.visitDate, "dd/MM/yyyy", { locale: ptBR }) : '—'} às {q.time || '—'}</span>
-                      {discount > 0 && (
-                        <span className="block text-[10px] text-green-700 font-bold uppercase tracking-tight">Economia de {formatCurrency((basePrice - final_) * q.quantity)} (Desconto {discount * 100}%)</span>
-                      )}
                     </div>
                     <span>{formatCurrency(q.quantity * final_)}</span>
                   </div>
@@ -455,101 +442,83 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
           </div>
         )}
 
-        {/* Total */}
+        {/* Membership Comparison Action Card */}
         {(() => {
+          const allAdults = booking.entry.adults;
+          const halfPriceAdults = allAdults.filter(a => a.isTeacher || a.isServer || a.isStudent || (a as any).isBloodDonor || a.takeDonation).reduce((acc, a) => acc + (a.quantity || 1), 0);
+          const fullPriceAdults = allAdults.reduce((acc, a) => acc + (a.quantity || 1), 0) - halfPriceAdults;
+
+          const membershipPrice = calculateMembershipCost({ adultsCount: fullPriceAdults, halfPriceCount: halfPriceAdults });
+          const entriesTotal = totals.entriesTotal;
+
+          if ((fullPriceAdults + halfPriceAdults) > 0) {
+            return (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-950 border-2 border-sun/30 rounded-3xl p-5 sm:p-6 relative overflow-hidden group shadow-2xl"
+              >
+                {/* Decoration */}
+                <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-sun/10 rounded-full blur-3xl group-hover:bg-sun/20 transition-all duration-500" />
+                <div className="absolute bottom-0 left-0 -ml-8 -mb-8 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl" />
+
+                <div className="flex items-center gap-3 mb-4 relative z-10">
+                  <div className="w-10 h-10 rounded-xl bg-sun/20 flex items-center justify-center border border-sun/30 shadow-inner">
+                    <Sparkles className="w-6 h-6 text-sun animate-pulse" />
+                  </div>
+                  <h3 className="font-display font-black text-white text-lg sm:text-xl tracking-tight">
+                    Vale mais a pena ser Sócio!
+                  </h3>
+                </div>
+
+                <div className="space-y-4 relative z-10">
+                  <p className="text-blue-100/90 text-sm sm:text-base leading-relaxed font-medium">
+                    Sua reserva de hoje custa <span className="bg-sun/20 text-sun font-black px-2 py-0.5 rounded-lg border border-sun/20">{formatCurrency(entriesTotal)}</span>.
+                    No <span className="text-sun font-black underline decoration-sun/30 underline-offset-4">Lessa Club</span>, 
+                    você paga apenas <span className="bg-green-500/20 text-green-400 font-black px-2 py-0.5 rounded-lg border border-green-500/20">{formatCurrency(membershipPrice)}</span> e tem 
+                    <span className="text-white font-black mx-1 uppercase tracking-wider bg-white/10 px-2 py-0.5 rounded-md">Entradas Ilimitadas</span> o mês inteiro!
+                  </p>
+
+                  <Button 
+                    variant="default"
+                    className="w-full h-14 bg-white hover:bg-slate-50 text-slate-950 font-black text-base uppercase tracking-widest rounded-2xl shadow-xl transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3 group"
+                    onClick={() => {
+                      const element = document.getElementById('especiais');
+                      if (element) {
+                        element.scrollIntoView({ behavior: 'smooth' });
+                      }
+                    }}
+                  >
+                    Ativar Plano Dourado <ArrowRight className="ml-1.5 h-4 w-4" />
+                  </Button>
+                </div>
+              </motion.div>
+            );
+          }
+          return null;
+        })()}
+
+        {/* Total Bruto e Descontos */}
+        {(() => {
+           // Calculate potential "savings"
+           // For simplicity, let's just show a row summarizing the total and maybe the "Economia"
+           const totalFullPrice = [...booking.entry.adults, ...booking.entry.children].reduce((acc, p) => acc + ((p.quantity || 1) * 50), 0);
+           const savings = totalFullPrice - totals.entriesTotal;
+           
            return (
              <div className="pt-4 space-y-2">
                <div className="flex justify-between items-center bg-primary/5 rounded-2xl p-4 border border-primary/10">
-                 <span className="text-xl sm:text-2xl font-black text-primary">Total: {formatCurrency(totals.total)}</span>
+                 <div>
+                   <span className="text-xl sm:text-2xl font-black text-primary">Total: {formatCurrency(totals.total)}</span>
+                   {savings > 0 && (
+                     <span className="block text-[10px] sm:text-xs text-whatsapp font-bold uppercase tracking-widest mt-0.5">
+                       ✨ VOCÊ ESTÁ ECONOMIZANDO {formatCurrency(savings)} NESTA RESERVA!
+                     </span>
+                   )}
+                 </div>
                </div>
              </div>
            );
-        })()}
-
-        {/* Vale mais a pena ser Sócio */}
-        {totals.entriesTotal > 0 && (() => {
-          let membershipTotal = 0;
-          let validPeopleForMembership = 0;
-          
-          booking.entry.adults.forEach(a => {
-             const isFree = a.age >= 60 || a.isPCD || (a as any).isTEA || a.isBirthday;
-             if (!isFree) {
-                const qty = a.quantity || 1;
-                validPeopleForMembership += qty;
-                const isHalf = a.isTeacher || a.isServer || a.isStudent || (a as any).isBloodDonor;
-                // De acordo com regras passadas: Adulto Cheia/Solidário = 49,90, Estudante/Professor/Servidor/Doador = 25,00
-                if (isHalf) {
-                   membershipTotal += (25.00 * qty);
-                } else {
-                   membershipTotal += (49.90 * qty);
-                }
-             }
-          });
-          
-          booking.entry.children.forEach(c => {
-             const isFree = c.age <= 11;
-             if (!isFree) {
-                const qty = c.quantity || 1;
-                validPeopleForMembership += qty;
-                membershipTotal += (25.00 * qty);
-             }
-          });
-
-          if (validPeopleForMembership === 0 || membershipTotal === 0) return null;
-
-          return (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="rounded-[1.5rem] overflow-hidden shadow-xl transition-all duration-500"
-              style={{ background: goldMode 
-                ? 'linear-gradient(135deg, #92600a 0%, #c8860a 40%, #e6a817 60%, #92600a 100%)'
-                : 'linear-gradient(135deg, #0c1a4e 0%, #172d80 60%, #0c1a4e 100%)' }}
-            >
-              <div className="p-5 space-y-3">
-                <div className="flex items-center gap-2">
-                  <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center shrink-0", goldMode ? "bg-white/20" : "bg-yellow-400/20")}>
-                    <Sparkles className={cn("h-5 w-5", goldMode ? "text-white" : "text-yellow-400")} />
-                  </div>
-                  <span className="text-white font-black text-base leading-tight">
-                    {goldMode ? '✨ Plano Dourado Ativado!' : 'Vale mais a pena ser Sócio!'}
-                  </span>
-                </div>
-
-                <p className="text-white/90 text-sm leading-relaxed">
-                  Sua reserva para a data escolhida, considerando apenas as entradas (Day Use), custará{' '}
-                  <span className="bg-yellow-400/20 text-yellow-300 font-black px-2 py-0.5 rounded-lg">
-                    {formatCurrency(totals.entriesTotal)}
-                  </span>
-                  . No{' '}
-                  <span className="text-yellow-400 font-black">Lessa Club</span>
-                  , você paga apenas{' '}
-                  <span className="bg-green-400/20 text-green-400 font-black px-2 py-0.5 rounded-lg border border-green-400/30">
-                    {formatCurrency(membershipTotal)}/mês
-                  </span>
-                  {' '}e tem entradas ilimitadas o mês inteiro!
-                </p>
-                <p className="text-white/60 text-[11px] italic leading-relaxed">
-                  (Os demais serviços são à parte em qualquer opção.)
-                </p>
-
-                <button
-                  className={cn(
-                    "w-full font-black text-sm py-3.5 rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-md",
-                    goldMode 
-                      ? "bg-yellow-400 text-yellow-900 hover:bg-yellow-300" 
-                      : "bg-white text-[#0c1a4e] hover:bg-yellow-50"
-                  )}
-                  onClick={() => {
-                    setGoldMode(true);
-                    window.open(`https://wa.me/556992626140?text=${encodeURIComponent('Olá! Quero saber mais sobre o Lessa Club e ativar o Plano Dourado!')}`, '_blank');
-                  }}
-                >
-                  {goldMode ? '✨ PLANO DOURADO ATIVADO' : 'ATIVAR PLANO DOURADO'} <ArrowRight className="h-4 w-4" />
-                </button>
-              </div>
-            </motion.div>
-          );
         })()}
 
         {/* Seção de Dados do Pagador */}
