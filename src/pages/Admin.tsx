@@ -336,9 +336,20 @@ export default function Admin() {
 
   // --- VIEW RENDERERS ---
 
-  const renderDashboard = () => {
-    const dayKiosks = kioskReservations.filter(r => r.reservation_date === format(targetDate, 'yyyy-MM-dd'));
-    const dayQuads = quadReservations.filter(r => r.reservation_date === format(targetDate, 'yyyy-MM-dd'));
+   const renderDashboard = () => {
+    const dayKiosks = kioskReservations.filter(r => {
+      try {
+        const d = typeof r.reservation_date === 'string' ? r.reservation_date.split('T')[0] : format(r.reservation_date, 'yyyy-MM-dd');
+        return d === format(targetDate, 'yyyy-MM-dd');
+      } catch { return false; }
+    });
+    
+    const dayQuads = quadReservations.filter(r => {
+      try {
+        const d = typeof r.reservation_date === 'string' ? r.reservation_date.split('T')[0] : format(r.reservation_date, 'yyyy-MM-dd');
+        return d === format(targetDate, 'yyyy-MM-dd');
+      } catch { return false; }
+    });
     
     return (
       <div className="grid lg:grid-cols-[1fr_360px] gap-8 animate-in fade-in duration-500">
@@ -350,31 +361,31 @@ export default function Admin() {
                 <div className="p-3.5 rounded-2xl bg-emerald-50 text-emerald-600 mb-4 border border-emerald-100 shadow-sm">
                    <Tent className="w-5 h-5" />
                 </div>
-                <span className="text-4xl font-black tabular-nums tracking-tighter">{currentKiosks.length}</span>
-                <span className="text-[10px] font-black uppercase tracking-widest mt-1 text-emerald-600">Quiosques Ativos</span>
+                <span className="text-4xl font-black tabular-nums tracking-tighter">{dayKiosks.length}</span>
+                <span className="text-[10px] font-black uppercase tracking-widest mt-1 text-emerald-600">Quiosques Hoje</span>
              </Card>
              <Card className="bg-white border-2 border-blue-600/20 text-blue-950 shadow-xl rounded-[2.5rem] p-6 flex flex-col items-start hover:shadow-blue-200/50 transition-all group overflow-hidden relative">
                 <div className="absolute -top-4 -right-4 p-4 opacity-[0.03] group-hover:scale-110 group-hover:opacity-10 transition-all"><Bike className="w-32 h-32" /></div>
                 <div className="p-3.5 rounded-2xl bg-blue-50 text-blue-600 mb-4 border border-blue-100 shadow-sm">
                    <Bike className="w-5 h-5" />
                 </div>
-                <span className="text-4xl font-black tabular-nums tracking-tighter">{currentQuads.length}</span>
-                <span className="text-[10px] font-black uppercase tracking-widest mt-1 text-blue-600">Quad Agendados</span>
+                <span className="text-4xl font-black tabular-nums tracking-tighter">{dayQuads.length}</span>
+                <span className="text-[10px] font-black uppercase tracking-widest mt-1 text-blue-600">Quad Hoje</span>
              </Card>
              <Card className="bg-white border-2 border-amber-500/20 text-amber-950 shadow-xl rounded-[2.5rem] p-6 flex flex-col items-start hover:shadow-amber-200/50 transition-all group overflow-hidden relative">
                 <div className="absolute -top-4 -right-4 p-4 opacity-[0.03] group-hover:scale-110 group-hover:opacity-10 transition-all"><TrendingUp className="w-32 h-32" /></div>
                 <div className="p-3.5 rounded-2xl bg-amber-50 text-amber-600 mb-4 border border-amber-100 shadow-sm">
                    <TrendingUp className="w-5 h-5" />
                 </div>
-                <span className="text-2xl font-black tabular-nums tracking-tighter">{formatCurrency(currentKiosks.reduce((s, r) => s + (r.price || 0), 0))}</span>
-                <span className="text-[10px] font-black uppercase tracking-widest mt-1 text-amber-600">Receita Espaços</span>
+                <span className="text-2xl font-black tabular-nums tracking-tighter">{formatCurrency(dayKiosks.reduce((s, r) => s + (r.price || 0), 0) + dayQuads.reduce((s, r) => s + (r.price || 0), 0))}</span>
+                <span className="text-[10px] font-black uppercase tracking-widest mt-1 text-amber-600">Receita do Dia</span>
              </Card>
              <Card className="bg-emerald-950 border-2 border-emerald-800 text-white shadow-2xl rounded-[2.5rem] p-6 flex flex-col items-start hover:scale-[1.02] transition-all group overflow-hidden relative">
                 <div className="absolute -top-4 -right-4 p-4 opacity-10 group-hover:scale-110 transition-all"><ShoppingBag className="w-32 h-32" /></div>
                 <div className="p-3.5 rounded-2xl bg-white/10 text-emerald-400 mb-4 border border-white/10 backdrop-blur-md">
                    <ShoppingBag className="w-5 h-5" />
                 </div>
-                <span className="text-2xl font-black tabular-nums tracking-tighter">{formatCurrency(orders.reduce((s, r) => s + (r.total_amount || 0), 0))}</span>
+                <span className="text-2xl font-black tabular-nums tracking-tighter">{formatCurrency(orders.filter(o => (o.visit_date || o.created_at.split('T')[0]) === format(targetDate, 'yyyy-MM-dd')).reduce((s, r) => s + (r.total_amount || 0), 0))}</span>
                 <span className="text-[10px] font-black uppercase tracking-widest mt-1 text-emerald-400">Vendas Loja</span>
              </Card>
           </div>
@@ -395,40 +406,35 @@ export default function Admin() {
                 </Badge>
              </div>
              
-             <div className="grid xl:grid-cols-2 gap-16">
-                <div className="space-y-10">
+             <div className="grid grid-cols-1 xl:grid-cols-2 gap-12">
+                {/* Left: Quiosques */}
+                <div className="space-y-6">
                    <h4 className="text-[12px] font-black text-emerald-900/40 uppercase tracking-[0.4em] flex items-center gap-3">
-                      <Tent className="w-4 h-4 text-emerald-600" /> Quiosques 
+                      <Users className="w-4 h-4 text-emerald-600" /> Quiosques ({dayKiosks.length}/5)
                       <span className="h-px bg-emerald-100 flex-1" />
                    </h4>
-                   <div className="grid grid-cols-3 sm:grid-cols-5 gap-4">
+                   
+                   <div className="flex flex-col gap-3">
                       {KIOSKS.map(k => {
-                        // For orders, we need to find if this kiosk was assigned to this ID
                         const booking = dayKiosks.find(b => {
                           if (Number(b.kiosk_id) === k.id) return true;
-                          // If it's a generic 'MENOR' from order, we need to map it to IDs 2-5
-                          if (b.is_from_order && b.kiosk_id === 'MENOR') {
-                             // This is a bit tricky, but let's try to find if this ID k.id (2-5) 
-                             // is the nth 'MENOR' in the order list for this day
-                             const dayOrderMenors = dayKiosks.filter(dk => dk.is_from_order && dk.kiosk_id === 'MENOR');
+                          if (b.kiosk_id === 'MENOR') {
+                             const dayOrderMenors = dayKiosks.filter(dk => dk.kiosk_id === 'MENOR');
                              const orderIdx = dayOrderMenors.findIndex(dk => dk.id === b.id);
-                             if (k.id === orderIdx + 2) return true; // Map index 0 to K-2, 1 to K-3, etc.
+                             if (k.id === orderIdx + 2) return true;
                           }
                           return false;
                         });
+                        
                         return (
-                          <div key={k.id} className={cn(
-                            "group relative aspect-square rounded-[2rem] border-2 transition-all flex flex-col items-center justify-center gap-1",
-                            booking 
-                              ? "bg-emerald-600 text-white border-emerald-600 shadow-xl shadow-emerald-500/20 scale-105" 
-                              : "bg-emerald-50/40 border-emerald-100 text-emerald-900/10 hover:border-emerald-300"
-                          )}>
-                             <span className={cn("text-[9px] font-black uppercase tracking-tighter opacity-50", booking ? "text-white" : "text-emerald-900")}>Q-{k.id}</span>
-                             {booking ? <UserCheck className="w-6 h-6" /> : <Plus className="w-5 h-5 opacity-20 group-hover:scale-125 transition-all" />}
-                             {booking && (
-                               <div className="absolute inset-0 bg-emerald-950/95 opacity-0 group-hover:opacity-100 transition-all rounded-[2rem] flex items-center justify-center p-3 text-center backdrop-blur-md">
-                                  <span className="text-[9px] font-black leading-tight uppercase tracking-widest">{booking.customer_name}</span>
-                               </div>
+                          <div key={k.id} className="bg-white rounded-2xl p-4 shadow-sm border border-emerald-100/50 flex items-center justify-between group hover:shadow-md transition-all duration-300">
+                             <span className="font-bold text-emerald-900 text-base">{k.name}</span>
+                             {booking ? (
+                               <Badge className="h-8 px-4 rounded-xl bg-emerald-600 text-white font-black uppercase text-[9px] tracking-wider border-0 shadow-lg shadow-emerald-500/10">
+                                  {booking.customer_name}
+                               </Badge>
+                             ) : (
+                               <span className="text-emerald-300 italic font-medium text-sm">Livre</span>
                              )}
                           </div>
                         );
@@ -436,51 +442,77 @@ export default function Admin() {
                    </div>
                 </div>
 
+                {/* Right: Quadriciclos */}
                 <div className="space-y-6">
-                    <h4 className="text-[10px] font-black text-emerald-900/40 uppercase tracking-[0.3em] flex items-center gap-3">
-                       <Bike className="w-4 h-4 text-blue-600" /> Quadriciclos
-                       <span className="h-px bg-emerald-100 flex-1" />
-                    </h4>
-                    <div className="grid grid-cols-2 gap-3">
-                       {QUAD_TIMES.map(slot => {
-                         const slotBookings = dayQuads.filter(b => {
-                           const bSlot = (b.time_slot || '').toUpperCase();
-                           return bSlot === slot || bSlot.includes(slot);
-                         });
-                         const count = slotBookings.reduce((s, r) => s + (Number(r.quantity) || 1), 0);
-                         return (
-                           <div key={slot} className={cn(
-                             "p-4 rounded-[1.5rem] border-2 transition-all flex flex-col items-center gap-1",
-                             count > 0 
-                               ? "bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/20" 
-                               : "bg-blue-50/20 border-blue-100 text-blue-900/10 hover:border-blue-300"
-                           )}>
-                              <span className={cn("text-[9px] font-black uppercase tracking-widest", count > 0 ? "text-blue-100" : "text-blue-900")}>{slot}</span>
-                              <div className="flex items-baseline gap-1">
-                                 <span className="text-2xl font-black tabular-nums leading-none">{count}</span>
-                                 <span className="text-[10px] opacity-60 font-bold">/5</span>
-                              </div>
-                           </div>
-                         );
-                       })}
-                    </div>
-                    
-                    {/* Fallback for Quads from orders or with non-standard slots */}
-                    {dayQuads.filter(b => !QUAD_TIMES.some(t => (b.time_slot || '').includes(t))).length > 0 && (
-                      <div className="mt-4 p-4 bg-amber-50 rounded-2xl border border-amber-200">
+                   <h4 className="text-[12px] font-black text-blue-900/40 uppercase tracking-[0.4em] flex items-center gap-3">
+                      <Bike className="w-4 h-4 text-blue-600" /> Quadriciclos
+                      <span className="h-px bg-blue-100 flex-1" />
+                   </h4>
+                   
+                   <div className="flex flex-col gap-4">
+                      {[
+                        { start: '09:00', end: '10:30' },
+                        { start: '10:30', end: '12:00' },
+                        { start: '14:00', end: '15:30' },
+                        { start: '15:30', end: '17:00' }
+                      ].map(slot => {
+                        const bookings = dayQuads.filter(b => {
+                            const bSlot = (b.time_slot || '').split('(')[0].toUpperCase().replace(/H/g, ':').trim();
+                            const target = slot.start.toUpperCase();
+                            return bSlot === target || bSlot.includes(target);
+                        });
+                        const count = bookings.reduce((s, r) => s + (Number(r.quantity) || 1), 0);
+                        
+                        return (
+                          <div key={slot.start} className="bg-white rounded-2xl p-5 shadow-sm border border-blue-100/50 space-y-4">
+                             <div className="flex items-center justify-between">
+                                <span className="font-bold text-blue-900 text-base">{slot.start} — {slot.end}</span>
+                                <Badge className="bg-blue-50 text-blue-600 border-blue-100 font-bold px-3 py-1 rounded-full text-[10px]">
+                                   {count}/5 ocupados
+                                </Badge>
+                             </div>
+                             
+                             <div className="bg-blue-50/20 rounded-xl p-3 border border-blue-100/20 text-center min-h-[40px] flex items-center justify-center">
+                                {bookings.length > 0 ? (
+                                  <div className="flex flex-wrap gap-1.5 justify-center">
+                                     {bookings.map((b, bi) => (
+                                       <Badge key={bi} className="bg-emerald-600 text-white font-black uppercase text-[8px] tracking-wider px-3 py-1.5 rounded-lg border-0">
+                                          {b.customer_name} ({b.quantity})
+                                       </Badge>
+                                     ))}
+                                  </div>
+                                ) : (
+                                  <span className="text-blue-200 italic font-medium text-xs">Nenhuma reserva</span>
+                                )}
+                             </div>
+                          </div>
+                        );
+                      })}
+                   </div>
+
+                   {/* Fallback for Quads from orders or with non-standard slots */}
+                   {dayQuads.filter(b => !['09:00', '10:30', '13:00', '14:30'].some(t => (b.time_slot || '').includes(t))).length > 0 && (
+                     <div className="mt-4 p-4 bg-amber-50 rounded-2xl border border-amber-200">
                         <p className="text-[9px] font-black text-amber-700 uppercase tracking-widest mb-2 flex items-center gap-2">
                            <AlertTriangle className="w-3 h-3" /> Outros / Sem Horário
                         </p>
                         <div className="flex flex-wrap gap-2">
-                          {dayQuads.filter(b => !QUAD_TIMES.some(t => (b.time_slot || '').includes(t))).map(b => (
+                          {dayQuads.filter(b => !['09:00', '10:30', '13:00', '14:30'].some(t => (b.time_slot || '').includes(t))).map(b => (
                             <Badge key={b.id} className="bg-amber-100 text-amber-800 border-amber-200 text-[8px] font-bold px-3 py-1">
-                              {b.customer_name}: {b.quantity || 1} quad. ({b.time_slot})
+                               {b.customer_name}: {b.quantity || 1} quad. ({b.time_slot})
                             </Badge>
                           ))}
                         </div>
-                      </div>
-                    )}
-                 </div>
+                     </div>
+                   )}
+                </div>
+             </div>
+
+             {/* Footer Summary */}
+             <div className="mt-12 bg-[#fff9e6] rounded-2xl p-5 border-2 border-[#fff0b3] flex items-center justify-center text-center shadow-sm">
+                <p className="text-[#997a00] font-black uppercase tracking-[0.2em] text-xs">
+                   Total de Reservas no Dia: {dayKiosks.length + dayQuads.length}
+                </p>
              </div>
           </Card>
         </div>
