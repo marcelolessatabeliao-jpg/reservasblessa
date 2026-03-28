@@ -97,7 +97,6 @@ export default function Admin() {
   // History States
   const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set());
 
-  // --- DATA FETCHING ---
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -106,9 +105,47 @@ export default function Admin() {
       const { data: quads } = await supabase.from('quad_reservations').select('*, bookings(name, phone)').order('reservation_date', { ascending: false });
       const orderData = await getAdminOrders();
       
+      let parsedKiosks = [...(kiosks || [])];
+      let parsedQuads = [...(quads || [])];
+
+      if (orderData) {
+         orderData.forEach((o: any) => {
+            if (!o.order_items) return;
+            const resDate = o.visit_date || o.created_at.split('T')[0];
+            const customerName = o.customer_name || 'Venda Loja';
+            
+            o.order_items.forEach((item: any) => {
+               const pId = (item.product_id || '').toLowerCase();
+               if (pId.includes('quiosque')) {
+                 for(let i=0; i<item.quantity; i++) {
+                   parsedKiosks.push({
+                     id: `order-${o.id}-k-${i}`,
+                     kiosk_id: pId.includes('maior') ? 1 : 'MENOR',
+                     reservation_date: resDate,
+                     customer_name: customerName,
+                     price: item.unit_price,
+                     is_from_order: true
+                   });
+                 }
+               }
+               if (pId.includes('quad')) {
+                  parsedQuads.push({
+                     id: `order-${o.id}-q-${item.id}`,
+                     time_slot: pId.includes('dupla') ? 'DUPLA' : 'INDIV',
+                     quantity: item.quantity,
+                     reservation_date: resDate,
+                     customer_name: customerName,
+                     price: item.quantity * item.unit_price,
+                     is_from_order: true
+                  });
+               }
+            });
+         });
+      }
+
       setBookings(bks || []);
-      setKioskReservations(kiosks || []);
-      setQuadReservations(quads || []);
+      setKioskReservations(parsedKiosks);
+      setQuadReservations(parsedQuads);
       setOrders(orderData || []);
     } catch (err) {
       console.error(err);

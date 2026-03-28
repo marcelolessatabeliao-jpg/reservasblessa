@@ -70,5 +70,29 @@ ALTER TABLE public.quad_reservations ADD COLUMN IF NOT EXISTS receipt_url TEXT;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
 
 -- ==========================================================
+-- 6. CRIAR O BUCKET DE COMPROVANTES (RECEIPTS)
+-- Resolve o problema: "Erro ao anexar comprovante"
+-- ==========================================================
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('receipts', 'receipts', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Garantir que a tabela storage.objects tenha as permissões abertas para os comprovantes
+DO $$ 
+BEGIN
+    DROP POLICY IF EXISTS "allow_all_receipts_select" ON storage.objects;
+    DROP POLICY IF EXISTS "allow_all_receipts_insert" ON storage.objects;
+    DROP POLICY IF EXISTS "allow_all_receipts_update" ON storage.objects;
+    DROP POLICY IF EXISTS "allow_all_receipts_delete" ON storage.objects;
+EXCEPTION WHEN undefined_object THEN
+    -- Ignore
+END $$;
+
+CREATE POLICY "allow_all_receipts_select" ON storage.objects FOR SELECT USING (bucket_id = 'receipts');
+CREATE POLICY "allow_all_receipts_insert" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'receipts');
+CREATE POLICY "allow_all_receipts_update" ON storage.objects FOR UPDATE USING (bucket_id = 'receipts');
+CREATE POLICY "allow_all_receipts_delete" ON storage.objects FOR DELETE USING (bucket_id = 'receipts');
+
+-- ==========================================================
 -- FIM DO SCRIPT - POR FAVOR, EXECUTE NO SQL EDITOR DO SUPABASE
 -- ==========================================================
