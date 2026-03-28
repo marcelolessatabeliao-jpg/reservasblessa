@@ -49,14 +49,9 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
     setWizardType(type);
     
     if (type === 'senior') {
-      const flags = { age: 60, quantity: 1, isPCD: false };
-      const isSamePerson = (p1: any, p2: any) => p1.age === p2.age && !p1.isTeacher && !p1.isStudent && !p1.isServer && !p1.isBloodDonor && !p1.isBirthday && !p1.takeDonation;
-      const existingIdx = entry.adults.findIndex(a => isSamePerson(a, flags));
-      if (existingIdx >= 0) {
-        onUpdateAdult(existingIdx, { quantity: (entry.adults[existingIdx].quantity || 1) + 1 });
-      } else {
-        onUpdateEntry({ adults: [...entry.adults, flags] });
-      }
+      setWizardData({ age: 60, category: 'inteira', isPCD: false });
+      setWizardStep(7); // Senior warning step
+      setIsWizardOpen(true);
       return;
     } else if (type === 'pcd') {
       setWizardData({ age: 30, category: 'pcd', isPCD: true });
@@ -64,14 +59,9 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
       setIsWizardOpen(true);
       return;
     } else if (type === 'child') {
-      const flags = { age: 5, quantity: 1, isPCD: false };
-      const isSamePerson = (p1: any, p2: any) => p1.age === p2.age && !p1.isPCD;
-      const existingIdx = entry.children.findIndex(c => isSamePerson(c, flags));
-      if (existingIdx >= 0) {
-        onUpdateChild(existingIdx, { quantity: (entry.children[existingIdx].quantity || 1) + 1 });
-      } else {
-        onUpdateEntry({ children: [...entry.children, flags] });
-      }
+      setWizardData({ age: 5, category: 'inteira', isPCD: false });
+      setWizardStep(6); // New age check step
+      setIsWizardOpen(true);
       return;
     } else if (type === 'adult') {
       setWizardData({ age: 30, category: 'inteira', isPCD: false });
@@ -223,15 +213,15 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
           { id: 'solidaria', label: 'Solidária', sublabel: 'Leve 1kg Alimento', price: entryHalfStr, emoji: '❤️', bg: 'bg-sun/10', border: 'border-sun/20', selectedBg: 'bg-sun/20', selectedBorder: 'border-sun-dark', priceColor: 'text-sun-dark', labelColor: 'text-sun-dark' },
           { id: 'professor', label: 'Professor', sublabel: 'Lessa Professor Pass', price: entryHalfStr, emoji: '📚', bg: 'bg-blue-50', border: 'border-blue-100', selectedBg: 'bg-blue-100', selectedBorder: 'border-blue-500', priceColor: 'text-blue-700', labelColor: 'text-blue-900' },
           { id: 'estudante', label: 'Estudante', sublabel: 'Lessa Estudante Pass', price: entryHalfStr, emoji: '🎓', bg: 'bg-violet-50', border: 'border-violet-100', selectedBg: 'bg-violet-100', selectedBorder: 'border-violet-500', priceColor: 'text-violet-700', labelColor: 'text-violet-900' },
-          { id: 'servidor', label: 'Servidor Público', sublabel: 'Lessa Servidor Pass', price: entryHalfStr, emoji: '🏛️', bg: 'bg-indigo-50', border: 'border-indigo-100', selectedBg: 'bg-indigo-100', selectedBorder: 'border-indigo-500', priceColor: 'text-indigo-700', labelColor: 'text-indigo-900' },
+          { id: 'servidor', label: 'Servidor Público', sublabel: 'Lessa Server Pass', price: entryHalfStr, emoji: '🏛️', bg: 'bg-indigo-50', border: 'border-indigo-100', selectedBg: 'bg-indigo-100', selectedBorder: 'border-indigo-500', priceColor: 'text-indigo-700', labelColor: 'text-indigo-900' },
           { id: 'aniversariante', label: 'Aniversariante', sublabel: 'Da semana · com comprovação', price: 'GRÁTIS', emoji: '🎂', bg: 'bg-amber-50', border: 'border-amber-100', selectedBg: 'bg-amber-100', selectedBorder: 'border-amber-500', priceColor: 'text-amber-700', labelColor: 'text-amber-900' },
         ];
 
         return (
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-3 py-2">
             <div className="text-center mb-4">
-              <h4 className="text-xl font-black text-primary">Entradas</h4>
-              <p className="text-sm text-muted-foreground font-bold italic">R$ 50 ou R$ 25 para categorias especiais</p>
+              <h4 className="text-xl font-black text-primary uppercase tracking-tight">Day Use — Adultos</h4>
+              <p className="text-sm text-primary/60 font-bold italic">R$ 50 ou R$ 25 Solidário/Especiais</p>
             </div>
             <div className="grid grid-cols-2 gap-2">
               {categories.map((cat) => {
@@ -270,8 +260,8 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
             <div className="flex gap-2 mt-4">
               <Button 
                 variant="ghost" 
-                className="hidden"
-                onClick={() => setWizardStep(1)}
+                className="flex-1 text-xs font-black uppercase text-muted-foreground hover:text-primary hover:bg-transparent hover:underline transition-all"
+                onClick={() => setIsWizardOpen(false)}
               >
                 ← Voltar
               </Button>
@@ -315,7 +305,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                <Button
                 variant="ghost"
                 className="flex-1 text-xs font-black uppercase text-muted-foreground"
-                onClick={() => setWizardStep(1)}
+                onClick={() => setIsWizardOpen(false)}
               >
                 ← Voltar
               </Button>
