@@ -5,7 +5,7 @@ import {
   Search, LogOut, RefreshCw, Users, DollarSign, CalendarCheck, TrendingUp, 
   UserCheck, Hash, ArrowRight, MessageCircle, Clock, Circle, Trash2,
   Tent, Bike, History, ChevronDown, ChevronUp, AlertTriangle, FileText,
-  Pencil, X, Check, Upload, FileCheck, Loader2, LayoutDashboard, ShoppingBag
+  Pencil, X, Check, Upload, FileCheck, Loader2, LayoutDashboard, ShoppingBag, HelpCircle
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -88,6 +88,7 @@ export default function Admin() {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [editData, setEditData] = useState<any>({});
   const [isUploading, setIsUploading] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   // Delete Dialog States
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -101,8 +102,8 @@ export default function Admin() {
     setLoading(true);
     try {
       const { data: bks } = await supabase.from('bookings').select('*').order('visit_date', { ascending: false });
-      const { data: kiosks } = await supabase.from('kiosk_reservations').select('*').order('reservation_date', { ascending: false });
-      const { data: quads } = await supabase.from('quad_reservations').select('*').order('reservation_date', { ascending: false });
+      const { data: kiosks } = await supabase.from('kiosk_reservations').select('*, bookings(name, phone)').order('reservation_date', { ascending: false });
+      const { data: quads } = await supabase.from('quad_reservations').select('*, bookings(name, phone)').order('reservation_date', { ascending: false });
       const orderData = await getAdminOrders();
       
       setBookings(bks || []);
@@ -271,53 +272,59 @@ export default function Admin() {
       <div className="grid lg:grid-cols-[1fr_360px] gap-8 animate-in fade-in duration-500">
         <div className="space-y-8">
           {/* STATS */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-             <Card className="bg-gradient-to-br from-white to-emerald-50 border-emerald-100 shadow-sm rounded-2xl p-4 flex flex-col items-center text-center hover:shadow-md transition-all border-l-4 border-l-emerald-500">
-                <span className="text-3xl font-extrabold text-emerald-600">{currentKiosks.length}</span>
-                <span className="text-[10px] uppercase font-bold text-emerald-800/60 tracking-wider">Quiosques Ativos</span>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+             <Card className="bg-white border-emerald-100 shadow-premium rounded-[2rem] p-6 flex flex-col items-start hover:scale-[1.02] transition-all">
+                <div className="p-3 rounded-2xl bg-emerald-50 text-emerald-600 mb-4"><Tent className="w-6 h-6" /></div>
+                <span className="text-3xl font-black text-emerald-950">{currentKiosks.length}</span>
+                <span className="text-xs font-bold text-emerald-800/40 uppercase tracking-widest mt-1">Quiosques Ativos</span>
              </Card>
-             <Card className="bg-gradient-to-br from-white to-blue-50 border-blue-100 shadow-sm rounded-2xl p-4 flex flex-col items-center text-center hover:shadow-md transition-all border-l-4 border-l-blue-500">
-                <span className="text-3xl font-extrabold text-blue-600">{currentQuads.length}</span>
-                <span className="text-[10px] uppercase font-bold text-blue-800/60 tracking-wider">Quadriciclos Ativos</span>
+             <Card className="bg-white border-blue-100 shadow-premium rounded-[2rem] p-6 flex flex-col items-start hover:scale-[1.02] transition-all">
+                <div className="p-3 rounded-2xl bg-blue-50 text-blue-600 mb-4"><Bike className="w-6 h-6" /></div>
+                <span className="text-3xl font-black text-blue-950">{currentQuads.length}</span>
+                <span className="text-xs font-bold text-blue-800/40 uppercase tracking-widest mt-1">Quadriciclos</span>
              </Card>
-             <Card className="bg-gradient-to-br from-white to-amber-50 border-amber-100 shadow-sm rounded-2xl p-4 flex flex-col items-center text-center hover:shadow-md transition-all border-l-4 border-l-amber-500">
-                <span className="text-2xl font-extrabold text-amber-600">{formatCurrency(currentKiosks.reduce((s, r) => s + (r.price || 0), 0))}</span>
-                <span className="text-[10px] uppercase font-bold text-amber-800/60 tracking-wider">Receita Quiosques</span>
+             <Card className="bg-white border-amber-100 shadow-premium rounded-[2rem] p-6 flex flex-col items-start hover:scale-[1.02] transition-all">
+                <div className="p-3 rounded-2xl bg-amber-50 text-amber-600 mb-4"><TrendingUp className="w-6 h-6" /></div>
+                <span className="text-2xl font-black text-amber-950">{formatCurrency(currentKiosks.reduce((s, r) => s + (r.price || 0), 0))}</span>
+                <span className="text-xs font-bold text-emerald-800/40 uppercase tracking-widest mt-1">Receita Espaços</span>
              </Card>
-             <Card className="bg-gradient-to-br from-white to-orange-50 border-orange-100 shadow-sm rounded-2xl p-4 flex flex-col items-center text-center hover:shadow-md transition-all border-l-4 border-l-orange-500">
-                <span className="text-2xl font-extrabold text-orange-600">{formatCurrency(currentQuads.reduce((s, r) => s + (r.price || 0), 0))}</span>
-                <span className="text-[10px] uppercase font-bold text-orange-800/60 tracking-wider">Receita Quadriciclos</span>
+             <Card className="bg-white border-emerald-100 shadow-premium rounded-[2rem] p-6 flex flex-col items-start hover:scale-[1.02] transition-all">
+                <div className="p-3 rounded-2xl bg-emerald-50 text-emerald-600 mb-4"><ShoppingBag className="w-6 h-6" /></div>
+                <span className="text-2xl font-black text-emerald-950">{formatCurrency(orders.reduce((s, r) => s + (r.total_amount || 0), 0))}</span>
+                <span className="text-xs font-bold text-emerald-800/40 uppercase tracking-widest mt-1">Total Vendas</span>
              </Card>
           </div>
 
-          <Card className="bg-white border-border/50 shadow-card rounded-3xl p-8">
+          <Card className="bg-white border-border/50 shadow-card rounded-[2.5rem] p-8">
              <div className="flex items-center justify-between mb-8">
-                <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
-                   <TrendingUp className="w-5 h-5 text-primary" /> Ocupação Diária
+                <h3 className="text-2xl font-black text-emerald-950 flex items-center gap-3">
+                   <Users className="w-6 h-6 text-emerald-600" /> Ocupação Diária
                 </h3>
-                <Badge variant="outline" className="border-primary/20 text-primary bg-primary/5">
+                <Badge variant="outline" className="border-emerald-200 text-emerald-700 bg-emerald-50 font-black px-4 py-1.5 rounded-xl">
                    {format(targetDate, "dd 'de' MMMM", { locale: ptBR })}
                 </Badge>
              </div>
              
              <div className="space-y-10">
                 <div>
-                   <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
-                      <Tent className="w-4 h-4" /> Quiosques
+                   <h4 className="text-[10px] font-black text-emerald-900/40 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
+                      <Tent className="w-4 h-4" /> Quiosques Disponíveis
                    </h4>
-                   <div className="grid grid-cols-5 gap-3">
+                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
                       {KIOSKS.map(k => {
                         const booking = dayKiosks.find(b => Number(b.kiosk_id) === k.id);
                         return (
                           <div key={k.id} className={cn(
-                            "group relative aspect-square rounded-2xl border transition-all flex flex-col items-center justify-center gap-1",
-                            booking ? "bg-emerald-500 text-white border-emerald-500 shadow-lg shadow-emerald-500/20 scale-105" : "bg-muted/30 border-dashed border-border text-muted-foreground hover:bg-muted/50"
+                            "group relative aspect-square rounded-[2rem] border-2 transition-all flex flex-col items-center justify-center gap-1",
+                            booking 
+                              ? "bg-emerald-600 text-white border-emerald-600 shadow-xl shadow-emerald-600/20 scale-105" 
+                              : "bg-emerald-50/30 border-emerald-100 text-emerald-950/20 hover:bg-emerald-50 hover:border-emerald-200"
                           )}>
-                             <span className="text-[10px] font-bold opacity-60">Q-{k.id}</span>
-                             {booking ? <UserCheck className="w-5 h-5" /> : <Circle className="w-4 h-4 opacity-20" />}
+                             <span className="text-[10px] font-black opacity-40 uppercase">Q-{k.id}</span>
+                             {booking ? <UserCheck className="w-6 h-6" /> : <Circle className="w-5 h-5 opacity-20" />}
                              {booking && (
-                               <div className="absolute inset-0 bg-primary opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl flex items-center justify-center p-2 text-center">
-                                  <span className="text-[9px] font-bold whitespace-nowrap overflow-hidden text-ellipsis">{booking.customer_name}</span>
+                               <div className="absolute inset-0 bg-emerald-900 opacity-0 group-hover:opacity-100 transition-opacity rounded-[2rem] flex items-center justify-center p-3 text-center backdrop-blur-sm">
+                                  <span className="text-[10px] font-black leading-tight">{booking.customer_name}</span>
                                </div>
                              )}
                           </div>
@@ -327,20 +334,22 @@ export default function Admin() {
                 </div>
 
                 <div>
-                   <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
-                      <Bike className="w-4 h-4" /> Quadriciclos
+                   <h4 className="text-[10px] font-black text-emerald-900/40 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
+                      <Bike className="w-4 h-4" /> Horários Quadriciclos
                    </h4>
-                   <div className="grid grid-cols-4 gap-3">
+                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       {QUAD_TIMES.map(slot => {
                         const bookings = dayQuads.filter(b => b.time_slot === slot);
                         const count = bookings.reduce((s, r) => s + (r.quantity || 1), 0);
                         return (
                           <div key={slot} className={cn(
-                            "p-4 rounded-2xl border transition-all flex flex-col items-center gap-1",
-                            count > 0 ? "bg-blue-50 border-blue-100 text-blue-700" : "bg-muted/20 border-border/50 text-muted-foreground opacity-50"
+                            "p-6 rounded-[2rem] border-2 transition-all flex flex-col items-center gap-2",
+                            count > 0 
+                              ? "bg-blue-600 border-blue-600 text-white shadow-xl shadow-blue-600/20" 
+                              : "bg-blue-50/30 border-blue-100 text-blue-900/20"
                           )}>
-                             <span className="text-[10px] font-bold uppercase">{slot}</span>
-                             <span className="text-lg font-bold">{count}/5</span>
+                             <span className="text-[10px] font-black uppercase tracking-widest">{slot}</span>
+                             <span className="text-2xl font-black">{count}/5</span>
                           </div>
                         );
                       })}
@@ -351,34 +360,91 @@ export default function Admin() {
         </div>
 
         <div className="space-y-6">
-           <Card className="bg-white border-border/50 shadow-card rounded-3xl p-6">
-              <h4 className="text-sm font-bold text-foreground mb-4">Selecione uma Data</h4>
-              <Calendar
-                 mode="single"
-                 selected={targetDate}
-                 onSelect={(d) => d && setTargetDate(d)}
-                 className="rounded-xl border border-border"
-                 locale={ptBR}
-                 disabled={(date) => !isAllowedDay(date)}
-                 modifiers={{
-                   holiday: (day) => isHoliday(day),
-                 }}
-                 modifiersStyles={{
-                   holiday: { border: '2px solid rgb(16 185 129)', fontWeight: 'bold', color: 'rgb(5 150 105)' }
-                 }}
-              />
+           <Card className="bg-emerald-50/30 border-emerald-100 shadow-premium rounded-[2.5rem] overflow-hidden">
+              <div className="p-8 border-b border-emerald-100/50 bg-white">
+                 <div className="flex items-center gap-3 mb-2">
+                    <CalendarCheck className="w-6 h-6 text-emerald-600" />
+                    <h4 className="text-xl font-black text-emerald-950 tracking-tight">Resumo Geral</h4>
+                 </div>
+                 <p className="text-xs font-bold text-emerald-800/40 uppercase tracking-widest leading-relaxed">
+                    Selecione uma data para organizar seu dia de operações.
+                 </p>
+                 
+                 <div className="grid grid-cols-1 gap-2 mt-6">
+                    <div className="flex items-center justify-center gap-2 py-2 px-4 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-lg shadow-emerald-600/20">
+                       <Tent className="w-3.5 h-3.5" /> Quiosques Ocupados
+                    </div>
+                    <div className="flex items-center justify-center gap-2 py-2 px-4 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-lg shadow-blue-600/20">
+                       <Bike className="w-3.5 h-3.5" /> Quadriciclos Alugados
+                    </div>
+                 </div>
+              </div>
+
+              <div className="p-4 bg-white">
+                 <Calendar
+                    mode="single"
+                    selected={targetDate}
+                    onSelect={(d) => d && setTargetDate(d)}
+                    className="p-0 pointer-events-auto"
+                    locale={ptBR}
+                    disabled={(date) => !isAllowedDay(date)}
+                    classNames={{
+                      month: "space-y-6",
+                      caption: "flex justify-center pt-2 relative items-center mb-4",
+                      caption_label: "text-lg font-black text-emerald-900 uppercase tracking-widest",
+                      nav_button: "h-10 w-10 bg-emerald-50 text-emerald-600 border-0 hover:bg-emerald-100 rounded-xl transition-all",
+                      table: "w-full border-collapse",
+                      head_cell: "text-emerald-900/40 font-black text-[10px] uppercase tracking-[0.2em] w-12 py-4",
+                      cell: "h-14 w-12 text-center p-0 relative focus-within:z-20",
+                      day: cn(
+                        "h-12 w-12 p-0 font-black text-sm transition-all rounded-2xl border-2 border-transparent hover:border-emerald-200 hover:bg-emerald-50/50",
+                        "flex flex-col items-center justify-center gap-1"
+                      ),
+                      day_selected: "bg-emerald-900 text-white hover:bg-emerald-800 border-emerald-900 shadow-xl shadow-emerald-900/20 !opacity-100",
+                      day_today: "bg-amber-400 text-emerald-950 border-amber-500 shadow-xl shadow-amber-400/30 font-black",
+                      day_outside: "text-muted-foreground/20 opacity-50",
+                    }}
+                    components={{
+                      DayContent: ({ date }) => {
+                        const dateStr = format(date, 'yyyy-MM-dd');
+                        const hasKiosk = kioskReservations.some(r => r.reservation_date === dateStr);
+                        const hasQuad = quadReservations.some(r => r.reservation_date === dateStr);
+                        return (
+                          <div className="relative flex flex-col items-center">
+                            <span>{date.getDate()}</span>
+                            <div className="flex gap-1 mt-0.5">
+                              {hasKiosk && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-sm" />}
+                              {hasQuad && <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-sm" />}
+                            </div>
+                          </div>
+                        );
+                      }
+                    }}
+                    modifiers={{
+                      holiday: (day) => isHoliday(day),
+                    }}
+                    modifiersStyles={{
+                      holiday: { border: '2px dashed #10b981', color: '#059669' }
+                    }}
+                 />
+              </div>
            </Card>
            
-           <Card className="bg-primary/5 border-primary/10 shadow-sm rounded-3xl p-6">
-              <div className="flex items-center gap-3 mb-4">
-                 <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center">
-                    <History className="w-5 h-5" />
-                 </div>
-                 <h4 className="text-sm font-bold text-primary">Resumo do Dia</h4>
+           <Card className="bg-emerald-900 text-white border-none shadow-premium rounded-[2.5rem] p-8 relative overflow-hidden group">
+              <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform">
+                 <History className="w-24 h-24" />
               </div>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                 Visualize a ocupação programada para qualquer data. Use o calendário para navegar e planejar sua operação.
-              </p>
+              <div className="relative z-10 flex flex-col gap-4">
+                 <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center">
+                    <HelpCircle className="w-6 h-6 text-white" />
+                 </div>
+                 <div>
+                    <h4 className="text-xl font-black tracking-tight mb-2">Resumo Operacional</h4>
+                    <p className="text-sm text-emerald-100/60 font-medium leading-relaxed">
+                       Através deste painel você gerencia a ocupação em tempo real. Os marcadores no calendário indicam dias com reservas já confirmadas.
+                    </p>
+                 </div>
+              </div>
            </Card>
         </div>
       </div>
@@ -405,7 +471,6 @@ export default function Admin() {
                       <th className="px-6 py-4">Data</th>
                       <th className="px-6 py-4">Cliente</th>
                       <th className="px-6 py-4">Quiosque</th>
-                      <th className="px-6 py-4">Preço</th>
                       <th className="px-6 py-4 text-right">Ações</th>
                    </tr>
                 </thead>
@@ -422,7 +487,7 @@ export default function Admin() {
                            <td className="px-6 py-4 font-bold text-foreground">
                               {isEditing ? (
                                 <Input value={editData.customer_name} onChange={e => setEditData({...editData, customer_name: e.target.value})} className="h-9 rounded-lg bg-white text-emerald-950 font-bold border-emerald-200" />
-                              ) : <span className="text-emerald-950">{r.customer_name}</span>}
+                              ) : <span className="text-emerald-950">{r.customer_name || (r as any).bookings?.name || 'Venda'}</span>}
                            </td>
                            <td className="px-6 py-4">
                               {isEditing ? (
@@ -431,14 +496,6 @@ export default function Admin() {
                                    <SelectContent className="bg-white border-emerald-200">{KIOSKS.map(k => <SelectItem key={k.id} value={String(k.id)} className="text-emerald-950">{k.name}</SelectItem>)}</SelectContent>
                                 </Select>
                               ) : <Badge className="bg-emerald-100 text-emerald-700 border-0 font-bold">{KIOSKS.find(k => k.id === Number(r.kiosk_id))?.name || `Q-${r.kiosk_id || '?'}`}</Badge>}
-                           </td>
-                           <td className="px-6 py-4 font-bold text-primary">
-                              {isEditing ? (
-                                <div className="flex items-center gap-1">
-                                   <span className="text-xs text-emerald-900 font-bold">R$</span>
-                                   <Input type="number" value={editData.price} onChange={e => setEditData({...editData, price: parseFloat(e.target.value)})} className="h-9 rounded-lg w-24 bg-white text-emerald-950 font-bold border-emerald-200" />
-                                </div>
-                              ) : formatCurrency(r.price || 0)}
                            </td>
                            <td className="px-6 py-4 text-right">
                               <div className="flex items-center justify-end gap-2">
@@ -549,7 +606,7 @@ export default function Admin() {
                               </div>
                            </td>
                            <td className="px-6 py-4 font-bold text-foreground">
-                              {isEditing ? <Input value={editData.customer_name} onChange={e => setEditData({...editData, customer_name: e.target.value})} className="h-9 bg-white text-emerald-950 font-bold border-blue-200" /> : <span className="text-emerald-950">{r.customer_name}</span>}
+                              {isEditing ? <Input value={editData.customer_name} onChange={e => setEditData({...editData, customer_name: e.target.value})} className="h-9 bg-white text-emerald-950 font-bold border-blue-200" /> : <span className="text-emerald-950 font-bold">{r.customer_name || (r as any).bookings?.name || 'Cliente'}</span>}
                            </td>
                            <td className="px-6 py-4 text-center">
                               {isEditing ? <Input type="number" value={editData.quantity} onChange={e => setEditData({...editData, quantity: parseInt(e.target.value)})} className="h-9 w-16 bg-white text-emerald-950 font-bold border-blue-200" /> : <Badge className="bg-blue-100 text-blue-700 border-0 font-extrabold">{r.quantity} quad.</Badge>}
@@ -644,36 +701,36 @@ export default function Admin() {
              </thead>
              <tbody className="divide-y divide-border/30">
                 {orders.map(order => (
-                  <tr key={order.id} className="hover:bg-muted/20 transition-colors">
-                     <td className="px-6 py-4">
-                        <div className="flex flex-col">
-                           <span className="font-mono text-[10px] text-muted-foreground">#{order.id.slice(0,8)}</span>
-                           <span className="text-sm font-bold">{format(parseISO(order.created_at), 'dd/MM/yyyy')}</span>
-                        </div>
-                     </td>
-                     <td className="px-6 py-4 font-bold text-foreground">
-                        {order.customer_name || 'Cliente Geral'}
-                     </td>
-                     <td className="px-6 py-4 font-bold text-primary">
-                        {formatCurrency(order.total_amount)}
-                     </td>
-                     <td className="px-6 py-4">
-                        <Badge className={cn(
-                          "rounded-md font-bold text-[9px]",
-                          order.status === 'paid' ? "bg-whatsapp/10 text-whatsapp border-whatsapp/20" : "bg-red-50 text-red-500 border-red-100"
-                        )} variant="outline">
-                           {order.status === 'paid' ? 'PAGO' : 'PENDENTE'}
-                        </Badge>
-                     </td>
-                     <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                           {order.status !== 'paid' && (
-                             <Button size="sm" className="h-8 bg-primary rounded-lg text-[10px] font-bold" onClick={() => markOrderAsPaid(order.id).then(() => fetchData())}>Efetivar</Button>
-                           )}
-                           <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500" onClick={() => requestDelete(order, 'order')}><Trash2 className="w-4 h-4" /></Button>
-                        </div>
-                     </td>
-                  </tr>
+                   <tr key={order.id} className="hover:bg-muted/20 transition-colors">
+                      <td className="px-6 py-4">
+                         <div className="flex flex-col">
+                            <span className="font-mono text-[10px] text-muted-foreground">#{order.id.slice(0,8)}</span>
+                            <span className="text-sm font-bold">{format(parseISO(order.created_at), 'dd/MM/yyyy')}</span>
+                         </div>
+                      </td>
+                      <td className="px-6 py-4 font-bold text-foreground">
+                         {order.customer_name || 'Cliente Geral'}
+                      </td>
+                      <td className="px-6 py-4 font-bold text-primary">
+                         {formatCurrency(order.total_amount)}
+                      </td>
+                      <td className="px-6 py-4">
+                         <Badge className={cn(
+                           "rounded-md font-bold text-[9px]",
+                           order.status === 'paid' ? "bg-whatsapp/10 text-whatsapp border-whatsapp/20" : "bg-red-50 text-red-500 border-red-100"
+                         )} variant="outline">
+                            {order.status === 'paid' ? 'PAGO' : 'PENDENTE'}
+                         </Badge>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                         <div className="flex items-center justify-end gap-2">
+                            {order.status !== 'paid' && (
+                              <Button size="sm" className="h-8 bg-primary rounded-lg text-[10px] font-bold" onClick={() => markOrderAsPaid(order.id).then(() => fetchData())}>Efetivar</Button>
+                            )}
+                            <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500" onClick={() => requestDelete(order, 'order')}><Trash2 className="w-4 h-4" /></Button>
+                         </div>
+                      </td>
+                   </tr>
                 ))}
              </tbody>
           </table>
@@ -685,55 +742,64 @@ export default function Admin() {
     <div className="min-h-screen bg-background p-4 md:p-8">
        <div className="max-w-7xl mx-auto space-y-8">
           {/* HEADER */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-             <div className="space-y-1">
-                <h1 className="text-4xl font-extrabold text-foreground tracking-tight flex items-center gap-3">
-                   Painel de <span className="text-primary">Controle</span>
-                </h1>
-                <p className="text-muted-foreground font-medium">Gestão Integrada Balneário Lessa</p>
-             </div>
-             <div className="flex items-center gap-3">
-                <Button variant="outline" className="rounded-2xl border-border bg-white font-bold h-12 shadow-sm" onClick={fetchData} disabled={loading}>
-                   {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5 text-primary" />}
-                   <span className="ml-2">Sincronizar</span>
-                </Button>
-                <Button className="rounded-2xl bg-foreground text-background font-bold h-12 px-6 shadow-card" onClick={handleLogout}>
-                   <LogOut className="w-5 h-5 mr-2" /> Sair
-                </Button>
-             </div>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-4">
+              <div className="space-y-2">
+                 <h1 className="text-5xl font-black text-emerald-950 tracking-tighter flex items-center gap-4">
+                    <span className="bg-emerald-600 text-white px-4 py-1 rounded-2xl rotate-[-2deg] shadow-lg">Lessa</span>
+                    <span className="text-emerald-900/40">Painel</span>
+                 </h1>
+                 <p className="text-emerald-900/40 font-bold uppercase tracking-widest text-[10px]">Gestão Integrada de Reservas • Balneário</p>
+              </div>
+              <div className="flex items-center gap-4">
+                 <Button 
+                   variant="ghost" 
+                   className="rounded-2xl bg-white/50 backdrop-blur-sm border border-emerald-100 font-bold h-12 px-6 hover:bg-white hover:shadow-premium transition-all" 
+                   onClick={fetchData} 
+                   disabled={loading}
+                 >
+                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5 text-emerald-600" />}
+                    <span className="ml-2 text-emerald-900">Atualizar</span>
+                 </Button>
+                 <Button 
+                   className="rounded-2xl bg-emerald-950 text-white font-bold h-12 px-8 shadow-xl shadow-emerald-950/20 hover:scale-105 transition-all" 
+                   onClick={handleLogout}
+                 >
+                    <LogOut className="w-5 h-5 mr-2" /> Sair
+                 </Button>
+              </div>
           </div>
 
           {/* TABS */}
-          <div className="flex items-center p-1.5 bg-muted/50 rounded-[2rem] w-fit border border-border/50 shadow-inner overflow-hidden">
+          <div className="flex items-center p-1.5 bg-white/40 backdrop-blur-md rounded-[2.5rem] w-fit max-w-full overflow-x-auto border border-white/60 shadow-premium no-scrollbar">
              <button onClick={() => setActiveTab('painel')} className={cn(
-               "px-6 py-3 rounded-[1.5rem] text-sm font-bold flex items-center gap-2 transition-all hover:bg-white/50 active:scale-95", 
-               activeTab === 'painel' ? "bg-white text-emerald-600 shadow-lg shadow-emerald-500/10 scale-105" : "text-muted-foreground hover:text-foreground"
+               "px-8 py-3.5 rounded-[2rem] text-sm font-black flex items-center gap-2.5 transition-all active:scale-95", 
+               activeTab === 'painel' ? "bg-white text-emerald-900 shadow-xl shadow-emerald-900/10 scale-105" : "text-emerald-900/40 hover:text-emerald-900 hover:bg-white/20"
              )}>
-                <LayoutDashboard className="w-4 h-4" /> Painel
+                <LayoutDashboard className={cn("w-4.5 h-4.5", activeTab === 'painel' ? "text-emerald-600" : "text-current")} /> Painel
              </button>
              <button onClick={() => setActiveTab('reservas')} className={cn(
-               "px-6 py-3 rounded-[1.5rem] text-sm font-bold flex items-center gap-2 transition-all hover:bg-white/50 active:scale-95", 
-               activeTab === 'reservas' ? "bg-white text-emerald-600 shadow-lg shadow-emerald-500/10 scale-105" : "text-muted-foreground hover:text-foreground"
+               "px-8 py-3.5 rounded-[2rem] text-sm font-black flex items-center gap-2.5 transition-all active:scale-95", 
+               activeTab === 'reservas' ? "bg-white text-emerald-900 shadow-xl shadow-emerald-900/10 scale-105" : "text-emerald-900/40 hover:text-emerald-900 hover:bg-white/20"
              )}>
-                <CalendarCheck className="w-4 h-4" /> Agenda
+                <CalendarCheck className={cn("w-4.5 h-4.5", activeTab === 'reservas' ? "text-emerald-600" : "text-current")} /> Agenda
              </button>
              <button onClick={() => setActiveTab('quiosques')} className={cn(
-               "px-6 py-3 rounded-[1.5rem] text-sm font-bold flex items-center gap-2 transition-all hover:bg-white/50 active:scale-95", 
-               activeTab === 'quiosques' ? "bg-white text-emerald-600 shadow-lg shadow-emerald-500/10 scale-105" : "text-muted-foreground hover:text-foreground"
+               "px-8 py-3.5 rounded-[2rem] text-sm font-black flex items-center gap-2.5 transition-all active:scale-95", 
+               activeTab === 'quiosques' ? "bg-white text-emerald-900 shadow-xl shadow-emerald-900/10 scale-105" : "text-emerald-900/40 hover:text-emerald-900 hover:bg-white/20"
              )}>
-                <Tent className="w-4 h-4" /> Quiosques
+                <Tent className={cn("w-4.5 h-4.5", activeTab === 'quiosques' ? "text-emerald-600" : "text-current")} /> Quiosques
              </button>
              <button onClick={() => setActiveTab('quads')} className={cn(
-               "px-6 py-3 rounded-[1.5rem] text-sm font-bold flex items-center gap-2 transition-all hover:bg-white/50 active:scale-95", 
-               activeTab === 'quads' ? "bg-white text-blue-600 shadow-lg shadow-blue-500/10 scale-105" : "text-muted-foreground hover:text-foreground"
+               "px-8 py-3.5 rounded-[2rem] text-sm font-black flex items-center gap-2.5 transition-all active:scale-95", 
+               activeTab === 'quads' ? "bg-white text-emerald-900 shadow-xl shadow-emerald-900/10 scale-105" : "text-emerald-900/40 hover:text-emerald-900 hover:bg-white/20"
              )}>
-                <Bike className="w-4 h-4" /> Quadriciclos
+                <Bike className={cn("w-4.5 h-4.5", activeTab === 'quads' ? "text-blue-600" : "text-current")} /> Quads
              </button>
              <button onClick={() => setActiveTab('vendas')} className={cn(
-               "px-6 py-3 rounded-[1.5rem] text-sm font-bold flex items-center gap-2 transition-all hover:bg-white/50 active:scale-95", 
-               activeTab === 'vendas' ? "bg-white text-amber-600 shadow-lg shadow-amber-500/10 scale-105" : "text-muted-foreground hover:text-foreground"
+               "px-8 py-3.5 rounded-[2rem] text-sm font-black flex items-center gap-2.5 transition-all active:scale-95", 
+               activeTab === 'vendas' ? "bg-white text-emerald-900 shadow-xl shadow-emerald-900/10 scale-105" : "text-emerald-900/40 hover:text-emerald-900 hover:bg-white/20"
              )}>
-                <ShoppingBag className="w-4 h-4" /> Vendas
+                <ShoppingBag className={cn("w-4.5 h-4.5", activeTab === 'vendas' ? "text-amber-600" : "text-current")} /> Vendas
              </button>
           </div>
 
@@ -749,21 +815,42 @@ export default function Admin() {
                  <BookingTable 
                    bookings={[...bookings, ...orders.map(o => ({...o, is_order: true}))].filter(b => 
                      !search || 
-                     b.name?.toLowerCase().includes(search.toLowerCase()) || 
-                     b.customer_name?.toLowerCase().includes(search.toLowerCase()) ||
-                     b.phone?.includes(search) || 
-                     b.confirmation_code?.includes(search)
+                     (b.name || b.customer_name || '').toLowerCase().includes(search.toLowerCase()) ||
+                     (b.phone || '').includes(search) ||
+                     (b.confirmation_code || '').includes(search)
                    )}
                    onStatusChange={updateBookingStatus}
                    onAddNote={addBookingNote}
-                   onReschedule={(id, date, isOrder) => {
-                     const table = isOrder ? 'orders' : 'bookings';
-                     const col = isOrder ? 'created_at' : 'visit_date'; // simplified mapping
-                     supabase.from(table).update({ [col]: date }).eq('id', id).then(() => fetchData());
+                   onReschedule={async (id, date, isOrder) => {
+                      const table = isOrder ? 'orders' : 'bookings';
+                      const { error } = await supabase.from(table).update({ visit_date: date }).eq('id', id);
+                      if (error) toast({ title: "Erro ao reagendar", variant: "destructive" });
+                      else { toast({ title: "✓ Reagendado" }); fetchData(); }
                    }}
-                   onDelete={(id, isOrder) => requestDelete({id}, isOrder ? 'order' : 'reservas' as any)}
-                   onRemoveItem={() => {}} // simplified
+                   onDelete={(id, isOrder) => requestDelete({ id }, isOrder ? 'order' : 'reservas' as any)}
+                   onRemoveItem={() => {}}
                    updatingId={updatingId}
+                   onFileUpload={async (file, id, isOrder) => {
+                     setIsUploading(true);
+                     try {
+                        const fileExt = file.name.split('.').pop();
+                        const fileName = `${crypto.randomUUID()}.${fileExt}`;
+                        const { error: uploadError } = await supabase.storage.from('receipts').upload(fileName, file);
+                        if (uploadError) throw uploadError;
+                        
+                        const { data: { publicUrl } } = supabase.storage.from('receipts').getPublicUrl(fileName);
+                        const table = isOrder ? 'orders' : 'bookings';
+                        const { error } = await supabase.from(table).update({ receipt_url: publicUrl }).eq('id', id);
+                        
+                        if (error) throw error;
+                        toast({ title: "Comprovante anexado!" });
+                        fetchData();
+                     } catch (err) { 
+                        toast({ title: "Erro ao anexar comprovante", variant: "destructive" });
+                        console.error(err); 
+                     } finally { setIsUploading(false); }
+                   }}
+                   isUploading={isUploading}
                  />
                </div>
              )}

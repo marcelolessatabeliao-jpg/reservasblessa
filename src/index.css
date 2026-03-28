@@ -6,46 +6,43 @@
 
 @layer base {
   :root {
-    --background: 150 25% 98%;
-    --foreground: 220 20% 14%;
+    --background: 160 30% 99%; /* Mint Mist White */
+    --foreground: 160 50% 10%;
 
     --card: 0 0% 100%;
-    --card-foreground: 220 20% 14%;
+    --card-foreground: 160 50% 10%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 20% 14%;
+    --popover-foreground: 160 50% 10%;
 
-    --primary: 161 88% 19%; /* Emerald Green #065F46 */
+    --primary: 162 90% 22%; /* Deep Emerald */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 161 88% 19%;
-    --secondary-foreground: 0 0% 100%;
+    --secondary: 162 40% 94%; /* Light Mint */
+    --secondary-foreground: 162 90% 22%;
 
-    --muted: 150 20% 95%;
-    --muted-foreground: 220 10% 45%;
+    --muted: 162 20% 96%;
+    --muted-foreground: 162 20% 40%;
 
-    --accent: 161 88% 19%;
+    --accent: 142 70% 45%; /* Vibrant Green */
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 156 30% 92%;
-    --input: 156 30% 92%;
-    --ring: 161 88% 19%;
+    --border: 162 30% 90%;
+    --input: 162 30% 90%;
+    --ring: 162 90% 22%;
 
-    --radius: 1rem;
+    --radius: 1.5rem;
 
     /* Custom tokens */
-    --forest: 161 88% 19%;
-    --earth: 24 41% 39%;
-    --whatsapp: 142 70% 29%;
-    --sun: 45 93% 47%; /* Refined Orange/Yellow */
-    --sun-dark: 35 90% 40%;
-    --slate-deep: 220 20% 14%;
-
-    --shadow-card: 0 4px 12px -2px rgba(6, 95, 70, 0.08);
-    --shadow-elevated: 0 10px 30px -10px rgba(6, 95, 70, 0.15);
+    --forest: 162 90% 22%;
+    --mint: 162 40% 96%;
+    --leaf: 142 70% 45%;
+    --sun: 38 92% 50%; /* Golden Sun */
+    --shadow-premium: 0 20px 40px -15px rgba(6, 95, 70, 0.1);
+    --shadow-soft: 0 8px 30px rgba(0, 0, 0, 0.04);
 
     --font-display: 'Montserrat', sans-serif;
     --font-gliker: 'Gliker', 'Montserrat', sans-serif;
@@ -87,6 +84,19 @@
   }
   .font-body {
     font-family: var(--font-body);
+  }
+  .shadow-premium {
+    box-shadow: var(--shadow-premium);
+  }
+  .shadow-soft {
+    box-shadow: var(--shadow-soft);
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
 }
 

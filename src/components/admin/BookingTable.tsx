@@ -4,7 +4,7 @@ import { ptBR } from 'date-fns/locale';
 import { 
   ChevronDown, ChevronUp, CheckCircle, XCircle, Clock, 
   UserCheck, Phone, Hash, MessageCircle, Trash2, Plus, 
-  Users, DollarSign, Calendar
+  Users, DollarSign, Calendar, Upload, FileCheck, Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -32,6 +32,7 @@ interface Booking {
   checked_in_at: string | null;
   created_at: string;
   is_order?: boolean;
+  receipt_url?: string | null;
 }
 
 interface BookingTableProps {
@@ -42,6 +43,8 @@ interface BookingTableProps {
   onDelete: (bookingId: string, isOrder?: boolean) => void;
   onRemoveItem: (orderId: string, itemId: string, productId: string) => void;
   updatingId: string | null;
+  onFileUpload?: (file: File, id: string, isOrder: boolean) => Promise<void>;
+  isUploading?: boolean;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive'; icon: React.ElementType }> = {
@@ -52,7 +55,7 @@ const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secon
   cancelled: { label: 'Cancelada', variant: 'destructive', icon: XCircle },
 };
 
-export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule, onDelete, onRemoveItem, updatingId }: BookingTableProps) {
+export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule, onDelete, onRemoveItem, updatingId, onFileUpload, isUploading }: BookingTableProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [noteText, setNoteText] = useState('');
@@ -240,55 +243,72 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                     </div>
                                     
                                     <div className="grid lg:grid-cols-2 gap-10 items-stretch">
-                                       {/* PAINEL DE CONTROLE DE STATUS */}
-                                       <div className="bg-white p-6 rounded-2xl shadow-sm border border-border/50 flex flex-col justify-between">
+                                       <div className="bg-white p-6 rounded-2xl shadow-sm border border-border/50 flex flex-col justify-between space-y-4">
                                           <div>
-                                             <div className="flex items-center gap-3 mb-6">
-                                                <div className="p-2.5 bg-primary/5 rounded-xl">
-                                                   <Calendar className="w-5 h-5 text-primary" />
+                                             <div className="flex items-center justify-between mb-6">
+                                                <div className="flex items-center gap-3">
+                                                   <div className="p-2.5 bg-primary/5 rounded-xl">
+                                                      <Calendar className="w-5 h-5 text-primary" />
+                                                   </div>
+                                                   <h4 className="text-[10px] font-bold uppercase text-muted-foreground/60 tracking-wider">Gestão Direta</h4>
                                                 </div>
-                                                <h4 className="text-[10px] font-bold uppercase text-muted-foreground/60 tracking-wider">Gestão da Reserva</h4>
+                                                
+                                                {onFileUpload && (
+                                                   <div className="flex items-center gap-2">
+                                                      <input type="file" id={`upload-${booking.id}`} className="hidden" onChange={e => e.target.files && onFileUpload(e.target.files[0], booking.id, !!booking.is_order)} />
+                                                      <label htmlFor={`upload-${booking.id}`} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 cursor-pointer hover:bg-blue-100 transition-all border border-blue-100 text-[9px] font-black uppercase tracking-widest">
+                                                         {isUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : booking.receipt_url ? <FileCheck className="w-3.5 h-3.5" /> : <Upload className="w-3.5 h-3.5" />}
+                                                         {booking.receipt_url ? 'PAGAMENTO OK' : 'ANEXAR COMPROVANTE'}
+                                                      </label>
+                                                   </div>
+                                                )}
                                              </div>
                                              
-                                             <div className="grid grid-cols-2 gap-2.5 mb-5">
+                                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
                                                 <Button 
                                                   onClick={() => onStatusChange(booking.id, 'paid', booking.is_order)} 
                                                   disabled={booking.status === 'paid' || updatingId === booking.id} 
-                                                  className="bg-primary hover:bg-primary-dark text-white font-bold uppercase text-[9px] h-10 rounded-xl tracking-wider shadow-md shadow-primary/10"
+                                                  className="bg-primary hover:bg-primary-dark text-white font-bold uppercase text-[9px] h-11 rounded-xl tracking-wider shadow-md shadow-primary/10"
                                                 >
-                                                   PAGO (CONFIRMAR)
+                                                   <CheckCircle className="w-3.5 h-3.5 mr-1" /> CONFIRMAR
                                                 </Button>
+                                                
                                                 <Button 
                                                   onClick={() => onStatusChange(booking.id, 'checked-in', booking.is_order)} 
                                                   variant="outline" 
-                                                  className="border-whatsapp text-whatsapp hover:bg-whatsapp/10 font-bold uppercase text-[9px] h-10 rounded-xl tracking-wider"
+                                                  className={cn(
+                                                    "border-primary text-primary hover:bg-primary/10 font-bold uppercase text-[9px] h-11 rounded-xl tracking-wider",
+                                                    booking.status === 'checked-in' && "bg-primary text-white"
+                                                  )}
                                                 >
-                                                   CHECK-IN / VISITA
+                                                   <UserCheck className="w-3.5 h-3.5 mr-1" /> CHECK-IN
                                                 </Button>
+
+                                                <Button 
+                                                  variant="outline" 
+                                                  onClick={() => { const d = prompt("Nova Data (AAAA-MM-DD):", booking.visit_date); if (d) onReschedule(booking.id, d, booking.is_order); }} 
+                                                  className="border-blue-200 text-blue-600 hover:bg-blue-50 font-bold uppercase text-[9px] h-11 rounded-xl tracking-wider"
+                                                >
+                                                   <Clock className="w-3.5 h-3.5 mr-1" /> REAGENDAR
+                                                </Button>
+
                                                 <Button 
                                                   onClick={() => onStatusChange(booking.id, 'cancelled', booking.is_order)} 
                                                   variant="ghost" 
-                                                  className="text-red-500 hover:bg-red-50 font-bold uppercase text-[9px] h-10 rounded-xl tracking-wider"
+                                                  className="text-red-500 hover:bg-red-50 font-bold uppercase text-[9px] h-11 rounded-xl tracking-wider"
                                                 >
-                                                   CANCELAR
+                                                   <XCircle className="w-3.5 h-3.5 mr-1" /> CANCELAR
                                                 </Button>
+
                                                 <Button 
                                                   onClick={(e) => { e.stopPropagation(); if (confirm('Excluir permanentemente do banco de dados?')) onDelete(booking.id, booking.is_order); }} 
                                                   variant="ghost" 
-                                                  className="text-muted-foreground/40 hover:text-red-600 font-bold uppercase text-[9px] h-10 rounded-xl flex gap-2"
+                                                  className="text-slate-300 hover:text-red-600 font-bold uppercase text-[9px] h-11 rounded-xl flex gap-2"
                                                 >
-                                                   <Trash2 className="w-3.5 h-3.5" /> APAGAR
+                                                   <Trash2 className="w-3.5 h-3.5 mr-1" /> EXCLUIR
                                                 </Button>
                                              </div>
                                           </div>
-
-                                          <Button 
-                                            variant="outline" 
-                                            onClick={() => { const d = prompt("Nova Data (AAAA-MM-DD):", booking.visit_date); if (d) onReschedule(booking.id, d, booking.is_order); }} 
-                                            className="w-full bg-slate-50 border-slate-200 hover:bg-white text-slate-600 font-black text-[10px] rounded-2xl h-12 uppercase tracking-widest flex gap-3 shadow-inner"
-                                          >
-                                             <Clock className="w-4 h-4" /> Reagendar Visitação Agora
-                                          </Button>
                                        </div>
 
                                        {/* PAINEL DE NOTAS DO STAFF */}
