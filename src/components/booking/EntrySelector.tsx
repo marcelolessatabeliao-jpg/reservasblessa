@@ -210,10 +210,10 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
 
         const categories = [
           { id: 'inteira', label: 'Inteira', sublabel: 'Acesso Normal', price: entryFullStr, emoji: '🎟️', bg: 'bg-emerald-50', border: 'border-emerald-100', selectedBg: 'bg-emerald-100', selectedBorder: 'border-emerald-500', priceColor: 'text-emerald-700', labelColor: 'text-emerald-900' },
-          { id: 'solidaria', label: 'Solidária', sublabel: 'Leve 1kg Alimento', price: entryHalfStr, emoji: '❤️', bg: 'bg-sun/10', border: 'border-sun/20', selectedBg: 'bg-sun/20', selectedBorder: 'border-sun-dark', priceColor: 'text-sun-dark', labelColor: 'text-sun-dark' },
+          { id: 'solidaria', label: 'Solidária', sublabel: 'Leve 1kg de alimento ou outros donativos', price: entryHalfStr, emoji: '❤️', bg: 'bg-sun/10', border: 'border-sun/20', selectedBg: 'bg-sun/20', selectedBorder: 'border-sun-dark', priceColor: 'text-sun-dark', labelColor: 'text-sun-dark' },
           { id: 'professor', label: 'Professor', sublabel: 'Lessa Professor Pass', price: entryHalfStr, emoji: '📚', bg: 'bg-blue-50', border: 'border-blue-100', selectedBg: 'bg-blue-100', selectedBorder: 'border-blue-500', priceColor: 'text-blue-700', labelColor: 'text-blue-900' },
           { id: 'estudante', label: 'Estudante', sublabel: 'Lessa Estudante Pass', price: entryHalfStr, emoji: '🎓', bg: 'bg-violet-50', border: 'border-violet-100', selectedBg: 'bg-violet-100', selectedBorder: 'border-violet-500', priceColor: 'text-violet-700', labelColor: 'text-violet-900' },
-          { id: 'servidor', label: 'Servidor Público', sublabel: 'Lessa Server Pass', price: entryHalfStr, emoji: '🏛️', bg: 'bg-indigo-50', border: 'border-indigo-100', selectedBg: 'bg-indigo-100', selectedBorder: 'border-indigo-500', priceColor: 'text-indigo-700', labelColor: 'text-indigo-900' },
+          { id: 'servidor', label: 'Servidor Público', sublabel: 'Lessa Servidor Pass', price: entryHalfStr, emoji: '🏛️', bg: 'bg-indigo-50', border: 'border-indigo-100', selectedBg: 'bg-indigo-100', selectedBorder: 'border-indigo-500', priceColor: 'text-indigo-700', labelColor: 'text-indigo-900' },
           { id: 'aniversariante', label: 'Aniversariante', sublabel: 'Da semana · com comprovação', price: 'GRÁTIS', emoji: '🎂', bg: 'bg-amber-50', border: 'border-amber-100', selectedBg: 'bg-amber-100', selectedBorder: 'border-amber-500', priceColor: 'text-amber-700', labelColor: 'text-amber-900' },
         ];
 
