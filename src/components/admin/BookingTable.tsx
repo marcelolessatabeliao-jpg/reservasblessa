@@ -195,7 +195,9 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                              <td className="p-8">
                                 <div className="flex flex-col gap-1">
                                    <div className="flex items-center gap-3">
-                                      <span className="font-black text-lg text-emerald-950 uppercase tracking-tighter leading-none">{booking.name}</span>
+                                      <span className="font-black text-lg text-emerald-950 uppercase tracking-tighter leading-none">
+                                        {booking.name || (booking as any).customer_name || 'CLIENTE NÃO IDENTIFICADO'}
+                                      </span>
                                       {booking.is_associado && (
                                         <Badge className="bg-amber-400 text-amber-950 border-none text-[8px] font-black uppercase px-2.5 h-4 rounded-full shadow-lg shadow-amber-400/20">Sócio VIP</Badge>
                                       )}
@@ -204,7 +206,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                       <span className="bg-emerald-50/50 text-emerald-900/40 px-3 py-1 rounded-xl font-black text-[9px] border border-emerald-100/50">ID: {booking.id.slice(0, 8)}</span>
                                       <span className="flex items-center gap-2 text-emerald-950/40 hover:text-emerald-600 transition-colors">
                                         <Phone className="w-4 h-4" />
-                                        {booking.phone}
+                                        {booking.phone || (booking as any).customer_phone || 'Sem contato'}
                                       </span>
                                    </div>
                                 </div>
