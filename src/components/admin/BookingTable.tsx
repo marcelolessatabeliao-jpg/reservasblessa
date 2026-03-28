@@ -92,7 +92,12 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
        if (!b) continue;
        if (action === 'confirm') onStatusChange(b.id, 'paid', b.is_order);
        else if (action === 'cancel') onStatusChange(b.id, 'cancelled', b.is_order);
-       else if (action === 'delete') onDelete(b.id, b.is_order);
+       else if (action === 'delete') {
+         // Chama onDelete diretamente (o Admin vai abrir o diálogo)
+         // Para bulk, chamamos um por um com pequeno delay
+         onDelete(b.id, b.is_order);
+         await new Promise(r => setTimeout(r, 200));
+       }
     }
     setSelectedIds(new Set());
   };

@@ -833,7 +833,18 @@ export default function Admin() {
                       if (error) toast({ title: "Erro ao reagendar", variant: "destructive" });
                       else { toast({ title: "✓ Reagendado" }); fetchData(); }
                    }}
-                   onDelete={(id, isOrder) => requestDelete({ id }, isOrder ? 'order' : 'reservas' as any)}
+                    onDelete={async (id, isOrder) => {
+                       const table = isOrder ? 'orders' : 'bookings';
+                       try {
+                         const { error } = await supabase.from(table).delete().eq('id', id);
+                         if (error) throw error;
+                         toast({ title: "✓ Removido com sucesso" });
+                         fetchData();
+                       } catch (err: any) {
+                         console.error('Delete error:', err);
+                         toast({ title: "Erro ao remover: " + (err?.message || ''), variant: "destructive" });
+                       }
+                    }}
                    onRemoveItem={() => {}}
                    updatingId={updatingId}
                    onFileUpload={async (file, id, isOrder) => {
