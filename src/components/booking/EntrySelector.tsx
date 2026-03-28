@@ -561,12 +561,13 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                     mode="single"
                     selected={entry.visitDate || undefined}
                     onSelect={(d) => {
-                      if (d) {
+                      const finalDate = d || entry.visitDate;
+                      if (finalDate) {
                         const dayMap: Record<number, any> = { 0: 'domingo', 1: 'segunda', 5: 'sexta', 6: 'sabado' };
-                        const dayOfWeek = dayMap[d.getDay()] || 'segunda';
-                        onUpdateEntry({ visitDate: d, dayOfWeek });
-                        setIsCalendarOpen(false);
+                        const dayOfWeek = dayMap[finalDate.getDay()] || 'segunda';
+                        onUpdateEntry({ visitDate: finalDate, dayOfWeek });
                       }
+                      setIsCalendarOpen(false);
                     }}
                     disabled={(d) => {
                       const today = new Date();
