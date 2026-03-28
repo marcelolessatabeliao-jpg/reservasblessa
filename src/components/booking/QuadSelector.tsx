@@ -147,9 +147,23 @@ export function QuadSelector({ quads, onUpdate }: Props) {
                     2. Quantidade
                   </label>
                   <p className="font-sans font-bold text-sm sm:text-base">{QUAD_LABELS[quad.type]}</p>
-                  <p className="text-primary font-bold text-base">
-                    {quad.quantity > 0 ? formatCurrency(finalPrice * quad.quantity) : formatCurrency(finalPrice)}
-                  </p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {discount > 0 ? (
+                      <>
+                        <span className="text-muted-foreground line-through text-[10px] sm:text-xs">{formatCurrency(basePrice)}</span>
+                        <span className="text-primary font-bold text-base">
+                          {quad.quantity > 0 ? formatCurrency(finalPrice * quad.quantity) : formatCurrency(finalPrice)}
+                        </span>
+                        <span className="bg-sun/20 text-sun-dark text-[10px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shadow-sm">
+                          <Tag className="h-2.5 w-2.5" /> -{discount * 100}%
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-primary font-bold text-base">
+                        {quad.quantity > 0 ? formatCurrency(basePrice * quad.quantity) : formatCurrency(basePrice)}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <QuantityStepper 
                   value={quad.quantity} 
