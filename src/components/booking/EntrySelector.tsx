@@ -566,8 +566,6 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                         const dayOfWeek = dayMap[d.getDay()] || 'segunda';
                         onUpdateEntry({ visitDate: d, dayOfWeek });
                         setIsCalendarOpen(false);
-                      } else {
-                        onUpdateEntry({ visitDate: null, dayOfWeek: 'segunda' });
                       }
                     }}
                     disabled={(d) => {

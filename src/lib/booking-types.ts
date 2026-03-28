@@ -114,7 +114,35 @@ export function getQuadDiscount(date: Date | string | null): number {
 export function isOperatingDay(date: Date | string): boolean {
   const d = new Date(date);
   const day = d.getDay();
-  return day === 0 || day === 1 || day === 5 || day === 6;
+  const year = d.getFullYear();
+  const month = d.getMonth();
+  const dateNum = d.getDate();
+
+  // Dias normais de funcionamento: Sexta (5), Sábado (6), Domingo (0), Segunda (1)
+  const isNormalDay = day === 0 || day === 1 || day === 5 || day === 6;
+  if (isNormalDay) return true;
+
+  // Feriados 2026
+  if (year === 2026) {
+    const holidays = [
+      { m: 0, d: 1 },  // Jan 1
+      { m: 1, d: 16 }, // Feb 16 (Carnaval)
+      { m: 1, d: 17 }, // Feb 17 (Carnaval)
+      { m: 3, d: 3 },  // Apr 3 (Sexta Santa)
+      { m: 3, d: 21 }, // Apr 21 (Tiradentes)
+      { m: 4, d: 1 },  // May 1 (Trabalhador)
+      { m: 5, d: 4 },  // Jun 4 (Corpus Christi)
+      { m: 8, d: 7 },  // Sep 7 (Independência)
+      { m: 9, d: 12 }, // Oct 12 (Nsa Sra Aparecida)
+      { m: 10, d: 2 }, // Nov 2 (Finados)
+      { m: 10, d: 15 },// Nov 15 (Proclamação República)
+      { m: 10, d: 20 },// Nov 20 (Consciência Negra)
+      { m: 11, d: 25 },// Dec 25 (Natal)
+    ];
+    return holidays.some(h => h.m === month && h.d === dateNum);
+  }
+
+  return false;
 }
 
 export function getPersonPrice(
