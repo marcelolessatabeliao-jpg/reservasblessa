@@ -90,18 +90,20 @@ export function QuadSelector({ quads, onUpdate }: Props) {
                     }
                     const visitDate = format(quad.date, 'yyyy-MM-dd');
                     const used = await getQuadAvailability(visitDate, v);
+                    const localUsedOthers = quads.reduce((acc, qry, idx) => {
+                      if (idx !== i && qry.time === v) return acc + qry.quantity;
+                      return acc;
+                    }, 0);
+                    const remaining = MAX_QUADS_PER_SLOT - (used + localUsedOthers);
                     
-                    if (used >= MAX_QUADS_PER_SLOT) {
+                    if (remaining <= 0) {
                         toast({ title: 'Horário Lotado', description: `Não há vagas disponíveis para as ${v}.`, variant: 'destructive' });
                         return;
                     }
                     
-                    // If they already had a quantity, check if it still fits
-                    if (quad.quantity > (MAX_QUADS_PER_SLOT - used)) {
-                      onUpdate(i, { time: v as QuadTime, quantity: Math.max(0, MAX_QUADS_PER_SLOT - used) });
-                    } else {
-                      onUpdate(i, { time: v as QuadTime });
-                    }
+                    // Limit current quantity to remaining
+                    const newQty = Math.min(quad.quantity, remaining);
+                    onUpdate(i, { time: v as QuadTime, quantity: newQty });
                   }}
                   disabled={!quad.date || isFetchingAvailability}
                 >
@@ -152,13 +154,16 @@ export function QuadSelector({ quads, onUpdate }: Props) {
                 <QuantityStepper 
                   value={quad.quantity} 
                   max={(() => {
-                    if (!quad.time) return 0;
+                    if (!quad.time || !checkDate) return 0;
                     const usedInDb = slotAvailabilities[quad.time] || 0;
-                    const usedLocallyOthers = quads.reduce((acc, qry, idx) => (idx !== i && qry.time === quad.time) ? acc + qry.quantity : acc, 0);
+                    // others = all quads in the SAME slot except this ones quantity
+                    const usedLocallyOthers = quads.reduce((acc, qry, idx) => {
+                      if (idx !== i && qry.time === quad.time) return acc + qry.quantity;
+                      return acc;
+                    }, 0);
                     return Math.max(0, MAX_QUADS_PER_SLOT - (usedInDb + usedLocallyOthers));
                   })()}
-                  onChange={async (q) => {
-                    if (!quad.time) return;
+                  onChange={(q) => {
                     onUpdate(i, { quantity: q });
                   }} 
                 />
