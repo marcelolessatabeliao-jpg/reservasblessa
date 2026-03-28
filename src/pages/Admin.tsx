@@ -273,25 +273,27 @@ export default function Admin() {
         <div className="space-y-8">
           {/* STATS */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-             <Card className="bg-white border-emerald-100 shadow-premium rounded-[2rem] p-6 flex flex-col items-start hover:scale-[1.02] transition-all">
-                <div className="p-3 rounded-2xl bg-emerald-50 text-emerald-600 mb-4"><Tent className="w-6 h-6" /></div>
-                <span className="text-3xl font-black text-emerald-950">{currentKiosks.length}</span>
-                <span className="text-xs font-bold text-emerald-800/40 uppercase tracking-widest mt-1">Quiosques Ativos</span>
+             <Card className="bg-emerald-950 text-white border-none shadow-premium rounded-[2.2rem] p-7 flex flex-col items-start hover:scale-[1.03] transition-all group overflow-hidden relative">
+                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-125 transition-transform"><Tent className="w-16 h-16" /></div>
+                <div className="p-3 rounded-2xl bg-white/10 backdrop-blur-md mb-4"><Tent className="w-6 h-6 text-emerald-400" /></div>
+                <span className="text-4xl font-black">{currentKiosks.length}</span>
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] mt-2 text-emerald-400">Quiosques Ativos</span>
              </Card>
-             <Card className="bg-white border-blue-100 shadow-premium rounded-[2rem] p-6 flex flex-col items-start hover:scale-[1.02] transition-all">
-                <div className="p-3 rounded-2xl bg-blue-50 text-blue-600 mb-4"><Bike className="w-6 h-6" /></div>
-                <span className="text-3xl font-black text-blue-950">{currentQuads.length}</span>
-                <span className="text-xs font-bold text-blue-800/40 uppercase tracking-widest mt-1">Quadriciclos</span>
+             <Card className="bg-blue-600 text-white border-none shadow-premium rounded-[2.2rem] p-7 flex flex-col items-start hover:scale-[1.03] transition-all group overflow-hidden relative">
+                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-125 transition-transform"><Bike className="w-16 h-16" /></div>
+                <div className="p-3 rounded-2xl bg-white/10 backdrop-blur-md mb-4"><Bike className="w-6 h-6 text-blue-200" /></div>
+                <span className="text-4xl font-black">{currentQuads.length}</span>
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] mt-2 text-blue-200">Quadriciclos</span>
              </Card>
-             <Card className="bg-white border-amber-100 shadow-premium rounded-[2rem] p-6 flex flex-col items-start hover:scale-[1.02] transition-all">
-                <div className="p-3 rounded-2xl bg-amber-50 text-amber-600 mb-4"><TrendingUp className="w-6 h-6" /></div>
-                <span className="text-2xl font-black text-amber-950">{formatCurrency(currentKiosks.reduce((s, r) => s + (r.price || 0), 0))}</span>
-                <span className="text-xs font-bold text-emerald-800/40 uppercase tracking-widest mt-1">Receita Espaços</span>
+             <Card className="bg-amber-500 text-white border-none shadow-premium rounded-[2.2rem] p-7 flex flex-col items-start hover:scale-[1.03] transition-all group overflow-hidden relative">
+                <div className="p-3 rounded-2xl bg-white/10 backdrop-blur-md mb-4"><TrendingUp className="w-6 h-6 text-amber-100" /></div>
+                <span className="text-3xl font-black">{formatCurrency(currentKiosks.reduce((s, r) => s + (r.price || 0), 0))}</span>
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] mt-2 text-amber-100">Receita Espaços</span>
              </Card>
-             <Card className="bg-white border-emerald-100 shadow-premium rounded-[2rem] p-6 flex flex-col items-start hover:scale-[1.02] transition-all">
-                <div className="p-3 rounded-2xl bg-emerald-50 text-emerald-600 mb-4"><ShoppingBag className="w-6 h-6" /></div>
-                <span className="text-2xl font-black text-emerald-950">{formatCurrency(orders.reduce((s, r) => s + (r.total_amount || 0), 0))}</span>
-                <span className="text-xs font-bold text-emerald-800/40 uppercase tracking-widest mt-1">Total Vendas</span>
+             <Card className="bg-emerald-600 text-white border-none shadow-premium rounded-[2.2rem] p-7 flex flex-col items-start hover:scale-[1.03] transition-all group overflow-hidden relative">
+                <div className="p-3 rounded-2xl bg-white/10 backdrop-blur-md mb-4"><ShoppingBag className="w-6 h-6 text-white" /></div>
+                <span className="text-3xl font-black">{formatCurrency(orders.reduce((s, r) => s + (r.total_amount || 0), 0))}</span>
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] mt-2 text-emerald-100">Vendas Loja</span>
              </Card>
           </div>
 
