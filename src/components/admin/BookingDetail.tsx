@@ -55,139 +55,103 @@ export function BookingDetail({ booking, onRemoveItem }: BookingDetailProps) {
   };
 
   return (
-    <div className="grid lg:grid-cols-2 gap-6 p-6 bg-emerald-50/20 rounded-3xl border border-emerald-100/50 shadow-inner">
-      <div className="space-y-6">
-        <div className="flex justify-between items-center border-b border-emerald-100 pb-3">
-          <div className="flex flex-col">
-            <p className="text-[10px] font-black uppercase text-emerald-800/40 tracking-widest leading-none mb-1">Identificação</p>
-            <p className="text-sm font-bold text-emerald-950">#{booking.id.slice(0, 12)}</p>
+    <div className="space-y-4">
+      {/* ROW 1: Info + Entradas + Badges lado a lado */}
+      <div className="flex flex-wrap items-center gap-4 text-sm">
+          <div className="flex items-center gap-2 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-100">
+            <span className="text-[9px] font-bold uppercase text-emerald-600/50 tracking-wider">ID</span>
+            <span className="font-black text-emerald-950 text-xs">#{booking.id.slice(0, 10)}</span>
           </div>
-          <div className="text-right">
-             <p className="text-[10px] font-black uppercase text-emerald-800/40 tracking-widest leading-none mb-1">Data da Reserva</p>
-             <p className="text-xs font-bold text-emerald-800">
-               {booking.created_at ? format(new Date(booking.created_at), "dd/MM/yy 'às' HH:mm", { locale: ptBR }) : '-'}
-             </p>
+          <div className="flex items-center gap-2 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-100">
+            <span className="text-[9px] font-bold uppercase text-emerald-600/50 tracking-wider">Data</span>
+            <span className="font-bold text-emerald-800 text-xs">
+              {booking.created_at ? format(new Date(booking.created_at), "dd/MM/yy HH:mm", { locale: ptBR }) : '-'}
+            </span>
           </div>
-        </div>
-
-        <div className="space-y-4">
-          <h4 className="font-display font-black text-emerald-600 uppercase text-[10px] tracking-widest flex items-center gap-2">
-            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" /> Resumo de Entradas
-          </h4>
-          <div className="bg-white rounded-2xl p-4 border border-emerald-100 shadow-sm flex gap-6">
-             <div className="flex flex-col">
-                <span className="text-2xl font-black text-emerald-950">{booking.adults}</span>
-                <span className="text-[9px] font-bold uppercase text-emerald-800/50">Adultos</span>
-             </div>
-             <div className="flex flex-col">
-                <span className="text-2xl font-black text-emerald-950">{children.length}</span>
-                <span className="text-[9px] font-bold uppercase text-emerald-800/50">Crianças</span>
-             </div>
-             {(booking.is_associado || booking.has_donation) && (
-               <div className="ml-auto flex gap-2 self-center">
-                  {booking.is_associado && <Badge className="bg-sun text-white border-0 font-bold text-[8px]">ASSOCIADO</Badge>}
-                  {booking.has_donation && <Badge className="bg-emerald-500 text-white border-0 font-bold text-[8px]">DOAÇÃO OK</Badge>}
-               </div>
-             )}
+          <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-emerald-100">
+            <span className="font-black text-emerald-950 text-sm">{booking.adults}</span>
+            <span className="text-[9px] font-bold uppercase text-emerald-600/50">adultos</span>
           </div>
-        </div>
-
-        {(kiosks.length > 0 || quads.length > 0 || additionals.length > 0) && (
-          <div className="space-y-4">
-            <h4 className="font-display font-black text-emerald-600 uppercase text-[10px] tracking-widest flex items-center gap-2">
-              <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" /> Estruturas e Lazer
-            </h4>
-            <div className="grid grid-cols-1 gap-2">
-               {kiosks.map((k: any, i: number) => (
-                 <div key={i} className="flex items-center justify-between p-3 bg-white rounded-xl border border-emerald-100">
-                    <span className="text-xs font-bold text-emerald-900">Quiosque {k.kiosk_id || k.id || '?'}</span>
-                    <Badge variant="outline" className="text-[9px] border-emerald-200 text-emerald-600">Aluguel Dia</Badge>
-                 </div>
-               ))}
-               {quads.map((q: any, i: number) => (
-                 <div key={i} className="flex items-center justify-between p-3 bg-white rounded-xl border border-blue-100">
-                    <span className="text-xs font-bold text-blue-900">Quadriciclo {q.time_slot}</span>
-                    <Badge variant="outline" className="text-[9px] border-blue-200 text-blue-600">{q.quantity} UN</Badge>
-                 </div>
-               ))}
-               {additionals.map((a: any, i: number) => (
-                 <div key={i} className="flex items-center justify-between p-3 bg-white rounded-xl border border-amber-100">
-                    <span className="text-xs font-bold text-amber-900">{a.name || a.id}</span>
-                    <span className="text-[10px] font-bold text-amber-600">INCLUÍDO</span>
-                 </div>
-               ))}
-            </div>
+          <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-emerald-100">
+            <span className="font-black text-emerald-950 text-sm">{children.length}</span>
+            <span className="text-[9px] font-bold uppercase text-emerald-600/50">crianças</span>
           </div>
-        )}
+          {booking.is_associado && <Badge className="bg-amber-400 text-amber-950 border-none text-[8px] font-black uppercase px-2 h-5 rounded-full">SÓCIO</Badge>}
+          {booking.has_donation && <Badge className="bg-emerald-500 text-white border-none text-[8px] font-black uppercase px-2 h-5 rounded-full">DOAÇÃO</Badge>}
+          <div className="ml-auto flex items-center gap-2 bg-emerald-600 text-white px-4 py-1.5 rounded-xl">
+            <span className="text-[9px] font-bold uppercase tracking-wider">Total</span>
+            <span className="font-black text-lg">{formatCurrency(booking.total_amount)}</span>
+          </div>
       </div>
 
-      <div className="space-y-6">
-        <div className="space-y-4">
-           <h4 className="font-display font-black text-emerald-600 uppercase text-[10px] tracking-widest flex items-center gap-2">
-             <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" /> Checkout de Produtos/Combo
+      {/* ROW 2: Estruturas (quiosques, quads, adicionais) lado a lado */}
+      {(kiosks.length > 0 || quads.length > 0 || additionals.length > 0) && (
+        <div className="flex flex-wrap gap-2">
+           {kiosks.map((k: any, i: number) => (
+             <div key={i} className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-xl border border-emerald-100 text-xs">
+                <span className="font-bold text-emerald-900">Quiosque {k.kiosk_id || k.id || '?'}</span>
+                <Badge variant="outline" className="text-[8px] border-emerald-200 text-emerald-600 h-4 px-1.5">DIA</Badge>
+             </div>
+           ))}
+           {quads.map((q: any, i: number) => (
+             <div key={i} className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-xl border border-blue-100 text-xs">
+                <span className="font-bold text-blue-900">Quad {q.time_slot}</span>
+                <Badge variant="outline" className="text-[8px] border-blue-200 text-blue-600 h-4 px-1.5">{q.quantity}x</Badge>
+             </div>
+           ))}
+           {additionals.map((a: any, i: number) => (
+             <div key={i} className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-xl border border-amber-100 text-xs">
+                <span className="font-bold text-amber-900">{a.name || a.id}</span>
+             </div>
+           ))}
+        </div>
+      )}
+
+      {/* ROW 3: Produtos/Combo em GRID de 2 ou 3 colunas */}
+      {items.length > 0 && (
+        <div className="space-y-2">
+           <h4 className="font-black text-emerald-600 uppercase text-[9px] tracking-widest flex items-center gap-1.5">
+             <span className="w-1 h-1 bg-emerald-500 rounded-full" /> Checkout de Produtos
            </h4>
-           
-           <div className="grid gap-2">
-             {items.length > 0 ? (
-               items.map((item, i) => (
-                 <div key={i} className={cn(
-                   "flex items-center justify-between border-2 p-3 rounded-2xl shadow-sm transition-all animate-in fade-in slide-in-from-right-4",
-                   item.is_redeemed 
-                     ? "bg-green-50/50 border-green-100 opacity-80" 
-                     : "bg-white border-primary/5 hover:border-primary/20"
-                 )}>
-                   <div className="flex items-center gap-4 flex-1">
-                      <div className="flex flex-col">
-                         <div className="flex items-center gap-2">
-                            <span className={cn("font-bold text-sm", item.is_redeemed ? "text-green-700 line-through" : "text-foreground")}>
-                               {item.quantity}x {item.product_id}
-                            </span>
-                         </div>
-                         <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider flex items-center gap-1.5">
-                            {item.is_redeemed ? (
-                              <>
-                                <CheckCircle2 className="w-3 h-3 text-green-500" />
-                                {item.redeemed_at ? format(new Date(item.redeemed_at), "dd/MM HH:mm") : "Confirmado"}
-                              </>
-                            ) : "Aguardando utilização"}
-                         </span>
-                      </div>
-                   </div>
-                   
-                   <Button
-                     size="sm"
-                     variant={item.is_redeemed ? "default" : "outline"}
-                     className={cn(
-                       "rounded-xl font-black text-[9px] uppercase h-8 px-4",
-                       item.is_redeemed 
-                         ? "bg-green-100 hover:bg-green-200 text-green-700 border-none px-3" 
-                         : "border-2 hover:bg-primary hover:text-white px-4"
-                     )}
-                     onClick={(e) => {
-                       e.stopPropagation();
-                       handleToggleItemStatus(item.id, item.is_redeemed, item.product_id);
-                     }}
-                   >
-                     {item.is_redeemed ? "ESTORNAR" : "MARCAR USO"}
-                   </Button>
+           <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
+             {items.map((item, i) => (
+               <div key={i} className={cn(
+                 "flex items-center justify-between border p-2.5 rounded-xl transition-all text-xs",
+                 item.is_redeemed 
+                   ? "bg-green-50/50 border-green-100 opacity-70" 
+                   : "bg-white border-emerald-100/50 hover:border-emerald-200"
+               )}>
+                 <div className="flex flex-col min-w-0 flex-1 mr-2">
+                    <span className={cn("font-bold text-xs truncate", item.is_redeemed ? "text-green-700 line-through" : "text-emerald-950")}>
+                       {item.quantity}x {item.product_id}
+                    </span>
+                    <span className="text-[8px] text-emerald-800/30 font-bold uppercase tracking-wider flex items-center gap-1">
+                       {item.is_redeemed ? (
+                         <><CheckCircle2 className="w-2.5 h-2.5 text-green-500" /> Usado</>
+                       ) : "Aguardando"}
+                    </span>
                  </div>
-               ))
-             ) : (
-                <div className="p-8 border-2 border-dashed border-emerald-100 rounded-2xl flex flex-col items-center justify-center text-center">
-                   <p className="text-[10px] font-bold text-emerald-800/30 uppercase tracking-widest">Nenhum item adicional</p>
-                </div>
-             )}
+                 <Button
+                   size="sm"
+                   variant={item.is_redeemed ? "default" : "outline"}
+                   className={cn(
+                     "rounded-lg font-black text-[8px] uppercase h-7 px-2.5 shrink-0",
+                     item.is_redeemed 
+                       ? "bg-green-100 hover:bg-green-200 text-green-700 border-none" 
+                       : "border hover:bg-emerald-600 hover:text-white"
+                   )}
+                   onClick={(e) => {
+                     e.stopPropagation();
+                     handleToggleItemStatus(item.id, item.is_redeemed, item.product_id);
+                   }}
+                 >
+                   {item.is_redeemed ? "ESTORNAR" : "MARCAR USO"}
+                 </Button>
+               </div>
+             ))}
            </div>
         </div>
-
-        <div className="pt-6 border-t border-emerald-100 flex justify-between items-end">
-            <div className="flex flex-col">
-               <span className="text-[10px] font-black text-emerald-800/40 uppercase tracking-widest mb-1">Investimento Total</span>
-               <span className="text-3xl font-black text-emerald-600 leading-none">{formatCurrency(booking.total_amount)}</span>
-            </div>
-            {booking.total_amount > 0 && <Badge className="bg-emerald-600 text-white font-bold h-7 px-4 rounded-xl">LIQUIDADO</Badge>}
-        </div>
-      </div>
+      )}
     </div>
   );
 }
