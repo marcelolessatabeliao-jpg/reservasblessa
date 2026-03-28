@@ -303,17 +303,17 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
               {/* Gratuidades Primeiro */}
               {[...booking.entry.adults, ...booking.entry.children].filter(p => getPersonPrice(p, (p as any).age >= 60 || (p as any).age <= 11, booking.entry.dayOfWeek === 'domingo', getPrice) === 0).map((p, i) => {
                 const qty = p.quantity || 1;
-                let label = (p as any).age >= 60 ? 'Idoso' : (p as any).age <= 11 ? 'Criança' : 'Entrada';
-                if (p.isPCD) label = 'PCD/TEA';
-                if (p.isBirthday) label = 'Aniversariante';
+                let label = (p as any).age >= 60 ? 'Lessa Vitalício (Idoso)' : (p as any).age <= 11 ? 'Lessa Kids (Criança)' : 'Acesso';
+                if (p.isPCD) label = 'Lessa Inclusão (PCD/TEA)';
+                if (p.isBirthday) label = 'Aniversariante da Semana';
 
                 return (
-                  <div key={`free-${i}`} className="flex justify-between items-start text-green-600 font-bold bg-green-50/50 p-2 rounded-lg border border-green-100/50">
+                  <div key={`free-${i}`} className="flex justify-between items-start text-emerald-700 font-bold bg-emerald-50/50 p-2.5 rounded-xl border border-emerald-100/50">
                     <div>
-                      <span>{qty}x {label}</span>
-                      <span className="block text-[10px] uppercase tracking-tighter opacity-70">Acesso Gratuito</span>
+                      <span className="text-sm">{qty}x {label}</span>
+                      <span className="block text-[10px] uppercase tracking-wider opacity-60">Acesso Gratuito</span>
                     </div>
-                    <span className="whitespace-nowrap uppercase text-xs">Grátis</span>
+                    <span className="whitespace-nowrap uppercase text-[10px] bg-emerald-100 px-2 py-0.5 rounded-full">Grátis</span>
                   </div>
                 );
               })}
@@ -322,21 +322,21 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
               {booking.entry.adults.filter(a => getPersonPrice(a, a.age >= 60, booking.entry.dayOfWeek === 'domingo', getPrice) > 0).map((a, i) => {
                 const qty = a.quantity || 1;
                 const price = getPersonPrice(a, a.age >= 60, booking.entry.dayOfWeek === 'domingo', getPrice);
-                let label = 'Adulto';
-                let details = [];
-                if (a.isTeacher) details.push('Professor');
-                if (a.isServer) details.push('Servidor');
-                if (a.isStudent) details.push('Estudante');
-                if (a.takeDonation && booking.entry.dayOfWeek !== 'domingo') details.push('Social');
-                if ((a as any).isBloodDonor) details.push('Doador');
+                
+                let label = 'Adulto Inteira';
+                if (a.isTeacher) label = 'Lessa Professor Pass';
+                else if (a.isServer) label = 'Lessa Servidor Pass';
+                else if (a.isStudent) label = 'Lessa Estudante Pass';
+                else if (a.takeDonation) label = 'Adulto Solidário';
+                else if ((a as any).isBloodDonor) label = 'Lessa Doador Pass';
                 
                 return (
-                  <div key={`adult-pay-${i}`} className="flex justify-between items-start">
-                    <div>
-                      <span>{qty}x {label}</span>
-                      {details.length > 0 && <span className="block text-[11px] font-medium text-primary/70">{details.join(', ')}</span>}
+                  <div key={`adult-pay-${i}`} className="flex justify-between items-start py-1">
+                    <div className="flex flex-col">
+                      <span className="text-sm font-bold text-foreground">{qty}x {label}</span>
+                      {a.takeDonation && <span className="text-[10px] text-primary/60 font-bold italic">Levar 1kg de alimento/doativo</span>}
                     </div>
-                    <span className="font-medium whitespace-nowrap">{formatCurrency(price * qty)}</span>
+                    <span className="font-bold text-sm whitespace-nowrap text-primary">{formatCurrency(price * qty)}</span>
                   </div>
                 );
               })}
