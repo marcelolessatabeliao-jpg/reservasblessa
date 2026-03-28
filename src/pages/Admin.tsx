@@ -50,6 +50,14 @@ const PAYMENT_METHODS = [
   { value: 'cash', label: 'Dinheiro (Local)' }
 ];
 
+const QUAD_MODELS_LABELS: Record<string, string> = {
+  individual: 'Individual',
+  dupla: 'Dupla',
+  'adulto-crianca': 'Adulto + Criança',
+  'INDIV': 'Individual',
+  'DUPLA': 'Dupla'
+};
+
 type TabType = 'painel' | 'reservas' | 'quiosques' | 'quads' | 'vendas';
 
 const BR_HOLIDAYS_2026 = [
@@ -156,6 +164,7 @@ export default function Admin() {
                   parsedQuads.push({
                      id: `order-${o.id}-q-${item.id}`,
                      time_slot: finalSlot,
+                     quad_type: pId.includes('dupla') ? 'dupla' : (pId.includes('crianca') ? 'adulto-crianca' : 'individual'),
                      quantity: item.quantity,
                      reservation_date: resDate,
                      customer_name: customerName,
@@ -697,7 +706,8 @@ export default function Admin() {
                    <tr>
                       <th className="px-6 py-4">Data/Horário</th>
                       <th className="px-6 py-4">Cliente</th>
-                      <th className="px-6 py-4">Qtd</th>
+                      <th className="px-6 py-4">Modelo</th>
+                      <th className="px-6 py-4 text-center">Qtd</th>
                       <th className="px-6 py-4">Preço</th>
                       <th className="px-6 py-4 text-right">Ações</th>
                    </tr>
@@ -724,6 +734,11 @@ export default function Admin() {
                            </td>
                            <td className="px-6 py-4 font-bold text-foreground">
                               {isEditing ? <Input value={editData.customer_name} onChange={e => setEditData({...editData, customer_name: e.target.value})} className="h-9 bg-white text-emerald-950 font-bold border-blue-200" /> : <span className="text-emerald-950 font-bold">{r.customer_name || (r as any).bookings?.name || 'Cliente'}</span>}
+                           </td>
+                           <td className="px-6 py-4">
+                              <Badge variant="outline" className="border-blue-200 text-blue-800 font-bold bg-blue-50/30">
+                                 {QUAD_MODELS_LABELS[r.quad_type || (r.time_slot === 'DUPLA' ? 'dupla' : 'individual')] || 'Individual'}
+                              </Badge>
                            </td>
                            <td className="px-6 py-4 text-center">
                               {isEditing ? <Input type="number" value={editData.quantity} onChange={e => setEditData({...editData, quantity: parseInt(e.target.value)})} className="h-9 w-16 bg-white text-emerald-950 font-bold border-blue-200" /> : <Badge className="bg-blue-100 text-blue-700 border-0 font-extrabold">{r.quantity} quad.</Badge>}
@@ -779,7 +794,10 @@ export default function Admin() {
                               <div className="flex items-center gap-4">
                                  <span className="font-mono text-muted-foreground">{format(parseISO(r.reservation_date), 'dd/MM')}</span>
                                  <span className="font-bold">{r.customer_name}</span>
-                                 <Badge variant="outline" className="text-[9px] border-blue-200 text-blue-700">{r.time_slot}</Badge>
+                                 <div className="flex flex-col items-start min-w-[70px]">
+                                    <Badge variant="outline" className="text-[9px] border-blue-200 text-blue-700">{r.time_slot}</Badge>
+                                    <span className="text-[8px] font-black uppercase text-blue-400 mt-1">{QUAD_MODELS_LABELS[r.quad_type] || 'Individual'}</span>
+                                 </div>
                               </div>
                               <span className="font-bold text-blue-700">{formatCurrency(r.price)}</span>
                            </div>
