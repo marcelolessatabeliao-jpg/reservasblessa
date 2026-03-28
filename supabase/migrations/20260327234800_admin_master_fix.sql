@@ -1,6 +1,17 @@
--- ADMIN MASTER PERMISSIONS FIX
--- Este script libera as permissões de SELECT, INSERT, UPDATE e DELETE para o Dashboard Administrativo (anon/authenticated)
+-- ==========================================================
+-- FINAL DATABASE REPAIR - ADMIN FULL ACCESS & CASCADE
+-- ==========================================================
 
+-- 1. Garantir que as tabelas tenham RLS habilitado
+ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.vouchers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.kiosk_reservations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.quad_reservations ENABLE ROW LEVEL SECURITY;
+
+-- 2. RESET das políticas para o Admin (Liberar tudo para anon e authenticated)
 DO $$ 
 DECLARE 
     t text;
@@ -11,25 +22,18 @@ BEGIN
         WHERE table_schema = 'public' 
         AND table_type = 'BASE TABLE'
     LOOP
-        -- Grant general access
-        EXECUTE format('GRANT ALL ON TABLE public.%I TO anon, authenticated', t);
-        
-        -- Enable RLS (ensure it is on)
-        EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t);
-        
-        -- Create/Replace master policy for each table
         EXECUTE format('DROP POLICY IF EXISTS "Admin Full Access" ON public.%I', t);
         EXECUTE format('CREATE POLICY "Admin Full Access" ON public.%I FOR ALL TO anon, authenticated USING (true) WITH CHECK (true)', t);
+        
+        -- Garante permissões básicas de acesso
+        EXECUTE format('GRANT ALL ON TABLE public.%I TO anon, authenticated', t);
     END LOOP;
 END $$;
 
--- Garantir colunas de comprovante em tudo (caso não tenha rodado antes)
-ALTER TABLE bookings ADD COLUMN IF NOT EXISTS receipt_url TEXT;
-ALTER TABLE orders ADD COLUMN IF NOT EXISTS receipt_url TEXT;
-ALTER TABLE kiosk_reservations ADD COLUMN IF NOT EXISTS receipt_url TEXT;
-ALTER TABLE quad_reservations ADD COLUMN IF NOT EXISTS receipt_url TEXT;
+-- 3. Corrigir FKs para CASCADE DELETE (Crucial para conseguir apagar reservas)
+-- Isso permite que ao deletar uma reserva, todos os itens, pagamentos e vouchers relacionados sumam automaticamente.
 
--- Corrigir constraints de deleção (Cascade)
+-- Para ORDENS
 ALTER TABLE public.order_items 
   DROP CONSTRAINT IF EXISTS order_items_order_id_fkey,
   ADD CONSTRAINT order_items_order_id_fkey 
@@ -44,3 +48,27 @@ ALTER TABLE public.vouchers
   DROP CONSTRAINT IF EXISTS vouchers_order_id_fkey,
   ADD CONSTRAINT vouchers_order_id_fkey 
   FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE;
+
+-- Para Kiosk/Quad vinculados a Ordens (se houver)
+ALTER TABLE public.kiosk_reservations 
+  DROP CONSTRAINT IF EXISTS kiosk_reservations_order_id_fkey,
+  ADD CONSTRAINT kiosk_reservations_order_id_fkey 
+  FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE;
+
+ALTER TABLE public.quad_reservations 
+  DROP CONSTRAINT IF EXISTS quad_reservations_order_id_fkey,
+  ADD CONSTRAINT quad_reservations_order_id_fkey 
+  FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE;
+
+-- 4. Garantir colunas essenciais
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS receipt_url TEXT;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS receipt_url TEXT;
+ALTER TABLE public.kiosk_reservations ADD COLUMN IF NOT EXISTS receipt_url TEXT;
+ALTER TABLE public.quad_reservations ADD COLUMN IF NOT EXISTS receipt_url TEXT;
+
+-- 5. Conceder permissões de sequência (caso use serial IDs)
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
+
+-- ==========================================================
+-- FIM DO SCRIPT - POR FAVOR, EXECUTE NO SQL EDITOR DO SUPABASE
+-- ==========================================================

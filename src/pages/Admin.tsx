@@ -741,29 +741,33 @@ export default function Admin() {
   );
 
   return (
-    <div className="min-h-screen bg-background p-4 md:p-8">
-       <div className="max-w-7xl mx-auto space-y-8">
+    <div className="min-h-screen p-4 md:p-8 relative overflow-hidden bg-emerald-50/40">
+       {/* Ambient Glows */}
+       <div className="absolute -top-24 -right-24 w-96 h-96 bg-emerald-200/20 blur-[120px] rounded-full" />
+       <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-blue-200/20 blur-[120px] rounded-full" />
+
+       <div className="max-w-7xl mx-auto space-y-8 relative z-10">
           {/* HEADER */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-4">
               <div className="space-y-2">
-                 <h1 className="text-5xl font-black text-emerald-950 tracking-tighter flex items-center gap-4">
-                    <span className="bg-emerald-600 text-white px-4 py-1 rounded-2xl rotate-[-2deg] shadow-lg">Lessa</span>
-                    <span className="text-emerald-900/40">Painel</span>
+                 <h1 className="text-5xl font-black text-emerald-900 tracking-tighter flex items-center gap-4">
+                    <span className="bg-emerald-600 text-white px-5 py-2 rounded-2xl rotate-[-2deg] shadow-2xl shadow-emerald-500/20">Lessa</span>
+                    <span className="text-emerald-950/80">Painel</span>
                  </h1>
-                 <p className="text-emerald-900/40 font-bold uppercase tracking-widest text-[10px]">Gestão Integrada de Reservas • Balneário</p>
+                 <p className="text-emerald-900/60 font-black uppercase tracking-[0.3em] text-[10px] bg-emerald-100/50 w-fit px-3 py-1 rounded-full border border-emerald-200/50">Gestão Integrada de Reservas • Balneário</p>
               </div>
               <div className="flex items-center gap-4">
                  <Button 
                    variant="ghost" 
-                   className="rounded-2xl bg-white/50 backdrop-blur-sm border border-emerald-100 font-bold h-12 px-6 hover:bg-white hover:shadow-premium transition-all" 
+                   className="rounded-2xl bg-white border border-emerald-200/50 font-black h-12 px-6 hover:bg-emerald-50 hover:shadow-premium transition-all text-emerald-800" 
                    onClick={fetchData} 
                    disabled={loading}
                  >
-                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5 text-emerald-600" />}
-                    <span className="ml-2 text-emerald-900">Atualizar</span>
+                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
+                    <span className="ml-2">Atualizar</span>
                  </Button>
                  <Button 
-                   className="rounded-2xl bg-emerald-950 text-white font-bold h-12 px-8 shadow-xl shadow-emerald-950/20 hover:scale-105 transition-all" 
+                   className="rounded-2xl bg-emerald-950 text-white font-black h-12 px-8 shadow-2xl shadow-emerald-950/30 hover:scale-105 active:scale-95 transition-all" 
                    onClick={handleLogout}
                  >
                     <LogOut className="w-5 h-5 mr-2" /> Sair
@@ -772,41 +776,41 @@ export default function Admin() {
           </div>
 
           {/* TABS */}
-          <div className="flex items-center p-1.5 bg-white/40 backdrop-blur-md rounded-[2.5rem] w-fit max-w-full overflow-x-auto border border-white/60 shadow-premium no-scrollbar">
+          <div className="flex items-center p-2 bg-emerald-900/5 backdrop-blur-xl rounded-[2.8rem] w-fit max-w-full overflow-x-auto border border-white/60 shadow-premium no-scrollbar">
              <button onClick={() => setActiveTab('painel')} className={cn(
-               "px-8 py-3.5 rounded-[2rem] text-sm font-black flex items-center gap-2.5 transition-all active:scale-95", 
-               activeTab === 'painel' ? "bg-white text-emerald-900 shadow-xl shadow-emerald-900/10 scale-105" : "text-emerald-900/40 hover:text-emerald-900 hover:bg-white/20"
+               "px-8 py-4 rounded-[2.2rem] text-sm font-black flex items-center gap-2.5 transition-all active:scale-95 whitespace-nowrap", 
+               activeTab === 'painel' ? "bg-emerald-900 text-white shadow-2xl shadow-emerald-900/20 scale-105" : "text-emerald-900/60 hover:text-emerald-900 hover:bg-white/40"
              )}>
-                <LayoutDashboard className={cn("w-4.5 h-4.5", activeTab === 'painel' ? "text-emerald-600" : "text-current")} /> Painel
+                <LayoutDashboard className="w-4.5 h-4.5" /> Painel
              </button>
              <button onClick={() => setActiveTab('reservas')} className={cn(
-               "px-8 py-3.5 rounded-[2rem] text-sm font-black flex items-center gap-2.5 transition-all active:scale-95", 
-               activeTab === 'reservas' ? "bg-white text-emerald-900 shadow-xl shadow-emerald-900/10 scale-105" : "text-emerald-900/40 hover:text-emerald-900 hover:bg-white/20"
+               "px-8 py-4 rounded-[2.2rem] text-sm font-black flex items-center gap-2.5 transition-all active:scale-95 whitespace-nowrap", 
+               activeTab === 'reservas' ? "bg-emerald-600 text-white shadow-2xl shadow-emerald-600/20 scale-105" : "text-emerald-900/60 hover:text-emerald-900 hover:bg-white/40"
              )}>
-                <CalendarCheck className={cn("w-4.5 h-4.5", activeTab === 'reservas' ? "text-emerald-600" : "text-current")} /> Agenda
+                <CalendarCheck className="w-4.5 h-4.5" /> Agenda
              </button>
              <button onClick={() => setActiveTab('quiosques')} className={cn(
-               "px-8 py-3.5 rounded-[2rem] text-sm font-black flex items-center gap-2.5 transition-all active:scale-95", 
-               activeTab === 'quiosques' ? "bg-white text-emerald-900 shadow-xl shadow-emerald-900/10 scale-105" : "text-emerald-900/40 hover:text-emerald-900 hover:bg-white/20"
+               "px-8 py-4 rounded-[2.2rem] text-sm font-black flex items-center gap-2.5 transition-all active:scale-95 whitespace-nowrap", 
+               activeTab === 'quiosques' ? "bg-emerald-600 text-white shadow-2xl shadow-emerald-600/20 scale-105" : "text-emerald-900/60 hover:text-emerald-900 hover:bg-white/40"
              )}>
-                <Tent className={cn("w-4.5 h-4.5", activeTab === 'quiosques' ? "text-emerald-600" : "text-current")} /> Quiosques
+                <Tent className="w-4.5 h-4.5" /> Quiosques
              </button>
              <button onClick={() => setActiveTab('quads')} className={cn(
-               "px-8 py-3.5 rounded-[2rem] text-sm font-black flex items-center gap-2.5 transition-all active:scale-95", 
-               activeTab === 'quads' ? "bg-white text-emerald-900 shadow-xl shadow-emerald-900/10 scale-105" : "text-emerald-900/40 hover:text-emerald-900 hover:bg-white/20"
+               "px-8 py-4 rounded-[2.2rem] text-sm font-black flex items-center gap-2.5 transition-all active:scale-95 whitespace-nowrap", 
+               activeTab === 'quads' ? "bg-blue-600 text-white shadow-2xl shadow-blue-600/20 scale-105" : "text-emerald-900/60 hover:text-emerald-900 hover:bg-white/40"
              )}>
-                <Bike className={cn("w-4.5 h-4.5", activeTab === 'quads' ? "text-blue-600" : "text-current")} /> Quads
+                <Bike className="w-4.5 h-4.5" /> Quads
              </button>
              <button onClick={() => setActiveTab('vendas')} className={cn(
-               "px-8 py-3.5 rounded-[2rem] text-sm font-black flex items-center gap-2.5 transition-all active:scale-95", 
-               activeTab === 'vendas' ? "bg-white text-emerald-900 shadow-xl shadow-emerald-900/10 scale-105" : "text-emerald-900/40 hover:text-emerald-900 hover:bg-white/20"
+               "px-8 py-4 rounded-[2.2rem] text-sm font-black flex items-center gap-2.5 transition-all active:scale-95 whitespace-nowrap", 
+               activeTab === 'vendas' ? "bg-amber-600 text-white shadow-2xl shadow-amber-600/20 scale-105" : "text-emerald-900/60 hover:text-emerald-900 hover:bg-white/40"
              )}>
-                <ShoppingBag className={cn("w-4.5 h-4.5", activeTab === 'vendas' ? "text-amber-600" : "text-current")} /> Vendas
+                <ShoppingBag className="w-4.5 h-4.5" /> Vendas
              </button>
           </div>
 
-          {/* CONTENT */}
-          <div className="min-h-[600px]">
+          {/* CONTENT AREA WITH GRADIENT BACKGROUND */}
+          <div className="min-h-[600px] bg-white/40 backdrop-blur-md rounded-[3rem] p-8 border border-white/60 shadow-premium">
              {activeTab === 'painel' && renderDashboard()}
              {activeTab === 'reservas' && (
                <div className="space-y-6">
