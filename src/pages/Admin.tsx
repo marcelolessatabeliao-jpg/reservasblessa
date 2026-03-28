@@ -103,12 +103,20 @@ export default function Admin() {
     setLoading(true);
     try {
       const { data: bks } = await supabase.from('bookings').select('*').order('visit_date', { ascending: false });
-      const { data: kiosks } = await supabase.from('kiosk_reservations').select('*, bookings(name, phone)').order('reservation_date', { ascending: false });
-      const { data: quads } = await supabase.from('quad_reservations').select('*, bookings(name, phone)').order('reservation_date', { ascending: false });
+      const { data: kiosks } = await supabase.from('kiosk_reservations').select('*, orders(customer_name)').order('reservation_date', { ascending: false });
+      const { data: quads } = await supabase.from('quad_reservations').select('*, orders(customer_name)').order('reservation_date', { ascending: false });
       const orderData = await getAdminOrders();
       
-      let parsedKiosks = [...(kiosks || [])];
-      let parsedQuads = [...(quads || [])];
+      // Map reservations to include customer names correctly from either source
+      let parsedKiosks = (kiosks || []).map(k => ({
+         ...k,
+         customer_name: k.orders?.customer_name || 'Reserva Direta'
+      }));
+      
+      let parsedQuads = (quads || []).map(q => ({
+         ...q,
+         customer_name: q.orders?.customer_name || 'Reserva Direta'
+      }));
 
       if (orderData) {
          orderData.forEach((o: any) => {
@@ -118,7 +126,9 @@ export default function Admin() {
             
             o.order_items.forEach((item: any) => {
                const pId = (item.product_id || '').toLowerCase();
-               if (pId.includes('quiosque')) {
+               
+               // Only add Kiosks from orders if NOT already in parsedKiosks (via order_id)
+               if (pId.includes('quiosque') && !parsedKiosks.some(pk => pk.order_id === o.id)) {
                  for(let i=0; i<item.quantity; i++) {
                    parsedKiosks.push({
                      id: `order-${o.id}-k-${i}`,
@@ -130,13 +140,14 @@ export default function Admin() {
                    });
                  }
                }
-                if (pId.includes('quad')) {
+
+               // Only add Quads from orders if NOT already in parsedQuads (via order_id)
+               if (pId.includes('quad') && !parsedQuads.some(pq => pq.order_id === o.id)) {
                   // Try to find a time slot (HH:MM or HHhMM) in name or metadata
                   const searchStr = `${item.product_name || ''} ${JSON.stringify(item.metadata || {})} ${o.notes || ''}`.toUpperCase();
                   const timeMatch = searchStr.match(/(\d{2}[:H]\d{2})/);
                   let finalSlot = timeMatch ? timeMatch[1].replace('H', ':') : null;
                   
-                  // If not found, check if it's one of our standard slots
                   if (!finalSlot) {
                     const standardSlot = QUAD_TIMES.find(t => searchStr.includes(t));
                     finalSlot = standardSlot || (pId.includes('dupla') ? 'DUPLA' : 'INDIV');
@@ -151,7 +162,7 @@ export default function Admin() {
                      price: item.quantity * item.unit_price,
                      is_from_order: true
                   });
-                }
+               }
             });
          });
       }
