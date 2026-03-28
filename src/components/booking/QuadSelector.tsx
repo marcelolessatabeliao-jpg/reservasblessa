@@ -139,28 +139,27 @@ export function QuadSelector({ quads, onUpdate }: Props) {
 
               {/* Quantity Selection Second */}
               <div className={cn(
-                "flex items-center justify-between p-4 rounded-2xl border transition-all",
-                quad.time ? "bg-primary/5 border-primary/10" : "bg-slate-50 border-slate-100 opacity-50 pointer-events-none"
+                "flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 sm:p-4 rounded-2xl border transition-all",
+                quad.time 
+                  ? "bg-emerald-50/60 border-emerald-500/30 shadow-sm" 
+                  : "bg-slate-50 border-slate-200 opacity-60 pointer-events-none"
               )}>
-                <div>
-                  <label className="text-[10px] font-bold text-primary/40 uppercase tracking-widest block mb-1">
-                    2. Quantidade
-                  </label>
-                  <p className="font-sans font-bold text-sm sm:text-base">{QUAD_LABELS[quad.type]}</p>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {discount > 0 ? (
-                      <>
-                        <span className="text-muted-foreground line-through text-[10px] sm:text-xs">{formatCurrency(basePrice)}</span>
-                        <span className="text-primary font-bold text-base">
-                          {quad.quantity > 0 ? formatCurrency(finalPrice * quad.quantity) : formatCurrency(finalPrice)}
-                        </span>
-                        <span className="bg-sun/20 text-sun-dark text-[10px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5 shadow-sm">
-                          <Tag className="h-2.5 w-2.5" /> -{discount * 100}%
-                        </span>
-                      </>
-                    ) : (
-                      <span className="text-primary font-bold text-base">
-                        {quad.quantity > 0 ? formatCurrency(basePrice * quad.quantity) : formatCurrency(basePrice)}
+                <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                  <span className="text-[10px] font-black text-emerald-800/50 uppercase tracking-widest shrink-0">2. Quantidade:</span>
+                  <span className="font-sans font-black text-sm text-emerald-950">{QUAD_LABELS[quad.type]}</span>
+                  <span className="text-emerald-200 mx-0.5">•</span>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {discount > 0 && (
+                      <span className="text-emerald-800/40 line-through text-[10px] font-bold">
+                        {formatCurrency(basePrice)}
+                      </span>
+                    )}
+                    <span className="text-emerald-900 font-black text-sm sm:text-base">
+                      {quad.quantity > 0 ? formatCurrency(finalPrice * quad.quantity) : formatCurrency(finalPrice)}
+                    </span>
+                    {discount > 0 && (
+                      <span className="bg-sun/20 text-sun-dark text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-xs">
+                        -{discount * 100}%
                       </span>
                     )}
                   </div>
@@ -170,7 +169,6 @@ export function QuadSelector({ quads, onUpdate }: Props) {
                   max={(() => {
                     if (!quad.time || !checkDate) return 0;
                     const usedInDb = slotAvailabilities[quad.time] || 0;
-                    // others = all quads in the SAME slot except this ones quantity
                     const usedLocallyOthers = quads.reduce((acc, qry, idx) => {
                       if (idx !== i && qry.time === quad.time) return acc + qry.quantity;
                       return acc;
@@ -184,10 +182,10 @@ export function QuadSelector({ quads, onUpdate }: Props) {
               </div>
 
               {quad.quantity > 0 && (
-                <div className="flex items-center gap-2 bg-emerald-50 px-4 h-10 rounded-xl border border-emerald-100 shadow-sm">
-                  <CalendarIcon className="h-3.5 w-3.5 text-emerald-600" />
-                  <p className="text-[10px] font-bold text-emerald-700 uppercase">
-                    Agendado para {format(quad.date!, "dd/MM/yyyy")} às {quad.time}
+                <div className="flex items-center gap-2 bg-emerald-900 text-white px-3 h-8 rounded-xl shadow-md self-start ml-2 -mt-2 relative z-10 border border-emerald-700">
+                  <CalendarIcon className="h-3 w-3" />
+                  <p className="text-[9px] font-black uppercase tracking-wider">
+                    Agendado — {format(quad.date!, "dd/MM/yyyy")} às {quad.time}
                   </p>
                 </div>
               )}

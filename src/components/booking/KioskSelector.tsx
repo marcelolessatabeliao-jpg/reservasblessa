@@ -62,23 +62,29 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
         const remaining = Math.max(0, totalAvailable - kiosk.quantity);
         
         return (
-          <div key={kiosk.type} className="bg-white/50 backdrop-blur-md rounded-2xl border border-white/60 p-4 sm:p-5 shadow-xl">
-            <div className="flex items-center justify-between gap-2 mb-3">
+          <div key={kiosk.type} className="bg-emerald-50/40 backdrop-blur-md rounded-2xl border border-emerald-500/20 p-4 sm:p-5 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
               <div className="min-w-0">
-                <p className="font-sans font-bold text-sm sm:text-base">
-                  {info.label} 
-                </p>
-                <div className="flex flex-col gap-0.5">
-                  <p className="text-[10px] sm:text-xs text-muted-foreground">Capacidade: {info.capacity}</p>
-                  <p className={cn("text-[10px] sm:text-xs font-bold", remaining > 0 ? "text-green-600" : (kiosk.quantity >= totalAvailable ? "text-amber-600" : "text-destructive"))}>
-                    {isFetching ? 'Verificando...' : (totalAvailable > 0 ? (remaining > 0 ? `${remaining} adicionais disponíveis` : 'Limite atingido p/ você') : 'Lotado para este dia')}
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-[10px] font-black text-emerald-800/50 uppercase tracking-widest">2. Quiosque:</span>
+                  <p className="font-sans font-black text-sm sm:text-base text-emerald-950">
+                    {info.label} 
                   </p>
                 </div>
-                <p className="text-primary font-bold text-base sm:text-lg">
-                  {kiosk.quantity > 1 
-                    ? `${formatCurrency(basePrice)} x ${kiosk.quantity} = ${formatCurrency(basePrice * kiosk.quantity)}` 
-                    : formatCurrency(basePrice)}
-                </p>
+                <div className="flex items-center gap-3">
+                  <div className="flex flex-col">
+                    <p className="text-[10px] text-muted-foreground font-bold">Capacidade: {info.capacity}</p>
+                    <p className={cn("text-[10px] font-black", remaining > 0 ? "text-emerald-600" : (kiosk.quantity >= totalAvailable ? "text-amber-600" : "text-destructive"))}>
+                      {isFetching ? 'Verificando...' : (totalAvailable > 0 ? (remaining > 0 ? `${remaining} adicionais` : 'Limite atingido') : 'Lotado')}
+                    </p>
+                  </div>
+                  <div className="w-px h-6 bg-emerald-200" />
+                  <p className="text-emerald-900 font-black text-base sm:text-lg">
+                    {kiosk.quantity > 1 
+                      ? `${formatCurrency(basePrice)} x ${kiosk.quantity} = ${formatCurrency(basePrice * kiosk.quantity)}` 
+                      : formatCurrency(basePrice)}
+                  </p>
+                </div>
               </div>
               <QuantityStepper 
                 value={kiosk.quantity} 
