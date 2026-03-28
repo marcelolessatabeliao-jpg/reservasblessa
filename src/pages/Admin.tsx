@@ -53,9 +53,10 @@ const PAYMENT_METHODS = [
 type TabType = 'painel' | 'reservas' | 'quiosques' | 'quads' | 'vendas';
 
 const BR_HOLIDAYS_2026 = [
-  "2026-01-01", "2026-02-16", "2026-02-17", "2026-04-03", "2026-04-21",
-  "2026-05-01", "2026-06-04", "2026-09-07", "2026-10-12", "2026-11-02",
-  "2026-11-15", "2026-11-20", "2026-12-25",
+  "2026-01-01", "2026-02-16", "2026-02-17", "2026-04-03", "2026-04-05", 
+  "2026-04-21", "2026-05-01", "2026-05-14", "2026-05-24", "2026-06-04", 
+  "2026-07-09", "2026-09-07", "2026-10-12", "2026-11-02", "2026-11-15", 
+  "2026-11-20", "2026-12-25"
 ];
 
 const isHoliday = (date: Date) => {
@@ -129,17 +130,28 @@ export default function Admin() {
                    });
                  }
                }
-               if (pId.includes('quad')) {
+                if (pId.includes('quad')) {
+                  // Try to find a time slot (HH:MM or HHhMM) in name or metadata
+                  const searchStr = `${item.product_name || ''} ${JSON.stringify(item.metadata || {})} ${o.notes || ''}`.toUpperCase();
+                  const timeMatch = searchStr.match(/(\d{2}[:H]\d{2})/);
+                  let finalSlot = timeMatch ? timeMatch[1].replace('H', ':') : null;
+                  
+                  // If not found, check if it's one of our standard slots
+                  if (!finalSlot) {
+                    const standardSlot = QUAD_TIMES.find(t => searchStr.includes(t));
+                    finalSlot = standardSlot || (pId.includes('dupla') ? 'DUPLA' : 'INDIV');
+                  }
+
                   parsedQuads.push({
                      id: `order-${o.id}-q-${item.id}`,
-                     time_slot: pId.includes('dupla') ? 'DUPLA' : 'INDIV',
+                     time_slot: finalSlot,
                      quantity: item.quantity,
                      reservation_date: resDate,
                      customer_name: customerName,
                      price: item.quantity * item.unit_price,
                      is_from_order: true
                   });
-               }
+                }
             });
          });
       }
@@ -371,7 +383,19 @@ export default function Admin() {
                    </h4>
                    <div className="grid grid-cols-3 sm:grid-cols-5 gap-4">
                       {KIOSKS.map(k => {
-                        const booking = dayKiosks.find(b => Number(b.kiosk_id) === k.id);
+                        // For orders, we need to find if this kiosk was assigned to this ID
+                        const booking = dayKiosks.find(b => {
+                          if (Number(b.kiosk_id) === k.id) return true;
+                          // If it's a generic 'MENOR' from order, we need to map it to IDs 2-5
+                          if (b.is_from_order && b.kiosk_id === 'MENOR') {
+                             // This is a bit tricky, but let's try to find if this ID k.id (2-5) 
+                             // is the nth 'MENOR' in the order list for this day
+                             const dayOrderMenors = dayKiosks.filter(dk => dk.is_from_order && dk.kiosk_id === 'MENOR');
+                             const orderIdx = dayOrderMenors.findIndex(dk => dk.id === b.id);
+                             if (k.id === orderIdx + 2) return true; // Map index 0 to K-2, 1 to K-3, etc.
+                          }
+                          return false;
+                        });
                         return (
                           <div key={k.id} className={cn(
                             "group relative aspect-square rounded-[2rem] border-2 transition-all flex flex-col items-center justify-center gap-1",
@@ -399,8 +423,11 @@ export default function Admin() {
                     </h4>
                     <div className="grid grid-cols-2 gap-3">
                        {QUAD_TIMES.map(slot => {
-                         const slotBookings = dayQuads.filter(b => (b.time_slot || '').includes(slot));
-                         const count = slotBookings.reduce((s, r) => s + (r.quantity || 1), 0);
+                         const slotBookings = dayQuads.filter(b => {
+                           const bSlot = (b.time_slot || '').toUpperCase();
+                           return bSlot === slot || bSlot.includes(slot);
+                         });
+                         const count = slotBookings.reduce((s, r) => s + (Number(r.quantity) || 1), 0);
                          return (
                            <div key={slot} className={cn(
                              "p-4 rounded-[1.5rem] border-2 transition-all flex flex-col items-center gap-1",
@@ -828,8 +855,10 @@ export default function Admin() {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-4">
               <div className="space-y-2">
                  <h1 className="text-5xl font-black text-emerald-900 tracking-tighter flex items-center gap-4">
-                    <span className="bg-emerald-600 text-white px-5 py-2 rounded-2xl rotate-[-2deg] shadow-2xl shadow-emerald-500/20">Lessa</span>
-                    <span className="text-emerald-950/80">Painel</span>
+                     <div className="flex flex-col -space-y-2">
+                        <span className="text-2xl text-emerald-600/60 leading-none">Lessa</span>
+                        <span className="text-5xl">Painel</span>
+                     </div>
                  </h1>
                  <p className="text-emerald-900/60 font-black uppercase tracking-[0.3em] text-[10px] bg-emerald-100/50 w-fit px-3 py-1 rounded-full border border-emerald-200/50">Gestão Integrada de Reservas • Balneário</p>
               </div>
