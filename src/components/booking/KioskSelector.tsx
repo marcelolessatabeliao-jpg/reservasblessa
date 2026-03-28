@@ -76,53 +76,55 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
         
         return (
           <div key={kiosk.type} className={cn(
-               "group relative overflow-hidden bg-white/70 backdrop-blur-xl rounded-[3rem] border-4 transition-all duration-500 p-6 sm:p-8",
+               "group relative overflow-hidden bg-white rounded-3xl border-2 transition-all duration-300 p-5 sm:p-6",
                kiosk.quantity > 0 
-                ? "border-emerald-500 shadow-2xl shadow-emerald-200/60 scale-[1.01]" 
-                : "border-emerald-50 hover:border-emerald-200 hover:shadow-xl hover:bg-white"
+                ? "border-emerald-500 shadow-lg scale-[1.01]" 
+                : "border-emerald-100 hover:border-emerald-200 hover:shadow-md"
           )}>
-            <div className="absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-10 transition-all pointer-events-none group-hover:scale-110">
-               <Home className="w-40 h-40 rotate-12" />
+            <div className="absolute top-0 right-0 p-6 opacity-[0.05] pointer-events-none group-hover:scale-110 transition-transform">
+               <Home className="w-24 h-24" />
             </div>
 
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-6 relative z-10">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 relative z-10">
               <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-3 mb-2">
+                  <div className="flex items-center gap-2 mb-1">
                      <div className={cn(
-                        "p-3 rounded-2xl shadow-sm transition-all",
-                        kiosk.quantity > 0 ? "bg-emerald-600 text-white shadow-emerald-200" : "bg-emerald-50 text-emerald-600"
+                        "p-2 rounded-xl transition-all",
+                        kiosk.quantity > 0 ? "bg-emerald-500 text-white" : "bg-emerald-50 text-emerald-600"
                      )}>
-                        <Home className="h-6 w-6" />
+                        <Home className="h-5 w-5" />
                      </div>
-                     <h4 className="font-gliker text-2xl sm:text-3xl text-emerald-950 uppercase tracking-tighter">{info.label}</h4>
+                     <h4 className="font-bold text-lg sm:text-xl text-emerald-950 uppercase tracking-tight">{info.label}</h4>
                      {kiosk.type === 'maior' && (
-                        <div className="bg-sun/20 p-1.5 rounded-xl border border-sun/30">
-                           <Star className="h-4 w-4 text-sun fill-sun animate-pulse" />
+                        <div className="bg-amber-100 p-1 rounded-lg">
+                           <Star className="h-3 w-3 text-amber-600 fill-amber-600" />
                         </div>
                      )}
                   </div>
-                  <div className="flex flex-wrap gap-4 mb-4">
-                     <div className="flex items-center gap-2 font-black text-[10px] text-emerald-800/40 uppercase tracking-[0.2em] bg-emerald-50/50 px-3 py-1.5 rounded-xl border border-emerald-100/50">
-                        <Tent className="h-3.5 w-3.5 text-emerald-600" /> Capacidade: {info.capacity}
+                  
+                  <div className="flex flex-wrap gap-3 mb-3">
+                     <div className="flex items-center gap-1.5 font-bold text-[10px] text-emerald-800/60 uppercase tracking-wider">
+                        <Tent className="h-3 w-3" /> Cap: {info.capacity}
                      </div>
                      <div className={cn(
-                        "text-[10px] font-black uppercase tracking-[0.2em] px-3 py-1.5 rounded-xl border flex items-center gap-2", 
-                        isFull ? "bg-red-50 text-red-500 border-red-100" : "bg-emerald-50 text-emerald-600 border-emerald-100"
+                        "text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5", 
+                        isFull ? "text-red-500" : "text-emerald-600"
                      )}>
-                        <div className={cn("w-2 h-2 rounded-full", isFull ? "bg-red-500" : "bg-emerald-500 animate-pulse")} />
-                        {isFetching ? 'VERIFICANDO...' : (isFull ? 'ESTÁ LOTADO HOJE' : `${remaining} DISPONÍVEIS`)}
+                        <div className={cn("w-1.5 h-1.5 rounded-full", isFull ? "bg-red-500" : "bg-emerald-500")} />
+                        {isFetching ? 'Verificando...' : (isFull ? 'Lotado' : `${remaining} Disponíveis`)}
                      </div>
                   </div>
-                  <div className="flex items-baseline gap-2 bg-emerald-50/50 p-2 rounded-2xl w-fit">
-                     <span className={cn("font-black text-4xl tracking-tighter", kiosk.quantity > 0 ? "text-emerald-700" : "text-emerald-900/40 transition-colors group-hover:text-emerald-900")}>
+
+                  <div className="flex items-baseline gap-1.5 bg-emerald-50/80 px-3 py-1.5 rounded-xl w-fit">
+                     <span className={cn("font-extrabold text-2xl tracking-tighter", kiosk.quantity > 0 ? "text-emerald-700" : "text-emerald-900")}>
                          {formatCurrency(basePrice)}
                      </span>
-                     <span className="text-[10px] font-black text-emerald-900/20 uppercase tracking-widest mt-2">/ por locação</span>
+                     <span className="text-[10px] font-bold text-emerald-900/40 uppercase tracking-widest">/ locação</span>
                   </div>
               </div>
 
-              <div className="w-full sm:w-auto flex flex-col items-center gap-3">
-                <div className="p-2 rounded-3xl bg-white shadow-inner border border-emerald-100/50 hover:scale-105 transition-transform active:scale-95">
+              <div className="w-full sm:w-auto flex flex-col items-center gap-2 pt-2 sm:pt-0">
+                <div className="bg-white border border-emerald-100 rounded-2xl p-1">
                   <QuantityStepper 
                     value={kiosk.quantity} 
                     onChange={(q) => handleUpdate(i, q, remaining)} 
@@ -131,18 +133,18 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
                   />
                 </div>
                 {kiosk.quantity > 0 && (
-                   <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-1 animate-in zoom-in duration-300">
+                   <span className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest flex items-center gap-1">
                       <CheckCircle2 className="h-3 w-3" /> Selecionado
                    </span>
                 )}
               </div>
             </div>
             
-            <div className="mt-8 p-5 bg-emerald-50/30 rounded-[2rem] border-2 border-dashed border-emerald-100/50">
+            <div className="mt-4 p-3 bg-emerald-50/30 rounded-2xl border border-emerald-100/50">
                <div className="flex flex-wrap gap-2">
                  {['Churrasqueira', 'Pia exclusiva', 'Grelha inclusa', 'Mesas e Cadeiras'].map((item) => (
-                    <span key={item} className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-emerald-900 bg-white/70 px-4 py-2 rounded-2xl shadow-sm border border-white">
-                       <CheckCircle2 className="h-3 w-3 text-emerald-600" /> {item}
+                    <span key={item} className="inline-flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-tight text-emerald-900/70">
+                       <CheckCircle2 className="h-3 w-3 text-emerald-500" /> {item}
                     </span>
                  ))}
                </div>
@@ -150,21 +152,20 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
 
             {kiosk.quantity > 0 && (
                <motion.div 
-                 initial={{ opacity: 0, scale: 0.95 }}
-                 animate={{ opacity: 1, scale: 1 }}
-                 className="mt-6 flex items-center gap-4 bg-gradient-to-r from-emerald-600 to-emerald-800 text-white px-7 py-5 rounded-[2.5rem] shadow-2xl shadow-emerald-200 relative overflow-hidden group/confirm"
+                 initial={{ opacity: 0, y: 5 }}
+                 animate={{ opacity: 1, y: 0 }}
+                 className="mt-4 flex items-center gap-3 bg-emerald-600 text-white px-5 py-3 rounded-2xl shadow-md overflow-hidden relative"
                >
-                  <div className="absolute inset-0 bg-white/5 opacity-0 group-hover/confirm:opacity-100 transition-opacity" />
-                  <CalendarIcon className="h-6 w-6 text-emerald-200 shrink-0" />
+                  <CalendarIcon className="h-5 w-5 text-emerald-200 shrink-0" />
                   <div className="flex-1">
-                    <p className="text-[10px] font-black text-emerald-200 uppercase leading-none mb-1 tracking-[0.2em]">Reserva Garantida:</p>
-                    <p className="font-gliker text-xl uppercase leading-none tracking-tight">
+                    <p className="text-[9px] font-bold opacity-80 uppercase leading-none mb-1 tracking-wider">Reserva para:</p>
+                    <p className="font-bold text-sm uppercase leading-none">
                        {kiosk.date ? format(kiosk.date, "dd MMMM (EEE)", { locale: ptBR }) : "--"}
                     </p>
                   </div>
                   <div className="text-right">
-                    <span className="text-[10px] font-black text-emerald-200 uppercase block mb-1">Subtotal:</span>
-                    <span className="font-gliker text-2xl tracking-tighter text-white">{formatCurrency(basePrice * kiosk.quantity)}</span>
+                    <span className="text-[9px] font-bold opacity-80 uppercase block mb-1">Total:</span>
+                    <span className="font-extrabold text-base tracking-tight">{formatCurrency(basePrice * kiosk.quantity)}</span>
                   </div>
                </motion.div>
             )}

@@ -392,30 +392,48 @@ export default function Admin() {
                    </div>
                 </div>
 
-                <div className="space-y-10">
-                   <h4 className="text-[12px] font-black text-emerald-900/40 uppercase tracking-[0.4em] flex items-center gap-3">
-                      <Bike className="w-4 h-4 text-blue-600" /> Quadriciclos
-                      <span className="h-px bg-emerald-100 flex-1" />
-                   </h4>
-                   <div className="grid grid-cols-2 gap-4">
-                      {QUAD_TIMES.map(slot => {
-                        const bookings = dayQuads.filter(b => b.time_slot === slot);
-                        const count = bookings.reduce((s, r) => s + (r.quantity || 1), 0);
-                        return (
-                          <div key={slot} className={cn(
-                            "p-6 rounded-[2.5rem] border-2 transition-all flex flex-col items-center gap-2",
-                            count > 0 
-                              ? "bg-blue-600 border-blue-600 text-white shadow-xl shadow-blue-600/20" 
-                              : "bg-blue-50/20 border-blue-100 text-blue-900/10 hover:border-blue-300"
-                          )}>
-                             <span className={cn("text-[10px] font-black uppercase tracking-widest", count > 0 ? "text-blue-100" : "text-blue-900")}>{slot}</span>
-                             <span className="text-3xl font-black tabular-nums">{count}/5</span>
-                             <span className="text-[8px] font-black uppercase opacity-50">Vagas Ocupadas</span>
-                          </div>
-                        );
-                      })}
-                   </div>
-                </div>
+                <div className="space-y-6">
+                    <h4 className="text-[10px] font-black text-emerald-900/40 uppercase tracking-[0.3em] flex items-center gap-3">
+                       <Bike className="w-4 h-4 text-blue-600" /> Quadriciclos
+                       <span className="h-px bg-emerald-100 flex-1" />
+                    </h4>
+                    <div className="grid grid-cols-2 gap-3">
+                       {QUAD_TIMES.map(slot => {
+                         const slotBookings = dayQuads.filter(b => (b.time_slot || '').includes(slot));
+                         const count = slotBookings.reduce((s, r) => s + (r.quantity || 1), 0);
+                         return (
+                           <div key={slot} className={cn(
+                             "p-4 rounded-[1.5rem] border-2 transition-all flex flex-col items-center gap-1",
+                             count > 0 
+                               ? "bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/20" 
+                               : "bg-blue-50/20 border-blue-100 text-blue-900/10 hover:border-blue-300"
+                           )}>
+                              <span className={cn("text-[9px] font-black uppercase tracking-widest", count > 0 ? "text-blue-100" : "text-blue-900")}>{slot}</span>
+                              <div className="flex items-baseline gap-1">
+                                 <span className="text-2xl font-black tabular-nums leading-none">{count}</span>
+                                 <span className="text-[10px] opacity-60 font-bold">/5</span>
+                              </div>
+                           </div>
+                         );
+                       })}
+                    </div>
+                    
+                    {/* Fallback for Quads from orders or with non-standard slots */}
+                    {dayQuads.filter(b => !QUAD_TIMES.some(t => (b.time_slot || '').includes(t))).length > 0 && (
+                      <div className="mt-4 p-4 bg-amber-50 rounded-2xl border border-amber-200">
+                        <p className="text-[9px] font-black text-amber-700 uppercase tracking-widest mb-2 flex items-center gap-2">
+                           <AlertTriangle className="w-3 h-3" /> Outros / Sem Horário
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {dayQuads.filter(b => !QUAD_TIMES.some(t => (b.time_slot || '').includes(t))).map(b => (
+                            <Badge key={b.id} className="bg-amber-100 text-amber-800 border-amber-200 text-[8px] font-bold px-3 py-1">
+                              {b.customer_name}: {b.quantity || 1} quad. ({b.time_slot})
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                 </div>
              </div>
           </Card>
         </div>
@@ -800,12 +818,12 @@ export default function Admin() {
   );
 
   return (
-    <div className="min-h-screen p-4 md:p-8 relative overflow-hidden bg-gradient-to-br from-emerald-50 via-white to-emerald-50 bg-fixed">
+    <div className="min-h-screen bg-gradient-to-br from-[#f0fff4] via-white to-[#e0f2fe] bg-fixed">
        {/* Ambient Glows */}
        <div className="absolute -top-24 -right-24 w-96 h-96 bg-emerald-200/20 blur-[120px] rounded-full" />
        <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-blue-200/20 blur-[120px] rounded-full" />
 
-       <div className="max-w-7xl mx-auto space-y-8 relative z-10">
+       <div className="max-w-7xl mx-auto space-y-8 relative z-10 p-4 md:p-8">
           {/* HEADER */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-4">
               <div className="space-y-2">
