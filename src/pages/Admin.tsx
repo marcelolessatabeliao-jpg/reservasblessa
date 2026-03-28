@@ -426,15 +426,16 @@ export default function Admin() {
                    </h4>
                    
                    <div className="flex flex-col gap-3">
-                      {KIOSKS.map(k => {
+                       {KIOSKS.map(k => {
                         const booking = dayKiosks.find(b => {
-                          if (Number(b.kiosk_id) === k.id) return true;
-                          if (b.kiosk_id === 'MENOR') {
+                          const bid = b.kiosk_id;
+                          if (bid === 1 || bid === '1' || bid === 'MAIOR') return k.id === 1;
+                          if (bid === 'MENOR') {
                              const dayOrderMenors = dayKiosks.filter(dk => dk.kiosk_id === 'MENOR');
                              const orderIdx = dayOrderMenors.findIndex(dk => dk.id === b.id);
                              if (k.id === orderIdx + 2) return true;
                           }
-                          return false;
+                          return Number(bid) === k.id;
                         });
                         
                         return (
