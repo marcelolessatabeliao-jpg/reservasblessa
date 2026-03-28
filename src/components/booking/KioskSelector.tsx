@@ -66,7 +66,9 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
               return (
                 <div className="flex items-center justify-between gap-2 mb-3">
                   <div className="min-w-0">
-                    <p className="font-sans font-bold text-sm sm:text-base">{info.label}</p>
+                    <p className="font-sans font-bold text-sm sm:text-base">
+                      {info.label} {kiosk.type === 'menor' ? '(Limite: 4 p/ dia)' : '(Limite: 1 p/ dia)'}
+                    </p>
                     <div className="flex flex-col gap-0.5">
                       <p className="text-[10px] sm:text-xs text-muted-foreground">Capacidade: {info.capacity}</p>
                       <p className={cn("text-[10px] sm:text-xs font-bold", remaining > 0 ? "text-green-600" : "text-destructive")}>
