@@ -20,7 +20,7 @@ export function Navbar() {
       <div className="container px-2 sm:px-4 flex items-center justify-between h-12 sm:h-16 relative">
         <a href="#inicio" className="flex items-center gap-1 sm:gap-3 min-w-0">
           <img src={logo} alt="Balneário Lessa" className="h-7 sm:h-10 shrink-0" />
-          <span className="hidden sm:inline font-display font-black text-primary-foreground text-lg md:text-xl tracking-wide uppercase whitespace-nowrap">
+          <span className="hidden sm:inline font-sans font-bold text-primary-foreground text-lg md:text-xl tracking-wide uppercase whitespace-nowrap">
             Balneário Lessa
           </span>
         </a>
@@ -53,7 +53,7 @@ export function Navbar() {
               </a>
             </Button>
             
-            <Button asChild className="bg-sun hover:bg-sun-light text-foreground font-display font-black px-6 shadow-lg shadow-sun/20">
+            <Button asChild className="bg-sun hover:bg-sun-light text-foreground font-sans font-bold px-6 shadow-lg shadow-sun/20">
               <a href="#reservas" className="flex items-center gap-2">
                 <Ticket className="h-4 w-4" /> Reservar
               </a>

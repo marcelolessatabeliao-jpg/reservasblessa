@@ -279,7 +279,7 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
         <div className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-primary/10 text-primary shrink-0">
           <span className="text-base sm:text-lg">📝</span>
         </div>
-        <h3 className="font-display font-bold text-lg sm:text-xl">Resumo da Experiência (v3)</h3>
+        <h3 className="font-sans font-bold text-lg sm:text-xl">Resumo da Experiência (v3)</h3>
       </div>
 
       <div className="bg-white/50 backdrop-blur-md rounded-2xl border border-white/60 p-5 sm:p-6 shadow-xl space-y-5">
@@ -287,7 +287,7 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
         {/* Entradas */}
         {/* Data selecionada */}
         <div className="bg-primary/5 rounded-xl border border-primary/20 p-4 flex items-center justify-between">
-          <span className="text-[11px] uppercase font-black tracking-widest text-muted-foreground">Data da Visita:</span>
+          <span className="text-[11px] uppercase font-bold tracking-widest text-muted-foreground">Data da Visita:</span>
           {booking.entry.visitDate ? (
             <span className="font-bold text-primary">{format(booking.entry.visitDate, "dd/MM/yyyy (EEEE)", { locale: ptBR })}</span>
           ) : (
@@ -604,7 +604,7 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
                     {saving && activePaymentMethod === 'PIX' ? <Loader2 className="h-7 w-7 animate-spin" /> : <QrCode className="h-7 w-7 text-white" />}
                   </div>
                   <div className="text-left leading-tight">
-                    <span className="block text-[10px] text-white/80 font-black uppercase tracking-widest mb-0.5">Pagar Agora Online</span>
+                    <span className="block text-[10px] text-white/80 font-bold uppercase tracking-widest mb-0.5">Pagar Agora Online</span>
                     Gerar PIX
                   </div>
                 </Button>
@@ -613,13 +613,13 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
                   size="lg"
                   onClick={() => handleAction('CREDIT_CARD')}
                   disabled={saving}
-                  className="w-full h-20 sm:h-24 rounded-[2rem] bg-primary hover:bg-primary-dark text-white font-black text-lg sm:text-xl flex items-center justify-center gap-4 shadow-xl active:scale-[0.97] transition-all group overflow-hidden relative border-b-8 border-primary-dark"
+                  className="w-full h-20 sm:h-24 rounded-[2rem] bg-primary hover:bg-primary-dark text-white font-bold text-lg sm:text-xl flex items-center justify-center gap-4 shadow-xl active:scale-[0.97] transition-all group overflow-hidden relative border-b-8 border-primary-dark"
                 >
                   <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md">
                     {saving && activePaymentMethod === 'CREDIT_CARD' ? <Loader2 className="h-7 w-7 animate-spin" /> : <CreditCard className="h-7 w-7 text-white" />}
                   </div>
                   <div className="text-left leading-tight">
-                    <span className="block text-[10px] text-white/80 font-black uppercase tracking-widest mb-0.5">Pagar Agora Online</span>
+                    <span className="block text-[10px] text-white/80 font-bold uppercase tracking-widest mb-0.5">Pagar Agora Online</span>
                     Cartão de Crédito
                   </div>
                 </Button>

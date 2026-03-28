@@ -13,6 +13,11 @@ import { useServices } from '@/hooks/useServices';
 import { getQuadAvailability } from '@/lib/booking-service';
 import { useToast } from '@/hooks/use-toast';
 
+interface Props {
+  quads: QuadItem[];
+  onUpdate: (index: number, updates: Partial<QuadItem>) => void;
+}
+
 export function QuadSelector({ quads, onUpdate }: Props) {
   const { getPrice, isLoading } = useServices();
   const { toast } = useToast();
@@ -52,12 +57,12 @@ export function QuadSelector({ quads, onUpdate }: Props) {
         <div className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-primary/10 text-primary shrink-0">
           <Bike className="h-4 w-4 sm:h-5 sm:w-5" />
         </div>
-        <h3 className="font-display font-bold text-lg sm:text-xl">3. Passeio de Quadriciclo</h3>
+        <h3 className="font-sans font-bold text-lg sm:text-xl">3. Passeio de Quadriciclo</h3>
       </div>
       
       <div className="bg-sun/10 border border-sun/20 p-3 sm:p-4 rounded-xl mb-4 shadow-sm">
         <p className="text-xs sm:text-sm text-sun-dark font-medium leading-relaxed">
-          <strong className="font-black uppercase tracking-wider">⏱️ Duração: 1h30 de passeio</strong> com Desafios com pedras, lama, rio, barrancos, floresta, buracos, poças de água, piscina natural, batistério e uma incrível tirolesa!
+          <strong className="font-bold uppercase tracking-wider">⏱️ Duração: 1h30 de passeio</strong> com Desafios com pedras, lama, rio, barrancos, floresta, buracos, poças de água, piscina natural, batistério e uma incrível tirolesa!
         </p>
       </div>
 
@@ -72,7 +77,7 @@ export function QuadSelector({ quads, onUpdate }: Props) {
           <div key={quad.type} className="bg-white/50 backdrop-blur-md rounded-2xl border border-white/60 p-4 sm:p-5 shadow-xl">
             <div className="flex items-center justify-between gap-2 mb-3">
               <div className="min-w-0">
-                <p className="font-display font-bold text-sm sm:text-base">{QUAD_LABELS[quad.type]}</p>
+                <p className="font-sans font-bold text-sm sm:text-base">{QUAD_LABELS[quad.type]}</p>
                 {quad.type === 'adulto-crianca' && (
                   <p className="text-[10px] sm:text-xs text-muted-foreground">(válido para crianças até 11 anos)</p>
                 )}
@@ -108,7 +113,7 @@ export function QuadSelector({ quads, onUpdate }: Props) {
                        const rest = MAX_QUADS_PER_SLOT - (dbUsed + localUsedOthers);
                        toast({ 
                          title: 'Quantidade indisponível', 
-                         description: `Não há vagas suficientes às ${quad.time}. Máximo permitido: ${MAX_QUADS_PER_SLOT - used} adicionais.`, 
+                         description: `Não há vagas suficientes às ${quad.time}. Máximo permitido: ${MAX_QUADS_PER_SLOT - dbUsed} adicionais.`, 
                          variant: 'destructive' 
                        });
                        return;
@@ -124,8 +129,8 @@ export function QuadSelector({ quads, onUpdate }: Props) {
                  <div className="flex items-center gap-2 bg-primary/5 px-4 h-12 rounded-2xl border border-primary/10 shadow-sm">
                    <CalendarIcon className="h-4 w-4 text-primary" />
                    <div>
-                     <p className="text-[10px] font-black uppercase text-primary/60 tracking-wider leading-none mb-1">Data Sincronizada</p>
-                     <p className="font-black text-sm text-primary uppercase leading-none">
+                     <p className="text-[10px] font-bold uppercase text-primary/60 tracking-wider leading-none mb-1">Data Sincronizada</p>
+                     <p className="font-bold text-sm text-primary uppercase leading-none">
                        {quad.date ? format(quad.date, "dd/MM/yyyy (EEE)", { locale: ptBR }) : "--/--/----"}
                      </p>
                    </div>
@@ -148,7 +153,7 @@ export function QuadSelector({ quads, onUpdate }: Props) {
                   }}
                   disabled={!quad.date || isFetchingAvailability} // Disable if no date or fetching
                 >
-                  <SelectTrigger className="w-full h-12 rounded-2xl border-white/80 bg-white/70 backdrop-blur-sm shadow-sm hover:bg-white hover:border-primary/30 font-black text-sm uppercase tracking-tight">
+                  <SelectTrigger className="w-full h-12 rounded-2xl border-white/80 bg-white/70 backdrop-blur-sm shadow-sm hover:bg-white hover:border-primary/30 font-bold text-sm uppercase tracking-tight">
                     <SelectValue placeholder="Escolha o Horário" />
                   </SelectTrigger>
                   <SelectContent className="rounded-2xl">
@@ -188,7 +193,7 @@ export function QuadSelector({ quads, onUpdate }: Props) {
                   </SelectContent>
                 </Select>
                 {quad.time && (
-                   <p className="text-[10px] text-primary/60 font-black uppercase text-center py-1 bg-white/40 rounded-lg">
+                   <p className="text-[10px] text-primary/60 font-bold uppercase text-center py-1 bg-white/40 rounded-lg">
                       Horário selecionado. Lotação máx: {MAX_QUADS_PER_SLOT} quads/slot.
                    </p>
                 )}
