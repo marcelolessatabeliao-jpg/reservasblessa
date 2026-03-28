@@ -21,9 +21,9 @@ interface Props {
 export function QuadSelector({ quads, onUpdate }: Props) {
   const { getPrice, isLoading } = useServices();
   const { toast } = useToast();
-   const [slotAvailabilities, setSlotAvailabilities] = useState<Record<string, number>>({});
+    const [slotAvailabilities, setSlotAvailabilities] = useState<Record<string, number>>({});
   const [isFetchingAvailability, setIsFetchingAvailability] = useState(false);
-  const MAX_QUADS_PER_SLOT = 4;
+  const MAX_QUADS_PER_SLOT = 5;
 
   // Fetch slot availability whenever the date of the first quad changes
   const checkDate = quads[0]?.date;
@@ -58,7 +58,6 @@ export function QuadSelector({ quads, onUpdate }: Props) {
           <Bike className="h-4 w-4 sm:h-5 sm:w-5" />
         </div>
         <h3 className="font-sans font-bold text-lg sm:text-xl">3. Passeio de Quadriciclo</h3>
-        <span className="text-[10px] font-black bg-primary/10 text-primary px-3 py-1 rounded-full uppercase">Lotação: 4 por horário</span>
       </div>
       
       <div className="bg-sun/10 border border-sun/20 p-3 sm:p-4 rounded-xl mb-4 shadow-sm">
@@ -152,16 +151,14 @@ export function QuadSelector({ quads, onUpdate }: Props) {
                 </div>
                 <QuantityStepper 
                   value={quad.quantity} 
+                  max={(() => {
+                    if (!quad.time) return 0;
+                    const usedInDb = slotAvailabilities[quad.time] || 0;
+                    const usedLocallyOthers = quads.reduce((acc, qry, idx) => (idx !== i && qry.time === quad.time) ? acc + qry.quantity : acc, 0);
+                    return Math.max(0, MAX_QUADS_PER_SLOT - (usedInDb + usedLocallyOthers));
+                  })()}
                   onChange={async (q) => {
                     if (!quad.time) return;
-                    if (q > quad.quantity) {
-                      const used = await getQuadAvailability(format(checkDate!, 'yyyy-MM-dd'), quad.time);
-                      const localOthers = quads.reduce((acc, qry, idx) => (idx !== i && qry.time === quad.time) ? acc + qry.quantity : acc, 0);
-                      if (used + localOthers + (q - quad.quantity) > MAX_QUADS_PER_SLOT) {
-                        toast({ title: 'Limite atingido', description: `Capacidade máxima de ${MAX_QUADS_PER_SLOT} por horário.`, variant: 'destructive' });
-                        return;
-                      }
-                    }
                     onUpdate(i, { quantity: q });
                   }} 
                 />

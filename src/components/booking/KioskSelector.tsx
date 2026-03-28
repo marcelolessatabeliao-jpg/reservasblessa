@@ -67,7 +67,7 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
                 <div className="flex items-center justify-between gap-2 mb-3">
                   <div className="min-w-0">
                     <p className="font-sans font-bold text-sm sm:text-base">
-                      {info.label} {kiosk.type === 'menor' ? '(Limite: 4 p/ dia)' : '(Limite: 1 p/ dia)'}
+                      {info.label} 
                     </p>
                     <div className="flex flex-col gap-0.5">
                       <p className="text-[10px] sm:text-xs text-muted-foreground">Capacidade: {info.capacity}</p>
@@ -85,7 +85,6 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
                     value={kiosk.quantity} 
                     onChange={(q) => onUpdate(i, { quantity: q })} 
                     max={Math.max(0, remaining + kiosk.quantity)} 
-                    disabled={remaining <= 0 && kiosk.quantity === 0}
                   />
                 </div>
               );
