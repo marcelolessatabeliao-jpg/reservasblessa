@@ -1,4 +1,4 @@
-AIoject_id = "lcymbetnnuokrijynmjm"
+project_id = "lcymbetnnuokrijynmjm"
 
 [functions.admin-auth]
 verify_jwt = false

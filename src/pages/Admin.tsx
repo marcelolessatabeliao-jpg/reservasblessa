@@ -111,19 +111,19 @@ export default function Admin() {
     setLoading(true);
     try {
       const { data: bks } = await supabase.from('bookings').select('*').order('visit_date', { ascending: false });
-      const { data: kiosks } = await supabase.from('kiosk_reservations').select('*, orders(customer_name)').order('reservation_date', { ascending: false });
-      const { data: quads } = await supabase.from('quad_reservations').select('*, orders(customer_name)').order('reservation_date', { ascending: false });
+      const { data: kiosks } = await supabase.from('kiosk_reservations').select('*, orders(customer_name), bookings(name)').order('reservation_date', { ascending: false });
+      const { data: quads } = await supabase.from('quad_reservations').select('*, orders(customer_name), bookings(name)').order('reservation_date', { ascending: false });
       const orderData = await getAdminOrders();
       
       // Map reservations to include customer names correctly from either source
       let parsedKiosks = (kiosks || []).map(k => ({
          ...k,
-         customer_name: k.orders?.customer_name || 'Reserva Direta'
+         customer_name: k.orders?.customer_name || k.bookings?.name || 'Reserva Direta'
       }));
       
       let parsedQuads = (quads || []).map(q => ({
          ...q,
-         customer_name: q.orders?.customer_name || 'Reserva Direta'
+         customer_name: q.orders?.customer_name || q.bookings?.name || 'Reserva Direta'
       }));
 
       if (orderData) {
@@ -367,37 +367,37 @@ export default function Admin() {
         <div className="space-y-8">
           {/* STATS */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-             <Card className="bg-white border-2 border-emerald-600/20 text-emerald-950 shadow-xl rounded-[2.5rem] p-6 flex flex-col items-start hover:shadow-emerald-200/50 transition-all group overflow-hidden relative">
-                <div className="absolute -top-4 -right-4 p-4 opacity-[0.03] group-hover:scale-110 group-hover:opacity-10 transition-all"><Tent className="w-32 h-32" /></div>
-                <div className="p-3.5 rounded-2xl bg-emerald-50 text-emerald-600 mb-4 border border-emerald-100 shadow-sm">
-                   <Tent className="w-5 h-5" />
+             <Card className="bg-emerald-50 border-2 border-emerald-300 text-emerald-950 shadow-xl rounded-[1.5rem] p-4 flex flex-col items-start hover:shadow-emerald-300/50 transition-all group overflow-hidden relative">
+                <div className="absolute -top-4 -right-4 p-4 opacity-[0.05] group-hover:scale-110 group-hover:opacity-[0.15] transition-all"><Tent className="w-24 h-24 text-emerald-600" /></div>
+                <div className="p-2.5 rounded-xl bg-emerald-100 text-emerald-700 mb-2 border border-emerald-200 shadow-sm">
+                   <Tent className="w-4 h-4" />
                 </div>
-                <span className="text-4xl font-black tabular-nums tracking-tighter">{dayKiosks.length}</span>
-                <span className="text-[10px] font-black uppercase tracking-widest mt-1 text-emerald-600">Quiosques Hoje</span>
+                <span className="text-3xl font-black tabular-nums tracking-tighter">{dayKiosks.length}</span>
+                <span className="text-[9px] font-black uppercase tracking-widest mt-1 text-emerald-700">Quiosques Hoje</span>
              </Card>
-             <Card className="bg-white border-2 border-blue-600/20 text-blue-950 shadow-xl rounded-[2.5rem] p-6 flex flex-col items-start hover:shadow-blue-200/50 transition-all group overflow-hidden relative">
-                <div className="absolute -top-4 -right-4 p-4 opacity-[0.03] group-hover:scale-110 group-hover:opacity-10 transition-all"><Bike className="w-32 h-32" /></div>
-                <div className="p-3.5 rounded-2xl bg-blue-50 text-blue-600 mb-4 border border-blue-100 shadow-sm">
-                   <Bike className="w-5 h-5" />
+             <Card className="bg-blue-50 border-2 border-blue-300 text-blue-950 shadow-xl rounded-[1.5rem] p-4 flex flex-col items-start hover:shadow-blue-300/50 transition-all group overflow-hidden relative">
+                <div className="absolute -top-4 -right-4 p-4 opacity-[0.05] group-hover:scale-110 group-hover:opacity-[0.15] transition-all"><Bike className="w-24 h-24 text-blue-600" /></div>
+                <div className="p-2.5 rounded-xl bg-blue-100 text-blue-700 mb-2 border border-blue-200 shadow-sm">
+                   <Bike className="w-4 h-4" />
                 </div>
-                <span className="text-4xl font-black tabular-nums tracking-tighter">{dayQuads.length}</span>
-                <span className="text-[10px] font-black uppercase tracking-widest mt-1 text-blue-600">Quad Hoje</span>
+                <span className="text-3xl font-black tabular-nums tracking-tighter">{dayQuads.length}</span>
+                <span className="text-[9px] font-black uppercase tracking-widest mt-1 text-blue-700">Quad Hoje</span>
              </Card>
-             <Card className="bg-white border-2 border-amber-500/20 text-amber-950 shadow-xl rounded-[2.5rem] p-6 flex flex-col items-start hover:shadow-amber-200/50 transition-all group overflow-hidden relative">
-                <div className="absolute -top-4 -right-4 p-4 opacity-[0.03] group-hover:scale-110 group-hover:opacity-10 transition-all"><TrendingUp className="w-32 h-32" /></div>
-                <div className="p-3.5 rounded-2xl bg-amber-50 text-amber-600 mb-4 border border-amber-100 shadow-sm">
-                   <TrendingUp className="w-5 h-5" />
+             <Card className="bg-amber-50 border-2 border-amber-300 text-amber-950 shadow-xl rounded-[1.5rem] p-4 flex flex-col items-start hover:shadow-amber-300/50 transition-all group overflow-hidden relative">
+                <div className="absolute -top-4 -right-4 p-4 opacity-[0.05] group-hover:scale-110 group-hover:opacity-[0.15] transition-all"><TrendingUp className="w-24 h-24 text-amber-600" /></div>
+                <div className="p-2.5 rounded-xl bg-amber-100 text-amber-700 mb-2 border border-amber-200 shadow-sm">
+                   <TrendingUp className="w-4 h-4" />
                 </div>
                 <span className="text-2xl font-black tabular-nums tracking-tighter">{formatCurrency(dayKiosks.reduce((s, r) => s + (r.price || 0), 0) + dayQuads.reduce((s, r) => s + (r.price || 0), 0))}</span>
-                <span className="text-[10px] font-black uppercase tracking-widest mt-1 text-amber-600">Receita do Dia</span>
+                <span className="text-[9px] font-black uppercase tracking-widest mt-1 text-amber-700">Receita do Dia</span>
              </Card>
-             <Card className="bg-emerald-950 border-2 border-emerald-800 text-white shadow-2xl rounded-[2.5rem] p-6 flex flex-col items-start hover:scale-[1.02] transition-all group overflow-hidden relative">
-                <div className="absolute -top-4 -right-4 p-4 opacity-10 group-hover:scale-110 transition-all"><ShoppingBag className="w-32 h-32" /></div>
-                <div className="p-3.5 rounded-2xl bg-white/10 text-emerald-400 mb-4 border border-white/10 backdrop-blur-md">
-                   <ShoppingBag className="w-5 h-5" />
+             <Card className="bg-emerald-900 border-2 border-emerald-700 text-white shadow-2xl rounded-[1.5rem] p-4 flex flex-col items-start hover:scale-[1.02] transition-all group overflow-hidden relative">
+                <div className="absolute -top-4 -right-4 p-4 opacity-20 group-hover:scale-110 transition-all"><ShoppingBag className="w-24 h-24 text-white" /></div>
+                <div className="p-2.5 rounded-xl bg-white/20 text-emerald-100 mb-2 border border-white/20 backdrop-blur-md">
+                   <ShoppingBag className="w-4 h-4" />
                 </div>
                 <span className="text-2xl font-black tabular-nums tracking-tighter">{formatCurrency(orders.filter(o => (o.visit_date || o.created_at.split('T')[0]) === format(targetDate, 'yyyy-MM-dd')).reduce((s, r) => s + (r.total_amount || 0), 0))}</span>
-                <span className="text-[10px] font-black uppercase tracking-widest mt-1 text-emerald-400">Vendas Loja</span>
+                <span className="text-[9px] font-black uppercase tracking-widest mt-1 text-emerald-300">Vendas Loja</span>
              </Card>
           </div>
 
@@ -476,15 +476,15 @@ export default function Admin() {
                         const count = bookings.reduce((s, r) => s + (Number(r.quantity) || 1), 0);
                         
                         return (
-                          <div key={slot.start} className="bg-white rounded-2xl p-5 shadow-sm border border-blue-100/50 space-y-4">
+                          <div key={slot.start} className="bg-white rounded-[1.25rem] p-3 shadow-sm border border-blue-100/50 space-y-2">
                              <div className="flex items-center justify-between">
-                                <span className="font-bold text-blue-900 text-base">{slot.start} — {slot.end}</span>
-                                <Badge className="bg-blue-50 text-blue-600 border-blue-100 font-bold px-3 py-1 rounded-full text-[10px]">
+                                <span className="font-bold text-blue-900 text-sm">{slot.start} — {slot.end}</span>
+                                <Badge className="bg-blue-50 text-blue-600 border-blue-100 font-bold px-2.5 py-0.5 rounded-full text-[9px]">
                                    {count}/5 ocupados
                                 </Badge>
                              </div>
                              
-                             <div className="bg-blue-50/20 rounded-xl p-3 border border-blue-100/20 text-center min-h-[40px] flex items-center justify-center">
+                             <div className="bg-blue-50/20 rounded-lg p-2 border border-blue-100/20 text-center min-h-[30px] flex items-center justify-center">
                                 {bookings.length > 0 ? (
                                   <div className="flex flex-wrap gap-1.5 justify-center">
                                      {bookings.map((b, bi) => (
@@ -530,8 +530,8 @@ export default function Admin() {
         </div>
 
         <div className="space-y-6">
-           <Card className="bg-emerald-50/30 border-emerald-100 shadow-premium rounded-[2.5rem] overflow-hidden">
-              <div className="p-8 border-b border-emerald-100/50 bg-white">
+           <Card className="bg-emerald-50/80 border-2 border-emerald-300 shadow-premium rounded-[2.5rem] overflow-hidden">
+              <div className="p-8 border-b border-emerald-200/50 bg-white">
                  <div className="flex items-center gap-3 mb-2">
                     <CalendarCheck className="w-6 h-6 text-emerald-600" />
                     <h4 className="text-xl font-black text-emerald-950 tracking-tight">Resumo Geral</h4>
@@ -978,31 +978,31 @@ export default function Admin() {
           <div className="flex items-center p-2 bg-emerald-900/5 backdrop-blur-xl rounded-[2.8rem] w-fit max-w-full overflow-x-auto border border-white/60 shadow-premium no-scrollbar">
              <button onClick={() => setActiveTab('painel')} className={cn(
                "px-8 py-4 rounded-[2.2rem] text-sm font-black flex items-center gap-2.5 transition-all active:scale-95 whitespace-nowrap", 
-               activeTab === 'painel' ? "bg-emerald-900 text-white shadow-2xl shadow-emerald-900/20 scale-105" : "text-emerald-900/60 hover:text-emerald-900 hover:bg-white/40"
+               activeTab === 'painel' ? "bg-emerald-900 text-white shadow-2xl shadow-emerald-900/20 scale-105" : "text-emerald-900/90 hover:bg-white/40"
              )}>
                 <LayoutDashboard className="w-4.5 h-4.5" /> Painel
              </button>
              <button onClick={() => setActiveTab('reservas')} className={cn(
                "px-8 py-4 rounded-[2.2rem] text-sm font-black flex items-center gap-2.5 transition-all active:scale-95 whitespace-nowrap", 
-               activeTab === 'reservas' ? "bg-emerald-600 text-white shadow-2xl shadow-emerald-600/20 scale-105" : "text-emerald-900/60 hover:text-emerald-900 hover:bg-white/40"
+               activeTab === 'reservas' ? "bg-emerald-600 text-white shadow-2xl shadow-emerald-600/20 scale-105" : "text-emerald-900/90 hover:bg-white/40"
              )}>
                 <CalendarCheck className="w-4.5 h-4.5" /> Agenda
              </button>
              <button onClick={() => setActiveTab('quiosques')} className={cn(
                "px-8 py-4 rounded-[2.2rem] text-sm font-black flex items-center gap-2.5 transition-all active:scale-95 whitespace-nowrap", 
-               activeTab === 'quiosques' ? "bg-emerald-600 text-white shadow-2xl shadow-emerald-600/20 scale-105" : "text-emerald-900/60 hover:text-emerald-900 hover:bg-white/40"
+               activeTab === 'quiosques' ? "bg-emerald-600 text-white shadow-2xl shadow-emerald-600/20 scale-105" : "text-emerald-900/90 hover:bg-white/40"
              )}>
                 <Tent className="w-4.5 h-4.5" /> Quiosques
              </button>
              <button onClick={() => setActiveTab('quads')} className={cn(
                "px-8 py-4 rounded-[2.2rem] text-sm font-black flex items-center gap-2.5 transition-all active:scale-95 whitespace-nowrap", 
-               activeTab === 'quads' ? "bg-blue-600 text-white shadow-2xl shadow-blue-600/20 scale-105" : "text-emerald-900/60 hover:text-emerald-900 hover:bg-white/40"
+               activeTab === 'quads' ? "bg-blue-600 text-white shadow-2xl shadow-blue-600/20 scale-105" : "text-emerald-900/90 hover:bg-white/40"
              )}>
                 <Bike className="w-4.5 h-4.5" /> Quads
              </button>
              <button onClick={() => setActiveTab('vendas')} className={cn(
                "px-8 py-4 rounded-[2.2rem] text-sm font-black flex items-center gap-2.5 transition-all active:scale-95 whitespace-nowrap", 
-               activeTab === 'vendas' ? "bg-amber-600 text-white shadow-2xl shadow-amber-600/20 scale-105" : "text-emerald-900/60 hover:text-emerald-900 hover:bg-white/40"
+               activeTab === 'vendas' ? "bg-amber-600 text-white shadow-2xl shadow-amber-600/20 scale-105" : "text-emerald-900/90 hover:bg-white/40"
              )}>
                 <ShoppingBag className="w-4.5 h-4.5" /> Vendas
              </button>
