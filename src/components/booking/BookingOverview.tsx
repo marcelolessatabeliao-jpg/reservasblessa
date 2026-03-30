@@ -447,13 +447,15 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
         {/* Membership Comparison Action Card */}
         {(() => {
           const allAdults = booking.entry.adults;
-          const halfPriceAdults = allAdults.filter(a => a.isTeacher || a.isServer || a.isStudent || (a as any).isBloodDonor || a.takeDonation).reduce((acc, a) => acc + (a.quantity || 1), 0);
+          // takeDonation (Solidário) excluded from club half-price rule
+          const halfPriceAdults = allAdults.filter(a => a.isTeacher || a.isServer || a.isStudent || (a as any).isBloodDonor).reduce((acc, a) => acc + (a.quantity || 1), 0);
           const fullPriceAdults = allAdults.reduce((acc, a) => acc + (a.quantity || 1), 0) - halfPriceAdults;
 
           const membershipPrice = calculateMembershipCost({ adultsCount: fullPriceAdults, halfPriceCount: halfPriceAdults });
           const entriesTotal = totals.entriesTotal;
 
           if ((fullPriceAdults + halfPriceAdults) > 0) {
+            const isCheaper = membershipPrice <= entriesTotal;
             return (
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
@@ -469,7 +471,7 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
                     <Sparkles className="w-6 h-6 text-sun animate-pulse" />
                   </div>
                   <h3 className="font-display font-black text-white text-lg sm:text-xl tracking-tight">
-                    Vale mais a pena ser Sócio!
+                    {isCheaper ? 'Vale mais a pena ser Sócio!' : 'Acesso Ilimitado o mês inteiro!'}
                   </h3>
                 </div>
 
@@ -477,7 +479,7 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
                   <p className="text-blue-100/90 text-sm sm:text-base leading-relaxed font-medium">
                     Sua reserva de hoje custa <span className="bg-sun/20 text-sun font-black px-2 py-0.5 rounded-lg border border-sun/20">{formatCurrency(entriesTotal)}</span>.
                     No <span className="text-sun font-black underline decoration-sun/30 underline-offset-4">Lessa Club</span>, 
-                    você paga apenas <span className="bg-green-500/20 text-green-400 font-black px-2 py-0.5 rounded-lg border border-green-500/20">{formatCurrency(membershipPrice)}</span> e tem 
+                    você paga {isCheaper ? 'apenas ' : ''} <span className="bg-green-500/20 text-green-400 font-black px-2 py-0.5 rounded-lg border border-green-500/20">{formatCurrency(membershipPrice)}</span> e tem 
                     <span className="text-white font-black mx-1 uppercase tracking-wider bg-white/10 px-2 py-0.5 rounded-md">Entradas Ilimitadas</span> o mês inteiro!
                   </p>
 
