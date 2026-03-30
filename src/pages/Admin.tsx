@@ -145,6 +145,7 @@ export default function Admin() {
                      reservation_date: resDate,
                      customer_name: customerName,
                      price: item.unit_price,
+                     order_id: o.id,
                      is_from_order: true
                    });
                  }
@@ -186,6 +187,7 @@ export default function Admin() {
                      reservation_date: resDate,
                      customer_name: customerName,
                      price: item.quantity * item.unit_price,
+                     order_id: o.id,
                      is_from_order: true
                   });
                }
@@ -250,9 +252,9 @@ export default function Admin() {
       toast({ title: "✓ Alterações salvas" });
       setEditingId(null);
       fetchData();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Save error:', err);
-      toast({ title: "Erro ao salvar", variant: "destructive" });
+      toast({ title: `Erro ao salvar: ${err.message || err.details || 'Erro desconhecido'}`, variant: "destructive" });
     }
   };
 
