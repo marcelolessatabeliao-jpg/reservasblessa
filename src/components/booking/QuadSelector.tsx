@@ -1,10 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Bike, Tag, CalendarIcon, Loader2 } from 'lucide-react';
+import { Bike, Tag, CalendarIcon, Loader2, Users, User, Baby, Clock, ChevronDown, Check } from 'lucide-react';
 import { QuantityStepper } from '@/components/QuantityStepper';
 import { QuadItem, QUAD_LABELS, QUAD_TIMES, getQuadDiscount, formatCurrency, QuadTime, isOperatingDay } from '@/lib/booking-types';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -18,16 +15,44 @@ interface Props {
   onUpdate: (index: number, updates: Partial<QuadItem>) => void;
 }
 
+const QUAD_CARDS = [
+  {
+    type: 'individual' as const,
+    icon: User,
+    title: 'Individual',
+    subtitle: '1 pessoa por quadriciclo',
+    fallbackPrice: 150,
+    color: 'emerald',
+  },
+  {
+    type: 'dupla' as const,
+    icon: Users,
+    title: 'Dupla',
+    subtitle: '2 pessoas no quadriciclo',
+    fallbackPrice: 250,
+    color: 'blue',
+  },
+  {
+    type: 'adulto-crianca' as const,
+    icon: Baby,
+    title: 'Adulto + Criança',
+    subtitle: 'Válido para crianças até 11 anos',
+    fallbackPrice: 200,
+    color: 'amber',
+  },
+];
+
+const MAX_QUADS_PER_SLOT = 5;
+
 export function QuadSelector({ quads, onUpdate }: Props) {
   const { getPrice, isLoading } = useServices();
   const { toast } = useToast();
-    const [slotAvailabilities, setSlotAvailabilities] = useState<Record<string, number>>({});
+  const [slotAvailabilities, setSlotAvailabilities] = useState<Record<string, number>>({});
   const [isFetchingAvailability, setIsFetchingAvailability] = useState(false);
-  const MAX_QUADS_PER_SLOT = 5;
+  const [expandedCard, setExpandedCard] = useState<string | null>(null);
 
-  // Fetch slot availability whenever the date of the first quad changes
   const checkDate = quads[0]?.date;
-  
+
   useEffect(() => {
     async function fetchAvailability() {
       if (!checkDate) return;
@@ -47,153 +72,343 @@ export function QuadSelector({ quads, onUpdate }: Props) {
     fetchAvailability();
   }, [checkDate]);
 
+  // Auto-expand card that has quantity > 0
+  useEffect(() => {
+    const activeQuad = quads.find(q => q.quantity > 0);
+    if (activeQuad && !expandedCard) {
+      setExpandedCard(activeQuad.type);
+    }
+  }, [quads]);
+
   if (isLoading) {
     return <div className="flex items-center justify-center p-6"><Loader2 className="animate-spin text-primary h-6 w-6" /></div>;
   }
 
+  // Calculate total used per slot across all quad types
+  const getSlotUsage = (slotTime: string, excludeIndex?: number) => {
+    const dbUsed = slotAvailabilities[slotTime] || 0;
+    const localUsed = quads.reduce((acc, q, idx) => {
+      if (excludeIndex !== undefined && idx === excludeIndex) return acc;
+      if (q.time === slotTime) return acc + q.quantity;
+      return acc;
+    }, 0);
+    return dbUsed + localUsed;
+  };
+
   return (
     <div className="space-y-4">
+      {/* Header */}
       <div className="flex items-center gap-3 mb-2">
         <div className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-primary/10 text-primary shrink-0">
           <Bike className="h-4 w-4 sm:h-5 sm:w-5" />
         </div>
         <h3 className="font-sans font-bold text-lg sm:text-xl">3. Passeio de Quadriciclo</h3>
       </div>
-      
-      <div className="bg-sun/10 border border-sun/20 p-3 sm:p-4 rounded-xl mb-4 shadow-sm">
-        <p className="text-xs sm:text-sm text-sun-dark font-medium leading-relaxed">
+
+      {/* Duration info */}
+      <div className="bg-amber-50 border border-amber-300/50 p-3 sm:p-4 rounded-xl mb-4 shadow-sm">
+        <p className="text-xs sm:text-sm text-amber-900 font-medium leading-relaxed">
           <strong className="font-bold uppercase tracking-wider">⏱️ Duração: 1h30 de passeio</strong> com Desafios com pedras, lama, rio, barrancos, floresta, buracos, poças de água, piscina natural, batistério e uma incrível tirolesa!
         </p>
       </div>
 
-      {quads.map((quad, i) => {
-        // Dynamic price from DB, fallback to 150/250/200 if not yet loaded or missing
-        const fallbackMap: Record<string, number> = { individual: 150, dupla: 250, 'adulto-crianca': 200 };
-        const basePrice = getPrice(`quad_${quad.type}`, fallbackMap[quad.type] || 0);
-        const discount = getQuadDiscount(quad.date);
-        const finalPrice = basePrice * (1 - discount);
+      {/* Slot availability overview */}
+      {checkDate && (
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 sm:p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Clock className="h-3.5 w-3.5 text-slate-500" />
+            <span className="text-[10px] sm:text-xs font-black text-slate-600 uppercase tracking-widest">
+              Disponibilidade por Horário — {format(checkDate, "dd/MM", { locale: ptBR })}
+            </span>
+            {isFetchingAvailability && <Loader2 className="h-3 w-3 animate-spin text-slate-400" />}
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {QUAD_TIMES.map(t => {
+              const totalUsed = getSlotUsage(t);
+              const remaining = Math.max(0, MAX_QUADS_PER_SLOT - totalUsed);
+              const pct = (totalUsed / MAX_QUADS_PER_SLOT) * 100;
+              const isFull = remaining <= 0;
 
-        return (
-          <div key={quad.type} className="bg-white/50 backdrop-blur-md rounded-2xl border border-white/60 p-4 sm:p-5 shadow-xl">
-            <div className="space-y-4">
-              {/* Time Selection First */}
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-primary/40 uppercase tracking-widest ml-1">
-                  1. Escolha o Horário
-                </label>
-                <Select 
-                  value={quad.time || ''} 
-                  onValueChange={async (v) => {
-                    if (!quad.date) {
-                        toast({ title: 'Escolha uma data primeiro', variant: 'destructive' });
-                        return;
-                    }
-                    const visitDate = format(quad.date, 'yyyy-MM-dd');
-                    const used = await getQuadAvailability(visitDate, v);
-                    const localUsedOthers = quads.reduce((acc, qry, idx) => {
-                      if (idx !== i && qry.time === v) return acc + qry.quantity;
-                      return acc;
-                    }, 0);
-                    const remaining = MAX_QUADS_PER_SLOT - (used + localUsedOthers);
-                    
-                    if (remaining <= 0) {
-                        toast({ title: 'Horário Lotado', description: `Não há vagas disponíveis para as ${v}.`, variant: 'destructive' });
-                        return;
-                    }
-                    
-                    // Limit current quantity to remaining
-                    const newQty = Math.min(quad.quantity, remaining);
-                    onUpdate(i, { time: v as QuadTime, quantity: newQty });
-                  }}
-                  disabled={!quad.date || isFetchingAvailability}
-                >
-                  <SelectTrigger className={cn(
-                    "w-full h-12 rounded-2xl border-white/80 bg-white shadow-sm font-bold text-sm uppercase tracking-tight",
-                    !quad.time && "border-primary/30 ring-2 ring-primary/10 animate-pulse"
+              return (
+                <div key={t} className={cn(
+                  "flex flex-col items-center p-2 rounded-xl border transition-all",
+                  isFull 
+                    ? "bg-red-50 border-red-200" 
+                    : remaining <= 2 
+                      ? "bg-amber-50 border-amber-200"
+                      : "bg-emerald-50 border-emerald-200"
+                )}>
+                  <span className={cn(
+                    "text-sm sm:text-base font-black",
+                    isFull ? "text-red-500" : remaining <= 2 ? "text-amber-600" : "text-emerald-700"
                   )}>
-                    <SelectValue placeholder="CLIQUE PARA ESCOLHER O HORÁRIO" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-2xl">
-                    {QUAD_TIMES.map(t => {
-                      const dbUsed = slotAvailabilities[t] || 0;
-                      const localUsedOthers = quads.reduce((acc, q, idx) => {
-                        if (idx !== i && q.time === t) return acc + q.quantity;
-                        return acc;
-                      }, 0);
-                      const remaining = MAX_QUADS_PER_SLOT - (dbUsed + localUsedOthers);
-                      const isFull = remaining <= 0;
-                      return (
-                        <SelectItem 
-                          key={t} 
-                          value={t} 
-                          className={cn("font-bold py-3", isFull ? "text-destructive" : "text-foreground")}
-                          disabled={isFull && quad.time !== t}
-                        >
-                          {t} — Passeio de 1h30 ({isFull ? 'LOTADO' : `${remaining} vagas`})
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Quantity Selection Second */}
-              <div className={cn(
-                "flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 sm:p-4 rounded-2xl border transition-all",
-                quad.time 
-                  ? "bg-emerald-50/60 border-emerald-500/30 shadow-sm" 
-                  : "bg-slate-50 border-slate-200 opacity-60 pointer-events-none"
-              )}>
-                <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-                  <span className="text-[10px] font-black text-emerald-800/50 uppercase tracking-widest shrink-0">2. Quantidade:</span>
-                  <span className="font-sans font-black text-sm text-emerald-950">{QUAD_LABELS[quad.type]}</span>
-                  <span className="text-emerald-200 mx-0.5">•</span>
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    {discount > 0 && (
-                      <span className="text-emerald-800/40 line-through text-[10px] font-bold">
-                        {formatCurrency(basePrice)}
-                      </span>
-                    )}
-                    <span className="text-emerald-900 font-black text-sm sm:text-base">
-                      {quad.quantity > 0 ? formatCurrency(finalPrice * quad.quantity) : formatCurrency(finalPrice)}
-                    </span>
-                    {discount > 0 && (
-                      <span className="bg-sun/20 text-sun-dark text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-xs">
-                        -{discount * 100}%
-                      </span>
-                    )}
+                    {t}
+                  </span>
+                  {/* Progress bar */}
+                  <div className="w-full h-1.5 bg-gray-200 rounded-full mt-1.5 overflow-hidden">
+                    <div 
+                      className={cn(
+                        "h-full rounded-full transition-all duration-500",
+                        isFull ? "bg-red-400" : remaining <= 2 ? "bg-amber-400" : "bg-emerald-400"
+                      )}
+                      style={{ width: `${Math.min(pct, 100)}%` }}
+                    />
                   </div>
+                  <span className={cn(
+                    "text-[9px] sm:text-[10px] font-bold mt-1",
+                    isFull ? "text-red-500" : remaining <= 2 ? "text-amber-600" : "text-emerald-600"
+                  )}>
+                    {isFull ? 'LOTADO' : `${remaining}/${MAX_QUADS_PER_SLOT} vagas`}
+                  </span>
                 </div>
-                <QuantityStepper 
-                  value={quad.quantity} 
-                  max={(() => {
-                    if (!quad.time || !checkDate) return 0;
-                    const usedInDb = slotAvailabilities[quad.time] || 0;
-                    const usedLocallyOthers = quads.reduce((acc, qry, idx) => {
-                      if (idx !== i && qry.time === quad.time) return acc + qry.quantity;
-                      return acc;
-                    }, 0);
-                    return Math.max(0, MAX_QUADS_PER_SLOT - (usedInDb + usedLocallyOthers));
-                  })()}
-                  onChange={(q) => {
-                    onUpdate(i, { quantity: q });
-                  }} 
-                />
-              </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
-              {quad.quantity > 0 && (
-                <div className="flex items-center gap-2 bg-emerald-900 text-white px-3 h-8 rounded-xl shadow-md self-start ml-2 -mt-2 relative z-10 border border-emerald-700">
-                  <CalendarIcon className="h-3 w-3" />
-                  <p className="text-[9px] font-black uppercase tracking-wider">
-                    Agendado — {format(quad.date!, "dd/MM/yyyy")} às {quad.time}
-                  </p>
+      {/* Modality Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {QUAD_CARDS.map((card, cardIndex) => {
+          const quad = quads[cardIndex];
+          const basePrice = getPrice(`quad_${card.type}`, card.fallbackPrice);
+          const discount = getQuadDiscount(quad.date);
+          const finalPrice = basePrice * (1 - discount);
+          const isExpanded = expandedCard === card.type;
+          const isActive = quad.quantity > 0;
+          const IconComp = card.icon;
+
+          // Color mapping
+          const colorMap: Record<string, { bg: string; border: string; activeBg: string; activeBorder: string; text: string; iconBg: string }> = {
+            emerald: { 
+              bg: 'bg-emerald-50/60', border: 'border-emerald-300/50', 
+              activeBg: 'bg-emerald-600', activeBorder: 'border-emerald-700',
+              text: 'text-emerald-700', iconBg: 'bg-emerald-100'
+            },
+            blue: { 
+              bg: 'bg-blue-50/60', border: 'border-blue-300/50', 
+              activeBg: 'bg-blue-600', activeBorder: 'border-blue-700',
+              text: 'text-blue-700', iconBg: 'bg-blue-100'
+            },
+            amber: { 
+              bg: 'bg-amber-50/60', border: 'border-amber-300/50', 
+              activeBg: 'bg-amber-600', activeBorder: 'border-amber-700',
+              text: 'text-amber-700', iconBg: 'bg-amber-100'
+            },
+          };
+          const colors = colorMap[card.color];
+
+          return (
+            <div 
+              key={card.type}
+              className={cn(
+                "relative flex flex-col rounded-2xl border-2 transition-all duration-300 overflow-hidden cursor-pointer",
+                isActive 
+                  ? `${colors.activeBg} ${colors.activeBorder} text-white shadow-lg` 
+                  : isExpanded
+                    ? `${colors.bg} ${colors.border} shadow-md ring-2 ring-${card.color}-400/30`
+                    : `bg-white/90 border-slate-200/80 hover:border-slate-300 hover:shadow-md`,
+              )}
+            >
+              {/* Card Header - Clickable */}
+              <button
+                onClick={() => {
+                  if (!checkDate) {
+                    toast({ title: 'Selecione a data primeiro', description: 'Escolha a data de visita antes de selecionar os quadriciclos.', variant: 'destructive' });
+                    return;
+                  }
+                  setExpandedCard(isExpanded ? null : card.type);
+                }}
+                className="w-full p-4 sm:p-5 text-left"
+              >
+                {/* Active badge */}
+                {isActive && (
+                  <div className="absolute top-2 right-2 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-md">
+                    <Check className="h-3.5 w-3.5 text-emerald-600 stroke-[3]" />
+                  </div>
+                )}
+
+                {/* Icon */}
+                <div className={cn(
+                  "w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center mb-3 transition-colors",
+                  isActive ? "bg-white/20" : colors.iconBg
+                )}>
+                  <IconComp className={cn(
+                    "h-6 w-6 sm:h-7 sm:w-7",
+                    isActive ? "text-white" : colors.text
+                  )} />
+                </div>
+
+                {/* Title */}
+                <h4 className={cn(
+                  "font-black text-base sm:text-lg uppercase tracking-wide",
+                  isActive ? "text-white" : "text-slate-800"
+                )}>
+                  {card.title}
+                </h4>
+
+                {/* Subtitle */}
+                <p className={cn(
+                  "text-[10px] sm:text-xs font-medium mt-0.5",
+                  isActive ? "text-white/80" : "text-slate-500"
+                )}>
+                  {card.subtitle}
+                </p>
+
+                {/* Price */}
+                <div className="flex items-center gap-2 mt-3">
+                  {discount > 0 && (
+                    <span className={cn(
+                      "line-through text-xs font-bold",
+                      isActive ? "text-white/50" : "text-slate-400"
+                    )}>
+                      {formatCurrency(basePrice)}
+                    </span>
+                  )}
+                  <span className={cn(
+                    "font-black text-xl sm:text-2xl",
+                    isActive ? "text-white" : colors.text
+                  )}>
+                    {formatCurrency(finalPrice)}
+                  </span>
+                  {discount > 0 && (
+                    <span className="bg-amber-400 text-amber-900 text-[9px] font-black px-1.5 py-0.5 rounded-full">
+                      -{discount * 100}%
+                    </span>
+                  )}
+                </div>
+
+                {/* Expand indicator */}
+                <div className="flex items-center justify-center mt-3">
+                  <ChevronDown className={cn(
+                    "h-4 w-4 transition-transform duration-300",
+                    isExpanded && "rotate-180",
+                    isActive ? "text-white/60" : "text-slate-400"
+                  )} />
+                </div>
+              </button>
+
+              {/* Expanded: Time + Quantity Selection */}
+              {isExpanded && (
+                <div className={cn(
+                  "px-4 pb-4 sm:px-5 sm:pb-5 space-y-3 border-t",
+                  isActive ? "border-white/20" : "border-slate-200"
+                )}>
+                  {/* Time Slot Selection */}
+                  <div className="space-y-1.5 pt-3">
+                    <label className={cn(
+                      "text-[10px] font-black uppercase tracking-widest",
+                      isActive ? "text-white/60" : "text-slate-500"
+                    )}>
+                      1. Escolha o Horário
+                    </label>
+                    <Select 
+                      value={quad.time || ''} 
+                      onValueChange={async (v) => {
+                        if (!quad.date) {
+                          toast({ title: 'Escolha uma data primeiro', variant: 'destructive' });
+                          return;
+                        }
+                        const visitDate = format(quad.date, 'yyyy-MM-dd');
+                        const used = await getQuadAvailability(visitDate, v);
+                        const localUsedOthers = quads.reduce((acc, qry, idx) => {
+                          if (idx !== cardIndex && qry.time === v) return acc + qry.quantity;
+                          return acc;
+                        }, 0);
+                        const remaining = MAX_QUADS_PER_SLOT - (used + localUsedOthers);
+                        
+                        if (remaining <= 0) {
+                          toast({ title: 'Horário Lotado', description: `Não há vagas disponíveis para as ${v}.`, variant: 'destructive' });
+                          return;
+                        }
+                        
+                        const newQty = Math.max(1, Math.min(quad.quantity || 1, remaining));
+                        onUpdate(cardIndex, { time: v as QuadTime, quantity: newQty });
+                      }}
+                      disabled={!quad.date || isFetchingAvailability}
+                    >
+                      <SelectTrigger className={cn(
+                        "w-full h-12 rounded-2xl font-bold text-sm uppercase tracking-tight",
+                        isActive 
+                          ? "bg-white/20 border-white/30 text-white placeholder:text-white/60" 
+                          : "bg-white border-slate-200 shadow-sm",
+                        !quad.time && !isActive && "border-primary/30 ring-2 ring-primary/10 animate-pulse"
+                      )}>
+                        <SelectValue placeholder="SELECIONAR HORÁRIO" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-2xl">
+                        {QUAD_TIMES.map(t => {
+                          const totalUsed = getSlotUsage(t, cardIndex);
+                          const remaining = Math.max(0, MAX_QUADS_PER_SLOT - totalUsed);
+                          const isFull = remaining <= 0;
+                          return (
+                            <SelectItem 
+                              key={t} 
+                              value={t} 
+                              className={cn("font-bold py-3", isFull ? "text-destructive" : "text-foreground")}
+                              disabled={isFull && quad.time !== t}
+                            >
+                              {t} — 1h30 ({isFull ? 'LOTADO' : `${remaining} vagas`})
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Quantity Selection */}
+                  <div className={cn(
+                    "flex flex-col gap-2 p-3 rounded-2xl border transition-all",
+                    quad.time
+                      ? isActive ? "bg-white/10 border-white/20" : "bg-emerald-50/60 border-emerald-300/40"
+                      : "bg-slate-50 border-slate-200 opacity-50 pointer-events-none"
+                  )}>
+                    <span className={cn(
+                      "text-[10px] font-black uppercase tracking-widest",
+                      isActive ? "text-white/60" : "text-slate-500"
+                    )}>
+                      2. Quantidade
+                    </span>
+                    <div className="flex items-center justify-between">
+                      <span className={cn(
+                        "font-black text-sm",
+                        isActive ? "text-white" : "text-slate-700"
+                      )}>
+                        {quad.quantity > 0 
+                          ? `${quad.quantity}x = ${formatCurrency(finalPrice * quad.quantity)}`
+                          : 'Selecione'
+                        }
+                      </span>
+                      <QuantityStepper 
+                        value={quad.quantity} 
+                        max={(() => {
+                          if (!quad.time || !checkDate) return 0;
+                          const totalUsed = getSlotUsage(quad.time, cardIndex);
+                          return Math.max(0, MAX_QUADS_PER_SLOT - totalUsed);
+                        })()}
+                        onChange={(q) => onUpdate(cardIndex, { quantity: q })} 
+                      />
+                    </div>
+                  </div>
+
+                  {/* Booking confirmation badge */}
+                  {quad.quantity > 0 && quad.time && (
+                    <div className={cn(
+                      "flex items-center gap-2 px-3 py-2 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider",
+                      isActive ? "bg-white/20 text-white" : "bg-emerald-900 text-white"
+                    )}>
+                      <CalendarIcon className="h-3 w-3" />
+                      Agendado — {format(quad.date!, "dd/MM/yyyy")} às {quad.time}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
 
+      {/* Info cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 text-xs sm:text-sm space-y-1">
           <p className="font-medium text-primary">🏷️ Descontos:</p>
