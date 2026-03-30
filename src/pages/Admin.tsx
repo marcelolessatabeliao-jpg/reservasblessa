@@ -212,18 +212,25 @@ export default function Admin() {
   const saveEditing = async (type: 'kiosk' | 'quad') => {
     try {
       const table = type === 'kiosk' ? 'kiosk_reservations' : 'quad_reservations';
-      // Only send fields that exist in the database schema
       const payload: any = {};
       const fields = type === 'kiosk' 
-        ? ['kiosk_id', 'reservation_date', 'notes', 'price', 'receipt_url'] 
-        : ['time_slot', 'quad_type', 'quantity', 'reservation_date', 'notes', 'price', 'receipt_url'];
+        ? ['kiosk_id', 'reservation_date', 'notes', 'price', 'receipt_url', 'customer_name'] 
+        : ['time_slot', 'quad_type', 'quantity', 'reservation_date', 'notes', 'price', 'receipt_url', 'customer_name'];
       
       fields.forEach(f => {
         if (editData[f] !== undefined) payload[f] = editData[f];
       });
-      
-      const { error } = await supabase.from(table).update(payload).eq('id', editingId);
-      if (error) throw error;
+
+      // Se for uma reserva virtual extraída de um pedido, precisa virar real no banco
+      if (typeof editingId === 'string' && editingId.startsWith('order-')) {
+        const orderId = editingId.split('-')[1];
+        payload.order_id = orderId;
+        const { error } = await supabase.from(table).insert([payload]);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from(table).update(payload).eq('id', editingId);
+        if (error) throw error;
+      }
       
       toast({ title: "✓ Alterações salvas" });
       setEditingId(null);
@@ -498,23 +505,7 @@ export default function Admin() {
                       })}
                    </div>
 
-                   {/* Fallback for Quads from orders or with non-standard slots */}
-                   {dayQuads.filter(b => !['09:00', '10:30', '14:00', '15:30'].some(t => (b.time_slot || '').includes(t))).length > 0 && (
-                     <div className="mt-4 p-4 bg-[#FFFDF2] rounded-[1.5rem] border border-amber-300">
-                        <p className="text-[11px] font-black text-[#D97706] uppercase tracking-wider mb-3 flex items-center gap-2">
-                           <AlertTriangle className="w-3.5 h-3.5 stroke-[2.5]" /> OUTROS / SEM HORÁRIO
-                        </p>
-                        <div className="flex flex-wrap gap-2 pt-1">
-                          {dayQuads.filter(b => !['09:00', '10:30', '14:00', '15:30'].some(t => (b.time_slot || '').includes(t))).map(b => (
-                            <Badge key={b.id} className="bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-black px-3 py-1 rounded-[0.8rem]">
-                               {b.customer_name}: {b.quantity || 1} quad. {b.time_slot && b.time_slot !== 'INDIV' && b.time_slot !== 'DUPLA' && `(${b.time_slot})`}
-                               {b.time_slot === 'INDIV' && '(INDIV)'}
-                               {b.time_slot === 'DUPLA' && '(DUPLA)'}
-                            </Badge>
-                          ))}
-                        </div>
-                     </div>
-                   )}
+
                 </div>
              </div>
 
