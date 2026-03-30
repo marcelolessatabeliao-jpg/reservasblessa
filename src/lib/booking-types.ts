@@ -46,6 +46,7 @@ export interface KioskItem {
   type: KioskType;
   quantity: number;
   date: Date | null;
+  selectedIds?: number[];
 }
 
 export interface QuadItem {

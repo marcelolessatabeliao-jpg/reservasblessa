@@ -166,8 +166,12 @@ export default function Admin() {
                   }
                   
                   // 2. Try explicit metadata
-                  if (!finalSlot && item.metadata?.time) {
-                    finalSlot = item.metadata.time;
+                  let meta = item.metadata;
+                  if (typeof meta === 'string') {
+                     try { meta = JSON.parse(meta); } catch(e) {}
+                  }
+                  if (!finalSlot && meta?.time) {
+                    finalSlot = meta.time;
                   }
 
                   // 3. Fallback to standard slots list

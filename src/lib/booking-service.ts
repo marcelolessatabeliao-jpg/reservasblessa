@@ -176,12 +176,29 @@ export async function saveBooking(
   try {
     const activeKiosks = booking.kiosks.filter(k => k.quantity > 0 && k.date);
     if (activeKiosks.length > 0 && finalOrderId) {
-      const kioskReservations = activeKiosks.map(k => ({
-        order_id: finalOrderId,
-        kiosk_type: k.type,
-        reservation_date: format(new Date(k.date!), 'yyyy-MM-dd'),
-        quantity: k.quantity
-      }));
+      const kioskReservations: any[] = [];
+      activeKiosks.forEach(k => {
+        if (k.selectedIds && k.selectedIds.length > 0) {
+          // Save individual rows per selected kiosk ID
+          k.selectedIds.forEach(kioskId => {
+            kioskReservations.push({
+              order_id: finalOrderId,
+              kiosk_id: kioskId,
+              kiosk_type: k.type,
+              reservation_date: format(new Date(k.date!), 'yyyy-MM-dd'),
+              quantity: 1
+            });
+          });
+        } else {
+          // Fallback for legacy bookings without selectedIds
+          kioskReservations.push({
+            order_id: finalOrderId,
+            kiosk_type: k.type,
+            reservation_date: format(new Date(k.date!), 'yyyy-MM-dd'),
+            quantity: k.quantity
+          });
+        }
+      });
 
       const { error: kErr } = await (supabase.from('kiosk_reservations') as any).insert(kioskReservations);
       if (kErr) console.error('Error in kiosk_reservations sync:', kErr);
@@ -217,6 +234,16 @@ export async function getKioskAvailability(date: string, type: string): Promise<
 
   if (error || !data) return 0;
   return data.reduce((sum, r) => sum + r.quantity, 0);
+}
+
+export async function getBookedKioskIds(date: string): Promise<number[]> {
+  const { data, error } = await supabase
+    .from('kiosk_reservations')
+    .select('kiosk_id')
+    .eq('reservation_date', date);
+
+  if (error || !data) return [];
+  return data.map((r: any) => r.kiosk_id).filter((id: any) => id != null);
 }
 
 export async function getBookingCount(): Promise<number> {

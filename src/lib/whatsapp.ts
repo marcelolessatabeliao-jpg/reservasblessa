@@ -91,7 +91,12 @@ export function buildWhatsAppMessage(booking: BookingState, total: number, isPre
     msg += '*Quiosque:*\n';
     activeKiosks.forEach(k => {
       const basePrice = safeGetPrice(`kiosk_${k.type}`, KIOSK_INFO[k.type].price);
-      msg += `${k.quantity} x ${KIOSK_INFO[k.type].label} - ${formatCurrency(k.quantity * basePrice)}\n`;
+      if (k.selectedIds && k.selectedIds.length > 0) {
+        const ids = k.selectedIds.sort((a,b) => a-b).map(id => `Nº ${String(id).padStart(2,'0')}`).join(', ');
+        msg += `  ${ids} - ${formatCurrency(k.quantity * basePrice)}\n`;
+      } else {
+        msg += `  ${k.quantity} x ${KIOSK_INFO[k.type].label} - ${formatCurrency(k.quantity * basePrice)}\n`;
+      }
     });
     msg += '\n';
   }

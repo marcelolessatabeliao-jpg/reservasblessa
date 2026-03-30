@@ -132,10 +132,14 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
     });
 
     booking.kiosks.filter(k => k.quantity > 0).forEach(k => {
+      const kioskLabel = k.selectedIds && k.selectedIds.length > 0
+        ? `Quiosque ${k.selectedIds.sort((a,b)=>a-b).map(id => String(id).padStart(2,'0')).join(', ')}`
+        : KIOSK_INFO[k.type].label;
       items.push({ 
-        product_id: KIOSK_INFO[k.type].label, 
+        product_id: kioskLabel, 
         quantity: k.quantity, 
-        unit_price: getPrice(`kiosk_${k.type}`, KIOSK_INFO[k.type].price) 
+        unit_price: getPrice(`kiosk_${k.type}`, KIOSK_INFO[k.type].price),
+        metadata: { selectedIds: k.selectedIds || [] }
       });
     });
 
@@ -373,7 +377,11 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
                 return (
                 <div key={k.type} className="flex justify-between">
                   <div>
-                    <span>{k.quantity}x {KIOSK_INFO[k.type].label}</span>
+                    <span>
+                      {k.selectedIds && k.selectedIds.length > 0
+                        ? k.selectedIds.sort((a,b)=>a-b).map(id => `Quiosque ${String(id).padStart(2,'0')}`).join(', ')
+                        : `${k.quantity}x ${KIOSK_INFO[k.type].label}`}
+                    </span>
                     {booking.entry.visitDate && (
                       <span className="block text-[10px] text-muted-foreground/80">📅 {format(booking.entry.visitDate, "dd/MM/yyyy", { locale: ptBR })}</span>
                     )}
