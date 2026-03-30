@@ -476,7 +476,7 @@ export default function Admin() {
                         const bookings = dayQuads.filter(b => {
                             const bSlot = (b.time_slot || '').split('(')[0].toUpperCase().replace(/H/g, ':').trim();
                             const target = slot.start.toUpperCase();
-                            return bSlot === target || bSlot.includes(target);
+                            return bSlot === target || (bSlot.length > 2 && target.includes(bSlot)) || (target.length > 2 && bSlot.includes(target));
                         });
                         const count = bookings.reduce((s, r) => s + (Number(r.quantity) || 1), 0);
                         
