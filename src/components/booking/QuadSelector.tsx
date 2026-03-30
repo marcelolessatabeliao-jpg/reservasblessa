@@ -395,6 +395,7 @@ export function QuadSelector({ quads, onUpdate }: Props) {
                         )}
                       </div>
                       <QuantityStepper 
+                        size="sm"
                         theme={isActive ? 'dark' : 'default'}
                         value={quad.quantity} 
                         max={(() => {

@@ -8,17 +8,21 @@ interface QuantityStepperProps {
   max?: number;
   disabled?: boolean;
   theme?: 'default' | 'dark';
+  size?: 'sm' | 'default' | 'lg';
 }
 
-export function QuantityStepper({ value, onChange, min = 0, max = 99, disabled = false, theme = 'default' }: QuantityStepperProps) {
+export function QuantityStepper({ value, onChange, min = 0, max = 99, disabled = false, theme = 'default', size = 'default' }: QuantityStepperProps) {
   const isDark = theme === 'dark';
   
+  const dim = size === 'sm' ? 'h-7 w-7' : size === 'lg' ? 'h-10 w-10 sm:h-12 sm:w-12' : 'h-8 w-8 sm:h-10 sm:w-10';
+  const iconDim = size === 'sm' ? 'h-3 w-3' : size === 'lg' ? 'h-4 w-4 sm:h-5 sm:w-5' : 'h-3.5 w-3.5 sm:h-4 sm:w-4';
+  const textDim = size === 'sm' ? 'text-sm w-4' : size === 'lg' ? 'text-lg sm:text-xl w-8 sm:w-10' : 'text-sm sm:text-lg w-6 sm:w-8';
+
   return (
-    <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+    <div className={`flex items-center gap-1 shrink-0 ${size === 'lg' ? 'sm:gap-3' : 'sm:gap-2'}`}>
       <Button
         variant="outline"
-        size="icon"
-        className={`h-8 w-8 sm:h-10 sm:w-10 rounded-full border-2 shadow-sm shrink-0 transition-colors ${
+        className={`${dim} rounded-full border-2 shadow-sm shrink-0 transition-colors p-0 flex items-center justify-center ${
           isDark 
             ? 'bg-white/20 border-white/30 text-white hover:bg-white/30' 
             : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'
@@ -26,10 +30,10 @@ export function QuantityStepper({ value, onChange, min = 0, max = 99, disabled =
         onClick={() => onChange(Math.max(min, value - 1))}
         disabled={disabled || value <= min}
       >
-        <Minus className="h-3.5 w-3.5 sm:h-4 sm:w-4 stroke-[3]" />
+        <Minus className={`${iconDim} stroke-[3]`} />
       </Button>
       
-      <span className={`font-display font-black text-sm sm:text-lg w-6 sm:w-8 text-center tabular-nums ${
+      <span className={`font-display font-black text-center tabular-nums ${textDim} ${
         isDark ? 'text-white' : 'text-slate-900'
       }`}>
         {value}
@@ -37,8 +41,7 @@ export function QuantityStepper({ value, onChange, min = 0, max = 99, disabled =
       
       <Button
         variant="outline"
-        size="icon"
-        className={`h-8 w-8 sm:h-10 sm:w-10 rounded-full border-2 shadow-sm shrink-0 transition-colors ${
+        className={`${dim} rounded-full border-2 shadow-sm shrink-0 transition-colors p-0 flex items-center justify-center ${
           isDark
             ? 'bg-white border-white text-emerald-900 hover:bg-white/90'
             : 'bg-emerald-600 border-emerald-700 text-white hover:bg-emerald-700'
@@ -46,7 +49,7 @@ export function QuantityStepper({ value, onChange, min = 0, max = 99, disabled =
         onClick={() => onChange(Math.min(max, value + 1))}
         disabled={disabled || value >= max}
       >
-        <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4 stroke-[3]" />
+        <Plus className={`${iconDim} stroke-[3]`} />
       </Button>
     </div>
   );
