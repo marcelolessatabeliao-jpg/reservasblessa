@@ -401,31 +401,30 @@ export default function Admin() {
              </Card>
           </div>
 
-          <Card className="bg-white border-2 border-emerald-100/50 shadow-premium rounded-[3.5rem] p-10">
-             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
-                <div className="flex items-center gap-4">
-                   <div className="w-16 h-16 bg-emerald-600 rounded-[2rem] flex items-center justify-center text-white shadow-xl shadow-emerald-600/20">
-                      <Users className="w-8 h-8" />
-                   </div>
-                   <div>
-                      <h3 className="text-3xl font-black text-emerald-950 tracking-tighter leading-none">Mapa de Ocupação</h3>
-                      <p className="text-[10px] font-black uppercase text-emerald-900/30 tracking-[0.3em] mt-1">Status de Reservas Confirmadas</p>
-                   </div>
-                </div>
-                <Badge className="bg-emerald-50 text-emerald-700 border-2 border-emerald-200 font-black px-8 py-3 rounded-2xl text-[11px] uppercase tracking-widest">
-                   {format(targetDate, "dd 'de' MMMM, yyyy", { locale: ptBR })}
-                </Badge>
+          <Card className="bg-white border-2 border-emerald-50 text-emerald-950 shadow-sm rounded-[2rem] p-8">
+             <div className="flex flex-col md:flex-row md:items-center gap-6 mb-8 border-b border-emerald-100 pb-8">
+                 <div className="w-16 h-16 bg-emerald-800 rounded-[1.2rem] flex items-center justify-center text-white font-black text-2xl shadow-lg">
+                    {targetDate.getDate()}
+                 </div>
+                 <div>
+                    <h3 className="text-2xl font-black text-emerald-950 tracking-tighter leading-none mb-1">Operação Diária</h3>
+                    <p className="text-[13px] font-bold text-emerald-700/80 capitalize">{format(targetDate, "EEEE, yyyy", { locale: ptBR })}</p>
+                 </div>
              </div>
              
-             <div className="grid grid-cols-1 xl:grid-cols-2 gap-12">
-                {/* Left: Quiosques */}
-                <div className="space-y-6">
-                   <h4 className="text-[12px] font-black text-emerald-900/40 uppercase tracking-[0.4em] flex items-center gap-3">
-                      <Users className="w-4 h-4 text-emerald-600" /> Quiosques ({dayKiosks.length}/5)
-                      <span className="h-px bg-emerald-100 flex-1" />
-                   </h4>
-                   
-                   <div className="flex flex-col gap-3">
+             <div className="rounded-[1.5rem] border-2 border-amber-200 bg-[#FFFCF0] overflow-hidden mb-0">
+                <div className="p-5 border-b border-amber-200 flex items-center gap-3">
+                   <HelpCircle className="w-5 h-5 text-amber-700" />
+                   <h4 className="font-black text-amber-900 text-lg">Resumo de {format(targetDate, "dd 'de' MMMM", { locale: ptBR })}</h4>
+                </div>
+                <div className="grid grid-cols-1 xl:grid-cols-2">
+                   {/* Left: Quiosques */}
+                   <div className="p-8 border-b xl:border-b-0 xl:border-r border-amber-200 bg-emerald-50/70 space-y-6">
+                      <h4 className="text-[14px] font-black text-emerald-700 flex items-center gap-3">
+                         <Users className="w-5 h-5 text-emerald-600" /> Quiosques ({dayKiosks.length}/5)
+                      </h4>
+                      
+                      <div className="flex flex-col gap-3">
                        {KIOSKS.map(k => {
                         const booking = dayKiosks.find(b => {
                           const bid = b.kiosk_id;
@@ -439,27 +438,26 @@ export default function Admin() {
                         });
                         
                         return (
-                          <div key={k.id} className="bg-white rounded-2xl p-4 shadow-sm border border-emerald-100/50 flex items-center justify-between group hover:shadow-md transition-all duration-300">
-                             <span className="font-bold text-emerald-900 text-base">{k.name}</span>
+                          <div key={k.id} className="bg-white rounded-xl p-4 shadow-sm border border-emerald-200 flex items-center justify-between group">
+                             <span className="font-black text-emerald-950 text-[13px]">{k.name}</span>
                              {booking ? (
-                               <Badge className="h-8 px-4 rounded-xl bg-emerald-600 text-white font-black uppercase text-[9px] tracking-wider border-0 shadow-lg shadow-emerald-500/10">
+                               <span className="text-emerald-700 font-bold italic text-[13px] text-right">
                                   {booking.customer_name}
-                               </Badge>
+                               </span>
                              ) : (
-                               <span className="text-emerald-300 italic font-medium text-sm">Livre</span>
+                               <span className="text-emerald-600/60 italic font-bold text-[13px]">Livre</span>
                              )}
                           </div>
                         );
                       })}
                    </div>
-                </div>
+                   </div>
 
-                {/* Right: Quadriciclos */}
-                <div className="space-y-6">
-                   <h4 className="text-[12px] font-black text-blue-900/40 uppercase tracking-[0.4em] flex items-center gap-3">
-                      <Bike className="w-4 h-4 text-blue-600" /> Quadriciclos
-                      <span className="h-px bg-blue-100 flex-1" />
-                   </h4>
+                   {/* Right: Quadriciclos */}
+                   <div className="p-8 bg-blue-50/40 space-y-6">
+                      <h4 className="text-[14px] font-black text-blue-700 flex items-center gap-3">
+                         <Bike className="w-5 h-5 text-blue-600" /> Quadriciclos
+                      </h4>
                    
                    <div className="flex flex-col gap-4">
                       {[
@@ -476,25 +474,23 @@ export default function Admin() {
                         const count = bookings.reduce((s, r) => s + (Number(r.quantity) || 1), 0);
                         
                         return (
-                          <div key={slot.start} className="bg-white rounded-[1.25rem] p-3 shadow-sm border border-blue-100/50 space-y-2">
+                          <div key={slot.start} className="bg-white rounded-[1.25rem] p-4 shadow-sm border border-blue-200/80 space-y-3">
                              <div className="flex items-center justify-between">
-                                <span className="font-bold text-blue-900 text-sm">{slot.start} — {slot.end}</span>
-                                <Badge className="bg-blue-50 text-blue-600 border-blue-100 font-bold px-2.5 py-0.5 rounded-full text-[9px]">
-                                   {count}/5 ocupados
-                                </Badge>
+                                <span className="font-black text-blue-900 text-[13px]">{slot.start} - {slot.end}</span>
+                                <span className="text-blue-600 font-black text-[11px]">{count}/5 ocupados</span>
                              </div>
                              
-                             <div className="bg-blue-50/20 rounded-lg p-2 border border-blue-100/20 text-center min-h-[30px] flex items-center justify-center">
+                             <div className="rounded-xl border border-blue-100/50 p-2 min-h-[30px] flex items-center justify-center">
                                 {bookings.length > 0 ? (
                                   <div className="flex flex-wrap gap-1.5 justify-center">
                                      {bookings.map((b, bi) => (
-                                       <Badge key={bi} className="bg-emerald-600 text-white font-black uppercase text-[8px] tracking-wider px-3 py-1.5 rounded-lg border-0">
+                                       <Badge key={bi} className="bg-transparent text-blue-800 font-bold uppercase text-[9px] px-2 py-0 border border-blue-200">
                                           {b.customer_name} ({b.quantity})
                                        </Badge>
                                      ))}
                                   </div>
                                 ) : (
-                                  <span className="text-blue-200 italic font-medium text-xs">Nenhuma reserva</span>
+                                  <span className="text-blue-400/60 italic font-bold text-[11px]">Nenhuma reserva</span>
                                 )}
                              </div>
                           </div>
@@ -521,30 +517,31 @@ export default function Admin() {
              </div>
 
              {/* Footer Summary */}
-             <div className="mt-12 bg-[#fff9e6] rounded-2xl p-5 border-2 border-[#fff0b3] flex items-center justify-center text-center shadow-sm">
-                <p className="text-[#997a00] font-black uppercase tracking-[0.2em] text-xs">
+             <div className="p-5 border-t border-amber-200 bg-[#FFFCF0] flex items-center justify-center text-center">
+                <p className="text-amber-800 font-black uppercase tracking-[0.1em] text-[11px]">
                    Total de Reservas no Dia: {dayKiosks.length + dayQuads.length}
                 </p>
              </div>
-          </Card>
+          </div>
+        </Card>
         </div>
 
         <div className="space-y-6">
-           <Card className="bg-emerald-50/80 border-2 border-emerald-300 shadow-premium rounded-[2.5rem] overflow-hidden">
-              <div className="p-8 border-b border-emerald-200/50 bg-white">
+           <Card className="bg-white border-2 border-emerald-100 shadow-sm rounded-3xl overflow-hidden">
+              <div className="p-6 border-b border-emerald-100 bg-emerald-50/50">
                  <div className="flex items-center gap-3 mb-2">
-                    <CalendarCheck className="w-6 h-6 text-emerald-600" />
-                    <h4 className="text-xl font-black text-emerald-950 tracking-tight">Resumo Geral</h4>
+                    <CalendarCheck className="w-5 h-5 text-emerald-800" />
+                    <h4 className="text-lg font-black text-emerald-950 tracking-tight">Resumo Geral</h4>
                  </div>
-                 <p className="text-xs font-bold text-emerald-800/40 uppercase tracking-widest leading-relaxed">
+                 <p className="text-[11px] font-bold text-emerald-800/70 leading-relaxed mb-6">
                     Selecione uma data para organizar seu dia de operações.
                  </p>
                  
-                 <div className="grid grid-cols-1 gap-2 mt-6">
-                    <div className="flex items-center justify-center gap-2 py-2 px-4 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-lg shadow-emerald-600/20">
+                 <div className="grid grid-cols-1 gap-2">
+                    <div className="flex items-center justify-center gap-2 py-2.5 px-4 bg-emerald-800 text-white rounded-[0.8rem] text-[10px] font-black uppercase tracking-wider">
                        <Tent className="w-3.5 h-3.5" /> Quiosques Ocupados
                     </div>
-                    <div className="flex items-center justify-center gap-2 py-2 px-4 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-wider shadow-lg shadow-blue-600/20">
+                    <div className="flex items-center justify-center gap-2 py-2.5 px-4 bg-blue-700 text-white rounded-[0.8rem] text-[10px] font-black uppercase tracking-wider">
                        <Bike className="w-3.5 h-3.5" /> Quadriciclos Alugados
                     </div>
                  </div>
@@ -600,22 +597,7 @@ export default function Admin() {
               </div>
            </Card>
            
-           <Card className="bg-emerald-900 text-white border-none shadow-premium rounded-[2.5rem] p-8 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform">
-                 <History className="w-24 h-24" />
-              </div>
-              <div className="relative z-10 flex flex-col gap-4">
-                 <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center">
-                    <HelpCircle className="w-6 h-6 text-white" />
-                 </div>
-                 <div>
-                    <h4 className="text-xl font-black tracking-tight mb-2">Resumo Operacional</h4>
-                    <p className="text-sm text-emerald-100/60 font-medium leading-relaxed">
-                       Através deste painel você gerencia a ocupação em tempo real. Os marcadores no calendário indicam dias com reservas já confirmadas.
-                    </p>
-                 </div>
-              </div>
-           </Card>
+           {/* Resumo Operacional Card Removed */}
         </div>
       </div>
     );
@@ -975,34 +957,34 @@ export default function Admin() {
           </div>
 
           {/* TABS */}
-          <div className="flex items-center p-2 bg-emerald-900/5 backdrop-blur-xl rounded-[2.8rem] w-fit max-w-full overflow-x-auto border border-white/60 shadow-premium no-scrollbar">
+          <div className="flex items-center p-2 bg-white rounded-3xl w-full max-w-4xl mr-auto overflow-x-auto border-2 border-emerald-100 shadow-sm mb-6 no-scrollbar">
              <button onClick={() => setActiveTab('painel')} className={cn(
-               "px-8 py-4 rounded-[2.2rem] text-sm font-black flex items-center gap-2.5 transition-all active:scale-95 whitespace-nowrap", 
-               activeTab === 'painel' ? "bg-emerald-900 text-white shadow-2xl shadow-emerald-900/20 scale-105" : "text-emerald-900/90 hover:bg-white/40"
+               "flex-1 px-8 py-4 rounded-2xl text-[13px] font-black flex items-center justify-center gap-2.5 transition-all whitespace-nowrap", 
+               activeTab === 'painel' ? "bg-amber-500 text-amber-950 shadow-md" : "text-emerald-800 hover:bg-emerald-50"
              )}>
-                <LayoutDashboard className="w-4.5 h-4.5" /> Painel
-             </button>
-             <button onClick={() => setActiveTab('reservas')} className={cn(
-               "px-8 py-4 rounded-[2.2rem] text-sm font-black flex items-center gap-2.5 transition-all active:scale-95 whitespace-nowrap", 
-               activeTab === 'reservas' ? "bg-emerald-600 text-white shadow-2xl shadow-emerald-600/20 scale-105" : "text-emerald-900/90 hover:bg-white/40"
-             )}>
-                <CalendarCheck className="w-4.5 h-4.5" /> Agenda
+                <LayoutDashboard className="w-4.5 h-4.5" /> Visão Geral
              </button>
              <button onClick={() => setActiveTab('quiosques')} className={cn(
-               "px-8 py-4 rounded-[2.2rem] text-sm font-black flex items-center gap-2.5 transition-all active:scale-95 whitespace-nowrap", 
-               activeTab === 'quiosques' ? "bg-emerald-600 text-white shadow-2xl shadow-emerald-600/20 scale-105" : "text-emerald-900/90 hover:bg-white/40"
+               "flex-1 px-8 py-4 rounded-2xl text-[13px] font-black flex items-center justify-center gap-2.5 transition-all whitespace-nowrap", 
+               activeTab === 'quiosques' ? "bg-amber-500 text-amber-950 shadow-md" : "text-emerald-800 hover:bg-emerald-50"
              )}>
                 <Tent className="w-4.5 h-4.5" /> Quiosques
              </button>
              <button onClick={() => setActiveTab('quads')} className={cn(
-               "px-8 py-4 rounded-[2.2rem] text-sm font-black flex items-center gap-2.5 transition-all active:scale-95 whitespace-nowrap", 
-               activeTab === 'quads' ? "bg-blue-600 text-white shadow-2xl shadow-blue-600/20 scale-105" : "text-emerald-900/90 hover:bg-white/40"
+               "flex-1 px-8 py-4 rounded-2xl text-[13px] font-black flex items-center justify-center gap-2.5 transition-all whitespace-nowrap", 
+               activeTab === 'quads' ? "bg-amber-500 text-amber-950 shadow-md" : "text-emerald-800 hover:bg-emerald-50"
              )}>
-                <Bike className="w-4.5 h-4.5" /> Quads
+                <Bike className="w-4.5 h-4.5" /> Quadriciclos
+             </button>
+             <button onClick={() => setActiveTab('reservas')} className={cn(
+               "flex-1 px-8 py-4 rounded-2xl text-[13px] font-black flex items-center justify-center gap-2.5 transition-all whitespace-nowrap", 
+               activeTab === 'reservas' ? "bg-amber-500 text-amber-950 shadow-md" : "text-emerald-800 hover:bg-emerald-50"
+             )}>
+                <CalendarCheck className="w-4.5 h-4.5" /> Agenda
              </button>
              <button onClick={() => setActiveTab('vendas')} className={cn(
-               "px-8 py-4 rounded-[2.2rem] text-sm font-black flex items-center gap-2.5 transition-all active:scale-95 whitespace-nowrap", 
-               activeTab === 'vendas' ? "bg-amber-600 text-white shadow-2xl shadow-amber-600/20 scale-105" : "text-emerald-900/90 hover:bg-white/40"
+               "flex-1 px-8 py-4 rounded-2xl text-[13px] font-black flex items-center justify-center gap-2.5 transition-all whitespace-nowrap", 
+               activeTab === 'vendas' ? "bg-amber-500 text-amber-950 shadow-md" : "text-emerald-800 hover:bg-emerald-50"
              )}>
                 <ShoppingBag className="w-4.5 h-4.5" /> Vendas
              </button>
