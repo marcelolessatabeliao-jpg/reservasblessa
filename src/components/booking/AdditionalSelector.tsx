@@ -34,7 +34,7 @@ export function AdditionalSelector({ additionals, onUpdate }: Props) {
         const basePrice = getPrice(`add_${item.type}`, info.price);
         const Icon = ICONS[item.type] || Fish;
         return (
-          <div key={item.type} className="bg-white/50 backdrop-blur-md rounded-2xl border border-white/60 p-4 sm:p-5 shadow-xl">
+          <div key={item.type} className="bg-white/95 backdrop-blur-md rounded-2xl border-2 border-slate-200 p-4 sm:p-5 shadow-lg transition-colors hover:border-slate-300">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                 <div className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-sun/10 text-sun shrink-0">

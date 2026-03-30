@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Home, AlertTriangle, CalendarIcon, Loader2, Check, Users, MapPin } from 'lucide-react';
+import { Home, AlertTriangle, CalendarIcon, Loader2, Check, Users, MapPin, X } from 'lucide-react';
 import { KioskItem, KIOSK_INFO, formatCurrency, isOperatingDay } from '@/lib/booking-types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -305,23 +305,40 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
         )}
       </div>
 
-      {/* Included items info */}
-      <div className="text-[10px] sm:text-xs text-muted-foreground px-1">
-        Inclui: churrasqueira, pia, grelha, mesas e cadeiras
-      </div>
-
-      {/* Warning notice */}
-      <div className="flex flex-col gap-2 bg-destructive/5 border border-destructive/20 rounded-lg p-3">
-        <div className="flex items-start gap-2">
-          <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-destructive shrink-0 mt-0.5" />
-          <p className="text-xs sm:text-sm font-bold text-foreground">
-            Reservas de quiosque não possuem reembolso em caso de desistência.
+      {/* Included items info & Rules */}
+      <div className="flex flex-col gap-3">
+        {/* Positive Include Row */}
+        <div className="flex items-center flex-wrap gap-2 bg-emerald-50/50 border border-emerald-100 p-3 rounded-xl shadow-sm">
+          <div className="bg-emerald-100 p-1.5 rounded-lg shrink-0">
+            <Check className="h-4 w-4 text-emerald-600 stroke-[3]" />
+          </div>
+          <p className="text-xs sm:text-sm font-bold text-emerald-800">
+            Inclui: <span className="font-medium text-emerald-700">churrasqueira, pia, grelha, mesas e cadeiras</span>
           </p>
         </div>
-        <p className="text-[10px] sm:text-xs text-muted-foreground leading-relaxed pl-6 sm:pl-7">
-          <strong>Observação:</strong> As reservas não incluem o valor das entradas, que continuam sendo pagas à parte na chegada.<br /> 
-          Os valores acima referem-se exclusivamente à locação dos espaços.
-        </p>
+
+        {/* Warning notice & Additional Info */}
+        <div className="flex flex-col gap-2 bg-destructive/5 border border-destructive/20 rounded-xl p-3 sm:p-4">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-destructive shrink-0 mt-0.5" />
+            <p className="text-xs sm:text-sm font-bold text-foreground">
+              Reservas de quiosque não possuem reembolso em caso de desistência.
+            </p>
+          </div>
+          <div className="text-[10px] sm:text-xs text-muted-foreground leading-relaxed pl-6 sm:pl-7 space-y-2 mt-1">
+            <p>
+              <strong>Observação:</strong> As reservas não incluem o valor das entradas, que continuam sendo pagas à parte na chegada. Os valores acima referem-se exclusivamente à locação dos espaços.
+            </p>
+            <div className="flex flex-col gap-1 mt-2 p-2 bg-white/50 rounded-lg border border-slate-100">
+              <p className="text-emerald-700 font-bold flex items-center gap-1.5">
+                <Check className="h-3.5 w-3.5 stroke-[3]" /> É permitido levar todo tipo de alimento.
+              </p>
+              <p className="text-destructive font-bold flex items-center gap-1.5">
+                <X className="h-3.5 w-3.5 stroke-[3]" /> Proibido levar quaisquer tipos de bebidas, apenas sendo adquiridas no local.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -106,10 +106,18 @@ export function QuadSelector({ quads, onUpdate }: Props) {
       </div>
 
       {/* Duration info */}
-      <div className="bg-amber-50 border border-amber-300/50 p-3 sm:p-4 rounded-xl mb-4 shadow-sm">
-        <p className="text-xs sm:text-sm text-amber-900 font-medium leading-relaxed">
-          <strong className="font-bold uppercase tracking-wider">⏱️ Duração: 1h30 de passeio</strong> com Desafios com pedras, lama, rio, barrancos, floresta, buracos, poças de água, piscina natural, batistério e uma incrível tirolesa!
-        </p>
+      <div className="bg-emerald-50/50 border border-emerald-100 p-4 rounded-2xl mb-4 flex flex-col sm:flex-row gap-3 sm:items-center shadow-sm">
+        <div className="bg-white border border-emerald-100 p-2.5 rounded-xl shrink-0 shadow-sm flex items-center justify-center">
+          <Clock className="w-5 h-5 text-emerald-600" />
+        </div>
+        <div>
+          <h4 className="font-black text-emerald-800 text-sm uppercase tracking-wider mb-0.5">
+            Duração: 1h30 de Aventura Exclusiva
+          </h4>
+          <p className="text-xs sm:text-sm text-emerald-700/80 font-medium leading-relaxed">
+            Desafios com pedras, lama, rio, barrancos, floresta, piscina natural, poças de água, batistério e uma incrível tirolesa!
+          </p>
+        </div>
       </div>
 
       {/* Slot availability overview */}
@@ -387,6 +395,7 @@ export function QuadSelector({ quads, onUpdate }: Props) {
                         )}
                       </div>
                       <QuantityStepper 
+                        theme={isActive ? 'dark' : 'default'}
                         value={quad.quantity} 
                         max={(() => {
                           if (!quad.time || !checkDate) return 0;

@@ -539,7 +539,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                 {entry.visitDate ? (
                   <Button 
                     variant="outline" 
-                    className="w-full h-12 justify-between px-4 font-sans font-bold text-sm rounded-2xl border-emerald-500/30 bg-emerald-100/50 text-emerald-900 shadow-sm hover:bg-emerald-200/50 transition-all uppercase tracking-tight"
+                    className="w-full h-12 justify-between px-4 font-sans font-bold text-sm rounded-2xl border-emerald-500/30 bg-emerald-100/50 text-emerald-900 shadow-sm hover:bg-emerald-200/80 hover:text-emerald-950 transition-all uppercase tracking-tight"
                   >
                     <div className="flex items-center gap-2">
                       <CalendarIcon className="h-4 w-4 text-emerald-600" />
