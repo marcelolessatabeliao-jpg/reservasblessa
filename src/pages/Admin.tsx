@@ -118,12 +118,12 @@ export default function Admin() {
       // Map reservations to include customer names correctly from either source
       let parsedKiosks = (kiosks || []).map(k => ({
          ...k,
-         customer_name: k.orders?.customer_name || k.bookings?.name || 'Reserva Direta'
+         customer_name: k.customer_name || k.orders?.customer_name || k.bookings?.name || 'Reserva Direta'
       }));
       
       let parsedQuads = (quads || []).map(q => ({
          ...q,
-         customer_name: q.orders?.customer_name || q.bookings?.name || 'Reserva Direta'
+         customer_name: q.customer_name || q.orders?.customer_name || q.bookings?.name || 'Reserva Direta'
       }));
 
       if (orderData) {
@@ -459,7 +459,7 @@ export default function Admin() {
                          <Bike className="w-5 h-5 text-blue-600" /> Quadriciclos
                       </h4>
                    
-                   <div className="flex flex-col gap-4">
+                   <div className="flex flex-col gap-2.5">
                       {[
                         { start: '09:00', end: '10:30' },
                         { start: '10:30', end: '12:00' },
@@ -474,23 +474,23 @@ export default function Admin() {
                         const count = bookings.reduce((s, r) => s + (Number(r.quantity) || 1), 0);
                         
                         return (
-                          <div key={slot.start} className="bg-white rounded-[1.25rem] p-4 shadow-sm border border-blue-200/80 space-y-3">
-                             <div className="flex items-center justify-between">
+                          <div key={slot.start} className="bg-white rounded-[1.25rem] p-3 shadow-sm border border-blue-200/80 space-y-2.5">
+                             <div className="flex items-center justify-between px-1">
                                 <span className="font-black text-blue-900 text-[13px]">{slot.start} - {slot.end}</span>
-                                <span className="text-blue-600 font-black text-[11px]">{count}/5 ocupados</span>
+                                <span className="text-blue-600 font-bold text-[11px]">{count}/5 ocupados</span>
                              </div>
                              
-                             <div className="rounded-xl border border-blue-100/50 p-2 min-h-[30px] flex items-center justify-center">
+                             <div className="rounded-xl border border-blue-50 bg-blue-50/20 p-1.5 min-h-[32px] flex items-center justify-center">
                                 {bookings.length > 0 ? (
                                   <div className="flex flex-wrap gap-1.5 justify-center">
                                      {bookings.map((b, bi) => (
-                                       <Badge key={bi} className="bg-transparent text-blue-800 font-bold uppercase text-[9px] px-2 py-0 border border-blue-200">
+                                       <Badge key={bi} className="bg-transparent text-blue-700/80 font-bold italic lowercase text-[11px] px-2 py-0 border-0 shadow-none">
                                           {b.customer_name} ({b.quantity})
                                        </Badge>
                                      ))}
                                   </div>
                                 ) : (
-                                  <span className="text-blue-400/60 italic font-bold text-[11px]">Nenhuma reserva</span>
+                                  <span className="text-blue-400/50 italic font-black text-[11px]">Nenhuma reserva</span>
                                 )}
                              </div>
                           </div>
@@ -499,15 +499,17 @@ export default function Admin() {
                    </div>
 
                    {/* Fallback for Quads from orders or with non-standard slots */}
-                   {dayQuads.filter(b => !['09:00', '10:30', '13:00', '14:30'].some(t => (b.time_slot || '').includes(t))).length > 0 && (
-                     <div className="mt-4 p-4 bg-amber-50 rounded-2xl border border-amber-200">
-                        <p className="text-[9px] font-black text-amber-700 uppercase tracking-widest mb-2 flex items-center gap-2">
-                           <AlertTriangle className="w-3 h-3" /> Outros / Sem Horário
+                   {dayQuads.filter(b => !['09:00', '10:30', '14:00', '15:30'].some(t => (b.time_slot || '').includes(t))).length > 0 && (
+                     <div className="mt-4 p-4 bg-[#FFFDF2] rounded-[1.5rem] border border-amber-300">
+                        <p className="text-[11px] font-black text-[#D97706] uppercase tracking-wider mb-3 flex items-center gap-2">
+                           <AlertTriangle className="w-3.5 h-3.5 stroke-[2.5]" /> OUTROS / SEM HORÁRIO
                         </p>
-                        <div className="flex flex-wrap gap-2">
-                          {dayQuads.filter(b => !['09:00', '10:30', '13:00', '14:30'].some(t => (b.time_slot || '').includes(t))).map(b => (
-                            <Badge key={b.id} className="bg-amber-100 text-amber-800 border-amber-200 text-[8px] font-bold px-3 py-1">
-                               {b.customer_name}: {b.quantity || 1} quad. ({b.time_slot})
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          {dayQuads.filter(b => !['09:00', '10:30', '14:00', '15:30'].some(t => (b.time_slot || '').includes(t))).map(b => (
+                            <Badge key={b.id} className="bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-black px-3 py-1 rounded-[0.8rem]">
+                               {b.customer_name}: {b.quantity || 1} quad. {b.time_slot && b.time_slot !== 'INDIV' && b.time_slot !== 'DUPLA' && `(${b.time_slot})`}
+                               {b.time_slot === 'INDIV' && '(INDIV)'}
+                               {b.time_slot === 'DUPLA' && '(DUPLA)'}
                             </Badge>
                           ))}
                         </div>
