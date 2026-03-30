@@ -382,9 +382,6 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
                         ? k.selectedIds.sort((a,b)=>a-b).map(id => `Quiosque ${String(id).padStart(2,'0')}`).join(', ')
                         : `${k.quantity}x ${KIOSK_INFO[k.type].label}`}
                     </span>
-                    {booking.entry.visitDate && (
-                      <span className="block text-[10px] text-muted-foreground/80">📅 {format(booking.entry.visitDate, "dd/MM/yyyy", { locale: ptBR })}</span>
-                    )}
                   </div>
                   <span>{formatCurrency(k.quantity * basePrice)}</span>
                 </div>
@@ -411,7 +408,6 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
                   <div key={q.type} className="flex justify-between items-start">
                     <div>
                       <span>{q.quantity}x Quad. {QUAD_LABELS[q.type]}</span>
-                      <span className="block text-[10px] text-muted-foreground/80">📅 {q.date ? format(q.date, "dd/MM/yyyy", { locale: ptBR }) : booking.entry.visitDate ? format(booking.entry.visitDate, "dd/MM/yyyy", { locale: ptBR }) : '—'} às {q.time || '—'}</span>
                     </div>
                     <span>{formatCurrency(q.quantity * final_)}</span>
                   </div>
@@ -436,9 +432,6 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
                 <div key={a.type} className="flex justify-between items-start">
                   <div>
                     <span>{a.quantity}x {ADDITIONAL_INFO[a.type].label}</span>
-                    {booking.entry.visitDate && (
-                      <span className="block text-[10px] text-muted-foreground/80">📅 {format(booking.entry.visitDate, "dd/MM/yyyy", { locale: ptBR })}</span>
-                    )}
                   </div>
                   <span>{formatCurrency(a.quantity * basePrice)}</span>
                 </div>

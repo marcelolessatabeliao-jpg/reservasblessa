@@ -219,7 +219,7 @@ export function QuadSelector({ quads, onUpdate }: Props) {
                   }
                   setExpandedCard(isExpanded ? null : card.type);
                 }}
-                className="w-full p-4 sm:p-5 text-left"
+                className="w-full p-3 sm:p-4 text-left"
               >
                 {/* Active badge */}
                 {isActive && (
@@ -230,18 +230,18 @@ export function QuadSelector({ quads, onUpdate }: Props) {
 
                 {/* Icon */}
                 <div className={cn(
-                  "w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center mb-3 transition-colors",
+                  "w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center mb-2 transition-colors",
                   isActive ? "bg-white/20" : colors.iconBg
                 )}>
                   <IconComp className={cn(
-                    "h-6 w-6 sm:h-7 sm:w-7",
+                    "h-4 w-4 sm:h-5 sm:w-5",
                     isActive ? "text-white" : colors.text
                   )} />
                 </div>
 
                 {/* Title */}
                 <h4 className={cn(
-                  "font-black text-base sm:text-lg uppercase tracking-wide",
+                  "font-black text-sm sm:text-base uppercase tracking-wide",
                   isActive ? "text-white" : "text-slate-800"
                 )}>
                   {card.title}
@@ -266,7 +266,7 @@ export function QuadSelector({ quads, onUpdate }: Props) {
                     </span>
                   )}
                   <span className={cn(
-                    "font-black text-xl sm:text-2xl",
+                    "font-black text-lg sm:text-xl",
                     isActive ? "text-white" : colors.text
                   )}>
                     {formatCurrency(finalPrice)}
@@ -358,27 +358,34 @@ export function QuadSelector({ quads, onUpdate }: Props) {
 
                   {/* Quantity Selection */}
                   <div className={cn(
-                    "flex flex-col gap-2 p-3 rounded-2xl border transition-all",
+                    "flex flex-col p-3 rounded-2xl border transition-all",
                     quad.time
                       ? isActive ? "bg-white/10 border-white/20" : "bg-emerald-50/60 border-emerald-300/40"
                       : "bg-slate-50 border-slate-200 opacity-50 pointer-events-none"
                   )}>
                     <span className={cn(
-                      "text-[10px] font-black uppercase tracking-widest",
+                      "text-[10px] font-black uppercase tracking-widest mb-2",
                       isActive ? "text-white/60" : "text-slate-500"
                     )}>
                       2. Quantidade
                     </span>
                     <div className="flex items-center justify-between">
-                      <span className={cn(
-                        "font-black text-sm",
-                        isActive ? "text-white" : "text-slate-700"
-                      )}>
-                        {quad.quantity > 0 
-                          ? `${quad.quantity}x = ${formatCurrency(finalPrice * quad.quantity)}`
-                          : 'Selecione'
-                        }
-                      </span>
+                      <div className="flex flex-col">
+                        {quad.quantity > 0 ? (
+                          <>
+                            <span className={cn("text-xs font-bold leading-tight", isActive ? "text-white/80" : "text-slate-600")}>
+                              {quad.quantity}x =
+                            </span>
+                            <span className={cn("text-base sm:text-lg font-black leading-none mt-0.5", isActive ? "text-white" : "text-slate-800")}>
+                              {formatCurrency(finalPrice * quad.quantity)}
+                            </span>
+                          </>
+                        ) : (
+                          <span className={cn("font-black text-sm", isActive ? "text-white" : "text-slate-700")}>
+                            Selecione
+                          </span>
+                        )}
+                      </div>
                       <QuantityStepper 
                         value={quad.quantity} 
                         max={(() => {
