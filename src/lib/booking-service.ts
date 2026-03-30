@@ -119,7 +119,8 @@ export async function saveBooking(
             order_id: finalOrderId, 
             product_id: `Quadriciclo ${labelMap[q.type]}`,
             quantity: q.quantity, 
-            unit_price: baseMap[q.type] || 0
+            unit_price: baseMap[q.type] || 0,
+            metadata: { time: q.time } // Armazena o horário escolhido nos metadados
           });
         });
 

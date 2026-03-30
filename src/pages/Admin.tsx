@@ -154,8 +154,15 @@ export default function Admin() {
                if ((pId.includes('quad') || pName.includes('quad')) && !parsedQuads.some(pq => pq.order_id === o.id)) {
                   // Try to find a time slot (HH:MM or HHhMM) in name or metadata
                   const searchStr = `${pName} ${pId} ${JSON.stringify(item.metadata || {})} ${o.notes || ''}`.toUpperCase();
-                  const timeMatch = searchStr.match(/(\d{2}[:H]\d{2})/);
-                  let finalSlot = timeMatch ? timeMatch[1].replace('H', ':') : null;
+                   // Try regex first (e.g., 9:00, 09:00, 9H00, 09H00)
+                   const timeMatch = searchStr.match(/(\d{1,2}[:H]\d{2})/);
+                   let finalSlot = null;
+                   
+                   if (timeMatch) {
+                     let raw = timeMatch[1].replace('H', ':');
+                     if (raw.length === 4) raw = '0' + raw; // Auto-pad (9:00 -> 09:00)
+                     finalSlot = raw;
+                   }
                   
                   if (!finalSlot) {
                     const standardSlot = QUAD_TIMES.find(t => searchStr.includes(t));
