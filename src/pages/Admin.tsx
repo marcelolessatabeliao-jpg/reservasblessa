@@ -239,8 +239,7 @@ export default function Admin() {
 
       // Se for uma reserva virtual extraída de um pedido, precisa virar real no banco
       if (typeof editingId === 'string' && editingId.startsWith('order-')) {
-        const orderId = editingId.split('-')[1];
-        payload.order_id = orderId;
+        payload.order_id = editData.order_id;
         const { error } = await supabase.from(table).insert([payload]);
         if (error) throw error;
       } else {
