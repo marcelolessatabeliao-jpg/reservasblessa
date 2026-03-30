@@ -146,7 +146,8 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
       items.push({ 
         product_id: `Quad ${QUAD_LABELS[q.type]}`, 
         quantity: q.quantity, 
-        unit_price: basePrice * (1 - discount) 
+        unit_price: basePrice * (1 - discount),
+        metadata: { time: q.time } 
       });
     });
 

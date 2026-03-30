@@ -154,18 +154,27 @@ export default function Admin() {
                if ((pId.includes('quad') || pName.includes('quad')) && !parsedQuads.some(pq => pq.order_id === o.id)) {
                   // Try to find a time slot (HH:MM or HHhMM) in name or metadata
                   const searchStr = `${pName} ${pId} ${JSON.stringify(item.metadata || {})} ${o.notes || ''}`.toUpperCase();
-                   // Try regex first (e.g., 9:00, 09:00, 9H00, 09H00)
-                   const timeMatch = searchStr.match(/(\d{1,2}[:H]\d{2})/);
-                   let finalSlot = null;
-                   
-                   if (timeMatch) {
-                     let raw = timeMatch[1].replace('H', ':');
-                     if (raw.length === 4) raw = '0' + raw; // Auto-pad (9:00 -> 09:00)
-                     finalSlot = raw;
-                   }
+                  // 1. Try regex (9:00, 09:00, 9H00, etc.)
+                  const timeMatch = searchStr.match(/(\d{1,2}[:H]\d{2})/);
+                  let finalSlot = null;
+
+                  if (timeMatch) {
+                    let raw = timeMatch[1].replace('H', ':');
+                    if (raw.length === 4) raw = '0' + raw; 
+                    finalSlot = raw;
+                  }
                   
+                  // 2. Try explicit metadata
+                  if (!finalSlot && item.metadata?.time) {
+                    finalSlot = item.metadata.time;
+                  }
+
+                  // 3. Fallback to standard slots list
                   if (!finalSlot) {
-                    const standardSlot = QUAD_TIMES.find(t => searchStr.includes(t));
+                    const standardSlot = QUAD_TIMES.find(t => {
+                      const short = t.replace(/^0/, '');
+                      return searchStr.includes(t) || searchStr.includes(short);
+                    });
                     finalSlot = standardSlot || (searchStr.includes('DUPLA') ? 'DUPLA' : 'INDIV');
                   }
 
@@ -787,13 +796,20 @@ export default function Admin() {
                                  <span className="font-bold text-sm">
                                     {isEditing ? <Input type="date" value={editData.reservation_date} onChange={e => setEditData({...editData, reservation_date: e.target.value})} className="h-8" /> : format(parseISO(r.reservation_date), 'dd/MM/yyyy')}
                                  </span>
-                                 <span className="text-[10px] uppercase font-bold text-blue-600">
+                                 <span className={cn(
+                                    "text-[10px] uppercase font-bold",
+                                    (r.time_slot === 'INDIV' || r.time_slot === 'DUPLA') ? "text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-md" : "text-blue-600"
+                                 )}>
                                     {isEditing ? (
                                       <Select value={editData.time_slot} onValueChange={v => setEditData({...editData, time_slot: v})}>
                                          <SelectTrigger className="h-6 text-[10px]"><SelectValue /></SelectTrigger>
                                          <SelectContent>{QUAD_TIMES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
                                       </Select>
-                                    ) : r.time_slot}
+                                    ) : (
+                                       (r.time_slot === 'INDIV' || r.time_slot === 'DUPLA') ? (
+                                          <span className="animate-pulse">⚠️ DEFINIR HORÁRIO</span>
+                                       ) : r.time_slot
+                                    )}
                                  </span>
                               </div>
                            </td>
