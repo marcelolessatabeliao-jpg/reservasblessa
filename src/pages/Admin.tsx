@@ -505,6 +505,25 @@ export default function Admin() {
                       })}
                    </div>
 
+                   {dayQuads.filter(b => !['09:00', '10:30', '14:00', '15:30'].some(t => (b.time_slot || '').includes(t))).length > 0 && (
+                      <div className="bg-amber-50/50 rounded-[1.25rem] p-3 shadow-sm border border-amber-200 mt-2 space-y-2.5">
+                         <div className="flex items-center justify-between px-1">
+                            <span className="font-black text-amber-900 text-[11px] uppercase tracking-wider flex items-center gap-2">
+                               <AlertTriangle className="w-3.5 h-3.5" /> Extra / S. Horário
+                            </span>
+                         </div>
+                         <div className="rounded-xl border border-amber-100 bg-white/40 p-1.5 min-h-[32px] flex items-center justify-center text-center">
+                            <div className="flex flex-wrap gap-1.5 justify-center">
+                               {dayQuads.filter(b => !['09:00', '10:30', '14:00', '15:30'].some(t => (b.time_slot || '').includes(t))).map((b, bi) => (
+                                  <Badge key={bi} className="bg-transparent text-amber-800 font-bold italic lowercase text-[11px] px-2 py-0 border-0 shadow-none">
+                                     {b.customer_name} ({b.quantity})
+                                  </Badge>
+                               ))}
+                            </div>
+                         </div>
+                      </div>
+                   )}
+
 
                 </div>
              </div>
