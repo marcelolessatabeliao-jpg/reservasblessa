@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { format, isToday, isTomorrow, isThisWeek, parseISO, isBefore, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { 
@@ -905,48 +905,48 @@ export default function Admin() {
             <div className="hidden md:block">
               {tabGroups.length === 0 ? (
                 <div className="text-center py-16 text-muted-foreground/40 font-bold uppercase text-xs tracking-widest">
-                  {kioskSubTab === 'hoje' ? 'Nenhuma reserva ativa hoje' : kioskSubTab === 'futuras' ? 'Sem reservas futuras' : 'Sem histÃ³rico'}
+                  {kioskSubTab === 'hoje' ? 'Nenhuma reserva ativa hoje' : kioskSubTab === 'futuras' ? 'Sem reservas futuras' : 'Sem histórico'}
                 </div>
               ) : (
                 <table className="w-full text-left">
-                  <thead className="bg-slate-100/80 text-[10px] font-black uppercase text-slate-900 tracking-widest border-b-2 border-emerald-300">
+                  <thead className="bg-[#0b2b24] text-[10px] font-black uppercase text-emerald-100/80 tracking-widest border-b-4 border-emerald-900">
                     <tr>
                       <th className="px-6 py-4">Data</th>
                       <th className="px-6 py-4">Cliente</th>
                       <th className="px-6 py-4">Quiosques / Capacidade</th>
                       <th className="px-6 py-4">Valor</th>
-                      <th className="px-6 py-4 text-right">AÃ§Ãµes</th>
+                      <th className="px-6 py-4 text-right">Ações</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y-2 divide-emerald-200">
+                  <tbody className="divide-y-2 divide-slate-100">
                     {tabGroups.map((group: any) => {
                       const { names } = resolveGroup(group);
                       const isToday = group.reservation_date === todayStr;
                       return (
                         <tr key={group.group_key} className={cn(
-                          'border-b-2 border-emerald-200 hover:bg-emerald-100/50 transition-colors',
-                          isToday ? 'bg-emerald-50/60' : 'bg-white'
+                          'border-b-2 border-slate-100 transition-all duration-300 hover:scale-[1.01] hover:shadow-lg hover:z-10 relative cursor-pointer',
+                          isToday ? 'bg-emerald-50/50 hover:bg-emerald-100' : 'bg-slate-50 hover:bg-white'
                         )}>
                           <td className="px-6 py-4">
-                            <div className="flex flex-col gap-1">
-                              <span className={cn('font-bold text-sm', isToday ? 'text-emerald-800' : 'text-emerald-900')}>
+                            <div className="flex flex-col gap-1.5 w-fit">
+                              <span className={cn('font-black text-sm px-3 py-1 rounded-lg border', isToday ? 'text-emerald-900 border-emerald-200 bg-white shadow-sm' : 'text-slate-700 border-slate-200 bg-white')}>
                                 {format(parseISO(group.reservation_date), 'dd/MM/yyyy')}
                               </span>
-                              {isToday && <span className="text-[9px] bg-emerald-700 text-white font-black uppercase px-2 py-0.5 rounded-full w-fit">HOJE</span>}
+                              {isToday && <span className="text-[9px] bg-emerald-600 text-white font-black uppercase px-2 py-0.5 rounded-full w-fit mx-auto shadow-sm">HOJE</span>}
                             </div>
                           </td>
                           <td className="px-6 py-4">
-                            <span className="font-black text-emerald-950 uppercase">{group.customer_name}</span>
-                            <div className="text-[10px] text-emerald-950 font-black mt-0.5">{group.items.length} reserva(s)</div>
+                            <span className="font-black text-slate-900 uppercase text-base">{group.customer_name}</span>
+                            <div className="text-[10px] text-slate-500 font-bold mt-0.5">{group.items.length} reserva(s)</div>
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex flex-col gap-1">
-                              <Badge className="bg-emerald-100/80 text-emerald-800 border border-emerald-200 font-bold w-fit shadow-sm">{names}</Badge>
+                              <Badge className="bg-sky-50 text-sky-800 border-2 border-sky-200 font-bold px-3 py-1 shadow-sm">{names}</Badge>
                             </div>
                           </td>
-                          <td className="px-6 py-4 font-bold text-emerald-700">{formatCurrency(group.total_price)}</td>
+                          <td className="px-6 py-4 font-black text-lg text-emerald-700">{formatCurrency(group.total_price)}</td>
                           <td className="px-6 py-4 text-right">
-                            <div className="flex items-center justify-end gap-1">
+                            <div className="flex items-center justify-end gap-2">
                               {group.items.some((r: any) => r.receipt_url) && (
                                 <Button size="icon" variant="ghost" className="h-8 w-8 text-primary hover:bg-emerald-600 hover:text-white transition-all shadow-sm" onClick={() => window.open(group.items.find((r: any) => r.receipt_url)?.receipt_url)}>
                                   <FileText className="w-4 h-4" />
@@ -1109,11 +1109,11 @@ export default function Admin() {
             <div className="hidden md:block">
               {tabGroups.length === 0 ? (
                 <div className="text-center py-16 text-muted-foreground/40 font-bold uppercase text-xs tracking-widest">
-                  {quadSubTab === 'hoje' ? 'Nenhuma reserva ativa hoje' : quadSubTab === 'futuras' ? 'Sem reservas futuras' : 'Sem histÃ³rico'}
+                  {quadSubTab === 'hoje' ? 'Nenhuma reserva ativa hoje' : quadSubTab === 'futuras' ? 'Sem reservas futuras' : 'Sem histórico'}
                 </div>
               ) : (
                 <table className="w-full text-left">
-                  <thead className="bg-muted/50 text-[10px] font-bold uppercase text-muted-foreground tracking-widest border-b border-border/50">
+                  <thead className="bg-[#0f172a] text-[10px] font-black uppercase text-blue-100/80 tracking-widest border-b-4 border-blue-900">
                     <tr>
                       <th className="px-6 py-4 w-8"></th>
                       <th className="px-6 py-4">Data</th>
@@ -1121,10 +1121,10 @@ export default function Admin() {
                       <th className="px-6 py-4">Modelos</th>
                       <th className="px-6 py-4 text-center">Total Quadriciclos</th>
                       <th className="px-6 py-4">Valor Total</th>
-                      <th className="px-6 py-4 text-right">AÃ§Ãµes</th>
+                      <th className="px-6 py-4 text-right">Ações</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y-2 divide-slate-100">
                     {tabGroups.map((group: any) => {
                       const isExpanded = expandedQuadGroupId === group.group_key;
                       const isToday = group.reservation_date === todayStr;
@@ -1134,42 +1134,42 @@ export default function Admin() {
                         <React.Fragment key={group.group_key}>
                           <tr
                             className={cn(
-                              'border-b-2 border-blue-200 cursor-pointer hover:bg-blue-100/50 transition-colors',
-                              isToday ? 'bg-blue-50/60' : 'bg-white',
-                              isExpanded && 'bg-blue-100/40'
+                              'border-b-2 border-slate-100 cursor-pointer transition-all duration-300 hover:scale-[1.01] hover:shadow-lg hover:z-10 relative',
+                              isToday ? 'bg-blue-50/40 hover:bg-blue-100/60' : 'bg-slate-50 hover:bg-white',
+                              isExpanded && 'bg-blue-100/40 border-blue-300'
                             )}
                             onClick={() => setExpandedQuadGroupId(isExpanded ? null : group.group_key)}
                           >
                             <td className="px-4 py-4 text-center">
-                              <ChevronDown className={cn('w-4 h-4 text-blue-500 transition-transform', isExpanded && 'rotate-180')} />
+                              <ChevronDown className={cn('w-4 h-4 text-blue-600 transition-transform', isExpanded && 'rotate-180')} />
                             </td>
                             <td className="px-6 py-4">
-                              <div className="flex flex-col gap-1">
-                                <span className={cn('font-bold text-sm', isToday ? 'text-blue-700' : 'text-blue-900')}>
+                              <div className="flex flex-col gap-1.5 w-fit">
+                                <span className={cn('font-black text-sm px-3 py-1 rounded-lg border', isToday ? 'text-blue-900 border-blue-200 bg-white shadow-sm' : 'text-slate-700 border-slate-200 bg-white')}>
                                   {format(parseISO(group.reservation_date), 'dd/MM/yyyy')}
                                 </span>
-                                {isToday && <span className="text-[9px] bg-blue-600 text-white font-black uppercase px-2 py-0.5 rounded-full w-fit">HOJE</span>}
+                                {isToday && <span className="text-[9px] bg-blue-600 text-white font-black uppercase px-2 py-0.5 rounded-full w-fit mx-auto shadow-sm">HOJE</span>}
                               </div>
                             </td>
                             <td className="px-6 py-4">
-                              <span className="font-black text-blue-950 uppercase">{group.customer_name}</span>
-                              <div className="text-[10px] text-blue-600/60 font-black mt-0.5">{group.items.length} horÃ¡rio(s) reservado(s)</div>
+                              <span className="font-black text-slate-900 uppercase text-base">{group.customer_name}</span>
+                              <div className="text-[10px] text-slate-500 font-bold mt-0.5">{group.items.length} horário(s) reservado(s)</div>
                             </td>
                             <td className="px-6 py-4">
                               <div className="flex flex-wrap gap-1">
                                 {(uniqueModels as string[]).map((m, i) => (
-                                  <Badge key={i} variant="outline" className="border-blue-200 text-blue-800 font-bold bg-blue-50/50 text-[10px]">{m}</Badge>
+                                  <Badge key={i} variant="outline" className="border-indigo-200 text-indigo-900 font-bold bg-indigo-50/80 px-2 py-0.5 text-[10px]">{m}</Badge>
                                 ))}
                               </div>
                             </td>
                             <td className="px-6 py-4 text-center">
-                              <Badge className="bg-blue-100 text-blue-950 border-0 font-black">{group.total_quantity} quadriciclos</Badge>
+                              <Badge className="bg-blue-100 text-blue-950 border-2 border-blue-200 shadow-sm font-black px-3 py-1">{group.total_quantity} quadriciclos</Badge>
                             </td>
-                            <td className="px-6 py-4 font-black text-blue-900">{formatCurrency(group.total_price)}</td>
+                            <td className="px-6 py-4 font-black text-lg text-blue-800">{formatCurrency(group.total_price)}</td>
                             <td className="px-6 py-4 text-right">
-                              <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
+                              <div className="flex items-center justify-end gap-2" onClick={e => e.stopPropagation()}>
                                 {group.items.some((r: any) => r.receipt_url) && (
-                                  <Button size="icon" variant="ghost" className="h-8 w-8 text-primary hover:bg-emerald-600 hover:text-white transition-all shadow-sm" onClick={() => window.open(group.items.find((r: any) => r.receipt_url)?.receipt_url)}>
+                                  <Button size="icon" variant="ghost" className="h-9 w-9 text-blue-600 bg-blue-50 hover:bg-blue-600 hover:text-white transition-all shadow-sm rounded-xl" onClick={() => window.open(group.items.find((r: any) => r.receipt_url)?.receipt_url)}>
                                     <FileText className="w-4 h-4" />
                                   </Button>
                                 )}
@@ -1277,46 +1277,6 @@ export default function Admin() {
               )}
             </div>
           </div>
-        </div>
-
-        {/* HISTORY */}
-        <div className="space-y-4">
-          <h4 className="text-xs font-black text-emerald-300 uppercase tracking-[0.2em] flex items-center gap-2 drop-shadow-sm">
-             <History className="w-4 h-4" /> HistÃ³rico Mensal
-          </h4>
-          {quadHistory.map(([month, data]) => {
-            const isOpen = expandedMonths.has('q-' + month);
-            return (
-              <div key={month} className="bg-white rounded-2xl border border-border/50 shadow-sm overflow-hidden">
-                 <button onClick={() => toggleMonth('q-' + month)} className="w-full p-4 flex items-center justify-between hover:bg-muted/10 transition-colors">
-                    <div className="flex items-center gap-4">
-                       <Badge className="bg-blue-50 text-blue-700 border-0 font-bold px-3">{data.length} passeios</Badge>
-                       <span className="font-bold text-foreground capitalize">{format(parseISO(month + '-01'), 'MMMM yyyy', { locale: ptBR })}</span>
-                    </div>
-                    {isOpen ? <ChevronUp className="w-5 h-5 text-muted-foreground" /> : <ChevronDown className="w-5 h-5 text-muted-foreground" />}
-                 </button>
-                 {isOpen && (
-                   <div className="px-4 pb-4 animate-in slide-in-from-top-2">
-                      <div className="grid gap-2">
-                         {data.map(r => (
-                           <div key={r.id} className="p-3 bg-muted/20 rounded-xl flex items-center justify-between text-sm">
-                              <div className="flex items-center gap-4">
-                                 <span className="font-mono text-muted-foreground">{format(parseISO(r.reservation_date), 'dd/MM')}</span>
-                                 <span className="font-bold">{r.customer_name}</span>
-                                 <div className="flex flex-col items-start min-w-[70px]">
-                                    <Badge variant="outline" className="text-[9px] border-blue-200 text-blue-700">{r.time_slot}</Badge>
-                                    <span className="text-[8px] font-black uppercase text-blue-400 mt-1">{QUAD_MODELS_LABELS[r.quad_type] || 'Individual'}</span>
-                                 </div>
-                              </div>
-                              <span className="font-bold text-blue-700">{formatCurrency(r.price)}</span>
-                           </div>
-                         ))}
-                      </div>
-                   </div>
-                 )}
-              </div>
-             );
-           })}
         </div>
       </div>
     );
