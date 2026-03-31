@@ -5,7 +5,7 @@ import {
   ChevronDown, CheckCircle, XCircle, Clock, 
   UserCheck, Trash2, Plus, 
   Users, Calendar, Upload, FileCheck, Loader2,
-  CalendarClock, StickyNote
+  CalendarClock, StickyNote, CalendarRange
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -46,6 +46,7 @@ interface BookingTableProps {
   updatingId: string | null;
   onFileUpload?: (file: File, id: string, isOrder: boolean) => Promise<void>;
   isUploading?: boolean;
+  onRemoveReceipt?: (bookingId: string) => void;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive'; icon: React.ElementType; color: string; bgColor: string; borderColor: string }> = {
@@ -56,11 +57,13 @@ const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secon
   cancelled: { label: 'CANCELADA', variant: 'destructive', icon: XCircle, color: 'text-red-600', bgColor: 'bg-red-50', borderColor: 'border-red-200' },
 };
 
-export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule, onDelete, onRemoveItem, updatingId, onFileUpload, isUploading }: BookingTableProps) {
+export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule, onDelete, onRemoveItem, updatingId, onFileUpload, isUploading, onRemoveReceipt }: BookingTableProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [noteText, setNoteText] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [rescheduleId, setRescheduleId] = useState<string | null>(null);
+  const [rescheduleDate, setRescheduleDate] = useState('');
 
   if (bookings.length === 0) {
     return (
@@ -140,7 +143,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                      <th className="p-5 text-center opacity-0 w-20">Ações</th>
                   </tr>
                </thead>
-               <tbody className="divide-y divide-emerald-50">
+               <tbody className="divide-y-4 divide-emerald-100 bg-slate-50/30">
                   {bookings.map((booking) => {
                     const expanded = expandedId === booking.id;
                     const isSelected = selectedIds.has(booking.id);
@@ -157,8 +160,8 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                             onClick={() => setExpandedId(expanded ? null : booking.id)} 
                             className={cn(
                               "group transition-all cursor-pointer duration-300",
-                              isSelected ? "bg-emerald-50" : "hover:bg-emerald-50/20",
-                              expanded && "bg-emerald-50/50 shadow-inner"
+                              isSelected ? "bg-emerald-100/50" : "bg-white hover:bg-emerald-50",
+                              expanded && "bg-emerald-100/30 shadow-inner"
                             )}
                           >
                              <td className="p-5 text-center">
@@ -213,38 +216,38 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                 </div>
                              </td>
                              <td className="p-5 text-center">
-                                <div className="inline-flex flex-col items-center justify-center bg-white border border-emerald-100 w-16 h-16 rounded-2xl shadow-sm group-hover:border-emerald-200 transition-all">
-                                   <Users className="w-4 h-4 text-emerald-900/40 mb-0.5" />
-                                   <span className="text-xl font-extrabold text-emerald-950 leading-none">{totalPeople}</span>
-                                   <span className="text-[7px] font-bold opacity-30 uppercase tracking-widest mt-1">Pessoas</span>
+                                <div className="inline-flex flex-col items-center justify-center bg-emerald-50 border-2 border-emerald-300 w-20 h-20 rounded-2xl shadow-sm group-hover:border-emerald-500 group-hover:scale-105 transition-all">
+                                   <Users className="w-5 h-5 text-emerald-700 mb-1" />
+                                   <span className="text-3xl font-black text-emerald-950 leading-none">{totalPeople}</span>
+                                   <span className="text-[8px] font-black text-emerald-700 uppercase tracking-widest mt-1">Pessoas</span>
                                 </div>
                              </td>
                              <td className="p-5 text-right">
                                 <div className="flex flex-col items-end">
                                    <span className="text-2xl font-extrabold text-emerald-600 tracking-tighter">{formatCurrency(booking.total_amount)}</span>
-                                   <span className="text-[9px] font-bold text-emerald-200 uppercase tracking-widest mt-0.5">Auditado OK</span>
+                                   <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-widest mt-0.5">Auditado OK</span>
                                 </div>
                              </td>
                              <td className="p-5 text-center">
                                 <Button size="icon" variant="ghost" className={cn(
-                                  "h-10 w-10 rounded-xl transition-all duration-300",
-                                  expanded ? "bg-emerald-950 text-white rotate-180 shadow-md" : "text-emerald-200 hover:bg-emerald-50"
+                                  "h-12 w-12 rounded-2xl transition-all duration-300 border-2",
+                                  expanded ? "bg-emerald-900 text-white border-emerald-950 rotate-180 shadow-lg" : "text-emerald-400 border-emerald-100 hover:bg-emerald-600 hover:text-white hover:border-emerald-600"
                                 )}>
-                                   <ChevronDown className="w-5 h-5" />
+                                   <ChevronDown className="w-6 h-6" />
                                 </Button>
                              </td>
                           </tr>
                           
                           {expanded && (
-                            <tr>
-                               <td colSpan={6} className="p-0 bg-emerald-50/30 border-y-2 border-emerald-100/50">
+                             <tr className="border-x-4 border-emerald-200">
+                                <td colSpan={6} className="p-0 bg-white border-y-4 border-emerald-200 shadow-2xl">
                                   <div className="p-6 space-y-6 animate-in slide-in-from-top-4 duration-500">
                                      <div className="bg-white rounded-3xl p-6 shadow-xl border border-emerald-200">
-                                        <BookingDetail booking={booking} />
+                                        <BookingDetail booking={booking} onRemoveReceipt={onRemoveReceipt} />
                                      </div>
                                      
                                      <div className="grid lg:grid-cols-2 gap-6 items-stretch">
-                                        <div className="bg-white p-6 rounded-3xl shadow-lg border border-emerald-100 flex flex-col justify-between space-y-6 relative overflow-hidden group">
+                                  <div className="bg-white p-6 rounded-3xl shadow-lg border border-emerald-100 flex flex-col justify-between space-y-6 relative overflow-hidden group">
                                            <div className="relative z-10 space-y-6">
                                               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-emerald-50 pb-4">
                                                  <div className="flex items-center gap-3">
@@ -257,67 +260,96 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                                     </div>
                                                  </div>
 
-                                                 {onFileUpload && (
+                                                  {onFileUpload && (
                                                    <div className="flex items-center gap-2">
                                                       <input type="file" id={`upload-${booking.id}`} className="hidden" onChange={e => e.target.files && onFileUpload(e.target.files[0], booking.id, !!booking.is_order)} />
                                                       <label htmlFor={`upload-${booking.id}`} className={cn(
-                                                         "flex items-center gap-2 px-4 py-2 rounded-xl cursor-pointer transition-all border font-bold text-[9px] uppercase tracking-wider shadow-sm hover:scale-105 active:scale-95",
+                                                         "flex items-center gap-2 px-4 py-2 rounded-xl cursor-pointer transition-all font-bold text-[9px] uppercase tracking-wider shadow-sm hover:scale-105 active:scale-95",
                                                          booking.receipt_url 
-                                                           ? "bg-emerald-600 border-emerald-600 text-white" 
-                                                           : "bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+                                                           ? "bg-emerald-600 border border-emerald-700 text-white" 
+                                                           : "bg-white border-2 border-slate-200 text-slate-700 hover:bg-slate-800 hover:text-white hover:border-slate-800"
                                                       )}>
                                                          {isUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : booking.receipt_url ? <FileCheck className="w-3.5 h-3.5" /> : <Upload className="w-3.5 h-3.5" />}
-                                                         {booking.receipt_url ? 'PAGO ✓' : 'ANEXAR PIX'}
+                                                         {booking.receipt_url ? 'PAGO ✓' : 'ANEXAR COMPROVANTE'}
                                                       </label>
                                                    </div>
                                                  )}
                                               </div>
                                               
-                                              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                                              {/* REAGENDAR inline input */}
+                                              {rescheduleId === booking.id && (
+                                                <div className="flex items-center gap-3 p-3 bg-blue-50/80 rounded-2xl border-2 border-blue-200 animate-in slide-in-from-top-2 duration-300">
+                                                  <CalendarRange className="w-4 h-4 text-blue-700 shrink-0" />
+                                                  <div className="flex-1">
+                                                    <p className="text-[9px] font-black uppercase text-blue-700 tracking-wider mb-1">Nova Data</p>
+                                                    <input
+                                                      type="date"
+                                                      className="w-full h-9 px-3 rounded-xl border border-blue-200 text-blue-950 font-bold text-sm bg-white focus:outline-blue-400"
+                                                      value={rescheduleDate}
+                                                      onChange={e => setRescheduleDate(e.target.value)}
+                                                    />
+                                                  </div>
+                                                  <div className="flex gap-2">
+                                                    <Button
+                                                      size="sm"
+                                                      className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-[9px] h-9 px-4 rounded-xl"
+                                                      onClick={() => { if (rescheduleDate) { onReschedule(booking.id, rescheduleDate, booking.is_order); setRescheduleId(null); setRescheduleDate(''); } }}
+                                                    >Confirmar</Button>
+                                                    <Button size="sm" variant="ghost" className="h-9 font-bold text-[9px]" onClick={() => { setRescheduleId(null); setRescheduleDate(''); }}>Cancelar</Button>
+                                                  </div>
+                                                </div>
+                                              )}
+
+                                              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                                                  <Button 
                                                    onClick={() => onStatusChange(booking.id, 'paid', booking.is_order)} 
                                                    disabled={booking.status === 'paid' || updatingId === booking.id} 
-                                                   className="bg-[#006020] hover:bg-[#004d1a] text-white font-bold uppercase text-[8px] h-12 rounded-xl shadow-lg shadow-emerald-900/10 flex flex-col pt-1"
+                                                   className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 border border-emerald-700 text-white font-bold uppercase text-[9px] h-12 rounded-xl shadow-sm flex flex-col items-center justify-center gap-0.5 transition-all"
                                                  >
-                                                    <CheckCircle className="w-3.5 h-3.5 mb-0.5" /> 
+                                                    <CheckCircle className="w-4 h-4" /> 
                                                     <span>EFETIVAR</span>
                                                  </Button>
                                                  
                                                  <Button 
                                                    onClick={() => onStatusChange(booking.id, 'checked-in', booking.is_order)} 
                                                    className={cn(
-                                                     "border-2 font-bold uppercase text-[8px] h-12 rounded-xl px-2 flex flex-col pt-1",
+                                                     "border-2 font-bold uppercase text-[9px] h-12 rounded-xl px-2 flex flex-col items-center justify-center gap-0.5 transition-all shadow-sm",
                                                      booking.status === 'checked-in' 
-                                                       ? "bg-[#006020] border-[#006020] text-white" 
-                                                       : "bg-white border-[#006020] text-[#006020] hover:bg-emerald-50"
+                                                       ? "bg-emerald-700 border-emerald-800 text-white" 
+                                                       : "bg-white border-emerald-500 text-emerald-700 hover:bg-emerald-600 hover:text-white hover:border-emerald-600"
                                                    )}
                                                  >
-                                                    <UserCheck className="w-3.5 h-3.5 mb-0.5" /> 
+                                                    <UserCheck className="w-4 h-4" /> 
                                                     <span>CHECK-IN</span>
                                                  </Button>
 
                                                  <Button 
                                                    variant="outline" 
-                                                   onClick={() => { const d = prompt("Nova Data (AAAA-MM-DD):", booking.visit_date); if (d) onReschedule(booking.id, d, booking.is_order); }} 
-                                                   className="border border-blue-200 text-blue-600 hover:bg-blue-50 bg-white font-bold uppercase text-[8px] h-12 rounded-xl px-2 flex flex-col pt-1"
+                                                   onClick={(e) => { e.stopPropagation(); setRescheduleId(rescheduleId === booking.id ? null : booking.id); setRescheduleDate(booking.visit_date || ''); }} 
+                                                   className={cn(
+                                                     "border-2 font-bold uppercase text-[9px] h-12 rounded-xl px-2 flex flex-col items-center justify-center gap-0.5 transition-all shadow-sm",
+                                                     rescheduleId === booking.id
+                                                       ? "bg-blue-600 text-white border-blue-700"
+                                                       : "border-blue-300 text-blue-700 hover:bg-blue-600 hover:text-white hover:border-blue-600 bg-white"
+                                                   )}
                                                  >
-                                                    <Clock className="w-3.5 h-3.5 mb-0.5" /> 
-                                                    <span>DIAS</span>
+                                                    <CalendarRange className="w-4 h-4" /> 
+                                                    <span>REAGENDAR</span>
                                                  </Button>
 
                                                  <Button 
                                                    onClick={() => onStatusChange(booking.id, 'cancelled', booking.is_order)} 
-                                                   className="border border-amber-200 text-amber-600 hover:bg-amber-50 bg-white font-bold uppercase text-[8px] h-12 rounded-xl px-2 flex flex-col pt-1"
+                                                   className="border-2 border-amber-300 text-amber-700 hover:bg-amber-500 hover:text-white hover:border-amber-500 bg-white font-bold uppercase text-[9px] h-12 rounded-xl px-2 flex flex-col items-center justify-center gap-0.5 transition-all shadow-sm"
                                                  >
-                                                    <XCircle className="w-3.5 h-3.5 mb-0.5" /> 
-                                                    <span>CANCEL</span>
+                                                    <XCircle className="w-4 h-4" /> 
+                                                    <span>CANCELAR</span>
                                                  </Button>
 
                                                  <Button 
-                                                   onClick={(e) => { e.stopPropagation(); if (confirm('DELETAR AGORA?')) onDelete(booking.id, booking.is_order); }} 
-                                                   className="border border-red-200 text-red-600 hover:bg-red-50 bg-white font-bold uppercase text-[8px] h-12 rounded-xl px-2 flex flex-col pt-1"
+                                                   onClick={(e) => { e.stopPropagation(); if (confirm('DELETAR AGORA? Esta ação não pode ser desfeita.')) onDelete(booking.id, booking.is_order); }} 
+                                                   className="border-2 border-red-300 text-red-700 hover:bg-red-600 hover:text-white hover:border-red-600 bg-white font-bold uppercase text-[9px] h-12 rounded-xl px-2 flex flex-col items-center justify-center gap-0.5 transition-all shadow-sm"
                                                  >
-                                                    <Trash2 className="w-3.5 h-3.5 mb-0.5" /> 
+                                                    <Trash2 className="w-4 h-4" /> 
                                                     <span>EXCLUIR</span>
                                                  </Button>
                                               </div>

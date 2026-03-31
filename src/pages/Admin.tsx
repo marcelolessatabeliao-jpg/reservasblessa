@@ -6,7 +6,7 @@ import {
   UserCheck, Hash, ArrowRight, MessageCircle, Clock, Circle, Trash2,
   Tent, Bike, History, ChevronDown, ChevronUp, AlertTriangle, FileText,
   Pencil, X, Check, Upload, FileCheck, Loader2, LayoutDashboard, ShoppingBag, HelpCircle,
-  Plus
+  Plus, CalendarClock
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -36,11 +36,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 // Constants from common types
 const KIOSKS = [
-  { id: 1, name: 'Quiosque 1 (Grande)', price: 100, capacity: 'Até 15 pessoas', type: 'Maior' },
-  { id: 2, name: 'Quiosque 2', price: 75, capacity: 'Até 6 pessoas', type: 'Menor' },
-  { id: 3, name: 'Quiosque 3', price: 75, capacity: 'Até 6 pessoas', type: 'Menor' },
-  { id: 4, name: 'Quiosque 4', price: 75, capacity: 'Até 6 pessoas', type: 'Menor' },
-  { id: 5, name: 'Quiosque 5', price: 75, capacity: 'Até 6 pessoas', type: 'Menor' }
+  { id: 1, name: 'Quiosque 1 (Grande)', price: 100, capacity: 'Até 30 pessoas', type: 'Maior' },
+  { id: 2, name: 'Quiosque 2', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' },
+  { id: 3, name: 'Quiosque 3', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' },
+  { id: 4, name: 'Quiosque 4', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' },
+  { id: 5, name: 'Quiosque 5', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' }
 ];
 
 const QUAD_TIMES = ['09:00', '10:30', '14:00', '15:30'];
@@ -83,7 +83,11 @@ export default function Admin() {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('admin_token'));
   const [activeTab, setActiveTab] = useState<TabType>('painel');
   const [search, setSearch] = useState('');
+  const [filterDate, setFilterDate] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [kioskSubTab, setKioskSubTab] = useState<'hoje' | 'futuras' | 'historico'>('hoje');
+  const [quadSubTab, setQuadSubTab] = useState<'hoje' | 'futuras' | 'historico'>('hoje');
+  const [expandedQuadGroupId, setExpandedQuadGroupId] = useState<string | null>(null);
   const { toast } = useToast();
 
   // Data States
@@ -95,14 +99,16 @@ export default function Admin() {
 
   // Editing States
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [editData, setEditData] = useState<any>({});
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<{item: any, type: 'kiosk' | 'quad' | 'order' | 'reservas'} | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-
-  // Delete Dialog States
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  
+  // New Rescheduling Dialog States
+  const [rescheduleData, setRescheduleData] = useState<{type: 'kiosk' | 'quad', group: any} | null>(null);
+  const [rescheduleDate, setRescheduleDate] = useState<Date | undefined>(new Date());
 
   // History States
   const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set());
@@ -161,7 +167,7 @@ export default function Admin() {
 
                   if (timeMatch) {
                     let raw = timeMatch[1].replace('H', ':');
-                    if (raw.length === 4) raw = '0' + raw; 
+                    if (raw.length === 4) raw = '0' + raw; // Auto-pad (9:00 -> 09:00)
                     finalSlot = raw;
                   }
                   
@@ -172,6 +178,7 @@ export default function Admin() {
                   }
                   if (!finalSlot && meta?.time) {
                     finalSlot = meta.time;
+                    if (finalSlot && finalSlot.length === 4 && finalSlot.includes(':')) finalSlot = '0' + finalSlot;
                   }
 
                   // 3. Fallback to standard slots list
@@ -262,29 +269,6 @@ export default function Admin() {
     }
   };
 
-  const handleFileUpload = async (file: File) => {
-    setIsUploading(true);
-    try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${crypto.randomUUID()}.${fileExt}`;
-      const { error: uploadError } = await supabase.storage.from('receipts').upload(fileName, file);
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage.from('receipts').getPublicUrl(fileName);
-      setEditData((prev: any) => ({ ...prev, receipt_url: publicUrl }));
-      toast({ title: "Comprovante enviado!" });
-    } catch (err) {
-      toast({ title: "Erro no upload", variant: "destructive" });
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const requestDelete = (item: any, type: 'kiosk' | 'quad' | 'order' | 'reservas') => {
-    setDeleteTarget({ ...item, type });
-    setDeleteDialogOpen(true);
-  };
-
   const updateBookingStatus = async (bookingId: string, status: string, isOrder?: boolean) => {
     setUpdatingId(bookingId);
     try {
@@ -312,25 +296,79 @@ export default function Admin() {
     } finally { setUpdatingId(null); }
   };
 
+  const handleFileUpload = async (file: File) => {
+    setIsUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${crypto.randomUUID()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage.from('receipts').upload(fileName, file);
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage.from('receipts').getPublicUrl(fileName);
+      setEditData((prev: any) => ({ ...prev, receipt_url: publicUrl }));
+      toast({ title: "Comprovante enviado!" });
+    } catch (err) {
+      toast({ title: "Erro no upload", variant: "destructive" });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const requestDelete = (item: any, type: 'kiosk' | 'quad' | 'order' | 'reservas') => {
+    setItemToDelete({ item, type });
+    setDeleteDialogOpen(true);
+  };
+
   const confirmDelete = async () => {
-    if (!deleteTarget) return;
+    if (!itemToDelete) return;
+    const { item, type } = itemToDelete;
+    
+    setLoading(true);
     try {
       let table = '';
-      if (deleteTarget.type === 'kiosk') table = 'kiosk_reservations';
-      else if (deleteTarget.type === 'quad') table = 'quad_reservations';
-      else if (deleteTarget.type === 'order') table = 'orders';
-      else if (deleteTarget.type === 'reservas') table = 'bookings';
+      if (type === 'kiosk') table = 'kiosk_reservations';
+      else if (type === 'quad') table = 'quad_reservations';
+      else if (type === 'order') table = 'orders';
+      else if (type === 'reservas') table = 'bookings';
 
-      const { error } = await supabase.from(table).delete().eq('id', deleteTarget.id);
+      const { error } = await supabase.from(table).delete().eq('id', item.id);
       if (error) throw error;
-
+      
       toast({ title: "Removido com sucesso" });
       fetchData();
-    } catch (err) {
+    } catch (err: any) {
+      console.error('Delete error:', err);
       toast({ title: "Erro ao remover", variant: "destructive" });
     } finally {
+      setLoading(false);
       setDeleteDialogOpen(false);
-      setDeleteTarget(null);
+      setItemToDelete(null);
+    }
+  };
+
+  const handleRescheduleConfirm = async () => {
+    if (!rescheduleData || !rescheduleDate) return;
+    const { type, group } = rescheduleData;
+    const newDateStr = format(rescheduleDate, 'yyyy-MM-dd');
+    
+    setLoading(true);
+    try {
+      const table = type === 'kiosk' ? 'kiosk_reservations' : 'quad_reservations';
+      const results = await Promise.all(group.items.map((r: any) =>
+        supabase.from(table).update({ reservation_date: newDateStr }).eq('id', r.id)
+      ));
+      
+      const hasError = results.some(r => r.error);
+      if (hasError) throw new Error('Algumas atualizações falharam');
+      
+      toast({ title: '✓ Reagendado com sucesso' });
+      fetchData();
+      setRescheduleData(null);
+    } catch (err) {
+      console.error('Reschedule error:', err);
+      toast({ title: 'Erro ao reagendar', variant: 'destructive' });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -389,61 +427,79 @@ export default function Admin() {
         return d === format(targetDate, 'yyyy-MM-dd');
       } catch { return false; }
     });
+
+    const dayBookings = bookings.filter(b => b.visit_date === format(targetDate, 'yyyy-MM-dd'));
+    const dayOrders = orders.filter(o => (o.visit_date || o.created_at.split('T')[0]) === format(targetDate, 'yyyy-MM-dd'));
+    const dayTotalPeople = dayBookings.reduce((acc, b) => {
+       const childrenCount = Array.isArray(b.children) ? b.children.length : (typeof b.children === 'number' ? b.children : 0);
+       return acc + (b.adults || 0) + childrenCount;
+    }, 0);
+    const dayCheckouts = dayOrders.reduce((acc, order) => {
+       const redeemedCount = (order.order_items || []).filter((item: any) => item.is_redeemed).length;
+       return acc + redeemedCount;
+    }, 0);
     
     return (
       <div className="grid lg:grid-cols-[1fr_360px] gap-8 animate-in fade-in duration-500">
         <div className="space-y-8">
           {/* STATS */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-             <Card className="bg-emerald-50 border-2 border-emerald-300 text-emerald-950 shadow-xl rounded-[1.5rem] p-4 flex flex-col items-start hover:shadow-emerald-300/50 transition-all group overflow-hidden relative">
-                <div className="absolute -top-4 -right-4 p-4 opacity-[0.05] group-hover:scale-110 group-hover:opacity-[0.15] transition-all"><Tent className="w-24 h-24 text-emerald-600" /></div>
-                <div className="p-2.5 rounded-xl bg-emerald-100 text-emerald-700 mb-2 border border-emerald-200 shadow-sm">
+             <Card onClick={() => setActiveTab('quiosques')} className="cursor-pointer bg-emerald-50 border-4 border-emerald-300 text-emerald-950 shadow-2xl rounded-[1.5rem] p-4 flex flex-col items-start hover:shadow-emerald-400/40 hover:bg-emerald-100 transition-all group overflow-hidden relative">
+                <div className="absolute -top-4 -right-4 p-4 opacity-[0.05] group-hover:scale-110 group-hover:opacity-[0.15] transition-all"><Tent className="w-20 h-20 text-emerald-600" /></div>
+                <div className="p-2.5 rounded-xl bg-emerald-100 text-emerald-700 mb-2 border-2 border-emerald-200 shadow-sm">
                    <Tent className="w-4 h-4" />
                 </div>
                 <span className="text-3xl font-black tabular-nums tracking-tighter">{dayKiosks.length}</span>
-                <span className="text-[9px] font-black uppercase tracking-widest mt-1 text-emerald-700">Quiosques Hoje</span>
+                <span className="text-[9px] font-black uppercase tracking-widest mt-0.5 text-emerald-800">Quiosques Ocupados</span>
              </Card>
-             <Card className="bg-blue-50 border-2 border-blue-300 text-blue-950 shadow-xl rounded-[1.5rem] p-4 flex flex-col items-start hover:shadow-blue-300/50 transition-all group overflow-hidden relative">
-                <div className="absolute -top-4 -right-4 p-4 opacity-[0.05] group-hover:scale-110 group-hover:opacity-[0.15] transition-all"><Bike className="w-24 h-24 text-blue-600" /></div>
-                <div className="p-2.5 rounded-xl bg-blue-100 text-blue-700 mb-2 border border-blue-200 shadow-sm">
+             
+             <Card onClick={() => setActiveTab('quads')} className="cursor-pointer bg-blue-50 border-4 border-blue-300 text-blue-950 shadow-2xl rounded-[1.5rem] p-4 flex flex-col items-start hover:shadow-blue-400/40 hover:bg-blue-100 transition-all group overflow-hidden relative">
+                <div className="absolute -top-4 -right-4 p-4 opacity-[0.05] group-hover:scale-110 group-hover:opacity-[0.15] transition-all"><Bike className="w-20 h-20 text-blue-600" /></div>
+                <div className="p-2.5 rounded-xl bg-blue-100 text-blue-700 mb-2 border-2 border-blue-200 shadow-sm">
                    <Bike className="w-4 h-4" />
                 </div>
                 <span className="text-3xl font-black tabular-nums tracking-tighter">{dayQuads.length}</span>
-                <span className="text-[9px] font-black uppercase tracking-widest mt-1 text-blue-700">Quad Hoje</span>
+                <span className="text-[9px] font-black uppercase tracking-widest mt-0.5 text-blue-800">Quadriciclos Alugados</span>
              </Card>
-             <Card className="bg-amber-50 border-2 border-amber-300 text-amber-950 shadow-xl rounded-[1.5rem] p-4 flex flex-col items-start hover:shadow-amber-300/50 transition-all group overflow-hidden relative">
-                <div className="absolute -top-4 -right-4 p-4 opacity-[0.05] group-hover:scale-110 group-hover:opacity-[0.15] transition-all"><TrendingUp className="w-24 h-24 text-amber-600" /></div>
-                <div className="p-2.5 rounded-xl bg-amber-100 text-amber-700 mb-2 border border-amber-200 shadow-sm">
+             
+             <Card className="bg-amber-50 border-4 border-amber-300 text-amber-950 shadow-2xl rounded-[1.5rem] p-4 flex flex-col items-start hover:shadow-amber-400/40 transition-all group overflow-hidden relative">
+                <div className="absolute -top-4 -right-4 p-4 opacity-[0.05] group-hover:scale-110 group-hover:opacity-[0.15] transition-all"><Users className="w-20 h-20 text-amber-600" /></div>
+                <div className="p-2.5 rounded-xl bg-amber-100 text-amber-700 mb-2 border-2 border-amber-200 shadow-sm">
+                   <Users className="w-4 h-4" />
+                </div>
+                <span className="text-3xl font-black tabular-nums tracking-tighter">{dayTotalPeople}</span>
+                <span className="text-[9px] font-black uppercase tracking-widest mt-0.5 text-amber-800">Total de Pessoas</span>
+             </Card>
+             
+             <Card className="bg-slate-900 border-4 border-slate-700 text-white shadow-2xl rounded-[1.5rem] p-4 flex flex-col items-start hover:scale-[1.02] transition-all group overflow-hidden relative">
+                <div className="absolute -top-4 -right-4 p-4 opacity-20 group-hover:scale-110 transition-all"><TrendingUp className="w-20 h-20 text-white" /></div>
+                <div className="p-2.5 rounded-xl bg-white/10 text-emerald-100 mb-2 border-2 border-white/20 backdrop-blur-md">
                    <TrendingUp className="w-4 h-4" />
                 </div>
-                <span className="text-2xl font-black tabular-nums tracking-tighter">{formatCurrency(dayKiosks.reduce((s, r) => s + (r.price || 0), 0) + dayQuads.reduce((s, r) => s + (r.price || 0), 0))}</span>
-                <span className="text-[9px] font-black uppercase tracking-widest mt-1 text-amber-700">Receita do Dia</span>
-             </Card>
-             <Card className="bg-emerald-900 border-2 border-emerald-700 text-white shadow-2xl rounded-[1.5rem] p-4 flex flex-col items-start hover:scale-[1.02] transition-all group overflow-hidden relative">
-                <div className="absolute -top-4 -right-4 p-4 opacity-20 group-hover:scale-110 transition-all"><ShoppingBag className="w-24 h-24 text-white" /></div>
-                <div className="p-2.5 rounded-xl bg-white/20 text-emerald-100 mb-2 border border-white/20 backdrop-blur-md">
-                   <ShoppingBag className="w-4 h-4" />
-                </div>
-                <span className="text-2xl font-black tabular-nums tracking-tighter">{formatCurrency(orders.filter(o => (o.visit_date || o.created_at.split('T')[0]) === format(targetDate, 'yyyy-MM-dd')).reduce((s, r) => s + (r.total_amount || 0), 0))}</span>
-                <span className="text-[9px] font-black uppercase tracking-widest mt-1 text-emerald-300">Vendas Loja</span>
+                <span className="text-2xl font-black tabular-nums tracking-tighter">
+                  {formatCurrency(dayKiosks.reduce((s, r) => s + (r.price || 0), 0) + dayQuads.reduce((s, r) => s + (r.price || 0), 0))}
+                </span>
+                <span className="text-[9px] font-black uppercase tracking-widest mt-0.5 text-emerald-400">Receita Estruturas</span>
              </Card>
           </div>
 
-          <Card className="bg-white border-2 border-emerald-50 text-emerald-950 shadow-sm rounded-[2rem] p-8">
-             <div className="flex flex-col md:flex-row md:items-center gap-6 mb-8 border-b border-emerald-100 pb-8">
-                 <div className="w-16 h-16 bg-emerald-800 rounded-[1.2rem] flex items-center justify-center text-white font-black text-2xl shadow-lg">
-                    {targetDate.getDate()}
-                 </div>
-                 <div>
-                    <h3 className="text-2xl font-black text-emerald-950 tracking-tighter leading-none mb-1">Operação Diária</h3>
-                    <p className="text-[13px] font-bold text-emerald-700/80 capitalize">{format(targetDate, "EEEE, yyyy", { locale: ptBR })}</p>
-                 </div>
-             </div>
+          <Card className="bg-transparent border-none text-emerald-950 shadow-none p-0">
              
-             <div className="rounded-[1.5rem] border-2 border-amber-200 bg-[#FFFCF0] overflow-hidden mb-0">
-                <div className="p-5 border-b border-amber-200 flex items-center gap-3">
-                   <HelpCircle className="w-5 h-5 text-amber-700" />
-                   <h4 className="font-black text-amber-900 text-lg">Resumo de {format(targetDate, "dd 'de' MMMM", { locale: ptBR })}</h4>
+             <div className="rounded-[1.5rem] border-2 border-amber-200 bg-[#FFFCF0] overflow-hidden mb-0 shadow-lg">
+                <div className="p-5 border-b border-amber-200 flex flex-col md:flex-row md:items-center gap-4">
+                   <div className="flex items-center gap-4 border-r-0 md:border-r border-amber-200/50 pr-4">
+                      <div className="w-12 h-12 bg-emerald-800 rounded-xl flex items-center justify-center text-white font-black text-xl shadow-md">
+                         {targetDate.getDate()}
+                      </div>
+                      <div>
+                         <h3 className="text-[16px] font-black text-emerald-950 tracking-tight leading-none mb-1">Operação Diária</h3>
+                         <p className="text-[11px] font-bold text-emerald-700 uppercase">{format(targetDate, "EEEE, yyyy", { locale: ptBR })}</p>
+                      </div>
+                   </div>
+                   <div className="flex items-center gap-2">
+                     <HelpCircle className="w-4 h-4 text-amber-700" />
+                     <h4 className="font-black text-amber-900 text-sm">Resumo de {format(targetDate, "dd 'de' MMMM", { locale: ptBR })}</h4>
+                   </div>
                 </div>
                 <div className="grid grid-cols-1 xl:grid-cols-2">
                    {/* Left: Quiosques */}
@@ -594,24 +650,25 @@ export default function Admin() {
                       caption_label: "text-lg font-black text-emerald-900 uppercase tracking-widest",
                       nav_button: "h-10 w-10 bg-emerald-50 text-emerald-600 border-0 hover:bg-emerald-100 rounded-xl transition-all",
                       table: "w-full border-collapse",
-                      head_cell: "text-emerald-900/40 font-black text-[10px] uppercase tracking-[0.2em] w-12 py-4",
+                      head_cell: "text-emerald-900 font-extrabold text-[11px] uppercase tracking-[0.2em] w-12 py-4",
                       cell: "h-14 w-12 text-center p-0 relative focus-within:z-20",
                       day: cn(
-                        "h-12 w-12 p-0 font-black text-sm transition-all rounded-2xl border-2 border-transparent hover:border-emerald-200 hover:bg-emerald-50/50",
+                        "h-12 w-12 p-0 font-black text-sm transition-all rounded-[1rem] border-2 border-emerald-50 bg-emerald-50/20 text-emerald-950 hover:border-emerald-300 hover:bg-emerald-100 shadow-sm",
                         "flex flex-col items-center justify-center gap-1"
                       ),
-                      day_selected: "bg-emerald-900 text-white hover:bg-emerald-800 border-emerald-900 shadow-xl shadow-emerald-900/20 !opacity-100",
-                      day_today: "bg-amber-400 text-emerald-950 border-amber-500 shadow-xl shadow-amber-400/30 font-black",
-                      day_outside: "text-muted-foreground/20 opacity-50",
+                      day_selected: "bg-emerald-800 text-white hover:bg-emerald-700 border-emerald-800 shadow-xl shadow-emerald-900/30 !opacity-100",
+                      day_today: "bg-yellow-400 text-emerald-950 border-yellow-500 shadow-lg font-black ring-2 ring-yellow-200 ring-offset-2",
+                      day_outside: "text-emerald-900/30 font-bold opacity-50 bg-transparent shadow-none border-transparent",
                     }}
                     components={{
                       DayContent: ({ date }) => {
                         const dateStr = format(date, 'yyyy-MM-dd');
                         const hasKiosk = kioskReservations.some(r => r.reservation_date === dateStr);
                         const hasQuad = quadReservations.some(r => r.reservation_date === dateStr);
+                        const isDayToday = isToday(date);
                         return (
                           <div className="relative flex flex-col items-center">
-                            <span>{date.getDate()}</span>
+                            <span className={isDayToday ? "text-emerald-950 font-black" : ""}>{date.getDate()}</span>
                             <div className="flex gap-1 mt-0.5">
                               {hasKiosk && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-sm" />}
                               {hasQuad && <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-sm" />}
@@ -636,228 +693,384 @@ export default function Admin() {
     );
   };
 
-  const renderKioskTab = () => (
-    <div className="space-y-8 animate-in fade-in duration-500">
-       <div className="bg-white rounded-3xl border border-border/50 shadow-card overflow-hidden">
-          <div className="p-6 border-b border-border/50 flex items-center justify-between bg-primary/5">
-             <div>
-                <h3 className="text-lg font-bold text-primary">Reservas Ativas de Quiosques</h3>
-                <p className="text-xs text-muted-foreground">Reservas de hoje em diante</p>
-             </div>
-             <div className="relative w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/30" />
-                <Input placeholder="Buscar cliente..." className="pl-9 h-10 rounded-xl" />
-             </div>
-          </div>
-          <div className="overflow-x-auto">
-             <table className="w-full text-left">
-                <thead className="bg-muted/50 text-[10px] font-bold uppercase text-muted-foreground tracking-widest border-b border-border/50">
-                   <tr>
-                      <th className="px-6 py-4">Data</th>
-                      <th className="px-6 py-4">Cliente</th>
-                      <th className="px-6 py-4">Modelo/Capacidade</th>
-                      <th className="px-6 py-4">Valor</th>
-                      <th className="px-6 py-4 text-right">Ações</th>
-                   </tr>
-                </thead>
-                <tbody className="divide-y divide-border/30">
-                   {currentKiosks.map(r => {
-                      const isEditing = editingId === r.id;
-                      return (
-                        <tr key={r.id} className={cn("hover:bg-muted/20 transition-colors", isEditing && "bg-amber-50/50")}>
-                           <td className="px-6 py-4 font-semibold text-sm">
-                              {isEditing ? (
-                                <Input type="date" value={editData.reservation_date} onChange={e => setEditData({...editData, reservation_date: e.target.value})} className="h-9 rounded-lg bg-white text-emerald-950 font-bold border-emerald-200" />
-                              ) : <span className="text-emerald-900">{format(parseISO(r.reservation_date), 'dd/MM/yyyy')}</span>}
-                           </td>
-                           <td className="px-6 py-4 font-bold text-foreground">
-                              {isEditing ? (
-                                <Input value={editData.customer_name} onChange={e => setEditData({...editData, customer_name: e.target.value})} className="h-9 rounded-lg bg-white text-emerald-950 font-bold border-emerald-200" />
-                              ) : <span className="text-emerald-950">{r.customer_name || (r as any).bookings?.name || 'Venda'}</span>}
-                           </td>
-                           <td className="px-6 py-4">
-                              {isEditing ? (
-                                <Select value={String(editData.kiosk_id)} onValueChange={v => setEditData({...editData, kiosk_id: parseInt(v)})}>
-                                   <SelectTrigger className="h-9 rounded-lg bg-white text-emerald-950 font-bold border-emerald-200"><SelectValue /></SelectTrigger>
-                                   <SelectContent className="bg-white border-emerald-200">{KIOSKS.map(k => <SelectItem key={k.id} value={String(k.id)} className="text-emerald-950">{k.name}</SelectItem>)}</SelectContent>
-                                </Select>
-                              ) : (
-                                 <div className="flex flex-col">
-                                    <Badge className="bg-emerald-100 text-emerald-700 border-0 font-bold w-fit">
-                                       {KIOSKS.find(k => k.id === Number(r.kiosk_id))?.name || `Q-${r.kiosk_id || '?'}`}
-                                    </Badge>
-                                    <span className="text-[9px] font-black uppercase text-emerald-600/60 mt-1 ml-1">
-                                       {KIOSKS.find(k => k.id === Number(r.kiosk_id))?.capacity || (r.kiosk_id === 'MENOR' ? 'Até 6 pessoas' : '')}
-                                    </span>
-                                 </div>
-                               )}
-                           </td>
-                           <td className="px-6 py-4 font-bold text-emerald-700">
-                              {isEditing ? <Input type="number" value={editData.price} onChange={e => setEditData({...editData, price: parseFloat(e.target.value)})} className="h-9 w-24 bg-white text-emerald-950 font-bold border-emerald-200" /> : formatCurrency(r.price || (KIOSKS.find(k => k.id === Number(r.kiosk_id))?.price || 75))}
-                           </td>
-                           <td className="px-6 py-4 text-right">
-                              <div className="flex items-center justify-end gap-2">
-                                 {isEditing ? (
-                                   <>
-                                      <input type="file" id={`upload-${r.id}`} className="hidden" onChange={e => e.target.files && handleFileUpload(e.target.files[0])} />
-                                      <label htmlFor={`upload-${r.id}`} className="p-2 rounded-lg bg-blue-100 text-blue-600 cursor-pointer hover:bg-blue-200 transition-colors">
-                                         {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : editData.receipt_url ? <FileCheck className="w-4 h-4" /> : <Upload className="w-4 h-4" />}
-                                      </label>
-                                      <Button size="icon" className="h-8 w-8 rounded-lg bg-primary hover:bg-primary/90" onClick={() => saveEditing('kiosk')}><Check className="w-4 h-4" /></Button>
-                                      <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg" onClick={cancelEditing}><X className="w-4 h-4" /></Button>
-                                   </>
-                                 ) : (
-                                   <>
-                                      {r.receipt_url && <Button size="icon" variant="ghost" className="h-8 w-8 text-primary" onClick={() => window.open(r.receipt_url)}><FileText className="w-4 h-4" /></Button>}
-                                      <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600" onClick={() => startEditing(r)}><Pencil className="w-4 h-4" /></Button>
-                                      <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500" onClick={() => requestDelete(r, 'kiosk')}><Trash2 className="w-4 h-4" /></Button>
-                                   </>
-                                 )}
-                              </div>
-                           </td>
-                        </tr>
-                      );
-                   })}
-                </tbody>
-             </table>
-          </div>
-       </div>
+  const renderKioskTab = () => {
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    const allGroups = Object.values(kioskReservations.reduce((acc, curr) => {
+      const key = `${curr.reservation_date}_${curr.customer_name || 'Venda'}`;
+      if (!acc[key]) acc[key] = { group_key: key, reservation_date: curr.reservation_date, customer_name: curr.customer_name || (curr as any).bookings?.name || 'Venda', items: [], total_price: 0 };
+      acc[key].items.push(curr);
+      acc[key].total_price += (curr.price || (KIOSKS.find(k => k.id === Number(curr.kiosk_id))?.price || 75));
+      return acc;
+    }, {} as Record<string, any>));
 
-       {/* HISTORY */}
-       <div className="space-y-4">
-          <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-             <History className="w-4 h-4" /> Histórico Mensal
-          </h4>
-          {kioskHistory.map(([month, data]) => {
-            const isOpen = expandedMonths.has('k-' + month);
-            return (
-              <div key={month} className="bg-white rounded-2xl border border-border/50 shadow-sm overflow-hidden">
-                 <button onClick={() => toggleMonth('k-' + month)} className="w-full p-4 flex items-center justify-between hover:bg-muted/10 transition-colors">
-                    <div className="flex items-center gap-4">
-                       <Badge className="bg-primary/10 text-primary border-0 font-bold px-3">{data.length} reservas</Badge>
-                       <span className="font-bold text-foreground capitalize">{format(parseISO(month + '-01'), 'MMMM yyyy', { locale: ptBR })}</span>
-                    </div>
-                    {isOpen ? <ChevronUp className="w-5 h-5 text-muted-foreground" /> : <ChevronDown className="w-5 h-5 text-muted-foreground" />}
-                 </button>
-                 {isOpen && (
-                   <div className="px-4 pb-4 animate-in slide-in-from-top-2">
-                      <div className="grid gap-2">
-                         {data.map(r => (
-                           <div key={r.id} className="p-3 bg-muted/20 rounded-xl flex items-center justify-between text-sm">
-                              <div className="flex items-center gap-4">
-                                 <span className="font-mono text-muted-foreground">{format(parseISO(r.reservation_date), 'dd/MM')}</span>
-                                 <span className="font-bold">{r.customer_name}</span>
-                                 <div className="flex flex-col items-start min-w-[100px]">
-                                    <Badge variant="outline" className="text-[9px] border-primary/20 text-primary">
-                                       {KIOSKS.find(k => k.id === Number(r.kiosk_id))?.name || `Quiosque ${r.kiosk_id}`}
-                                    </Badge>
-                                    <span className="text-[8px] font-black uppercase text-emerald-500 mt-1">
-                                       {KIOSKS.find(k => k.id === Number(r.kiosk_id))?.capacity || (r.kiosk_id === 'MENOR' ? 'Até 6 pessoas' : '')}
-                                    </span>
-                                 </div>
-                              </div>
-                              <span className="font-bold text-primary">{formatCurrency(r.price || (KIOSKS.find(k => k.id === Number(r.kiosk_id))?.price || 75))}</span>
-                           </div>
-                         ))}
-                      </div>
-                   </div>
-                 )}
+    const groupsByTab: Record<string, any[]> = {
+      hoje: allGroups.filter((g: any) => g.reservation_date === todayStr),
+      futuras: allGroups.filter((g: any) => g.reservation_date > todayStr),
+      historico: allGroups.filter((g: any) => g.reservation_date < todayStr),
+    };
+    const tabGroups = groupsByTab[kioskSubTab];
+
+    const resolveGroup = (group: any) => {
+      const dayKiosks = kioskReservations.filter(k => k.reservation_date === group.reservation_date);
+      const resolved = group.items.map((r: any) => {
+        const bid = r.kiosk_id;
+        if (bid === 1 || bid === '1' || bid === 'MAIOR') return KIOSKS.find(k => k.id === 1);
+        if (bid === 'MENOR') {
+          const menors = dayKiosks.filter(dk => dk.kiosk_id === 'MENOR');
+          const idx = menors.findIndex(dk => dk.id === r.id);
+          return KIOSKS.find(k => k.id === idx + 2) || { id: 99, name: 'Quiosque Extra', capacity: 'Até 15 pessoas' };
+        }
+        return KIOSKS.find(k => k.id === Number(bid)) || { id: 99, name: `Q-${bid}`, capacity: 'Até 15 pessoas' };
+      });
+      const names = resolved.map((k: any) => k?.name.replace('Quiosque ', 'Q-')).join(', ');
+      const capacity = resolved.reduce((s: number, k: any) => s + parseInt((k?.capacity || '0').replace(/\D/g, '') || '15'), 0);
+      return { names, capacity };
+    };
+
+    const subTabConfig = [
+      { key: 'hoje', label: 'Ativos Hoje', count: groupsByTab.hoje.length, color: 'bg-emerald-600 text-white' },
+      { key: 'futuras', label: 'Reservas Futuras', count: groupsByTab.futuras.length, color: 'bg-blue-100 text-blue-700' },
+      { key: 'historico', label: 'Histórico', count: groupsByTab.historico.length, color: 'bg-slate-100 text-slate-600' },
+    ];
+
+    return (
+      <div className="space-y-6 animate-in fade-in duration-500">
+        {/* Header */}
+        <div className="bg-white rounded-3xl border-2 border-slate-300 shadow-xl overflow-hidden">
+          <div className="p-6 border-b-2 border-slate-200 bg-slate-50">
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div>
+                <h3 className="text-lg font-bold text-primary">Reservas de Quiosques</h3>
+                <p className="text-xs text-muted-foreground">Gerencie todas as reservas por status</p>
               </div>
-            );
-          })}
-       </div>
-    </div>
-  );
-
-  const renderQuadTab = () => (
-    <div className="space-y-8 animate-in fade-in duration-500">
-       <div className="bg-white rounded-3xl border border-border/50 shadow-card overflow-hidden">
-          <div className="p-6 border-b border-border/50 flex items-center justify-between bg-blue-50/30">
-             <div>
-                <h3 className="text-lg font-bold text-blue-700">Reservas Ativas de Quadriciclos</h3>
-                <p className="text-xs text-muted-foreground">Reservas de hoje em diante</p>
-             </div>
-             <Input placeholder="Buscar cliente..." className="w-64 h-10 rounded-xl" />
+              <div className="flex gap-2 bg-slate-100 p-1 rounded-2xl">
+                {subTabConfig.map(t => (
+                  <button
+                    key={t.key}
+                    onClick={() => setKioskSubTab(t.key as any)}
+                    className={cn(
+                      'flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all',
+                      kioskSubTab === t.key ? t.color + ' shadow-md' : 'text-slate-500 hover:text-slate-700'
+                    )}
+                  >
+                    {t.label}
+                    <span className={cn('rounded-full px-1.5 py-0.5 text-[9px] font-black', kioskSubTab === t.key ? 'bg-white/30' : 'bg-slate-200')}>
+                      {t.count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
+
+          {/* Table */}
           <div className="overflow-x-auto">
-             <table className="w-full text-left">
-                <thead className="bg-muted/50 text-[10px] font-bold uppercase text-muted-foreground tracking-widest border-b border-border/50">
-                   <tr>
-                      <th className="px-6 py-4">Data/Horário</th>
-                      <th className="px-6 py-4">Cliente</th>
-                      <th className="px-6 py-4">Modelo</th>
-                      <th className="px-6 py-4 text-center">Qtd</th>
-                      <th className="px-6 py-4">Preço</th>
-                      <th className="px-6 py-4 text-right">Ações</th>
-                   </tr>
+            {tabGroups.length === 0 ? (
+              <div className="text-center py-16 text-muted-foreground/40 font-bold uppercase text-xs tracking-widest">
+                {kioskSubTab === 'hoje' ? 'Nenhuma reserva ativa hoje' : kioskSubTab === 'futuras' ? 'Sem reservas futuras' : 'Sem histórico'}
+              </div>
+            ) : (
+              <table className="w-full text-left">
+                <thead className="bg-slate-100/80 text-[10px] font-bold uppercase text-slate-600 tracking-widest border-b-2 border-emerald-300">
+                  <tr>
+                    <th className="px-6 py-4">Data</th>
+                    <th className="px-6 py-4">Cliente</th>
+                    <th className="px-6 py-4">Quiosques / Capacidade</th>
+                    <th className="px-6 py-4">Valor</th>
+                    <th className="px-6 py-4 text-right">Ações</th>
+                  </tr>
                 </thead>
-                <tbody className="divide-y divide-border/30">
-                   {currentQuads.map(r => {
-                      const isEditing = editingId === r.id;
-                      return (
-                        <tr key={r.id} className={cn("hover:bg-muted/20 transition-colors", isEditing && "bg-amber-50/50")}>
-                           <td className="px-6 py-4">
-                              <div className="flex flex-col">
-                                 <span className="font-bold text-sm">
-                                    {isEditing ? <Input type="date" value={editData.reservation_date} onChange={e => setEditData({...editData, reservation_date: e.target.value})} className="h-8" /> : format(parseISO(r.reservation_date), 'dd/MM/yyyy')}
-                                 </span>
-                                 <span className={cn(
-                                    "text-[10px] uppercase font-bold",
-                                    (r.time_slot === 'INDIV' || r.time_slot === 'DUPLA') ? "text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-md" : "text-blue-600"
-                                 )}>
-                                    {isEditing ? (
-                                      <Select value={editData.time_slot} onValueChange={v => setEditData({...editData, time_slot: v})}>
-                                         <SelectTrigger className="h-6 text-[10px]"><SelectValue /></SelectTrigger>
-                                         <SelectContent>{QUAD_TIMES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
-                                      </Select>
-                                    ) : (
-                                       (r.time_slot === 'INDIV' || r.time_slot === 'DUPLA') ? (
-                                          <span className="animate-pulse">⚠️ DEFINIR HORÁRIO</span>
-                                       ) : r.time_slot
-                                    )}
-                                 </span>
-                              </div>
-                           </td>
-                           <td className="px-6 py-4 font-bold text-foreground">
-                              {isEditing ? <Input value={editData.customer_name} onChange={e => setEditData({...editData, customer_name: e.target.value})} className="h-9 bg-white text-emerald-950 font-bold border-blue-200" /> : <span className="text-emerald-950 font-bold">{r.customer_name || (r as any).bookings?.name || 'Cliente'}</span>}
-                           </td>
-                           <td className="px-6 py-4">
-                              <Badge variant="outline" className="border-blue-200 text-blue-800 font-bold bg-blue-50/30">
-                                 {QUAD_MODELS_LABELS[r.quad_type || (r.time_slot === 'DUPLA' ? 'dupla' : 'individual')] || 'Individual'}
-                              </Badge>
-                           </td>
-                           <td className="px-6 py-4 text-center">
-                              {isEditing ? <Input type="number" value={editData.quantity} onChange={e => setEditData({...editData, quantity: parseInt(e.target.value)})} className="h-9 w-16 bg-white text-emerald-950 font-bold border-blue-200" /> : <Badge className="bg-blue-100 text-blue-700 border-0 font-extrabold">{r.quantity} quad.</Badge>}
-                           </td>
-                           <td className="px-6 py-4 font-bold text-blue-700">
-                              {isEditing ? <Input type="number" value={editData.price} onChange={e => setEditData({...editData, price: parseFloat(e.target.value)})} className="h-9 w-24 bg-white text-emerald-950 font-bold border-blue-200" /> : formatCurrency(r.price || 0)}
-                           </td>
-                           <td className="px-6 py-4 text-right">
-                              <div className="flex items-center justify-end gap-2">
-                                 {isEditing ? (
-                                   <>
-                                      <Button size="icon" className="h-8 w-8 rounded-lg bg-blue-600" onClick={() => saveEditing('quad')}><Check className="w-4 h-4" /></Button>
-                                      <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg" onClick={cancelEditing}><X className="w-4 h-4" /></Button>
-                                   </>
-                                 ) : (
-                                   <>
-                                      {r.receipt_url && <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600" onClick={() => window.open(r.receipt_url)}><FileText className="w-4 h-4" /></Button>}
-                                      <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600" onClick={() => startEditing(r)}><Pencil className="w-4 h-4" /></Button>
-                                      <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500" onClick={() => requestDelete(r, 'quad')}><Trash2 className="w-4 h-4" /></Button>
-                                   </>
-                                 )}
-                              </div>
-                           </td>
-                        </tr>
-                      );
-                   })}
+                <tbody className="divide-y-2 divide-emerald-200">
+                  {tabGroups.map((group: any) => {
+                    const { names, capacity } = resolveGroup(group);
+                    const isToday = group.reservation_date === todayStr;
+                    return (
+                      <tr key={group.group_key} className={cn(
+                        'border-b-2 border-emerald-200 hover:bg-emerald-100/50 transition-colors',
+                        isToday ? 'bg-emerald-50/60' : 'bg-white'
+                      )}>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col gap-1">
+                            <span className={cn('font-bold text-sm', isToday ? 'text-emerald-800' : 'text-emerald-900')}>
+                              {format(parseISO(group.reservation_date), 'dd/MM/yyyy')}
+                            </span>
+                            {isToday && <span className="text-[9px] bg-emerald-700 text-white font-black uppercase px-2 py-0.5 rounded-full w-fit">HOJE</span>}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="font-black text-emerald-950 uppercase">{group.customer_name}</span>
+                          <div className="text-[10px] text-emerald-600/60 font-black mt-0.5">{group.items.length} reserva(s)</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col gap-1">
+                            <Badge className="bg-emerald-100/80 text-emerald-800 border border-emerald-200 font-bold w-fit shadow-sm">{names}</Badge>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 font-bold text-emerald-700">{formatCurrency(group.total_price)}</td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            {group.items.some((r: any) => r.receipt_url) && (
+                              <Button size="icon" variant="ghost" className="h-8 w-8 text-primary hover:bg-emerald-600 hover:text-white transition-all shadow-sm" onClick={() => window.open(group.items.find((r: any) => r.receipt_url)?.receipt_url)}>
+                                <FileText className="w-4 h-4" />
+                              </Button>
+                            )}
+                            <Button
+                              size="icon" variant="ghost"
+                              className="h-8 w-8 text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm"
+                              title="Reagendar"
+                              onClick={() => {
+                                setRescheduleData({ type: 'kiosk', group });
+                                setRescheduleDate(parseISO(group.reservation_date));
+                              }}
+                            ><CalendarClock className="w-4 h-4" /></Button>
+                            <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500 hover:bg-red-600 hover:text-white transition-all shadow-sm" onClick={() => requestDelete(group.items[0], 'kiosk')}>
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
-             </table>
+              </table>
+            )}
           </div>
-       </div>
+        </div>
+      </div>
+    );
+  };
 
-       {/* HISTORY */}
-       <div className="space-y-4">
+  const renderQuadTab = () => {
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    // Group by date + customer (ignoring timeslot to allow expansion)
+    const allGroups = Object.values(quadReservations.reduce((acc, curr) => {
+      const key = `${curr.reservation_date}_${curr.customer_name || 'Venda'}`;
+      if (!acc[key]) acc[key] = { group_key: key, reservation_date: curr.reservation_date, customer_name: curr.customer_name || (curr as any).bookings?.name || 'Cliente', items: [], total_price: 0, total_quantity: 0 };
+      acc[key].items.push(curr);
+      acc[key].total_price += (curr.price || 0);
+      acc[key].total_quantity += (Number(curr.quantity) || 1);
+      return acc;
+    }, {} as Record<string, any>));
+
+    const groupsByTab: Record<string, any[]> = {
+      hoje: allGroups.filter((g: any) => g.reservation_date === todayStr),
+      futuras: allGroups.filter((g: any) => g.reservation_date > todayStr),
+      historico: allGroups.filter((g: any) => g.reservation_date < todayStr),
+    };
+    const tabGroups = groupsByTab[quadSubTab];
+
+    const subTabConfig = [
+      { key: 'hoje', label: 'Ativos Hoje', count: groupsByTab.hoje.length, color: 'bg-blue-600 text-white' },
+      { key: 'futuras', label: 'Reservas Futuras', count: groupsByTab.futuras.length, color: 'bg-blue-100 text-blue-700' },
+      { key: 'historico', label: 'Histórico', count: groupsByTab.historico.length, color: 'bg-slate-100 text-slate-600' },
+    ];
+
+    return (
+      <div className="space-y-6 animate-in fade-in duration-500">
+        <div className="bg-white rounded-3xl border-2 border-slate-300 shadow-xl overflow-hidden">
+          <div className="p-6 border-b-2 border-slate-200 bg-blue-50/50">
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div>
+                <h3 className="text-lg font-bold text-blue-700">Reservas de Quadriciclos</h3>
+                <p className="text-xs text-muted-foreground">Clique em um grupo para ver os horários</p>
+              </div>
+              <div className="flex gap-2 bg-slate-100 p-1 rounded-2xl">
+                {subTabConfig.map(t => (
+                  <button
+                    key={t.key}
+                    onClick={() => setQuadSubTab(t.key as any)}
+                    className={cn(
+                      'flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all',
+                      quadSubTab === t.key ? t.color + ' shadow-md' : 'text-slate-500 hover:text-slate-700'
+                    )}
+                  >
+                    {t.label}
+                    <span className={cn('rounded-full px-1.5 py-0.5 text-[9px] font-black', quadSubTab === t.key ? 'bg-white/30' : 'bg-slate-200')}>
+                      {t.count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            {tabGroups.length === 0 ? (
+              <div className="text-center py-16 text-muted-foreground/40 font-bold uppercase text-xs tracking-widest">
+                {quadSubTab === 'hoje' ? 'Nenhuma reserva ativa hoje' : quadSubTab === 'futuras' ? 'Sem reservas futuras' : 'Sem histórico'}
+              </div>
+            ) : (
+              <table className="w-full text-left">
+                <thead className="bg-muted/50 text-[10px] font-bold uppercase text-muted-foreground tracking-widest border-b border-border/50">
+                  <tr>
+                    <th className="px-6 py-4 w-8"></th>
+                    <th className="px-6 py-4">Data</th>
+                    <th className="px-6 py-4">Cliente</th>
+                    <th className="px-6 py-4">Modelos</th>
+                    <th className="px-6 py-4 text-center">Total Quadriciclos</th>
+                    <th className="px-6 py-4">Valor Total</th>
+                    <th className="px-6 py-4 text-right">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tabGroups.map((group: any) => {
+                    const isExpanded = expandedQuadGroupId === group.group_key;
+                    const isToday = group.reservation_date === todayStr;
+                    const uniqueModels = Array.from(new Set(group.items.map((r: any) => QUAD_MODELS_LABELS[r.quad_type || (r.time_slot === 'DUPLA' ? 'dupla' : 'individual')] || 'Individual')));
+
+                    return (
+                      <React.Fragment key={group.group_key}>
+                        {/* Summary row */}
+                        <tr
+                          className={cn(
+                            'border-b-2 border-blue-200 cursor-pointer hover:bg-blue-100/50 transition-colors',
+                            isToday ? 'bg-blue-50/60' : 'bg-white',
+                            isExpanded && 'bg-blue-100/40'
+                          )}
+                          onClick={() => setExpandedQuadGroupId(isExpanded ? null : group.group_key)}
+                        >
+                          <td className="px-4 py-4 text-center">
+                            <ChevronDown className={cn('w-4 h-4 text-blue-500 transition-transform', isExpanded && 'rotate-180')} />
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex flex-col gap-1">
+                              <span className={cn('font-bold text-sm', isToday ? 'text-blue-700' : 'text-blue-900')}>
+                                {format(parseISO(group.reservation_date), 'dd/MM/yyyy')}
+                              </span>
+                              {isToday && <span className="text-[9px] bg-blue-600 text-white font-black uppercase px-2 py-0.5 rounded-full w-fit">HOJE</span>}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="font-black text-blue-950 uppercase">{group.customer_name}</span>
+                            <div className="text-[10px] text-blue-600/60 font-black mt-0.5">{group.items.length} horário(s) reservado(s)</div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex flex-wrap gap-1">
+                              {(uniqueModels as string[]).map((m, i) => (
+                                <Badge key={i} variant="outline" className="border-blue-200 text-blue-800 font-bold bg-blue-50/50 text-[10px]">{m}</Badge>
+                              ))}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <Badge className="bg-blue-100 text-blue-800 border-0 font-extrabold">{group.total_quantity} quadriciclos</Badge>
+                          </td>
+                          <td className="px-6 py-4 font-bold text-blue-700">{formatCurrency(group.total_price)}</td>
+                          <td className="px-6 py-4 text-right">
+                            <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
+                              {group.items.some((r: any) => r.receipt_url) && (
+                                <Button size="icon" variant="ghost" className="h-8 w-8 text-primary hover:bg-emerald-600 hover:text-white transition-all shadow-sm" onClick={() => window.open(group.items.find((r: any) => r.receipt_url)?.receipt_url)}>
+                                  <FileText className="w-4 h-4" />
+                                </Button>
+                              )}
+                              <Button
+                                size="icon" variant="ghost"
+                                className="h-8 w-8 text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm"
+                                title="Reagendar"
+                                onClick={() => {
+                                  setRescheduleData({ type: 'quad', group });
+                                  setRescheduleDate(parseISO(group.reservation_date));
+                                }}
+                              ><CalendarClock className="w-4 h-4" /></Button>
+                              <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500 hover:bg-red-600 hover:text-white transition-all shadow-sm" onClick={() => requestDelete(group.items[0], 'quad')}>
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+
+                        {/* Expanded detail rows per timeslot */}
+                        {isExpanded && group.items.map((r: any, idx: number) => {
+                          const isEditing = editingId === r.id;
+                          return (
+                            <tr key={r.id} className={cn("bg-blue-50/30 border-b border-blue-100 transition-all", isEditing ? "bg-amber-50/40" : "")}>
+                              <td className="px-4 py-2"></td>
+                              <td className="px-6 py-2">
+                                {isEditing ? (
+                                  <Select value={editData.time_slot} onValueChange={v => setEditData({...editData, time_slot: v})}>
+                                     <SelectTrigger className="h-8 text-[11px] font-black w-32 border-blue-200 bg-white shadow-sm"><SelectValue /></SelectTrigger>
+                                     <SelectContent>
+                                        {QUAD_TIMES.map(t => <SelectItem key={t} value={t} className="text-[11px] font-bold">{t}</SelectItem>)}
+                                     </SelectContent>
+                                  </Select>
+                                ) : (
+                                  <span className={cn(
+                                    'text-[10px] font-black uppercase px-2 py-0.5 rounded-md w-fit inline-block border flex items-center gap-1.5 shadow-sm',
+                                    (r.time_slot === 'INDIV' || r.time_slot === 'DUPLA') 
+                                      ? 'bg-amber-50 text-amber-700 border-amber-200' 
+                                      : 'bg-blue-50 text-blue-700 border-blue-100'
+                                  )}>
+                                    {(r.time_slot === 'INDIV' || r.time_slot === 'DUPLA') ? (
+                                      <>
+                                        <AlertTriangle className="w-3 h-3" />
+                                        {r.time_slot === 'INDIV' ? 'HORÁRIO NÃO DEFINIDO' : 'DUPLA (AGUARDANDO)'}
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Clock className="w-3 h-3" />
+                                        {r.time_slot}
+                                      </>
+                                    )}
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-6 py-2 text-[11px] text-blue-700/60 font-black uppercase tracking-wider">Item #{idx + 1}</td>
+                              <td className="px-6 py-2">
+                                {isEditing ? (
+                                  <div className="flex flex-col gap-1 w-32">
+                                    <Select value={editData.quad_type || 'individual'} onValueChange={v => setEditData({...editData, quad_type: v})}>
+                                       <SelectTrigger className="h-7 text-[10px] font-bold bg-white"><SelectValue /></SelectTrigger>
+                                       <SelectContent>
+                                          {Object.entries(QUAD_MODELS_LABELS).map(([k, v]) => <SelectItem key={k} value={k} className="text-[10px]">{v}</SelectItem>)}
+                                       </SelectContent>
+                                    </Select>
+                                  </div>
+                                ) : (
+                                  <Badge variant="outline" className="text-[9px] border-blue-100 text-blue-700 bg-white/50 font-black tracking-widest px-2">
+                                    {QUAD_MODELS_LABELS[r.quad_type || (r.time_slot === 'DUPLA' ? 'dupla' : 'individual')] || 'Individual'}
+                                  </Badge>
+                                )}
+                              </td>
+                              <td className="px-6 py-2 text-center">
+                                <span className="text-[11px] font-black text-blue-900 bg-blue-100/50 px-2 rounded-full border border-blue-200">{r.quantity || 1}x</span>
+                              </td>
+                              <td className="px-6 py-2 text-[11px] font-extrabold text-blue-700">{formatCurrency(r.price || 0)}</td>
+                              <td className="px-6 py-2 text-right">
+                                <div className="flex items-center justify-end gap-1.5">
+                                  {isEditing ? (
+                                    <>
+                                      <Button size="icon" variant="ghost" className="h-8 w-8 text-emerald-600 bg-emerald-50 hover:bg-emerald-600 hover:text-white border border-emerald-200" onClick={() => saveEditing('quad')}>
+                                        <Check className="w-4 h-4" />
+                                      </Button>
+                                      <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 bg-white hover:bg-slate-100 border border-slate-200" onClick={cancelEditing}>
+                                        <X className="w-4 h-4" />
+                                      </Button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm border border-blue-100 flex items-center justify-center opacity-0 group-hover:opacity-100" onClick={(e) => { e.stopPropagation(); startEditing(r); }}>
+                                        <Pencil className="w-3.5 h-3.5" />
+                                      </Button>
+                                      <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500 hover:bg-red-600 hover:text-white transition-all shadow-sm border border-red-100" onClick={(e) => { e.stopPropagation(); requestDelete(r, 'quad'); }}>
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </Button>
+                                    </>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </React.Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+
+        {/* HISTORY */}
+        <div className="space-y-4">
           <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
              <History className="w-4 h-4" /> Histórico Mensal
           </h4>
@@ -892,11 +1105,12 @@ export default function Admin() {
                    </div>
                  )}
               </div>
-            );
-          })}
-       </div>
-    </div>
-  );
+             );
+           })}
+        </div>
+      </div>
+    );
+  };
 
   const renderOrderTab = () => (
     <div className="bg-white rounded-3xl border border-border/50 shadow-card overflow-hidden animate-in fade-in duration-500">
@@ -1035,16 +1249,20 @@ export default function Admin() {
              {activeTab === 'painel' && renderDashboard()}
              {activeTab === 'reservas' && (
                <div className="space-y-6">
-                 <div className="relative w-full max-w-lg">
-                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                   <Input placeholder="Filtrar por nome, telefone ou código..." className="pl-10 h-12 rounded-2xl bg-white shadow-sm" value={search} onChange={e => setSearch(e.target.value)} />
+                 <div className="flex gap-4 w-full max-w-2xl">
+                   <div className="relative flex-1">
+                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-600/50" />
+                     <Input placeholder="Filtrar por nome, telefone ou código..." className="pl-11 h-12 rounded-2xl bg-white shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border-emerald-100 font-medium text-emerald-950 placeholder:text-emerald-900/40 focus-visible:ring-emerald-500" value={search} onChange={e => setSearch(e.target.value)} />
+                   </div>
+                   <input type="date" className="h-12 px-4 rounded-2xl bg-white shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-emerald-100 text-emerald-950 font-bold focus:outline-emerald-500" value={filterDate} onChange={e => setFilterDate(e.target.value)} />
                  </div>
                  <BookingTable 
                    bookings={[...bookings, ...orders.map(o => ({...o, is_order: true}))].filter(b => 
-                     !search || 
-                     (b.name || b.customer_name || '').toLowerCase().includes(search.toLowerCase()) ||
-                     (b.phone || '').includes(search) ||
-                     (b.confirmation_code || '').includes(search)
+                     (!search || 
+                      (b.name || b.customer_name || '').toLowerCase().includes(search.toLowerCase()) ||
+                      (b.phone || '').includes(search) ||
+                      (b.confirmation_code || '').includes(search)) &&
+                     (!filterDate || (b.visit_date && b.visit_date.startsWith(filterDate)))
                    )}
                    onStatusChange={updateBookingStatus}
                    onAddNote={addBookingNote}
@@ -1066,8 +1284,12 @@ export default function Admin() {
                          toast({ title: "Erro ao remover: " + (err?.message || ''), variant: "destructive" });
                        }
                     }}
-                   onRemoveItem={() => {}}
-                   updatingId={updatingId}
+                    onRemoveItem={() => {}}
+                    updatingId={updatingId}
+                    onRemoveReceipt={async (bookingId) => {
+                      await supabase.from('bookings').update({ receipt_url: null }).eq('id', bookingId);
+                      fetchData();
+                    }}
                    onFileUpload={async (file, id, isOrder) => {
                      setIsUploading(true);
                      try {
@@ -1100,24 +1322,71 @@ export default function Admin() {
 
        {/* DELETE DIALOG */}
        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-          <AlertDialogContent className="rounded-3xl border-none shadow-2xl">
+          <AlertDialogContent className="rounded-3xl border-2 border-slate-300 shadow-2xl">
              <AlertDialogHeader>
                 <div className="flex items-center gap-3 mb-4">
-                   <div className="w-12 h-12 rounded-2xl bg-red-100 flex items-center justify-center">
+                   <div className="w-12 h-12 rounded-2xl bg-red-100 flex items-center justify-center border-2 border-red-200">
                       <AlertTriangle className="w-6 h-6 text-red-600" />
                    </div>
-                   <AlertDialogTitle className="text-xl font-bold text-foreground">Confirmar Exclusão</AlertDialogTitle>
+                   <AlertDialogTitle className="text-xl font-black text-slate-900">Confirmar Exclusão</AlertDialogTitle>
                 </div>
-                <AlertDialogDescription className="text-muted-foreground font-medium">
+                <AlertDialogDescription className="text-slate-600 font-bold">
                    Deseja realmente remover esta reserva? Esta ação não pode ser desfeita e liberará o horário/espaço para novos clientes.
                 </AlertDialogDescription>
              </AlertDialogHeader>
              <AlertDialogFooter className="gap-2">
-                <AlertDialogCancel className="rounded-xl border-none bg-muted font-bold">Cancelar</AlertDialogCancel>
-                <Button onClick={confirmDelete} className="rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold h-10 px-6 shadow-md">Sim, Excluir</Button>
+                <AlertDialogCancel className="rounded-xl border-2 border-slate-200 bg-slate-100 font-black text-slate-700 hover:bg-slate-200">Cancelar</AlertDialogCancel>
+                <Button onClick={confirmDelete} className="rounded-xl bg-red-600 hover:bg-red-700 text-white font-black h-10 px-6 shadow-md border-2 border-red-700">Sim, Excluir</Button>
              </AlertDialogFooter>
           </AlertDialogContent>
        </AlertDialog>
+
+       {/* RESCHEDULE DIALOG */}
+       <Dialog open={!!rescheduleData} onOpenChange={(open) => !open && setRescheduleData(null)}>
+         <DialogContent className="rounded-[2.5rem] border-4 border-blue-200 shadow-3xl max-w-md bg-white p-0 overflow-hidden">
+           <div className="bg-blue-600 p-8 text-white">
+             <div className="flex items-center gap-4 mb-2">
+               <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm border border-white/30">
+                 <CalendarClock className="w-6 h-6" />
+               </div>
+               <div>
+                 <h3 className="text-xl font-black tracking-tight">Reagendar Reserva</h3>
+                 <p className="text-blue-100 text-xs font-bold uppercase tracking-wider">Selecione a nova data abaixo</p>
+               </div>
+             </div>
+           </div>
+           
+           <div className="p-8 space-y-6">
+             <div className="bg-slate-50 rounded-3xl border-2 border-slate-200 p-4 shadow-inner">
+               <Calendar
+                 mode="single"
+                 selected={rescheduleDate}
+                 onSelect={setRescheduleDate}
+                 locale={ptBR}
+                 className="rounded-2xl"
+                 disabled={(date) => date < startOfDay(new Date())}
+               />
+             </div>
+             
+             <div className="flex gap-3">
+               <Button 
+                 variant="outline" 
+                 className="flex-1 h-12 rounded-2xl font-black border-2 border-slate-300 text-slate-600 hover:bg-slate-100 transition-all"
+                 onClick={() => setRescheduleData(null)}
+               >
+                 CANCELAR
+               </Button>
+               <Button 
+                 className="flex-1 h-12 rounded-2xl font-black bg-blue-600 hover:bg-blue-700 text-white shadow-lg border-2 border-blue-700"
+                 onClick={handleRescheduleConfirm}
+                 disabled={loading}
+               >
+                 {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'CONFIRMAR'}
+               </Button>
+             </div>
+           </div>
+         </DialogContent>
+       </Dialog>
     </div>
   );
 }
