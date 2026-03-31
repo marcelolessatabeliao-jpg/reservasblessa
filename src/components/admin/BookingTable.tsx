@@ -47,6 +47,7 @@ interface BookingTableProps {
   onFileUpload?: (file: File, id: string, isOrder: boolean) => Promise<void>;
   isUploading?: boolean;
   onRemoveReceipt?: (bookingId: string) => void;
+  onRefresh?: () => void;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive'; icon: React.ElementType; color: string; bgColor: string; borderColor: string }> = {
@@ -57,7 +58,7 @@ const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secon
   cancelled: { label: 'CANCELADA', variant: 'destructive', icon: XCircle, color: 'text-red-600', bgColor: 'bg-red-50', borderColor: 'border-red-200' },
 };
 
-export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule, onDelete, onRemoveItem, updatingId, onFileUpload, isUploading, onRemoveReceipt }: BookingTableProps) {
+export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule, onDelete, onRemoveItem, updatingId, onFileUpload, isUploading, onRemoveReceipt, onRefresh }: BookingTableProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [noteText, setNoteText] = useState('');
@@ -242,8 +243,8 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                              <tr className="border-x-4 border-emerald-200">
                                 <td colSpan={6} className="p-0 bg-white border-y-4 border-emerald-200 shadow-2xl">
                                   <div className="p-6 space-y-6 animate-in slide-in-from-top-4 duration-500">
-                                     <div className="bg-white rounded-3xl p-6 shadow-xl border border-emerald-200">
-                                        <BookingDetail booking={booking} onRemoveReceipt={onRemoveReceipt} />
+                                     <div className="bg-white rounded-3xl p-6 shadow-xl border border-emerald-100">
+                                        <BookingDetail booking={booking} onRemoveReceipt={onRemoveReceipt} onRefresh={onRefresh} />
                                      </div>
                                      
                                      <div className="grid lg:grid-cols-2 gap-6 items-stretch">

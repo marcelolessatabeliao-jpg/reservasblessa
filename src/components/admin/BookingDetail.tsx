@@ -28,9 +28,10 @@ interface BookingDetailProps {
   };
   onRemoveItem?: (orderId: string, itemId: string, productId: string) => void;
   onRemoveReceipt?: (bookingId: string) => void;
+  onRefresh?: () => void;
 }
 
-export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt }: BookingDetailProps) {
+export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefresh }: BookingDetailProps) {
   const { toast } = useToast();
   const children = Array.isArray(booking.children) ? booking.children : [];
   const kiosks = Array.isArray(booking.kiosks) ? booking.kiosks : [];
@@ -86,6 +87,7 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt }: Bookin
         title: !currentStatus ? '✅ Item Utilizado' : '↩️ Item Estornado',
         description: `${productName} foi marcado como ${!currentStatus ? 'utilizado' : 'não utilizado'}.`,
       });
+      if (onRefresh) onRefresh();
     } catch (err) {
       console.error('Error updating item status:', err);
       toast({ title: 'Erro ao atualizar item', variant: 'destructive' });

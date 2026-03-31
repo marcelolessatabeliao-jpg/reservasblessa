@@ -1311,6 +1311,7 @@ export default function Admin() {
                      } finally { setIsUploading(false); }
                    }}
                    isUploading={isUploading}
+                   onRefresh={fetchData}
                  />
                </div>
              )}
