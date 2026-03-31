@@ -321,7 +321,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
             emoji: '📚', 
             color: 'text-blue-800', 
             docs: [
-              '📄 Documentos aceitos para comprovação (basta 1):',
+              '📄 Documentos aceitos (basta 1):',
               '✅ Contracheque ou holerite recente (constando função docente)',
               '✅ Declaração da instituição de ensino privada (em papel timbrado e assinada)',
               '✅ Carteira funcional emitida pela instituição ou sindicato',
@@ -333,7 +333,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
             emoji: '🎓', 
             color: 'text-violet-800', 
             docs: [
-              '📄 Documentos aceitos para comprovação (basta 1):',
+              '📄 Documentos aceitos (basta 1):',
               '✅ Carteirinha estudantil válida',
               '✅ Declaração de matrícula atualizada',
               '✅ Comprovante de matrícula ou boleto escolar vigente',
@@ -345,7 +345,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
             emoji: '🏛️', 
             color: 'text-emerald-800', 
             docs: [
-              '📄 Documentos aceitos para comprovação (basta 1):',
+              '📄 Documentos aceitos (basta 1):',
               '✅ Carteira funcional de servidor público',
               '✅ Contracheque ou holerite recente',
               '✅ Declaração do órgão público (em papel timbrado e assinada)',
