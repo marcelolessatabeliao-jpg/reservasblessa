@@ -513,69 +513,6 @@ export default function Admin() {
     return (
       <div className="grid lg:grid-cols-[1fr_360px] gap-8 animate-in fade-in duration-500">
         <div className="space-y-8">
-          {/* STATS */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-             <Card onClick={() => setActiveTab('quiosques')} className="cursor-pointer bg-emerald-50 border-2 border-emerald-300 text-emerald-950 shadow-lg rounded-2xl p-2.5 flex items-center justify-between hover:shadow-emerald-400/30 hover:bg-emerald-100 transition-all group overflow-hidden relative min-h-[70px]">
-                <div className="absolute -right-1 -top-1 p-1 opacity-[0.03] group-hover:scale-110 group-hover:opacity-[0.1] transition-all"><Tent className="w-12 h-12 text-emerald-600" /></div>
-                <div className="flex items-center gap-2.5 relative z-10">
-                   <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-700 border border-emerald-200">
-                      <Tent className="w-4 h-4" />
-                   </div>
-                   <div className="flex flex-col -space-y-1">
-                      <span className="text-lg font-black tabular-nums tracking-tighter">{dayKiosks.length}</span>
-                      <span className="text-[7.5px] font-black uppercase tracking-widest text-emerald-800">Quiosques Ocupados</span>
-                   </div>
-                </div>
-                <ArrowRight className="w-3.5 h-3.5 text-emerald-300 group-hover:text-emerald-700 group-hover:translate-x-1 transition-all" />
-             </Card>
-             
-             <Card onClick={() => setActiveTab('quads')} className="cursor-pointer bg-blue-50 border-2 border-blue-300 text-blue-950 shadow-lg rounded-2xl p-2.5 flex items-center justify-between hover:shadow-blue-400/30 hover:bg-blue-100 transition-all group overflow-hidden relative min-h-[70px]">
-                <div className="absolute -right-1 -top-1 p-1 opacity-[0.03] group-hover:scale-110 group-hover:opacity-[0.1] transition-all"><Bike className="w-12 h-12 text-blue-600" /></div>
-                <div className="flex items-center gap-2.5 relative z-10">
-                   <div className="p-1.5 rounded-lg bg-blue-100 text-blue-700 border border-blue-200">
-                      <Bike className="w-4 h-4" />
-                   </div>
-                   <div className="flex flex-col -space-y-1">
-                      <span className="text-lg font-black tabular-nums tracking-tighter">{dayQuads.length}</span>
-                      <span className="text-[7.5px] font-black uppercase tracking-widest text-blue-800">Quadriciclos Alugados</span>
-                   </div>
-                </div>
-                <ArrowRight className="w-3.5 h-3.5 text-blue-300 group-hover:text-blue-700 group-hover:translate-x-1 transition-all" />
-             </Card>
-             
-             <Card onClick={() => setActiveTab('vendas')} className="cursor-pointer bg-emerald-950 border-2 border-emerald-500 shadow-xl rounded-2xl p-2.5 flex items-center justify-between hover:bg-black transition-all group overflow-hidden relative min-h-[70px]">
-                <div className="absolute -right-1 -top-1 p-1 opacity-10 group-hover:scale-110 transition-all"><TrendingUp className="w-12 h-12 text-emerald-700" /></div>
-                <div className="flex items-center gap-2.5 relative z-10">
-                   <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-100 border border-emerald-400/30 backdrop-blur-md">
-                      <TrendingUp className="w-4 h-4" />
-                   </div>
-                   <div className="flex flex-col -space-y-1 text-white">
-                      <span className="text-lg font-black tabular-nums tracking-tighter">
-                        {formatCurrency(
-                          dayBookings.reduce((s, b) => b.status !== 'cancelled' ? s + (b.total_amount || 0) : s, 0) + 
-                          dayOrders.reduce((s, o) => o.status !== 'cancelled' ? s + (o.total_amount || 0) : s, 0)
-                        )}
-                      </span>
-                      <span className="text-[7.5px] font-black uppercase tracking-widest text-emerald-400">Receita Total do Dia</span>
-                   </div>
-                </div>
-                <ArrowRight className="w-3.5 h-3.5 text-emerald-700 group-hover:text-white group-hover:translate-x-1 transition-all" />
-             </Card>
-
-             <Card onClick={() => setActiveTab('reservas')} className="cursor-pointer bg-amber-50 border-2 border-amber-300 text-amber-950 shadow-xl rounded-2xl p-2.5 flex items-center justify-between hover:bg-amber-100 transition-all group overflow-hidden relative min-h-[70px]">
-                <div className="absolute -right-1 -top-1 p-1 opacity-10 group-hover:scale-110 transition-all"><CalendarCheck className="w-12 h-12 text-amber-600" /></div>
-                <div className="flex items-center gap-2.5 relative z-10">
-                   <div className="p-1.5 rounded-lg bg-amber-100 text-amber-700 border border-amber-200">
-                      <CalendarCheck className="w-4 h-4" />
-                   </div>
-                   <div className="flex flex-col -space-y-1">
-                      <span className="text-lg font-black tabular-nums tracking-tighter">{bookings.length + orders.length}</span>
-                      <span className="text-[7.5px] font-black uppercase tracking-widest text-amber-800">Agenda de Reservas</span>
-                   </div>
-                </div>
-                <ArrowRight className="w-3.5 h-3.5 text-amber-300 group-hover:text-amber-700 group-hover:translate-x-1 transition-all" />
-             </Card>
-          </div>
 
           <Card className="bg-transparent border-none text-emerald-950 shadow-none p-0">
              
@@ -742,10 +679,10 @@ export default function Admin() {
                     fromDate={new Date(2024, 0, 1)}
                     classNames={{
                       month: "space-y-6",
-                      caption: "flex justify-center pt-2 relative items-center mb-4 bg-yellow-50/80 rounded-2xl py-3 border border-yellow-100/50 w-full",
-                      caption_label: "text-lg font-black text-emerald-900 uppercase tracking-widest",
-                      nav: "flex items-center justify-between absolute inset-x-0 inset-y-0 px-2 pointer-events-none z-30",
-                      nav_button: "h-10 w-10 bg-emerald-600 text-white border border-emerald-700 hover:bg-emerald-700 shadow-md rounded-xl transition-all pointer-events-auto flex items-center justify-center",
+                      caption: "flex justify-center pt-2 relative items-center mb-4 bg-emerald-800 rounded-2xl py-4 border-2 border-emerald-900 shadow-xl w-full overflow-hidden",
+                      caption_label: "text-lg font-black text-white uppercase tracking-widest",
+                      nav: "flex items-center justify-between absolute inset-x-0 inset-y-0 px-4 pointer-events-none z-30",
+                      nav_button: "h-10 w-10 bg-emerald-500 text-white border border-emerald-400 hover:bg-emerald-400 shadow-lg rounded-xl transition-all pointer-events-auto flex items-center justify-center translate-y-0",
                       nav_button_previous: "relative left-0",
                       nav_button_next: "relative right-0",
                       table: "w-full border-collapse",
@@ -1284,28 +1221,85 @@ export default function Admin() {
 
        <div className="max-w-7xl mx-auto space-y-8 relative z-10 p-4 md:p-8">
           {/* HEADER */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-4">
-              <div className="space-y-2">
-                 <h1 className="text-5xl font-black tracking-tighter flex items-center gap-4">
-                     <div className="flex flex-col -space-y-2">
-                        <span className="text-2xl text-[#FFF033]/80 leading-none">Lessa</span>
-                        <span className="text-5xl text-[#FFF033]">Painel</span>
-                     </div>
-                 </h1>
-                 <p className="text-[#FFF033] font-black uppercase tracking-[0.3em] text-[10px] bg-[#FFF033]/10 w-fit px-3 py-1 rounded-full border border-[#FFF033]/30 backdrop-blur-sm">Gestão Integrada de Reservas • Balneário</p>
+          <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 mb-4">
+              <div className="space-y-2 shrink-0">
+                  <h1 className="text-5xl font-black tracking-tighter flex items-center gap-4">
+                      <div className="flex flex-col -space-y-2">
+                         <span className="text-2xl text-[#FFF033]/80 leading-none shadow-sm">Lessa</span>
+                         <span className="text-5xl text-[#FFF033] shadow-md">Painel</span>
+                      </div>
+                  </h1>
+                  <p className="text-[#FFF033] font-black uppercase tracking-[0.3em] text-[10px] bg-[#FFF033]/10 w-fit px-3 py-1 rounded-full border border-[#FFF033]/30 backdrop-blur-sm">Gestão Integrada de Reservas • Balneário</p>
               </div>
-              <div className="flex items-center gap-4">
+
+              {/* STATS IN HEADER */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 flex-1 px-4">
+                 <Card onClick={() => setActiveTab('quiosques')} className="cursor-pointer bg-emerald-900 border-2 border-emerald-500 shadow-xl rounded-2xl p-2 flex items-center justify-between hover:bg-emerald-800 transition-all group overflow-hidden relative h-[65px]">
+                    <div className="flex items-center gap-2 relative z-10">
+                       <div className="p-1 px-2 rounded-lg bg-emerald-800 text-emerald-100 border border-emerald-700/50">
+                          <Tent className="w-3.5 h-3.5" />
+                       </div>
+                       <div className="flex flex-col -space-y-0.5">
+                          <span className="text-base font-black tabular-nums text-[#FFF033]">{kioskReservations.filter(r => r.reservation_date === format(targetDate, 'yyyy-MM-dd')).length}</span>
+                          <span className="text-[7px] font-black uppercase tracking-widest text-emerald-200">Quiosques</span>
+                       </div>
+                    </div>
+                 </Card>
+                 
+                 <Card onClick={() => setActiveTab('quads')} className="cursor-pointer bg-blue-900 border-2 border-blue-500 shadow-xl rounded-2xl p-2 flex items-center justify-between hover:bg-blue-800 transition-all group overflow-hidden relative h-[65px]">
+                    <div className="flex items-center gap-2 relative z-10">
+                       <div className="p-1 px-2 rounded-lg bg-blue-800 text-blue-100 border border-blue-700/50">
+                          <Bike className="w-3.5 h-3.5" />
+                       </div>
+                       <div className="flex flex-col -space-y-0.5">
+                          <span className="text-base font-black tabular-nums text-[#FFF033]">{quadReservations.filter(r => r.reservation_date === format(targetDate, 'yyyy-MM-dd')).length}</span>
+                          <span className="text-[7px] font-black uppercase tracking-widest text-blue-200">Quadriciclos</span>
+                       </div>
+                    </div>
+                 </Card>
+                 
+                 <Card onClick={() => setActiveTab('vendas')} className="cursor-pointer bg-slate-900 border-2 border-[#FFF033]/50 shadow-xl rounded-2xl p-2 flex items-center justify-between hover:bg-black transition-all group overflow-hidden relative h-[65px]">
+                    <div className="flex items-center gap-2 relative z-10">
+                       <div className="p-1 px-2 rounded-lg bg-yellow-500/10 text-[#FFF033] border border-[#FFF033]/30">
+                          <TrendingUp className="w-3.5 h-3.5" />
+                       </div>
+                       <div className="flex flex-col -space-y-0.5">
+                          <span className="text-base font-black tabular-nums text-[#FFF033]">
+                            {formatCurrency(
+                               (bookings.filter(b => b.visit_date === format(targetDate, 'yyyy-MM-dd')).reduce((s, b) => b.status !== 'cancelled' ? s + (b.total_amount || 0) : s, 0)) + 
+                               (orders.filter(o => (o.visit_date || o.created_at.split('T')[0]) === format(targetDate, 'yyyy-MM-dd')).reduce((s, o) => o.status !== 'cancelled' ? s + (o.total_amount || 0) : s, 0))
+                            ).replace('R$', '').trim()}
+                          </span>
+                          <span className="text-[7px] font-black uppercase tracking-widest text-[#FFF033]/70">Receita Dia</span>
+                       </div>
+                    </div>
+                 </Card>
+
+                 <Card onClick={() => setActiveTab('reservas')} className="cursor-pointer bg-amber-900 border-2 border-amber-500 shadow-xl rounded-2xl p-2 flex items-center justify-between hover:bg-amber-800 transition-all group overflow-hidden relative h-[65px]">
+                    <div className="flex items-center gap-2 relative z-10">
+                       <div className="p-1 px-2 rounded-lg bg-amber-800 text-amber-100 border border-amber-700/50">
+                          <CalendarCheck className="w-3.5 h-3.5" />
+                       </div>
+                       <div className="flex flex-col -space-y-0.5">
+                          <span className="text-base font-black tabular-nums text-[#FFF033]">{bookings.length + orders.length}</span>
+                          <span className="text-[7px] font-black uppercase tracking-widest text-amber-200">Agenda</span>
+                       </div>
+                    </div>
+                 </Card>
+              </div>
+
+              <div className="flex items-center gap-4 shrink-0">
                  <Button 
                    variant="ghost" 
-                   className="rounded-2xl bg-white border border-emerald-200/50 font-black h-12 px-6 hover:bg-emerald-900 hover:text-white hover:border-emerald-700 hover:shadow-premium transition-all text-emerald-800" 
+                   className="rounded-2xl bg-white/5 border border-white/20 font-black h-12 px-6 hover:bg-white/10 text-white transition-all backdrop-blur-md" 
                    onClick={fetchData} 
                    disabled={loading}
                  >
-                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
+                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5 text-[#FFF033]" />}
                     <span className="ml-2">Atualizar</span>
                  </Button>
                  <Button 
-                   className="rounded-2xl bg-emerald-950 text-white font-black h-12 px-8 shadow-2xl shadow-emerald-950/30 hover:scale-105 active:scale-95 transition-all" 
+                   className="rounded-2xl bg-[#FFF033] text-black font-black h-12 px-8 shadow-2xl hover:scale-105 active:scale-95 transition-all border-0" 
                    onClick={handleLogout}
                  >
                     <LogOut className="w-5 h-5 mr-2" /> Sair
@@ -1388,10 +1382,10 @@ export default function Admin() {
                           disabled={(date) => !isAllowedDay(date)}
                           classNames={{
                             month: "space-y-4",
-                            caption: "flex justify-center pt-1 relative items-center mb-2 bg-yellow-50/80 rounded-xl py-2 border border-yellow-100/50 w-full",
-                            caption_label: "text-sm font-black text-emerald-900 uppercase tracking-widest",
-                            nav: "flex items-center justify-between absolute inset-x-0 inset-y-0 px-1 pointer-events-none z-30",
-                            nav_button: "h-8 w-8 bg-emerald-600 text-white border border-emerald-700 hover:bg-emerald-700 shadow-md rounded-lg transition-all pointer-events-auto flex items-center justify-center",
+                            caption: "flex justify-center pt-1 relative items-center mb-2 bg-emerald-800 rounded-xl py-3 border-2 border-emerald-900 shadow-lg w-full",
+                            caption_label: "text-sm font-black text-white uppercase tracking-widest",
+                            nav: "flex items-center justify-between absolute inset-x-0 inset-y-0 px-2 pointer-events-none z-30",
+                            nav_button: "h-8 w-8 bg-emerald-500 text-white border border-emerald-400 hover:bg-emerald-400 shadow-md rounded-lg transition-all pointer-events-auto flex items-center justify-center",
                             nav_button_previous: "relative left-0",
                             nav_button_next: "relative right-0",
                           }}
@@ -1542,10 +1536,10 @@ export default function Admin() {
                   disabled={(date) => !isAllowedDay(date) || isBefore(date, startOfDay(new Date()))}
                   classNames={{
                     month: "space-y-4",
-                    caption: "flex justify-center pt-1 relative items-center mb-2 bg-yellow-500/20 rounded-xl py-2 border border-yellow-500/30 w-full",
-                    caption_label: "text-sm font-black text-emerald-950 uppercase tracking-widest",
-                    nav: "flex items-center justify-between absolute inset-x-0 inset-y-0 px-2 pointer-events-none z-30",
-                    nav_button: "h-10 w-10 bg-blue-600 text-white border border-blue-700 hover:bg-blue-700 shadow-md rounded-xl transition-all pointer-events-auto flex items-center justify-center",
+                    caption: "flex justify-center pt-1 relative items-center mb-2 bg-blue-800 rounded-xl py-3 border-2 border-blue-900 shadow-lg w-full",
+                    caption_label: "text-sm font-black text-white uppercase tracking-widest",
+                    nav: "flex items-center justify-between absolute inset-x-0 inset-y-0 px-4 pointer-events-none z-30",
+                    nav_button: "h-10 w-10 bg-blue-500 text-white border border-blue-400 hover:bg-blue-400 shadow-lg rounded-xl transition-all pointer-events-auto flex items-center justify-center",
                     nav_button_previous: "relative left-0",
                     nav_button_next: "relative right-0",
                     day_selected: "bg-blue-600 text-white hover:bg-blue-700",
