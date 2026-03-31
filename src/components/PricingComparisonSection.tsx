@@ -173,10 +173,6 @@ export function PricingComparisonSection() {
                       <Check className="h-4 w-4 text-[#332200]" />
                       <span className="text-[10px] text-[#332200] font-black uppercase tracking-tight">Valor Único Mensal</span>
                     </div>
-                    
-                    <p className="text-[10px] text-[#332200] leading-tight font-black italic border-t border-black/10 pt-3 opacity-90">
-                      Entrada ilimitada ao Balneário nos dias de funcionamento
-                    </p>
                   </div>
                 </div>
 
