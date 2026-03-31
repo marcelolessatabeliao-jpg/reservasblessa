@@ -679,9 +679,10 @@ export default function Admin() {
                     fromDate={new Date(2024, 0, 1)}
                     disabled={(date) => !isAllowedDay(date)}
                     classNames={{
-                      month: "space-y-6",
-                      caption: "relative flex items-center justify-center w-full h-14 bg-emerald-800 rounded-2xl border-2 border-emerald-900 shadow-xl mb-4",
-                      caption_label: "text-[12px] font-black text-white uppercase tracking-[0.2em] text-center",
+                      months: "w-full flex flex-col",
+                      month: "w-full space-y-6",
+                      caption: "relative flex items-center justify-between w-full h-14 bg-emerald-800 rounded-2xl border-2 border-emerald-900 shadow-xl mb-4 px-3",
+                      caption_label: "text-[12px] font-black text-white uppercase tracking-[0.2em] flex-1 text-center",
                       nav: "absolute inset-x-0 inset-y-0 flex items-center justify-between px-2 pointer-events-none z-30",
                       nav_button: "h-9 w-9 bg-emerald-500 text-white border border-emerald-400 hover:bg-emerald-400 shadow-lg rounded-[0.5rem] transition-all pointer-events-auto flex items-center justify-center",
                       nav_button_previous: "relative",
