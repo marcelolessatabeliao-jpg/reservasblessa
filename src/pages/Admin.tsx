@@ -492,7 +492,53 @@ export default function Admin() {
 
   // --- VIEW RENDERERS ---
 
-   const renderDashboard = () => {
+ 
+  const handleKioskFileUpload = async (file: File, resId: string) => {
+    setIsUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${crypto.randomUUID()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage.from('receipts').upload(fileName, file);
+      if (uploadError) throw uploadError;
+      const { data: { publicUrl } } = supabase.storage.from('receipts').getPublicUrl(fileName);
+      
+      const isOrder = resId.toString().startsWith('order-');
+      if (isOrder) {
+         // It's a virtual reservation from an order, we might need to update the order instead or just toast
+         toast({ title: "Esta é uma reserva de pedido. O comprovante deve ser anexado ao pedido na aba Reservas." });
+      } else {
+         const { error: updateError } = await supabase.from('kiosk_reservations').update({ receipt_url: publicUrl }).eq('id', resId);
+         if (updateError) throw updateError;
+         toast({ title: "Comprovante salvo!" });
+         fetchData();
+      }
+    } catch (err) { toast({ title: "Erro no upload", variant: "destructive" }); }
+    finally { setIsUploading(false); }
+  };
+
+  const handleQuadFileUpload = async (file: File, resId: string) => {
+    setIsUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${crypto.randomUUID()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage.from('receipts').upload(fileName, file);
+      if (uploadError) throw uploadError;
+      const { data: { publicUrl } } = supabase.storage.from('receipts').getPublicUrl(fileName);
+      
+      const isOrder = resId.toString().startsWith('order-');
+      if (isOrder) {
+         toast({ title: "Esta é uma reserva de pedido. O comprovante deve ser anexado ao pedido na aba Reservas." });
+      } else {
+         const { error: updateError } = await supabase.from('quad_reservations').update({ receipt_url: publicUrl }).eq('id', resId);
+         if (updateError) throw updateError;
+         toast({ title: "Comprovante salvo!" });
+         fetchData();
+      }
+    } catch (err) { toast({ title: "Erro no upload", variant: "destructive" }); }
+    finally { setIsUploading(false); }
+  };
+
+  const renderDashboard = () => {
     const dayKiosks = kioskReservations.filter(r => {
       try {
         const d = typeof r.reservation_date === 'string' ? r.reservation_date.split('T')[0] : format(r.reservation_date, 'yyyy-MM-dd');
@@ -711,7 +757,7 @@ export default function Admin() {
                         const isFull = kiosksFull && quadsFull;
 
                         return (
-                          <div className={cn("relative flex flex-col items-center p-1 rounded-full w-full h-full justify-center transition-all", isFull && "bg-red-50/50 border border-red-100")}>
+                          <div className={cn("relative flex flex-col items-center rounded-full w-full h-full justify-center transition-all", isFull && "bg-red-50/50 border border-red-100")}>
                             <span className={cn(isDayToday ? "text-emerald-950 font-black" : "font-black", isFull && "text-red-600")}>{date.getDate()}</span>
                             <div className="flex gap-1 mt-0.5">
                               {hasKiosk && <div className={cn("w-2 h-2 rounded-full shadow-md border border-white/40", kiosksFull ? "bg-red-600" : "bg-emerald-600")} />}

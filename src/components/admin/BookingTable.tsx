@@ -177,6 +177,29 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                <BookingDetail booking={booking} onRemoveReceipt={onRemoveReceipt} onRefresh={onRefresh} />
                                
                                <div className="space-y-3">
+                                  <p className="text-[9px] font-black uppercase tracking-widest text-emerald-700/60 pl-1">Pagamento / Comprovante</p>
+                                  {onFileUpload && (
+                                     <div className="flex flex-col gap-2">
+                                        <input type="file" id={`m-up-${booking.id}`} className="hidden" onChange={e => e.target.files && onFileUpload(e.target.files[0], booking.id, !!booking.is_order)} />
+                                        {booking.receipt_url ? (
+                                           <div className="flex gap-2">
+                                              <Button variant="outline" className="flex-1 h-10 rounded-xl bg-emerald-50 border-emerald-200 text-emerald-700 font-black text-[9px] uppercase" onClick={() => window.open(booking.receipt_url!)}>
+                                                 <FileCheck className="w-3.5 h-3.5 mr-2" /> Ver Comprovante
+                                              </Button>
+                                              <Button variant="outline" className="w-10 h-10 rounded-xl bg-red-50 border-red-200 text-red-500 flex items-center justify-center" onClick={() => onRemoveReceipt?.(booking.id)}>
+                                                 <Trash2 className="w-4 h-4" />
+                                              </Button>
+                                           </div>
+                                        ) : (
+                                           <label htmlFor={`m-up-${booking.id}`} className="flex items-center justify-center gap-2 w-full h-10 rounded-xl bg-white border-2 border-dashed border-emerald-200 text-emerald-800 font-black text-[9px] uppercase cursor-pointer hover:bg-emerald-50 transition-all">
+                                              {isUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                                              Anexar Comprovante
+                                           </label>
+                                        )}
+                                     </div>
+                                  )}
+                               </div>
+                               <div className="space-y-3">
                                   <p className="text-[9px] font-black uppercase tracking-widest text-emerald-700/60 pl-1">Ações e Controle</p>
                                   <div className="grid grid-cols-2 gap-2">
                                      <Button onClick={(e) => {e.stopPropagation(); onStatusChange(booking.id, 'paid', booking.is_order);}} className="bg-emerald-600 h-10 rounded-xl text-[9px] font-black uppercase shadow-sm">Efetivar</Button>
