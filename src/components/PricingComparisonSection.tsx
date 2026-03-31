@@ -79,10 +79,10 @@ export function PricingComparisonSection() {
               <Button 
                 asChild
                 size="lg" 
-                className="bg-primary hover:bg-sun hover:text-foreground text-white font-display font-bold px-8 py-6 rounded-xl shadow-lg group transition-all duration-300"
+                className="bg-[#004d3d] hover:bg-[#00604d] text-white font-display font-black px-10 py-7 rounded-2xl shadow-[0_10px_20px_-10px_rgba(0,77,61,0.5)] border-b-4 border-[#003328] active:border-b-0 active:translate-y-1 transition-all duration-200 group"
               >
                 <motion.button 
-                  whileTap={{ scale: 0.95 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={() => document.getElementById('planos')?.scrollIntoView({ behavior: 'smooth' })}
                 >
                   Quero ser Sócio <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
@@ -93,10 +93,10 @@ export function PricingComparisonSection() {
                 asChild
                 variant="outline" 
                 size="lg" 
-                className="border-primary text-primary hover:bg-primary hover:text-white transition-colors font-display font-bold px-8 py-6 rounded-xl"
+                className="border-2 border-[#004d3d] text-[#004d3d] hover:bg-[#004d3d] hover:text-white transition-all font-display font-black px-10 py-7 rounded-2xl bg-white shadow-md active:translate-y-1"
               >
                 <motion.button 
-                  whileTap={{ scale: 0.95 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={() => document.getElementById('especiais')?.scrollIntoView({ behavior: 'smooth' })}
                 >
                   Simule seu plano <Calculator className="ml-2 h-5 w-5" />
@@ -159,12 +159,24 @@ export function PricingComparisonSection() {
                     <p className="text-2xl font-display font-bold text-foreground">{formatCurrency(visitorCost)}</p>
                     <p className="text-[10px] text-muted-foreground">Custo total no Day Use (para um único dia)</p>
                   </div>
-                  <div className="bg-primary/5 p-5 rounded-2xl border border-primary/20 shadow-sm relative overflow-hidden">
-                    <div className="absolute top-0 right-0 bg-primary text-white text-[9px] font-bold px-2 py-1 rounded-bl-lg uppercase tracking-tight">Vantagem</div>
-                    <p className="text-xs font-bold text-primary uppercase tracking-wider mb-1">Como Sócio (Lessa Club)</p>
-                    <p className="text-2xl font-display font-bold text-foreground">{formatCurrency(associateCost)}</p>
-                    <p className="text-[10px] text-[#006020] font-black uppercase tracking-tight drop-shadow-sm">Valor Único Mensal</p>
-                    <p className="text-[9px] text-muted-foreground italic font-medium">(Entrada ilimitada ao Balneário nos dias de funcionamento)</p>
+                  <div className="bg-gradient-to-br from-[#bf953f] via-[#fcf6ba] to-[#aa771c] p-5 rounded-2xl border border-sun/50 shadow-2xl relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 bg-[#332200] text-[#fcf6ba] text-[10px] font-black px-4 py-1.5 rounded-bl-2xl shadow-xl uppercase tracking-widest z-10 border-l border-b border-white/20">VANTAGEM PREMIUM</div>
+                    <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl group-hover:scale-125 transition-transform" />
+                    
+                    <p className="text-[11px] font-black text-[#5c3c00] uppercase tracking-widest mb-1 opacity-80">Como Sócio (Lessa Club)</p>
+                    <div className="flex items-baseline gap-1 mb-2">
+                      <span className="text-3xl font-display font-black text-black tracking-tighter drop-shadow-sm">{formatCurrency(associateCost)}</span>
+                      <span className="text-[11px] font-bold text-[#5c3c00]/80">/por mês</span>
+                    </div>
+                    
+                    <div className="inline-flex items-center gap-1.5 bg-black/10 px-3 py-1 rounded-full mb-3 border border-black/5">
+                      <Check className="h-4 w-4 text-[#332200]" />
+                      <span className="text-[10px] text-[#332200] font-black uppercase tracking-tight">Valor Único Mensal</span>
+                    </div>
+                    
+                    <p className="text-[10px] text-[#332200] leading-tight font-black italic border-t border-black/10 pt-3 opacity-90">
+                      Entrada ilimitada ao Balneário nos dias de funcionamento
+                    </p>
                   </div>
                 </div>
 

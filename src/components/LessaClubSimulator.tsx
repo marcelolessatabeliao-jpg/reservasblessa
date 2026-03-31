@@ -76,28 +76,31 @@ export function LessaClubSimulator() {
           >
             <div className="grid grid-cols-1 gap-3">
               {[
-                { key: 'adult', label: 'Lessa Club', price: 49.9, emoji: '🎟️', color: 'bg-gradient-to-br from-sun/10 to-sun/30 border-sun/40 shadow-sun/5' },
-                { key: 'student', label: 'Estudante', price: 25, emoji: '🎓', color: 'bg-sun/5 border-sun/10' },
-                { key: 'teacher', label: 'Professor', price: 25, emoji: '📚', color: 'bg-green-600/5 border-green-600/10' },
-                { key: 'server', label: 'Servidor', price: 25, emoji: '🏛️', color: 'bg-primary/5 border-primary/10' },
+                { key: 'adult', label: 'Lessa Club', price: 49.9, emoji: '🎟️', badge: null, color: 'bg-gradient-to-br from-sun/10 to-sun/30 border-sun/40 shadow-sun/5' },
+                { key: 'student', label: 'Estudante', price: 25, emoji: '🎓', badge: '50% OFF', color: 'bg-sun/5 border-sun/10' },
+                { key: 'teacher', label: 'Professor', price: 25, emoji: '📚', badge: '50% OFF', color: 'bg-green-600/5 border-green-600/10' },
+                { key: 'server', label: 'Servidor', price: 25, emoji: '🏛️', badge: '50% OFF', color: 'bg-primary/5 border-primary/10' },
               ].map((item) => (
-                <div key={item.key} className={`flex items-center justify-between p-3 sm:p-4 rounded-2xl border shadow-sm transition-colors gap-2 sm:gap-4 overflow-hidden ${item.color}`}>
-                  <div className="min-w-0 flex-1 overflow-hidden">
-                    <div className="flex items-center gap-1.5 sm:gap-2">
-                       <span className="text-lg sm:text-2xl shrink-0">{item.emoji}</span>
-                       <h4 className="font-bold text-foreground text-xs sm:text-lg italic leading-tight truncate">
-                         {item.label}
-                       </h4>
+                <div key={item.key} className={`flex items-center p-3 sm:p-4 rounded-2xl border shadow-sm transition-colors gap-3 ${item.color}`}>
+                  {/* Icon */}
+                  <span className="text-xl sm:text-2xl shrink-0">{item.emoji}</span>
+                  {/* Info */}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <h4 className="font-bold text-foreground text-sm italic leading-tight">{item.label}</h4>
+                      {item.badge && <span className="text-[9px] font-black bg-emerald-600 text-white px-1.5 py-0.5 rounded-full">{item.badge}</span>}
                     </div>
-                    <p className="text-primary font-black text-[10px] sm:text-sm uppercase tracking-widest mt-0.5">
-                      {formatCurrency(item.price)} <span className="text-[8px] sm:text-xs text-muted-foreground font-medium opacity-70">/mês</span>
+                    <p className="text-primary font-black text-[11px] mt-0.5">
+                      {formatCurrency(item.price)} <span className="text-[9px] text-muted-foreground font-medium opacity-70">/mês</span>
                     </p>
                   </div>
-                  <div className="shrink-0">
-                    <QuantityStepper 
-                      value={quantities[item.key as keyof typeof quantities]} 
-                      onChange={(val) => setQuantities(prev => ({ ...prev, [item.key]: val }))} 
+                  {/* Stepper — always has room, no overflow */}
+                  <div className="shrink-0 ml-auto">
+                    <QuantityStepper
+                      value={quantities[item.key as keyof typeof quantities]}
+                      onChange={(val) => setQuantities(prev => ({ ...prev, [item.key]: val }))}
                       min={0}
+                      size="sm"
                     />
                   </div>
                 </div>
@@ -106,27 +109,22 @@ export function LessaClubSimulator() {
             
             <div className="mt-5 text-center lg:text-left">
               <h4 className="font-black uppercase tracking-widest text-[10px] text-muted-foreground mb-3 px-2">Gratuidades (Acesso Livre)</h4>
-              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-                 {[
+              <div className="grid grid-cols-3 gap-2">
+                {[
                   { key: 'child', label: 'Crianças', emoji: '👶', color: 'bg-blue-50/50 border-blue-100/50' },
                   { key: 'senior', label: 'Idosos', emoji: '🧓', color: 'bg-purple-50/50 border-purple-100/50' },
                   { key: 'pcd', label: 'PCD & TEA', emoji: '♿', color: 'bg-teal-50/50 border-teal-100/50' },
                 ].map((item) => (
-                   <div key={item.key} className={`flex flex-col items-center justify-between p-2 sm:p-3 rounded-xl border shadow-[inset_0_1px_4px_rgba(0,0,0,0.01)] text-center ${item.color}`}>
-                     <div className="mb-2 text-center w-full">
-                       <span className="text-base sm:text-xl block mb-0.5">{item.emoji}</span>
-                       <span className="font-bold text-[8px] sm:text-sm text-foreground/80 block leading-tight px-0.5 min-h-[2.5em] flex items-center justify-center break-words">
-                         {item.label}
-                       </span>
-                     </div>
-                     <div className="scale-[0.8] sm:scale-100 w-full flex justify-center">
-                       <QuantityStepper 
-                         value={quantities[item.key as keyof typeof quantities]} 
-                         onChange={(val) => setQuantities(prev => ({ ...prev, [item.key]: val }))} 
-                         min={0}
-                       />
-                     </div>
-                   </div>
+                  <div key={item.key} className={`flex flex-col items-center gap-2 p-2 rounded-xl border text-center ${item.color}`}>
+                    <span className="text-xl">{item.emoji}</span>
+                    <span className="font-bold text-[10px] text-foreground/80 leading-tight">{item.label}</span>
+                    <QuantityStepper
+                      value={quantities[item.key as keyof typeof quantities]}
+                      onChange={(val) => setQuantities(prev => ({ ...prev, [item.key]: val }))}
+                      min={0}
+                      size="sm"
+                    />
+                  </div>
                 ))}
               </div>
             </div>
@@ -161,14 +159,11 @@ export function LessaClubSimulator() {
                 <p className="text-sun font-bold uppercase tracking-widest text-[10px] sm:text-xs mb-1 drop-shadow-sm">
                   Total do {planName}
                 </p>
-                <div className="flex items-center justify-center mb-1">
+                <div className="flex items-center justify-center mb-6">
                   <h3 className="font-display font-black text-5xl sm:text-6xl drop-shadow-md">
                     {formatCurrency(totalMonthly)}
                   </h3>
                 </div>
-                <p className="font-bold text-sun mb-6 text-[10px] sm:text-xs">
-                  Por mês. Sem taxa de adesão e sem fidelidade.
-                </p>
                 
                 <Button asChild size="lg" className="bg-white text-primary hover:bg-sun hover:text-foreground font-display font-black text-base sm:text-lg h-12 rounded-xl shadow-lg w-full mb-5 transition-all duration-300">
                   <motion.a 

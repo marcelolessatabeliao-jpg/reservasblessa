@@ -1,0 +1,25 @@
+  const saveEditing = async (type: 'kiosk' | 'quad') => {
+    try {
+      const table = type === 'kiosk' ? 'kiosk_reservations' : 'quad_reservations';
+      const payload: any = {};
+      const fields = type === 'kiosk' 
+        ? ['kiosk_id', 'reservation_date', 'notes', 'price', 'receipt_url', 'customer_name'] 
+        : ['time_slot', 'quad_type', 'quantity', 'reservation_date', 'notes', 'price', 'receipt_url', 'customer_name'];
+      
+      fields.forEach(f => {
+        if (editData[f] !== undefined) payload[f] = editData[f];
+      });
+
+      // Se for uma reserva virtual extraída de um pedido, precisa virar real no banco
+      if (typeof editingId === 'string' && editingId.startsWith('order-')) {
+        payload.order_id = editData.order_id;
+        const { error } = await supabase.from(table).insert([payload]);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from(table).update(payload).eq('id', editingId);
+        if (error) throw error;
+      }
+      
+      toast({ title: "�S Alterações salvas" });
+      setEditingId(null);
+      fetchData();

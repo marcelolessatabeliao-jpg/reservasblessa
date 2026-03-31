@@ -151,18 +151,18 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
             </div>
             <div className="p-6 space-y-4">
               {/* People */}
-              <div className="grid grid-cols-1 xs:grid-cols-3 gap-2 md:gap-3">
-                <div className="bg-emerald-50 rounded-2xl p-3 md:p-4 text-center">
-                  <p className="text-xl md:text-2xl font-black text-emerald-900">{booking.adults || 0}</p>
-                  <p className="text-[8px] md:text-[9px] font-black uppercase text-emerald-600 tracking-wider mt-1 leading-tight">Adultos/ Pagantes</p>
+              <div className="grid grid-cols-3 gap-2 md:gap-3">
+                <div className="bg-emerald-50 rounded-2xl p-2 md:p-4 text-center">
+                  <p className="text-lg md:text-2xl font-black text-emerald-900">{booking.adults || 0}</p>
+                  <p className="text-[7px] md:text-[9px] font-black uppercase text-emerald-600 tracking-wider mt-1 leading-tight">Adultos/ Pagantes</p>
                 </div>
-                <div className="bg-blue-50 rounded-2xl p-3 md:p-4 text-center">
-                  <p className="text-xl md:text-2xl font-black text-blue-900">{childrenCount}</p>
-                  <p className="text-[8px] md:text-[9px] font-black uppercase text-blue-600 tracking-wider mt-1 leading-tight">Gratuidades</p>
+                <div className="bg-blue-50 rounded-2xl p-2 md:p-4 text-center">
+                  <p className="text-lg md:text-2xl font-black text-blue-900">{childrenCount}</p>
+                  <p className="text-[7px] md:text-[9px] font-black uppercase text-blue-600 tracking-wider mt-1 leading-tight">Gratuidades</p>
                 </div>
-                <div className="bg-slate-50 rounded-2xl p-3 md:p-4 text-center border-2 border-slate-200">
-                  <p className="text-xl md:text-2xl font-black text-slate-900">{(booking.adults || 0) + childrenCount}</p>
-                  <p className="text-[8px] md:text-[9px] font-black uppercase text-slate-600 tracking-wider mt-1 leading-tight">Total Pessoas</p>
+                <div className="bg-slate-50 rounded-2xl p-2 md:p-4 text-center border-2 border-slate-200">
+                  <p className="text-lg md:text-2xl font-black text-slate-900">{(booking.adults || 0) + childrenCount}</p>
+                  <p className="text-[7px] md:text-[9px] font-black uppercase text-slate-600 tracking-wider mt-1 leading-tight">Total Pessoas</p>
                 </div>
               </div>
               {/* Financial breakdown */}
@@ -189,12 +189,17 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
                 {localItems.length > 0 && (
                   <div className="pt-2 border-t border-slate-200 mt-2 space-y-1.5">
                     <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest mb-1">Itens Adicionais e Consumo</p>
-                    {localItems.map((item: any, idx: number) => (
-                      <div key={idx} className="flex justify-between text-[11px]">
-                        <span className="text-slate-600 truncate max-w-[180px]">{item.quantity}x {item.product_name || item.product_id || 'Serviço'}</span>
-                        <span className="font-bold text-slate-800">{formatCurrency(item.unit_price * item.quantity)}</span>
-                      </div>
-                    ))}
+                    {localItems.map((item: any, idx: number) => {
+                      const isAdultoSolidario = (item.product_name === 'Adulto' || item.product_name === '1x Adulto' || item.product_id?.includes('Adulto')) && item.unit_price === 25;
+                      const dispName = isAdultoSolidario ? 'Adulto Solidário' : (item.product_name || item.product_id || 'Serviço');
+                      const sum = item.unit_price * item.quantity;
+                      return (
+                        <div key={idx} className="flex justify-between text-[11px]">
+                          <span className="text-slate-600 truncate max-w-[180px]">{item.quantity}x {dispName}</span>
+                          <span className="font-bold text-slate-800">{sum === 0 ? 'Gratuito' : formatCurrency(sum)}</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
                 {discount !== 0 && (

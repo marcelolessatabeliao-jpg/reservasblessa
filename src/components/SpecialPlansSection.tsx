@@ -77,19 +77,19 @@ export function SpecialPlansSection() {
             viewport={{ once: true }}
             className="flex flex-col gap-3"
           >
-            <div className="grid grid-cols-2 lg:grid-cols-1 gap-2.5">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-2.5">
               {[
                 { key: 'adult', label: 'Lessa Club', price: 49.9, emoji: '🎟️', color: 'bg-gradient-to-br from-sun/10 to-sun/30 border-sun/40', badge: null },
                 { key: 'student', label: 'Estudante', price: 25, emoji: '🎓', color: 'bg-sun/5 border-sun/20', badge: '50% OFF' },
                 { key: 'teacher', label: 'Professor', price: 25, emoji: '📚', color: 'bg-green-600/5 border-green-600/20', badge: '50% OFF' },
                 { key: 'server', label: 'Servidor', price: 25, emoji: '🏛️', color: 'bg-primary/5 border-primary/20', badge: '50% OFF' },
               ].map((item) => (
-                <div key={item.key} className={`flex items-center justify-between p-3 sm:p-4 rounded-2xl border shadow-sm transition-colors text-left ${item.color}`}>
-                  <div className="flex items-center gap-3 sm:gap-4">
-                     <span className="text-2xl sm:text-3xl drop-shadow-sm">{item.emoji}</span>
-                     <div>
+                <div key={item.key} className={`flex items-center justify-between p-3 sm:p-5 rounded-2xl border shadow-sm transition-colors text-left ${item.color}`}>
+                  <div className="flex items-center gap-3 sm:gap-4 overflow-hidden">
+                     <span className="text-2xl sm:text-3xl drop-shadow-sm shrink-0">{item.emoji}</span>
+                     <div className="min-w-0">
                        <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                         <h4 className="font-bold text-foreground text-sm sm:text-lg leading-tight italic">
+                         <h4 className="font-bold text-foreground text-sm sm:text-lg leading-tight italic truncate">
                            {item.label}
                          </h4>
                          {item.badge && (
@@ -114,20 +114,20 @@ export function SpecialPlansSection() {
             
             <div className="mt-4 lg:mt-6 text-center lg:text-left">
               <h4 className="font-black uppercase tracking-widest text-xs text-muted-foreground mb-3 px-2">Gratuidades (Acesso Livre)</h4>
-              <div className="grid grid-cols-3 gap-3 sm:gap-4">
+              <div className="grid grid-cols-3 gap-2 sm:gap-4">
                 {[
-                  { key: 'child', label: 'Crianças', emoji: '👶', color: 'bg-blue-50/60 border-blue-200/60 shadow-blue-500/5' },
-                  { key: 'senior', label: 'Idosos', emoji: '🧓', color: 'bg-fuchsia-50/60 border-fuchsia-200/60 shadow-fuchsia-500/5' },
-                  { key: 'pcd', label: 'PCD & TEA', emoji: '♿', color: 'bg-emerald-50/60 border-emerald-200/60 shadow-emerald-500/5' },
+                  { key: 'child', label: 'Crianças', emoji: '👶', color: 'bg-blue-50/60 border-blue-200/60' },
+                  { key: 'senior', label: 'Idosos', emoji: '🧓', color: 'bg-fuchsia-50/60 border-fuchsia-200/60' },
+                  { key: 'pcd', label: 'PCD & TEA', emoji: '♿', color: 'bg-emerald-50/60 border-emerald-200/60' },
                 ].map((item) => (
-                   <div key={item.key} className={`flex flex-col items-center justify-between p-3 sm:p-4 rounded-2xl border shadow-sm transition-all hover:shadow-md text-center ${item.color}`}>
-                     <div className="mb-3">
-                       <span className="text-2xl sm:text-3xl block mb-2 drop-shadow-sm">{item.emoji}</span>
-                       <span className="font-bold text-xs sm:text-base text-slate-800 block leading-tight px-1 flex items-center justify-center h-8">
+                   <div key={item.key} className={`flex flex-col items-center justify-between p-2 sm:p-4 rounded-2xl border shadow-sm transition-all hover:shadow-md text-center ${item.color}`}>
+                     <div className="mb-2 sm:mb-3">
+                       <span className="text-xl sm:text-3xl block mb-1 drop-shadow-sm">{item.emoji}</span>
+                       <span className="font-bold text-[9px] sm:text-base text-slate-800 block leading-tight px-1 flex items-center justify-center h-6 sm:h-8">
                          {item.label}
                        </span>
                      </div>
-                     <div className="w-full flex justify-center mt-auto scale-90 sm:scale-100">
+                     <div className="w-full flex justify-center mt-auto scale-75 sm:scale-100">
                        <QuantityStepper 
                          value={quantities[item.key as keyof typeof quantities]} 
                          onChange={(val) => setQuantities(prev => ({ ...prev, [item.key]: val }))} 
@@ -169,14 +169,11 @@ export function SpecialPlansSection() {
                 <p className="text-sun font-bold uppercase tracking-widest text-[10px] sm:text-xs mb-1 drop-shadow-sm">
                   Total do {planName}
                 </p>
-                <div className="flex items-center justify-center mb-1">
+                <div className="flex items-center justify-center mb-6">
                   <h3 className="font-display font-black text-5xl sm:text-6xl lg:text-7xl drop-shadow-md">
                     {formatCurrency(totalMonthly)}
                   </h3>
                 </div>
-                <p className="font-bold text-sun mb-6 text-[10px] sm:text-xs">
-                  Por mês. Sem taxa de adesão e sem fidelidade.
-                </p>
                 
                 <Button asChild size="lg" className="bg-white text-primary hover:bg-sun hover:text-foreground font-display font-black text-base sm:text-lg h-12 rounded-xl shadow-lg w-full mb-5 transition-all duration-300">
                   <a href={getPlanLink()} target="_blank" rel="noopener noreferrer">

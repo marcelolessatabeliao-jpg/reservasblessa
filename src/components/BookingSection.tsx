@@ -135,11 +135,13 @@ export function BookingSection() {
       <div className="container px-4 relative z-10">
         <div className="max-w-4xl mx-auto">
           
-          <div className="text-center mb-8 px-2">
-          <h2 className="font-sans font-bold text-3xl sm:text-5xl md:text-6xl mb-4 text-primary drop-shadow-sm leading-tight text-balance">
-            Agende sua Experiência
-          </h2>
-            <p className="text-xs sm:text-sm text-muted-foreground font-medium">Fácil, rápido e seguro.</p>
+          <div className="text-center mb-10 px-2">
+            <h2 className="font-sans font-black text-3xl sm:text-5xl md:text-6xl mb-4 text-emerald-950 drop-shadow-xl leading-tight text-balance italic">
+              Agende sua Experiência
+            </h2>
+            <div className="inline-flex items-center gap-2 bg-emerald-100 text-emerald-800 px-4 py-1.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest border border-emerald-200/50 shadow-md">
+              <Sparkles className="h-3 w-3 animate-pulse text-sun" /> Reservas em menos de 1 minuto
+            </div>
           </div>
 
           {/* Step Indicator - Simplificado para Mobile */}
@@ -219,6 +221,13 @@ export function BookingSection() {
                   <div className="space-y-8">
                      <div className="space-y-4">
                         <div className="flex items-center gap-3 mb-6">
+                           <button
+                             onClick={() => prevStep('dados')}
+                             className="p-2 rounded-xl border border-primary/20 bg-primary/5 text-primary hover:bg-primary hover:text-white transition-all shrink-0"
+                             title="Voltar"
+                           >
+                             <ArrowLeft className="h-4 w-4" />
+                           </button>
                            <div className="p-3 bg-secondary/10 rounded-2xl text-secondary shadow-sm shadow-secondary/10"><Home className="h-6 w-6" /></div>
                            <div>
                               <h3 className="font-gliker text-2xl text-emerald-950">Quiosques para seu conforto</h3>
@@ -256,6 +265,13 @@ export function BookingSection() {
                   <div className="space-y-8">
                      <div className="space-y-4">
                         <div className="flex items-center gap-3 mb-6">
+                           <button
+                             onClick={() => prevStep('quiosques')}
+                             className="p-2 rounded-xl border border-primary/20 bg-primary/5 text-primary hover:bg-primary hover:text-white transition-all shrink-0"
+                             title="Voltar"
+                           >
+                             <ArrowLeft className="h-4 w-4" />
+                           </button>
                            <div className="p-3 bg-primary/10 rounded-2xl text-primary shadow-sm shadow-primary/10"><Bike className="h-6 w-6" /></div>
                            <div>
                               <h3 className="font-gliker text-2xl text-emerald-950">Aventura e Diversão</h3>
@@ -293,6 +309,13 @@ export function BookingSection() {
                   <div className="space-y-8">
                      <div className="space-y-4">
                         <div className="flex items-center gap-3 mb-6">
+                           <button
+                             onClick={() => prevStep('quads')}
+                             className="p-2 rounded-xl border border-primary/20 bg-primary/5 text-primary hover:bg-primary hover:text-white transition-all shrink-0"
+                             title="Voltar"
+                           >
+                             <ArrowLeft className="h-4 w-4" />
+                           </button>
                            <div className="p-3 bg-secondary/10 rounded-2xl text-secondary shadow-sm shadow-secondary/10"><Fish className="h-6 w-6" /></div>
                            <div>
                               <h3 className="font-gliker text-2xl text-emerald-950">Outros Serviços</h3>
@@ -343,6 +366,13 @@ export function BookingSection() {
                   className="space-y-8"
                 >
                   <div className="flex items-center gap-3 mb-2">
+                    <button
+                      onClick={() => prevStep('servicos')}
+                      className="p-2 rounded-xl border border-primary/20 bg-primary/5 text-primary hover:bg-primary hover:text-white transition-all shrink-0"
+                      title="Voltar"
+                    >
+                      <ArrowLeft className="h-4 w-4" />
+                    </button>
                     <div className="p-2 bg-primary/10 rounded-lg text-primary"><ClipboardList className="h-5 w-5" /></div>
                     <h3 className="font-gliker text-2xl text-primary">Resumo da Experiência</h3>
                   </div>

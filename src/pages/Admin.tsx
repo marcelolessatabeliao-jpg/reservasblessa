@@ -66,24 +66,24 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 // Constants from common types
 const KIOSKS = [
-  { id: 1, name: 'QUIOSQUE - 01 (Grande)', price: 100, capacity: 'AtÃ© 30 pessoas', type: 'Maior' },
-  { id: 2, name: 'QUIOSQUE - 02', price: 75, capacity: 'AtÃ© 15 pessoas', type: 'Menor' },
-  { id: 3, name: 'QUIOSQUE - 03', price: 75, capacity: 'AtÃ© 15 pessoas', type: 'Menor' },
-  { id: 4, name: 'QUIOSQUE - 04', price: 75, capacity: 'AtÃ© 15 pessoas', type: 'Menor' },
-  { id: 5, name: 'QUIOSQUE - 05', price: 75, capacity: 'AtÃ© 15 pessoas', type: 'Menor' }
+  { id: 1, name: 'QUIOSQUE - 01 (Grande)', price: 100, capacity: 'Até 30 pessoas', type: 'Maior' },
+  { id: 2, name: 'QUIOSQUE - 02', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' },
+  { id: 3, name: 'QUIOSQUE - 03', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' },
+  { id: 4, name: 'QUIOSQUE - 04', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' },
+  { id: 5, name: 'QUIOSQUE - 05', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' }
 ];
 
 const QUAD_TIMES = ['09:00', '10:30', '14:00', '15:30'];
 const PAYMENT_METHODS = [
-  { value: 'pix', label: 'PIX / TransferÃªncia' },
-  { value: 'credit_card', label: 'CartÃ£o de CrÃ©dito' },
+  { value: 'pix', label: 'PIX / Transferência' },
+  { value: 'credit_card', label: 'Cartão de Crédito' },
   { value: 'cash', label: 'Dinheiro (Local)' }
 ];
 
 const QUAD_MODELS_LABELS: Record<string, string> = {
   individual: 'Individual',
   dupla: 'Dupla',
-  'adulto-crianca': 'Adulto + CrianÃ§a',
+  'adulto-crianca': 'Adulto + Criança',
   'INDIV': 'Individual',
   'DUPLA': 'Dupla'
 };
@@ -182,8 +182,8 @@ export default function Admin() {
                const qty = item.quantity || 1;
                
                // Listas categorizadas para contagem de pessoas
-                const adultKeywords = ['adulto', 'solidÃ¡rio', 'solidario', 'professor', 'estudante', 'servidor'];
-                const gratuityKeywords = ['crianÃ§a', 'crianca', 'idoso', 'pcd', 'aniversariante'];
+                const adultKeywords = ['adulto', 'solidário', 'solidario', 'professor', 'estudante', 'servidor'];
+                const gratuityKeywords = ['criança', 'crianca', 'idoso', 'pcd', 'aniversariante'];
 
                 const isAdult = adultKeywords.some(key => pName.includes(key) || pId.includes(key));
                 const isGratuity = gratuityKeywords.some(key => pName.includes(key) || pId.includes(key));
@@ -256,7 +256,7 @@ export default function Admin() {
                }
             });
             
-            // Atribuir contagens extraÃ­das se nÃ£o estiverem presentes
+            // Atribuir contagens extraídas se não estiverem presentes
             o.adults = o.adults || orderAdults;
             o.children = o.children || orderChildren;
          });
@@ -298,7 +298,11 @@ export default function Admin() {
   }, [toast]);
 
   useEffect(() => {
-    if (token) fetchData();
+    {
+      fetchData();
+      const channel = supabase.channel("admin_changes").on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => fetchData()).on("postgres_changes", { event: "*", schema: "public", table: "order_items" }, () => fetchData()).on("postgres_changes", { event: "*", schema: "public", table: "bookings" }, () => fetchData()).on("postgres_changes", { event: "*", schema: "public", table: "kiosk_reservations" }, () => fetchData()).on("postgres_changes", { event: "*", schema: "public", table: "quad_reservations" }, () => fetchData()).subscribe();
+      return () => { supabase.removeChannel(channel); };
+    }
   }, [token, fetchData]);
 
   // --- ACTIONS ---
@@ -329,7 +333,7 @@ export default function Admin() {
         if (editData[f] !== undefined) payload[f] = editData[f];
       });
 
-      // Se for uma reserva virtual extraÃ­da de um pedido, precisa virar real no banco
+      // Se for uma reserva virtual extraída de um pedido, precisa virar real no banco
       if (typeof editingId === 'string' && editingId.startsWith('order-')) {
         payload.order_id = editData.order_id;
         const { error } = await supabase.from(table).insert([payload]);
@@ -339,9 +343,10 @@ export default function Admin() {
         if (error) throw error;
       }
       
-      toast({ title: "âœ“ AlteraÃ§Ãµes salvas" });
+      toast({ title: "✔ Alterações salvas" });
       setEditingId(null);
-      fetchData();
+      setEditData({});
+      await fetchData();
     } catch (err: any) {
       console.error('Save error:', err);
       toast({ title: `Erro ao salvar: ${err.message || err.details || 'Erro desconhecido'}`, variant: "destructive" });
@@ -354,7 +359,10 @@ export default function Admin() {
       const table = isOrder ? 'orders' : 'bookings';
       const { error } = await supabase.from(table).update({ status }).eq('id', bookingId);
       if (error) throw error;
-      toast({ title: "âœ“ Status atualizado" });
+      if (status === 'checked-in' && isOrder) {
+        await supabase.from('order_items').update({ is_redeemed: true }).eq('order_id', bookingId);
+      }
+      toast({ title: "✓ Status atualizado" });
       fetchData();
     } catch (err) {
       console.error('Update status error:', err);
@@ -438,7 +446,7 @@ export default function Admin() {
       ));
       
       const hasError = results.some(r => r.error);
-      if (hasError) throw new Error('Algumas atualizaÃ§Ãµes falharam');
+      if (hasError) throw new Error('Algumas atualizações falharam');
       
       toast({ title: 'âœ“ Reagendado com sucesso' });
       fetchData();
@@ -454,11 +462,11 @@ export default function Admin() {
   // --- GROUPING & FILTERING ---
   const todayStr = format(new Date(), 'yyyy-MM-dd');
   
-  const currentKiosks = kioskReservations.filter(r => !isBefore(parseISO(r.reservation_date), startOfDay(new Date())));
-  const pastKiosks = kioskReservations.filter(r => isBefore(parseISO(r.reservation_date), startOfDay(new Date())));
+  const currentKiosks = (kioskReservations || []).filter(r => !isBefore(parseISO(r.reservation_date), startOfDay(new Date())));
+  const pastKiosks = (kioskReservations || []).filter(r => isBefore(parseISO(r.reservation_date), startOfDay(new Date())));
 
-  const currentQuads = quadReservations.filter(r => !isBefore(parseISO(r.reservation_date), startOfDay(new Date())));
-  const pastQuads = quadReservations.filter(r => isBefore(parseISO(r.reservation_date), startOfDay(new Date())));
+  const currentQuads = (quadReservations || []).filter(r => !isBefore(parseISO(r.reservation_date), startOfDay(new Date())));
+  const pastQuads = (quadReservations || []).filter(r => isBefore(parseISO(r.reservation_date), startOfDay(new Date())));
 
   const kioskHistory = useMemo(() => {
     const groups: Record<string, any[]> = {};
@@ -505,7 +513,7 @@ export default function Admin() {
       const isOrder = resId.toString().startsWith('order-');
       if (isOrder) {
          // It's a virtual reservation from an order, we might need to update the order instead or just toast
-         toast({ title: "Esta Ã© uma reserva de pedido. O comprovante deve ser anexado ao pedido na aba Reservas." });
+         toast({ title: "Esta é uma reserva de pedido. O comprovante deve ser anexado ao pedido na aba Reservas." });
       } else {
          const { error: updateError } = await supabase.from('kiosk_reservations').update({ receipt_url: publicUrl }).eq('id', resId);
          if (updateError) throw updateError;
@@ -527,7 +535,7 @@ export default function Admin() {
       
       const isOrder = resId.toString().startsWith('order-');
       if (isOrder) {
-         toast({ title: "Esta Ã© uma reserva de pedido. O comprovante deve ser anexado ao pedido na aba Reservas." });
+         toast({ title: "Esta é uma reserva de pedido. O comprovante deve ser anexado ao pedido na aba Reservas." });
       } else {
          const { error: updateError } = await supabase.from('quad_reservations').update({ receipt_url: publicUrl }).eq('id', resId);
          if (updateError) throw updateError;
@@ -539,14 +547,14 @@ export default function Admin() {
   };
 
   const renderDashboard = () => {
-    const dayKiosks = kioskReservations.filter(r => {
+    const dayKiosks = (kioskReservations || []).filter(r => {
       try {
         const d = typeof r.reservation_date === 'string' ? r.reservation_date.split('T')[0] : format(r.reservation_date, 'yyyy-MM-dd');
         return d === format(targetDate, 'yyyy-MM-dd');
       } catch { return false; }
     });
     
-    const dayQuads = quadReservations.filter(r => {
+    const dayQuads = (quadReservations || []).filter(r => {
       try {
         const d = typeof r.reservation_date === 'string' ? r.reservation_date.split('T')[0] : format(r.reservation_date, 'yyyy-MM-dd');
         return d === format(targetDate, 'yyyy-MM-dd');
@@ -569,7 +577,7 @@ export default function Admin() {
                          {targetDate.getDate()}
                       </div>
                       <div>
-                         <h3 className="text-[16px] font-black text-emerald-950 tracking-tight leading-none mb-1">OperaÃ§Ã£o DiÃ¡ria</h3>
+                         <h3 className="text-[16px] font-black text-emerald-950 tracking-tight leading-none mb-1">Operação Diária</h3>
                          <p className="text-[11px] font-black text-emerald-950 uppercase tracking-tighter">{format(targetDate, "EEEE, yyyy", { locale: ptBR })}</p>
                       </div>
                    </div>
@@ -663,7 +671,7 @@ export default function Admin() {
                       <div className="bg-amber-50/50 rounded-[1.25rem] p-3 shadow-sm border border-amber-200 mt-2 space-y-2.5">
                          <div className="flex items-center justify-between px-1">
                             <span className="font-black text-amber-900 text-[11px] uppercase tracking-wider flex items-center gap-2">
-                               <AlertTriangle className="w-3.5 h-3.5" /> Extra / S. HorÃ¡rio
+                               <AlertTriangle className="w-3.5 h-3.5" /> Extra / S. Horário
                             </span>
                          </div>
                          <div className="rounded-xl border border-amber-100 bg-white/40 p-1.5 min-h-[32px] flex items-center justify-center text-center">
@@ -701,7 +709,7 @@ export default function Admin() {
                     <h4 className="text-lg font-black text-emerald-950 tracking-tight">Resumo Geral</h4>
                  </div>
                  <p className="text-[11px] font-bold text-emerald-800/70 leading-relaxed mb-6">
-                    Selecione uma data para organizar seu dia de operaÃ§Ãµes.
+                    Selecione uma data para organizar seu dia de operações.
                  </p>
                  
                  <div className="grid grid-cols-1 gap-2">
@@ -747,12 +755,12 @@ export default function Admin() {
                     components={{
                       DayContent: ({ date }) => {
                         const dateStr = format(date, 'yyyy-MM-dd');
-                        const hasKiosk = kioskReservations.some(r => r.reservation_date === dateStr);
-                        const hasQuad = quadReservations.some(r => r.reservation_date === dateStr);
+                        const hasKiosk = (kioskReservations || []).some(r => r.reservation_date === dateStr);
+                        const hasQuad = (quadReservations || []).some(r => r.reservation_date === dateStr);
                         
                         // Availability logic
-                        const kiosksFull = kioskReservations.filter(r => r.reservation_date === dateStr).length >= 5;
-                        const quadsFull = quadReservations.filter(r => r.reservation_date === dateStr).reduce((s, r) => s + (Number(r.quantity) || 1), 0) >= 20;
+                        const kiosksFull = (kioskReservations || []).filter(r => r.reservation_date === dateStr).length >= 5;
+                        const quadsFull = (quadReservations || []).filter(r => r.reservation_date === dateStr).reduce((s, r) => s + (Number(r.quantity) || 1), 0) >= 20;
                         const isDayToday = isToday(date);
                         const isFull = kiosksFull && quadsFull;
 
@@ -783,7 +791,7 @@ export default function Admin() {
 
   const renderKioskTab = () => {
     const todayStr = format(new Date(), 'yyyy-MM-dd');
-    const allGroups = Object.values(kioskReservations.reduce((acc, curr) => {
+    const allGroups = Object.values((kioskReservations || []).reduce((acc, curr) => {
       const key = `${curr.reservation_date}_${curr.customer_name || 'Venda'}`;
       if (!acc[key]) acc[key] = { group_key: key, reservation_date: curr.reservation_date, customer_name: curr.customer_name || (curr as any).bookings?.name || 'Venda', items: [], total_price: 0 };
       acc[key].items.push(curr);
@@ -799,16 +807,16 @@ export default function Admin() {
     const tabGroups = groupsByTab[kioskSubTab];
 
     const resolveGroup = (group: any) => {
-      const dayKiosks = kioskReservations.filter(k => k.reservation_date === group.reservation_date);
+      const dayKiosks = (kioskReservations || []).filter(k => k.reservation_date === group.reservation_date);
       const resolved = group.items.map((r: any) => {
         const bid = r.kiosk_id;
         if (bid === 1 || bid === '1' || bid === 'MAIOR') return KIOSKS.find(k => k.id === 1);
         if (bid === 'MENOR') {
           const menors = dayKiosks.filter(dk => dk.kiosk_id === 'MENOR');
           const idx = menors.findIndex(dk => dk.id === r.id);
-          return KIOSKS.find(k => k.id === idx + 2) || { id: 99, name: 'Quiosque Extra', capacity: 'AtÃ© 15 pessoas' };
+          return KIOSKS.find(k => k.id === idx + 2) || { id: 99, name: 'Quiosque Extra', capacity: 'Até 15 pessoas' };
         }
-        return KIOSKS.find(k => k.id === Number(bid)) || { id: 99, name: `Q-${bid}`, capacity: 'AtÃ© 15 pessoas' };
+        return KIOSKS.find(k => k.id === Number(bid)) || { id: 99, name: `Q-${bid}`, capacity: 'Até 15 pessoas' };
       });
       const names = resolved.map((k: any) => k?.name.replace('Quiosque ', 'Q-')).join(', ');
       const capacity = resolved.reduce((s: number, k: any) => s + parseInt((k?.capacity || '0').replace(/\D/g, '') || '15'), 0);
@@ -818,7 +826,7 @@ export default function Admin() {
     const subTabConfig = [
       { key: 'hoje', label: 'Ativos Hoje', count: groupsByTab.hoje.length, color: 'bg-emerald-600 text-white' },
       { key: 'futuras', label: 'Reservas Futuras', count: groupsByTab.futuras.length, color: 'bg-blue-100 text-blue-700' },
-      { key: 'historico', label: 'HistÃ³rico', count: groupsByTab.historico.length, color: 'bg-slate-100 text-slate-600' },
+      { key: 'historico', label: 'Histórico', count: groupsByTab.historico.length, color: 'bg-slate-100 text-slate-600' },
     ];
 
     return (
@@ -881,7 +889,7 @@ export default function Admin() {
                             <span className="text-[10px] font-black text-emerald-800/60 uppercase tracking-widest block mb-1">Quiosques</span>
                             <div className="flex flex-wrap gap-1.5">
                                {(names.split(', ') as string[]).map((n, i) => (
-                                 <span key={i} className="px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-lg text-[10px] font-black border border-emerald-200">{n}</span>
+                                 <span key={i} className="px-2.5 py-1 bg-emerald-100 text-emerald-900 rounded-lg text-[10px] font-black border border-emerald-300 hover:bg-emerald-600 hover:text-white transition-colors">{n}</span>
                                ))}
                             </div>
                          </div>
@@ -941,7 +949,7 @@ export default function Admin() {
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex flex-col gap-1">
-                              <Badge className="bg-sky-50 text-sky-800 border-2 border-sky-200 font-bold px-3 py-1 shadow-sm">{names}</Badge>
+                              <Badge className="bg-emerald-100 text-emerald-900 border-2 border-emerald-300 hover:bg-emerald-600 hover:text-white transition-colors font-bold px-3 py-1 shadow-sm">{names}</Badge>
                             </div>
                           </td>
                           <td className="px-6 py-4 font-black text-lg text-emerald-700">{formatCurrency(group.total_price)}</td>
@@ -982,7 +990,7 @@ export default function Admin() {
   const renderQuadTab = () => {
     const todayStr = format(new Date(), 'yyyy-MM-dd');
     // Group by date + customer (ignoring timeslot to allow expansion)
-    const allGroups = Object.values(quadReservations.reduce((acc, curr) => {
+    const allGroups = Object.values((quadReservations || []).reduce((acc, curr) => {
       const key = `${curr.reservation_date}_${curr.customer_name || 'Venda'}`;
       if (!acc[key]) acc[key] = { group_key: key, reservation_date: curr.reservation_date, customer_name: curr.customer_name || (curr as any).bookings?.name || 'Cliente', items: [], total_price: 0, total_quantity: 0 };
       acc[key].items.push(curr);
@@ -1001,7 +1009,7 @@ export default function Admin() {
     const subTabConfig = [
       { key: 'hoje', label: 'Ativos Hoje', count: groupsByTab.hoje.length, color: 'bg-blue-600 text-white' },
       { key: 'futuras', label: 'Reservas Futuras', count: groupsByTab.futuras.length, color: 'bg-blue-100 text-blue-700' },
-      { key: 'historico', label: 'HistÃ³rico', count: groupsByTab.historico.length, color: 'bg-slate-100 text-slate-600' },
+      { key: 'historico', label: 'Histórico', count: groupsByTab.historico.length, color: 'bg-slate-100 text-slate-600' },
     ];
 
     return (
@@ -1011,7 +1019,7 @@ export default function Admin() {
             <div className="flex items-center justify-between flex-wrap gap-4">
               <div>
                 <h3 className="text-lg font-black text-blue-950">Reservas de Quadriciclos</h3>
-                <p className="text-xs text-blue-900 font-bold">Clique em um grupo para ver os horÃ¡rios</p>
+                <p className="text-xs text-blue-900 font-bold">Clique em um grupo para ver os horários</p>
               </div>
               <div className="grid grid-cols-2 md:flex gap-2 bg-slate-100 p-1 rounded-2xl w-full md:w-auto">
                 {subTabConfig.map(t => (
@@ -1075,7 +1083,7 @@ export default function Admin() {
                               </div>
                               
                               <div className="space-y-2">
-                                 <span className="text-[9px] font-black text-blue-700/60 uppercase tracking-widest block mb-1">HorÃ¡rios Reservados</span>
+                                 <span className="text-[9px] font-black text-blue-700/60 uppercase tracking-widest block mb-1">Horários Reservados</span>
                                  {group.items.map((r: any, i: number) => (
                                    <div key={i} className="flex justify-between items-center bg-white p-3 rounded-xl border border-blue-100 shadow-sm">
                                       <div className="flex items-center gap-2">
@@ -1128,7 +1136,7 @@ export default function Admin() {
                     {tabGroups.map((group: any) => {
                       const isExpanded = expandedQuadGroupId === group.group_key;
                       const isToday = group.reservation_date === todayStr;
-                      const uniqueModels = Array.from(new Set(group.items.map((r: any) => QUAD_MODELS_LABELS[r.quad_type || (r.time_slot === 'DUPLA' ? 'dupla' : 'individual')] || 'Individual')));
+                      const uniqueModels = Array.from(new Set(group.items.map((r: any) => QUAD_MODELS_LABELS[normalizeQuadType(r.quad_type || (r.time_slot === 'DUPLA' ? 'dupla' : 'individual'))] || 'Individual')));
 
                       return (
                         <React.Fragment key={group.group_key}>
@@ -1211,7 +1219,7 @@ export default function Admin() {
                                       {(r.time_slot === 'INDIV' || r.time_slot === 'DUPLA') ? (
                                         <>
                                           <AlertTriangle className="w-3 h-3" />
-                                          {r.time_slot === 'INDIV' ? 'HORÃRIO NÃƒO DEFINIDO' : 'DUPLA (AGUARDANDO)'}
+                                          {r.time_slot === 'INDIV' ? 'HORÁRIO NÃƒO DEFINIDO' : 'DUPLA (AGUARDANDO)'}
                                         </>
                                       ) : (
                                         <>
@@ -1232,6 +1240,11 @@ export default function Admin() {
                                             {Object.entries(QUAD_MODELS_LABELS).map(([k, v]) => <SelectItem key={k} value={k} className="text-[10px]">{v}</SelectItem>)}
                                          </SelectContent>
                                       </Select>
+                                      <div className="flex items-center gap-2 mt-2">
+                                        <span className="text-[10px] font-bold text-blue-800">Qtd:</span>
+                                        <input type="number" min="1" max="20" className="w-16 h-7 text-[11px] font-black border border-blue-200 rounded px-2" value={editData.quantity || 1} onChange={e => setEditData({...editData, quantity: parseInt(e.target.value) || 1})} />
+                                      </div>
+
                                     </div>
                                   ) : (
                                     <Badge variant="outline" className="text-[9px] border-blue-100 text-blue-700 bg-white/50 font-black tracking-widest px-2">
@@ -1240,7 +1253,16 @@ export default function Admin() {
                                   )}
                                 </td>
                                 <td className="px-6 py-2 text-center">
-                                  <span className="text-[11px] font-black text-blue-900 bg-blue-100/50 px-2 rounded-full border border-blue-200">{r.quantity || 1}x</span>
+                                  {isEditing ? (
+                                    <input
+                                      type="number" min="1" max="20"
+                                      className="w-16 h-8 text-[12px] font-black border-2 border-blue-300 rounded-lg px-2 text-center bg-white shadow-sm"
+                                      value={editData.quantity ?? r.quantity ?? 1}
+                                      onChange={e => setEditData({...editData, quantity: parseInt(e.target.value) || 1})}
+                                    />
+                                  ) : (
+                                    <span className="text-[11px] font-black text-blue-900 bg-blue-100/50 px-2 rounded-full border border-blue-200">{r.quantity || 1}x</span>
+                                  )}
                                 </td>
                                 <td className="px-6 py-2 text-[11px] font-extrabold text-blue-700">{formatCurrency(r.price || 0)}</td>
                                 <td className="px-6 py-2 text-right">
@@ -1286,8 +1308,8 @@ export default function Admin() {
     <div className="bg-white rounded-3xl border border-border/50 shadow-card overflow-hidden animate-in fade-in duration-500">
        <div className="p-6 border-b border-border/50 bg-amber-50/30 flex items-center justify-between">
           <div>
-             <h3 className="text-lg font-bold text-amber-900">HistÃ³rico de Vendas e Pedidos</h3>
-             <p className="text-xs text-muted-foreground">GestÃ£o financeira centralizada</p>
+             <h3 className="text-lg font-bold text-amber-900">Histórico de Vendas e Pedidos</h3>
+             <p className="text-xs text-muted-foreground">Gestão financeira centralizada</p>
           </div>
           <div className="flex items-center gap-2">
              <Badge className="bg-amber-100 text-amber-900 border-0 font-bold">Total: {orders.length}</Badge>
@@ -1301,11 +1323,11 @@ export default function Admin() {
                    <th className="px-6 py-4">Cliente</th>
                    <th className="px-6 py-4">Total</th>
                    <th className="px-6 py-4">Status</th>
-                   <th className="px-6 py-4 text-right">AÃ§Ãµes</th>
+                   <th className="px-6 py-4 text-right">Ações</th>
                 </tr>
              </thead>
              <tbody className="divide-y divide-border/30">
-                {orders.map(order => (
+                {(orders || []).map(order => (
                    <tr key={order.id} className="hover:bg-muted/20 transition-colors">
                       <td className="px-6 py-4">
                          <div className="flex flex-col">
@@ -1360,7 +1382,7 @@ export default function Admin() {
                              <span className="text-4xl md:text-4xl md:text-5xl text-[#FFF033] shadow-md">Painel</span>
                           </div>
                        </h1>
-                     <p className="text-[#FFF033] font-black uppercase tracking-[0.2em] md:tracking-[0.3em] text-[8px] md:text-[10px] bg-[#FFF033]/10 w-fit px-3 py-1 rounded-full border border-[#FFF033]/30 backdrop-blur-sm">GestÃ£o Integrada de Reservas â€¢ BalneÃ¡rio</p>
+                     <p className="text-[#FFF033] font-black uppercase tracking-[0.2em] md:tracking-[0.3em] text-[8px] md:text-[10px] bg-[#FFF033]/10 w-fit px-3 py-1 rounded-full border border-[#FFF033]/30 backdrop-blur-sm">Gestão Integrada de Reservas â€¢ Balneário</p>
                  </div>
 
                  {/* MOBILE BUTTONS (TOP RIGHT) */}
@@ -1391,7 +1413,7 @@ export default function Admin() {
                           <Tent className="w-3.5 h-3.5" />
                        </div>
                        <div className="flex flex-col -space-y-0.5">
-                          <span className="text-sm md:text-base font-black tabular-nums text-[#FFF033]">{kioskReservations.filter(r => r.reservation_date === format(targetDate, 'yyyy-MM-dd')).length}</span>
+                          <span className="text-sm md:text-base font-black tabular-nums text-[#FFF033]">{(kioskReservations || []).filter(r => r.reservation_date === format(targetDate, 'yyyy-MM-dd')).length}</span>
                           <span className="text-[7px] font-black uppercase tracking-widest text-emerald-200">Quiosques</span>
                        </div>
                     </div>
@@ -1403,7 +1425,7 @@ export default function Admin() {
                           <Bike className="w-3.5 h-3.5" />
                        </div>
                        <div className="flex flex-col -space-y-0.5">
-                          <span className="text-sm md:text-base font-black tabular-nums text-[#FFF033]">{quadReservations.filter(r => r.reservation_date === format(targetDate, 'yyyy-MM-dd')).length}</span>
+                          <span className="text-sm md:text-base font-black tabular-nums text-[#FFF033]">{(quadReservations || []).filter(r => r.reservation_date === format(targetDate, 'yyyy-MM-dd')).length}</span>
                           <span className="text-[7px] font-black uppercase tracking-widest text-blue-200">Quadriciclos</span>
                        </div>
                     </div>
@@ -1448,49 +1470,54 @@ export default function Admin() {
                    disabled={loading}
                  >
                     {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5 mr-2" />}
-                    <span>Atualizar</span>
+                    
                  </Button>
 
                  <Button 
-                   className="rounded-2xl bg-[#FFF033] text-black font-black h-12 px-8 shadow-2xl hover:scale-105 active:scale-95 transition-all border-0 text-base flex items-center justify-center" 
+                   className="rounded-2xl bg-[#FFF033] text-black font-black h-12 px-4 shadow-2xl hover:scale-105 active:scale-95 transition-all border-0 text-base flex items-center justify-center" 
                    onClick={handleLogout}
                  >
-                    <LogOut className="w-5 h-5 mr-2" /> <span>Sair</span>
+                    <LogOut className="w-5 h-5 mr-2" /> 
                  </Button>
               </div>
           </div>
           {/* TABS */}
-          <div className="grid grid-cols-2 lg:flex lg:items-center p-1.5 md:p-2 bg-emerald-950/60 backdrop-blur-xl rounded-2xl md:rounded-3xl w-full max-w-5xl mr-auto border border-white/20 shadow-premium mb-6 gap-1.5 md:gap-2">
+          <div className="flex flex-wrap items-center p-2 md:p-3 bg-emerald-950/60 backdrop-blur-xl rounded-2xl md:rounded-3xl w-full max-w-5xl mr-auto border border-white/20 shadow-premium mb-6 gap-1.5 md:gap-2">
              <button onClick={() => setActiveTab('painel')} className={cn(
-               "px-4 md:px-8 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap", 
+               "px-4 md:px-4 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap", 
                activeTab === 'painel' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
              )}>
-                <LayoutDashboard className="w-4 h-4 md:w-4.5 md:h-4.5" /> VisÃ£o Geral
+                <LayoutDashboard className="w-4 h-4 md:w-4.5 md:h-4.5" /> Visão Geral
              </button>
              <button onClick={() => setActiveTab('quiosques')} className={cn(
-               "px-4 md:px-8 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap", 
+               "px-4 md:px-4 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap", 
                activeTab === 'quiosques' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
              )}>
                 <Tent className="w-4 h-4 md:w-4.5 md:h-4.5" /> Quiosques
              </button>
              <button onClick={() => setActiveTab('quads')} className={cn(
-               "px-4 md:px-8 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap", 
+               "px-4 md:px-4 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap", 
                activeTab === 'quads' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
              )}>
                 <Bike className="w-4 h-4 md:w-4.5 md:h-4.5" /> Quadriciclos
              </button>
              <button onClick={() => setActiveTab('reservas')} className={cn(
-               "px-4 md:px-8 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap", 
+               "px-4 md:px-4 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap", 
                activeTab === 'reservas' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
              )}>
                 <CalendarCheck className="w-4 h-4 md:w-4.5 md:h-4.5" /> Agenda
              </button>
              <button onClick={() => setActiveTab('vendas')} className={cn(
-               "hidden lg:flex lg:flex-1 px-4 md:px-8 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap", 
+               "hidden lg:flex lg:flex-1 px-4 md:px-4 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap", 
                activeTab === 'vendas' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
              )}>
                 <ShoppingBag className="w-4 h-4 md:w-4.5 md:h-4.5" /> Vendas
              </button>
+
+             <button onClick={() => window.open('/', '_blank')} className="hidden lg:flex px-4 md:px-6 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap bg-emerald-600 text-white hover:bg-emerald-500 shadow-md ml-auto">
+                <span className="text-lg leading-none">+</span> Nova Reserva
+             </button>
+
              
              
           </div>
@@ -1504,7 +1531,7 @@ export default function Admin() {
                     <div className="relative flex-1 group">
                       <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-100 group-hover:text-white transition-colors" />
                       <Input 
-                        placeholder="Filtrar por nome, telefone ou cÃ³digo..." 
+                        placeholder="Filtrar por nome, telefone ou código..." 
                         className="pl-11 h-14 rounded-2xl bg-emerald-600 shadow-lg border-2 border-emerald-700 font-extrabold text-white placeholder:text-emerald-100 focus-visible:ring-emerald-400 text-lg transition-all hover:bg-emerald-700 hover:border-emerald-500" 
                         value={search} 
                         onChange={e => setSearch(e.target.value)} 
@@ -1546,10 +1573,10 @@ export default function Admin() {
                           components={{
                             DayContent: ({ date }) => {
                               const dateStr = format(date, 'yyyy-MM-dd');
-                              const hasKiosk = kioskReservations.some(r => r.reservation_date === dateStr);
-                              const hasQuad = quadReservations.some(r => r.reservation_date === dateStr);
-                              const kiosksFull = kioskReservations.filter(r => r.reservation_date === dateStr).length >= 5;
-                              const quadsFull = quadReservations.filter(r => r.reservation_date === dateStr).reduce((s, r) => s + (Number(r.quantity) || 1), 0) >= 20;
+                              const hasKiosk = (kioskReservations || []).some(r => r.reservation_date === dateStr);
+                              const hasQuad = (quadReservations || []).some(r => r.reservation_date === dateStr);
+                              const kiosksFull = (kioskReservations || []).filter(r => r.reservation_date === dateStr).length >= 5;
+                              const quadsFull = (quadReservations || []).filter(r => r.reservation_date === dateStr).reduce((s, r) => s + (Number(r.quantity) || 1), 0) >= 20;
                               const isFull = kiosksFull && quadsFull;
                               return (
                                 <div className={cn("relative flex flex-col items-center p-0.5 rounded w-full h-full justify-center", isFull && "bg-red-50/50")}>
@@ -1577,7 +1604,7 @@ export default function Admin() {
                     )}
                   </div>
                  <BookingTable 
-                   bookings={[...bookings, ...orders.map(o => ({...o, is_order: true}))].filter(b => 
+                   bookings={[...bookings, ...(orders || []).map(o => ({...o, is_order: true}))].filter(b => 
                      (!search || 
                       (b.name || b.customer_name || '').toLowerCase().includes(search.toLowerCase()) ||
                       (b.phone || '').includes(search) ||
@@ -1649,10 +1676,10 @@ export default function Admin() {
                    <div className="w-12 h-12 rounded-2xl bg-red-100 flex items-center justify-center border-2 border-red-200">
                       <AlertTriangle className="w-6 h-6 text-red-600" />
                    </div>
-                   <AlertDialogTitle className="text-xl font-black text-slate-900">Confirmar ExclusÃ£o</AlertDialogTitle>
+                   <AlertDialogTitle className="text-xl font-black text-slate-900">Confirmar Exclusão</AlertDialogTitle>
                 </div>
                 <AlertDialogDescription className="text-slate-600 font-bold">
-                   Deseja realmente remover esta reserva? Esta aÃ§Ã£o nÃ£o pode ser desfeita e liberarÃ¡ o horÃ¡rio/espaÃ§o para novos clientes.
+                   Deseja realmente remover esta reserva? Esta ação não pode ser desfeita e liberará o horário/espaço para novos clientes.
                 </AlertDialogDescription>
              </AlertDialogHeader>
              <AlertDialogFooter className="gap-2">
@@ -1702,10 +1729,10 @@ export default function Admin() {
                   components={{
                     DayContent: ({ date }) => {
                       const dateStr = format(date, 'yyyy-MM-dd');
-                      const hasKiosk = kioskReservations.some(r => r.reservation_date === dateStr);
-                      const hasQuad = quadReservations.some(r => r.reservation_date === dateStr);
-                      const kiosksFull = kioskReservations.filter(r => r.reservation_date === dateStr).length >= 5;
-                      const quadsFull = quadReservations.filter(r => r.reservation_date === dateStr).reduce((s, r) => s + (Number(r.quantity) || 1), 0) >= 20;
+                      const hasKiosk = (kioskReservations || []).some(r => r.reservation_date === dateStr);
+                      const hasQuad = (quadReservations || []).some(r => r.reservation_date === dateStr);
+                      const kiosksFull = (kioskReservations || []).filter(r => r.reservation_date === dateStr).length >= 5;
+                      const quadsFull = (quadReservations || []).filter(r => r.reservation_date === dateStr).reduce((s, r) => s + (Number(r.quantity) || 1), 0) >= 20;
                       const isFull = kiosksFull && quadsFull;
                       return (
                         <div className={cn("relative flex flex-col items-center p-0.5 rounded w-full h-full justify-center", isFull && "bg-red-50/50")}>

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { format, parseISO, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { 
@@ -112,7 +113,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
 
   return (
     <div className="space-y-6 relative pb-20">
-        {selectedIds.size > 0 && (
+        {selectedIds.size > 0 && typeof document !== 'undefined' && createPortal(
           <div className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[100] bg-emerald-950 text-white px-8 py-4 rounded-[2rem] shadow-2xl border border-white/10 flex items-center gap-8 animate-in slide-in-from-bottom-12 duration-500 backdrop-blur-2xl">
              <div className="flex flex-col">
                <span className="text-[8px] font-black uppercase tracking-widest text-emerald-700 mb-0.5">Selecionados</span>
@@ -126,10 +127,10 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
              </div>
              <div className="h-10 w-px bg-white/10" />
              <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())} className="text-white/40 font-bold uppercase text-[9px] px-4 h-10 rounded-xl">Limpar</Button>
-          </div>
+          </div>, document.body
         )}
 
-        <div className="bg-white rounded-[1.5rem] md:rounded-[2rem] overflow-hidden shadow-xl border border-emerald-100/50">
+        <div className="bg-transparent">
           {/* MOBILE CARDS VIEW */}
           <div className="md:hidden space-y-4 p-4 bg-slate-50/30">
              {bookings.map((booking) => {
@@ -145,7 +146,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                       <div className="flex items-center justify-between" onClick={() => setExpandedId(expanded ? null : booking.id)}>
                          <div className="flex flex-col">
                             <div className="flex items-center gap-1.5 mb-1">
-                               <Calendar className="w-3 h-3 text-emerald-600" />
+                               <Calendar className="w-3 h-3 text-emerald-700 bg-emerald-100/50 px-2 py-0.5 rounded-md" />
                                <span className="text-[10px] font-black text-emerald-950 uppercase">{format(bookingDate, "dd/MM/yyyy", { locale: ptBR })}</span>
                             </div>
                             <span className="text-base font-black text-emerald-950 uppercase tracking-tight leading-tight">
@@ -253,26 +254,26 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
              })}
           </div>
 
-          <div className="hidden md:block overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+          <div className="hidden md:block overflow-x-auto pb-10">
+            <table className="w-full text-left border-separate border-spacing-y-3">
                <thead className="bg-[#0b2b24]">
-                  <tr className="text-[10px] font-extrabold uppercase text-emerald-700/80 tracking-widest border-b border-white/5">
-                     <th className="p-5 w-14 text-center">
+                  <tr className="text-[10px] font-extrabold uppercase text-white tracking-widest">
+                     <th className="p-5 w-14 text-center rounded-l-2xl">
                         <input 
                           type="checkbox" 
                           checked={selectedIds.size === bookings.length && bookings.length > 0} 
                           onChange={toggleSelectAll} 
-                          className="w-5 h-5 rounded-lg border-emerald-800 bg-emerald-900 shadow-sm cursor-pointer accent-emerald-500" 
+                          className="w-5 h-5 border-emerald-800 bg-emerald-900 shadow-sm cursor-pointer accent-emerald-500 rounded-md" 
                         />
                      </th>
                      <th className="p-5">Agenda / Operação</th>
                      <th className="p-5">Identificação Cliente</th>
                      <th className="p-5 text-center">Configuração</th>
                      <th className="p-5 text-right">Financeiro TOTAL</th>
-                     <th className="p-5 text-center opacity-0 w-20">Ações</th>
+                     <th className="p-5 text-center opacity-0 w-20 rounded-r-2xl">Ações</th>
                   </tr>
                </thead>
-               <tbody className="divide-y-4 divide-emerald-100 bg-slate-50/30">
+               <tbody className="bg-transparent">
                   {bookings.map((booking) => {
                     const expanded = expandedId === booking.id;
                     const isSelected = selectedIds.has(booking.id);
@@ -307,14 +308,14 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                    <div className="flex items-center gap-2">
                                       <Calendar className={cn("w-3.5 h-3.5", isToday(bookingDate) ? "text-emerald-600" : "text-emerald-700/60")} />
                                       <span className={cn(
-                                        "text-[13px] font-bold uppercase tracking-tight",
+                                        "text-[15px] font-black uppercase tracking-tight",
                                         isToday(bookingDate) ? "text-emerald-600" : "text-emerald-950"
                                       )}>
                                          {format(bookingDate, "dd/MM/yyyy", { locale: ptBR })}
                                       </span>
                                    </div>
                                    <div className="flex items-center gap-2">
-                                      <span className="text-[9px] font-bold text-emerald-950/70 uppercase tracking-widest pl-5">
+                                      <span className="text-[10px] font-black text-emerald-800 uppercase tracking-widest pl-6">
                                          {format(bookingDate, "EEEE", { locale: ptBR })}
                                       </span>
                                    </div>
@@ -335,7 +336,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                      {booking.name || (booking as any).customer_name || 'CLIENTE GERAL'}
                                    </span>
                                    <div className="flex items-center gap-2">
-                                      <span className="bg-emerald-50/50 text-emerald-900/80 border border-emerald-100 px-2 py-0.5 rounded-lg font-bold text-[8px] uppercase tracking-widest">
+                                      <span className="bg-slate-100 text-slate-800 border-2 border-slate-200 px-3 py-1 rounded-lg font-black text-[10px] uppercase tracking-widest">
                                          ID: {booking.id.slice(0, 8)}
                                       </span>
                                       {booking.is_associado && (

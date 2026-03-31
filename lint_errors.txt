@@ -1,0 +1,44 @@
+﻿
+C:\Users\TERMINAL 00\Desktop\RESERVA LESSA\src\pages\Admin.tsx
+   126:44   error  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+   127:62   error  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+   128:60   error  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+   129:40   error  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+   134:44   error  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+   137:59   error  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+   142:88   error  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+   160:11   error  'parsedKiosks' is never reassigned. Use 'const' instead                prefer-const
+   165:11   error  'parsedQuads' is never reassigned. Use 'const' instead                 prefer-const
+   171:32   error  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+   179:42   error  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+   229:64   error  Empty block statement                                                  no-empty
+   279:32   error  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+   310:31   error  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+   323:22   error  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+   345:19   error  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+   387:26   error  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+   396:32   error  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+   418:19   error  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+   436:61   error  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+   464:34   error  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+   474:34   error  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+   486:7    error  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+   788:138  error  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+   792:29   error  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+   794:39   error  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+   795:34   error  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+   796:37   error  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+   797:39   error  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+   801:34   error  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+   803:44   error  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+   813:38   error  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+   814:55   error  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+   838:60   error  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+   862:39   error  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+   889:51   error  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+   890:207  error  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+  1225:38   error  Unexpected any. Specify a different type                               @typescript-eslint/no-explicit-any
+
+Ô£û 38 problems (38 errors, 0 warnings)
+  2 errors and 0 warnings potentially fixable with the `--fix` option.
+

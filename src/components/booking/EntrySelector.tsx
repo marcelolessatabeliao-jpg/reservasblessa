@@ -277,27 +277,27 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
               <h4 className="text-xl font-black text-primary">A criança tem até 11 anos?</h4>
               <p className="text-sm text-muted-foreground font-bold leading-tight">Crianças até 11 anos têm entrada gratuita.</p>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-3 px-2">
               <Button
-                className="w-full h-14 rounded-2xl bg-[#006020] text-white font-black text-base hover:bg-[#004d1a] transition-all shadow-lg"
+                className="w-full h-14 rounded-2xl bg-[#006020] text-white font-black text-base hover:bg-[#004d1a] transition-all shadow-lg active:scale-95"
                 onClick={() => handleFinishWizard('inteira', false)}
               >
                 ✅ Sim, tem até 11 anos
               </Button>
               <Button
                 variant="outline"
-                className="w-full h-14 rounded-2xl border-2 border-amber-300 bg-amber-50 text-amber-900 font-black text-sm hover:bg-amber-100 hover:text-amber-900 transition-all leading-tight"
+                className="w-full min-h-[4rem] sm:h-14 rounded-2xl border-2 border-amber-300 bg-amber-50 text-amber-900 font-black text-sm hover:bg-amber-100 hover:text-amber-900 transition-all leading-tight flex flex-col items-center justify-center py-2 active:scale-95 text-center whitespace-normal"
                 onClick={() => {
                   setWizardType('adult');
                   setWizardStep(3);
                 }}
               >
-                ❌ Não — Adicionar como Adulto
-                <span className="block text-[10px] font-semibold opacity-70">Use o botão “🎟️ + Adulto”</span>
+                <span className="flex items-center gap-1">❌ Não — Adicionar como Adulto</span>
+                <span className="block text-[10px] font-semibold opacity-70 mt-1 px-2 whitespace-normal leading-tight">Use o botão “🎟️ + Adulto”</span>
               </Button>
             </div>
             
-            <div className="bg-amber-100/50 border border-amber-200 rounded-2xl px-4 py-3 text-[10px] text-amber-900 font-bold leading-snug mt-2">
+            <div className="mx-2 bg-amber-100/50 border border-amber-200 rounded-2xl px-4 py-3 text-[10px] text-amber-900 font-bold leading-snug mt-2">
               ⚠️ <span className="font-black">Importante:</span> Por precaução, leve um documento (RG ou certidão) para comprovar a idade se solicitado.
             </div>
 

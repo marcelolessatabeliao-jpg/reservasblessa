@@ -82,10 +82,13 @@ export function HeroSection() {
           transition={{ duration: 0.7, delay: 0.4 }}
           className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center px-4 sm:px-0 relative z-10"
         >
-          <Button asChild size="lg" className="bg-sun hover:bg-sun/90 text-foreground text-base sm:text-lg px-6 sm:px-8 py-5 sm:py-6 font-display font-bold shadow-lg w-full sm:w-auto">
+          <Button asChild size="lg" className="bg-sun hover:bg-sun/90 text-foreground text-base sm:text-lg px-6 sm:px-8 py-5 sm:py-6 font-display font-black shadow-lg w-full sm:w-auto rounded-xl transition-all">
             <motion.a whileTap={{ scale: 0.96 }} href="#reservas">🎫 Fazer Reserva</motion.a>
           </Button>
-          <Button asChild size="lg" className="bg-white/20 hover:bg-white/30 text-white border border-white/40 text-base sm:text-lg px-6 sm:px-8 py-5 sm:py-6 font-display backdrop-blur-sm w-full sm:w-auto">
+          <Button asChild size="lg" className="bg-emerald-600/90 hover:bg-emerald-700 text-white border border-emerald-400/40 text-base sm:text-lg px-6 sm:px-8 py-5 sm:py-6 font-display font-bold backdrop-blur-sm w-full sm:w-auto rounded-xl shadow-lg transition-all">
+            <motion.a whileTap={{ scale: 0.96 }} href="#especiais">📊 Simular Meu Plano</motion.a>
+          </Button>
+          <Button asChild size="lg" className="bg-white/20 hover:bg-white/30 text-white border border-white/40 text-base sm:text-lg px-6 sm:px-8 py-5 sm:py-6 font-display backdrop-blur-sm w-full sm:w-auto rounded-xl transition-all">
             <motion.a whileTap={{ scale: 0.96 }} href="#servicos">Nossos Serviços</motion.a>
           </Button>
         </motion.div>

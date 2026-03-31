@@ -14,12 +14,12 @@ interface QuantityStepperProps {
 export function QuantityStepper({ value, onChange, min = 0, max = 99, disabled = false, theme = 'default', size = 'default' }: QuantityStepperProps) {
   const isDark = theme === 'dark';
   
-  const dim = size === 'sm' ? 'h-7 w-7' : size === 'lg' ? 'h-10 w-10 sm:h-12 sm:w-12' : 'h-8 w-8 sm:h-10 sm:w-10';
-  const iconDim = size === 'sm' ? 'h-3 w-3' : size === 'lg' ? 'h-4 w-4 sm:h-5 sm:w-5' : 'h-3.5 w-3.5 sm:h-4 sm:w-4';
-  const textDim = size === 'sm' ? 'text-sm w-4' : size === 'lg' ? 'text-lg sm:text-xl w-8 sm:w-10' : 'text-sm sm:text-lg w-6 sm:w-8';
+  const dim = size === 'sm' ? 'h-6 w-6' : size === 'lg' ? 'h-10 w-10 sm:h-12 sm:w-12' : 'h-7 w-7 sm:h-9 sm:w-9';
+  const iconDim = size === 'sm' ? 'h-2.5 w-2.5' : size === 'lg' ? 'h-4 w-4 sm:h-5 sm:w-5' : 'h-3 w-3 sm:h-3.5 sm:w-3.5';
+  const textDim = size === 'sm' ? 'text-xs w-3' : size === 'lg' ? 'text-lg sm:text-xl w-8 sm:w-10' : 'text-sm sm:text-base w-5 sm:w-7';
 
   return (
-    <div className={`flex items-center gap-1 shrink-0 ${size === 'lg' ? 'sm:gap-3' : 'sm:gap-2'}`}>
+    <div className={`flex items-center gap-1 shrink-0 overflow-visible ${size === 'lg' ? 'sm:gap-3' : 'sm:gap-2'}`}>
       <Button
         variant="outline"
         className={`${dim} rounded-full border-2 shadow-sm shrink-0 transition-colors p-0 flex items-center justify-center ${
