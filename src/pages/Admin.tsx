@@ -73,6 +73,7 @@ const isHoliday = (date: Date) => {
 };
 
 const isAllowedDay = (date: Date) => {
+  if (isToday(date)) return true;
   const day = date.getDay();
   // 0: Dom, 1: Seg, 5: Sex, 6: Sab
   const isOperating = day === 5 || day === 6 || day === 0 || day === 1;
@@ -146,15 +147,18 @@ export default function Admin() {
                const pName = (item.product_name || '').toLowerCase();
                const qty = item.quantity || 1;
                
-               // Extração de contagem de pessoas
-               if (pName.includes('adulto') || pName.includes('acesso') || pName.includes('passaporte') || pId.includes('adulto')) {
-                  if (!pName.includes('criança') && !pName.includes('gratuito')) {
-                     orderAdults += qty;
-                  }
-               }
-               if (pName.includes('criança') || pName.includes('gratuito') || pId.includes('criança')) {
-                  orderChildren += qty;
-               }
+               // Listas categorizadas para contagem de pessoas
+                const adultKeywords = ['adulto', 'solidário', 'solidario', 'professor', 'estudante', 'servidor'];
+                const gratuityKeywords = ['criança', 'crianca', 'idoso', 'pcd', 'aniversariante'];
+
+                const isAdult = adultKeywords.some(key => pName.includes(key) || pId.includes(key));
+                const isGratuity = gratuityKeywords.some(key => pName.includes(key) || pId.includes(key));
+
+                if (isAdult && !isGratuity) {
+                   orderAdults += qty;
+                } else if (isGratuity) {
+                   orderChildren += qty;
+                }
                
                // Only add Kiosks from orders if NOT already in parsedKiosks (via order_id)
                if ((pId.includes('quiosque') || pName.includes('quiosque')) && !parsedKiosks.some(pk => pk.order_id === o.id)) {

@@ -19,7 +19,7 @@ git add .
 $gitStatus = git status --porcelain
 if ($gitStatus) {
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    git commit -m "Auto-sync $timestamp: Atualizações gerais de código e correções"
+    git commit -m "Auto-sync ${timestamp} - Atualizações gerais de código e correções"
     Write-Host "✅ Alterações salvas localmente." -ForegroundColor Green
 } else {
     Write-Host "⚠️ Nenhuma nova alteração no código para salvar." -ForegroundColor Yellow

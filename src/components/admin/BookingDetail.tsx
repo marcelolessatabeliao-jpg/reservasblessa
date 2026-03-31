@@ -50,14 +50,20 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
       setLoadingItems(true);
       supabase
         .from('order_items')
-        .select('*')
+        .select('*, products(name)')
         .eq('order_id', booking.id)
         .then(({ data, error }) => {
-          if (!error && data) setLocalItems(data);
+          if (!error && data) {
+            const formatted = data.map((item: any) => ({
+              ...item,
+              product_name: item.products?.name || item.product_name
+            }));
+            setLocalItems(formatted);
+          }
           setLoadingItems(false);
         });
     }
-  }, [booking.id]);
+  }, [booking.id, booking.order_items]);
 
   const handleToggleItemStatus = async (itemId: string, currentStatus: boolean | null, productName: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -138,14 +144,14 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
               <div className="grid grid-cols-3 gap-3">
                 <div className="bg-emerald-50 rounded-2xl p-4 text-center">
                   <p className="text-2xl font-black text-emerald-900">{booking.adults || 0}</p>
-                  <p className="text-[9px] font-black uppercase text-emerald-600 tracking-wider mt-1">Adultos</p>
+                  <p className="text-[9px] font-black uppercase text-emerald-600 tracking-wider mt-1">Adultos/Pagantes</p>
                 </div>
                 <div className="bg-blue-50 rounded-2xl p-4 text-center">
                   <p className="text-2xl font-black text-blue-900">{childrenCount}</p>
                   <p className="text-[9px] font-black uppercase text-blue-600 tracking-wider mt-1">Gratuidades</p>
                 </div>
                 <div className="bg-slate-50 rounded-2xl p-4 text-center border-2 border-slate-200">
-                  <p className="text-2xl font-black text-slate-900">{totalPeople}</p>
+                  <p className="text-2xl font-black text-slate-900">{(booking.adults || 0) + childrenCount}</p>
                   <p className="text-[9px] font-black uppercase text-slate-600 tracking-wider mt-1">Total Pessoas</p>
                 </div>
               </div>
@@ -175,7 +181,7 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
                     <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest mb-1">Itens Adicionais e Consumo</p>
                     {localItems.map((item: any, idx: number) => (
                       <div key={idx} className="flex justify-between text-[11px]">
-                        <span className="text-slate-600 truncate max-w-[180px]">{item.quantity}x {item.product_name}</span>
+                        <span className="text-slate-600 truncate max-w-[180px]">{item.quantity}x {item.product_name || item.product_id || 'Serviço'}</span>
                         <span className="font-bold text-slate-800">{formatCurrency(item.unit_price * item.quantity)}</span>
                       </div>
                     ))}
