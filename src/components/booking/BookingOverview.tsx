@@ -284,7 +284,7 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
         <div className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-primary/10 text-primary shrink-0">
           <span className="text-base sm:text-lg">📝</span>
         </div>
-        <h3 className="font-sans font-bold text-lg sm:text-xl">Resumo da Experiência (v3)</h3>
+        <h3 className="font-sans font-bold text-lg sm:text-xl">Resumo da Experiência</h3>
       </div>
 
       <div className="bg-white/50 backdrop-blur-md rounded-2xl border border-white/60 p-5 sm:p-6 shadow-xl space-y-5">
@@ -447,45 +447,60 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
         {/* Membership Comparison Action Card */}
         {(() => {
           const allAdults = booking.entry.adults;
-          // takeDonation (Solidário) excluded from club half-price rule
-          const halfPriceAdults = allAdults.filter(a => a.isTeacher || a.isServer || a.isStudent || (a as any).isBloodDonor).reduce((acc, a) => acc + (a.quantity || 1), 0);
-          const fullPriceAdults = allAdults.reduce((acc, a) => acc + (a.quantity || 1), 0) - halfPriceAdults;
+          
+          // O QUE ELE PAGA HOJE (Soma real das entradas na lista)
+          const reservaHojeEntries = totals.entriesTotal;
 
-          const membershipPrice = calculateMembershipCost({ adultsCount: fullPriceAdults, halfPriceCount: halfPriceAdults });
-          const entriesTotal = totals.entriesTotal;
+          // QUANTO CUSTARIA O CLUB (Somente mensalidades)
+          // USER RULE: Professionals (Prof, Stud, Serv) = 25. Everyone else = 49.9
+          const halfPriceCount = allAdults.filter(a => a.isTeacher || a.isServer || a.isStudent || (a as any).isBloodDonor).reduce((acc, a) => acc + (a.quantity || 1), 0);
+          const fullPriceCount = allAdults.reduce((acc, a) => acc + (a.quantity || 1), 0) - halfPriceCount;
+          const membershipPrice = (fullPriceCount * 49.9) + (halfPriceCount * 25);
 
-          if ((fullPriceAdults + halfPriceAdults) > 0) {
-            const isCheaper = membershipPrice <= entriesTotal;
+          if ((fullPriceCount + halfPriceCount) > 0) {
+            const isCheaper = membershipPrice <= reservaHojeEntries;
+            const savings = reservaHojeEntries - membershipPrice;
             return (
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-950 border-2 border-sun/30 rounded-3xl p-5 sm:p-6 relative overflow-hidden group shadow-2xl"
+                className="bg-gradient-to-br from-[#FFD700] via-[#FFB900] to-[#E5A500] border-4 border-white/40 rounded-3xl p-5 sm:p-6 relative overflow-hidden group shadow-2xl"
               >
-                {/* Decoration */}
-                <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-sun/10 rounded-full blur-3xl group-hover:bg-sun/20 transition-all duration-500" />
-                <div className="absolute bottom-0 left-0 -ml-8 -mb-8 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl" />
+                <div className="absolute top-0 right-0 -mr-12 -mt-12 w-48 h-48 bg-white/30 rounded-full blur-3xl group-hover:bg-white/50 transition-all duration-700 animate-pulse" />
+                <div className="absolute bottom-0 left-0 -ml-12 -mb-12 w-32 h-32 bg-amber-400/20 rounded-full blur-2xl" />
 
-                <div className="flex items-center gap-3 mb-4 relative z-10">
-                  <div className="w-10 h-10 rounded-xl bg-sun/20 flex items-center justify-center border border-sun/30 shadow-inner">
-                    <Sparkles className="w-6 h-6 text-sun animate-pulse" />
+                <div className="flex items-center gap-4 mb-6 relative z-10">
+                  <div className="relative">
+                    <div className="w-12 h-12 rounded-2xl bg-white/40 flex items-center justify-center border-2 border-white/60 shadow-xl backdrop-blur-sm">
+                      <Sparkles className="w-7 h-7 text-white drop-shadow-lg" />
+                    </div>
+                    {/* Extra sparkles for effect */}
+                    <motion.div 
+                      animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                      className="absolute -top-2 -right-2 text-white drop-shadow-md"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                    </motion.div>
                   </div>
-                  <h3 className="font-display font-black text-white text-lg sm:text-xl tracking-tight">
+                  
+                  <h3 className="font-display font-black text-emerald-950 text-xl sm:text-2xl tracking-tighter leading-tight">
                     {isCheaper ? 'Vale mais a pena ser Sócio!' : 'Acesso Ilimitado o mês inteiro!'}
                   </h3>
                 </div>
 
-                <div className="space-y-4 relative z-10">
-                  <p className="text-blue-100/90 text-sm sm:text-base leading-relaxed font-medium">
-                    Sua reserva de hoje custa <span className="bg-sun/20 text-sun font-black px-2 py-0.5 rounded-lg border border-sun/20">{formatCurrency(entriesTotal)}</span>.
-                    No <span className="text-sun font-black underline decoration-sun/30 underline-offset-4">Lessa Club</span>, 
-                    você paga {isCheaper ? 'apenas ' : ''} <span className="bg-green-500/20 text-green-400 font-black px-2 py-0.5 rounded-lg border border-green-500/20">{formatCurrency(membershipPrice)}</span> e tem 
-                    <span className="text-white font-black mx-1 uppercase tracking-wider bg-white/10 px-2 py-0.5 rounded-md">Entradas Ilimitadas</span> o mês inteiro!
+                <div className="space-y-5 relative z-10">
+                  <p className="text-emerald-950/90 text-sm sm:text-lg leading-snug font-black">
+                    Sua reserva de hoje custa <span className="bg-emerald-950/15 text-emerald-950 font-black px-3 py-1 rounded-xl border border-emerald-950/10 shadow-sm">{formatCurrency(reservaHojeEntries)}</span>.
+                    No <span className="text-emerald-950 font-black underline decoration-emerald-950/40 underline-offset-4">Lessa Club</span>, 
+                    você paga {isCheaper ? 'apenas ' : ''} <span className="bg-white/40 text-emerald-950 font-black px-3 py-1 rounded-xl border border-white/50 shadow-md backdrop-blur-sm">{formatCurrency(membershipPrice)}</span> e tem 
+                    <span className="inline-flex items-center text-white font-black mx-1 uppercase tracking-tighter bg-emerald-950 px-3 py-1 rounded-lg shadow-lg">ENTRADAS ILIMITADAS</span> 
+                    o mês inteiro!
                   </p>
 
                   <Button 
                     variant="default"
-                    className="w-full h-14 bg-white hover:bg-slate-50 text-slate-950 font-black text-base uppercase tracking-widest rounded-2xl shadow-xl transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3 group"
+                    className="w-full h-16 bg-emerald-950 hover:bg-emerald-900 text-white font-black text-lg uppercase tracking-widest rounded-[1.5rem] shadow-2xl transition-all hover:scale-[1.03] active:scale-[0.97] flex items-center justify-center gap-3 group border-b-4 border-emerald-900/50"
                     onClick={() => {
                       const element = document.getElementById('especiais');
                       if (element) {
@@ -493,7 +508,7 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
                       }
                     }}
                   >
-                    Ativar Plano Dourado <ArrowRight className="ml-1.5 h-4 w-4" />
+                    ATIVAR MEU PLANO DOURADO <ArrowRight className="ml-1 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                   </Button>
                 </div>
               </motion.div>
