@@ -5,10 +5,15 @@ import {
   ChevronDown, CheckCircle, XCircle, Clock, 
   UserCheck, Trash2, Plus, 
   Users, Calendar, Upload, FileCheck, Loader2,
-  CalendarClock, StickyNote, CalendarRange
+  CalendarClock, StickyNote, CalendarRange,
+  Search, Filter, MapPin, Phone, CreditCard, ChevronRight,
+  Calendar as CalendarIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarUI } from '@/components/ui/calendar';
 import { formatCurrency } from '@/lib/booking-types';
 import { BookingDetail } from './BookingDetail';
 import { Textarea } from '@/components/ui/textarea';
@@ -124,8 +129,108 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
           </div>
         )}
 
-        <div className="bg-white rounded-[2rem] overflow-hidden shadow-xl border border-emerald-100/50">
-          <div className="overflow-x-auto">
+        <div className="bg-white rounded-[1.5rem] md:rounded-[2rem] overflow-hidden shadow-xl border border-emerald-100/50">
+          {/* MOBILE CARDS VIEW */}
+          <div className="md:hidden divide-y divide-emerald-100/50">
+             {bookings.map((booking) => {
+                const config = STATUS_CONFIG[booking.status] || STATUS_CONFIG.pending;
+                const StatusIcon = config.icon;
+                const expanded = expandedId === booking.id;
+                const bookingDate = parseISO(booking.visit_date || new Date().toISOString());
+                const childrenCount = Array.isArray(booking.children) ? booking.children.length : (typeof booking.children === 'number' ? booking.children : 0);
+                const totalPeople = (booking.adults || 0) + childrenCount;
+
+                return (
+                   <div key={booking.id} className={cn("p-4 space-y-4", expanded ? "bg-emerald-50/30" : "bg-white")}>
+                      <div className="flex items-center justify-between" onClick={() => setExpandedId(expanded ? null : booking.id)}>
+                         <div className="flex flex-col">
+                            <div className="flex items-center gap-1.5 mb-1">
+                               <Calendar className="w-3 h-3 text-emerald-600" />
+                               <span className="text-[10px] font-black text-emerald-950 uppercase">{format(bookingDate, "dd/MM/yyyy", { locale: ptBR })}</span>
+                            </div>
+                            <span className="text-base font-black text-emerald-950 uppercase tracking-tight leading-tight">
+                               {booking.name || (booking as any).customer_name || 'CLIENTE GERAL'}
+                            </span>
+                         </div>
+                         <div className="flex flex-col items-end gap-1.5">
+                            <div className={cn("flex items-center gap-1 px-2 py-0.5 rounded-md border text-[7px] font-black uppercase", config.bgColor, config.color, config.borderColor)}>
+                               <StatusIcon className="w-2.5 h-2.5" />
+                               {config.label}
+                            </div>
+                            <ChevronDown className={cn("w-5 h-5 text-emerald-200 transition-transform", expanded && "rotate-180 text-emerald-600")} />
+                         </div>
+                      </div>
+
+                      {!expanded && (
+                         <div className="flex items-center justify-between bg-emerald-50/50 p-2 rounded-xl border border-emerald-100/50">
+                            <div className="flex items-center gap-2">
+                               <Users className="w-3.5 h-3.5 text-emerald-700" />
+                               <span className="text-xs font-black text-emerald-950">{totalPeople} Pessoas</span>
+                            </div>
+                            <span className="text-sm font-black text-emerald-600">{formatCurrency(booking.total_amount)}</span>
+                         </div>
+                      )}
+
+                      {expanded && (
+                         <div className="pt-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                            <div className="bg-white rounded-2xl p-4 shadow-inner border border-emerald-100/50 space-y-4">
+                               <BookingDetail booking={booking} onRemoveReceipt={onRemoveReceipt} onRefresh={onRefresh} />
+                               
+                               <div className="space-y-3">
+                                  <p className="text-[9px] font-black uppercase tracking-widest text-emerald-700/60 pl-1">Ações e Controle</p>
+                                  <div className="grid grid-cols-2 gap-2">
+                                     <Button onClick={(e) => {e.stopPropagation(); onStatusChange(booking.id, 'paid', booking.is_order);}} className="bg-emerald-600 h-10 rounded-xl text-[9px] font-black uppercase shadow-sm">Efetivar</Button>
+                                     <Button onClick={(e) => {e.stopPropagation(); onStatusChange(booking.id, 'checked-in', booking.is_order);}} className="bg-emerald-700 h-10 rounded-xl text-[9px] font-black uppercase shadow-sm">Check-in</Button>
+                                     <Button 
+                                       variant="outline" 
+                                       onClick={(e) => { e.stopPropagation(); setRescheduleId(rescheduleId === booking.id ? null : booking.id); setRescheduleDate(booking.visit_date || ''); }} 
+                                       className={cn("h-10 rounded-xl text-[9px] font-black uppercase border-2 shadow-sm", rescheduleId === booking.id ? "bg-blue-600 text-white border-blue-700" : "border-blue-200 text-blue-700")}
+                                     >Reagendar</Button>
+                                     <Button onClick={(e) => {e.stopPropagation(); onStatusChange(booking.id, 'cancelled', booking.is_order);}} className="bg-amber-100 text-amber-700 h-10 rounded-xl text-[9px] font-black uppercase shadow-sm border border-amber-200">Cancelar</Button>
+                                  </div>
+                                  
+                                  {rescheduleId === booking.id && (
+                                    <div className="p-3 bg-blue-50 rounded-xl border-2 border-blue-200 space-y-2 mt-2 animate-in slide-in-from-top-2">
+                                       <p className="text-[8px] font-black uppercase text-blue-700">Nova Data:</p>
+                                       <Popover>
+                                          <PopoverTrigger asChild>
+                                             <Button variant="outline" className="w-full h-10 justify-start text-xs font-bold bg-white border-blue-200 rounded-lg">
+                                                <CalendarIcon className="mr-2 h-4 w-4 text-blue-500" />
+                                                {rescheduleDate ? format(parseISO(rescheduleDate), 'dd/MM/yyyy') : 'Selecionar'}
+                                             </Button>
+                                          </PopoverTrigger>
+                                          <PopoverContent className="w-auto p-0 rounded-2xl overflow-hidden shadow-2xl border-2 border-blue-100" align="center">
+                                             <CalendarUI
+                                               mode="single"
+                                               selected={rescheduleDate ? parseISO(rescheduleDate) : undefined}
+                                               onSelect={(date) => { if (date) setRescheduleDate(format(date, 'yyyy-MM-dd')); }}
+                                               locale={ptBR}
+                                               className="p-3"
+                                               classNames={{
+                                                  caption: "flex justify-center pt-1 relative items-center mb-2 bg-blue-600 rounded-lg py-2 text-white text-xs font-black uppercase",
+                                                  nav_button: "h-6 w-6 bg-white/20 text-white rounded-md",
+                                                  day_selected: "bg-blue-600 text-white font-black rounded-lg",
+                                                  day_today: "bg-blue-100 text-blue-900 rounded-lg"
+                                               }}
+                                             />
+                                          </PopoverContent>
+                                       </Popover>
+                                       <div className="flex gap-2">
+                                          <Button disabled={!rescheduleDate} onClick={() => { onReschedule(booking.id, rescheduleDate, booking.is_order); setRescheduleId(null); }} className="flex-1 bg-blue-600 h-8 text-[8px] rounded-lg shadow-sm">Salvar</Button>
+                                          <Button variant="ghost" onClick={() => setRescheduleId(null)} className="flex-1 h-8 text-[8px] rounded-lg">Sair</Button>
+                                       </div>
+                                    </div>
+                                  )}
+                               </div>
+                            </div>
+                         </div>
+                      )}
+                   </div>
+                );
+             })}
+          </div>
+
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left border-collapse">
                <thead className="bg-[#0b2b24]">
                   <tr className="text-[10px] font-extrabold uppercase text-emerald-700/80 tracking-widest border-b border-white/5">
@@ -277,26 +382,49 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                                  )}
                                               </div>
                                               
-                                              {/* REAGENDAR inline input */}
+                                              {/* REAGENDAR Premium Calendar */}
                                               {rescheduleId === booking.id && (
-                                                <div className="flex items-center gap-3 p-3 bg-blue-50/80 rounded-2xl border-2 border-blue-200 animate-in slide-in-from-top-2 duration-300">
-                                                  <CalendarRange className="w-4 h-4 text-blue-700 shrink-0" />
+                                                <div className="p-3 bg-blue-50/80 rounded-2xl border-2 border-blue-200 animate-in slide-in-from-top-2 duration-300 space-y-3">
+                                                  <div className="flex items-center gap-2">
+                                                     <CalendarRange className="w-4 h-4 text-blue-700 shrink-0" />
+                                                     <p className="text-[9px] font-black uppercase text-blue-700 tracking-wider">Reagendar Reserva</p>
+                                                  </div>
                                                   <div className="flex-1">
-                                                    <p className="text-[9px] font-black uppercase text-blue-700 tracking-wider mb-1">Nova Data</p>
-                                                    <input
-                                                      type="date"
-                                                      className="w-full h-9 px-3 rounded-xl border border-blue-200 text-blue-950 font-bold text-sm bg-white focus:outline-blue-400"
-                                                      value={rescheduleDate}
-                                                      onChange={e => setRescheduleDate(e.target.value)}
-                                                    />
+                                                     <Popover>
+                                                       <PopoverTrigger asChild>
+                                                         <Button 
+                                                           variant="outline" 
+                                                           className="w-full h-10 px-3 rounded-xl border border-blue-200 text-blue-950 font-bold text-sm bg-white hover:bg-blue-50 transition-all flex items-center justify-start gap-2"
+                                                         >
+                                                           <CalendarIcon className="w-4 h-4 text-blue-500" />
+                                                           {rescheduleDate ? format(parseISO(rescheduleDate), 'dd/MM/yyyy') : 'Selecionar Nova Data'}
+                                                         </Button>
+                                                       </PopoverTrigger>
+                                                       <PopoverContent className="w-auto p-0 rounded-2xl overflow-hidden border-2 border-blue-100 shadow-2xl" align="start">
+                                                         <CalendarUI
+                                                           mode="single"
+                                                           selected={rescheduleDate ? parseISO(rescheduleDate) : undefined}
+                                                           onSelect={(date) => { if (date) setRescheduleDate(format(date, 'yyyy-MM-dd')); }}
+                                                           locale={ptBR}
+                                                           className="p-3"
+                                                           classNames={{
+                                                             caption: "flex justify-center pt-1 relative items-center mb-2 bg-blue-600 rounded-xl py-3 border-2 border-blue-800 shadow-md w-full text-white text-xs font-black uppercase tracking-widest",
+                                                             nav_button: "h-8 w-8 bg-white/20 text-white rounded-lg hover:bg-white/40 transition-all",
+                                                             day_selected: "bg-blue-600 text-white font-black rounded-xl shadow-lg",
+                                                             day_today: "bg-blue-100 text-blue-900 rounded-xl font-bold"
+                                                           }}
+                                                         />
+                                                       </PopoverContent>
+                                                     </Popover>
                                                   </div>
                                                   <div className="flex gap-2">
                                                     <Button
                                                       size="sm"
-                                                      className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-[9px] h-9 px-4 rounded-xl"
+                                                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[9px] h-9 px-4 rounded-xl shadow-sm"
+                                                      disabled={!rescheduleDate}
                                                       onClick={() => { if (rescheduleDate) { onReschedule(booking.id, rescheduleDate, booking.is_order); setRescheduleId(null); setRescheduleDate(''); } }}
-                                                    >Confirmar</Button>
-                                                    <Button size="sm" variant="ghost" className="h-9 font-bold text-[9px]" onClick={() => { setRescheduleId(null); setRescheduleDate(''); }}>Cancelar</Button>
+                                                    >Confirmar Novo Agendamento</Button>
+                                                    <Button size="sm" variant="ghost" className="h-9 font-bold text-[9px]" onClick={() => { setRescheduleId(null); setRescheduleDate(''); }}>Voltar</Button>
                                                   </div>
                                                 </div>
                                               )}

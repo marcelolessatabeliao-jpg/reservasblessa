@@ -553,14 +553,14 @@ export default function Admin() {
                         });
                         
                         return (
-                          <div key={k.id} className="bg-white rounded-xl p-4 shadow-sm border border-emerald-200 flex items-center justify-between group">
-                             <span className="font-black text-emerald-950 text-[13px]">{k.name}</span>
+                          <div key={k.id} className="bg-white rounded-xl p-4 shadow-sm border border-emerald-200 flex items-center justify-between group hover:bg-emerald-800 transition-all cursor-default">
+                             <span className="font-black text-emerald-950 text-[13px] group-hover:text-white transition-colors">{k.name}</span>
                              {booking ? (
-                               <span className="text-emerald-700 font-bold italic text-[13px] text-right">
+                               <span className="text-emerald-700 font-bold italic text-[13px] text-right group-hover:text-emerald-100 transition-colors">
                                   {booking.customer_name}
                                </span>
                              ) : (
-                               <span className="text-emerald-800/80 italic font-bold text-[13px]">Livre</span>
+                               <span className="text-emerald-800/80 italic font-bold text-[13px] group-hover:text-emerald-200/50 transition-colors">Livre</span>
                              )}
                           </div>
                         );
@@ -599,7 +599,7 @@ export default function Admin() {
                                 {bookings.length > 0 ? (
                                   <div className="flex flex-wrap gap-1.5 justify-center">
                                      {bookings.map((b, bi) => (
-                                       <Badge key={bi} className="bg-transparent text-blue-700/80 font-bold italic lowercase text-[11px] px-2 py-0 border-0 shadow-none">
+                                       <Badge key={bi} className="bg-transparent text-blue-700/80 font-bold italic lowercase text-[11px] px-2 py-0 border-0 shadow-none hover:bg-blue-600 hover:text-white hover:opacity-100 transition-all cursor-default">
                                           {b.customer_name} ({b.quantity})
                                        </Badge>
                                      ))}
@@ -1223,15 +1223,15 @@ export default function Admin() {
 
        <div className="max-w-7xl mx-auto space-y-8 relative z-10 p-4 md:p-8">
           {/* HEADER */}
-          <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 mb-4">
+          <div className="flex flex-col xl:flex-row xl:items-start xl:items-center justify-between gap-6 mb-4">
               <div className="space-y-2 shrink-0">
-                  <h1 className="text-5xl font-black tracking-tighter flex items-center gap-4">
-                      <div className="flex flex-col -space-y-2">
-                         <span className="text-2xl text-[#FFF033]/80 leading-none shadow-sm">Lessa</span>
-                         <span className="text-5xl text-[#FFF033] shadow-md">Painel</span>
-                      </div>
-                  </h1>
-                  <p className="text-[#FFF033] font-black uppercase tracking-[0.3em] text-[10px] bg-[#FFF033]/10 w-fit px-3 py-1 rounded-full border border-[#FFF033]/30 backdrop-blur-sm">Gestão Integrada de Reservas • Balneário</p>
+                  <h1 className="text-4xl md:text-5xl font-black tracking-tighter flex items-center gap-4">
+                       <div className="flex flex-col -space-y-1 md:-space-y-1 md:-space-y-2">
+                          <span className="text-xl md:text-xl md:text-2xl text-[#FFF033]/80 leading-none shadow-sm">Lessa</span>
+                          <span className="text-4xl md:text-4xl md:text-5xl text-[#FFF033] shadow-md">Painel</span>
+                       </div>
+                   </h1>
+                  <p className="text-[#FFF033] font-black uppercase tracking-[0.2em] md:tracking-[0.3em] text-[8px] md:text-[10px] bg-[#FFF033]/10 w-fit px-3 py-1 rounded-full border border-[#FFF033]/30 backdrop-blur-sm">Gestão Integrada de Reservas • Balneário</p>
               </div>
 
               {/* STATS IN HEADER */}
@@ -1292,7 +1292,7 @@ export default function Admin() {
 
               <div className="flex items-center gap-4 shrink-0">
                  <Button 
-                   className="rounded-2xl bg-[#FFF033] text-black font-black h-12 px-8 shadow-2xl hover:scale-105 active:scale-95 transition-all border-0" 
+                   className="rounded-2xl bg-[#FFF033] text-black font-black h-10 md:h-12 px-6 md:px-8 shadow-2xl hover:scale-105 active:scale-95 transition-all border-0 text-sm md:text-base" 
                    onClick={handleLogout}
                  >
                     <LogOut className="w-5 h-5 mr-2" /> Sair
@@ -1301,43 +1301,43 @@ export default function Admin() {
           </div>
 
           {/* TABS */}
-          <div className="flex items-center p-2 bg-emerald-950/60 backdrop-blur-xl rounded-3xl w-full max-w-5xl mr-auto overflow-x-auto border border-white/20 shadow-premium mb-6 no-scrollbar gap-2">
+          <div className="flex items-center p-1.5 md:p-2 bg-emerald-950/60 backdrop-blur-xl rounded-2xl md:rounded-3xl w-full max-w-5xl mr-auto overflow-x-auto border border-white/20 shadow-premium mb-6 no-scrollbar gap-1.5 md:gap-2">
              <button onClick={() => setActiveTab('painel')} className={cn(
-               "flex-1 px-8 py-4 rounded-2xl text-[13px] font-black flex items-center justify-center gap-2.5 transition-all whitespace-nowrap", 
+               "flex-1 px-4 md:px-8 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap", 
                activeTab === 'painel' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
              )}>
-                <LayoutDashboard className="w-4.5 h-4.5" /> Visão Geral
+                <LayoutDashboard className="w-4 h-4 md:w-4.5 md:h-4.5" /> Visão Geral
              </button>
              <button onClick={() => setActiveTab('quiosques')} className={cn(
-               "flex-1 px-8 py-4 rounded-2xl text-[13px] font-black flex items-center justify-center gap-2.5 transition-all whitespace-nowrap", 
+               "flex-1 px-4 md:px-8 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap", 
                activeTab === 'quiosques' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
              )}>
-                <Tent className="w-4.5 h-4.5" /> Quiosques
+                <Tent className="w-4 h-4 md:w-4.5 md:h-4.5" /> Quiosques
              </button>
              <button onClick={() => setActiveTab('quads')} className={cn(
-               "flex-1 px-8 py-4 rounded-2xl text-[13px] font-black flex items-center justify-center gap-2.5 transition-all whitespace-nowrap", 
+               "flex-1 px-4 md:px-8 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap", 
                activeTab === 'quads' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
              )}>
-                <Bike className="w-4.5 h-4.5" /> Quadriciclos
+                <Bike className="w-4 h-4 md:w-4.5 md:h-4.5" /> Quadriciclos
              </button>
              <button onClick={() => setActiveTab('reservas')} className={cn(
-               "flex-1 px-8 py-4 rounded-2xl text-[13px] font-black flex items-center justify-center gap-2.5 transition-all whitespace-nowrap", 
+               "flex-1 px-4 md:px-8 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap", 
                activeTab === 'reservas' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
              )}>
-                <CalendarCheck className="w-4.5 h-4.5" /> Agenda
+                <CalendarCheck className="w-4 h-4 md:w-4.5 md:h-4.5" /> Agenda
              </button>
              <button onClick={() => setActiveTab('vendas')} className={cn(
-               "flex-1 px-8 py-4 rounded-2xl text-[13px] font-black flex items-center justify-center gap-2.5 transition-all whitespace-nowrap", 
+               "flex-1 px-4 md:px-8 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap", 
                activeTab === 'vendas' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
              )}>
-                <ShoppingBag className="w-4.5 h-4.5" /> Vendas
+                <ShoppingBag className="w-4 h-4 md:w-4.5 md:h-4.5" /> Vendas
              </button>
              
              <div className="w-px h-8 bg-white/10 mx-2 shrink-0" />
              
              <Button 
                variant="ghost" 
-               className="rounded-2xl bg-white/5 border border-white/10 font-black h-12 px-6 hover:bg-white/10 text-white transition-all backdrop-blur-md shrink-0 focus-visible:ring-0" 
+               className="rounded-xl md:rounded-2xl bg-white/5 border border-white/10 font-black h-10 md:h-12 px-4 md:px-6 hover:bg-white/10 text-white transition-all backdrop-blur-md shrink-0 focus-visible:ring-0" 
                onClick={fetchData} 
                disabled={loading}
              >
@@ -1347,7 +1347,7 @@ export default function Admin() {
           </div>
 
           {/* CONTENT AREA WITH GRADIENT BACKGROUND */}
-          <div className="min-h-[600px] bg-white/40 backdrop-blur-md rounded-[3rem] p-8 border border-white/60 shadow-premium">
+          <div className="min-h-[500px] md:min-h-[600px] bg-white/40 backdrop-blur-md rounded-2xl md:rounded-[3rem] p-4 md:p-8 border border-white/60 shadow-premium">
              {activeTab === 'painel' && renderDashboard()}
              {activeTab === 'reservas' && (
                <div className="space-y-6">
