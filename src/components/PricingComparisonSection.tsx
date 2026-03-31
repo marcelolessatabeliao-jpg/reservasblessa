@@ -159,11 +159,11 @@ export function PricingComparisonSection() {
                     <p className="text-2xl font-display font-bold text-foreground">{formatCurrency(visitorCost)}</p>
                     <p className="text-[10px] text-muted-foreground">Custo total no Day Use (para um único dia)</p>
                   </div>
-                  <div className="bg-gradient-to-br from-[#bf953f] via-[#fcf6ba] to-[#aa771c] p-5 rounded-2xl border border-sun/50 shadow-2xl relative overflow-hidden group">
+                  <div className="bg-gradient-to-br from-[#bf953f] via-[#fcf6ba] to-[#aa771c] p-6 pt-10 rounded-2xl border border-sun/50 shadow-2xl relative overflow-hidden group">
                     <div className="absolute top-0 right-0 bg-[#332200] text-[#fcf6ba] text-[10px] font-black px-4 py-1.5 rounded-bl-2xl shadow-xl uppercase tracking-widest z-10 border-l border-b border-white/20">VANTAGEM PREMIUM</div>
                     <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl group-hover:scale-125 transition-transform" />
                     
-                    <p className="text-[11px] font-black text-[#5c3c00] uppercase tracking-widest mb-1 opacity-80">Como Sócio (Lessa Club)</p>
+                    <p className="text-[11px] font-black text-[#5c3c00] uppercase tracking-widest mb-1 mt-2 opacity-80">Como Sócio (Lessa Club)</p>
                     <div className="flex items-baseline gap-1 mb-2">
                       <span className="text-3xl font-display font-black text-black tracking-tighter drop-shadow-sm">{formatCurrency(associateCost)}</span>
                       <span className="text-[11px] font-bold text-[#5c3c00]/80">/por mês</span>
