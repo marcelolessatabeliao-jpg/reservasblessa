@@ -67,35 +67,45 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
 
   const handleToggleItemStatus = async (itemId: string, currentStatus: boolean | null, productName: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    // Optimistic update
+    const newStatus = !currentStatus;
+
+    // 1. Immediate Optimistic Update
     setLocalItems(prev => prev.map(item =>
-      item.id === itemId ? { ...item, is_redeemed: !currentStatus } : item
+      item.id === itemId ? { ...item, is_redeemed: newStatus } : item
     ));
 
     try {
       const { error } = await supabase
         .from('order_items')
         .update({
-          is_redeemed: !currentStatus,
-          redeemed_at: !currentStatus ? new Date().toISOString() : null
+          is_redeemed: newStatus,
+          redeemed_at: newStatus ? new Date().toISOString() : null
         })
         .eq('id', itemId);
 
-      if (error) {
-        setLocalItems(prev => prev.map(item =>
-          item.id === itemId ? { ...item, is_redeemed: currentStatus } : item
-        ));
-        throw error;
-      }
+      if (error) throw error;
 
       toast({
-        title: !currentStatus ? '✅ Item Utilizado' : '↩️ Item Estornado',
-        description: `${productName} foi marcado como ${!currentStatus ? 'utilizado' : 'não utilizado'}.`,
+        title: newStatus ? '✅ Item Utilizado' : '↩️ Item Estornado',
+        description: `${productName} foi marcado como ${newStatus ? 'utilizado' : 'não utilizado'}.`,
       });
-      if (onRefresh) onRefresh();
-    } catch (err) {
+
+      // 2. Refresh parent to sync global state if needed
+      if (onRefresh) {
+        await onRefresh();
+      }
+    } catch (err: any) {
+      // 3. Rollback on error
+      setLocalItems(prev => prev.map(item =>
+        item.id === itemId ? { ...item, is_redeemed: currentStatus } : item
+      ));
+
       console.error('Error updating item status:', err);
-      toast({ title: 'Erro ao atualizar item', variant: 'destructive' });
+      toast({ 
+        title: 'Erro ao atualizar item', 
+        description: err.message || "Tente novamente",
+        variant: 'destructive' 
+      });
     }
   };
 

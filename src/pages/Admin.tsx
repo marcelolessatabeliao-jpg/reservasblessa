@@ -2,11 +2,41 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { format, isToday, isTomorrow, isThisWeek, parseISO, isBefore, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { 
-  Search, LogOut, RefreshCw, Users, DollarSign, CalendarCheck, TrendingUp, 
-  UserCheck, Hash, ArrowRight, MessageCircle, Clock, Circle, Trash2,
-  Tent, Bike, History, ChevronDown, ChevronUp, AlertTriangle, FileText,
-  Pencil, X, Check, Upload, FileCheck, Loader2, LayoutDashboard, ShoppingBag, HelpCircle,
-  Plus, CalendarClock
+  Users, 
+  Settings, 
+  PieChart, 
+  TrendingUp, 
+  Calendar as CalendarIcon, 
+  Search, 
+  RefreshCw, 
+  LogOut, 
+  LayoutDashboard, 
+  Tent, 
+  Bike, 
+  CalendarCheck, 
+  ShoppingBag, 
+  Trash2, 
+  FileText, 
+  CalendarClock, 
+  History, 
+  ChevronDown, 
+  ChevronUp, 
+  Clock, 
+  AlertTriangle, 
+  Pencil, 
+  Check, 
+  X,
+  Loader2,
+  DollarSign,
+  UserCheck,
+  Hash,
+  ArrowRight,
+  MessageCircle,
+  Circle,
+  Upload,
+  FileCheck,
+  HelpCircle,
+  Plus
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -85,6 +115,7 @@ export default function Admin() {
   const [activeTab, setActiveTab] = useState<TabType>('painel');
   const [search, setSearch] = useState('');
   const [filterDate, setFilterDate] = useState<string>('');
+  const [totals, setTotals] = useState({ adults: 0, children: 0 });
   const [loading, setLoading] = useState(false);
   const [kioskSubTab, setKioskSubTab] = useState<'hoje' | 'futuras' | 'historico'>('hoje');
   const [quadSubTab, setQuadSubTab] = useState<'hoje' | 'futuras' | 'historico'>('hoje');
@@ -113,6 +144,9 @@ export default function Admin() {
 
   // History States
   const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set());
+
+  const normalizeString = (str: string) => 
+    str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -232,6 +266,29 @@ export default function Admin() {
       setKioskReservations(parsedKiosks);
       setQuadReservations(parsedQuads);
       setOrders(orderData || []);
+      
+      // Calculate totals for dashboard
+      let tAdults = 0;
+      let tChildren = 0;
+      const adultKeywords = ['adulto', 'solidario', 'professor', 'estudante', 'servidor'];
+      const gratuityKeywords = ['crianca', 'kids', 'idoso', 'pcd', 'aniversariante'];
+
+      [...(bks || []), ...(orderData || [])].forEach(b => {
+        if (b.status === 'confirmed' || b.status === 'paid') {
+          const items = b.order_items || [];
+          items.forEach((item: any) => {
+            const name = normalizeString(item.product_name || '');
+            const qty = Number(item.quantity) || 1;
+            const isAdult = adultKeywords.some(k => name.includes(k));
+            const isGratuity = gratuityKeywords.some(k => name.includes(k));
+            if (isAdult) tAdults += qty;
+            else if (isGratuity) tChildren += qty;
+            else if (name.includes('entrada')) tAdults += qty;
+          });
+        }
+      });
+      setTotals({ adults: tAdults, children: tChildren });
+
     } catch (err) {
       console.error(err);
       toast({ title: "Erro ao carregar dados", variant: "destructive" });
@@ -452,14 +509,6 @@ export default function Admin() {
 
     const dayBookings = bookings.filter(b => b.visit_date === format(targetDate, 'yyyy-MM-dd'));
     const dayOrders = orders.filter(o => (o.visit_date || o.created_at.split('T')[0]) === format(targetDate, 'yyyy-MM-dd'));
-    const dayTotalPeople = dayBookings.reduce((acc, b) => {
-       const childrenCount = Array.isArray(b.children) ? b.children.length : (typeof b.children === 'number' ? b.children : 0);
-       return acc + (b.adults || 0) + childrenCount;
-    }, 0);
-    const dayCheckouts = dayOrders.reduce((acc, order) => {
-       const redeemedCount = (order.order_items || []).filter((item: any) => item.is_redeemed).length;
-       return acc + redeemedCount;
-    }, 0);
     
     return (
       <div className="grid lg:grid-cols-[1fr_360px] gap-8 animate-in fade-in duration-500">
@@ -633,6 +682,30 @@ export default function Admin() {
 
         <div className="space-y-6">
            <Card className="bg-white border-2 border-emerald-100 shadow-sm rounded-3xl overflow-hidden">
+              <CardContent className="pt-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <p className="text-sm font-bold text-slate-500 uppercase tracking-wider">Capacidade Total</p>
+                    <p className="text-3xl font-black text-slate-900">{totals.adults + totals.children}</p>
+                  </div>
+                  <div className="p-3 bg-slate-100 rounded-2xl">
+                    <Users className="w-6 h-6 text-slate-600" />
+                  </div>
+                </div>
+                <div className="mt-4 pt-4 border-t border-slate-100 flex gap-4">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                    <span className="text-[10px] font-black text-emerald-700 uppercase">Adultos: {totals.adults}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2 h-2 rounded-full bg-blue-500" />
+                    <span className="text-[10px] font-black text-blue-700 uppercase">Gratuidades: {totals.children}</span>
+                  </div>
+                </div>
+              </CardContent>
+           </Card>
+           
+           <Card className="bg-white border-2 border-emerald-100 shadow-sm rounded-3xl overflow-hidden">
               <div className="p-6 border-b border-emerald-100 bg-emerald-50/50">
                  <div className="flex items-center gap-3 mb-2">
                     <CalendarCheck className="w-5 h-5 text-emerald-800" />
@@ -702,8 +775,6 @@ export default function Admin() {
                  />
               </div>
            </Card>
-           
-           {/* Resumo Operacional Card Removed */}
         </div>
       </div>
     );
@@ -1265,13 +1336,51 @@ export default function Admin() {
              {activeTab === 'painel' && renderDashboard()}
              {activeTab === 'reservas' && (
                <div className="space-y-6">
-                 <div className="flex gap-4 w-full max-w-2xl">
-                   <div className="relative flex-1">
-                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-600/50" />
-                     <Input placeholder="Filtrar por nome, telefone ou código..." className="pl-11 h-12 rounded-2xl bg-white shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border-emerald-100 font-medium text-emerald-950 placeholder:text-emerald-900/40 focus-visible:ring-emerald-500" value={search} onChange={e => setSearch(e.target.value)} />
-                   </div>
-                   <input type="date" className="h-12 px-4 rounded-2xl bg-white shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-emerald-100 text-emerald-950 font-bold focus:outline-emerald-500" value={filterDate} onChange={e => setFilterDate(e.target.value)} />
-                 </div>
+                 <div className="flex flex-col md:flex-row gap-4 w-full max-w-4xl">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-600" />
+                      <Input 
+                        placeholder="Filtrar por nome, telefone ou código..." 
+                        className="pl-11 h-14 rounded-2xl bg-white/90 backdrop-blur-sm shadow-lg border-2 border-emerald-100 font-extrabold text-emerald-950 placeholder:text-emerald-900/40 focus-visible:ring-emerald-500 text-lg transition-all" 
+                        value={search} 
+                        onChange={e => setSearch(e.target.value)} 
+                      />
+                    </div>
+                    
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "h-14 px-6 rounded-2xl bg-white/90 backdrop-blur-sm shadow-lg border-2 border-emerald-100 font-black text-emerald-950 hover:bg-emerald-50 transition-all gap-3 text-lg justify-start min-w-[240px]",
+                            !filterDate && "text-emerald-900/40"
+                          )}
+                        >
+                          <CalendarIcon className="w-5 h-5 text-emerald-600" />
+                          {filterDate ? format(parseISO(filterDate), 'dd/MM/yyyy', { locale: ptBR }) : "Filtrar por Data"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0 rounded-3xl overflow-hidden border-2 border-emerald-100 shadow-2xl" align="end">
+                        <Calendar
+                          mode="single"
+                          selected={filterDate ? parseISO(filterDate) : undefined}
+                          onSelect={(date) => setFilterDate(date ? format(date, 'yyyy-MM-dd') : '')}
+                          locale={ptBR}
+                          className="p-4"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    
+                    {filterDate && (
+                      <Button 
+                        variant="ghost" 
+                        className="h-14 px-4 text-emerald-700 font-black hover:bg-emerald-100/50 rounded-2xl"
+                        onClick={() => setFilterDate('')}
+                      >
+                        LIMPAR
+                      </Button>
+                    )}
+                  </div>
                  <BookingTable 
                    bookings={[...bookings, ...orders.map(o => ({...o, is_order: true}))].filter(b => 
                      (!search || 
