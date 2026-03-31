@@ -831,14 +831,15 @@ export default function Admin() {
                 <h3 className="text-lg font-bold text-primary">Reservas de Quiosques</h3>
                 <p className="text-xs text-muted-foreground">Gerencie todas as reservas por status</p>
               </div>
-              <div className="flex gap-2 bg-slate-100 p-1 rounded-2xl">
+              <div className="grid grid-cols-2 md:flex gap-2 bg-slate-100 p-1 rounded-2xl w-full md:w-auto">
                 {subTabConfig.map(t => (
                   <button
                     key={t.key}
                     onClick={() => setKioskSubTab(t.key as any)}
                     className={cn(
                       'flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all',
-                      kioskSubTab === t.key ? t.color + ' shadow-md' : 'text-slate-500 hover:text-slate-700'
+                      kioskSubTab === t.key ? t.color + ' shadow-md' : 'text-slate-500 hover:text-slate-700',
+                      t.key === 'historico' && 'col-span-2 md:col-auto'
                     )}
                   >
                     {t.label}
@@ -853,75 +854,125 @@ export default function Admin() {
 
           {/* Table */}
           <div className="overflow-x-auto">
-            {tabGroups.length === 0 ? (
-              <div className="text-center py-16 text-muted-foreground/40 font-bold uppercase text-xs tracking-widest">
-                {kioskSubTab === 'hoje' ? 'Nenhuma reserva ativa hoje' : kioskSubTab === 'futuras' ? 'Sem reservas futuras' : 'Sem histórico'}
-              </div>
-            ) : (
-              <table className="w-full text-left">
-                <thead className="bg-slate-100/80 text-[10px] font-black uppercase text-slate-900 tracking-widest border-b-2 border-emerald-300">
-                  <tr>
-                    <th className="px-6 py-4">Data</th>
-                    <th className="px-6 py-4">Cliente</th>
-                    <th className="px-6 py-4">Quiosques / Capacidade</th>
-                    <th className="px-6 py-4">Valor</th>
-                    <th className="px-6 py-4 text-right">Ações</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y-2 divide-emerald-200">
-                  {tabGroups.map((group: any) => {
-                    const { names, capacity } = resolveGroup(group);
-                    const isToday = group.reservation_date === todayStr;
-                    return (
-                      <tr key={group.group_key} className={cn(
-                        'border-b-2 border-emerald-200 hover:bg-emerald-100/50 transition-colors',
-                        isToday ? 'bg-emerald-50/60' : 'bg-white'
-                      )}>
-                        <td className="px-6 py-4">
-                          <div className="flex flex-col gap-1">
-                            <span className={cn('font-bold text-sm', isToday ? 'text-emerald-800' : 'text-emerald-900')}>
-                              {format(parseISO(group.reservation_date), 'dd/MM/yyyy')}
-                            </span>
-                            {isToday && <span className="text-[9px] bg-emerald-700 text-white font-black uppercase px-2 py-0.5 rounded-full w-fit">HOJE</span>}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="font-black text-emerald-950 uppercase">{group.customer_name}</span>
-                          <div className="text-[10px] text-emerald-950 font-black mt-0.5">{group.items.length} reserva(s)</div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex flex-col gap-1">
-                            <Badge className="bg-emerald-100/80 text-emerald-800 border border-emerald-200 font-bold w-fit shadow-sm">{names}</Badge>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 font-bold text-emerald-700">{formatCurrency(group.total_price)}</td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end gap-1">
+            {/* Mobile Cards View */}
+            <div className="md:hidden space-y-4 p-4 bg-slate-50/50">
+              {tabGroups.length === 0 ? (
+                <div className="text-center py-10 text-muted-foreground/40 font-bold uppercase text-[10px] tracking-widest">Nenhuma reserva</div>
+              ) : (
+                tabGroups.map((group: any) => {
+                  const { names } = resolveGroup(group);
+                  const isToday = group.reservation_date === todayStr;
+                  return (
+                    <div key={group.group_key} className="bg-white rounded-2xl border-2 border-emerald-100 shadow-sm overflow-hidden animate-in slide-in-from-bottom-2 duration-300">
+                      <div className={cn("p-4 border-b border-emerald-100 flex justify-between items-center", isToday ? "bg-emerald-50" : "bg-white")}>
+                         <div className="flex flex-col">
+                            <span className="text-[10px] font-black text-emerald-800/60 uppercase tracking-widest">Data da Visita</span>
+                            <span className="font-black text-emerald-900">{format(parseISO(group.reservation_date), 'dd/MM/yyyy')}</span>
+                         </div>
+                         {isToday && <span className="bg-emerald-600 text-white text-[9px] font-black px-3 py-1 rounded-full uppercase shadow-sm">Hoje</span>}
+                      </div>
+                      <div className="p-4 space-y-3">
+                         <div>
+                            <span className="text-[10px] font-black text-emerald-800/60 uppercase tracking-widest block mb-1">Cliente</span>
+                            <span className="font-black text-emerald-950 uppercase text-sm block">{group.customer_name}</span>
+                            <span className="text-[10px] text-emerald-700 font-bold">{group.items.length} reserva(s) • {formatCurrency(group.total_price)}</span>
+                         </div>
+                         <div>
+                            <span className="text-[10px] font-black text-emerald-800/60 uppercase tracking-widest block mb-1">Quiosques</span>
+                            <div className="flex flex-wrap gap-1.5">
+                               {(names.split(', ') as string[]).map((n, i) => (
+                                 <span key={i} className="px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-lg text-[10px] font-black border border-emerald-200">{n}</span>
+                               ))}
+                            </div>
+                         </div>
+                         <div className="pt-2 flex items-center justify-end gap-2 border-t border-emerald-50">
                             {group.items.some((r: any) => r.receipt_url) && (
-                              <Button size="icon" variant="ghost" className="h-8 w-8 text-primary hover:bg-emerald-600 hover:text-white transition-all shadow-sm" onClick={() => window.open(group.items.find((r: any) => r.receipt_url)?.receipt_url)}>
-                                <FileText className="w-4 h-4" />
-                              </Button>
+                               <Button size="sm" variant="outline" className="h-9 px-3 rounded-xl border-emerald-200 text-emerald-700 font-black text-[10px]" onClick={() => window.open(group.items.find((r: any) => r.receipt_url)?.receipt_url)}>
+                                 <FileText className="w-4 h-4 mr-2" /> Recibo
+                               </Button>
                             )}
-                            <Button
-                              size="icon" variant="ghost"
-                              className="h-8 w-8 text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm"
-                              title="Reagendar"
-                              onClick={() => {
-                                setRescheduleData({ type: 'kiosk', group });
-                                setRescheduleDate(parseISO(group.reservation_date));
-                              }}
-                            ><CalendarClock className="w-4 h-4" /></Button>
-                            <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500 hover:bg-red-600 hover:text-white transition-all shadow-sm" onClick={() => requestDelete(group.items[0], 'kiosk')}>
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
+                            <Button size="icon" variant="ghost" className="h-9 w-9 text-blue-600 bg-blue-50 rounded-xl" onClick={() => {setRescheduleData({ type: 'kiosk', group }); setRescheduleDate(parseISO(group.reservation_date));}}><CalendarClock className="w-4 h-4" /></Button>
+                            <Button size="icon" variant="ghost" className="h-9 w-9 text-red-500 bg-red-50 rounded-xl" onClick={() => requestDelete(group.items[0], 'kiosk')}><Trash2 className="w-4 h-4" /></Button>
+                         </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden md:block">
+              {tabGroups.length === 0 ? (
+                <div className="text-center py-16 text-muted-foreground/40 font-bold uppercase text-xs tracking-widest">
+                  {kioskSubTab === 'hoje' ? 'Nenhuma reserva ativa hoje' : kioskSubTab === 'futuras' ? 'Sem reservas futuras' : 'Sem histórico'}
+                </div>
+              ) : (
+                <table className="w-full text-left">
+                  <thead className="bg-slate-100/80 text-[10px] font-black uppercase text-slate-900 tracking-widest border-b-2 border-emerald-300">
+                    <tr>
+                      <th className="px-6 py-4">Data</th>
+                      <th className="px-6 py-4">Cliente</th>
+                      <th className="px-6 py-4">Quiosques / Capacidade</th>
+                      <th className="px-6 py-4">Valor</th>
+                      <th className="px-6 py-4 text-right">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y-2 divide-emerald-200">
+                    {tabGroups.map((group: any) => {
+                      const { names } = resolveGroup(group);
+                      const isToday = group.reservation_date === todayStr;
+                      return (
+                        <tr key={group.group_key} className={cn(
+                          'border-b-2 border-emerald-200 hover:bg-emerald-100/50 transition-colors',
+                          isToday ? 'bg-emerald-50/60' : 'bg-white'
+                        )}>
+                          <td className="px-6 py-4">
+                            <div className="flex flex-col gap-1">
+                              <span className={cn('font-bold text-sm', isToday ? 'text-emerald-800' : 'text-emerald-900')}>
+                                {format(parseISO(group.reservation_date), 'dd/MM/yyyy')}
+                              </span>
+                              {isToday && <span className="text-[9px] bg-emerald-700 text-white font-black uppercase px-2 py-0.5 rounded-full w-fit">HOJE</span>}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="font-black text-emerald-950 uppercase">{group.customer_name}</span>
+                            <div className="text-[10px] text-emerald-950 font-black mt-0.5">{group.items.length} reserva(s)</div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex flex-col gap-1">
+                              <Badge className="bg-emerald-100/80 text-emerald-800 border border-emerald-200 font-bold w-fit shadow-sm">{names}</Badge>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 font-bold text-emerald-700">{formatCurrency(group.total_price)}</td>
+                          <td className="px-6 py-4 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              {group.items.some((r: any) => r.receipt_url) && (
+                                <Button size="icon" variant="ghost" className="h-8 w-8 text-primary hover:bg-emerald-600 hover:text-white transition-all shadow-sm" onClick={() => window.open(group.items.find((r: any) => r.receipt_url)?.receipt_url)}>
+                                  <FileText className="w-4 h-4" />
+                                </Button>
+                              )}
+                              <Button
+                                size="icon" variant="ghost"
+                                className="h-8 w-8 text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm"
+                                title="Reagendar"
+                                onClick={() => {
+                                  setRescheduleData({ type: 'kiosk', group });
+                                  setRescheduleDate(parseISO(group.reservation_date));
+                                }}
+                              ><CalendarClock className="w-4 h-4" /></Button>
+                              <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500 hover:bg-red-600 hover:text-white transition-all shadow-sm" onClick={() => requestDelete(group.items[0], 'kiosk')}>
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -962,14 +1013,15 @@ export default function Admin() {
                 <h3 className="text-lg font-black text-blue-950">Reservas de Quadriciclos</h3>
                 <p className="text-xs text-blue-900 font-bold">Clique em um grupo para ver os horários</p>
               </div>
-              <div className="flex gap-2 bg-slate-100 p-1 rounded-2xl">
+              <div className="grid grid-cols-2 md:flex gap-2 bg-slate-100 p-1 rounded-2xl w-full md:w-auto">
                 {subTabConfig.map(t => (
                   <button
                     key={t.key}
                     onClick={() => setQuadSubTab(t.key as any)}
                     className={cn(
                       'flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all',
-                      quadSubTab === t.key ? t.color + ' shadow-md' : 'text-slate-500 hover:text-slate-700'
+                      quadSubTab === t.key ? t.color + ' shadow-md' : 'text-slate-500 hover:text-slate-700',
+                      t.key === 'historico' && 'col-span-2 md:col-auto'
                     )}
                   >
                     {t.label}
@@ -983,177 +1035,247 @@ export default function Admin() {
           </div>
 
           <div className="overflow-x-auto">
-            {tabGroups.length === 0 ? (
-              <div className="text-center py-16 text-muted-foreground/40 font-bold uppercase text-xs tracking-widest">
-                {quadSubTab === 'hoje' ? 'Nenhuma reserva ativa hoje' : quadSubTab === 'futuras' ? 'Sem reservas futuras' : 'Sem histórico'}
-              </div>
-            ) : (
-              <table className="w-full text-left">
-                <thead className="bg-muted/50 text-[10px] font-bold uppercase text-muted-foreground tracking-widest border-b border-border/50">
-                  <tr>
-                    <th className="px-6 py-4 w-8"></th>
-                    <th className="px-6 py-4">Data</th>
-                    <th className="px-6 py-4">Cliente</th>
-                    <th className="px-6 py-4">Modelos</th>
-                    <th className="px-6 py-4 text-center">Total Quadriciclos</th>
-                    <th className="px-6 py-4">Valor Total</th>
-                    <th className="px-6 py-4 text-right">Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {tabGroups.map((group: any) => {
-                    const isExpanded = expandedQuadGroupId === group.group_key;
-                    const isToday = group.reservation_date === todayStr;
-                    const uniqueModels = Array.from(new Set(group.items.map((r: any) => QUAD_MODELS_LABELS[r.quad_type || (r.time_slot === 'DUPLA' ? 'dupla' : 'individual')] || 'Individual')));
+            {/* Mobile Cards View */}
+            <div className="md:hidden space-y-4 p-4 bg-blue-50/30">
+               {tabGroups.length === 0 ? (
+                 <div className="text-center py-10 text-muted-foreground/40 font-bold uppercase text-[10px] tracking-widest">Nenhuma reserva</div>
+               ) : (
+                 tabGroups.map((group: any) => {
+                   const isExpanded = expandedQuadGroupId === group.group_key;
+                   const isToday = group.reservation_date === todayStr;
+                   const uniqueModels = Array.from(new Set(group.items.map((r: any) => QUAD_MODELS_LABELS[r.quad_type || (r.time_slot === 'DUPLA' ? 'dupla' : 'individual')] || 'Individual')));
+                   
+                   return (
+                     <div key={group.group_key} className="bg-white rounded-2xl border-2 border-blue-100 shadow-sm overflow-hidden box-border">
+                        <div className={cn("p-4 flex justify-between items-center cursor-pointer", isToday ? "bg-blue-50/50" : "bg-white")} onClick={() => setExpandedQuadGroupId(isExpanded ? null : group.group_key)}>
+                           <div className="flex flex-col">
+                              <span className="text-[9px] font-black text-blue-700/60 uppercase tracking-widest">Cliente</span>
+                              <span className="font-black text-blue-950 uppercase">{group.customer_name}</span>
+                              <span className="text-[10px] font-bold text-blue-800">{format(parseISO(group.reservation_date), 'dd/MM/yyyy')}</span>
+                           </div>
+                           <div className="flex items-center gap-3">
+                              {isToday && <span className="bg-blue-600 text-white text-[9px] font-black px-2.5 py-1 rounded-full uppercase">Hoje</span>}
+                              <ChevronDown className={cn('w-5 h-5 text-blue-400 transition-transform', isExpanded && 'rotate-180')} />
+                           </div>
+                        </div>
+                        
+                        {isExpanded && (
+                           <div className="p-4 bg-blue-50/30 border-t border-blue-100 space-y-4 animate-in slide-in-from-top-2 duration-300">
+                              <div className="grid grid-cols-2 gap-4">
+                                 <div>
+                                    <span className="text-[9px] font-black text-blue-700/60 uppercase tracking-widest block mb-1">Modelos</span>
+                                    <div className="flex flex-wrap gap-1">
+                                       {(uniqueModels as string[]).map((m, i) => <span key={i} className="px-2 py-0.5 bg-white border border-blue-200 text-blue-800 rounded text-[9px] font-black">{m}</span>)}
+                                    </div>
+                                 </div>
+                                 <div className="text-right">
+                                    <span className="text-[9px] font-black text-blue-700/60 uppercase tracking-widest block mb-1">Total</span>
+                                    <span className="font-black text-blue-900 text-xs">{formatCurrency(group.total_price)}</span>
+                                 </div>
+                              </div>
+                              
+                              <div className="space-y-2">
+                                 <span className="text-[9px] font-black text-blue-700/60 uppercase tracking-widest block mb-1">Horários Reservados</span>
+                                 {group.items.map((r: any, i: number) => (
+                                   <div key={i} className="flex justify-between items-center bg-white p-3 rounded-xl border border-blue-100 shadow-sm">
+                                      <div className="flex items-center gap-2">
+                                         <Clock className="w-3.5 h-3.5 text-blue-500" />
+                                         <span className="text-[11px] font-black text-blue-900">{r.time_slot}</span>
+                                         <span className="text-[10px] font-bold text-blue-600/60">• {QUAD_MODELS_LABELS[r.quad_type] || 'Individual'}</span>
+                                      </div>
+                                      <span className="text-[10px] font-black text-blue-900">{r.quantity} un.</span>
+                                   </div>
+                                 ))}
+                              </div>
 
-                    return (
-                      <React.Fragment key={group.group_key}>
-                        {/* Summary row */}
-                        <tr
-                          className={cn(
-                            'border-b-2 border-blue-200 cursor-pointer hover:bg-blue-100/50 transition-colors',
-                            isToday ? 'bg-blue-50/60' : 'bg-white',
-                            isExpanded && 'bg-blue-100/40'
-                          )}
-                          onClick={() => setExpandedQuadGroupId(isExpanded ? null : group.group_key)}
-                        >
-                          <td className="px-4 py-4 text-center">
-                            <ChevronDown className={cn('w-4 h-4 text-blue-500 transition-transform', isExpanded && 'rotate-180')} />
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex flex-col gap-1">
-                              <span className={cn('font-bold text-sm', isToday ? 'text-blue-700' : 'text-blue-900')}>
-                                {format(parseISO(group.reservation_date), 'dd/MM/yyyy')}
-                              </span>
-                              {isToday && <span className="text-[9px] bg-blue-600 text-white font-black uppercase px-2 py-0.5 rounded-full w-fit">HOJE</span>}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <span className="font-black text-blue-950 uppercase">{group.customer_name}</span>
-                            <div className="text-[10px] text-blue-600/60 font-black mt-0.5">{group.items.length} horário(s) reservado(s)</div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex flex-wrap gap-1">
-                              {(uniqueModels as string[]).map((m, i) => (
-                                <Badge key={i} variant="outline" className="border-blue-200 text-blue-800 font-bold bg-blue-50/50 text-[10px]">{m}</Badge>
-                              ))}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-center">
-                            <Badge className="bg-blue-100 text-blue-950 border-0 font-black">{group.total_quantity} quadriciclos</Badge>
-                          </td>
-                          <td className="px-6 py-4 font-black text-blue-900">{formatCurrency(group.total_price)}</td>
-                          <td className="px-6 py-4 text-right">
-                            <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
-                              {group.items.some((r: any) => r.receipt_url) && (
-                                <Button size="icon" variant="ghost" className="h-8 w-8 text-primary hover:bg-emerald-600 hover:text-white transition-all shadow-sm" onClick={() => window.open(group.items.find((r: any) => r.receipt_url)?.receipt_url)}>
-                                  <FileText className="w-4 h-4" />
+                              <div className="flex items-center justify-end gap-2 pt-2">
+                                 {group.items.some((r: any) => r.receipt_url) && (
+                                   <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600 bg-blue-50 rounded-lg" onClick={() => window.open(group.items.find((r: any) => r.receipt_url)?.receipt_url)}>
+                                     <FileText className="w-4 h-4" />
+                                   </Button>
+                                 )}
+                                 <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600 bg-blue-50 rounded-lg" onClick={() => {setRescheduleData({ type: 'quad', group }); setRescheduleDate(parseISO(group.reservation_date));}}><CalendarClock className="w-4 h-4" /></Button>
+                                 <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500 bg-red-50 rounded-lg" onClick={() => requestDelete(group.items[0], 'quad')}><Trash2 className="w-4 h-4" /></Button>
+                              </div>
+                           </div>
+                        )}
+                     </div>
+                   );
+                 })
+               )}
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden md:block">
+              {tabGroups.length === 0 ? (
+                <div className="text-center py-16 text-muted-foreground/40 font-bold uppercase text-xs tracking-widest">
+                  {quadSubTab === 'hoje' ? 'Nenhuma reserva ativa hoje' : quadSubTab === 'futuras' ? 'Sem reservas futuras' : 'Sem histórico'}
+                </div>
+              ) : (
+                <table className="w-full text-left">
+                  <thead className="bg-muted/50 text-[10px] font-bold uppercase text-muted-foreground tracking-widest border-b border-border/50">
+                    <tr>
+                      <th className="px-6 py-4 w-8"></th>
+                      <th className="px-6 py-4">Data</th>
+                      <th className="px-6 py-4">Cliente</th>
+                      <th className="px-6 py-4">Modelos</th>
+                      <th className="px-6 py-4 text-center">Total Quadriciclos</th>
+                      <th className="px-6 py-4">Valor Total</th>
+                      <th className="px-6 py-4 text-right">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tabGroups.map((group: any) => {
+                      const isExpanded = expandedQuadGroupId === group.group_key;
+                      const isToday = group.reservation_date === todayStr;
+                      const uniqueModels = Array.from(new Set(group.items.map((r: any) => QUAD_MODELS_LABELS[r.quad_type || (r.time_slot === 'DUPLA' ? 'dupla' : 'individual')] || 'Individual')));
+
+                      return (
+                        <React.Fragment key={group.group_key}>
+                          <tr
+                            className={cn(
+                              'border-b-2 border-blue-200 cursor-pointer hover:bg-blue-100/50 transition-colors',
+                              isToday ? 'bg-blue-50/60' : 'bg-white',
+                              isExpanded && 'bg-blue-100/40'
+                            )}
+                            onClick={() => setExpandedQuadGroupId(isExpanded ? null : group.group_key)}
+                          >
+                            <td className="px-4 py-4 text-center">
+                              <ChevronDown className={cn('w-4 h-4 text-blue-500 transition-transform', isExpanded && 'rotate-180')} />
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex flex-col gap-1">
+                                <span className={cn('font-bold text-sm', isToday ? 'text-blue-700' : 'text-blue-900')}>
+                                  {format(parseISO(group.reservation_date), 'dd/MM/yyyy')}
+                                </span>
+                                {isToday && <span className="text-[9px] bg-blue-600 text-white font-black uppercase px-2 py-0.5 rounded-full w-fit">HOJE</span>}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="font-black text-blue-950 uppercase">{group.customer_name}</span>
+                              <div className="text-[10px] text-blue-600/60 font-black mt-0.5">{group.items.length} horário(s) reservado(s)</div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex flex-wrap gap-1">
+                                {(uniqueModels as string[]).map((m, i) => (
+                                  <Badge key={i} variant="outline" className="border-blue-200 text-blue-800 font-bold bg-blue-50/50 text-[10px]">{m}</Badge>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <Badge className="bg-blue-100 text-blue-950 border-0 font-black">{group.total_quantity} quadriciclos</Badge>
+                            </td>
+                            <td className="px-6 py-4 font-black text-blue-900">{formatCurrency(group.total_price)}</td>
+                            <td className="px-6 py-4 text-right">
+                              <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
+                                {group.items.some((r: any) => r.receipt_url) && (
+                                  <Button size="icon" variant="ghost" className="h-8 w-8 text-primary hover:bg-emerald-600 hover:text-white transition-all shadow-sm" onClick={() => window.open(group.items.find((r: any) => r.receipt_url)?.receipt_url)}>
+                                    <FileText className="w-4 h-4" />
+                                  </Button>
+                                )}
+                                <Button
+                                  size="icon" variant="ghost"
+                                  className="h-8 w-8 text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm"
+                                  title="Reagendar"
+                                  onClick={() => {
+                                    setRescheduleData({ type: 'quad', group });
+                                    setRescheduleDate(parseISO(group.reservation_date));
+                                  }}
+                                ><CalendarClock className="w-4 h-4" /></Button>
+                                <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500 hover:bg-red-600 hover:text-white transition-all shadow-sm" onClick={() => requestDelete(group.items[0], 'quad')}>
+                                  <Trash2 className="w-4 h-4" />
                                 </Button>
-                              )}
-                              <Button
-                                size="icon" variant="ghost"
-                                className="h-8 w-8 text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm"
-                                title="Reagendar"
-                                onClick={() => {
-                                  setRescheduleData({ type: 'quad', group });
-                                  setRescheduleDate(parseISO(group.reservation_date));
-                                }}
-                              ><CalendarClock className="w-4 h-4" /></Button>
-                              <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500 hover:bg-red-600 hover:text-white transition-all shadow-sm" onClick={() => requestDelete(group.items[0], 'quad')}>
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-
-                        {/* Expanded detail rows per timeslot */}
-                        {isExpanded && group.items.map((r: any, idx: number) => {
-                          const isEditing = editingId === r.id;
-                          return (
-                            <tr key={r.id} className={cn("bg-blue-50/30 border-b border-blue-100 transition-all", isEditing ? "bg-amber-50/40" : "")}>
-                              <td className="px-4 py-2"></td>
-                              <td className="px-6 py-2">
-                                {isEditing ? (
-                                  <Select value={editData.time_slot} onValueChange={v => setEditData({...editData, time_slot: v})}>
-                                     <SelectTrigger className="h-8 text-[11px] font-black w-32 border-blue-200 bg-white shadow-sm"><SelectValue /></SelectTrigger>
-                                     <SelectContent>
-                                        {QUAD_TIMES.map(t => <SelectItem key={t} value={t} className="text-[11px] font-bold">{t}</SelectItem>)}
-                                     </SelectContent>
-                                  </Select>
-                                ) : (
-                                  <span className={cn(
-                                    'text-[10px] font-black uppercase px-2 py-0.5 rounded-md w-fit inline-block border flex items-center gap-1.5 shadow-sm',
-                                    (r.time_slot === 'INDIV' || r.time_slot === 'DUPLA') 
-                                      ? 'bg-amber-50 text-amber-700 border-amber-200' 
-                                      : 'bg-blue-50 text-blue-700 border-blue-100'
-                                  )}>
-                                    {(r.time_slot === 'INDIV' || r.time_slot === 'DUPLA') ? (
+                              </div>
+                            </td>
+                          </tr>
+                          {isExpanded && group.items.map((r: any, idx: number) => {
+                            const isEditing = editingId === r.id;
+                            return (
+                              <tr key={r.id} className={cn("bg-blue-50/30 border-b border-blue-100 transition-all", isEditing ? "bg-amber-50/40" : "")}>
+                                <td className="px-4 py-2"></td>
+                                <td className="px-6 py-2">
+                                  {isEditing ? (
+                                    <Select value={editData.time_slot} onValueChange={v => setEditData({...editData, time_slot: v})}>
+                                       <SelectTrigger className="h-8 text-[11px] font-black w-32 border-blue-200 bg-white shadow-sm"><SelectValue /></SelectTrigger>
+                                       <SelectContent>
+                                          {QUAD_TIMES.map(t => <SelectItem key={t} value={t} className="text-[11px] font-bold">{t}</SelectItem>)}
+                                       </SelectContent>
+                                    </Select>
+                                  ) : (
+                                    <span className={cn(
+                                      'text-[10px] font-black uppercase px-2 py-0.5 rounded-md w-fit inline-block border flex items-center gap-1.5 shadow-sm',
+                                      (r.time_slot === 'INDIV' || r.time_slot === 'DUPLA') 
+                                        ? 'bg-amber-50 text-amber-700 border-amber-200' 
+                                        : 'bg-blue-50 text-blue-700 border-blue-100'
+                                    )}>
+                                      {(r.time_slot === 'INDIV' || r.time_slot === 'DUPLA') ? (
+                                        <>
+                                          <AlertTriangle className="w-3 h-3" />
+                                          {r.time_slot === 'INDIV' ? 'HORÁRIO NÃO DEFINIDO' : 'DUPLA (AGUARDANDO)'}
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Clock className="w-3 h-3" />
+                                          {r.time_slot}
+                                        </>
+                                      )}
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="px-6 py-2 text-[11px] text-blue-700/60 font-black uppercase tracking-wider">Item #{idx + 1}</td>
+                                <td className="px-6 py-2">
+                                  {isEditing ? (
+                                    <div className="flex flex-col gap-1 w-32">
+                                      <Select value={editData.quad_type || 'individual'} onValueChange={v => setEditData({...editData, quad_type: v})}>
+                                         <SelectTrigger className="h-7 text-[10px] font-bold bg-white"><SelectValue /></SelectTrigger>
+                                         <SelectContent>
+                                            {Object.entries(QUAD_MODELS_LABELS).map(([k, v]) => <SelectItem key={k} value={k} className="text-[10px]">{v}</SelectItem>)}
+                                         </SelectContent>
+                                      </Select>
+                                    </div>
+                                  ) : (
+                                    <Badge variant="outline" className="text-[9px] border-blue-100 text-blue-700 bg-white/50 font-black tracking-widest px-2">
+                                      {QUAD_MODELS_LABELS[r.quad_type || (r.time_slot === 'DUPLA' ? 'dupla' : 'individual')] || 'Individual'}
+                                    </Badge>
+                                  )}
+                                </td>
+                                <td className="px-6 py-2 text-center">
+                                  <span className="text-[11px] font-black text-blue-900 bg-blue-100/50 px-2 rounded-full border border-blue-200">{r.quantity || 1}x</span>
+                                </td>
+                                <td className="px-6 py-2 text-[11px] font-extrabold text-blue-700">{formatCurrency(r.price || 0)}</td>
+                                <td className="px-6 py-2 text-right">
+                                  <div className="flex items-center justify-end gap-1.5">
+                                    {isEditing ? (
                                       <>
-                                        <AlertTriangle className="w-3 h-3" />
-                                        {r.time_slot === 'INDIV' ? 'HORÁRIO NÃO DEFINIDO' : 'DUPLA (AGUARDANDO)'}
+                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-emerald-600 bg-emerald-50 hover:bg-emerald-600 hover:text-white border border-emerald-200" onClick={() => saveEditing('quad')}>
+                                          <Check className="w-4 h-4" />
+                                        </Button>
+                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 bg-white hover:bg-slate-100 border border-slate-200" onClick={cancelEditing}>
+                                          <X className="w-4 h-4" />
+                                        </Button>
                                       </>
                                     ) : (
                                       <>
-                                        <Clock className="w-3 h-3" />
-                                        {r.time_slot}
+                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm border border-blue-100 flex items-center justify-center" onClick={(e: any) => { e.stopPropagation(); startEditing(r); }}>
+                                          <Pencil className="w-3.5 h-3.5" />
+                                        </Button>
+                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500 hover:bg-red-600 hover:text-white transition-all shadow-sm border border-red-100" onClick={(e: any) => { e.stopPropagation(); requestDelete(r, 'quad'); }}>
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </Button>
                                       </>
                                     )}
-                                  </span>
-                                )}
-                              </td>
-                              <td className="px-6 py-2 text-[11px] text-blue-700/60 font-black uppercase tracking-wider">Item #{idx + 1}</td>
-                              <td className="px-6 py-2">
-                                {isEditing ? (
-                                  <div className="flex flex-col gap-1 w-32">
-                                    <Select value={editData.quad_type || 'individual'} onValueChange={v => setEditData({...editData, quad_type: v})}>
-                                       <SelectTrigger className="h-7 text-[10px] font-bold bg-white"><SelectValue /></SelectTrigger>
-                                       <SelectContent>
-                                          {Object.entries(QUAD_MODELS_LABELS).map(([k, v]) => <SelectItem key={k} value={k} className="text-[10px]">{v}</SelectItem>)}
-                                       </SelectContent>
-                                    </Select>
                                   </div>
-                                ) : (
-                                  <Badge variant="outline" className="text-[9px] border-blue-100 text-blue-700 bg-white/50 font-black tracking-widest px-2">
-                                    {QUAD_MODELS_LABELS[r.quad_type || (r.time_slot === 'DUPLA' ? 'dupla' : 'individual')] || 'Individual'}
-                                  </Badge>
-                                )}
-                              </td>
-                              <td className="px-6 py-2 text-center">
-                                <span className="text-[11px] font-black text-blue-900 bg-blue-100/50 px-2 rounded-full border border-blue-200">{r.quantity || 1}x</span>
-                              </td>
-                              <td className="px-6 py-2 text-[11px] font-extrabold text-blue-700">{formatCurrency(r.price || 0)}</td>
-                              <td className="px-6 py-2 text-right">
-                                <div className="flex items-center justify-end gap-1.5">
-                                  {isEditing ? (
-                                    <>
-                                      <Button size="icon" variant="ghost" className="h-8 w-8 text-emerald-600 bg-emerald-50 hover:bg-emerald-600 hover:text-white border border-emerald-200" onClick={() => saveEditing('quad')}>
-                                        <Check className="w-4 h-4" />
-                                      </Button>
-                                      <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 bg-white hover:bg-slate-100 border border-slate-200" onClick={cancelEditing}>
-                                        <X className="w-4 h-4" />
-                                      </Button>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm border border-blue-100 flex items-center justify-center opacity-0 group-hover:opacity-100" onClick={(e) => { e.stopPropagation(); startEditing(r); }}>
-                                        <Pencil className="w-3.5 h-3.5" />
-                                      </Button>
-                                      <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500 hover:bg-red-600 hover:text-white transition-all shadow-sm border border-red-100" onClick={(e) => { e.stopPropagation(); requestDelete(r, 'quad'); }}>
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                      </Button>
-                                    </>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </React.Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </React.Fragment>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
           </div>
         </div>
 
@@ -1269,18 +1391,60 @@ export default function Admin() {
 
        <div className="max-w-7xl mx-auto space-y-6 md:space-y-8 relative z-10 p-3 md:p-8">
           {/* HEADER */}
-          <div className="flex flex-col xl:flex-row xl:items-start xl:items-center justify-between gap-6 mb-4">
-              <div className="space-y-2 shrink-0">
-                  <h1 className="text-4xl md:text-5xl font-black tracking-tighter flex items-center gap-4">
-                       <div className="flex flex-col -space-y-1 md:-space-y-1 md:-space-y-2">
-                          <span className="text-xl md:text-xl md:text-2xl text-[#FFF033]/80 leading-none shadow-sm">Lessa</span>
-                          <span className="text-4xl md:text-4xl md:text-5xl text-[#FFF033] shadow-md">Painel</span>
-                       </div>
-                   </h1>
-                  <p className="text-[#FFF033] font-black uppercase tracking-[0.2em] md:tracking-[0.3em] text-[8px] md:text-[10px] bg-[#FFF033]/10 w-fit px-3 py-1 rounded-full border border-[#FFF033]/30 backdrop-blur-sm">Gestão Integrada de Reservas • Balneário</p>
-              </div>
+          <div className="flex flex-col xl:flex-row xl:items-start justify-between gap-6 mb-4">
+              <div className="flex items-start justify-between w-full xl:w-auto">
+                 <div className="space-y-2 shrink-0">
+                     <h1 className="text-4xl md:text-5xl font-black tracking-tighter flex items-center gap-4">
+                          <div className="flex flex-col -space-y-1 md:-space-y-1 md:-space-y-2">
+                             <span className="text-xl md:text-xl md:text-2xl text-[#FFF033]/80 leading-none shadow-sm">Lessa</span>
+                             <span className="text-4xl md:text-4xl md:text-5xl text-[#FFF033] shadow-md">Painel</span>
+                          </div>
+                       </h1>
+                     <p className="text-[#FFF033] font-black uppercase tracking-[0.2em] md:tracking-[0.3em] text-[8px] md:text-[10px] bg-[#FFF033]/10 w-fit px-3 py-1 rounded-full border border-[#FFF033]/30 backdrop-blur-sm">Gestão Integrada de Reservas • Balneário</p>
+                 </div>
 
-              {/* STATS IN HEADER */}
+                 {/* MOBILE BUTTONS (TOP RIGHT) */}
+                 <div className="flex xl:hidden items-center gap-2">
+                    <Button 
+                      variant="outline"
+                      className="w-10 h-10 rounded-xl bg-white/10 border border-white/20 p-0 hover:bg-white/20 text-[#FFF033] shadow-lg backdrop-blur-md transition-all active:scale-95" 
+                      onClick={fetchData} 
+                      disabled={loading}
+                    >
+                       {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
+                    </Button>
+
+                    <Button 
+                      className="w-10 h-10 rounded-xl bg-[#FFF033] text-black p-0 shadow-lg hover:scale-105 active:scale-95 transition-all border-0" 
+                      onClick={handleLogout}
+                    >
+                       <LogOut className="w-5 h-5" />
+                    </Button>
+                 </div>
+              </div>
+              {/* DESKTOP BUTTONS (RIGHT) */}
+              <div className="hidden xl:flex items-center gap-4 shrink-0">
+                 <Button 
+                   variant="outline"
+                   className="rounded-2xl bg-white/10 border-2 border-white/20 font-black h-12 px-6 hover:bg-white/20 text-[#FFF033] shadow-xl backdrop-blur-md transition-all active:scale-95" 
+                   onClick={fetchData} 
+                   disabled={loading}
+                 >
+                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
+                    <span className="ml-2">Atualizar</span>
+                 </Button>
+
+                 <Button 
+                   className="rounded-2xl bg-[#FFF033] text-black font-black h-12 px-8 shadow-2xl hover:scale-105 active:scale-95 transition-all border-0 text-base" 
+                   onClick={handleLogout}
+                 >
+                    <LogOut className="w-5 h-5 mr-2" /> <span>Sair</span>
+                 </Button>
+              </div>
+          </div>
+
+          {/* STATS IN HEADER */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 px-0 md:px-4">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 flex-1 px-0 md:px-4">
                  <Card onClick={() => setActiveTab('quiosques')} className="cursor-pointer bg-emerald-900 border-2 border-emerald-500 shadow-xl rounded-2xl p-2 md:p-3 flex items-center justify-between hover:bg-bg-emerald-900 transition-all group overflow-hidden relative min-h-[60px] md:h-[65px]">
                     <div className="flex items-center gap-2 relative z-10">
@@ -1336,24 +1500,6 @@ export default function Admin() {
                  </Card>
               </div>
 
-                            <div className="flex items-center gap-2 md:gap-4 shrink-0">
-                 <Button 
-                   variant="outline"
-                   className="rounded-2xl bg-white/10 border-2 border-white/20 font-black h-10 md:h-12 px-4 md:px-6 hover:bg-white/20 text-[#FFF033] shadow-xl backdrop-blur-md transition-all active:scale-95" 
-                   onClick={fetchData} 
-                   disabled={loading}
-                 >
-                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
-                    <span className="ml-2 hidden md:inline">Atualizar</span>
-                 </Button>
-
-                 <Button 
-                   className="rounded-2xl bg-[#FFF033] text-black font-black h-10 md:h-12 px-6 md:px-8 shadow-2xl hover:scale-105 active:scale-95 transition-all border-0 text-sm md:text-base" 
-                   onClick={handleLogout}
-                 >
-                    <LogOut className="w-5 h-5 md:mr-2" /> <span className="hidden md:inline">Sair</span>
-                 </Button>
-              </div>
           </div>
 
           {/* TABS */}
@@ -1383,7 +1529,7 @@ export default function Admin() {
                 <CalendarCheck className="w-4 h-4 md:w-4.5 md:h-4.5" /> Agenda
              </button>
              <button onClick={() => setActiveTab('vendas')} className={cn(
-               "col-span-2 lg:flex-1 px-4 md:px-8 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap", 
+               "hidden lg:flex lg:flex-1 px-4 md:px-8 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap", 
                activeTab === 'vendas' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
              )}>
                 <ShoppingBag className="w-4 h-4 md:w-4.5 md:h-4.5" /> Vendas

@@ -131,7 +131,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
 
         <div className="bg-white rounded-[1.5rem] md:rounded-[2rem] overflow-hidden shadow-xl border border-emerald-100/50">
           {/* MOBILE CARDS VIEW */}
-          <div className="md:hidden divide-y divide-emerald-100/50">
+          <div className="md:hidden space-y-4 p-4 bg-slate-50/30">
              {bookings.map((booking) => {
                 const config = STATUS_CONFIG[booking.status] || STATUS_CONFIG.pending;
                 const StatusIcon = config.icon;
@@ -141,7 +141,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                 const totalPeople = (booking.adults || 0) + childrenCount;
 
                 return (
-                   <div key={booking.id} className={cn("p-4 space-y-4", expanded ? "bg-emerald-50/30" : "bg-white")}>
+                   <div key={booking.id} className={cn("p-4 space-y-4 mb-4 rounded-2xl border-2 border-emerald-100 shadow-sm", expanded ? "bg-emerald-50/30" : "bg-white")}>
                       <div className="flex items-center justify-between" onClick={() => setExpandedId(expanded ? null : booking.id)}>
                          <div className="flex flex-col">
                             <div className="flex items-center gap-1.5 mb-1">
