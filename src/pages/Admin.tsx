@@ -138,9 +138,23 @@ export default function Admin() {
             const resDate = o.visit_date || o.created_at.split('T')[0];
             const customerName = o.customer_name || 'Venda Loja';
             
+            let orderAdults = 0;
+            let orderChildren = 0;
+
             o.order_items.forEach((item: any) => {
                const pId = (item.product_id || '').toLowerCase();
                const pName = (item.product_name || '').toLowerCase();
+               const qty = item.quantity || 1;
+               
+               // Extração de contagem de pessoas
+               if (pName.includes('adulto') || pName.includes('acesso') || pName.includes('passaporte') || pId.includes('adulto')) {
+                  if (!pName.includes('criança') && !pName.includes('gratuito')) {
+                     orderAdults += qty;
+                  }
+               }
+               if (pName.includes('criança') || pName.includes('gratuito') || pId.includes('criança')) {
+                  orderChildren += qty;
+               }
                
                // Only add Kiosks from orders if NOT already in parsedKiosks (via order_id)
                if ((pId.includes('quiosque') || pName.includes('quiosque')) && !parsedKiosks.some(pk => pk.order_id === o.id)) {
@@ -203,6 +217,10 @@ export default function Admin() {
                   });
                }
             });
+            
+            // Atribuir contagens extraídas se não estiverem presentes
+            o.adults = o.adults || orderAdults;
+            o.children = o.children || orderChildren;
          });
       }
 
@@ -462,24 +480,18 @@ export default function Admin() {
                 <span className="text-[9px] font-black uppercase tracking-widest mt-0.5 text-blue-800">Quadriciclos Alugados</span>
              </Card>
              
-             <Card className="bg-amber-50 border-4 border-amber-300 text-amber-950 shadow-2xl rounded-[1.5rem] p-4 flex flex-col items-start hover:shadow-amber-400/40 transition-all group overflow-hidden relative">
-                <div className="absolute -top-4 -right-4 p-4 opacity-[0.05] group-hover:scale-110 group-hover:opacity-[0.15] transition-all"><Users className="w-20 h-20 text-amber-600" /></div>
-                <div className="p-2.5 rounded-xl bg-amber-100 text-amber-700 mb-2 border-2 border-amber-200 shadow-sm">
-                   <Users className="w-4 h-4" />
-                </div>
-                <span className="text-3xl font-black tabular-nums tracking-tighter">{dayTotalPeople}</span>
-                <span className="text-[9px] font-black uppercase tracking-widest mt-0.5 text-amber-800">Total de Pessoas</span>
-             </Card>
-             
-             <Card className="bg-slate-900 border-4 border-slate-700 text-white shadow-2xl rounded-[1.5rem] p-4 flex flex-col items-start hover:scale-[1.02] transition-all group overflow-hidden relative">
-                <div className="absolute -top-4 -right-4 p-4 opacity-20 group-hover:scale-110 transition-all"><TrendingUp className="w-20 h-20 text-white" /></div>
-                <div className="p-2.5 rounded-xl bg-white/10 text-emerald-100 mb-2 border-2 border-white/20 backdrop-blur-md">
+             <Card className="bg-slate-900 border-4 border-emerald-500 shadow-2xl rounded-[2rem] p-4 flex flex-col items-start hover:scale-[1.02] transition-all group overflow-hidden relative">
+                <div className="absolute -top-4 -right-4 p-4 opacity-20 group-hover:scale-110 transition-all"><TrendingUp className="w-20 h-20 text-emerald-700" /></div>
+                <div className="p-2.5 rounded-xl bg-emerald-500/20 text-emerald-100 mb-2 border border-emerald-400/30 backdrop-blur-md">
                    <TrendingUp className="w-4 h-4" />
                 </div>
-                <span className="text-2xl font-black tabular-nums tracking-tighter">
-                  {formatCurrency(dayKiosks.reduce((s, r) => s + (r.price || 0), 0) + dayQuads.reduce((s, r) => s + (r.price || 0), 0))}
+                <span className="text-3xl font-black tabular-nums tracking-tighter text-white">
+                  {formatCurrency(
+                    dayBookings.reduce((s, b) => b.status !== 'cancelled' ? s + (b.total_amount || 0) : s, 0) + 
+                    dayOrders.reduce((s, o) => o.status !== 'cancelled' ? s + (o.total_amount || 0) : s, 0)
+                  )}
                 </span>
-                <span className="text-[9px] font-black uppercase tracking-widest mt-0.5 text-emerald-400">Receita Estruturas</span>
+                <span className="text-[9px] font-black uppercase tracking-widest mt-1 text-emerald-700">Receita Total do Dia</span>
              </Card>
           </div>
 
@@ -529,7 +541,7 @@ export default function Admin() {
                                   {booking.customer_name}
                                </span>
                              ) : (
-                               <span className="text-emerald-600/60 italic font-bold text-[13px]">Livre</span>
+                               <span className="text-emerald-800/80 italic font-bold text-[13px]">Livre</span>
                              )}
                           </div>
                         );
@@ -658,7 +670,7 @@ export default function Admin() {
                       ),
                       day_selected: "bg-emerald-800 text-white hover:bg-emerald-700 border-emerald-800 shadow-xl shadow-emerald-900/30 !opacity-100",
                       day_today: "bg-yellow-400 text-emerald-950 border-yellow-500 shadow-lg font-black ring-2 ring-yellow-200 ring-offset-2",
-                      day_outside: "text-emerald-900/30 font-bold opacity-50 bg-transparent shadow-none border-transparent",
+                      day_outside: "text-emerald-900/60 font-bold opacity-50 bg-transparent shadow-none border-transparent",
                     }}
                     components={{
                       DayContent: ({ date }) => {
@@ -799,7 +811,7 @@ export default function Admin() {
                         </td>
                         <td className="px-6 py-4">
                           <span className="font-black text-emerald-950 uppercase">{group.customer_name}</span>
-                          <div className="text-[10px] text-emerald-600/60 font-black mt-0.5">{group.items.length} reserva(s)</div>
+                          <div className="text-[10px] text-emerald-800/80 font-black mt-0.5">{group.items.length} reserva(s)</div>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex flex-col gap-1">
@@ -1174,10 +1186,10 @@ export default function Admin() {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#f0fff4] via-white to-[#e0f2fe] bg-fixed">
+    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-emerald-900 via-slate-950 to-black bg-fixed">
        {/* Ambient Glows */}
-       <div className="absolute -top-24 -right-24 w-96 h-96 bg-emerald-200/20 blur-[120px] rounded-full" />
-       <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-blue-200/20 blur-[120px] rounded-full" />
+       <div className="absolute -top-24 -right-24 w-96 h-96 bg-emerald-500/10 blur-[120px] rounded-full" />
+       <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-blue-500/10 blur-[120px] rounded-full" />
 
        <div className="max-w-7xl mx-auto space-y-8 relative z-10 p-4 md:p-8">
           {/* HEADER */}
@@ -1185,7 +1197,7 @@ export default function Admin() {
               <div className="space-y-2">
                  <h1 className="text-5xl font-black text-emerald-900 tracking-tighter flex items-center gap-4">
                      <div className="flex flex-col -space-y-2">
-                        <span className="text-2xl text-emerald-600/60 leading-none">Lessa</span>
+                        <span className="text-2xl text-emerald-800/80 leading-none">Lessa</span>
                         <span className="text-5xl">Painel</span>
                      </div>
                  </h1>

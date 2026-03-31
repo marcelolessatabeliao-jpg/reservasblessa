@@ -68,7 +68,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
 
   if (bookings.length === 0) {
     return (
-      <div className="text-center py-20 bg-emerald-50/30 rounded-3xl border-2 border-dashed border-emerald-100/50 text-emerald-900/40 font-black animate-in fade-in zoom-in-95 duration-500 uppercase tracking-widest text-[10px]">
+      <div className="text-center py-20 bg-emerald-50/30 rounded-3xl border-2 border-dashed border-emerald-100/50 text-emerald-950/70 font-black animate-in fade-in zoom-in-95 duration-500 uppercase tracking-widest text-[10px]">
         Nenhuma reserva encontrada.
       </div>
     );
@@ -110,7 +110,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
         {selectedIds.size > 0 && (
           <div className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[100] bg-emerald-950 text-white px-8 py-4 rounded-[2rem] shadow-2xl border border-white/10 flex items-center gap-8 animate-in slide-in-from-bottom-12 duration-500 backdrop-blur-2xl">
              <div className="flex flex-col">
-               <span className="text-[8px] font-black uppercase tracking-widest text-emerald-400 mb-0.5">Selecionados</span>
+               <span className="text-[8px] font-black uppercase tracking-widest text-emerald-700 mb-0.5">Selecionados</span>
                <span className="text-xl font-black tabular-nums">{selectedIds.size}</span>
              </div>
              <div className="h-10 w-px bg-white/10" />
@@ -128,7 +128,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
                <thead className="bg-[#0b2b24]">
-                  <tr className="text-[10px] font-extrabold uppercase text-emerald-400/80 tracking-widest border-b border-white/5">
+                  <tr className="text-[10px] font-extrabold uppercase text-emerald-700/80 tracking-widest border-b border-white/5">
                      <th className="p-5 w-14 text-center">
                         <input 
                           type="checkbox" 
@@ -177,7 +177,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                              <td className="p-5">
                                 <div className="space-y-1 min-w-[130px]">
                                    <div className="flex items-center gap-2">
-                                      <Calendar className={cn("w-3.5 h-3.5", isToday(bookingDate) ? "text-emerald-600" : "text-emerald-900/30")} />
+                                      <Calendar className={cn("w-3.5 h-3.5", isToday(bookingDate) ? "text-emerald-600" : "text-emerald-700/60")} />
                                       <span className={cn(
                                         "text-[13px] font-bold uppercase tracking-tight",
                                         isToday(bookingDate) ? "text-emerald-600" : "text-emerald-950"
@@ -186,7 +186,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                       </span>
                                    </div>
                                    <div className="flex items-center gap-2">
-                                      <span className="text-[9px] font-bold text-emerald-900/40 uppercase tracking-widest pl-5">
+                                      <span className="text-[9px] font-bold text-emerald-950/70 uppercase tracking-widest pl-5">
                                          {format(bookingDate, "EEEE", { locale: ptBR })}
                                       </span>
                                    </div>
@@ -207,7 +207,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                      {booking.name || (booking as any).customer_name || 'CLIENTE GERAL'}
                                    </span>
                                    <div className="flex items-center gap-2">
-                                      <span className="bg-emerald-50/50 text-emerald-800/40 border border-emerald-100 px-2 py-0.5 rounded-lg font-bold text-[8px] uppercase tracking-widest">
+                                      <span className="bg-emerald-50/50 text-emerald-900/80 border border-emerald-100 px-2 py-0.5 rounded-lg font-bold text-[8px] uppercase tracking-widest">
                                          ID: {booking.id.slice(0, 8)}
                                       </span>
                                       {booking.is_associado && (
@@ -226,13 +226,13 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                              <td className="p-5 text-right">
                                 <div className="flex flex-col items-end">
                                    <span className="text-2xl font-extrabold text-emerald-600 tracking-tighter">{formatCurrency(booking.total_amount)}</span>
-                                   <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-widest mt-0.5">Auditado OK</span>
+                                   <span className="text-[9px] font-bold text-emerald-700 uppercase tracking-widest mt-0.5">Auditado OK</span>
                                 </div>
                              </td>
                              <td className="p-5 text-center">
                                 <Button size="icon" variant="ghost" className={cn(
                                   "h-12 w-12 rounded-2xl transition-all duration-300 border-2",
-                                  expanded ? "bg-emerald-900 text-white border-emerald-950 rotate-180 shadow-lg" : "text-emerald-400 border-emerald-100 hover:bg-emerald-600 hover:text-white hover:border-emerald-600"
+                                  expanded ? "bg-emerald-900 text-white border-emerald-950 rotate-180 shadow-lg" : "text-emerald-700 border-emerald-100 hover:bg-emerald-600 hover:text-white hover:border-emerald-600"
                                 )}>
                                    <ChevronDown className="w-6 h-6" />
                                 </Button>
@@ -256,7 +256,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                                       <CalendarClock className="w-5 h-5" />
                                                     </div>
                                                     <div>
-                                                       <h4 className="text-[8px] font-black uppercase text-emerald-900/30 tracking-widest">Ações Rápidas</h4>
+                                                       <h4 className="text-[8px] font-black uppercase text-emerald-700/60 tracking-widest">Ações Rápidas</h4>
                                                        <p className="text-base font-extrabold text-emerald-950">Controle de Reserva</p>
                                                     </div>
                                                  </div>
@@ -359,7 +359,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
 
                                         <div className="bg-emerald-950 text-white p-6 rounded-3xl shadow-lg border border-emerald-900 flex flex-col space-y-4">
                                            <div className="flex items-center gap-3">
-                                              <StickyNote className="w-5 h-5 text-emerald-400" />
+                                              <StickyNote className="w-5 h-5 text-emerald-700" />
                                               <p className="text-sm font-extrabold uppercase tracking-widest text-white/40">Notas Internas</p>
                                            </div>
 
@@ -387,7 +387,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                                   </div>
                                                 ) : (
                                                   <div className="flex flex-col items-center gap-2">
-                                                    <Plus className="w-5 h-5 text-white/20 group-hover/note:text-emerald-400 transition-all" />
+                                                    <Plus className="w-5 h-5 text-white/20 group-hover/note:text-emerald-700 transition-all" />
                                                     <span className="text-[8px] font-bold uppercase text-white/20 tracking-widest">Nova Anotação</span>
                                                   </div>
                                                 )}

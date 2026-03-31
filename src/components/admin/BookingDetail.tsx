@@ -33,11 +33,10 @@ interface BookingDetailProps {
 
 export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefresh }: BookingDetailProps) {
   const { toast } = useToast();
-  const children = Array.isArray(booking.children) ? booking.children : [];
+  const childrenCount = Array.isArray(booking.children) ? booking.children.length : (typeof booking.children === 'number' ? booking.children : 0);
   const kiosks = Array.isArray(booking.kiosks) ? booking.kiosks : [];
   const quads = Array.isArray(booking.quads) ? booking.quads : [];
   const additionals = Array.isArray(booking.additionals) ? booking.additionals : (booking.additionals ? Object.entries(booking.additionals).map(([k, v]: any) => ({ id: k, ...v })) : []);
-  
   const [localItems, setLocalItems] = useState<any[]>([]);
   const [showResumo, setShowResumo] = useState(false);
   const [loadingItems, setLoadingItems] = useState(false);
@@ -110,7 +109,6 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
   };
 
   const displayId = booking.id.split('-')[0].toUpperCase();
-  const childrenCount = children.length;
   const totalPeople = (booking.adults || 0) + childrenCount;
 
   // Build financial summary
@@ -173,20 +171,27 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
                   </div>
                 )}
                 {localItems.length > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="font-bold text-slate-700">🛒 Produtos/Loja</span>
-                    <span className="font-black text-purple-700">{formatCurrency(itemsTotal)}</span>
+                  <div className="pt-2 border-t border-slate-200 mt-2 space-y-1.5">
+                    <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest mb-1">Itens Adicionais e Consumo</p>
+                    {localItems.map((item: any, idx: number) => (
+                      <div key={idx} className="flex justify-between text-[11px]">
+                        <span className="text-slate-600 truncate max-w-[180px]">{item.quantity}x {item.product_name}</span>
+                        <span className="font-bold text-slate-800">{formatCurrency(item.unit_price * item.quantity)}</span>
+                      </div>
+                    ))}
                   </div>
                 )}
-                {discount > 0 && (
-                  <div className="flex justify-between text-sm border-t pt-2 mt-2">
-                    <span className="font-bold text-red-700">🏷️ Desconto/Ajuste</span>
-                    <span className="font-black text-red-600">-{formatCurrency(discount)}</span>
+                {discount !== 0 && (
+                  <div className="flex justify-between text-xs pt-2 border-t border-slate-100 italic">
+                    <span className="text-slate-500">Ajuste/Desconto em Lote</span>
+                    <span className={cn("font-bold", discount < 0 ? "text-emerald-600" : "text-red-500")}>
+                      {discount < 0 ? '-' : '+'}{formatCurrency(Math.abs(discount))}
+                    </span>
                   </div>
                 )}
-                <div className="flex justify-between border-t-2 border-emerald-200 pt-3 mt-3">
-                  <span className="font-black text-emerald-900 text-sm uppercase">TOTAL FINAL</span>
-                  <span className="font-black text-emerald-700 text-xl">{formatCurrency(booking.total_amount)}</span>
+                <div className="flex justify-between items-center pt-3 border-t-2 border-emerald-300 mt-2">
+                  <span className="text-sm font-black text-emerald-900 uppercase">Total Final Pago</span>
+                  <span className="text-xl font-black text-emerald-600">{formatCurrency(booking.total_amount)}</span>
                 </div>
               </div>
               {/* Status info */}
