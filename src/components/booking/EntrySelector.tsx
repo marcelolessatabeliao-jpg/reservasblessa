@@ -315,10 +315,43 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
       }
 
       case 5: { // Proof required warning for professional categories
-        const proofLabels: Record<string, { label: string; emoji: string; color: string; docs: string }> = {
-          professor: { label: 'Professor', emoji: '📚', color: 'text-blue-800', docs: 'contracheque, cartão funcional ou declaração da escola' },
-          estudante: { label: 'Estudante', emoji: '🎓', color: 'text-violet-800', docs: 'carteirinha estudantil ou matrícula atualizada' },
-          servidor: { label: 'Servidor Público', emoji: '🏛️', color: 'text-emerald-800', docs: 'cartão funcional ou contracheque' },
+        const proofLabels: Record<string, { label: string; emoji: string; color: string; docs: string | string[] }> = {
+          professor: { 
+            label: 'Professor', 
+            emoji: '📚', 
+            color: 'text-blue-800', 
+            docs: [
+              '📄 Documentos aceitos para comprovação (basta 1):',
+              '✅ Contracheque ou holerite recente (constando função docente)',
+              '✅ Declaração da instituição de ensino privada (em papel timbrado e assinada)',
+              '✅ Carteira funcional emitida pela instituição ou sindicato',
+              '✅ Registro na Carteira de Trabalho (CTPS) na função de professor, junto a documento com foto'
+            ]
+          },
+          estudante: { 
+            label: 'Estudante', 
+            emoji: '🎓', 
+            color: 'text-violet-800', 
+            docs: [
+              '📄 Documentos aceitos para comprovação (basta 1):',
+              '✅ Carteirinha estudantil válida',
+              '✅ Declaração de matrícula atualizada',
+              '✅ Comprovante de matrícula ou boleto escolar vigente',
+              '✅ Documento oficial da instituição de ensino com nome do aluno e período letivo'
+            ]
+          },
+          servidor: { 
+            label: 'Servidor Público', 
+            emoji: '🏛️', 
+            color: 'text-emerald-800', 
+            docs: [
+              '📄 Documentos aceitos para comprovação (basta 1):',
+              '✅ Carteira funcional de servidor público',
+              '✅ Contracheque ou holerite recente',
+              '✅ Declaração do órgão público (em papel timbrado e assinada)',
+              '✅ Portaria de nomeação ou termo de posse'
+            ]
+          },
           doador: { label: 'Doador de Sangue/Medula', emoji: '🩸', color: 'text-red-800', docs: 'foto do comprovante de doação ou carteirinha de doador' },
           aniversariante: { label: 'Aniversariante da Semana', emoji: '🎂', color: 'text-amber-800', docs: 'RG ou documento com foto que comprove a data de nascimento' },
         };
@@ -335,9 +368,22 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                   {wizardData.category === 'aniversariante' ? 'Aniversariante da Semana — Grátis' : `${info.label} — R$ 25,00`}
                 </p>
               </div>
-                <div className="bg-amber-100 border border-amber-300 rounded-2xl px-4 py-3 text-xs text-amber-900 font-bold leading-snug text-left w-full">
-                  ⚠️ <span className="font-black">Comprovação obrigatória na entrada:</span><br/>
-                  {info.docs}
+                <div className="bg-amber-100/80 border border-amber-300 rounded-2xl px-5 py-4 text-xs text-amber-950 font-bold leading-relaxed text-left w-full shadow-sm">
+                  <div className="flex items-center gap-2 mb-2 text-amber-900">
+                    <span className="text-sm">⚠️</span>
+                    <span className="font-black uppercase tracking-tight">Comprovação obrigatória na entrada:</span>
+                  </div>
+                  {Array.isArray(info.docs) ? (
+                    <div className="space-y-1.5 ml-1">
+                      {info.docs.map((line, idx) => (
+                        <p key={idx} className={idx === 0 ? "mb-2 text-amber-900/80" : "pl-1"}>
+                          {line}
+                        </p>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="ml-1">{info.docs}</p>
+                  )}
                 </div>
 
 
