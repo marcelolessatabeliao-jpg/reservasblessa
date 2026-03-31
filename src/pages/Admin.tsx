@@ -678,12 +678,13 @@ export default function Admin() {
                     toDate={new Date(2030, 11, 31)}
                     fromDate={new Date(2024, 0, 1)}
                     disabled={(date) => !isAllowedDay(date)}
+                    hidden={(date) => !isAllowedDay(date)}
                     classNames={{
                       month: "space-y-6",
-                      caption: "flex justify-center pt-2 relative items-center mb-4 bg-emerald-800 rounded-2xl py-4 border-2 border-emerald-900 shadow-xl w-full px-8",
-                      caption_label: "text-sm font-black text-white uppercase tracking-[0.2em] text-center",
-                      nav: "flex items-center justify-between absolute inset-x-0 top-1/2 -translate-y-1/2 px-2 pointer-events-none z-30",
-                      nav_button: "h-9 w-9 bg-emerald-500 text-white border border-emerald-400 hover:bg-emerald-400 shadow-lg rounded-xl transition-all pointer-events-auto flex items-center justify-center",
+                      caption: "relative flex items-center justify-center h-14 mb-4 bg-emerald-800 rounded-[1rem] border-2 border-emerald-900 shadow-xl overflow-hidden",
+                      caption_label: "text-[11px] font-black text-white uppercase tracking-[0.3em]",
+                      nav: "absolute inset-0 flex items-center justify-between px-3 pointer-events-none z-30",
+                      nav_button: "h-8 w-8 bg-emerald-500 text-white border border-emerald-400 hover:bg-emerald-400 shadow-lg rounded-[0.5rem] transition-all pointer-events-auto flex items-center justify-center",
                       nav_button_previous: "relative",
                       nav_button_next: "relative",
                       table: "w-full border-collapse",
