@@ -738,12 +738,15 @@ export default function Admin() {
                     onSelect={(d) => d && setTargetDate(d)}
                     className="p-0 pointer-events-auto"
                     locale={ptBR}
-                    disabled={(date) => !isAllowedDay(date)}
+                    toDate={new Date(2030, 11, 31)}
+                    fromDate={new Date(2024, 0, 1)}
                     classNames={{
                       month: "space-y-6",
                       caption: "flex justify-center pt-2 relative items-center mb-4 bg-yellow-50/80 rounded-2xl py-3 border border-yellow-100/50",
                       caption_label: "text-lg font-black text-emerald-900 uppercase tracking-widest",
                       nav_button: "h-10 w-10 bg-white text-emerald-600 border border-emerald-100 hover:bg-emerald-50 shadow-sm rounded-xl transition-all",
+                      nav_button_previous: "absolute left-2 z-20",
+                      nav_button_next: "absolute right-2 z-20",
                       table: "w-full border-collapse",
                       head_cell: "text-emerald-900 font-extrabold text-[11px] uppercase tracking-[0.2em] w-12 py-4",
                       cell: "h-14 w-14 text-center p-0 relative focus-within:z-20",
@@ -1379,12 +1382,16 @@ export default function Admin() {
                           onSelect={(date) => setFilterDate(date ? format(date, 'yyyy-MM-dd') : '')}
                           locale={ptBR}
                           className="p-4"
+                          toDate={new Date(2030, 11, 31)}
+                          fromDate={new Date(2024, 0, 1)}
                           disabled={(date) => !isAllowedDay(date)}
                           classNames={{
                             month: "space-y-4",
                             caption: "flex justify-center pt-1 relative items-center mb-2 bg-yellow-50/80 rounded-xl py-2 border border-yellow-100/50",
                             caption_label: "text-sm font-black text-emerald-900 uppercase tracking-widest",
                             nav_button: "h-8 w-8 bg-white text-emerald-600 border border-emerald-100 hover:bg-emerald-50 shadow-sm rounded-lg transition-all",
+                            nav_button_previous: "absolute left-1 z-20",
+                            nav_button_next: "absolute right-1 z-20",
                           }}
                           components={{
                             DayContent: ({ date }) => {
@@ -1528,11 +1535,15 @@ export default function Admin() {
                   onSelect={setRescheduleDate}
                   locale={ptBR}
                   className="rounded-2xl"
+                  toDate={new Date(2030, 11, 31)}
+                  fromDate={new Date(2024, 0, 1)}
                   disabled={(date) => !isAllowedDay(date) || isBefore(date, startOfDay(new Date()))}
                   classNames={{
                     month: "space-y-4",
                     caption: "flex justify-center pt-1 relative items-center mb-2 bg-yellow-500/20 rounded-xl py-2 border border-yellow-500/30",
                     caption_label: "text-sm font-black text-emerald-950 uppercase tracking-widest",
+                    nav_button_previous: "absolute left-2 z-20",
+                    nav_button_next: "absolute right-2 z-20",
                     day_selected: "bg-blue-600 text-white hover:bg-blue-700",
                     day_today: "bg-blue-100 text-blue-900 font-bold"
                   }}
