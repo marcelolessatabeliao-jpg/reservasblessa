@@ -66,11 +66,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 // Constants from common types
 const KIOSKS = [
-  { id: 1, name: 'Quiosque 1 (Grande)', price: 100, capacity: 'Até 30 pessoas', type: 'Maior' },
-  { id: 2, name: 'Quiosque 2', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' },
-  { id: 3, name: 'Quiosque 3', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' },
-  { id: 4, name: 'Quiosque 4', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' },
-  { id: 5, name: 'Quiosque 5', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' }
+  { id: 1, name: 'QUIOSQUE - 01 (Grande)', price: 100, capacity: 'Até 30 pessoas', type: 'Maior' },
+  { id: 2, name: 'QUIOSQUE - 02', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' },
+  { id: 3, name: 'QUIOSQUE - 03', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' },
+  { id: 4, name: 'QUIOSQUE - 04', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' },
+  { id: 5, name: 'QUIOSQUE - 05', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' }
 ];
 
 const QUAD_TIMES = ['09:00', '10:30', '14:00', '15:30'];
@@ -514,37 +514,66 @@ export default function Admin() {
       <div className="grid lg:grid-cols-[1fr_360px] gap-8 animate-in fade-in duration-500">
         <div className="space-y-8">
           {/* STATS */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-             <Card onClick={() => setActiveTab('quiosques')} className="cursor-pointer bg-emerald-50 border-4 border-emerald-300 text-emerald-950 shadow-xl rounded-2xl p-3 flex flex-col items-start hover:shadow-emerald-400/30 hover:bg-emerald-100 transition-all group overflow-hidden relative">
-                <div className="absolute -top-2 -right-2 p-2 opacity-[0.05] group-hover:scale-110 group-hover:opacity-[0.15] transition-all"><Tent className="w-14 h-14 text-emerald-600" /></div>
-                <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-700 mb-1.5 border-2 border-emerald-200 shadow-sm">
-                   <Tent className="w-4 h-4" />
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+             <Card onClick={() => setActiveTab('quiosques')} className="cursor-pointer bg-emerald-50 border-2 border-emerald-300 text-emerald-950 shadow-lg rounded-2xl p-2.5 flex items-center justify-between hover:shadow-emerald-400/30 hover:bg-emerald-100 transition-all group overflow-hidden relative min-h-[70px]">
+                <div className="absolute -right-1 -top-1 p-1 opacity-[0.03] group-hover:scale-110 group-hover:opacity-[0.1] transition-all"><Tent className="w-12 h-12 text-emerald-600" /></div>
+                <div className="flex items-center gap-2.5 relative z-10">
+                   <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-700 border border-emerald-200">
+                      <Tent className="w-4 h-4" />
+                   </div>
+                   <div className="flex flex-col -space-y-1">
+                      <span className="text-lg font-black tabular-nums tracking-tighter">{dayKiosks.length}</span>
+                      <span className="text-[7.5px] font-black uppercase tracking-widest text-emerald-800">Quiosques Ocupados</span>
+                   </div>
                 </div>
-                <span className="text-xl font-black tabular-nums tracking-tighter">{dayKiosks.length}</span>
-                <span className="text-[8px] font-black uppercase tracking-widest text-emerald-800">Quiosques Ocupados</span>
+                <ArrowRight className="w-3.5 h-3.5 text-emerald-300 group-hover:text-emerald-700 group-hover:translate-x-1 transition-all" />
              </Card>
              
-             <Card onClick={() => setActiveTab('quads')} className="cursor-pointer bg-blue-50 border-4 border-blue-300 text-blue-950 shadow-xl rounded-2xl p-3 flex flex-col items-start hover:shadow-blue-400/30 hover:bg-blue-100 transition-all group overflow-hidden relative">
-                <div className="absolute -top-2 -right-2 p-2 opacity-[0.05] group-hover:scale-110 group-hover:opacity-[0.15] transition-all"><Bike className="w-14 h-14 text-blue-600" /></div>
-                <div className="p-1.5 rounded-lg bg-blue-100 text-blue-700 mb-1.5 border-2 border-blue-200 shadow-sm">
-                   <Bike className="w-4 h-4" />
+             <Card onClick={() => setActiveTab('quads')} className="cursor-pointer bg-blue-50 border-2 border-blue-300 text-blue-950 shadow-lg rounded-2xl p-2.5 flex items-center justify-between hover:shadow-blue-400/30 hover:bg-blue-100 transition-all group overflow-hidden relative min-h-[70px]">
+                <div className="absolute -right-1 -top-1 p-1 opacity-[0.03] group-hover:scale-110 group-hover:opacity-[0.1] transition-all"><Bike className="w-12 h-12 text-blue-600" /></div>
+                <div className="flex items-center gap-2.5 relative z-10">
+                   <div className="p-1.5 rounded-lg bg-blue-100 text-blue-700 border border-blue-200">
+                      <Bike className="w-4 h-4" />
+                   </div>
+                   <div className="flex flex-col -space-y-1">
+                      <span className="text-lg font-black tabular-nums tracking-tighter">{dayQuads.length}</span>
+                      <span className="text-[7.5px] font-black uppercase tracking-widest text-blue-800">Quadriciclos Alugados</span>
+                   </div>
                 </div>
-                <span className="text-xl font-black tabular-nums tracking-tighter">{dayQuads.length}</span>
-                <span className="text-[8px] font-black uppercase tracking-widest text-blue-800">Quadriciclos Alugados</span>
+                <ArrowRight className="w-3.5 h-3.5 text-blue-300 group-hover:text-blue-700 group-hover:translate-x-1 transition-all" />
              </Card>
              
-             <Card className="bg-slate-900 border-4 border-emerald-500 shadow-xl rounded-2xl p-3 flex flex-col items-start hover:scale-[1.02] transition-all group overflow-hidden relative">
-                <div className="absolute -top-2 -right-2 p-2 opacity-20 group-hover:scale-110 transition-all"><TrendingUp className="w-14 h-14 text-emerald-700" /></div>
-                <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-100 mb-1.5 border border-emerald-400/30 backdrop-blur-md">
-                   <TrendingUp className="w-4 h-4" />
+             <Card onClick={() => setActiveTab('vendas')} className="cursor-pointer bg-emerald-950 border-2 border-emerald-500 shadow-xl rounded-2xl p-2.5 flex items-center justify-between hover:bg-black transition-all group overflow-hidden relative min-h-[70px]">
+                <div className="absolute -right-1 -top-1 p-1 opacity-10 group-hover:scale-110 transition-all"><TrendingUp className="w-12 h-12 text-emerald-700" /></div>
+                <div className="flex items-center gap-2.5 relative z-10">
+                   <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-100 border border-emerald-400/30 backdrop-blur-md">
+                      <TrendingUp className="w-4 h-4" />
+                   </div>
+                   <div className="flex flex-col -space-y-1 text-white">
+                      <span className="text-lg font-black tabular-nums tracking-tighter">
+                        {formatCurrency(
+                          dayBookings.reduce((s, b) => b.status !== 'cancelled' ? s + (b.total_amount || 0) : s, 0) + 
+                          dayOrders.reduce((s, o) => o.status !== 'cancelled' ? s + (o.total_amount || 0) : s, 0)
+                        )}
+                      </span>
+                      <span className="text-[7.5px] font-black uppercase tracking-widest text-emerald-400">Receita Total do Dia</span>
+                   </div>
                 </div>
-                <span className="text-xl font-black tabular-nums tracking-tighter text-white">
-                  {formatCurrency(
-                    dayBookings.reduce((s, b) => b.status !== 'cancelled' ? s + (b.total_amount || 0) : s, 0) + 
-                    dayOrders.reduce((s, o) => o.status !== 'cancelled' ? s + (o.total_amount || 0) : s, 0)
-                  )}
-                </span>
-                <span className="text-[8px] font-black uppercase tracking-widest text-emerald-700">Receita Total do Dia</span>
+                <ArrowRight className="w-3.5 h-3.5 text-emerald-700 group-hover:text-white group-hover:translate-x-1 transition-all" />
+             </Card>
+
+             <Card onClick={() => setActiveTab('vendas')} className="cursor-pointer bg-amber-50 border-2 border-amber-300 text-amber-950 shadow-xl rounded-2xl p-2.5 flex items-center justify-between hover:bg-amber-100 transition-all group overflow-hidden relative min-h-[70px]">
+                <div className="absolute -right-1 -top-1 p-1 opacity-10 group-hover:scale-110 transition-all"><ShoppingBag className="w-12 h-12 text-amber-600" /></div>
+                <div className="flex items-center gap-2.5 relative z-10">
+                   <div className="p-1.5 rounded-lg bg-amber-100 text-amber-700 border border-amber-200">
+                      <ShoppingBag className="w-4 h-4" />
+                   </div>
+                   <div className="flex flex-col -space-y-1">
+                      <span className="text-lg font-black tabular-nums tracking-tighter">{dayOrders.length}</span>
+                      <span className="text-[7.5px] font-black uppercase tracking-widest text-amber-800">Vendas Realizadas</span>
+                   </div>
+                </div>
+                <ArrowRight className="w-3.5 h-3.5 text-amber-300 group-hover:text-amber-700 group-hover:translate-x-1 transition-all" />
              </Card>
           </div>
 
@@ -702,8 +731,8 @@ export default function Admin() {
                  </div>
               </div>
 
-              <div className="p-4 bg-white">
-                 <Calendar
+                <div className="p-4 bg-white">
+                  <Calendar
                     mode="single"
                     selected={targetDate}
                     onSelect={(d) => d && setTargetDate(d)}
@@ -712,9 +741,9 @@ export default function Admin() {
                     disabled={(date) => !isAllowedDay(date)}
                     classNames={{
                       month: "space-y-6",
-                      caption: "flex justify-center pt-2 relative items-center mb-4",
+                      caption: "flex justify-center pt-2 relative items-center mb-4 bg-yellow-50/80 rounded-2xl py-3 border border-yellow-100/50",
                       caption_label: "text-lg font-black text-emerald-900 uppercase tracking-widest",
-                      nav_button: "h-10 w-10 bg-emerald-50 text-emerald-600 border-0 hover:bg-emerald-100 rounded-xl transition-all",
+                      nav_button: "h-10 w-10 bg-white text-emerald-600 border border-emerald-100 hover:bg-emerald-50 shadow-sm rounded-xl transition-all",
                       table: "w-full border-collapse",
                       head_cell: "text-emerald-900 font-extrabold text-[11px] uppercase tracking-[0.2em] w-12 py-4",
                       cell: "h-14 w-12 text-center p-0 relative focus-within:z-20",
@@ -731,13 +760,19 @@ export default function Admin() {
                         const dateStr = format(date, 'yyyy-MM-dd');
                         const hasKiosk = kioskReservations.some(r => r.reservation_date === dateStr);
                         const hasQuad = quadReservations.some(r => r.reservation_date === dateStr);
+                        
+                        // Availability logic
+                        const kiosksFull = kioskReservations.filter(r => r.reservation_date === dateStr).length >= 5;
+                        const quadsFull = quadReservations.filter(r => r.reservation_date === dateStr).reduce((s, r) => s + (Number(r.quantity) || 1), 0) >= 20;
                         const isDayToday = isToday(date);
+                        const isFull = kiosksFull && quadsFull;
+
                         return (
-                          <div className="relative flex flex-col items-center">
-                            <span className={isDayToday ? "text-emerald-950 font-black" : ""}>{date.getDate()}</span>
+                          <div className={cn("relative flex flex-col items-center p-1 rounded-lg w-full h-full justify-center transition-all", isFull && "bg-red-50/50 border border-red-100")}>
+                            <span className={cn(isDayToday ? "text-emerald-950 font-black" : "", isFull && "text-red-600")}>{date.getDate()}</span>
                             <div className="flex gap-1 mt-0.5">
-                              {hasKiosk && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-sm" />}
-                              {hasQuad && <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-sm" />}
+                              {hasKiosk && <div className={cn("w-1.5 h-1.5 rounded-full shadow-sm", kiosksFull ? "bg-red-500" : "bg-emerald-500")} />}
+                              {hasQuad && <div className={cn("w-1.5 h-1.5 rounded-full shadow-sm", quadsFull ? "bg-red-500" : "bg-blue-500")} />}
                             </div>
                           </div>
                         );
@@ -749,8 +784,8 @@ export default function Admin() {
                     modifiersStyles={{
                       holiday: { border: '2px dashed #10b981', color: '#059669' }
                     }}
-                 />
-              </div>
+                  />
+                </div>
            </Card>
         </div>
       </div>
@@ -1135,7 +1170,7 @@ export default function Admin() {
 
         {/* HISTORY */}
         <div className="space-y-4">
-          <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+          <h4 className="text-xs font-black text-emerald-300 uppercase tracking-[0.2em] flex items-center gap-2 drop-shadow-sm">
              <History className="w-4 h-4" /> Histórico Mensal
           </h4>
           {quadHistory.map(([month, data]) => {
@@ -1258,7 +1293,7 @@ export default function Admin() {
               <div className="flex items-center gap-4">
                  <Button 
                    variant="ghost" 
-                   className="rounded-2xl bg-white border border-emerald-200/50 font-black h-12 px-6 hover:bg-emerald-50 hover:shadow-premium transition-all text-emerald-800" 
+                   className="rounded-2xl bg-white border border-emerald-200/50 font-black h-12 px-6 hover:bg-emerald-900 hover:text-white hover:border-emerald-700 hover:shadow-premium transition-all text-emerald-800" 
                    onClick={fetchData} 
                    disabled={loading}
                  >
@@ -1344,6 +1379,32 @@ export default function Admin() {
                           onSelect={(date) => setFilterDate(date ? format(date, 'yyyy-MM-dd') : '')}
                           locale={ptBR}
                           className="p-4"
+                          disabled={(date) => !isAllowedDay(date)}
+                          classNames={{
+                            month: "space-y-4",
+                            caption: "flex justify-center pt-1 relative items-center mb-2 bg-yellow-50/80 rounded-xl py-2 border border-yellow-100/50",
+                            caption_label: "text-sm font-black text-emerald-900 uppercase tracking-widest",
+                            nav_button: "h-8 w-8 bg-white text-emerald-600 border border-emerald-100 hover:bg-emerald-50 shadow-sm rounded-lg transition-all",
+                          }}
+                          components={{
+                            DayContent: ({ date }) => {
+                              const dateStr = format(date, 'yyyy-MM-dd');
+                              const hasKiosk = kioskReservations.some(r => r.reservation_date === dateStr);
+                              const hasQuad = quadReservations.some(r => r.reservation_date === dateStr);
+                              const kiosksFull = kioskReservations.filter(r => r.reservation_date === dateStr).length >= 5;
+                              const quadsFull = quadReservations.filter(r => r.reservation_date === dateStr).reduce((s, r) => s + (Number(r.quantity) || 1), 0) >= 20;
+                              const isFull = kiosksFull && quadsFull;
+                              return (
+                                <div className={cn("relative flex flex-col items-center p-0.5 rounded w-full h-full justify-center", isFull && "bg-red-50/50")}>
+                                  <span className={cn("text-[11px]", isFull && "text-red-500 font-black")}>{date.getDate()}</span>
+                                  <div className="flex gap-0.5 mt-0.5">
+                                    {hasKiosk && <div className={cn("w-1 h-1 rounded-full", kiosksFull ? "bg-red-500" : "bg-emerald-500")} />}
+                                    {hasQuad && <div className={cn("w-1 h-1 rounded-full", quadsFull ? "bg-red-500" : "bg-blue-500")} />}
+                                  </div>
+                                </div>
+                              );
+                            }
+                          }}
                         />
                       </PopoverContent>
                     </Popover>
@@ -1461,14 +1522,38 @@ export default function Admin() {
            
            <div className="p-8 space-y-6">
              <div className="bg-slate-50 rounded-3xl border-2 border-slate-200 p-4 shadow-inner">
-               <Calendar
-                 mode="single"
-                 selected={rescheduleDate}
-                 onSelect={setRescheduleDate}
-                 locale={ptBR}
-                 className="rounded-2xl"
-                 disabled={(date) => date < startOfDay(new Date())}
-               />
+                <Calendar
+                  mode="single"
+                  selected={rescheduleDate}
+                  onSelect={setRescheduleDate}
+                  locale={ptBR}
+                  className="rounded-2xl"
+                  disabled={(date) => !isAllowedDay(date) || isBefore(date, startOfDay(new Date()))}
+                  classNames={{
+                    month: "space-y-4",
+                    caption: "flex justify-center pt-1 relative items-center mb-2 bg-yellow-50/80 rounded-xl py-2 border border-yellow-100/50",
+                    caption_label: "text-sm font-black text-emerald-900 uppercase tracking-widest",
+                  }}
+                  components={{
+                    DayContent: ({ date }) => {
+                      const dateStr = format(date, 'yyyy-MM-dd');
+                      const hasKiosk = kioskReservations.some(r => r.reservation_date === dateStr);
+                      const hasQuad = quadReservations.some(r => r.reservation_date === dateStr);
+                      const kiosksFull = kioskReservations.filter(r => r.reservation_date === dateStr).length >= 5;
+                      const quadsFull = quadReservations.filter(r => r.reservation_date === dateStr).reduce((s, r) => s + (Number(r.quantity) || 1), 0) >= 20;
+                      const isFull = kiosksFull && quadsFull;
+                      return (
+                        <div className={cn("relative flex flex-col items-center p-0.5 rounded w-full h-full justify-center", isFull && "bg-red-50/50")}>
+                          <span className={cn("text-[11px]", isFull && "text-red-500 font-black")}>{date.getDate()}</span>
+                          <div className="flex gap-0.5 mt-0.5">
+                            {hasKiosk && <div className={cn("w-1 h-1 rounded-full", kiosksFull ? "bg-red-500" : "bg-emerald-500")} />}
+                            {hasQuad && <div className={cn("w-1 h-1 rounded-full", quadsFull ? "bg-red-500" : "bg-blue-500")} />}
+                          </div>
+                        </div>
+                      );
+                    }
+                  }}
+                />
              </div>
              
              <div className="flex gap-3">
