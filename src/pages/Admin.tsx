@@ -742,11 +742,12 @@ export default function Admin() {
                     fromDate={new Date(2024, 0, 1)}
                     classNames={{
                       month: "space-y-6",
-                      caption: "flex justify-center pt-2 relative items-center mb-4 bg-yellow-50/80 rounded-2xl py-3 border border-yellow-100/50",
+                      caption: "flex justify-center pt-2 relative items-center mb-4 bg-yellow-50/80 rounded-2xl py-3 border border-yellow-100/50 w-full",
                       caption_label: "text-lg font-black text-emerald-900 uppercase tracking-widest",
-                      nav_button: "h-10 w-10 bg-white text-emerald-600 border border-emerald-100 hover:bg-emerald-50 shadow-sm rounded-xl transition-all",
-                      nav_button_previous: "absolute left-2 z-20",
-                      nav_button_next: "absolute right-2 z-20",
+                      nav: "flex items-center justify-between absolute inset-x-0 inset-y-0 px-2 pointer-events-none z-30",
+                      nav_button: "h-10 w-10 bg-emerald-600 text-white border border-emerald-700 hover:bg-emerald-700 shadow-md rounded-xl transition-all pointer-events-auto flex items-center justify-center",
+                      nav_button_previous: "relative left-0",
+                      nav_button_next: "relative right-0",
                       table: "w-full border-collapse",
                       head_cell: "text-emerald-900 font-extrabold text-[11px] uppercase tracking-[0.2em] w-12 py-4",
                       cell: "h-14 w-14 text-center p-0 relative focus-within:z-20",
@@ -1387,11 +1388,12 @@ export default function Admin() {
                           disabled={(date) => !isAllowedDay(date)}
                           classNames={{
                             month: "space-y-4",
-                            caption: "flex justify-center pt-1 relative items-center mb-2 bg-yellow-50/80 rounded-xl py-2 border border-yellow-100/50",
+                            caption: "flex justify-center pt-1 relative items-center mb-2 bg-yellow-50/80 rounded-xl py-2 border border-yellow-100/50 w-full",
                             caption_label: "text-sm font-black text-emerald-900 uppercase tracking-widest",
-                            nav_button: "h-8 w-8 bg-white text-emerald-600 border border-emerald-100 hover:bg-emerald-50 shadow-sm rounded-lg transition-all",
-                            nav_button_previous: "absolute left-1 z-20",
-                            nav_button_next: "absolute right-1 z-20",
+                            nav: "flex items-center justify-between absolute inset-x-0 inset-y-0 px-1 pointer-events-none z-30",
+                            nav_button: "h-8 w-8 bg-emerald-600 text-white border border-emerald-700 hover:bg-emerald-700 shadow-md rounded-lg transition-all pointer-events-auto flex items-center justify-center",
+                            nav_button_previous: "relative left-0",
+                            nav_button_next: "relative right-0",
                           }}
                           components={{
                             DayContent: ({ date }) => {
@@ -1540,10 +1542,12 @@ export default function Admin() {
                   disabled={(date) => !isAllowedDay(date) || isBefore(date, startOfDay(new Date()))}
                   classNames={{
                     month: "space-y-4",
-                    caption: "flex justify-center pt-1 relative items-center mb-2 bg-yellow-500/20 rounded-xl py-2 border border-yellow-500/30",
+                    caption: "flex justify-center pt-1 relative items-center mb-2 bg-yellow-500/20 rounded-xl py-2 border border-yellow-500/30 w-full",
                     caption_label: "text-sm font-black text-emerald-950 uppercase tracking-widest",
-                    nav_button_previous: "absolute left-2 z-20",
-                    nav_button_next: "absolute right-2 z-20",
+                    nav: "flex items-center justify-between absolute inset-x-0 inset-y-0 px-2 pointer-events-none z-30",
+                    nav_button: "h-10 w-10 bg-blue-600 text-white border border-blue-700 hover:bg-blue-700 shadow-md rounded-xl transition-all pointer-events-auto flex items-center justify-center",
+                    nav_button_previous: "relative left-0",
+                    nav_button_next: "relative right-0",
                     day_selected: "bg-blue-600 text-white hover:bg-blue-700",
                     day_today: "bg-blue-100 text-blue-900 font-bold"
                   }}
