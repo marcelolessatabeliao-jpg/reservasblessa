@@ -220,7 +220,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
         return (
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-3 py-2">
             <div className="text-center mb-4">
-              <h4 className="text-xl font-black text-primary uppercase tracking-tight">Day Use — Adultos</h4>
+              <h4 className="text-xl font-black text-primary uppercase tracking-tight">Monte seu Day Use no Balneário</h4>
               <p className="text-sm text-primary/60 font-bold italic">R$ 50 ou R$ 25 Solidário/Especiais</p>
             </div>
             <div className="grid grid-cols-2 gap-2">
@@ -637,8 +637,16 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
             <h4 className="font-bold text-primary/60 text-xs uppercase tracking-widest pl-2">Lista de Acesso:</h4>
             
             {/* Adult Cards Ultra-Compact */}
-            {entry.adults.map((adult, i) => (
-              <div key={`adult-${i}`} className="bg-white/80 border border-primary/5 rounded-[1.5rem] px-4 py-3 flex items-center justify-between shadow-sm hover:shadow-md transition-all group">
+            <AnimatePresence mode="popLayout">
+              {entry.adults.map((adult, i) => (
+                <motion.div 
+                  layout
+                  initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.9, y: -10 }}
+                  key={`adult-${i}`} 
+                  className="bg-white/80 border border-primary/5 rounded-[1.5rem] px-4 py-3 flex items-center justify-between shadow-sm hover:shadow-md transition-all group overflow-hidden"
+                >
                 <div className="flex items-center gap-3">
                   <div className="bg-primary/5 p-2 rounded-xl text-primary group-hover:bg-primary group-hover:text-white transition-colors">
                     {adult.isTeacher || adult.isStudent ? <GraduationCap className="h-4 w-4" /> :
@@ -700,12 +708,21 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
-              </div>
+              </motion.div>
             ))}
+          </AnimatePresence>
 
             {/* Child Cards Ultra-Compact */}
-            {entry.children.map((child, i) => (
-              <div key={`child-${i}`} className="bg-white/80 border border-primary/5 rounded-[1.5rem] px-4 py-3 flex items-center justify-between shadow-sm hover:shadow-md transition-all group">
+            <AnimatePresence mode="popLayout">
+              {entry.children.map((child, i) => (
+                <motion.div 
+                  layout
+                  initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.9, y: -10 }}
+                  key={`child-${i}`} 
+                  className="bg-white/80 border border-primary/5 rounded-[1.5rem] px-4 py-3 flex items-center justify-between shadow-sm hover:shadow-md transition-all group overflow-hidden"
+                >
                 <div className="flex items-center gap-3">
                   <div className="bg-primary/5 p-2 rounded-xl text-primary group-hover:bg-primary group-hover:text-white transition-colors">
                     <Baby className="h-4 w-4" />
@@ -753,8 +770,9 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
-              </div>
+              </motion.div>
             ))}
+          </AnimatePresence>
 
             {(entry.adults.length === 0 && entry.children.length === 0) && (
               <div className="text-center py-10 border-2 border-dashed border-primary/10 rounded-[2.5rem] bg-primary/5">
@@ -765,21 +783,23 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
         </div>
 
         {/* Info Box */}
-        <div className="bg-sun/10 border border-sun/20 rounded-[2rem] p-4 flex items-start gap-3">
-          <Info className="h-5 w-5 text-sun-dark shrink-0 mt-0.5" />
-          <p className="text-[11px] font-bold text-sun-dark leading-relaxed">
+        <div className="bg-emerald-50 border border-emerald-100 rounded-[2rem] p-4 flex items-start gap-3 shadow-sm shadow-emerald-500/5">
+          <div className="bg-emerald-100 p-1.5 rounded-full">
+            <CheckCircle2 className="h-4 w-4 text-emerald-700" />
+          </div>
+          <p className="text-[11px] font-bold text-emerald-800 leading-relaxed">
             {entry.dayOfWeek === 'domingo' 
-              ? 'DOMINGO: Valor único de R$ 50,00 Inteira. PCD e TEA, Crianças, Idosos e Aniversariantes mantêm gratuidade. Professores, Estudantes e Servidores tem meia-entrada mediante comprovação.'
-              : 'DICA: Traga 1kg de alimento, livro, brinquedo ou roupas em bom estado para pagar Meia-Entrada (R$ 25,00) em sextas, sábados, segundas e feriados.'}
+              ? '✅ DOMINGO: Valor único de R$ 50,00 Inteira. PCD e TEA, Crianças, Idosos e Aniversariantes mantêm gratuidade. Professores, Estudantes e Servidores têm meia-entrada mediante comprovação.'
+              : '✅ DICA POSITIVA: Traga 1kg de alimento, livro, brinquedo ou roupas em bom estado para ativar seu benefício de Meia-Entrada (R$ 25,00) e ajudar quem precisa!'}
           </p>
         </div>
       </div>
 
       {/* Simplified Guided Wizard Modal */}
       <Dialog open={isWizardOpen} onOpenChange={(open) => { if(!open) resetWizard(); setIsWizardOpen(open); }}>
-        <DialogContent className="sm:max-w-md w-[100vw] h-full sm:h-auto sm:w-[95vw] bg-white rounded-none sm:rounded-[3rem] border-white shadow-2xl p-4 sm:p-6 overflow-y-auto">
-          <DialogHeader className="mb-0 sm:mb-2 sticky top-0 bg-white z-20 py-2 border-b sm:border-none">
-            <div className="flex items-center justify-center relative px-10">
+        <DialogContent className="w-[calc(100vw-16px)] max-w-md sm:max-w-md bg-white rounded-3xl sm:rounded-[3rem] border-white shadow-2xl p-4 sm:p-6 overflow-x-hidden overflow-y-auto max-h-[92dvh]">
+          <DialogHeader className="mb-0 sm:mb-2 top-0 bg-white z-20 py-2 border-b sm:border-none">
+            <div className="flex items-center justify-center relative">
               <DialogTitle className="text-xl sm:text-2xl font-bold text-center text-primary font-sans mt-2">
                 {wizardType === 'pcd' ? 'PCD / TEA' : 
                   wizardType === 'senior' ? 'Acesso Melhor Idade' :
@@ -789,7 +809,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
             </div>
           </DialogHeader>
 
-          <div className="relative px-2 pb-8">
+          <div className="relative px-1 pb-6">
             <AnimatePresence mode="wait">
               {renderWizardStep()}
             </AnimatePresence>

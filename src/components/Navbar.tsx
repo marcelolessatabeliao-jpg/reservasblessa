@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Menu, X, Calculator, Ticket, User, LogOut } from 'lucide-react';
+import { Menu, X, Calculator, Ticket, User, LogOut, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { motion } from 'framer-motion';
 import logo from '@/assets/logo.png';
-import { Settings } from 'lucide-react';
 
 const links = [
   { label: 'Início', href: '#inicio' },
@@ -47,11 +47,16 @@ export function Navbar() {
               </a>
             </Button>
             
-            <Button asChild variant="ghost" className="text-primary-foreground hover:bg-white/10 font-bold border border-white/20">
-              <a href="#especiais" className="flex items-center gap-2">
-                <Calculator className="h-4 w-4" /> Simule seu plano
-              </a>
-            </Button>
+            <motion.div
+              animate={{ scale: [1, 1.05, 1] }}
+              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+            >
+              <Button asChild variant="outline" className="bg-sun text-foreground hover:bg-sun-light border-none font-black shadow-lg shadow-sun/20">
+                <a href="#especiais" className="flex items-center gap-2">
+                  <Calculator className="h-4 w-4" /> Simular Plano
+                </a>
+              </Button>
+            </motion.div>
             
             <Button asChild className="bg-sun hover:bg-sun-light text-foreground font-sans font-bold px-6 shadow-lg shadow-sun/20">
               <a href="#reservas" className="flex items-center gap-2">
@@ -83,11 +88,16 @@ export function Navbar() {
                   <Settings className="h-5 w-5" /> Painel Admin
                 </a>
               </Button>
-              <Button asChild variant="ghost" className="text-white border border-white/20 hover:bg-white/10 h-12 font-bold" onClick={() => setOpen(false)}>
-                <a href="#especiais" className="flex items-center justify-center gap-2">
-                  <Calculator className="h-5 w-5" /> Simule seu plano
-                </a>
-              </Button>
+              <motion.div
+                animate={{ scale: [1, 1.02, 1] }}
+                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+              >
+                <Button asChild variant="outline" className="w-full bg-sun/20 text-sun border-sun/40 hover:bg-sun hover:text-foreground h-12 font-black transition-all" onClick={() => setOpen(false)}>
+                  <a href="#especiais" className="flex items-center justify-center gap-2">
+                    <Calculator className="h-5 w-5" /> Simule seu plano
+                  </a>
+                </Button>
+              </motion.div>
               
               <Button asChild className="bg-sun hover:bg-sun-light text-foreground h-12 font-display font-black shadow-lg" onClick={() => setOpen(false)}>
                 <a href="#reservas" className="flex items-center justify-center gap-2">

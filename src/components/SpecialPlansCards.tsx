@@ -1,17 +1,16 @@
 import { motion } from 'framer-motion';
-import { Briefcase, GraduationCap, Users, Info } from 'lucide-react';
+import { Briefcase, GraduationCap, Users, Info, Handshake } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const specialPlans = [
   {
     title: 'Lessa Parceiro',
-    icon: Briefcase,
-    description: 'Parcerias para empresas, igrejas e associações com benefícios exclusivos.',
-    benefits: ['Plano institucional coletivo', 'Carteirinha oficial digital + física', '5% Cashback em serviços', 'Sem taxa de adesão'],
-    cta: 'QUERO ME CADASTRAR',
-    ctaLink: 'https://wa.me/5569992626140',
+    icon: Handshake,
+    description: 'Parcerias que fortalecem! Benefícios exclusivos para empresas parceiras e seus colaboradores.',
+    benefits: ['Acesso com desconto especial', '5% Cashback em serviços', 'Sem taxa de adesão', 'Carteira digital/física'],
+    buttons: [{ label: 'Consultar', link: 'https://wa.me/5569999144358?text=Olá!%20Gostaria%20de%20saber%20mais%20sobre%20o%20Plano%20Lessa%20Parceiro.' }],
     price: "39,90",
-    priceNote: '/mês ou (meia-entrada no Day Use)',
+    priceNote: '/por colaborador',
     color: 'bg-blue-600 text-white border-blue-400 shadow-blue-200/50',
   },
   {
@@ -115,37 +114,15 @@ export function SpecialPlansCards() {
                 ))}
               </ul>
               
-              {plan.buttons ? (
-                <div className="flex gap-2 w-full mt-auto">
-                  {plan.buttons.map((btn, bidx) => (
-                    <Button key={bidx} asChild className="flex-1 bg-white text-foreground hover:bg-sun hover:text-foreground border-none font-black text-[10px] uppercase tracking-widest py-6 rounded-xl shadow-lg transition-all">
-                      <a href={btn.link} target="_blank" rel="noopener noreferrer">{btn.label}</a>
-                    </Button>
-                  ))}
-                </div>
-              ) : (
-                <Button asChild className="w-full mt-auto bg-white text-foreground hover:bg-sun hover:text-foreground border-none font-black text-[10px] uppercase tracking-widest py-6 rounded-xl shadow-lg transition-all">
-                  <a href={plan.ctaLink || '#'} target="_blank" rel="noopener noreferrer">{plan.cta}</a>
-                </Button>
-              )}
+              <div className="flex gap-2 w-full mt-auto">
+                {plan.buttons.map((btn, bidx) => (
+                  <Button key={bidx} asChild className="flex-1 bg-white text-foreground hover:bg-sun hover:text-foreground border-none font-black text-[10px] uppercase tracking-widest py-6 rounded-xl shadow-lg transition-all">
+                    <a href={btn.link} target="_blank" rel="noopener noreferrer">{btn.label}</a>
+                  </Button>
+                ))}
+              </div>
             </motion.div>
           ))}
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="mt-16 flex justify-center"
-        >
-          <div className="bg-primary/5 border border-primary/20 rounded-2xl px-8 py-4 flex items-center gap-3 shadow-sm hover:shadow-md transition-shadow">
-            <div className="bg-primary/10 p-2 rounded-full">
-              <Info className="h-5 w-5 text-primary" />
-            </div>
-            <p className="text-foreground font-black text-sm sm:text-base uppercase tracking-tight">
-              Sem fidelidade e sem taxa de adesão. <span className="text-muted-foreground font-medium lowercase ml-1">Consulte termos e condições.</span>
-            </p>
-          </div>
         </motion.div>
       </div>
     </section>

@@ -95,9 +95,6 @@ export function ServicesSection() {
           viewport={{ once: true }}
           className="text-center mb-8 sm:mb-12"
         >
-          <span className="inline-block bg-secondary/10 text-secondary font-bold text-sm px-4 py-1.5 rounded-full mb-4">
-            🌟 Nossos Serviços
-          </span>
           <h2 className="font-display font-bold text-2xl sm:text-3xl md:text-4xl text-foreground mb-4">
             Experiências para toda a família
           </h2>
