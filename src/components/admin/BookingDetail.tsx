@@ -151,18 +151,18 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
             </div>
             <div className="p-6 space-y-4">
               {/* People */}
-              <div className="grid grid-cols-3 gap-3">
-                <div className="bg-emerald-50 rounded-2xl p-4 text-center">
-                  <p className="text-2xl font-black text-emerald-900">{booking.adults || 0}</p>
-                  <p className="text-[9px] font-black uppercase text-emerald-600 tracking-wider mt-1">Adultos/Pagantes</p>
+              <div className="grid grid-cols-1 xs:grid-cols-3 gap-2 md:gap-3">
+                <div className="bg-emerald-50 rounded-2xl p-3 md:p-4 text-center">
+                  <p className="text-xl md:text-2xl font-black text-emerald-900">{booking.adults || 0}</p>
+                  <p className="text-[8px] md:text-[9px] font-black uppercase text-emerald-600 tracking-wider mt-1 leading-tight">Adultos/ Pagantes</p>
                 </div>
-                <div className="bg-blue-50 rounded-2xl p-4 text-center">
-                  <p className="text-2xl font-black text-blue-900">{childrenCount}</p>
-                  <p className="text-[9px] font-black uppercase text-blue-600 tracking-wider mt-1">Gratuidades</p>
+                <div className="bg-blue-50 rounded-2xl p-3 md:p-4 text-center">
+                  <p className="text-xl md:text-2xl font-black text-blue-900">{childrenCount}</p>
+                  <p className="text-[8px] md:text-[9px] font-black uppercase text-blue-600 tracking-wider mt-1 leading-tight">Gratuidades</p>
                 </div>
-                <div className="bg-slate-50 rounded-2xl p-4 text-center border-2 border-slate-200">
-                  <p className="text-2xl font-black text-slate-900">{(booking.adults || 0) + childrenCount}</p>
-                  <p className="text-[9px] font-black uppercase text-slate-600 tracking-wider mt-1">Total Pessoas</p>
+                <div className="bg-slate-50 rounded-2xl p-3 md:p-4 text-center border-2 border-slate-200">
+                  <p className="text-xl md:text-2xl font-black text-slate-900">{(booking.adults || 0) + childrenCount}</p>
+                  <p className="text-[8px] md:text-[9px] font-black uppercase text-slate-600 tracking-wider mt-1 leading-tight">Total Pessoas</p>
                 </div>
               </div>
               {/* Financial breakdown */}
@@ -268,16 +268,16 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
           </div>
         )}
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="flex-1 min-w-[120px] lg:ml-auto flex items-center justify-end gap-2">
           <button
             onClick={() => setShowResumo(true)}
-            className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[9px] font-black uppercase tracking-wider px-3 py-1.5 rounded-xl border border-slate-200 transition-all shadow-sm"
+            className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[9px] font-black uppercase tracking-wider px-3 py-1.5 rounded-xl border border-slate-200 transition-all shadow-sm shrink-0"
           >
-            <Eye className="w-3.5 h-3.5" /> Ver Resumo Completo
+            <Eye className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Ver Resumo Completo</span><span className="inline sm:hidden">Resumo</span>
           </button>
-          <div className="flex items-center gap-3 bg-[#006020] text-white px-5 py-2 rounded-xl shadow-md border border-[#004d1a]">
-            <span className="text-[10px] font-black uppercase tracking-wider text-emerald-100">Total</span>
-            <span className="font-black text-lg">{formatCurrency(booking.total_amount)}</span>
+          <div className="flex items-center gap-2 md:gap-3 bg-[#006020] text-white px-3 md:px-5 py-2 rounded-xl shadow-md border border-[#004d1a] shrink-0">
+            <span className="text-[9px] md:text-[10px] font-black uppercase tracking-wider text-emerald-100">Total</span>
+            <span className="font-black text-base md:text-lg whitespace-nowrap">{formatCurrency(booking.total_amount)}</span>
           </div>
         </div>
       </div>
@@ -322,8 +322,8 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
                     : 'bg-white border-slate-300 hover:border-emerald-500 hover:shadow-xl'
                 )}
               >
-                <div className="flex flex-col min-w-0 flex-1 mr-3">
-                  <span className={cn('font-black text-[13px] truncate transition-colors uppercase', item.is_redeemed ? 'text-emerald-900 line-through' : 'text-slate-950')}>
+                <div className="flex flex-col min-w-0 flex-1 mr-3 overflow-hidden">
+                  <span className={cn('font-black text-[11px] md:text-[13px] whitespace-normal transition-colors uppercase leading-tight md:leading-normal', item.is_redeemed ? 'text-emerald-900 line-through' : 'text-slate-950')}>
                     {item.quantity}x {item.product_id || item.product_name || 'Produto'}
                   </span>
                   <span className={cn('text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 mt-1.5', item.is_redeemed ? 'text-emerald-800' : 'text-slate-400')}>
