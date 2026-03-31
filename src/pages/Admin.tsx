@@ -514,37 +514,37 @@ export default function Admin() {
       <div className="grid lg:grid-cols-[1fr_360px] gap-8 animate-in fade-in duration-500">
         <div className="space-y-8">
           {/* STATS */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-             <Card onClick={() => setActiveTab('quiosques')} className="cursor-pointer bg-emerald-50 border-4 border-emerald-300 text-emerald-950 shadow-2xl rounded-[1.5rem] p-4 flex flex-col items-start hover:shadow-emerald-400/40 hover:bg-emerald-100 transition-all group overflow-hidden relative">
-                <div className="absolute -top-4 -right-4 p-4 opacity-[0.05] group-hover:scale-110 group-hover:opacity-[0.15] transition-all"><Tent className="w-20 h-20 text-emerald-600" /></div>
-                <div className="p-2.5 rounded-xl bg-emerald-100 text-emerald-700 mb-2 border-2 border-emerald-200 shadow-sm">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+             <Card onClick={() => setActiveTab('quiosques')} className="cursor-pointer bg-emerald-50 border-4 border-emerald-300 text-emerald-950 shadow-xl rounded-2xl p-3 flex flex-col items-start hover:shadow-emerald-400/30 hover:bg-emerald-100 transition-all group overflow-hidden relative">
+                <div className="absolute -top-2 -right-2 p-2 opacity-[0.05] group-hover:scale-110 group-hover:opacity-[0.15] transition-all"><Tent className="w-14 h-14 text-emerald-600" /></div>
+                <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-700 mb-1.5 border-2 border-emerald-200 shadow-sm">
                    <Tent className="w-4 h-4" />
                 </div>
-                <span className="text-3xl font-black tabular-nums tracking-tighter">{dayKiosks.length}</span>
-                <span className="text-[9px] font-black uppercase tracking-widest mt-0.5 text-emerald-800">Quiosques Ocupados</span>
+                <span className="text-xl font-black tabular-nums tracking-tighter">{dayKiosks.length}</span>
+                <span className="text-[8px] font-black uppercase tracking-widest text-emerald-800">Quiosques Ocupados</span>
              </Card>
              
-             <Card onClick={() => setActiveTab('quads')} className="cursor-pointer bg-blue-50 border-4 border-blue-300 text-blue-950 shadow-2xl rounded-[1.5rem] p-4 flex flex-col items-start hover:shadow-blue-400/40 hover:bg-blue-100 transition-all group overflow-hidden relative">
-                <div className="absolute -top-4 -right-4 p-4 opacity-[0.05] group-hover:scale-110 group-hover:opacity-[0.15] transition-all"><Bike className="w-20 h-20 text-blue-600" /></div>
-                <div className="p-2.5 rounded-xl bg-blue-100 text-blue-700 mb-2 border-2 border-blue-200 shadow-sm">
+             <Card onClick={() => setActiveTab('quads')} className="cursor-pointer bg-blue-50 border-4 border-blue-300 text-blue-950 shadow-xl rounded-2xl p-3 flex flex-col items-start hover:shadow-blue-400/30 hover:bg-blue-100 transition-all group overflow-hidden relative">
+                <div className="absolute -top-2 -right-2 p-2 opacity-[0.05] group-hover:scale-110 group-hover:opacity-[0.15] transition-all"><Bike className="w-14 h-14 text-blue-600" /></div>
+                <div className="p-1.5 rounded-lg bg-blue-100 text-blue-700 mb-1.5 border-2 border-blue-200 shadow-sm">
                    <Bike className="w-4 h-4" />
                 </div>
-                <span className="text-3xl font-black tabular-nums tracking-tighter">{dayQuads.length}</span>
-                <span className="text-[9px] font-black uppercase tracking-widest mt-0.5 text-blue-800">Quadriciclos Alugados</span>
+                <span className="text-xl font-black tabular-nums tracking-tighter">{dayQuads.length}</span>
+                <span className="text-[8px] font-black uppercase tracking-widest text-blue-800">Quadriciclos Alugados</span>
              </Card>
              
-             <Card className="bg-slate-900 border-4 border-emerald-500 shadow-2xl rounded-[2rem] p-4 flex flex-col items-start hover:scale-[1.02] transition-all group overflow-hidden relative">
-                <div className="absolute -top-4 -right-4 p-4 opacity-20 group-hover:scale-110 transition-all"><TrendingUp className="w-20 h-20 text-emerald-700" /></div>
-                <div className="p-2.5 rounded-xl bg-emerald-500/20 text-emerald-100 mb-2 border border-emerald-400/30 backdrop-blur-md">
+             <Card className="bg-slate-900 border-4 border-emerald-500 shadow-xl rounded-2xl p-3 flex flex-col items-start hover:scale-[1.02] transition-all group overflow-hidden relative">
+                <div className="absolute -top-2 -right-2 p-2 opacity-20 group-hover:scale-110 transition-all"><TrendingUp className="w-14 h-14 text-emerald-700" /></div>
+                <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-100 mb-1.5 border border-emerald-400/30 backdrop-blur-md">
                    <TrendingUp className="w-4 h-4" />
                 </div>
-                <span className="text-3xl font-black tabular-nums tracking-tighter text-white">
+                <span className="text-xl font-black tabular-nums tracking-tighter text-white">
                   {formatCurrency(
                     dayBookings.reduce((s, b) => b.status !== 'cancelled' ? s + (b.total_amount || 0) : s, 0) + 
                     dayOrders.reduce((s, o) => o.status !== 'cancelled' ? s + (o.total_amount || 0) : s, 0)
                   )}
                 </span>
-                <span className="text-[9px] font-black uppercase tracking-widest mt-1 text-emerald-700">Receita Total do Dia</span>
+                <span className="text-[8px] font-black uppercase tracking-widest text-emerald-700">Receita Total do Dia</span>
              </Card>
           </div>
 
@@ -681,29 +681,6 @@ export default function Admin() {
         </div>
 
         <div className="space-y-6">
-           <Card className="bg-white border-2 border-emerald-100 shadow-sm rounded-3xl overflow-hidden">
-              <CardContent className="pt-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <p className="text-sm font-bold text-slate-500 uppercase tracking-wider">Capacidade Total</p>
-                    <p className="text-3xl font-black text-slate-900">{totals.adults + totals.children}</p>
-                  </div>
-                  <div className="p-3 bg-slate-100 rounded-2xl">
-                    <Users className="w-6 h-6 text-slate-600" />
-                  </div>
-                </div>
-                <div className="mt-4 pt-4 border-t border-slate-100 flex gap-4">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                    <span className="text-[10px] font-black text-emerald-700 uppercase">Adultos: {totals.adults}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-2 h-2 rounded-full bg-blue-500" />
-                    <span className="text-[10px] font-black text-blue-700 uppercase">Gratuidades: {totals.children}</span>
-                  </div>
-                </div>
-              </CardContent>
-           </Card>
            
            <Card className="bg-white border-2 border-emerald-100 shadow-sm rounded-3xl overflow-hidden">
               <div className="p-6 border-b border-emerald-100 bg-emerald-50/50">
@@ -1270,13 +1247,13 @@ export default function Admin() {
           {/* HEADER */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-4">
               <div className="space-y-2">
-                 <h1 className="text-5xl font-black text-emerald-900 tracking-tighter flex items-center gap-4">
+                 <h1 className="text-5xl font-black tracking-tighter flex items-center gap-4">
                      <div className="flex flex-col -space-y-2">
-                        <span className="text-2xl text-emerald-800/80 leading-none">Lessa</span>
-                        <span className="text-5xl">Painel</span>
+                        <span className="text-2xl text-[#FFF033]/80 leading-none">Lessa</span>
+                        <span className="text-5xl text-[#FFF033]">Painel</span>
                      </div>
                  </h1>
-                 <p className="text-emerald-900/60 font-black uppercase tracking-[0.3em] text-[10px] bg-emerald-100/50 w-fit px-3 py-1 rounded-full border border-emerald-200/50">Gestão Integrada de Reservas • Balneário</p>
+                 <p className="text-[#FFF033] font-black uppercase tracking-[0.3em] text-[10px] bg-[#FFF033]/10 w-fit px-3 py-1 rounded-full border border-[#FFF033]/30 backdrop-blur-sm">Gestão Integrada de Reservas • Balneário</p>
               </div>
               <div className="flex items-center gap-4">
                  <Button 
@@ -1298,34 +1275,34 @@ export default function Admin() {
           </div>
 
           {/* TABS */}
-          <div className="flex items-center p-2 bg-white rounded-3xl w-full max-w-4xl mr-auto overflow-x-auto border-2 border-emerald-100 shadow-sm mb-6 no-scrollbar">
+          <div className="flex items-center p-2 bg-emerald-950/60 backdrop-blur-xl rounded-3xl w-full max-w-4xl mr-auto overflow-x-auto border border-white/20 shadow-premium mb-6 no-scrollbar">
              <button onClick={() => setActiveTab('painel')} className={cn(
                "flex-1 px-8 py-4 rounded-2xl text-[13px] font-black flex items-center justify-center gap-2.5 transition-all whitespace-nowrap", 
-               activeTab === 'painel' ? "bg-amber-500 text-amber-950 shadow-md" : "text-emerald-800 hover:bg-emerald-50"
+               activeTab === 'painel' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
              )}>
                 <LayoutDashboard className="w-4.5 h-4.5" /> Visão Geral
              </button>
              <button onClick={() => setActiveTab('quiosques')} className={cn(
                "flex-1 px-8 py-4 rounded-2xl text-[13px] font-black flex items-center justify-center gap-2.5 transition-all whitespace-nowrap", 
-               activeTab === 'quiosques' ? "bg-amber-500 text-amber-950 shadow-md" : "text-emerald-800 hover:bg-emerald-50"
+               activeTab === 'quiosques' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
              )}>
                 <Tent className="w-4.5 h-4.5" /> Quiosques
              </button>
              <button onClick={() => setActiveTab('quads')} className={cn(
                "flex-1 px-8 py-4 rounded-2xl text-[13px] font-black flex items-center justify-center gap-2.5 transition-all whitespace-nowrap", 
-               activeTab === 'quads' ? "bg-amber-500 text-amber-950 shadow-md" : "text-emerald-800 hover:bg-emerald-50"
+               activeTab === 'quads' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
              )}>
                 <Bike className="w-4.5 h-4.5" /> Quadriciclos
              </button>
              <button onClick={() => setActiveTab('reservas')} className={cn(
                "flex-1 px-8 py-4 rounded-2xl text-[13px] font-black flex items-center justify-center gap-2.5 transition-all whitespace-nowrap", 
-               activeTab === 'reservas' ? "bg-amber-500 text-amber-950 shadow-md" : "text-emerald-800 hover:bg-emerald-50"
+               activeTab === 'reservas' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
              )}>
                 <CalendarCheck className="w-4.5 h-4.5" /> Agenda
              </button>
              <button onClick={() => setActiveTab('vendas')} className={cn(
                "flex-1 px-8 py-4 rounded-2xl text-[13px] font-black flex items-center justify-center gap-2.5 transition-all whitespace-nowrap", 
-               activeTab === 'vendas' ? "bg-amber-500 text-amber-950 shadow-md" : "text-emerald-800 hover:bg-emerald-50"
+               activeTab === 'vendas' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
              )}>
                 <ShoppingBag className="w-4.5 h-4.5" /> Vendas
              </button>
@@ -1337,11 +1314,11 @@ export default function Admin() {
              {activeTab === 'reservas' && (
                <div className="space-y-6">
                  <div className="flex flex-col md:flex-row gap-4 w-full max-w-4xl">
-                    <div className="relative flex-1">
-                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-600" />
+                    <div className="relative flex-1 group">
+                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-100 group-hover:text-white transition-colors" />
                       <Input 
                         placeholder="Filtrar por nome, telefone ou código..." 
-                        className="pl-11 h-14 rounded-2xl bg-white/90 backdrop-blur-sm shadow-lg border-2 border-emerald-100 font-extrabold text-emerald-950 placeholder:text-emerald-900/40 focus-visible:ring-emerald-500 text-lg transition-all" 
+                        className="pl-11 h-14 rounded-2xl bg-emerald-600 shadow-lg border-2 border-emerald-700 font-extrabold text-white placeholder:text-emerald-100 focus-visible:ring-emerald-400 text-lg transition-all hover:bg-emerald-700 hover:border-emerald-500" 
                         value={search} 
                         onChange={e => setSearch(e.target.value)} 
                       />
@@ -1352,11 +1329,11 @@ export default function Admin() {
                         <Button
                           variant="outline"
                           className={cn(
-                            "h-14 px-6 rounded-2xl bg-white/90 backdrop-blur-sm shadow-lg border-2 border-emerald-100 font-black text-emerald-950 hover:bg-emerald-50 transition-all gap-3 text-lg justify-start min-w-[240px]",
-                            !filterDate && "text-emerald-900/40"
+                            "h-14 px-6 rounded-2xl bg-emerald-600 shadow-lg border-2 border-emerald-700 font-black text-white hover:bg-emerald-700 hover:border-emerald-500 transition-all gap-3 text-lg justify-start min-w-[240px]",
+                            !filterDate && "text-emerald-100"
                           )}
                         >
-                          <CalendarIcon className="w-5 h-5 text-emerald-600" />
+                          <CalendarIcon className="w-5 h-5 text-emerald-100" />
                           {filterDate ? format(parseISO(filterDate), 'dd/MM/yyyy', { locale: ptBR }) : "Filtrar por Data"}
                         </Button>
                       </PopoverTrigger>
