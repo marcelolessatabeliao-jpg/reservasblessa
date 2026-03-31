@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+﻿import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { format, isToday, isTomorrow, isThisWeek, parseISO, isBefore, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { 
@@ -66,24 +66,24 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 // Constants from common types
 const KIOSKS = [
-  { id: 1, name: 'QUIOSQUE - 01 (Grande)', price: 100, capacity: 'Até 30 pessoas', type: 'Maior' },
-  { id: 2, name: 'QUIOSQUE - 02', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' },
-  { id: 3, name: 'QUIOSQUE - 03', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' },
-  { id: 4, name: 'QUIOSQUE - 04', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' },
-  { id: 5, name: 'QUIOSQUE - 05', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' }
+  { id: 1, name: 'QUIOSQUE - 01 (Grande)', price: 100, capacity: 'AtÃ© 30 pessoas', type: 'Maior' },
+  { id: 2, name: 'QUIOSQUE - 02', price: 75, capacity: 'AtÃ© 15 pessoas', type: 'Menor' },
+  { id: 3, name: 'QUIOSQUE - 03', price: 75, capacity: 'AtÃ© 15 pessoas', type: 'Menor' },
+  { id: 4, name: 'QUIOSQUE - 04', price: 75, capacity: 'AtÃ© 15 pessoas', type: 'Menor' },
+  { id: 5, name: 'QUIOSQUE - 05', price: 75, capacity: 'AtÃ© 15 pessoas', type: 'Menor' }
 ];
 
 const QUAD_TIMES = ['09:00', '10:30', '14:00', '15:30'];
 const PAYMENT_METHODS = [
-  { value: 'pix', label: 'PIX / Transferência' },
-  { value: 'credit_card', label: 'Cartão de Crédito' },
+  { value: 'pix', label: 'PIX / TransferÃªncia' },
+  { value: 'credit_card', label: 'CartÃ£o de CrÃ©dito' },
   { value: 'cash', label: 'Dinheiro (Local)' }
 ];
 
 const QUAD_MODELS_LABELS: Record<string, string> = {
   individual: 'Individual',
   dupla: 'Dupla',
-  'adulto-crianca': 'Adulto + Criança',
+  'adulto-crianca': 'Adulto + CrianÃ§a',
   'INDIV': 'Individual',
   'DUPLA': 'Dupla'
 };
@@ -182,8 +182,8 @@ export default function Admin() {
                const qty = item.quantity || 1;
                
                // Listas categorizadas para contagem de pessoas
-                const adultKeywords = ['adulto', 'solidário', 'solidario', 'professor', 'estudante', 'servidor'];
-                const gratuityKeywords = ['criança', 'crianca', 'idoso', 'pcd', 'aniversariante'];
+                const adultKeywords = ['adulto', 'solidÃ¡rio', 'solidario', 'professor', 'estudante', 'servidor'];
+                const gratuityKeywords = ['crianÃ§a', 'crianca', 'idoso', 'pcd', 'aniversariante'];
 
                 const isAdult = adultKeywords.some(key => pName.includes(key) || pId.includes(key));
                 const isGratuity = gratuityKeywords.some(key => pName.includes(key) || pId.includes(key));
@@ -256,7 +256,7 @@ export default function Admin() {
                }
             });
             
-            // Atribuir contagens extraídas se não estiverem presentes
+            // Atribuir contagens extraÃ­das se nÃ£o estiverem presentes
             o.adults = o.adults || orderAdults;
             o.children = o.children || orderChildren;
          });
@@ -329,7 +329,7 @@ export default function Admin() {
         if (editData[f] !== undefined) payload[f] = editData[f];
       });
 
-      // Se for uma reserva virtual extraída de um pedido, precisa virar real no banco
+      // Se for uma reserva virtual extraÃ­da de um pedido, precisa virar real no banco
       if (typeof editingId === 'string' && editingId.startsWith('order-')) {
         payload.order_id = editData.order_id;
         const { error } = await supabase.from(table).insert([payload]);
@@ -339,7 +339,7 @@ export default function Admin() {
         if (error) throw error;
       }
       
-      toast({ title: "✓ Alterações salvas" });
+      toast({ title: "âœ“ AlteraÃ§Ãµes salvas" });
       setEditingId(null);
       fetchData();
     } catch (err: any) {
@@ -354,7 +354,7 @@ export default function Admin() {
       const table = isOrder ? 'orders' : 'bookings';
       const { error } = await supabase.from(table).update({ status }).eq('id', bookingId);
       if (error) throw error;
-      toast({ title: "✓ Status atualizado" });
+      toast({ title: "âœ“ Status atualizado" });
       fetchData();
     } catch (err) {
       console.error('Update status error:', err);
@@ -368,7 +368,7 @@ export default function Admin() {
       const table = isOrder ? 'orders' : 'bookings';
       const { error } = await supabase.from(table).update({ notes }).eq('id', bookingId);
       if (error) throw error;
-      toast({ title: "✓ Nota adicionada" });
+      toast({ title: "âœ“ Nota adicionada" });
       fetchData();
     } catch (err) {
       toast({ title: "Erro ao adicionar nota", variant: "destructive" });
@@ -438,9 +438,9 @@ export default function Admin() {
       ));
       
       const hasError = results.some(r => r.error);
-      if (hasError) throw new Error('Algumas atualizações falharam');
+      if (hasError) throw new Error('Algumas atualizaÃ§Ãµes falharam');
       
-      toast({ title: '✓ Reagendado com sucesso' });
+      toast({ title: 'âœ“ Reagendado com sucesso' });
       fetchData();
       setRescheduleData(null);
     } catch (err) {
@@ -505,7 +505,7 @@ export default function Admin() {
       const isOrder = resId.toString().startsWith('order-');
       if (isOrder) {
          // It's a virtual reservation from an order, we might need to update the order instead or just toast
-         toast({ title: "Esta é uma reserva de pedido. O comprovante deve ser anexado ao pedido na aba Reservas." });
+         toast({ title: "Esta Ã© uma reserva de pedido. O comprovante deve ser anexado ao pedido na aba Reservas." });
       } else {
          const { error: updateError } = await supabase.from('kiosk_reservations').update({ receipt_url: publicUrl }).eq('id', resId);
          if (updateError) throw updateError;
@@ -527,7 +527,7 @@ export default function Admin() {
       
       const isOrder = resId.toString().startsWith('order-');
       if (isOrder) {
-         toast({ title: "Esta é uma reserva de pedido. O comprovante deve ser anexado ao pedido na aba Reservas." });
+         toast({ title: "Esta Ã© uma reserva de pedido. O comprovante deve ser anexado ao pedido na aba Reservas." });
       } else {
          const { error: updateError } = await supabase.from('quad_reservations').update({ receipt_url: publicUrl }).eq('id', resId);
          if (updateError) throw updateError;
@@ -569,7 +569,7 @@ export default function Admin() {
                          {targetDate.getDate()}
                       </div>
                       <div>
-                         <h3 className="text-[16px] font-black text-emerald-950 tracking-tight leading-none mb-1">Operação Diária</h3>
+                         <h3 className="text-[16px] font-black text-emerald-950 tracking-tight leading-none mb-1">OperaÃ§Ã£o DiÃ¡ria</h3>
                          <p className="text-[11px] font-black text-emerald-950 uppercase tracking-tighter">{format(targetDate, "EEEE, yyyy", { locale: ptBR })}</p>
                       </div>
                    </div>
@@ -663,7 +663,7 @@ export default function Admin() {
                       <div className="bg-amber-50/50 rounded-[1.25rem] p-3 shadow-sm border border-amber-200 mt-2 space-y-2.5">
                          <div className="flex items-center justify-between px-1">
                             <span className="font-black text-amber-900 text-[11px] uppercase tracking-wider flex items-center gap-2">
-                               <AlertTriangle className="w-3.5 h-3.5" /> Extra / S. Horário
+                               <AlertTriangle className="w-3.5 h-3.5" /> Extra / S. HorÃ¡rio
                             </span>
                          </div>
                          <div className="rounded-xl border border-amber-100 bg-white/40 p-1.5 min-h-[32px] flex items-center justify-center text-center">
@@ -701,7 +701,7 @@ export default function Admin() {
                     <h4 className="text-lg font-black text-emerald-950 tracking-tight">Resumo Geral</h4>
                  </div>
                  <p className="text-[11px] font-bold text-emerald-800/70 leading-relaxed mb-6">
-                    Selecione uma data para organizar seu dia de operações.
+                    Selecione uma data para organizar seu dia de operaÃ§Ãµes.
                  </p>
                  
                  <div className="grid grid-cols-1 gap-2">
@@ -806,9 +806,9 @@ export default function Admin() {
         if (bid === 'MENOR') {
           const menors = dayKiosks.filter(dk => dk.kiosk_id === 'MENOR');
           const idx = menors.findIndex(dk => dk.id === r.id);
-          return KIOSKS.find(k => k.id === idx + 2) || { id: 99, name: 'Quiosque Extra', capacity: 'Até 15 pessoas' };
+          return KIOSKS.find(k => k.id === idx + 2) || { id: 99, name: 'Quiosque Extra', capacity: 'AtÃ© 15 pessoas' };
         }
-        return KIOSKS.find(k => k.id === Number(bid)) || { id: 99, name: `Q-${bid}`, capacity: 'Até 15 pessoas' };
+        return KIOSKS.find(k => k.id === Number(bid)) || { id: 99, name: `Q-${bid}`, capacity: 'AtÃ© 15 pessoas' };
       });
       const names = resolved.map((k: any) => k?.name.replace('Quiosque ', 'Q-')).join(', ');
       const capacity = resolved.reduce((s: number, k: any) => s + parseInt((k?.capacity || '0').replace(/\D/g, '') || '15'), 0);
@@ -818,7 +818,7 @@ export default function Admin() {
     const subTabConfig = [
       { key: 'hoje', label: 'Ativos Hoje', count: groupsByTab.hoje.length, color: 'bg-emerald-600 text-white' },
       { key: 'futuras', label: 'Reservas Futuras', count: groupsByTab.futuras.length, color: 'bg-blue-100 text-blue-700' },
-      { key: 'historico', label: 'Histórico', count: groupsByTab.historico.length, color: 'bg-slate-100 text-slate-600' },
+      { key: 'historico', label: 'HistÃ³rico', count: groupsByTab.historico.length, color: 'bg-slate-100 text-slate-600' },
     ];
 
     return (
@@ -875,7 +875,7 @@ export default function Admin() {
                          <div>
                             <span className="text-[10px] font-black text-emerald-800/60 uppercase tracking-widest block mb-1">Cliente</span>
                             <span className="font-black text-emerald-950 uppercase text-sm block">{group.customer_name}</span>
-                            <span className="text-[10px] text-emerald-700 font-bold">{group.items.length} reserva(s) • {formatCurrency(group.total_price)}</span>
+                            <span className="text-[10px] text-emerald-700 font-bold">{group.items.length} reserva(s) â€¢ {formatCurrency(group.total_price)}</span>
                          </div>
                          <div>
                             <span className="text-[10px] font-black text-emerald-800/60 uppercase tracking-widest block mb-1">Quiosques</span>
@@ -905,7 +905,7 @@ export default function Admin() {
             <div className="hidden md:block">
               {tabGroups.length === 0 ? (
                 <div className="text-center py-16 text-muted-foreground/40 font-bold uppercase text-xs tracking-widest">
-                  {kioskSubTab === 'hoje' ? 'Nenhuma reserva ativa hoje' : kioskSubTab === 'futuras' ? 'Sem reservas futuras' : 'Sem histórico'}
+                  {kioskSubTab === 'hoje' ? 'Nenhuma reserva ativa hoje' : kioskSubTab === 'futuras' ? 'Sem reservas futuras' : 'Sem histÃ³rico'}
                 </div>
               ) : (
                 <table className="w-full text-left">
@@ -915,7 +915,7 @@ export default function Admin() {
                       <th className="px-6 py-4">Cliente</th>
                       <th className="px-6 py-4">Quiosques / Capacidade</th>
                       <th className="px-6 py-4">Valor</th>
-                      <th className="px-6 py-4 text-right">Ações</th>
+                      <th className="px-6 py-4 text-right">AÃ§Ãµes</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y-2 divide-emerald-200">
@@ -1001,7 +1001,7 @@ export default function Admin() {
     const subTabConfig = [
       { key: 'hoje', label: 'Ativos Hoje', count: groupsByTab.hoje.length, color: 'bg-blue-600 text-white' },
       { key: 'futuras', label: 'Reservas Futuras', count: groupsByTab.futuras.length, color: 'bg-blue-100 text-blue-700' },
-      { key: 'historico', label: 'Histórico', count: groupsByTab.historico.length, color: 'bg-slate-100 text-slate-600' },
+      { key: 'historico', label: 'HistÃ³rico', count: groupsByTab.historico.length, color: 'bg-slate-100 text-slate-600' },
     ];
 
     return (
@@ -1011,7 +1011,7 @@ export default function Admin() {
             <div className="flex items-center justify-between flex-wrap gap-4">
               <div>
                 <h3 className="text-lg font-black text-blue-950">Reservas de Quadriciclos</h3>
-                <p className="text-xs text-blue-900 font-bold">Clique em um grupo para ver os horários</p>
+                <p className="text-xs text-blue-900 font-bold">Clique em um grupo para ver os horÃ¡rios</p>
               </div>
               <div className="grid grid-cols-2 md:flex gap-2 bg-slate-100 p-1 rounded-2xl w-full md:w-auto">
                 {subTabConfig.map(t => (
@@ -1075,13 +1075,13 @@ export default function Admin() {
                               </div>
                               
                               <div className="space-y-2">
-                                 <span className="text-[9px] font-black text-blue-700/60 uppercase tracking-widest block mb-1">Horários Reservados</span>
+                                 <span className="text-[9px] font-black text-blue-700/60 uppercase tracking-widest block mb-1">HorÃ¡rios Reservados</span>
                                  {group.items.map((r: any, i: number) => (
                                    <div key={i} className="flex justify-between items-center bg-white p-3 rounded-xl border border-blue-100 shadow-sm">
                                       <div className="flex items-center gap-2">
                                          <Clock className="w-3.5 h-3.5 text-blue-500" />
                                          <span className="text-[11px] font-black text-blue-900">{r.time_slot}</span>
-                                         <span className="text-[10px] font-bold text-blue-600/60">• {QUAD_MODELS_LABELS[r.quad_type] || 'Individual'}</span>
+                                         <span className="text-[10px] font-bold text-blue-600/60">â€¢ {QUAD_MODELS_LABELS[r.quad_type] || 'Individual'}</span>
                                       </div>
                                       <span className="text-[10px] font-black text-blue-900">{r.quantity} un.</span>
                                    </div>
@@ -1109,7 +1109,7 @@ export default function Admin() {
             <div className="hidden md:block">
               {tabGroups.length === 0 ? (
                 <div className="text-center py-16 text-muted-foreground/40 font-bold uppercase text-xs tracking-widest">
-                  {quadSubTab === 'hoje' ? 'Nenhuma reserva ativa hoje' : quadSubTab === 'futuras' ? 'Sem reservas futuras' : 'Sem histórico'}
+                  {quadSubTab === 'hoje' ? 'Nenhuma reserva ativa hoje' : quadSubTab === 'futuras' ? 'Sem reservas futuras' : 'Sem histÃ³rico'}
                 </div>
               ) : (
                 <table className="w-full text-left">
@@ -1121,7 +1121,7 @@ export default function Admin() {
                       <th className="px-6 py-4">Modelos</th>
                       <th className="px-6 py-4 text-center">Total Quadriciclos</th>
                       <th className="px-6 py-4">Valor Total</th>
-                      <th className="px-6 py-4 text-right">Ações</th>
+                      <th className="px-6 py-4 text-right">AÃ§Ãµes</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1153,7 +1153,7 @@ export default function Admin() {
                             </td>
                             <td className="px-6 py-4">
                               <span className="font-black text-blue-950 uppercase">{group.customer_name}</span>
-                              <div className="text-[10px] text-blue-600/60 font-black mt-0.5">{group.items.length} horário(s) reservado(s)</div>
+                              <div className="text-[10px] text-blue-600/60 font-black mt-0.5">{group.items.length} horÃ¡rio(s) reservado(s)</div>
                             </td>
                             <td className="px-6 py-4">
                               <div className="flex flex-wrap gap-1">
@@ -1211,7 +1211,7 @@ export default function Admin() {
                                       {(r.time_slot === 'INDIV' || r.time_slot === 'DUPLA') ? (
                                         <>
                                           <AlertTriangle className="w-3 h-3" />
-                                          {r.time_slot === 'INDIV' ? 'HORÁRIO NÃO DEFINIDO' : 'DUPLA (AGUARDANDO)'}
+                                          {r.time_slot === 'INDIV' ? 'HORÃRIO NÃƒO DEFINIDO' : 'DUPLA (AGUARDANDO)'}
                                         </>
                                       ) : (
                                         <>
@@ -1282,7 +1282,7 @@ export default function Admin() {
         {/* HISTORY */}
         <div className="space-y-4">
           <h4 className="text-xs font-black text-emerald-300 uppercase tracking-[0.2em] flex items-center gap-2 drop-shadow-sm">
-             <History className="w-4 h-4" /> Histórico Mensal
+             <History className="w-4 h-4" /> HistÃ³rico Mensal
           </h4>
           {quadHistory.map(([month, data]) => {
             const isOpen = expandedMonths.has('q-' + month);
@@ -1326,8 +1326,8 @@ export default function Admin() {
     <div className="bg-white rounded-3xl border border-border/50 shadow-card overflow-hidden animate-in fade-in duration-500">
        <div className="p-6 border-b border-border/50 bg-amber-50/30 flex items-center justify-between">
           <div>
-             <h3 className="text-lg font-bold text-amber-900">Histórico de Vendas e Pedidos</h3>
-             <p className="text-xs text-muted-foreground">Gestão financeira centralizada</p>
+             <h3 className="text-lg font-bold text-amber-900">HistÃ³rico de Vendas e Pedidos</h3>
+             <p className="text-xs text-muted-foreground">GestÃ£o financeira centralizada</p>
           </div>
           <div className="flex items-center gap-2">
              <Badge className="bg-amber-100 text-amber-900 border-0 font-bold">Total: {orders.length}</Badge>
@@ -1341,7 +1341,7 @@ export default function Admin() {
                    <th className="px-6 py-4">Cliente</th>
                    <th className="px-6 py-4">Total</th>
                    <th className="px-6 py-4">Status</th>
-                   <th className="px-6 py-4 text-right">Ações</th>
+                   <th className="px-6 py-4 text-right">AÃ§Ãµes</th>
                 </tr>
              </thead>
              <tbody className="divide-y divide-border/30">
@@ -1400,14 +1400,14 @@ export default function Admin() {
                              <span className="text-4xl md:text-4xl md:text-5xl text-[#FFF033] shadow-md">Painel</span>
                           </div>
                        </h1>
-                     <p className="text-[#FFF033] font-black uppercase tracking-[0.2em] md:tracking-[0.3em] text-[8px] md:text-[10px] bg-[#FFF033]/10 w-fit px-3 py-1 rounded-full border border-[#FFF033]/30 backdrop-blur-sm">Gestão Integrada de Reservas • Balneário</p>
+                     <p className="text-[#FFF033] font-black uppercase tracking-[0.2em] md:tracking-[0.3em] text-[8px] md:text-[10px] bg-[#FFF033]/10 w-fit px-3 py-1 rounded-full border border-[#FFF033]/30 backdrop-blur-sm">GestÃ£o Integrada de Reservas â€¢ BalneÃ¡rio</p>
                  </div>
 
                  {/* MOBILE BUTTONS (TOP RIGHT) */}
                  <div className="flex xl:hidden items-center gap-2">
                     <Button 
                       variant="outline"
-                      className="w-10 h-10 rounded-xl bg-white/10 border border-white/20 p-0 hover:bg-white/20 text-[#FFF033] shadow-lg backdrop-blur-md transition-all active:scale-95" 
+                      className="w-10 h-10 rounded-xl bg-white/10 border border-white/20 p-0 hover:bg-white/20 text-[#FFF033] shadow-lg backdrop-blur-md transition-all active:scale-95 flex items-center justify-center" 
                       onClick={fetchData} 
                       disabled={loading}
                     >
@@ -1415,36 +1415,15 @@ export default function Admin() {
                     </Button>
 
                     <Button 
-                      className="w-10 h-10 rounded-xl bg-[#FFF033] text-black p-0 shadow-lg hover:scale-105 active:scale-95 transition-all border-0" 
+                      className="w-10 h-10 rounded-xl bg-[#FFF033] text-black p-0 shadow-lg hover:scale-105 active:scale-95 transition-all border-0 flex items-center justify-center" 
                       onClick={handleLogout}
                     >
                        <LogOut className="w-5 h-5" />
                     </Button>
                  </div>
               </div>
-              {/* DESKTOP BUTTONS (RIGHT) */}
-              <div className="hidden xl:flex items-center gap-4 shrink-0">
-                 <Button 
-                   variant="outline"
-                   className="rounded-2xl bg-white/10 border-2 border-white/20 font-black h-12 px-6 hover:bg-white/20 text-[#FFF033] shadow-xl backdrop-blur-md transition-all active:scale-95" 
-                   onClick={fetchData} 
-                   disabled={loading}
-                 >
-                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
-                    <span className="ml-2">Atualizar</span>
-                 </Button>
 
-                 <Button 
-                   className="rounded-2xl bg-[#FFF033] text-black font-black h-12 px-8 shadow-2xl hover:scale-105 active:scale-95 transition-all border-0 text-base" 
-                   onClick={handleLogout}
-                 >
-                    <LogOut className="w-5 h-5 mr-2" /> <span>Sair</span>
-                 </Button>
-              </div>
-          </div>
-
-          {/* STATS IN HEADER */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 px-0 md:px-4">
+              {/* STATS IN HEADER */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 flex-1 px-0 md:px-4">
                  <Card onClick={() => setActiveTab('quiosques')} className="cursor-pointer bg-emerald-900 border-2 border-emerald-500 shadow-xl rounded-2xl p-2 md:p-3 flex items-center justify-between hover:bg-bg-emerald-900 transition-all group overflow-hidden relative min-h-[60px] md:h-[65px]">
                     <div className="flex items-center gap-2 relative z-10">
@@ -1500,15 +1479,33 @@ export default function Admin() {
                  </Card>
               </div>
 
-          </div>
+              {/* DESKTOP BUTTONS (RIGHT) */}
+              <div className="hidden xl:flex items-center gap-4 shrink-0">
+                 <Button 
+                   variant="outline"
+                   className="rounded-2xl bg-white/10 border-2 border-white/20 font-black h-12 px-6 hover:bg-white/20 text-[#FFF033] flex items-center justify-center shadow-xl backdrop-blur-md transition-all active:scale-95" 
+                   onClick={fetchData} 
+                   disabled={loading}
+                 >
+                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5 mr-2" />}
+                    <span>Atualizar</span>
+                 </Button>
 
+                 <Button 
+                   className="rounded-2xl bg-[#FFF033] text-black font-black h-12 px-8 shadow-2xl hover:scale-105 active:scale-95 transition-all border-0 text-base flex items-center justify-center" 
+                   onClick={handleLogout}
+                 >
+                    <LogOut className="w-5 h-5 mr-2" /> <span>Sair</span>
+                 </Button>
+              </div>
+          </div>
           {/* TABS */}
           <div className="grid grid-cols-2 lg:flex lg:items-center p-1.5 md:p-2 bg-emerald-950/60 backdrop-blur-xl rounded-2xl md:rounded-3xl w-full max-w-5xl mr-auto border border-white/20 shadow-premium mb-6 gap-1.5 md:gap-2">
              <button onClick={() => setActiveTab('painel')} className={cn(
                "px-4 md:px-8 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap", 
                activeTab === 'painel' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
              )}>
-                <LayoutDashboard className="w-4 h-4 md:w-4.5 md:h-4.5" /> Visão Geral
+                <LayoutDashboard className="w-4 h-4 md:w-4.5 md:h-4.5" /> VisÃ£o Geral
              </button>
              <button onClick={() => setActiveTab('quiosques')} className={cn(
                "px-4 md:px-8 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap", 
@@ -1547,7 +1544,7 @@ export default function Admin() {
                     <div className="relative flex-1 group">
                       <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-100 group-hover:text-white transition-colors" />
                       <Input 
-                        placeholder="Filtrar por nome, telefone ou código..." 
+                        placeholder="Filtrar por nome, telefone ou cÃ³digo..." 
                         className="pl-11 h-14 rounded-2xl bg-emerald-600 shadow-lg border-2 border-emerald-700 font-extrabold text-white placeholder:text-emerald-100 focus-visible:ring-emerald-400 text-lg transition-all hover:bg-emerald-700 hover:border-emerald-500" 
                         value={search} 
                         onChange={e => setSearch(e.target.value)} 
@@ -1633,14 +1630,14 @@ export default function Admin() {
                       const table = isOrder ? 'orders' : 'bookings';
                       const { error } = await supabase.from(table).update({ visit_date: date }).eq('id', id);
                       if (error) toast({ title: "Erro ao reagendar", variant: "destructive" });
-                      else { toast({ title: "✓ Reagendado" }); fetchData(); }
+                      else { toast({ title: "âœ“ Reagendado" }); fetchData(); }
                    }}
                     onDelete={async (id, isOrder) => {
                        const table = isOrder ? 'orders' : 'bookings';
                        try {
                          const { error } = await supabase.from(table).delete().eq('id', id);
                          if (error) throw error;
-                         toast({ title: "✓ Removido com sucesso" });
+                         toast({ title: "âœ“ Removido com sucesso" });
                          fetchData();
                        } catch (err: any) {
                          console.error('Delete error:', err);
@@ -1692,10 +1689,10 @@ export default function Admin() {
                    <div className="w-12 h-12 rounded-2xl bg-red-100 flex items-center justify-center border-2 border-red-200">
                       <AlertTriangle className="w-6 h-6 text-red-600" />
                    </div>
-                   <AlertDialogTitle className="text-xl font-black text-slate-900">Confirmar Exclusão</AlertDialogTitle>
+                   <AlertDialogTitle className="text-xl font-black text-slate-900">Confirmar ExclusÃ£o</AlertDialogTitle>
                 </div>
                 <AlertDialogDescription className="text-slate-600 font-bold">
-                   Deseja realmente remover esta reserva? Esta ação não pode ser desfeita e liberará o horário/espaço para novos clientes.
+                   Deseja realmente remover esta reserva? Esta aÃ§Ã£o nÃ£o pode ser desfeita e liberarÃ¡ o horÃ¡rio/espaÃ§o para novos clientes.
                 </AlertDialogDescription>
              </AlertDialogHeader>
              <AlertDialogFooter className="gap-2">
