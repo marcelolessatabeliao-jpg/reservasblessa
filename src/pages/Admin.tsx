@@ -1292,15 +1292,6 @@ export default function Admin() {
 
               <div className="flex items-center gap-4 shrink-0">
                  <Button 
-                   variant="ghost" 
-                   className="rounded-2xl bg-white/5 border border-white/20 font-black h-12 px-6 hover:bg-white/10 text-white transition-all backdrop-blur-md" 
-                   onClick={fetchData} 
-                   disabled={loading}
-                 >
-                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5 text-[#FFF033]" />}
-                    <span className="ml-2">Atualizar</span>
-                 </Button>
-                 <Button 
                    className="rounded-2xl bg-[#FFF033] text-black font-black h-12 px-8 shadow-2xl hover:scale-105 active:scale-95 transition-all border-0" 
                    onClick={handleLogout}
                  >
@@ -1310,7 +1301,7 @@ export default function Admin() {
           </div>
 
           {/* TABS */}
-          <div className="flex items-center p-2 bg-emerald-950/60 backdrop-blur-xl rounded-3xl w-full max-w-4xl mr-auto overflow-x-auto border border-white/20 shadow-premium mb-6 no-scrollbar">
+          <div className="flex items-center p-2 bg-emerald-950/60 backdrop-blur-xl rounded-3xl w-full max-w-5xl mr-auto overflow-x-auto border border-white/20 shadow-premium mb-6 no-scrollbar gap-2">
              <button onClick={() => setActiveTab('painel')} className={cn(
                "flex-1 px-8 py-4 rounded-2xl text-[13px] font-black flex items-center justify-center gap-2.5 transition-all whitespace-nowrap", 
                activeTab === 'painel' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
@@ -1341,6 +1332,18 @@ export default function Admin() {
              )}>
                 <ShoppingBag className="w-4.5 h-4.5" /> Vendas
              </button>
+             
+             <div className="w-px h-8 bg-white/10 mx-2 shrink-0" />
+             
+             <Button 
+               variant="ghost" 
+               className="rounded-2xl bg-white/5 border border-white/10 font-black h-12 px-6 hover:bg-white/10 text-white transition-all backdrop-blur-md shrink-0 focus-visible:ring-0" 
+               onClick={fetchData} 
+               disabled={loading}
+             >
+                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5 text-[#FFF033]" />}
+                <span className="ml-2">Atualizar</span>
+             </Button>
           </div>
 
           {/* CONTENT AREA WITH GRADIENT BACKGROUND */}
