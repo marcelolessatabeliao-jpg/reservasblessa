@@ -562,15 +562,15 @@ export default function Admin() {
                 <ArrowRight className="w-3.5 h-3.5 text-emerald-700 group-hover:text-white group-hover:translate-x-1 transition-all" />
              </Card>
 
-             <Card onClick={() => setActiveTab('vendas')} className="cursor-pointer bg-amber-50 border-2 border-amber-300 text-amber-950 shadow-xl rounded-2xl p-2.5 flex items-center justify-between hover:bg-amber-100 transition-all group overflow-hidden relative min-h-[70px]">
-                <div className="absolute -right-1 -top-1 p-1 opacity-10 group-hover:scale-110 transition-all"><ShoppingBag className="w-12 h-12 text-amber-600" /></div>
+             <Card onClick={() => setActiveTab('reservas')} className="cursor-pointer bg-amber-50 border-2 border-amber-300 text-amber-950 shadow-xl rounded-2xl p-2.5 flex items-center justify-between hover:bg-amber-100 transition-all group overflow-hidden relative min-h-[70px]">
+                <div className="absolute -right-1 -top-1 p-1 opacity-10 group-hover:scale-110 transition-all"><CalendarCheck className="w-12 h-12 text-amber-600" /></div>
                 <div className="flex items-center gap-2.5 relative z-10">
                    <div className="p-1.5 rounded-lg bg-amber-100 text-amber-700 border border-amber-200">
-                      <ShoppingBag className="w-4 h-4" />
+                      <CalendarCheck className="w-4 h-4" />
                    </div>
                    <div className="flex flex-col -space-y-1">
-                      <span className="text-lg font-black tabular-nums tracking-tighter">{dayOrders.length}</span>
-                      <span className="text-[7.5px] font-black uppercase tracking-widest text-amber-800">Vendas Realizadas</span>
+                      <span className="text-lg font-black tabular-nums tracking-tighter">{bookings.length + orders.length}</span>
+                      <span className="text-[7.5px] font-black uppercase tracking-widest text-amber-800">Agenda de Reservas</span>
                    </div>
                 </div>
                 <ArrowRight className="w-3.5 h-3.5 text-amber-300 group-hover:text-amber-700 group-hover:translate-x-1 transition-all" />
@@ -579,27 +579,27 @@ export default function Admin() {
 
           <Card className="bg-transparent border-none text-emerald-950 shadow-none p-0">
              
-             <div className="rounded-[1.5rem] border-2 border-amber-200 bg-[#FFFCF0] overflow-hidden mb-0 shadow-lg">
-                <div className="p-5 border-b border-amber-200 flex flex-col md:flex-row md:items-center gap-4">
-                   <div className="flex items-center gap-4 border-r-0 md:border-r border-amber-200/50 pr-4">
-                      <div className="w-12 h-12 bg-emerald-800 rounded-xl flex items-center justify-center text-white font-black text-xl shadow-md">
+             <div className="rounded-[1.5rem] border-2 border-amber-300 bg-amber-100/50 overflow-hidden mb-0 shadow-lg backdrop-blur-sm">
+                <div className="p-5 border-b border-amber-300 flex flex-col md:flex-row md:items-center gap-4">
+                   <div className="flex items-center gap-4 border-r-0 md:border-r border-amber-300/50 pr-4">
+                      <div className="w-12 h-12 bg-emerald-800 rounded-xl flex items-center justify-center text-white font-black text-xl shadow-md border-2 border-emerald-400/30">
                          {targetDate.getDate()}
                       </div>
                       <div>
                          <h3 className="text-[16px] font-black text-emerald-950 tracking-tight leading-none mb-1">Operação Diária</h3>
-                         <p className="text-[11px] font-bold text-emerald-700 uppercase">{format(targetDate, "EEEE, yyyy", { locale: ptBR })}</p>
+                         <p className="text-[11px] font-bold text-emerald-800 uppercase tracking-tighter">{format(targetDate, "EEEE, yyyy", { locale: ptBR })}</p>
                       </div>
                    </div>
                    <div className="flex items-center gap-2">
-                     <HelpCircle className="w-4 h-4 text-amber-700" />
-                     <h4 className="font-black text-amber-900 text-sm">Resumo de {format(targetDate, "dd 'de' MMMM", { locale: ptBR })}</h4>
+                     <HelpCircle className="w-4 h-4 text-amber-800" />
+                     <h4 className="font-black text-amber-950 text-sm tracking-tight text-shadow-sm">Resumo de {format(targetDate, "dd 'de' MMMM", { locale: ptBR })}</h4>
                    </div>
                 </div>
                 <div className="grid grid-cols-1 xl:grid-cols-2">
                    {/* Left: Quiosques */}
-                   <div className="p-8 border-b xl:border-b-0 xl:border-r border-amber-200 bg-emerald-50/70 space-y-6">
-                      <h4 className="text-[14px] font-black text-emerald-700 flex items-center gap-3">
-                         <Users className="w-5 h-5 text-emerald-600" /> Quiosques ({dayKiosks.length}/5)
+                   <div className="p-8 border-b xl:border-b-0 xl:border-r border-amber-300 bg-emerald-100/40 space-y-6">
+                      <h4 className="text-[14px] font-black text-emerald-800 flex items-center gap-3">
+                         <Users className="w-5 h-5 text-emerald-700" /> Quiosques ({dayKiosks.length}/5)
                       </h4>
                       
                       <div className="flex flex-col gap-3">
@@ -632,9 +632,9 @@ export default function Admin() {
                    </div>
 
                    {/* Right: Quadriciclos */}
-                   <div className="p-8 bg-blue-50/40 space-y-6">
-                      <h4 className="text-[14px] font-black text-blue-700 flex items-center gap-3">
-                         <Bike className="w-5 h-5 text-blue-600" /> Quadriciclos
+                   <div className="p-8 bg-blue-100/30 space-y-6">
+                      <h4 className="text-[14px] font-black text-blue-800 flex items-center gap-3">
+                         <Bike className="w-5 h-5 text-blue-700" /> Quadriciclos
                       </h4>
                    
                    <div className="flex flex-col gap-2.5">
@@ -700,8 +700,8 @@ export default function Admin() {
              </div>
 
              {/* Footer Summary */}
-             <div className="p-5 border-t border-amber-200 bg-[#FFFCF0] flex items-center justify-center text-center">
-                <p className="text-amber-800 font-black uppercase tracking-[0.1em] text-[11px]">
+             <div className="p-5 border-t border-amber-300 bg-amber-100/60 flex items-center justify-center text-center">
+                <p className="text-amber-900 font-black uppercase tracking-[0.1em] text-[11px]">
                    Total de Reservas no Dia: {dayKiosks.length + dayQuads.length}
                 </p>
              </div>
@@ -746,13 +746,13 @@ export default function Admin() {
                       nav_button: "h-10 w-10 bg-white text-emerald-600 border border-emerald-100 hover:bg-emerald-50 shadow-sm rounded-xl transition-all",
                       table: "w-full border-collapse",
                       head_cell: "text-emerald-900 font-extrabold text-[11px] uppercase tracking-[0.2em] w-12 py-4",
-                      cell: "h-14 w-12 text-center p-0 relative focus-within:z-20",
+                      cell: "h-14 w-14 text-center p-0 relative focus-within:z-20",
                       day: cn(
-                        "h-12 w-12 p-0 font-black text-sm transition-all rounded-[1rem] border-2 border-emerald-50 bg-emerald-50/20 text-emerald-950 hover:border-emerald-300 hover:bg-emerald-100 shadow-sm",
+                        "h-12 w-12 p-0 font-black text-sm transition-all rounded-full border-2 border-emerald-50 bg-emerald-50/20 text-emerald-950 hover:border-emerald-300 hover:bg-emerald-100 shadow-sm mx-auto",
                         "flex flex-col items-center justify-center gap-1"
                       ),
-                      day_selected: "bg-emerald-800 text-white hover:bg-emerald-700 border-emerald-800 shadow-xl shadow-emerald-900/30 !opacity-100",
-                      day_today: "bg-yellow-400 text-emerald-950 border-yellow-500 shadow-lg font-black ring-2 ring-yellow-200 ring-offset-2",
+                      day_selected: "bg-emerald-800 text-white hover:bg-emerald-700 border-emerald-800 shadow-xl shadow-emerald-900/30 !opacity-100 rounded-full",
+                      day_today: "bg-yellow-400 text-emerald-950 border-yellow-500 shadow-lg font-black ring-2 ring-yellow-200 ring-offset-2 rounded-full",
                       day_outside: "text-emerald-900/60 font-bold opacity-50 bg-transparent shadow-none border-transparent",
                     }}
                     components={{
@@ -768,11 +768,11 @@ export default function Admin() {
                         const isFull = kiosksFull && quadsFull;
 
                         return (
-                          <div className={cn("relative flex flex-col items-center p-1 rounded-lg w-full h-full justify-center transition-all", isFull && "bg-red-50/50 border border-red-100")}>
-                            <span className={cn(isDayToday ? "text-emerald-950 font-black" : "", isFull && "text-red-600")}>{date.getDate()}</span>
+                          <div className={cn("relative flex flex-col items-center p-1 rounded-full w-full h-full justify-center transition-all", isFull && "bg-red-50/50 border border-red-100")}>
+                            <span className={cn(isDayToday ? "text-emerald-950 font-black" : "font-black", isFull && "text-red-600")}>{date.getDate()}</span>
                             <div className="flex gap-1 mt-0.5">
-                              {hasKiosk && <div className={cn("w-1.5 h-1.5 rounded-full shadow-sm", kiosksFull ? "bg-red-500" : "bg-emerald-500")} />}
-                              {hasQuad && <div className={cn("w-1.5 h-1.5 rounded-full shadow-sm", quadsFull ? "bg-red-500" : "bg-blue-500")} />}
+                              {hasKiosk && <div className={cn("w-2 h-2 rounded-full shadow-md border border-white/40", kiosksFull ? "bg-red-600" : "bg-emerald-600")} />}
+                              {hasQuad && <div className={cn("w-2 h-2 rounded-full shadow-md border border-white/40", quadsFull ? "bg-red-600" : "bg-blue-600")} />}
                             </div>
                           </div>
                         );
@@ -1499,7 +1499,7 @@ export default function Admin() {
                 </AlertDialogDescription>
              </AlertDialogHeader>
              <AlertDialogFooter className="gap-2">
-                <AlertDialogCancel className="rounded-xl border-2 border-slate-200 bg-slate-100 font-black text-slate-700 hover:bg-slate-200">Cancelar</AlertDialogCancel>
+                <AlertDialogCancel className="rounded-xl border-2 border-slate-200 bg-slate-100 font-black text-slate-700 hover:bg-slate-900 hover:text-white transition-all">Cancelar</AlertDialogCancel>
                 <Button onClick={confirmDelete} className="rounded-xl bg-red-600 hover:bg-red-700 text-white font-black h-10 px-6 shadow-md border-2 border-red-700">Sim, Excluir</Button>
              </AlertDialogFooter>
           </AlertDialogContent>
@@ -1531,8 +1531,10 @@ export default function Admin() {
                   disabled={(date) => !isAllowedDay(date) || isBefore(date, startOfDay(new Date()))}
                   classNames={{
                     month: "space-y-4",
-                    caption: "flex justify-center pt-1 relative items-center mb-2 bg-yellow-50/80 rounded-xl py-2 border border-yellow-100/50",
-                    caption_label: "text-sm font-black text-emerald-900 uppercase tracking-widest",
+                    caption: "flex justify-center pt-1 relative items-center mb-2 bg-yellow-500/20 rounded-xl py-2 border border-yellow-500/30",
+                    caption_label: "text-sm font-black text-emerald-950 uppercase tracking-widest",
+                    day_selected: "bg-blue-600 text-white hover:bg-blue-700",
+                    day_today: "bg-blue-100 text-blue-900 font-bold"
                   }}
                   components={{
                     DayContent: ({ date }) => {
@@ -1544,10 +1546,10 @@ export default function Admin() {
                       const isFull = kiosksFull && quadsFull;
                       return (
                         <div className={cn("relative flex flex-col items-center p-0.5 rounded w-full h-full justify-center", isFull && "bg-red-50/50")}>
-                          <span className={cn("text-[11px]", isFull && "text-red-500 font-black")}>{date.getDate()}</span>
+                          <span className={cn("text-[11px]", isFull && "text-red-600 font-black")}>{date.getDate()}</span>
                           <div className="flex gap-0.5 mt-0.5">
-                            {hasKiosk && <div className={cn("w-1 h-1 rounded-full", kiosksFull ? "bg-red-500" : "bg-emerald-500")} />}
-                            {hasQuad && <div className={cn("w-1 h-1 rounded-full", quadsFull ? "bg-red-500" : "bg-blue-500")} />}
+                            {hasKiosk && <div className={cn("w-1.5 h-1.5 rounded-full", kiosksFull ? "bg-red-600" : "bg-emerald-600")} />}
+                            {hasQuad && <div className={cn("w-1.5 h-1.5 rounded-full", quadsFull ? "bg-red-600" : "bg-blue-600")} />}
                           </div>
                         </div>
                       );
@@ -1559,7 +1561,7 @@ export default function Admin() {
              <div className="flex gap-3">
                <Button 
                  variant="outline" 
-                 className="flex-1 h-12 rounded-2xl font-black border-2 border-slate-300 text-slate-600 hover:bg-slate-100 transition-all"
+                 className="flex-1 h-12 rounded-2xl font-black border-2 border-slate-300 text-slate-600 hover:bg-slate-900 hover:text-white hover:border-slate-800 transition-all"
                  onClick={() => setRescheduleData(null)}
                >
                  CANCELAR
