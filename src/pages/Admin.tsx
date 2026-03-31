@@ -694,7 +694,7 @@ export default function Admin() {
                         "h-12 w-12 p-0 font-black text-sm transition-all rounded-full border-2 border-emerald-50 bg-emerald-50/20 text-emerald-950 hover:border-emerald-300 hover:bg-emerald-100 shadow-sm mx-auto",
                         "flex flex-col items-center justify-center gap-1"
                       ),
-                      day_selected: "bg-emerald-800 text-white hover:bg-emerald-700 border-emerald-800 shadow-xl shadow-emerald-900/30 !opacity-100 rounded-full",
+                      day_selected: "bg-emerald-800 !text-white hover:bg-emerald-700 border-emerald-800 shadow-xl shadow-emerald-900/30 !opacity-100 rounded-full",
                       day_today: "bg-yellow-400 text-emerald-950 border-yellow-500 shadow-lg font-black ring-2 ring-yellow-200 ring-offset-2 rounded-full",
                       day_outside: "text-emerald-900/60 font-bold opacity-50 bg-transparent shadow-none border-transparent",
                     }}
