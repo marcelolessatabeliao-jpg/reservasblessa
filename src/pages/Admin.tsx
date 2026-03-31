@@ -517,7 +517,7 @@ export default function Admin() {
           <Card className="bg-transparent border-none text-emerald-950 shadow-none p-0">
              
              <div className="rounded-[1.5rem] border-2 border-amber-300 bg-amber-100/50 overflow-hidden mb-0 shadow-lg backdrop-blur-sm">
-                <div className="p-5 border-b border-amber-300 flex flex-col md:flex-row md:items-center gap-4">
+                <div className="p-3 md:p-5 border-b border-amber-300 flex flex-col md:flex-row md:items-center gap-4">
                    <div className="flex items-center gap-4 border-r-0 md:border-r border-amber-300/50 pr-4">
                       <div className="w-12 h-12 bg-emerald-800 rounded-xl flex items-center justify-center text-white font-black text-xl shadow-md border-2 border-emerald-400/30">
                          {targetDate.getDate()}
@@ -534,7 +534,7 @@ export default function Admin() {
                 </div>
                 <div className="grid grid-cols-1 xl:grid-cols-2">
                    {/* Left: Quiosques */}
-                   <div className="p-8 border-b xl:border-b-0 xl:border-r border-amber-300 bg-emerald-100/40 space-y-6">
+                   <div className="p-4 md:p-8 border-b xl:border-b-0 xl:border-r border-amber-300 bg-emerald-100/40 space-y-6">
                       <h4 className="text-[14px] font-black text-emerald-800 flex items-center gap-3">
                          <Users className="w-5 h-5 text-emerald-700" /> Quiosques ({dayKiosks.length}/5)
                       </h4>
@@ -569,7 +569,7 @@ export default function Admin() {
                    </div>
 
                    {/* Right: Quadriciclos */}
-                   <div className="p-8 bg-blue-100/30 space-y-6">
+                   <div className="p-4 md:p-8 bg-blue-100/30 space-y-6">
                       <h4 className="text-[14px] font-black text-blue-800 flex items-center gap-3">
                          <Bike className="w-5 h-5 text-blue-700" /> Quadriciclos
                       </h4>
@@ -637,7 +637,7 @@ export default function Admin() {
              </div>
 
              {/* Footer Summary */}
-             <div className="p-5 border-t border-amber-300 bg-amber-100/60 flex items-center justify-center text-center">
+             <div className="p-3 md:p-5 border-t border-amber-300 bg-amber-100/60 flex items-center justify-center text-center">
                 <p className="text-amber-900 font-black uppercase tracking-[0.1em] text-[11px]">
                    Total de Reservas no Dia: {dayKiosks.length + dayQuads.length}
                 </p>
@@ -682,14 +682,14 @@ export default function Admin() {
                       months: "w-full flex flex-col",
                       month: "w-full space-y-6",
                       caption: "relative flex items-center justify-between w-full h-14 bg-emerald-800 rounded-2xl border-2 border-emerald-900 shadow-xl mb-4 px-3",
-                      caption_label: "text-[12px] font-black text-white uppercase tracking-[0.2em] flex-1 text-center",
+                      caption_label: "text-[10px] md:text-[12px] font-black text-white uppercase tracking-[0.2em] flex-1 text-center",
                       nav: "absolute inset-x-0 inset-y-0 flex items-center justify-between px-2 pointer-events-none z-30",
-                      nav_button: "h-9 w-9 bg-emerald-500 text-white border border-emerald-400 hover:bg-emerald-400 shadow-lg rounded-[0.5rem] transition-all pointer-events-auto flex items-center justify-center",
+                      nav_button: "h-7 w-7 md:h-9 md:w-9 bg-emerald-500 text-white border border-emerald-400 hover:bg-emerald-400 shadow-lg rounded-[0.5rem] transition-all pointer-events-auto flex items-center justify-center",
                       nav_button_previous: "relative",
                       nav_button_next: "relative",
                       table: "w-full border-collapse",
                       head_cell: "text-emerald-900 font-extrabold text-[11px] uppercase tracking-[0.2em] w-12 py-4",
-                      cell: "h-14 w-14 text-center p-0 relative focus-within:z-20",
+                      cell: "h-10 w-10 md:h-14 md:w-14 text-center p-0 relative focus-within:z-20",
                       day: cn(
                         "h-12 w-12 p-0 font-black text-sm transition-all rounded-full border-2 border-emerald-50 bg-emerald-50/20 text-emerald-950 hover:border-emerald-300 hover:bg-emerald-100 shadow-sm mx-auto",
                         "flex flex-col items-center justify-center gap-1"
