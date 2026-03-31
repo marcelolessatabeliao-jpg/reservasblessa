@@ -471,14 +471,14 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
 
                 <div className="flex items-center gap-4 mb-6 relative z-10">
                   <div className="relative">
-                    <div className="w-12 h-12 rounded-2xl bg-white/40 flex items-center justify-center border-2 border-white/60 shadow-xl backdrop-blur-sm">
-                      <Sparkles className="w-7 h-7 text-white drop-shadow-lg" />
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-950/10 flex items-center justify-center border-2 border-emerald-950/20 shadow-xl backdrop-blur-sm">
+                      <Sparkles className="w-7 h-7 text-emerald-950 drop-shadow-sm" />
                     </div>
                     {/* Extra sparkles for effect */}
                     <motion.div 
-                      animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
+                      animate={{ scale: [1, 1.2, 1], opacity: [0.6, 1, 0.6] }}
                       transition={{ duration: 2, repeat: Infinity }}
-                      className="absolute -top-2 -right-2 text-white drop-shadow-md"
+                      className="absolute -top-2 -right-2 text-emerald-950 drop-shadow-md"
                     >
                       <Sparkles className="w-4 h-4" />
                     </motion.div>
