@@ -138,52 +138,44 @@ export function LessaClubSimulator() {
             className="flex flex-col gap-3.5 h-full"
           >
             {/* Green Total Card */}
-            <div className="bg-primary rounded-[32px] p-5 sm:p-8 border border-primary-light shadow-xl shadow-primary/20 relative overflow-hidden text-white flex-1 flex flex-col justify-center items-center">
-              {/* Highlighted Simulador Badge */}
-              <motion.div 
-                animate={{ 
-                  y: [0, -6, 0],
-                  rotate: [2, 4, 2]
-                }}
-                transition={{
-                  duration: 5,
-                  repeat: Infinity,
-                  ease: "easeInOut"
-                }}
-                className="absolute top-4 right-4 sm:top-6 sm:right-6 bg-sun px-4 sm:px-5 py-1.5 sm:py-2 rounded-2xl sm:rounded-[20px] shadow-lg z-20 flex items-center justify-center border border-sun/50"
-              >
-                <span className="text-sm sm:text-lg tracking-tight font-black text-slate-900 drop-shadow-sm">Simulador 💸</span>
-              </motion.div>
+            <div className="bg-gradient-to-br from-[#bf953f] via-[#fcf6ba] to-[#aa771c] rounded-[32px] p-5 sm:p-8 border border-sun/50 shadow-2xl relative overflow-hidden flex-1 flex flex-col justify-center items-center group">
+              {/* VANTAGEM PREMIUM Badge */}
+              <div className="absolute top-0 right-0 bg-[#332200] text-[#fcf6ba] text-[11px] font-black px-5 py-2 rounded-bl-3xl shadow-xl uppercase tracking-widest z-10 border-l border-b border-white/20">
+                VANTAGEM PREMIUM
+              </div>
+
+              {/* Decorative Blur */}
+              <div className="absolute -bottom-10 -right-10 w-48 h-48 bg-white/20 rounded-full blur-3xl group-hover:scale-125 transition-transform duration-700 pointer-events-none" />
               
-              <div className="relative z-10 w-full text-center mt-4">
-                <p className="text-sun font-bold uppercase tracking-widest text-[10px] sm:text-xs mb-1 drop-shadow-sm">
+              <div className="relative z-10 w-full text-center mt-6">
+                <p className="text-[#5c3c00] font-black uppercase tracking-widest text-[11px] sm:text-xs mb-2 opacity-80">
                   Total do {planName}
                 </p>
                 <div className="flex items-center justify-center mb-6">
-                  <h3 className="font-display font-black text-5xl sm:text-6xl drop-shadow-md">
+                  <h3 className="font-display font-black text-6xl sm:text-7xl text-black tracking-tighter drop-shadow-sm">
                     {formatCurrency(totalMonthly)}
                   </h3>
                 </div>
                 
-                <Button asChild size="lg" className="bg-white text-primary hover:bg-sun hover:text-foreground font-display font-black text-base sm:text-lg h-12 rounded-xl shadow-lg w-full mb-5 transition-all duration-300">
+                <Button asChild size="lg" className="bg-[#332200] text-[#fcf6ba] hover:bg-black hover:text-white font-display font-black text-base sm:text-lg h-14 rounded-2xl shadow-2xl w-full mb-6 transition-all duration-300 border border-white/10">
                   <motion.a 
                     whileTap={{ scale: 0.96 }}
                     href={getPlanLink()} 
                     target="_blank" 
                     rel="noopener noreferrer"
                   >
-                     QUERO ME ASSOCIAR <ArrowRight className="ml-2 h-4 w-4" />
+                     QUERO ME ASSOCIAR <ArrowRight className="ml-2 h-5 w-5" />
                   </motion.a>
                 </Button>
 
-                {/* Updated Benefit Box */}
-                <div className="bg-white/10 backdrop-blur-md border border-white/30 rounded-xl p-4 text-center shadow-inner group">
-                  <p className="text-[10px] sm:text-[11px] font-black leading-tight flex flex-col gap-1.5 items-center">
-                    <span className="text-sun flex items-center gap-1.5 uppercase text-[11px] tracking-tight">
-                      <Star className="h-4 w-4 fill-sun animate-spin-slow" /> O MAIOR BENEFÍCIO:
+                {/* Box de Benefício Premium */}
+                <div className="bg-black/10 backdrop-blur-sm border border-black/10 rounded-2xl p-5 text-center shadow-inner">
+                  <p className="text-[10px] sm:text-[11px] font-black leading-snug flex flex-col gap-2 items-center">
+                    <span className="text-[#332200] flex items-center gap-2 uppercase text-[12px] tracking-tight">
+                      <Star className="h-4 w-4 fill-[#332200] animate-pulse" /> O MAIOR BENEFÍCIO:
                     </span> 
-                    <span className="text-white leading-relaxed font-bold border-t border-white/10 pt-1.5 px-2">
-                       Pague apenas uma vêz e tenha entradas ilimitadas ao balneário o mês inteiro nos dias de funcionamento
+                    <span className="text-[#332200] leading-relaxed font-black border-t border-black/10 pt-2 px-3 italic opacity-90">
+                       Pague apenas uma vez e tenha entradas ilimitadas ao balneário o mês inteiro nos dias de funcionamento
                     </span>
                   </p>
                 </div>
