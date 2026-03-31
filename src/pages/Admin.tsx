@@ -1216,12 +1216,12 @@ export default function Admin() {
   );
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-emerald-900 via-slate-950 to-black bg-fixed">
+    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-emerald-900 via-slate-950 to-black bg-fixed overflow-x-hidden">
        {/* Ambient Glows */}
        <div className="absolute -top-24 -right-24 w-96 h-96 bg-emerald-500/10 blur-[120px] rounded-full" />
        <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-blue-500/10 blur-[120px] rounded-full" />
 
-       <div className="max-w-7xl mx-auto space-y-8 relative z-10 p-4 md:p-8">
+       <div className="max-w-7xl mx-auto space-y-6 md:space-y-8 relative z-10 p-3 md:p-8">
           {/* HEADER */}
           <div className="flex flex-col xl:flex-row xl:items-start xl:items-center justify-between gap-6 mb-4">
               <div className="space-y-2 shrink-0">
@@ -1235,26 +1235,26 @@ export default function Admin() {
               </div>
 
               {/* STATS IN HEADER */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 flex-1 px-4">
-                 <Card onClick={() => setActiveTab('quiosques')} className="cursor-pointer bg-emerald-900 border-2 border-emerald-500 shadow-xl rounded-2xl p-2 flex items-center justify-between hover:bg-emerald-800 transition-all group overflow-hidden relative h-[65px]">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 flex-1 px-0 md:px-4">
+                 <Card onClick={() => setActiveTab('quiosques')} className="cursor-pointer bg-emerald-900 border-2 border-emerald-500 shadow-xl rounded-2xl p-2 md:p-3 flex items-center justify-between hover:bg-bg-emerald-900 transition-all group overflow-hidden relative min-h-[60px] md:h-[65px]">
                     <div className="flex items-center gap-2 relative z-10">
                        <div className="p-1 px-2 rounded-lg bg-emerald-800 text-emerald-100 border border-emerald-700/50">
                           <Tent className="w-3.5 h-3.5" />
                        </div>
                        <div className="flex flex-col -space-y-0.5">
-                          <span className="text-base font-black tabular-nums text-[#FFF033]">{kioskReservations.filter(r => r.reservation_date === format(targetDate, 'yyyy-MM-dd')).length}</span>
+                          <span className="text-sm md:text-base font-black tabular-nums text-[#FFF033]">{kioskReservations.filter(r => r.reservation_date === format(targetDate, 'yyyy-MM-dd')).length}</span>
                           <span className="text-[7px] font-black uppercase tracking-widest text-emerald-200">Quiosques</span>
                        </div>
                     </div>
                  </Card>
                  
-                 <Card onClick={() => setActiveTab('quads')} className="cursor-pointer bg-blue-900 border-2 border-blue-500 shadow-xl rounded-2xl p-2 flex items-center justify-between hover:bg-blue-800 transition-all group overflow-hidden relative h-[65px]">
+                 <Card onClick={() => setActiveTab('quads')} className="cursor-pointer bg-blue-900 border-2 border-blue-500 shadow-xl rounded-2xl p-2 md:p-3 flex items-center justify-between hover:bg-bg-blue-900 transition-all group overflow-hidden relative min-h-[60px] md:h-[65px]">
                     <div className="flex items-center gap-2 relative z-10">
                        <div className="p-1 px-2 rounded-lg bg-blue-800 text-blue-100 border border-blue-700/50">
                           <Bike className="w-3.5 h-3.5" />
                        </div>
                        <div className="flex flex-col -space-y-0.5">
-                          <span className="text-base font-black tabular-nums text-[#FFF033]">{quadReservations.filter(r => r.reservation_date === format(targetDate, 'yyyy-MM-dd')).length}</span>
+                          <span className="text-sm md:text-base font-black tabular-nums text-[#FFF033]">{quadReservations.filter(r => r.reservation_date === format(targetDate, 'yyyy-MM-dd')).length}</span>
                           <span className="text-[7px] font-black uppercase tracking-widest text-blue-200">Quadriciclos</span>
                        </div>
                     </div>
@@ -1266,7 +1266,7 @@ export default function Admin() {
                           <TrendingUp className="w-3.5 h-3.5" />
                        </div>
                        <div className="flex flex-col -space-y-0.5">
-                          <span className="text-base font-black tabular-nums text-[#FFF033]">
+                          <span className="text-sm md:text-base font-black tabular-nums text-[#FFF033]">
                             {formatCurrency(
                                (bookings.filter(b => b.visit_date === format(targetDate, 'yyyy-MM-dd')).reduce((s, b) => b.status !== 'cancelled' ? s + (b.total_amount || 0) : s, 0)) + 
                                (orders.filter(o => (o.visit_date || o.created_at.split('T')[0]) === format(targetDate, 'yyyy-MM-dd')).reduce((s, o) => o.status !== 'cancelled' ? s + (o.total_amount || 0) : s, 0))
@@ -1277,73 +1277,73 @@ export default function Admin() {
                     </div>
                  </Card>
 
-                 <Card onClick={() => setActiveTab('reservas')} className="cursor-pointer bg-amber-900 border-2 border-amber-500 shadow-xl rounded-2xl p-2 flex items-center justify-between hover:bg-amber-800 transition-all group overflow-hidden relative h-[65px]">
+                 <Card onClick={() => setActiveTab('reservas')} className="cursor-pointer bg-amber-900 border-2 border-amber-500 shadow-xl rounded-2xl p-2 md:p-3 flex items-center justify-between hover:bg-bg-amber-900 transition-all group overflow-hidden relative min-h-[60px] md:h-[65px]">
                     <div className="flex items-center gap-2 relative z-10">
                        <div className="p-1 px-2 rounded-lg bg-amber-800 text-amber-100 border border-amber-700/50">
                           <CalendarCheck className="w-3.5 h-3.5" />
                        </div>
                        <div className="flex flex-col -space-y-0.5">
-                          <span className="text-base font-black tabular-nums text-[#FFF033]">{bookings.length + orders.length}</span>
+                          <span className="text-sm md:text-base font-black tabular-nums text-[#FFF033]">{bookings.length + orders.length}</span>
                           <span className="text-[7px] font-black uppercase tracking-widest text-amber-200">Agenda</span>
                        </div>
                     </div>
                  </Card>
               </div>
 
-              <div className="flex items-center gap-4 shrink-0">
+                            <div className="flex items-center gap-2 md:gap-4 shrink-0">
+                 <Button 
+                   variant="outline"
+                   className="rounded-2xl bg-white/10 border-2 border-white/20 font-black h-10 md:h-12 px-4 md:px-6 hover:bg-white/20 text-[#FFF033] shadow-xl backdrop-blur-md transition-all active:scale-95" 
+                   onClick={fetchData} 
+                   disabled={loading}
+                 >
+                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
+                    <span className="ml-2 hidden md:inline">Atualizar</span>
+                 </Button>
+
                  <Button 
                    className="rounded-2xl bg-[#FFF033] text-black font-black h-10 md:h-12 px-6 md:px-8 shadow-2xl hover:scale-105 active:scale-95 transition-all border-0 text-sm md:text-base" 
                    onClick={handleLogout}
                  >
-                    <LogOut className="w-5 h-5 mr-2" /> Sair
+                    <LogOut className="w-5 h-5 md:mr-2" /> <span className="hidden md:inline">Sair</span>
                  </Button>
               </div>
           </div>
 
           {/* TABS */}
-          <div className="flex items-center p-1.5 md:p-2 bg-emerald-950/60 backdrop-blur-xl rounded-2xl md:rounded-3xl w-full max-w-5xl mr-auto overflow-x-auto border border-white/20 shadow-premium mb-6 no-scrollbar gap-1.5 md:gap-2">
+          <div className="grid grid-cols-2 lg:flex lg:items-center p-1.5 md:p-2 bg-emerald-950/60 backdrop-blur-xl rounded-2xl md:rounded-3xl w-full max-w-5xl mr-auto border border-white/20 shadow-premium mb-6 gap-1.5 md:gap-2">
              <button onClick={() => setActiveTab('painel')} className={cn(
-               "flex-1 px-4 md:px-8 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap", 
+               "px-4 md:px-8 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap", 
                activeTab === 'painel' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
              )}>
                 <LayoutDashboard className="w-4 h-4 md:w-4.5 md:h-4.5" /> Visão Geral
              </button>
              <button onClick={() => setActiveTab('quiosques')} className={cn(
-               "flex-1 px-4 md:px-8 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap", 
+               "px-4 md:px-8 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap", 
                activeTab === 'quiosques' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
              )}>
                 <Tent className="w-4 h-4 md:w-4.5 md:h-4.5" /> Quiosques
              </button>
              <button onClick={() => setActiveTab('quads')} className={cn(
-               "flex-1 px-4 md:px-8 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap", 
+               "px-4 md:px-8 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap", 
                activeTab === 'quads' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
              )}>
                 <Bike className="w-4 h-4 md:w-4.5 md:h-4.5" /> Quadriciclos
              </button>
              <button onClick={() => setActiveTab('reservas')} className={cn(
-               "flex-1 px-4 md:px-8 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap", 
+               "px-4 md:px-8 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap", 
                activeTab === 'reservas' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
              )}>
                 <CalendarCheck className="w-4 h-4 md:w-4.5 md:h-4.5" /> Agenda
              </button>
              <button onClick={() => setActiveTab('vendas')} className={cn(
-               "flex-1 px-4 md:px-8 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap", 
+               "col-span-2 lg:flex-1 px-4 md:px-8 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap", 
                activeTab === 'vendas' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
              )}>
                 <ShoppingBag className="w-4 h-4 md:w-4.5 md:h-4.5" /> Vendas
              </button>
              
-             <div className="w-px h-8 bg-white/10 mx-2 shrink-0" />
              
-             <Button 
-               variant="ghost" 
-               className="rounded-xl md:rounded-2xl bg-white/5 border border-white/10 font-black h-10 md:h-12 px-4 md:px-6 hover:bg-white/10 text-white transition-all backdrop-blur-md shrink-0 focus-visible:ring-0" 
-               onClick={fetchData} 
-               disabled={loading}
-             >
-                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5 text-[#FFF033]" />}
-                <span className="ml-2">Atualizar</span>
-             </Button>
           </div>
 
           {/* CONTENT AREA WITH GRADIENT BACKGROUND */}
