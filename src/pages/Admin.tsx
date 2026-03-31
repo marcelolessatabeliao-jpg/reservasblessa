@@ -524,7 +524,7 @@ export default function Admin() {
                       </div>
                       <div>
                          <h3 className="text-[16px] font-black text-emerald-950 tracking-tight leading-none mb-1">Operação Diária</h3>
-                         <p className="text-[11px] font-bold text-emerald-800 uppercase tracking-tighter">{format(targetDate, "EEEE, yyyy", { locale: ptBR })}</p>
+                         <p className="text-[11px] font-black text-emerald-950 uppercase tracking-tighter">{format(targetDate, "EEEE, yyyy", { locale: ptBR })}</p>
                       </div>
                    </div>
                    <div className="flex items-center gap-2">
@@ -677,14 +677,15 @@ export default function Admin() {
                     locale={ptBR}
                     toDate={new Date(2030, 11, 31)}
                     fromDate={new Date(2024, 0, 1)}
+                    disabled={(date) => !isAllowedDay(date)}
                     classNames={{
                       month: "space-y-6",
-                      caption: "flex justify-center pt-2 relative items-center mb-4 bg-emerald-800 rounded-2xl py-4 border-2 border-emerald-900 shadow-xl w-full overflow-hidden",
-                      caption_label: "text-lg font-black text-white uppercase tracking-widest",
-                      nav: "flex items-center justify-between absolute inset-x-0 inset-y-0 px-4 pointer-events-none z-30",
-                      nav_button: "h-10 w-10 bg-emerald-500 text-white border border-emerald-400 hover:bg-emerald-400 shadow-lg rounded-xl transition-all pointer-events-auto flex items-center justify-center translate-y-0",
-                      nav_button_previous: "relative left-0",
-                      nav_button_next: "relative right-0",
+                      caption: "flex justify-center pt-2 relative items-center mb-4 bg-emerald-800 rounded-2xl py-4 border-2 border-emerald-900 shadow-xl w-full px-12",
+                      caption_label: "text-lg font-black text-white uppercase tracking-widest text-center",
+                      nav: "flex items-center justify-between absolute inset-x-0 top-1/2 -translate-y-1/2 px-2 pointer-events-none z-30",
+                      nav_button: "h-10 w-10 bg-emerald-500 text-white border border-emerald-400 hover:bg-emerald-400 shadow-lg rounded-xl transition-all pointer-events-auto flex items-center justify-center",
+                      nav_button_previous: "relative",
+                      nav_button_next: "relative",
                       table: "w-full border-collapse",
                       head_cell: "text-emerald-900 font-extrabold text-[11px] uppercase tracking-[0.2em] w-12 py-4",
                       cell: "h-14 w-14 text-center p-0 relative focus-within:z-20",
@@ -811,7 +812,7 @@ export default function Admin() {
               </div>
             ) : (
               <table className="w-full text-left">
-                <thead className="bg-slate-100/80 text-[10px] font-bold uppercase text-slate-600 tracking-widest border-b-2 border-emerald-300">
+                <thead className="bg-slate-100/80 text-[10px] font-black uppercase text-slate-900 tracking-widest border-b-2 border-emerald-300">
                   <tr>
                     <th className="px-6 py-4">Data</th>
                     <th className="px-6 py-4">Cliente</th>
@@ -839,7 +840,7 @@ export default function Admin() {
                         </td>
                         <td className="px-6 py-4">
                           <span className="font-black text-emerald-950 uppercase">{group.customer_name}</span>
-                          <div className="text-[10px] text-emerald-800/80 font-black mt-0.5">{group.items.length} reserva(s)</div>
+                          <div className="text-[10px] text-emerald-950 font-black mt-0.5">{group.items.length} reserva(s)</div>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex flex-col gap-1">
@@ -911,8 +912,8 @@ export default function Admin() {
           <div className="p-6 border-b-2 border-slate-200 bg-blue-50/50">
             <div className="flex items-center justify-between flex-wrap gap-4">
               <div>
-                <h3 className="text-lg font-bold text-blue-700">Reservas de Quadriciclos</h3>
-                <p className="text-xs text-muted-foreground">Clique em um grupo para ver os horários</p>
+                <h3 className="text-lg font-black text-blue-950">Reservas de Quadriciclos</h3>
+                <p className="text-xs text-blue-900 font-bold">Clique em um grupo para ver os horários</p>
               </div>
               <div className="flex gap-2 bg-slate-100 p-1 rounded-2xl">
                 {subTabConfig.map(t => (
@@ -992,9 +993,9 @@ export default function Admin() {
                             </div>
                           </td>
                           <td className="px-6 py-4 text-center">
-                            <Badge className="bg-blue-100 text-blue-800 border-0 font-extrabold">{group.total_quantity} quadriciclos</Badge>
+                            <Badge className="bg-blue-100 text-blue-950 border-0 font-black">{group.total_quantity} quadriciclos</Badge>
                           </td>
-                          <td className="px-6 py-4 font-bold text-blue-700">{formatCurrency(group.total_price)}</td>
+                          <td className="px-6 py-4 font-black text-blue-900">{formatCurrency(group.total_price)}</td>
                           <td className="px-6 py-4 text-right">
                             <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
                               {group.items.some((r: any) => r.receipt_url) && (
@@ -1384,7 +1385,7 @@ export default function Admin() {
                             month: "space-y-4",
                             caption: "flex justify-center pt-1 relative items-center mb-2 bg-emerald-800 rounded-xl py-3 border-2 border-emerald-900 shadow-lg w-full",
                             caption_label: "text-sm font-black text-white uppercase tracking-widest",
-                            nav: "flex items-center justify-between absolute inset-x-0 inset-y-0 px-2 pointer-events-none z-30",
+                            nav: "flex items-center justify-between absolute inset-x-0 inset-y-0 px-4 pointer-events-none z-30",
                             nav_button: "h-8 w-8 bg-emerald-500 text-white border border-emerald-400 hover:bg-emerald-400 shadow-md rounded-lg transition-all pointer-events-auto flex items-center justify-center",
                             nav_button_previous: "relative left-0",
                             nav_button_next: "relative right-0",
@@ -1538,11 +1539,11 @@ export default function Admin() {
                     month: "space-y-4",
                     caption: "flex justify-center pt-1 relative items-center mb-2 bg-blue-800 rounded-xl py-3 border-2 border-blue-900 shadow-lg w-full",
                     caption_label: "text-sm font-black text-white uppercase tracking-widest",
-                    nav: "flex items-center justify-between absolute inset-x-0 inset-y-0 px-4 pointer-events-none z-30",
+                    nav: "flex items-center justify-between absolute inset-x-0 inset-y-0 px-6 pointer-events-none z-30",
                     nav_button: "h-10 w-10 bg-blue-500 text-white border border-blue-400 hover:bg-blue-400 shadow-lg rounded-xl transition-all pointer-events-auto flex items-center justify-center",
                     nav_button_previous: "relative left-0",
                     nav_button_next: "relative right-0",
-                    day_selected: "bg-blue-600 text-white hover:bg-blue-700",
+                    day_selected: "bg-amber-400 text-amber-950 font-black hover:bg-amber-500 shadow-md",
                     day_today: "bg-blue-100 text-blue-900 font-bold"
                   }}
                   components={{
@@ -1557,8 +1558,8 @@ export default function Admin() {
                         <div className={cn("relative flex flex-col items-center p-0.5 rounded w-full h-full justify-center", isFull && "bg-red-50/50")}>
                           <span className={cn("text-[11px]", isFull && "text-red-600 font-black")}>{date.getDate()}</span>
                           <div className="flex gap-0.5 mt-0.5">
-                            {hasKiosk && <div className={cn("w-1.5 h-1.5 rounded-full", kiosksFull ? "bg-red-600" : "bg-emerald-600")} />}
-                            {hasQuad && <div className={cn("w-1.5 h-1.5 rounded-full", quadsFull ? "bg-red-600" : "bg-blue-600")} />}
+                            {hasKiosk && <div className={cn("w-1.5 h-1.5 rounded-full ring-1 ring-white/50", kiosksFull ? "bg-red-600" : "bg-emerald-600")} />}
+                            {hasQuad && <div className={cn("w-1.5 h-1.5 rounded-full ring-1 ring-white/50", quadsFull ? "bg-red-600" : "bg-blue-600")} />}
                           </div>
                         </div>
                       );
