@@ -733,8 +733,8 @@ export default function Admin() {
                       nav_button: "h-7 w-7 md:h-9 md:w-9 bg-emerald-500 text-white border border-emerald-400 hover:bg-emerald-400 shadow-lg rounded-[0.5rem] transition-all pointer-events-auto flex items-center justify-center",
                       nav_button_previous: "relative",
                       nav_button_next: "relative",
-                      table: "w-full border-collapse",
-                      head_cell: "text-emerald-900 font-extrabold text-[11px] uppercase tracking-[0.2em] w-12 py-4",
+                      table: "w-full border-collapse table-fixed",
+                      head_cell: "text-emerald-900 font-extrabold text-[11px] uppercase tracking-[0.2em] w-10 md:w-14 py-4",
                       cell: "h-10 w-10 md:h-14 md:w-14 text-center p-0 relative focus-within:z-20",
                       day: cn(
                         "h-12 w-12 p-0 font-black text-sm transition-all rounded-full border-2 border-emerald-50 bg-emerald-50/20 text-emerald-950 hover:border-emerald-300 hover:bg-emerald-100 shadow-sm mx-auto",
