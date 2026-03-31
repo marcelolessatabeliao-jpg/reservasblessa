@@ -598,35 +598,37 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
               </h4>
             </div>
             
-            <div className="flex flex-col gap-2">
-              <div className="grid grid-cols-2 gap-2">
+            <div className="flex flex-col gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 <Button 
                     onClick={() => handleStartWizard('adult')} 
-                    className="w-full h-14 rounded-2xl bg-[#006020] text-white hover:bg-[#004d1a] font-black text-xs sm:text-sm shadow-md transition-all active:scale-95 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-1 py-1"
+                    className="w-full h-16 rounded-[1.25rem] bg-gradient-to-br from-[#006020] to-[#004d1a] border-b-4 border-[#003d14] text-white hover:brightness-110 font-black text-sm shadow-xl transition-all active:translate-y-1 active:border-b-0 flex flex-col items-center justify-center gap-0.5 px-1 group"
                 >
-                    <span className="text-sm">🎟️</span>
-                    <span>Adulto</span>
+                    <span className="text-xl group-hover:scale-125 transition-transform">🎟️</span>
+                    <span className="uppercase tracking-wider">Adulto</span>
                 </Button>
                 <Button 
                     onClick={() => handleStartWizard('child')} 
-                    className="w-full h-14 rounded-2xl bg-[#006020] text-white hover:bg-[#004d1a] font-black text-xs sm:text-sm shadow-md transition-all active:scale-95 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-1 py-1"
+                    className="w-full h-16 rounded-[1.25rem] bg-gradient-to-br from-[#007030] to-[#005020] border-b-4 border-[#004018] text-white hover:brightness-110 font-black text-sm shadow-xl transition-all active:translate-y-1 active:border-b-0 flex flex-col items-center justify-center gap-0.5 px-1 group"
                 >
-                    <span className="text-sm">👶</span>
-                    <span>Criança</span>
+                    <span className="text-xl group-hover:scale-125 transition-transform">👶</span>
+                    <span className="uppercase tracking-wider">Criança</span>
                 </Button>
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-3">
                 <Button 
                     onClick={() => handleStartWizard('senior')} 
-                    className="h-12 rounded-2xl bg-[#006020]/90 text-white hover:bg-[#004d1a] font-black text-[10px] shadow-sm transition-all active:scale-95"
+                    className="h-14 rounded-[1.15rem] bg-gradient-to-br from-[#005020]/90 to-[#004018]/90 border-b-2 border-[#002d12] text-white hover:brightness-110 font-black text-[11px] shadow-lg transition-all active:translate-y-0.5 active:border-b-0 flex items-center justify-center gap-2 group"
                 >
-                    🧓 Idoso (60+)
+                    <span className="group-hover:scale-110 transition-transform">🧓</span>
+                    <span className="uppercase tracking-tight">Idoso (60+)</span>
                 </Button>
                 <Button 
                     onClick={() => handleStartWizard('pcd')} 
-                    className="h-12 rounded-2xl bg-[#006020]/90 text-white hover:bg-[#004d1a] font-black text-[10px] shadow-sm transition-all active:scale-95"
+                    className="h-14 rounded-[1.15rem] bg-gradient-to-br from-[#005020]/90 to-[#004018]/90 border-b-2 border-[#002d12] text-white hover:brightness-110 font-black text-[11px] shadow-lg transition-all active:translate-y-0.5 active:border-b-0 flex items-center justify-center gap-2 group"
                 >
-                    ♿ PCD & TEA
+                    <span className="group-hover:scale-110 transition-transform">♿</span>
+                    <span className="uppercase tracking-tight">PCD & TEA</span>
                 </Button>
               </div>
             </div>
