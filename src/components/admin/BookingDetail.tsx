@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { formatCurrency } from '@/lib/booking-types';
-import { CheckCircle2, Circle, Trash2, Eye, X, FileText, ExternalLink } from 'lucide-react';
+import { CheckCircle2, Circle, Trash2, Eye, X, FileText, ExternalLink, Check, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
@@ -334,14 +334,15 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
                   size="sm"
                   variant={item.is_redeemed ? 'default' : 'outline'}
                   className={cn(
-                    'rounded-xl font-black text-[10px] uppercase h-10 px-4 shrink-0 transition-all border-2',
+                    'rounded-xl font-black text-[10px] uppercase h-10 w-10 p-0 shrink-0 transition-all border-2 flex items-center justify-center',
                     item.is_redeemed
                       ? 'bg-emerald-800 hover:bg-emerald-950 text-white border-emerald-900 shadow-lg'
                       : 'border-emerald-200 text-emerald-900 bg-emerald-50 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 hover:shadow-xl'
                   )}
                   onClick={(e) => handleToggleItemStatus(item.id, item.is_redeemed, item.product_id || item.product_name, e)}
+                  title={item.is_redeemed ? 'Estornar' : 'Marcar Uso'}
                 >
-                  {item.is_redeemed ? 'ESTORNAR' : 'MARCAR USO'}
+                  {item.is_redeemed ? <RotateCcw className="w-4.5 h-4.5" /> : <Check className="w-5 h-5 shadow-sm" />}
                 </Button>
               </div>
             ))}
