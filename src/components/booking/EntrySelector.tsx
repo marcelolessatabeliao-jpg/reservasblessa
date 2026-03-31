@@ -618,17 +618,17 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
               <div className="grid grid-cols-2 gap-3">
                 <Button 
                     onClick={() => handleStartWizard('senior')} 
-                    className="h-14 rounded-[1.15rem] bg-gradient-to-br from-[#005020]/90 to-[#004018]/90 border-b-2 border-[#002d12] text-white hover:brightness-110 font-black text-[11px] shadow-lg transition-all active:translate-y-0.5 active:border-b-0 flex items-center justify-center gap-2 group"
+                    className="w-full h-16 rounded-[1.25rem] bg-gradient-to-br from-[#005020] to-[#004018] border-b-4 border-[#002d12] text-white hover:brightness-110 font-black text-sm shadow-xl transition-all active:translate-y-1 active:border-b-0 flex flex-col items-center justify-center gap-0.5 px-1 group"
                 >
-                    <span className="group-hover:scale-110 transition-transform">🧓</span>
-                    <span className="uppercase tracking-tight">Idoso (60+)</span>
+                    <span className="text-xl group-hover:scale-125 transition-transform">🧓</span>
+                    <span className="uppercase tracking-wider whitespace-nowrap">Idoso (60+)</span>
                 </Button>
                 <Button 
                     onClick={() => handleStartWizard('pcd')} 
-                    className="h-14 rounded-[1.15rem] bg-gradient-to-br from-[#005020]/90 to-[#004018]/90 border-b-2 border-[#002d12] text-white hover:brightness-110 font-black text-[11px] shadow-lg transition-all active:translate-y-0.5 active:border-b-0 flex items-center justify-center gap-2 group"
+                    className="w-full h-16 rounded-[1.25rem] bg-gradient-to-br from-[#005020] to-[#004018] border-b-4 border-[#002d12] text-white hover:brightness-110 font-black text-sm shadow-xl transition-all active:translate-y-1 active:border-b-0 flex flex-col items-center justify-center gap-0.5 px-1 group"
                 >
-                    <span className="group-hover:scale-110 transition-transform">♿</span>
-                    <span className="uppercase tracking-tight">PCD & TEA</span>
+                    <span className="text-xl group-hover:scale-125 transition-transform">♿</span>
+                    <span className="uppercase tracking-wider">PCD & TEA</span>
                 </Button>
               </div>
             </div>
