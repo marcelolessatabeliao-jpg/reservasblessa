@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useBooking } from '@/hooks/useBooking';
 import { EntrySelector } from '@/components/booking/EntrySelector';
@@ -49,9 +49,14 @@ export function BookingSection() {
 
   const [currentStep, setCurrentStep] = useState<Step>('dados');
   const [completedSteps, setCompletedSteps] = useState<Step[]>([]);
+  const isFirstMount = useRef(true);
 
   // Smooth scroll to top of section on step change
   useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false;
+      return;
+    }
     const element = document.getElementById('reservas');
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' });
