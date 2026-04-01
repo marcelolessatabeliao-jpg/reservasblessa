@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Navbar } from '@/components/Navbar';
 import { HeroSection } from '@/components/HeroSection';
 import { AboutSection } from '@/components/AboutSection';
@@ -16,6 +18,22 @@ import { LocationSection } from '@/components/LocationSection';
 import { Footer } from '@/components/Footer';
 
 const Index = () => {
+  const { hash } = useLocation();
+
+  useEffect(() => {
+    if (hash) {
+      // Create a small delay to ensure all heavy components have been painted and ref'd
+      const timer = setTimeout(() => {
+        const id = hash.replace('#', '');
+        const element = document.getElementById(id);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [hash]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-100/80 via-emerald-50 to-teal-100/80 bg-fixed">
       <Navbar />
