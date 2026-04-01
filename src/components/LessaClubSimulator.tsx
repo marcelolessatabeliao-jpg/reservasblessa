@@ -151,10 +151,14 @@ export function LessaClubSimulator() {
                 <p className="text-[#5c3c00] font-black uppercase tracking-widest text-[11px] sm:text-xs mb-2 opacity-80">
                   Total do {planName}
                 </p>
-                <div className="flex items-center justify-center mb-6">
+                <div className="flex flex-col items-center justify-center mb-6">
                   <h3 className="font-display font-black text-6xl sm:text-7xl text-black tracking-tighter drop-shadow-sm">
                     {formatCurrency(totalMonthly)}
                   </h3>
+                  <div className="inline-flex items-center gap-1.5 bg-black/10 px-4 py-1 rounded-full mt-2 border border-black/5">
+                    <CheckCircle2 className="h-4 w-4 text-[#332200]" />
+                    <span className="text-[10px] text-[#332200] font-black uppercase tracking-tight">Valor Único Mensal</span>
+                  </div>
                 </div>
                 
                 <Button asChild size="lg" className="bg-[#332200] text-[#fcf6ba] hover:bg-black hover:text-white font-display font-black text-base sm:text-lg h-14 rounded-2xl shadow-2xl w-full mb-6 transition-all duration-300 border border-white/10">
