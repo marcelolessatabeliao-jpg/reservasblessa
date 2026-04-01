@@ -22,10 +22,10 @@ const Index = () => {
       <HeroSection />
       <BookingSection />
       <SpecialPlansSection />
+      <PricingComparisonSection />
       <AboutSection />
       <DayUsePricing />
       <DayUseRules />
-      <PricingComparisonSection />
       <LessaClubPlanCards />
       <SpecialPlansCards />
       <ServicesSection />
