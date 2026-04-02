@@ -508,6 +508,7 @@ export default function Admin() {
         name,
         phone,
         visit_date,
+        cpf: newBookingData.cpf,
         confirmation_code: confCode,
         adults: (Number(adults_normal) || 0) + (Number(adults_half) || 0) + (Number(is_teacher) || 0) + (Number(is_student) || 0) + (Number(is_server) || 0) + (Number(is_donor) || 0) + (Number(is_solidarity) || 0) + (Number(is_pcd) || 0) + (Number(is_tea) || 0) + (Number(is_senior) || 0) + (Number(is_birthday) || 0),
         children: Array(Number(children_free) || 0).fill({ age: 10 }),
@@ -521,6 +522,7 @@ export default function Admin() {
       const { data: order, error: oError } = await supabase.from('orders').insert({
         customer_name: name,
         customer_phone: phone,
+        customer_cpf: newBookingData.cpf,
         visit_date,
         total_amount: total,
         status: status || 'pending',
