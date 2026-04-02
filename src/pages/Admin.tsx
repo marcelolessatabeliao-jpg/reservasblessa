@@ -225,6 +225,13 @@ export default function Admin() {
     setLoading(true);
     try {
       const { data: bks } = await supabase.from('bookings').select('*').order('visit_date', { ascending: false });
+      // orderData fetched earlier
+      
+      // Enrich bookings with their order items from the orders table
+      const enrichedBookings = (bks || []).map(b => {
+        const relatedOrder = (orderData || []).find(o => o.confirmation_code === b.confirmation_code);
+        return { ...b, order_items: relatedOrder?.order_items || [] };
+      });
       const { data: kiosks } = await supabase.from('kiosk_reservations').select('*, orders(customer_name), bookings(name)').order('reservation_date', { ascending: false });
       const { data: quads } = await supabase.from('quad_reservations').select('*, orders(customer_name), bookings(name)').order('reservation_date', { ascending: false });
       const orderData = await getAdminOrders();

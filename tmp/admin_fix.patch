@@ -1,0 +1,29 @@
+--- a/src/pages/Admin.tsx
++++ b/src/pages/Admin.tsx
+@@ -375,7 +375,7 @@
+       const gratuityKeywords = ['crianca', 'kids', 'idoso', 'pcd', 'aniversariante'];
+ 
+       [...(bks || []), ...(orderData || [])].forEach(b => {
+-        if (b.status === 'confirmed' || b.status === 'paid') {
++        if (b.status === 'confirmed' || b.status === 'paid' || b.status === 'pending') {
+           const items = b.order_items || [];
+           items.forEach((item: any) => {
+             const name = normalizeString(item.product_name || '');
+@@ -2072,10 +2072,18 @@
+                                {[
+                                  { k: 'adults_normal', l: 'Adulto Integral', p: 'R$ 50' },
+-                                 { k: 'adults_half', l: 'Meia/Solidário', p: 'R$ 25' },
+-                                 { k: 'adults_free', l: 'Especial (PCD/Idoso)', p: 'Grátis' },
+-                                 { k: 'children_free', l: 'Kids (Até 11a)', p: 'Grátis' }
++                                 { k: 'adults_half', l: 'Meia-Entrada', p: 'R$ 25' },
++                                 { k: 'is_teacher', l: 'Professor', p: 'R$ 25' },
++                                 { k: 'is_student', l: 'Estudante', p: 'R$ 25' },
++                                 { k: 'is_server', l: 'Servidor', p: 'R$ 25' },
++                                 { k: 'is_donor', l: 'Doador Sangue', p: 'R$ 25' },
++                                 { k: 'is_solidarity', l: 'Adulto Solidário', p: 'R$ 25' },
++                                 { k: 'is_pcd', l: 'PCD', p: 'Grátis' },
++                                 { k: 'is_tea', l: 'TEA', p: 'Grátis' },
++                                 { k: 'is_senior', l: 'Idoso (60+)', p: 'Grátis' },
++                                 { k: 'is_birthday', l: 'Aniversariante', p: 'Grátis' },
++                                 { k: 'children_free', l: 'Kids (Até 11a)', p: 'Grátis' }
+                                ].map(cat => (
