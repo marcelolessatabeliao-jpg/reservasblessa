@@ -126,7 +126,7 @@ export default function Voucher() {
                   <p className="text-xs font-black uppercase">Como chegar</p>
                </div>
                <p className="text-[10px] text-primary/80 leading-relaxed font-medium">
-                  Balneário Lessa - Balneário Camboriú, SC<br />
+                  Via Araras, Setor 09 – Ariquemes/RO<br />
                   Apresente este QR Code na entrada para validação.
                </p>
             </div>
