@@ -49,7 +49,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { formatCurrency } from '@/lib/booking-types';
+import { formatCurrency, getQuadDiscount } from '@/lib/booking-types';
 import { BookingTable } from '@/components/admin/BookingTable';
 import { getAdminOrders, markOrderAsPaid } from '@/integrations/supabase/orders';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -93,6 +93,18 @@ const QUAD_MODELS_LABELS: Record<string, string> = {
 };
 
 type TabType = 'painel' | 'reservas' | 'quiosques' | 'quads' | 'vendas';
+
+
+const getBookedKioskIds = async (date: string) => {
+  const { data } = await supabase.from('kiosk_reservations').select('kiosk_id').eq('reservation_date', date);
+  return (data || []).map(r => r.kiosk_id);
+};
+
+const getQuadAvailability = async (date: string, time: string) => {
+  const { data } = await supabase.from('quad_reservations').select('quantity').eq('reservation_date', date).eq('time_slot', time);
+  const used = (data || []).reduce((sum, r) => sum + (Number(r.quantity) || 1), 0);
+  return Math.max(0, 5 - used);
+};
 
 const normalizeQuadType = (t: string) => {
   const slow = (t || '').toLowerCase();
