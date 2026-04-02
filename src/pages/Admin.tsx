@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { isValidCPF } from '@/utils/cpf-validator';
-import { format, isToday, isTomorrow, isThisWeek, parseISO, isBefore, startOfDay } from 'date-fns';
+import { saveBooking, getBookedKioskIds, getQuadAvailability, type OrderItemInput } from '@/lib/booking-service';
+import { format, isToday, isTomorrow, isThisWeek, parseISO, isBefore, startOfDay, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { 
   Users, 
@@ -20,19 +21,24 @@ import {
   User, 
   Phone, 
   CalendarPlus, 
-  Tag, 
-
+  Tag,
   FileText, 
   CalendarClock, 
   History, 
   ChevronDown, 
   ChevronUp, 
   Clock, 
-  AlertTriangle, 
-  Pencil, 
-  Check, 
-  X,
+  CheckCircle,
+  AlertTriangle,
   Loader2,
+  FileCheck,
+  StickyNote,
+  Plus,
+  CalendarRange,
+  QrCode,
+  Pencil,
+  Check,
+  X,
   DollarSign,
   UserCheck,
   Hash,
@@ -40,9 +46,7 @@ import {
   MessageCircle,
   Circle,
   Upload,
-  FileCheck,
-  HelpCircle,
-  Plus
+  HelpCircle
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -96,17 +100,6 @@ const QUAD_MODELS_LABELS: Record<string, string> = {
 
 type TabType = 'painel' | 'reservas' | 'quiosques' | 'quads' | 'vendas';
 
-
-const getBookedKioskIds = async (date: string) => {
-  const { data } = await (supabase.from('kiosk_reservations') as any).select('kiosk_id, orders!inner(status)').eq('reservation_date', date).neq('orders.status', 'awaiting_payment');
-  return (data || []).map((r: any) => r.kiosk_id);
-};
-
-const getQuadAvailability = async (date: string, time: string) => {
-  const { data } = await (supabase.from('quad_reservations') as any).select('quantity, orders!inner(status)').eq('reservation_date', date).eq('time_slot', time).neq('orders.status', 'awaiting_payment');
-  const used = (data || []).reduce((sum: number, r: any) => sum + (Number(r.quantity) || 1), 0);
-  return used;
-};
 
 const normalizeQuadType = (t: string) => {
   const slow = (t || '').toLowerCase();
@@ -185,32 +178,6 @@ export default function Admin() {
     manual_discount: 0,
     status: 'pending'
   });
-  const [availableKiosks, setAvailableKiosks] = useState<number[]>([]);
-  const [quadSlotsAvail, setQuadSlotsAvail] = useState<Record<string, number>>({});
-  const [isFetchingAvail, setIsFetchingAvail] = useState(false);
-
-  useEffect(() => {
-    if (isNewBookingOpen && newBookingData.visit_date) {
-      const fetchAvail = async () => {
-        setIsFetchingAvail(true);
-        try {
-          // Kiosks
-          const booked = await getBookedKioskIds(newBookingData.visit_date);
-          setAvailableKiosks(Array.from({length: 5}, (_, i) => i + 1).filter(id => !booked.includes(id)));
-          
-          // Quads slots
-          const slots: Record<string, number> = {};
-          for (const t of ['09:00', '10:30', '14:00', '15:30']) {
-            slots[t] = await getQuadAvailability(newBookingData.visit_date, t);
-          }
-          setQuadSlotsAvail(slots);
-        } catch (e) { console.error(e); }
-        finally { setIsFetchingAvail(false); }
-      };
-      fetchAvail();
-    }
-  }, [isNewBookingOpen, newBookingData.visit_date]);
-
   
   // New Rescheduling Dialog States
   const [rescheduleData, setRescheduleData] = useState<{type: 'kiosk' | 'quad', group: any} | null>(null);
@@ -236,12 +203,19 @@ export default function Admin() {
     try {
       const orderData = await getAdminOrders();
       const { data: bks } = await supabase.from('bookings').select('*').neq('status', 'awaiting_payment').order('visit_date', { ascending: false });
-      const { data: kiosks } = await (supabase.from('kiosk_reservations') as any).select('*, orders!inner(customer_name, status), bookings(name)').order('reservation_date', { ascending: false });
-      const { data: quads } = await (supabase.from('quad_reservations') as any).select('*, orders!inner(customer_name, status), bookings(name)').order('reservation_date', { ascending: false });
+      const { data: kiosks } = await (supabase.from('kiosk_reservations') as any)
+        .select('*, orders!inner(customer_name, status), bookings(name)')
+        .neq('orders.status', 'awaiting_payment')
+        .order('reservation_date', { ascending: false });
+        
+      const { data: quads } = await (supabase.from('quad_reservations') as any)
+        .select('*, orders!inner(customer_name, status), bookings(name)')
+        .neq('orders.status', 'awaiting_payment')
+        .order('reservation_date', { ascending: false });
       
       // Filter out awaiting_payment from reservations too
-      const filteredKiosks = (kiosks || []).filter((k: any) => k.orders?.status !== 'awaiting_payment');
-      const filteredQuads = (quads || []).filter((q: any) => q.orders?.status !== 'awaiting_payment');
+      const filteredKiosks = (kiosks || []).filter((k: any) => k.orders?.status && k.orders.status !== 'awaiting_payment');
+      const filteredQuads = (quads || []).filter((q: any) => q.orders?.status && q.orders.status !== 'awaiting_payment');
       
       // Enrich bookings with their order items from the orders table
       const enrichedBookings = (bks || []).map(b => {
@@ -265,6 +239,7 @@ export default function Admin() {
 
       if (orderData) {
          orderData.forEach((o: any) => {
+            if (o.status === 'awaiting_payment') return;
             if (!o.order_items) return;
             const resDate = o.visit_date || o.created_at.split('T')[0];
             const customerName = o.customer_name || 'Venda Loja';
@@ -399,6 +374,9 @@ export default function Admin() {
 
       [...(enrichedBookings || []), ...(orderData || [])].forEach(b => {
         if (b.status === 'confirmed' || b.status === 'paid' || b.status === 'pending') {
+          // Additional check: exclude guest-side awaiting_payment from totals
+          if (b.status === 'awaiting_payment') return;
+          
           const items = b.order_items || [];
           items.forEach((item: any) => {
             const name = normalizeString(item.product_name || '');
@@ -467,7 +445,7 @@ export default function Admin() {
         if (error) throw error;
       }
       
-      toast({ title: "âœ” Alteraçíµes salvas" });
+      toast({ title: "✓ Alterações salvas" });
       setEditingId(null);
       setEditData({});
       await fetchData();
@@ -477,12 +455,47 @@ export default function Admin() {
     }
   };
 
-    const handleCreateInternalBooking = async () => {
-    setLoading(true);
-    setGeneratedPix(null);
-    let tempOrderId = null;
-    let tempBookingId = null;
+  const [isFetchingAvail, setIsFetchingAvail] = useState(false);
+  const [availableKiosks, setAvailableKiosks] = useState<number[]>([]);
+  const [quadSlotsAvail, setQuadSlotsAvail] = useState<Record<string, number>>({});
 
+  useEffect(() => {
+    if (isNewBookingOpen && newBookingData.visit_date) {
+      const checkAvail = async () => {
+        setIsFetchingAvail(true);
+        try {
+          const [bookedIds, q9, q10, q14, q15] = await Promise.all([
+            getBookedKioskIds(newBookingData.visit_date),
+            getQuadAvailability(newBookingData.visit_date, '09:00'),
+            getQuadAvailability(newBookingData.visit_date, '10:30'),
+            getQuadAvailability(newBookingData.visit_date, '14:00'),
+            getQuadAvailability(newBookingData.visit_date, '15:30')
+          ]);
+          
+          setAvailableKiosks([1, 2, 3, 4, 5].filter(id => !bookedIds.includes(id)));
+          setQuadSlotsAvail({
+            '09:00': q9,
+            '10:30': q10,
+            '14:00': q14,
+            '15:30': q15
+          });
+        } catch (err) {
+          console.error('Error checking availability:', err);
+        } finally {
+          setIsFetchingAvail(false);
+        }
+      };
+      checkAvail();
+    }
+  }, [isNewBookingOpen, newBookingData.visit_date]);
+
+  const handleCreateInternalBooking = async () => {
+    if (!newBookingData.name || !newBookingData.visit_date) {
+      toast({ title: "Nome e Data são obrigatórios", variant: "destructive" });
+      return;
+    }
+    
+    setLoading(true);
     try {
       const { 
         name, phone, visit_date, cpf,
@@ -491,90 +504,70 @@ export default function Admin() {
         is_pcd, is_tea, is_senior, is_birthday,
         children_free, selected_kiosks, quads, manual_discount, status 
       } = newBookingData;
-      
-      if (!name || !visit_date || !isValidCPF(cpf)) {
-        toast({ 
-          title: !isValidCPF(cpf) ? "CPF INVíLIDO" : "Dados incompletos", 
-          description: "A reserva só é salva com um CPF válido e QR Code gerado.", 
-          variant: "destructive" 
-        });
-        setLoading(false);
-        return;
-      }
 
-      let total = (Number(adults_normal) * 50) + ((Number(adults_half) + Number(is_teacher) + Number(is_student) + Number(is_server) + Number(is_donor) + Number(is_solidarity)) * 25);
-      if (selected_kiosks) {
-        selected_kiosks.forEach((id: number) => total += (id === 1 ? 100 : 75));
-      }
-      const quadDiscount = getQuadDiscount(visit_date);
-      if (quads) {
-        quads.forEach((q: any) => {
-          const base = q.type === 'dupla' ? 250 : q.type === 'adulto-crianca' ? 200 : 150;
-          total += (base * (1 - quadDiscount)) * q.quantity;
-        });
-      }
-      total = Math.max(0, total - manual_discount);
-      const confCode = 'L-' + Math.random().toString(36).substring(2, 10).toUpperCase();
+      // 1. Build Order Items
+      const items: OrderItemInput[] = [];
+      const addEntry = (id: string, qty: number, price: number) => {
+        if (qty > 0) items.push({ product_id: id, quantity: qty, unit_price: price });
+      };
 
-      const { data: booking, error: bError } = await supabase.from('bookings').insert({
-        name, phone, visit_date, cpf,
-        confirmation_code: confCode,
-        adults: (Number(adults_normal)||0)+(Number(adults_half)||0)+(Number(is_teacher)||0)+(Number(is_student)||0)+(Number(is_server)||0)+(Number(is_donor)||0)+(Number(is_solidarity)||0)+(Number(is_pcd)||0)+(Number(is_tea)||0)+(Number(is_senior)||0)+(Number(is_birthday)||0),
-        children: Array(Number(children_free)||0).fill({ age: 10 }),
-        total_amount: total,
-        status: 'awaiting_payment'
-      }).select().single();
+      addEntry('Adulto', adults_normal, 50);
+      addEntry('Meia-Entrada', adults_half, 25);
+      addEntry('Professor', is_teacher, 25);
+      addEntry('Estudante', is_student, 25);
+      addEntry('Servidor', is_server, 25);
+      addEntry('Doador Sangue', is_donor, 25);
+      addEntry('Adulto Solidário', is_solidarity, 25);
+      addEntry('PCD', is_pcd, 0);
+      addEntry('TEA', is_tea, 0);
+      addEntry('Idoso', is_senior, 0);
+      addEntry('Aniversariante', is_birthday, 0);
+      addEntry('Kids', children_free, 0);
 
-      if (bError) throw bError;
-      tempBookingId = booking.id;
-
-      const { data: order, error: oError } = await supabase.from('orders').insert({
-        customer_name: name, customer_phone: phone, customer_cpf: cpf,
-        visit_date, total_amount: total,
-        status: 'awaiting_payment',
-        confirmation_code: confCode
-      }).select().single();
-
-      if (oError) throw oError;
-      tempOrderId = order.id;
-
-      if (selected_kiosks && selected_kiosks.length > 0) {
-        await supabase.from('kiosk_reservations').insert(selected_kiosks.map((id: number) => ({
-          order_id: order.id, kiosk_id: id, kiosk_type: (id === 1 ? 'maior' : 'menor'),
-          reservation_date: visit_date, quantity: 1
-        })));
-      }
-
-      if (quads && quads.length > 0) {
-        await supabase.from('quad_reservations').insert(quads.map((q: any) => ({
-          order_id: order.id, quad_type: q.type,
-          reservation_date: visit_date, time_slot: q.time, quantity: q.quantity
-        })));
-      }
-
-      const response = await supabase.functions.invoke('create-payment', {
-        body: {
-          orderId: order.id, name,
-          email: 'admin@balneariolessa.com.br',
-          phone, cpf: cpf.replace(/\D/g, ''),
-          billingType: 'PIX',
-          value: total,
-          description: `Reserva - ${name}`,
-        }
+      const kiosksToReserve: any[] = [];
+      (selected_kiosks || []).forEach((id: number) => {
+        const kType = id === 1 ? 'maior' : 'menor';
+        const kPrice = id === 1 ? 100 : 75;
+        items.push({ product_id: `Quiosque ${id.toString().padStart(2, '0')}`, quantity: 1, unit_price: kPrice });
+        kiosksToReserve.push({ type: kType, quantity: 1, selectedIds: [id], price: kPrice });
       });
 
-      if (response.error || !response.data?.data?.pix) {
-        throw new Error(response.error?.message || 'Falha ao conectar com Asaas. Verifique se o CPF é estruturalmente válido e real.');
+      const quadsToReserve: any[] = [];
+      const qD = getQuadDiscount(visit_date);
+      (quads || []).forEach((q: any) => {
+        const base = q.type === 'dupla' ? 250 : q.type === 'adulto-crianca' ? 200 : 150;
+        const finalP = base * (1 - qD);
+        items.push({ product_id: `Quadriciclo ${q.type.toUpperCase()} (${q.time})`, quantity: q.quantity, unit_price: finalP });
+        quadsToReserve.push({ slot: q.time, type: q.type, quantity: q.quantity, price: finalP });
+      });
+
+      if (manual_discount > 0) items.push({ product_id: 'Desconto Manual', quantity: 1, unit_price: -manual_discount });
+
+      const total = Math.max(0, items.reduce((s, i) => s + (i.quantity * i.unit_price), 0));
+
+      // 2. Prepare BookingState
+      const bookingState: any = {
+        entry: {
+          name, phone, cpf,
+          visitDate: parseISO(visit_date),
+          adults: [{ quantity: adults_normal + adults_half + is_teacher + is_student + is_server + is_donor + is_solidarity + is_pcd + is_tea + is_senior + is_birthday }],
+          children: [{ quantity: children_free }]
+        },
+        kiosks: kiosksToReserve,
+        quads: quadsToReserve
+      };
+
+      // 3. Save using central service (This updates everything: orders, items, reservations, bookings)
+      const result = await saveBooking(bookingState, total, null, items, status);
+      
+      if (result) {
+        toast({ title: "Reserva Interna Criada!", description: `Voucher: ${result.confirmationCode}` });
+        setIsNewBookingOpen(false);
+        fetchData();
       }
-
-      setGeneratedPix(response.data.data.pix);
-      toast({ title: 'Reserva e PIX Gerados!', description: 'QR Code pronto para pagamento.' });
-
     } catch (err: any) {
-      console.error('Rolling back:', err.message);
-      if (tempOrderId) await supabase.from('orders').delete().eq('id', tempOrderId);
-      if (tempBookingId) await supabase.from('bookings').delete().eq('id', tempBookingId);
-      toast({ title: "Falha na Reserva", description: err.message, variant: "destructive" });
+      console.error('Create error:', err);
+      toast({ title: "Erro ao criar reserva", description: err.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }

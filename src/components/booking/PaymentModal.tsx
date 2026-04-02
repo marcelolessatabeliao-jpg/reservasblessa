@@ -271,6 +271,12 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, phone, 
               Cartão de Crédito
             </Button>
 
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-1">
+              <p className="text-[10px] font-black text-amber-800 leading-tight">
+                ⚠️ <span className="underline">ATENÇÃO:</span> Sua reserva só é garantida após a confirmação do pagamento. O slot permanece disponível para outros clientes até a conclusão da transação.
+              </p>
+            </div>
+
             <Button 
               size="lg" 
               variant="ghost"
@@ -290,6 +296,15 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, phone, 
             </div>
             
             <p className="text-xs text-muted-foreground font-medium text-center">Ou copie o código para pagar na função "PIX Copia e Cola":</p>
+            
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-1">
+              <p className="text-[10px] font-black text-amber-900 uppercase flex items-center gap-1">
+                ⚠️ Aviso Importante
+              </p>
+              <p className="text-[10px] text-amber-800 leading-tight font-bold">
+                Sua reserva <span className="underline">SÓ SERÁ GARANTIDA</span> e o inventário bloqueado após a confirmação do pagamento. O QR Code expira e a vaga pode ser ocupada por outro cliente se não for pago agora.
+              </p>
+            </div>
             
             <Button 
               onClick={handleCopyPix}
