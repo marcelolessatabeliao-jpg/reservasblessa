@@ -15,7 +15,7 @@ import {
   Bike, 
   CalendarCheck, 
   ShoppingBag, 
-  Trash2,   User, 
+  Trash2, 
   Phone, 
   CalendarPlus, 
   Tag, 
@@ -2237,3 +2237,5 @@ export default function Admin() {
     </div>
   );
 }
+
+export default Admin;
