@@ -98,13 +98,13 @@ type TabType = 'painel' | 'reservas' | 'quiosques' | 'quads' | 'vendas';
 
 
 const getBookedKioskIds = async (date: string) => {
-  const { data } = await supabase.from('kiosk_reservations').select('kiosk_id').eq('reservation_date', date);
-  return (data || []).map(r => r.kiosk_id);
+  const { data } = await (supabase.from('kiosk_reservations') as any).select('kiosk_id, orders!inner(status)').eq('reservation_date', date).neq('orders.status', 'awaiting_payment');
+  return (data || []).map((r: any) => r.kiosk_id);
 };
 
 const getQuadAvailability = async (date: string, time: string) => {
-  const { data } = await supabase.from('quad_reservations').select('quantity').eq('reservation_date', date).eq('time_slot', time);
-  const used = (data || []).reduce((sum, r) => sum + (Number(r.quantity) || 1), 0);
+  const { data } = await (supabase.from('quad_reservations') as any).select('quantity, orders!inner(status)').eq('reservation_date', date).eq('time_slot', time).neq('orders.status', 'awaiting_payment');
+  const used = (data || []).reduce((sum: number, r: any) => sum + (Number(r.quantity) || 1), 0);
   return used;
 };
 
@@ -235,9 +235,13 @@ export default function Admin() {
     setLoading(true);
     try {
       const orderData = await getAdminOrders();
-      const { data: bks } = await supabase.from('bookings').select('*').order('visit_date', { ascending: false });
-      const { data: kiosks } = await supabase.from('kiosk_reservations').select('*, orders(customer_name), bookings(name)').order('reservation_date', { ascending: false });
-      const { data: quads } = await supabase.from('quad_reservations').select('*, orders(customer_name), bookings(name)').order('reservation_date', { ascending: false });
+      const { data: bks } = await supabase.from('bookings').select('*').neq('status', 'awaiting_payment').order('visit_date', { ascending: false });
+      const { data: kiosks } = await (supabase.from('kiosk_reservations') as any).select('*, orders!inner(customer_name, status), bookings(name)').order('reservation_date', { ascending: false });
+      const { data: quads } = await (supabase.from('quad_reservations') as any).select('*, orders!inner(customer_name, status), bookings(name)').order('reservation_date', { ascending: false });
+      
+      // Filter out awaiting_payment from reservations too
+      const filteredKiosks = (kiosks || []).filter((k: any) => k.orders?.status !== 'awaiting_payment');
+      const filteredQuads = (quads || []).filter((q: any) => q.orders?.status !== 'awaiting_payment');
       
       // Enrich bookings with their order items from the orders table
       const enrichedBookings = (bks || []).map(b => {
@@ -249,12 +253,12 @@ export default function Admin() {
       });
       
       // Map reservations to include customer names correctly from either source
-      let parsedKiosks = (kiosks || []).map(k => ({
+      let parsedKiosks = filteredKiosks.map((k: any) => ({
          ...k,
          customer_name: k.customer_name || k.orders?.customer_name || k.bookings?.name || 'Reserva Direta'
       }));
       
-      let parsedQuads = (quads || []).map(q => ({
+      let parsedQuads = filteredQuads.map((q: any) => ({
          ...q,
          customer_name: q.customer_name || q.orders?.customer_name || q.bookings?.name || 'Reserva Direta'
       }));
@@ -518,7 +522,7 @@ export default function Admin() {
         adults: (Number(adults_normal)||0)+(Number(adults_half)||0)+(Number(is_teacher)||0)+(Number(is_student)||0)+(Number(is_server)||0)+(Number(is_donor)||0)+(Number(is_solidarity)||0)+(Number(is_pcd)||0)+(Number(is_tea)||0)+(Number(is_senior)||0)+(Number(is_birthday)||0),
         children: Array(Number(children_free)||0).fill({ age: 10 }),
         total_amount: total,
-        status: status || 'pending'
+        status: 'awaiting_payment'
       }).select().single();
 
       if (bError) throw bError;
@@ -527,7 +531,7 @@ export default function Admin() {
       const { data: order, error: oError } = await supabase.from('orders').insert({
         customer_name: name, customer_phone: phone, customer_cpf: cpf,
         visit_date, total_amount: total,
-        status: status || 'pending',
+        status: 'awaiting_payment',
         confirmation_code: confCode
       }).select().single();
 

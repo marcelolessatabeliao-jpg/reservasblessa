@@ -19,7 +19,8 @@ export async function saveBooking(
   booking: BookingState, 
   totalAmount: number, 
   userId?: string | null,
-  orderItemsInput?: OrderItemInput[]
+  orderItemsInput?: OrderItemInput[],
+  initialStatus: string = 'awaiting_payment'
 ): Promise<SaveBookingResult | null> {
   const { entry } = booking;
   
@@ -44,7 +45,7 @@ export async function saveBooking(
       customer_phone: customerPhone,
       visit_date: visitDateStr,
       total_amount: totalAmount,
-      status: 'pending'
+      status: initialStatus
     };
 
     let { data: orderData, error: orderError } = await (supabase as any)
@@ -219,32 +220,35 @@ export async function saveBooking(
 }
 
 export async function getQuadAvailability(date: string, timeSlot: string): Promise<number> {
-  const { data, error } = await supabase
-    .from('quad_reservations')
-    .select('quantity')
+  const { data, error } = await (supabase
+    .from('quad_reservations') as any)
+    .select('quantity, orders!inner(status)')
     .eq('reservation_date', date)
-    .eq('time_slot', timeSlot);
+    .eq('time_slot', timeSlot)
+    .neq('orders.status', 'awaiting_payment');
 
   if (error || !data) return 0;
-  return data.reduce((sum, r) => sum + r.quantity, 0);
+  return data.reduce((sum: number, r: any) => sum + (Number(r.quantity) || 0), 0);
 }
 
 export async function getKioskAvailability(date: string, type: string): Promise<number> {
-  const { data, error } = await supabase
-    .from('kiosk_reservations')
-    .select('quantity')
+  const { data, error } = await (supabase
+    .from('kiosk_reservations') as any)
+    .select('quantity, orders!inner(status)')
     .eq('reservation_date', date)
-    .eq('kiosk_type', type);
+    .eq('kiosk_type', type)
+    .neq('orders.status', 'awaiting_payment');
 
   if (error || !data) return 0;
-  return data.reduce((sum, r) => sum + r.quantity, 0);
+  return data.reduce((sum: number, r: any) => sum + (Number(r.quantity) || 0), 0);
 }
 
 export async function getBookedKioskIds(date: string): Promise<number[]> {
-  const { data, error } = await supabase
-    .from('kiosk_reservations')
-    .select('kiosk_id')
-    .eq('reservation_date', date);
+  const { data, error } = await (supabase
+    .from('kiosk_reservations') as any)
+    .select('kiosk_id, orders!inner(status)')
+    .eq('reservation_date', date)
+    .neq('orders.status', 'awaiting_payment');
 
   if (error || !data) return [];
   return data.map((r: any) => r.kiosk_id).filter((id: any) => id != null);

@@ -174,7 +174,7 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
         const result = await saveBooking({
           ...booking,
           entry: { ...booking.entry, name: fullName }
-        }, totals.total, null, items);
+        }, totals.total, null, items, method !== 'LOCAL' ? 'awaiting_payment' : 'pending');
         
         if (!result?.orderId) throw new Error("Erro ao salvar pedido.");
         orderId = result.orderId;
