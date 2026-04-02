@@ -221,7 +221,14 @@ export default function Admin() {
   const normalizeString = (str: string) => 
     str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
-    const fetchData = useCallback(async () => {
+    const matchDate = (d1: any, d2: any) => {
+    if (!d1 || !d2) return false;
+    const s1 = typeof d1 === 'string' ? d1.split('T')[0] : format(d1, 'yyyy-MM-dd');
+    const s2 = typeof d2 === 'string' ? d2.split('T')[0] : format(d2, 'yyyy-MM-dd');
+    return s1 === s2;
+  };
+  const nameMatch = (n1: string, n2: string) => (n1 || '').toLowerCase().trim() === (n2 || '').toLowerCase().trim();
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const orderData = await getAdminOrders();
@@ -231,10 +238,9 @@ export default function Admin() {
       
       // Enrich bookings with their order items from the orders table
       const enrichedBookings = (bks || []).map(b => {
-        const nameMatch = (name1, name2) => (name1 || '').toLowerCase().trim() === (name2 || '').toLowerCase().trim();
         const relatedOrder = (orderData || []).find(o => 
           (o.confirmation_code === b.confirmation_code && b.confirmation_code) || 
-          (nameMatch(o.customer_name, b.name) && (o.visit_date === b.visit_date))
+          (nameMatch(o.customer_name, b.name) && matchDate(o.visit_date, b.visit_date))
         );
         return { ...b, order_items: relatedOrder?.order_items || [] };
       });
@@ -803,7 +809,7 @@ export default function Admin() {
     const dayKiosks = (kioskReservations || []).filter(r => {
       try {
         const d = typeof r.reservation_date === 'string' ? r.reservation_date.split('T')[0] : format(r.reservation_date, 'yyyy-MM-dd');
-        return d === format(targetDate, 'yyyy-MM-dd');
+        return matchDate(d, targetDate);
       } catch { return false; }
     });
     
@@ -814,7 +820,7 @@ export default function Admin() {
       } catch { return false; }
     });
 
-    const dayBookings = bookings.filter(b => b.visit_date === format(targetDate, 'yyyy-MM-dd'));
+    const dayBookings = bookings.filter(b => matchDate(b.visit_date, targetDate));
     
     // Add manual bookings representing kiosks to dayKiosks to show in visual map
     dayBookings.forEach(b => {
@@ -825,7 +831,7 @@ export default function Admin() {
         const pNameLower = (item.product_name || '').toLowerCase();
         if (pNameLower.includes('quiosque') || pNameLower.includes('camping')) {
            // Extract numeric ID from "Quiosque 04" or similar
-           const kioskIdMatch = pNameLower.match(/quiosques*(d+)/i);
+           const kioskIdMatch = pNameLower.match(/quiosque\s*(\d+)/i);
            const kId = kioskIdMatch ? parseInt(kioskIdMatch[1], 10) : (pNameLower.includes('maior') ? 1 : 'MENOR');
 
            if (!dayKiosks.some(dk => dk.id === b.id && dk.kiosk_id === kId)) {
@@ -842,7 +848,7 @@ export default function Admin() {
       
       // BROADENED QUAD DETECTION
       // Manual bookings use "Passeio" keywords instead of "Quadri"
-      const quadKeywords = ['quadri', 'passeio', 'quadriciclo'];
+      const quadKeywords = ['quadri', 'passeio', 'quadriciclo', 'quadricido'];
       const quadItems = bItems.filter(i => quadKeywords.some(k => (i.product_name || '').toLowerCase().includes(k)));
       
       quadItems.forEach(qi => {
@@ -859,7 +865,7 @@ export default function Admin() {
          }
       });
     });
-    const dayOrders = orders.filter(o => (o.visit_date || o.created_at.split('T')[0]) === format(targetDate, 'yyyy-MM-dd'));
+    const dayOrders = orders.filter(o => matchDate(o.visit_date || o.created_at, targetDate));
     
     return (
       <div className="grid lg:grid-cols-[1fr_360px] gap-8 animate-in fade-in duration-500">
