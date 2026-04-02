@@ -165,19 +165,18 @@ export default function Admin() {
   const [newBookingData, setNewBookingData] = useState<any>({
     name: '',
     phone: '',
-    visit_date: format(new Date(), 'yyyy-MM-dd'),
     adults_normal: 1,
     adults_half: 0,
-    adults_free: 0,
-    children_free: 0,
     is_teacher: 0,
     is_student: 0,
     is_server: 0,
     is_donor: 0,
+    is_solidarity: 0,
     is_pcd: 0,
     is_tea: 0,
     is_senior: 0,
     is_birthday: 0,
+    children_free: 0,
     selected_kiosks: [],
     quads: [],
     manual_discount: 0,
@@ -356,7 +355,7 @@ export default function Admin() {
 
       // Merge booking data with order payment info for display
       const flattenedBks = (bks || []).map(b => {
-        const order = orderData?.find((o: any) => o.booking_id === b.id);
+        const order = orderData?.find((o: any) => o.confirmation_code === b.confirmation_code);
         return {
           ...b,
           payments: order?.payments || [],
@@ -376,7 +375,7 @@ export default function Admin() {
       const gratuityKeywords = ['crianca', 'kids', 'idoso', 'pcd', 'aniversariante'];
 
       [...(bks || []), ...(orderData || [])].forEach(b => {
-        if (b.status === 'confirmed' || b.status === 'paid') {
+        if (b.status === 'confirmed' || b.status === 'paid' || b.status === 'pending') {
           const items = b.order_items || [];
           items.forEach((item: any) => {
             const name = normalizeString(item.product_name || '');
@@ -458,7 +457,13 @@ export default function Admin() {
   const handleCreateInternalBooking = async () => {
     setLoading(true);
     try {
-      const { name, phone, visit_date, adults_normal, adults_half, adults_free, children_free, selected_kiosks, quads, manual_discount, status } = newBookingData;
+      const { 
+        name, phone, visit_date, 
+        adults_normal, adults_half, 
+        is_teacher, is_student, is_server, is_donor, is_solidarity, 
+        is_pcd, is_tea, is_senior, is_birthday,
+        children_free, selected_kiosks, quads, manual_discount, status 
+      } = newBookingData;
       
       if (!name || !visit_date) {
         toast({ title: "Nome e Data são obrigatórios", variant: "destructive" });
@@ -484,8 +489,8 @@ export default function Admin() {
         name,
         phone,
         visit_date,
-        adults: adults_normal + adults_half + adults_free,
-        children: Array(children_free).fill({ age: 5 }),
+        adults: adults_normal + adults_half + is_teacher + is_student + is_server + is_donor + is_solidarity + is_pcd + is_tea + is_senior + is_birthday,
+        children: Array(children_free).fill({ age: 10 }),
         total_amount: total,
         status: status || 'pending'
       }).select().single();
@@ -495,9 +500,19 @@ export default function Admin() {
       // 3. Create Order
       const orderItems = [
         { product_name: 'Adulto Integral', quantity: adults_normal, unit_price: 50 },
-        { product_name: 'Meia/Solidário', quantity: adults_half, unit_price: 25 },
+        { product_name: 'Meia-Entrada', quantity: adults_half, unit_price: 25 },
+        { product_name: 'Professor', quantity: is_teacher, unit_price: 25 },
+        { product_name: 'Estudante', quantity: is_student, unit_price: 25 },
+        { product_name: 'Servidor Público', quantity: is_server, unit_price: 25 },
+        { product_name: 'Doador de Sangue', quantity: is_donor, unit_price: 25 },
+        { product_name: 'Adulto Solidário', quantity: is_solidarity, unit_price: 25 },
+        { product_name: 'PCD', quantity: is_pcd, unit_price: 0 },
+        { product_name: 'TEA', quantity: is_tea, unit_price: 0 },
+        { product_name: 'Idoso (60+)', quantity: is_senior, unit_price: 0 },
+        { product_name: 'Aniversariante', quantity: is_birthday, unit_price: 0 },
+        { product_name: 'Criança (Até 11a)', quantity: children_free, unit_price: 0 },
         ...selected_kiosks.map((id: number) => ({ product_name: 'Quiosque ' + id, quantity: 1, unit_price: (id === 1 ? 100 : 75) })),
-        ...quads.map((q: any) => ({ product_name: 'Quad ' + q.type, quantity: q.quantity, unit_price: (q.type === 'dupla' ? 250 : q.type === 'adulto-crianca' ? 200 : 150) * (1 - quadDiscount) }))
+        ...quads.map((q: any) => ({ product_name: `Quad ${q.type.toUpperCase()} (${q.time})`, quantity: q.quantity, unit_price: (q.type === 'dupla' ? 250 : q.type === 'adulto-crianca' ? 200 : 150) * (1 - quadDiscount) }))
       ].filter(i => i.quantity > 0);
 
       const { data: order, error: oError } = await supabase.from('orders').insert({
@@ -506,7 +521,7 @@ export default function Admin() {
         visit_date,
         total_amount: total,
         status: status || 'pending',
-        booking_id: booking.id,
+        confirmation_code: booking.confirmation_code,
         order_items: orderItems
       }).select().single();
 
@@ -2057,8 +2072,16 @@ export default function Admin() {
                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
                               {[
                                 { k: 'adults_normal', l: 'Adulto Integral', p: 'R$ 50' },
-                                { k: 'adults_half', l: 'Meia/Solidário', p: 'R$ 25' },
-                                { k: 'adults_free', l: 'Especial (PCD/Idoso)', p: 'Grátis' },
+                                { k: 'adults_half', l: 'Meia-Entrada', p: 'R$ 25' },
+                                { k: 'is_teacher', l: 'Professor', p: 'R$ 25' },
+                                 { k: 'is_student', l: 'Estudante', p: 'R$ 25' },
+                                 { k: 'is_server', l: 'Servidor', p: 'R$ 25' },
+                                 { k: 'is_donor', l: 'Doador Sangue', p: 'R$ 25' },
+                                 { k: 'is_solidarity', l: 'Adulto Solidário', p: 'R$ 25' },
+                                 { k: 'is_pcd', l: 'PCD', p: 'Grátis' },
+                                 { k: 'is_tea', l: 'TEA', p: 'Grátis' },
+                                 { k: 'is_senior', l: 'Idoso (60+)', p: 'Grátis' },
+                                 { k: 'is_birthday', l: 'Aniversariante', p: 'Grátis' },
                                 { k: 'children_free', l: 'Kids (Até 11a)', p: 'Grátis' }
                               ].map(cat => (
                                 <div key={cat.k} className="bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100 text-center space-y-2 hover:bg-emerald-50 transition-colors">
@@ -2147,27 +2170,43 @@ export default function Admin() {
                                           {['individual', 'dupla', 'adulto-crianca'].map(type => {
                                              const active = newBookingData.quads.find((q:any)=>q.time===slot && q.type===type);
                                              return (
-                                                <button 
-                                                   key={type}
-                                                   disabled={isFull && !active}
-                                                   onClick={() => {
-                                                      const existing = newBookingData.quads.findIndex((q:any)=>q.time===slot && q.type===type);
-                                                      if (existing >= 0) {
+                                                <div key={type} className="flex flex-col items-center gap-1">
+                                                   <button 
+                                                      onClick={() => {
+                                                         const idx = newBookingData.quads.findIndex((q:any)=>q.time===slot && q.type===type);
+                                                         if (idx >= 0) {
+                                                            const nq = [...newBookingData.quads];
+                                                            if (nq[idx].quantity > 1) nq[idx].quantity -= 1;
+                                                            else nq.splice(idx, 1);
+                                                            setNewBookingData({...newBookingData, quads: nq});
+                                                         }
+                                                      }}
+                                                      className="w-8 h-6 bg-slate-100 text-slate-400 hover:bg-emerald-100 hover:text-emerald-700 rounded-t-lg font-black text-xs transition-colors flex items-center justify-center border-2 border-slate-200 border-b-0"
+                                                   >-</button>
+                                                   <div 
+                                                      className={cn(
+                                                         "w-[70px] h-10 flex flex-col items-center justify-center rounded-sm border-2 transition-all",
+                                                         active ? "bg-blue-600 text-white border-blue-700 shadow-md" : "bg-white text-blue-700 border-blue-100"
+                                                      )}
+                                                   >
+                                                      <span className="text-[8px] font-black uppercase leading-none">{type.split('-')[0]}</span>
+                                                      {active && <span className="text-xs font-black">{active.quantity}x</span>}
+                                                   </div>
+                                                   <button 
+                                                      disabled={isFull}
+                                                      onClick={() => {
+                                                         const idx = newBookingData.quads.findIndex((q:any)=>q.time===slot && q.type===type);
                                                          const nq = [...newBookingData.quads];
-                                                         nq.splice(existing, 1);
+                                                         if (idx >= 0) nq[idx].quantity += 1;
+                                                         else nq.push({ type, time: slot, quantity: 1 });
                                                          setNewBookingData({...newBookingData, quads: nq});
-                                                      } else if (!isFull) {
-                                                         setNewBookingData({...newBookingData, quads: [...newBookingData.quads, { type, time: slot, quantity: 1 }]});
-                                                      }
-                                                   }}
-                                                   className={cn(
-                                                      "px-3 py-2 rounded-xl text-[9px] font-black uppercase transition-all border-2",
-                                                      active ? "bg-blue-600 text-white border-blue-700 shadow-md" : 
-                                                      isFull ? "opacity-20 cursor-not-allowed" : "bg-white text-blue-700 border-blue-100 hover:border-blue-500"
-                                                   )}
-                                                >
-                                                   {type.split('-')[0]}
-                                                </button>
+                                                      }}
+                                                      className={cn(
+                                                         "w-8 h-6 rounded-b-lg font-black text-xs transition-colors flex items-center justify-center border-2 border-t-0",
+                                                         isFull ? "bg-slate-100 text-slate-300 cursor-not-allowed" : "bg-slate-100 text-slate-400 hover:bg-emerald-100 hover:text-emerald-700 border-slate-200"
+                                                      )}
+                                                   >+</button>
+                                                </div>
                                              );
                                           })}
                                        </div>
@@ -2218,14 +2257,15 @@ export default function Admin() {
                                     <span className="text-2xl font-black text-emerald-200/60 leading-none">R$</span>
                                     <span className="text-6xl font-black tracking-tighter leading-none">
                                        {(() => {
-                                          let total = (newBookingData.adults_normal * 50) + (newBookingData.adults_half * 25);
-                                          newBookingData.selected_kiosks.forEach((id: number) => total += (id === 1 ? 100 : 75));
-                                          const qD = getQuadDiscount(newBookingData.visit_date);
-                                          newBookingData.quads.forEach((q: any) => {
+                                          const { adults_normal, adults_half, is_teacher, is_student, is_server, is_donor, is_solidarity, selected_kiosks, quads, manual_discount, visit_date } = newBookingData;
+                                          let total = (adults_normal * 50) + ((adults_half + is_teacher + is_student + is_server + is_donor + is_solidarity) * 25);
+                                          selected_kiosks.forEach((id: number) => total += (id === 1 ? 100 : 75));
+                                          const qD = getQuadDiscount(visit_date);
+                                          quads.forEach((q: any) => {
                                              const b = q.type === 'dupla' ? 250 : q.type === 'adulto-crianca' ? 200 : 150;
                                              total += (b * (1 - qD)) * q.quantity;
                                           });
-                                          return Math.max(0, total - newBookingData.manual_discount).toFixed(2).replace('.', ',');
+                                          return Math.max(0, total - manual_discount).toFixed(2).replace('.', ',');
                                        })()}
                                     </span>
                                  </div>
