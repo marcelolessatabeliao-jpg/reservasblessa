@@ -134,7 +134,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
           {/* MOBILE CARDS VIEW */}
           <div className="md:hidden space-y-4 p-4 bg-slate-50/30">
              {bookings.map((booking) => {
-                const config = STATUS_CONFIG[booking.status] || STATUS_CONFIG.pending;
+                const config = getStatusConfig(booking);
                 const StatusIcon = config.icon;
                 const expanded = expandedId === booking.id;
                 const bookingDate = parseISO(booking.visit_date || new Date().toISOString());
@@ -206,7 +206,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                      <Button onClick={(e) => {e.stopPropagation(); onStatusChange(booking.id, 'paid', booking.is_order);}} className="bg-emerald-600 h-10 rounded-xl text-[9px] font-black uppercase shadow-sm">Efetivar</Button>
                                       <Button onClick={(e) => {
                                          e.stopPropagation();
-                                         const phone = booking.phone ? booking.phone.replace(/\D/g, '') : '';
+                                         const phone = ((booking as any).customer_phone || (booking as any).phone || '').replace(/\D/g, '');
                                          if (phone) {
                                              const codeStr = booking.confirmation_code ? '\n*Código do Voucher:* ' + booking.confirmation_code : '';
                                              const linkStr = booking.confirmation_code ? '\n*Link do Voucher para Entrada:* https://reservas.balneariolessa.com.br/voucher/' + booking.confirmation_code : '';
@@ -293,7 +293,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                   {bookings.map((booking) => {
                     const expanded = expandedId === booking.id;
                     const isSelected = selectedIds.has(booking.id);
-                    const config = STATUS_CONFIG[booking.status] || STATUS_CONFIG.pending;
+                    const config = getStatusConfig(booking);
                     const StatusIcon = config.icon;
                     
                     const bookingDate = parseISO(booking.visit_date || new Date().toISOString());
@@ -423,7 +423,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                                        <Button 
                                                          onClick={(e) => {
                                                             e.stopPropagation();
-                                                            const phone = booking.phone ? booking.phone.replace(/\D/g, '') : '';
+                                                            const phone = ((booking as any).customer_phone || (booking as any).phone || '').replace(/\D/g, '');
                                                             if (phone) {
                                                                 const codeStr = booking.confirmation_code ? '\n*Código do Voucher:* ' + booking.confirmation_code : '';
                                                                 const linkStr = booking.confirmation_code ? '\n*Link do Voucher para Entrada:* https://reservas.balneariolessa.com.br/voucher/' + booking.confirmation_code : '';
@@ -434,7 +434,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                                                 const msg = encodeURIComponent("Olá! Sua reserva no Balneário Lessa foi *confirmada* e o pagamento foi *aprovado*! ✅\n\n*Resumo da Reserva:*\nCliente: " + cname + "\nData: " + dtStr + "\nValor Total: R$ " + amt + codeStr + linkStr + "\n\nApresente este voucher ou o link na portaria. Ficamos felizes em te receber!");
                                                                 window.open("https://wa.me/55" + phone + "?text=" + msg, '_blank');
                                                             } else {
-                                                                alert('Telefone não encontrado!');
+                                                                alert('Telefone não encontrado! Certifique-se de que o cliente preencheu o celular.');
                                                             }
                                                          }} 
                                                          className="bg-blue-600 border border-blue-700 text-white hover:bg-blue-700 px-4 py-2 rounded-xl flex items-center gap-2 font-bold text-[9px] uppercase tracking-wider shadow-sm hover:scale-105 active:scale-95 transition-all"
@@ -541,7 +541,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                                                                                   <Button 
                                                    onClick={(e) => {
                                                       e.stopPropagation();
-                                                      const phone = booking.phone ? booking.phone.replace(/\D/g, '') : '';
+                                                      const phone = ((booking as any).customer_phone || (booking as any).phone || '').replace(/\D/g, '');
                                                       if (phone) {
                                                           const codeStr = booking.confirmation_code ? '\n*Código do Voucher:* ' + booking.confirmation_code : '';
                                                           const linkStr = booking.confirmation_code ? '\n*Link do Voucher para Entrada:* https://reservas.balneariolessa.com.br/voucher/' + booking.confirmation_code : '';

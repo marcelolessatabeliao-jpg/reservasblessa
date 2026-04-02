@@ -329,7 +329,7 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
               >
                 <div className="flex flex-col min-w-0 flex-1 mr-3 overflow-hidden">
                   <span className={cn('font-black text-[11px] md:text-[13px] whitespace-normal transition-colors uppercase leading-tight md:leading-normal', item.is_redeemed ? 'text-emerald-900 line-through' : 'text-slate-950')}>
-                    {item.quantity}x {item.product_id || item.product_name || 'Produto'}
+                    {item.quantity}x {((item.product_name || item.product_id || '').includes('Adulto') && item.unit_price === 25) ? 'Adulto Solidário' : (item.product_name || item.product_id || 'Item')}
                   </span>
                   <span className={cn('text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 mt-1.5', item.is_redeemed ? 'text-emerald-800' : 'text-slate-400')}>
                     {item.is_redeemed ? (<><CheckCircle2 className="w-4 h-4 text-emerald-600 shadow-sm" /> UTILIZADO</>) : (<><Circle className="w-4 h-4 text-slate-300" /> AGUARDANDO</>)}

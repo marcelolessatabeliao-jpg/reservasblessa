@@ -144,6 +144,8 @@ export default function Admin() {
 
   // History States
   const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set());
+  const [pixData, setPixData] = useState<{ qrCode: string, payload: string, amount: number, name: string } | null>(null);
+  const [isGeneratingPix, setIsGeneratingPix] = useState(false);
 
   const normalizeString = (str: string) => 
     str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -280,7 +282,7 @@ export default function Admin() {
          });
       }
 
-      setBookings(bks || []);
+      setBookings(flattenedBks);
       setKioskReservations(parsedKiosks);
       setQuadReservations(parsedQuads);
       setOrders(orderData || []);
@@ -368,6 +370,42 @@ export default function Admin() {
     } catch (err: any) {
       console.error('Save error:', err);
       toast({ title: `Erro ao salvar: ${err.message || err.details || 'Erro desconhecido'}`, variant: "destructive" });
+    }
+  };
+
+  const handleGeneratePayment = async (bookingId: string, isOrder?: boolean) => {
+    setIsGeneratingPix(true);
+    try {
+      const item = isOrder ? orders.find(o => o.id === bookingId) : bookings.find(b => b.id === bookingId);
+      if (!item) throw new Error("Reserva não encontrada");
+
+      const { data, error } = await supabase.functions.invoke('create-payment', {
+        body: { 
+          orderId: bookingId, 
+          billingType: 'PIX',
+          customer: {
+            name: item.name || item.customer_name,
+            phone: item.phone || item.customer_phone
+          }
+        }
+      });
+
+      if (error) throw error;
+      if (data && data.encodedImage) {
+        setPixData({
+          qrCode: data.encodedImage,
+          payload: data.payload,
+          amount: item.total_amount,
+          name: item.name || item.customer_name
+        });
+      } else {
+        throw new Error("Erro ao gerar QR Code");
+      }
+    } catch (err: any) {
+      console.error('Pix generation error:', err);
+      toast({ title: "Erro ao gerar PIX", description: err.message, variant: "destructive" });
+    } finally {
+      setIsGeneratingPix(false);
     }
   };
 
@@ -1677,6 +1715,7 @@ export default function Admin() {
                    }}
                    isUploading={isUploading}
                    onRefresh={fetchData}
+                    onGeneratePayment={handleGeneratePayment}
                  />
                </div>
              )}
