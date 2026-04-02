@@ -90,6 +90,13 @@ const QUAD_MODELS_LABELS: Record<string, string> = {
 
 type TabType = 'painel' | 'reservas' | 'quiosques' | 'quads' | 'vendas';
 
+const normalizeQuadType = (t: string) => {
+  const slow = (t || '').toLowerCase();
+  if (slow.includes('dupla')) return 'dupla';
+  if (slow.includes('crianca')) return 'adulto-crianca';
+  return 'individual';
+};
+
 const BR_HOLIDAYS_2026 = [
   "2026-01-01", "2026-02-16", "2026-02-17", "2026-04-03", "2026-04-05", 
   "2026-04-21", "2026-05-01", "2026-05-14", "2026-05-24", "2026-06-04", 
@@ -137,6 +144,28 @@ export default function Admin() {
   const [itemToDelete, setItemToDelete] = useState<{item: any, type: 'kiosk' | 'quad' | 'order' | 'reservas'} | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  useEffect(() => {
+    if (isNewBookingOpen && newBookingData.visit_date) {
+      const fetchAvail = async () => {
+        setIsFetchingAvail(true);
+        try {
+          // Kiosks
+          const booked = await getBookedKioskIds(newBookingData.visit_date);
+          setAvailableKiosks(Array.from({length: 24}, (_, i) => i + 1).filter(id => !booked.includes(id)));
+          
+          // Quads slots
+          const slots: Record<string, number> = {};
+          for (const t of ['09:00', '10:30', '14:00', '15:30']) {
+            slots[t] = await getQuadAvailability(newBookingData.visit_date, t);
+          }
+          setQuadSlotsAvail(slots);
+        } catch (e) { console.error(e); }
+        finally { setIsFetchingAvail(false); }
+      };
+      fetchAvail();
+    }
+  }, [isNewBookingOpen, newBookingData.visit_date]);
+
   
   // New Rescheduling Dialog States
   const [rescheduleData, setRescheduleData] = useState<{type: 'kiosk' | 'quad', group: any} | null>(null);
@@ -152,12 +181,17 @@ export default function Admin() {
     phone: '',
     visit_date: format(new Date(), 'yyyy-MM-dd'),
     adults_normal: 1,
-    adults_solidario: 0,
-    children: 0,
-    kiosk_id: null,
-    has_quad: false,
+    adults_half: 0,
+    adults_free: 0,
+    children_free: 0,
+    selected_kiosks: [],
+    quads: [],
+    manual_discount: 0,
     status: 'pending'
   });
+  const [availableKiosks, setAvailableKiosks] = useState<number[]>([]);
+  const [quadSlotsAvail, setQuadSlotsAvail] = useState<Record<string, number>>({});
+  const [isFetchingAvail, setIsFetchingAvail] = useState(false);
 
   const normalizeString = (str: string) => 
     str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -398,36 +432,48 @@ export default function Admin() {
   const handleCreateInternalBooking = async () => {
     setLoading(true);
     try {
-      const { name, phone, visit_date, adults_normal, adults_solidario, children, kiosk_id, has_quad, status } = newBookingData;
+      const { name, phone, visit_date, adults_normal, adults_half, adults_free, children_free, selected_kiosks, quads, manual_discount, status } = newBookingData;
       
       if (!name || !visit_date) {
         toast({ title: "Nome e Data são obrigatórios", variant: "destructive" });
         return;
       }
 
-      // Calculate Total
-      let total = (adults_normal * 50) + (adults_solidario * 25);
-      if (kiosk_id) {
-        total += (kiosk_id === 1 ? 100 : 75);
-      }
-      if (has_quad) {
-        total += 150; // Generic individual quad price for simplicity
-      }
+      // 1. Calculate Total
+      let total = (adults_normal * 50) + (adults_half * 25);
+      selected_kiosks.forEach((id: number) => {
+        total += (id === 1 ? 100 : 75);
+      });
+      
+      const quadDiscount = getQuadDiscount(visit_date);
+      quads.forEach((q: any) => {
+        const base = q.type === 'dupla' ? 250 : q.type === 'adulto-crianca' ? 200 : 150;
+        total += (base * (1 - quadDiscount)) * q.quantity;
+      });
 
-      // 1. Create Booking
+      total = Math.max(0, total - manual_discount);
+
+      // 2. Create Booking
       const { data: booking, error: bError } = await supabase.from('bookings').insert({
         name,
         phone,
         visit_date,
-        adults: adults_normal + adults_solidario,
-        children: Array(Number(children)).fill({ age: 5 }), // Dummy children data
+        adults: adults_normal + adults_half + adults_free,
+        children: Array(children_free).fill({ age: 5 }),
         total_amount: total,
         status: status || 'pending'
       }).select().single();
 
       if (bError) throw bError;
 
-      // 2. Create Order for Dashboard
+      // 3. Create Order
+      const orderItems = [
+        { product_name: 'Adulto Integral', quantity: adults_normal, unit_price: 50 },
+        { product_name: 'Meia/Solidário', quantity: adults_half, unit_price: 25 },
+        ...selected_kiosks.map((id: number) => ({ product_name: 'Quiosque ' + id, quantity: 1, unit_price: (id === 1 ? 100 : 75) })),
+        ...quads.map((q: any) => ({ product_name: 'Quad ' + q.type, quantity: q.quantity, unit_price: (q.type === 'dupla' ? 250 : q.type === 'adulto-crianca' ? 200 : 150) * (1 - quadDiscount) }))
+      ].filter(i => i.quantity > 0);
+
       const { data: order, error: oError } = await supabase.from('orders').insert({
         customer_name: name,
         customer_phone: phone,
@@ -435,25 +481,31 @@ export default function Admin() {
         total_amount: total,
         status: status || 'pending',
         booking_id: booking.id,
-        order_items: [
-           { product_name: 'Adulto Normal', quantity: adults_normal, unit_price: 50 },
-           { product_name: 'Adulto Solidário', quantity: adults_solidario, unit_price: 25 },
-           kiosk_id ? { product_name: 'Quiosque ' + kiosk_id, quantity: 1, unit_price: (kiosk_id === 1 ? 100 : 75) } : null,
-           has_quad ? { product_name: 'Quadriciclo', quantity: 1, unit_price: 150 } : null
-        ].filter(Boolean)
+        order_items: orderItems
       }).select().single();
 
       if (oError) throw oError;
 
-      // 3. Create Kiosk Reservation if needed
-      if (kiosk_id) {
-        await supabase.from('kiosk_reservations').insert({
-          kiosk_id,
+      // 4. Kiosk Reservations
+      if (selected_kiosks.length > 0) {
+        await supabase.from('kiosk_reservations').insert(selected_kiosks.map((id: number) => ({
+          kiosk_id: id,
           reservation_date: visit_date,
           booking_id: booking.id,
           order_id: order.id,
           status: 'confirmed'
-        });
+        })));
+      }
+
+      // 5. Quad Reservations
+      if (quads.length > 0) {
+        await supabase.from('quad_reservations').insert(quads.map((q: any) => ({
+          quad_type: q.type,
+          reservation_date: visit_date,
+          time_slot: q.time,
+          quantity: q.quantity,
+          order_id: order.id
+        })));
       }
 
       toast({ title: "Reserva criada com sucesso!" });
@@ -463,7 +515,7 @@ export default function Admin() {
       console.error(err);
       toast({ title: "Erro ao criar reserva", description: err.message, variant: "destructive" });
     } finally {
-      setLoading(true);
+      setLoading(false);
     }
   };
 
@@ -1919,95 +1971,243 @@ export default function Admin() {
          </DialogContent>
        </Dialog>
                   <Dialog open={isNewBookingOpen} onOpenChange={setIsNewBookingOpen}>
-                    <DialogContent className="sm:max-w-lg bg-white rounded-3xl border-2 border-emerald-100 overflow-hidden p-0 max-h-[95vh] overflow-y-auto">
-                      <div className="bg-emerald-600 p-6 text-center">
-                        <DialogTitle className="text-xl font-black text-white uppercase tracking-tight">Nova Reserva Interna</DialogTitle>
-                        <p className="text-emerald-100 text-[10px] font-bold uppercase mt-1">Cadastro Simplificado (Sem CPF)</p>
+                    <DialogContent className="sm:max-w-3xl bg-slate-50 rounded-[2.5rem] border-4 border-emerald-200 overflow-hidden p-0 max-h-[95vh] flex flex-col shadow-3xl">
+                      <div className="bg-emerald-600 p-8 text-center shrink-0 border-b-4 border-emerald-700 shadow-lg relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 blur-3xl rounded-full -mr-16 -mt-16" />
+                        <DialogTitle className="text-2xl font-black text-white uppercase tracking-tighter flex items-center justify-center gap-3">
+                           <CalendarPlus className="w-8 h-8" /> Assistente de Reserva Interna
+                        </DialogTitle>
+                        <p className="text-emerald-100 text-[11px] font-black uppercase mt-1.5 tracking-widest bg-emerald-700/50 inline-block px-4 py-1.5 rounded-full border border-emerald-500/30">Lógica Integrada â€¢ Sem CPF</p>
                       </div>
                       
-                      <div className="p-8 space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                           <div className="space-y-1">
-                             <label className="text-[10px] font-black text-emerald-800 uppercase pl-1">Nome do Cliente</label>
+                      <div className="flex-1 overflow-y-auto p-10 space-y-10 custom-scrollbar">
+                        {/* SECTION 1: CLIENTE E DATA */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                           <div className="space-y-2">
+                             <label className="text-[10px] font-black text-emerald-800 uppercase tracking-widest flex items-center gap-1.5">
+                                <User className="w-3.5 h-3.5" /> Nome do Cliente
+                             </label>
                              <Input 
                                value={newBookingData.name} 
                                onChange={e => setNewBookingData({...newBookingData, name: e.target.value})}
-                               className="rounded-xl border-emerald-100 focus:ring-emerald-500/20"
+                               className="h-14 rounded-2xl border-2 border-emerald-100 focus:ring-4 focus:ring-emerald-500/10 font-bold bg-white text-emerald-950"
+                               placeholder="Nome Completo"
                              />
                            </div>
-                           <div className="space-y-1">
-                             <label className="text-[10px] font-black text-emerald-800 uppercase pl-1">Telefone</label>
+                           <div className="space-y-2">
+                             <label className="text-[10px] font-black text-emerald-800 uppercase tracking-widest flex items-center gap-1.5">
+                                <Phone className="w-3.5 h-3.5" /> Telefone
+                             </label>
                              <Input 
                                value={newBookingData.phone} 
                                onChange={e => setNewBookingData({...newBookingData, phone: e.target.value})}
-                               className="rounded-xl border-emerald-100 focus:ring-emerald-500/20"
+                               className="h-14 rounded-2xl border-2 border-emerald-100 focus:ring-4 focus:ring-emerald-500/10 font-bold bg-white text-emerald-950"
+                               placeholder="DDD + Número"
                              />
                            </div>
-                           <div className="space-y-1">
-                             <label className="text-[10px] font-black text-emerald-800 uppercase pl-1">Data da Visita</label>
+                           <div className="space-y-2">
+                             <label className="text-[10px] font-black text-emerald-800 uppercase tracking-widest flex items-center gap-1.5">
+                                <Calendar className="w-3.5 h-3.5" /> Data da Visita
+                             </label>
                              <Input 
                                type="date"
                                value={newBookingData.visit_date} 
                                onChange={e => setNewBookingData({...newBookingData, visit_date: e.target.value})}
-                               className="rounded-xl border-emerald-100 focus:ring-emerald-500/20"
+                               className="h-14 rounded-2xl border-2 border-emerald-100 focus:ring-4 focus:ring-emerald-500/10 font-black bg-white text-emerald-950 uppercase"
+                               disabled={isFetchingAvail}
                              />
                            </div>
-                           <div className="space-y-1">
-                             <label className="text-[10px] font-black text-emerald-800 uppercase pl-1">Status Inicial</label>
-                             <select 
-                               className="w-full h-10 px-3 py-2 rounded-xl border border-emerald-100 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                               value={newBookingData.status}
-                               onChange={e => setNewBookingData({...newBookingData, status: e.target.value})}
-                             >
-                                <option value="pending">Pendente (Não Pago)</option>
-                                <option value="paid">Confirmada (Pago)</option>
-                             </select>
-                           </div>
                         </div>
 
-                        <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 space-y-4">
-                           <p className="text-[10px] font-black text-emerald-800 uppercase tracking-widest text-center border-b border-emerald-200 pb-2">Composição da Reserva</p>
+                        {/* SECTION 2: PARTICIPANTES */}
+                        <div className="bg-white p-8 rounded-[2rem] border-2 border-emerald-100 shadow-sm space-y-6">
+                           <div className="flex items-center justify-between border-b-2 border-emerald-50 pb-4">
+                              <h4 className="text-[11px] font-black text-emerald-900 uppercase tracking-widest flex items-center gap-2">
+                                 <Users className="w-4 h-4" /> 1. Participantes
+                              </h4>
+                              {isFetchingAvail && <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />}
+                           </div>
                            
-                           <div className="grid grid-cols-3 gap-4">
-                              <div className="space-y-1 text-center">
-                                <label className="text-[8px] font-black text-emerald-800/60 uppercase">Adultos (50)</label>
-                                <Input type="number" min="0" value={newBookingData.adults_normal} onChange={e => setNewBookingData({...newBookingData, adults_normal: parseInt(e.target.value) || 0})} className="text-center rounded-lg h-8 px-1" />
-                              </div>
-                              <div className="space-y-1 text-center">
-                                <label className="text-[8px] font-black text-emerald-800/60 uppercase">Solidário (25)</label>
-                                <Input type="number" min="0" value={newBookingData.adults_solidario} onChange={e => setNewBookingData({...newBookingData, adults_solidario: parseInt(e.target.value) || 0})} className="text-center rounded-lg h-8 px-1" />
-                              </div>
-                              <div className="space-y-1 text-center">
-                                <label className="text-[8px] font-black text-emerald-800/60 uppercase">Crianças (0)</label>
-                                <Input type="number" min="0" value={newBookingData.children} onChange={e => setNewBookingData({...newBookingData, children: parseInt(e.target.value) || 0})} className="text-center rounded-lg h-8 px-1" />
-                              </div>
-                           </div>
-
-                           <div className="grid grid-cols-2 gap-4">
-                              <div className="space-y-1">
-                                <label className="text-[8px] font-black text-emerald-800/60 uppercase pl-1">Quiosque (1-24)</label>
-                                <Input type="number" min="0" max="24" value={newBookingData.kiosk_id || ''} onChange={e => setNewBookingData({...newBookingData, kiosk_id: parseInt(e.target.value) || null})} placeholder="Número" className="rounded-lg h-8" />
-                              </div>
-                              <div className="flex items-center gap-2 pt-4">
-                                <input type="checkbox" id="has_quad" checked={newBookingData.has_quad} onChange={e => setNewBookingData({...newBookingData, has_quad: e.target.checked})} className="w-4 h-4 accent-emerald-600" />
-                                <label htmlFor="has_quad" className="text-[10px] font-black text-emerald-800 uppercase cursor-pointer">Adicionar Quadriciclo</label>
-                              </div>
+                           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                              {[
+                                { k: 'adults_normal', l: 'Adulto Integral', p: 'R$ 50' },
+                                { k: 'adults_half', l: 'Meia/Solidário', p: 'R$ 25' },
+                                { k: 'adults_free', l: 'Especial (PCD/Idoso)', p: 'Grátis' },
+                                { k: 'children_free', l: 'Kids (Até 11a)', p: 'Grátis' }
+                              ].map(cat => (
+                                <div key={cat.k} className="bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100 text-center space-y-2 hover:bg-emerald-50 transition-colors">
+                                   <p className="text-[9px] font-black text-emerald-800/60 uppercase">{cat.l}</p>
+                                   <p className="text-[10px] font-bold text-emerald-600 mb-1">{cat.p}</p>
+                                   <div className="flex items-center justify-center gap-2">
+                                      <button onClick={() => setNewBookingData({...newBookingData, [cat.k]: Math.max(0, newBookingData[cat.k] - 1)})} className="w-8 h-8 rounded-lg bg-white border border-emerald-200 flex items-center justify-center font-black text-emerald-700 hover:bg-emerald-600 hover:text-white transition-all shadow-sm">-</button>
+                                      <span className="w-8 font-black text-emerald-950 text-lg">{newBookingData[cat.k]}</span>
+                                      <button onClick={() => setNewBookingData({...newBookingData, [cat.k]: newBookingData[cat.k] + 1})} className="w-8 h-8 rounded-lg bg-white border border-emerald-200 flex items-center justify-center font-black text-emerald-700 hover:bg-emerald-600 hover:text-white transition-all shadow-sm">+</button>
+                                   </div>
+                                </div>
+                              ))}
                            </div>
                         </div>
 
-                        <div className="text-center pt-2">
-                           <p className="text-[10px] font-black text-emerald-800/60 uppercase mb-1">Total Previsto</p>
-                           <p className="text-3xl font-black text-emerald-950">R$ {
-                             ((newBookingData.adults_normal * 50) + (newBookingData.adults_solidario * 25) + (newBookingData.kiosk_id ? (newBookingData.kiosk_id === 1 ? 100 : 75) : 0) + (newBookingData.has_quad ? 150 : 0)).toFixed(2).replace('.', ',')
-                           }</p>
+                        {/* SECTION 3: QUIOSQUES */}
+                        <div className="bg-white p-8 rounded-[2rem] border-2 border-emerald-100 shadow-sm space-y-6">
+                           <h4 className="text-[11px] font-black text-emerald-900 uppercase tracking-widest flex items-center gap-2 border-b-2 border-emerald-50 pb-4">
+                              <Tent className="w-4 h-4" /> 2. Quiosques Disponíveis
+                           </h4>
+                           <div className="grid grid-cols-6 sm:grid-cols-8 gap-2">
+                              {Array.from({length: 24}, (_, i) => i + 1).map(id => {
+                                const isBooked = !availableKiosks.includes(id) && !newBookingData.selected_kiosks.includes(id);
+                                const isSelected = newBookingData.selected_kiosks.includes(id);
+                                return (
+                                  <button 
+                                    key={id}
+                                    disabled={isBooked}
+                                    onClick={() => {
+                                       const isS = newBookingData.selected_kiosks.includes(id);
+                                       setNewBookingData({
+                                          ...newBookingData,
+                                          selected_kiosks: isS ? newBookingData.selected_kiosks.filter((v:number)=>v!==id) : [...newBookingData.selected_kiosks, id]
+                                       });
+                                    }}
+                                    className={cn(
+                                       "h-10 rounded-xl text-[11px] font-black transition-all border-2",
+                                       isSelected ? "bg-emerald-600 text-white border-emerald-700 shadow-md scale-105" : 
+                                       isBooked ? "bg-slate-100 text-slate-300 border-slate-200 cursor-not-allowed" : 
+                                       "bg-white text-emerald-700 border-emerald-100 hover:border-emerald-500 hover:bg-emerald-50"
+                                    )}
+                                  >
+                                    {id.toString().padStart(2, '0')}
+                                  </button>
+                                );
+                              })}
+                           </div>
+                           <p className="text-[9px] font-bold text-emerald-600/60 uppercase tracking-widest">Preço: Quiosque 01 (R$ 100) | Outros (R$ 75)</p>
                         </div>
 
-                        <Button 
-                          onClick={handleCreateInternalBooking}
-                          className="w-full h-14 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black uppercase tracking-tight shadow-lg"
-                        >
-                          Salvar Reserva
-                        </Button>
+                        {/* SECTION 4: QUADRICICLOS */}
+                        <div className="bg-white p-8 rounded-[2rem] border-2 border-emerald-100 shadow-sm space-y-6">
+                           <h4 className="text-[11px] font-black text-emerald-900 uppercase tracking-widest flex items-center gap-2 border-b-2 border-emerald-50 pb-4">
+                              <Bike className="w-4 h-4" /> 3. Passeio de Quadriciclo (Limite Bloqueado)
+                           </h4>
+                           <div className="space-y-4">
+                              {['09:00', '10:30', '14:00', '15:30'].map(slot => {
+                                 const used = quadSlotsAvail[slot] || 0;
+                                 const localUsed = newBookingData.quads.filter((q:any)=>q.time===slot).reduce((s:number,q:any)=>s+q.quantity, 0);
+                                 const remaining = 5 - (used + localUsed);
+                                 const isFull = remaining <= 0;
+                                 
+                                 return (
+                                    <div key={slot} className="flex flex-col md:flex-row items-center justify-between p-4 bg-emerald-50/30 rounded-2xl border border-emerald-100 gap-4">
+                                       <div className="flex items-center gap-3">
+                                          <div className={cn("px-4 py-2 rounded-xl text-xs font-black border-2", isFull ? "bg-red-50 text-red-500 border-red-200" : "bg-white text-emerald-950 border-emerald-100")}>{slot}</div>
+                                          <div className="flex flex-col">
+                                             <span className="text-[10px] font-black uppercase text-emerald-800/60 tracking-wider">Vagas Disponíveis</span>
+                                             <div className="flex gap-1">
+                                                {Array.from({length: 5}, (_, i) => (
+                                                   <div key={i} className={cn("w-2 h-2 rounded-full", i < (used + localUsed) ? "bg-red-500" : "bg-emerald-400")} />
+                                                ))}
+                                                <span className="text-[10px] font-black ml-2 text-emerald-800">{remaining} RESTANTES</span>
+                                             </div>
+                                          </div>
+                                       </div>
+                                       
+                                       <div className="flex gap-2">
+                                          {['individual', 'dupla', 'adulto-crianca'].map(type => {
+                                             const active = newBookingData.quads.find((q:any)=>q.time===slot && q.type===type);
+                                             return (
+                                                <button 
+                                                   key={type}
+                                                   disabled={isFull && !active}
+                                                   onClick={() => {
+                                                      const existing = newBookingData.quads.findIndex((q:any)=>q.time===slot && q.type===type);
+                                                      if (existing >= 0) {
+                                                         const nq = [...newBookingData.quads];
+                                                         nq.splice(existing, 1);
+                                                         setNewBookingData({...newBookingData, quads: nq});
+                                                      } else if (!isFull) {
+                                                         setNewBookingData({...newBookingData, quads: [...newBookingData.quads, { type, time: slot, quantity: 1 }]});
+                                                      }
+                                                   }}
+                                                   className={cn(
+                                                      "px-3 py-2 rounded-xl text-[9px] font-black uppercase transition-all border-2",
+                                                      active ? "bg-blue-600 text-white border-blue-700 shadow-md" : 
+                                                      isFull ? "opacity-20 cursor-not-allowed" : "bg-white text-blue-700 border-blue-100 hover:border-blue-500"
+                                                   )}
+                                                >
+                                                   {type.split('-')[0]}
+                                                </button>
+                                             );
+                                          })}
+                                       </div>
+                                    </div>
+                                 );
+                              })}
+                           </div>
+                        </div>
+
+                        {/* SECTION 5: FINANCEIRO FINAL */}
+                        <div className="bg-emerald-900 p-10 rounded-[3rem] text-white space-y-8 shadow-2xl relative overflow-hidden">
+                           <div className="absolute bottom-0 right-0 w-64 h-64 bg-emerald-800/30 blur-3xl rounded-full -mb-32 -mr-32" />
+                           
+                           <div className="grid grid-cols-1 md:grid-cols-2 gap-10 relative z-10">
+                              <div className="space-y-4">
+                                 <h4 className="text-[11px] font-black text-emerald-100 uppercase tracking-widest flex items-center gap-2">
+                                    <Tag className="w-4 h-4" /> Ajustes e Status
+                                 </h4>
+                                 <div className="space-y-3">
+                                    <div className="space-y-1">
+                                       <label className="text-[9px] font-black text-emerald-200 uppercase pl-1">Desconto Manual (R$)</label>
+                                       <Input 
+                                          type="number" 
+                                          min="0" 
+                                          value={newBookingData.manual_discount}
+                                          onChange={e => setNewBookingData({...newBookingData, manual_discount: parseFloat(e.target.value) || 0})}
+                                          className="h-12 bg-white/10 border-white/20 text-white rounded-xl focus:ring-emerald-500 placeholder:text-white/20 font-bold"
+                                          placeholder="0,00"
+                                       />
+                                    </div>
+                                    <div className="space-y-1">
+                                       <label className="text-[9px] font-black text-emerald-200 uppercase pl-1">Status de Pagamento</label>
+                                       <select 
+                                          className="w-full h-12 px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500 text-white"
+                                          value={newBookingData.status}
+                                          onChange={e => setNewBookingData({...newBookingData, status: e.target.value})}
+                                       >
+                                          <option value="pending" className="text-emerald-950 font-bold">Aguardando Pagamento</option>
+                                          <option value="paid" className="text-emerald-950 font-bold">Confirmada e Paga</option>
+                                       </select>
+                                    </div>
+                                 </div>
+                              </div>
+                              
+                              <div className="flex flex-col justify-center items-center md:items-end space-y-2">
+                                 <p className="text-[10px] font-black text-emerald-200 uppercase tracking-[0.2em] mb-1">Total da Reserva</p>
+                                 <div className="flex items-baseline gap-2">
+                                    <span className="text-2xl font-black text-emerald-200/60 leading-none">R$</span>
+                                    <span className="text-6xl font-black tracking-tighter leading-none">
+                                       {(() => {
+                                          let total = (newBookingData.adults_normal * 50) + (newBookingData.adults_half * 25);
+                                          newBookingData.selected_kiosks.forEach((id: number) => total += (id === 1 ? 100 : 75));
+                                          const qD = getQuadDiscount(newBookingData.visit_date);
+                                          newBookingData.quads.forEach((q: any) => {
+                                             const b = q.type === 'dupla' ? 250 : q.type === 'adulto-crianca' ? 200 : 150;
+                                             total += (b * (1 - qD)) * q.quantity;
+                                          });
+                                          return Math.max(0, total - newBookingData.manual_discount).toFixed(2).replace('.', ',');
+                                       })()}
+                                    </span>
+                                 </div>
+                                 <p className="text-[9px] font-bold text-emerald-300/50 italic">* Cálculo automático incluindo descontos do dia</p>
+                              </div>
+                           </div>
+
+                           <Button 
+                              onClick={handleCreateInternalBooking}
+                              disabled={loading || !newBookingData.name}
+                              className="w-full h-16 bg-white hover:bg-emerald-50 text-emerald-900 rounded-3xl font-black text-lg uppercase tracking-tight shadow-2xl relative z-10 transition-all active:scale-[0.98] disabled:opacity-50"
+                           >
+                              {loading ? <Loader2 className="w-8 h-8 animate-spin" /> : 'CONCLUIR E SALVAR RESERVA'}
+                           </Button>
+                        </div>
                       </div>
                     </DialogContent>
                   </Dialog>
