@@ -47,7 +47,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
   const handleStartWizard = (type: WizardType) => {
     resetWizard();
     setWizardType(type);
-    
+
     if (type === 'senior') {
       setWizardData({ age: 60, category: 'inteira', isPCD: false });
       setWizardStep(7); // Senior warning step
@@ -74,8 +74,8 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
     const { age, isPCD } = wizardData;
     const category = categoryOverride ?? wizardData.category;
     const takeDonation = takeDonationOverride ?? wizardData.takeDonation;
-    const flags: any = { 
-      age: age || (wizardType === 'child' ? 5 : 30), 
+    const flags: any = {
+      age: age || (wizardType === 'child' ? 5 : 30),
       quantity: 1,
       isPCD: isPCD || category === 'pcd',
       isTeacher: category === 'professor',
@@ -103,7 +103,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
         onUpdateEntry({ adults: [...entry.adults, flags] });
       }
     }
-    
+
     setIsWizardOpen(false);
     resetWizard();
   };
@@ -118,10 +118,10 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
               <h4 className="text-xl font-bold text-primary mb-2">Qual a idade do participante?</h4>
               <p className="text-sm text-primary/60 font-bold">Escolha uma das opções abaixo:</p>
             </div>
-            
+
             <div className="grid grid-cols-1 gap-4">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="h-20 rounded-[2rem] border-2 border-primary/20 text-lg font-black bg-primary/5 hover:bg-primary hover:text-white hover:border-primary transition-all flex flex-col items-center justify-center gap-1 shadow-sm"
                 onClick={() => {
                   setWizardData({ ...wizardData, age: 5 });
@@ -132,8 +132,8 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                 <span className="text-[10px] uppercase font-bold opacity-80">Entrada Kids (Grátis)</span>
               </Button>
 
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="h-20 rounded-[2rem] border-2 border-primary/20 text-lg font-black bg-primary/5 hover:bg-primary hover:text-white hover:border-primary transition-all shadow-sm"
                 onClick={() => {
                   setWizardData({ ...wizardData, age: 30 });
@@ -143,8 +143,8 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                 Entre 12 e 59 anos
               </Button>
 
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="h-20 rounded-[2rem] border-2 border-primary/20 text-lg font-black bg-primary/5 hover:bg-primary hover:text-white hover:border-primary transition-all flex flex-col items-center justify-center gap-1 shadow-sm"
                 onClick={() => {
                   setWizardData({ ...wizardData, age: 60, isPCD: false });
@@ -167,9 +167,9 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
               <h4 className="text-xl font-black text-primary mb-2">Possui alguma condição especial?</h4>
               <p className="text-sm text-primary/60 font-bold px-8">Essa pessoa é portadora de necessidades especiais (PCD ou TEA)?</p>
             </div>
-            
+
             <div className="grid grid-cols-2 gap-4">
-              <Button 
+              <Button
                 className="h-24 rounded-[2rem] bg-[#0077b6] text-white font-black text-xl hover:bg-[#03045e] shadow-lg flex flex-col gap-1 transition-all"
                 onClick={() => {
                   setWizardData({ ...wizardData, isPCD: true });
@@ -180,7 +180,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                 <span className="text-[10px] font-bold uppercase opacity-90">(PCD ou TEA)</span>
               </Button>
 
-              <Button 
+              <Button
                 variant="outline"
                 className="h-24 rounded-[2rem] border-2 border-primary/20 text-xl font-black opacity-80 hover:opacity-100 transition-all shadow-sm"
                 onClick={() => handleFinishWizard()}
@@ -190,8 +190,8 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
             </div>
 
             <div className="flex gap-2 mt-4">
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 className={cn(
                   "flex-1 text-xs font-black uppercase text-muted-foreground hover:text-primary hover:bg-transparent hover:underline transition-all",
                   (wizardType === 'child' || wizardType === 'senior') && "hidden"
@@ -208,6 +208,8 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
         const entryFullStr = formatCurrency(getPrice('entry_full', 50)).replace(',00', '');
         const entryHalfStr = formatCurrency(getPrice('entry_half', 25)).replace(',00', '');
 
+        const isSunday = entry.visitDate?.getDay() === 0;
+
         const categories = [
           { id: 'inteira', label: 'Inteira', sublabel: 'Acesso Normal', price: entryFullStr, emoji: '🎟️', bg: 'bg-emerald-50', border: 'border-emerald-100', selectedBg: 'bg-emerald-100', selectedBorder: 'border-emerald-500', priceColor: 'text-emerald-700', labelColor: 'text-emerald-900' },
           { id: 'solidaria', label: 'Solidária', sublabel: 'Leve 1kg de alimento ou outros donativos', price: entryHalfStr, emoji: '❤️', bg: 'bg-sun/10', border: 'border-sun/20', selectedBg: 'bg-sun/20', selectedBorder: 'border-sun-dark', priceColor: 'text-sun-dark', labelColor: 'text-sun-dark' },
@@ -215,13 +217,15 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
           { id: 'estudante', label: 'Estudante', sublabel: 'Lessa Estudante Pass', price: entryHalfStr, emoji: '🎓', bg: 'bg-violet-50', border: 'border-violet-100', selectedBg: 'bg-violet-100', selectedBorder: 'border-violet-500', priceColor: 'text-violet-700', labelColor: 'text-violet-900' },
           { id: 'servidor', label: 'Servidor Público', sublabel: 'Lessa Servidor Pass', price: entryHalfStr, emoji: '🏛️', bg: 'bg-indigo-50', border: 'border-indigo-100', selectedBg: 'bg-indigo-100', selectedBorder: 'border-indigo-500', priceColor: 'text-indigo-700', labelColor: 'text-indigo-900' },
           { id: 'aniversariante', label: 'Aniversariante', sublabel: 'Da semana · com comprovação', price: 'GRÁTIS', emoji: '🎂', bg: 'bg-amber-50', border: 'border-amber-100', selectedBg: 'bg-amber-100', selectedBorder: 'border-amber-500', priceColor: 'text-amber-700', labelColor: 'text-amber-900' },
-        ];
+        ].filter(cat => !isSunday || cat.id !== 'solidaria');
 
         return (
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-3 py-2">
             <div className="text-center mb-4">
               <h4 className="text-xl font-black text-primary uppercase tracking-tight">Monte seu Day Use no Balneário</h4>
-              <p className="text-sm text-primary/60 font-bold italic">R$ 50 ou R$ 25 Solidário/Especiais</p>
+              <p className="text-sm text-primary/60 font-bold italic">
+                {isSunday ? "R$ 50 Inteira (Solidária indisponível aos domingos)" : "R$ 50 ou R$ 25 Solidário/Especiais"}
+              </p>
             </div>
             <div className="grid grid-cols-2 gap-2">
               {categories.map((cat) => {
@@ -256,10 +260,10 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                 );
               })}
             </div>
-            
+
             <div className="flex gap-2 mt-4">
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 className="flex-1 text-xs font-black uppercase text-muted-foreground hover:text-primary hover:bg-transparent hover:underline transition-all"
                 onClick={() => setIsWizardOpen(false)}
               >
@@ -296,13 +300,13 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                 <span className="block text-[10px] font-semibold opacity-70 mt-1 px-2 whitespace-normal leading-tight">Use o botão “🎟️ + Adulto”</span>
               </Button>
             </div>
-            
+
             <div className="mx-2 bg-amber-100/50 border border-amber-200 rounded-2xl px-4 py-3 text-[10px] text-amber-900 font-bold leading-snug mt-2">
               ⚠️ <span className="font-black">Importante:</span> Por precaução, leve um documento (RG ou certidão) para comprovar a idade se solicitado.
             </div>
 
             <div className="flex gap-2 pt-2">
-               <Button
+              <Button
                 variant="ghost"
                 className="flex-1 text-xs font-black uppercase text-muted-foreground"
                 onClick={() => setIsWizardOpen(false)}
@@ -316,10 +320,10 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
 
       case 5: { // Proof required warning for professional categories
         const proofLabels: Record<string, { label: string; emoji: string; color: string; docs: string | string[] }> = {
-          professor: { 
-            label: 'Professor', 
-            emoji: '📚', 
-            color: 'text-blue-800', 
+          professor: {
+            label: 'Professor',
+            emoji: '📚',
+            color: 'text-blue-800',
             docs: [
               '📄 Documentos aceitos (basta 1):',
               '✅ Contracheque ou holerite recente (constando função docente)',
@@ -328,10 +332,10 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
               '✅ Registro na Carteira de Trabalho (CTPS) na função de professor, junto a documento com foto'
             ]
           },
-          estudante: { 
-            label: 'Estudante', 
-            emoji: '🎓', 
-            color: 'text-violet-800', 
+          estudante: {
+            label: 'Estudante',
+            emoji: '🎓',
+            color: 'text-violet-800',
             docs: [
               '📄 Documentos aceitos (basta 1):',
               '✅ Carteirinha estudantil válida',
@@ -340,10 +344,10 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
               '✅ Documento oficial da instituição de ensino com nome do aluno e período letivo'
             ]
           },
-          servidor: { 
-            label: 'Servidor Público', 
-            emoji: '🏛️', 
-            color: 'text-emerald-800', 
+          servidor: {
+            label: 'Servidor Público',
+            emoji: '🏛️',
+            color: 'text-emerald-800',
             docs: [
               '📄 Documentos aceitos (basta 1):',
               '✅ Carteira funcional de servidor público',
@@ -368,23 +372,23 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                   {wizardData.category === 'aniversariante' ? 'Aniversariante da Semana — Grátis' : `${info.label} — R$ 25,00`}
                 </p>
               </div>
-                <div className="bg-amber-100/80 border border-amber-300 rounded-2xl px-5 py-4 text-xs text-amber-950 font-bold leading-relaxed text-left w-full shadow-sm">
-                  <div className="flex items-center gap-2 mb-2 text-amber-900">
-                    <span className="text-sm">⚠️</span>
-                    <span className="font-black uppercase tracking-tight">Comprovação obrigatória na entrada:</span>
-                  </div>
-                  {Array.isArray(info.docs) ? (
-                    <div className="space-y-1.5 ml-1">
-                      {info.docs.map((line, idx) => (
-                        <p key={idx} className={idx === 0 ? "mb-2 text-amber-900/80" : "pl-1"}>
-                          {line}
-                        </p>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="ml-1">{info.docs}</p>
-                  )}
+              <div className="bg-amber-100/80 border border-amber-300 rounded-2xl px-5 py-4 text-xs text-amber-950 font-bold leading-relaxed text-left w-full shadow-sm">
+                <div className="flex items-center gap-2 mb-2 text-amber-900">
+                  <span className="text-sm">⚠️</span>
+                  <span className="font-black uppercase tracking-tight">Comprovação obrigatória na entrada:</span>
                 </div>
+                {Array.isArray(info.docs) ? (
+                  <div className="space-y-1.5 ml-1">
+                    {info.docs.map((line, idx) => (
+                      <p key={idx} className={idx === 0 ? "mb-2 text-amber-900/80" : "pl-1"}>
+                        {line}
+                      </p>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="ml-1">{info.docs}</p>
+                )}
+              </div>
 
 
             </div>
@@ -422,19 +426,19 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                   </p>
                 </div>
                 <div className="bg-blue-100 border border-blue-200 rounded-2xl px-4 py-3 text-xs text-[#0077b6] font-bold leading-snug">
-                  ⚠️ Necessário apresentar comprovação na entrada:<br/>
+                  ⚠️ Necessário apresentar comprovação na entrada:<br />
                   <span className="font-black">laudo médico, carteirinha PCD/TEA ou documento que comprove a condição</span>
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button 
+                <Button
                   onClick={() => handleFinishWizard()}
                   className="flex-[2] h-14 rounded-2xl bg-[#0077b6] text-white font-black text-lg hover:bg-[#03045e] transition-all shadow-lg"
                 >
                   Confirmar e Adicionar
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className={cn(
                     "flex-1 h-14 rounded-2xl border-2 border-primary/20 text-xs font-black uppercase text-muted-foreground",
                     wizardType === 'pcd' && "hidden"
@@ -455,16 +459,16 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
               <h4 className="text-xl font-black text-primary">Deseja ativar a Ação Solidária?</h4>
               <p className="text-sm text-primary/60 font-bold px-4 leading-relaxed">Leve 1kg de alimento, livros, roupas ou brinquedos e pague apenas <span className="text-sun-dark font-black underline">{formatCurrency(getPrice('entry_half', 25))} (Meia-Entrada)</span>.</p>
             </div>
-            
+
             <div className="space-y-3 mt-6">
-              <Button 
+              <Button
                 className="w-full h-14 rounded-2xl bg-sun text-sun-dark font-black text-lg hover:bg-yellow-400 hover:text-sun-dark transition-all shadow-lg flex flex-col leading-tight py-2"
                 onClick={() => handleFinishWizard(undefined, true)}
               >
                 Sim, trará doação
                 <span className="text-[10px] opacity-80 uppercase font-black">Pagar Meia-Entrada</span>
               </Button>
-              <Button 
+              <Button
                 variant="outline"
                 className="w-full h-14 rounded-2xl border-2 border-primary/20 text-lg font-black opacity-80 hover:opacity-100 hover:border-primary/40 transition-all flex flex-col leading-tight py-2"
                 onClick={() => handleFinishWizard(undefined, false)}
@@ -475,8 +479,8 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
             </div>
 
             <div className="flex gap-2 mt-6">
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 className="flex-1 text-xs font-black uppercase text-muted-foreground hover:text-primary hover:bg-transparent hover:underline transition-all"
                 onClick={() => setWizardStep(3)}
               >
@@ -526,18 +530,18 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
     <div className="space-y-4">
       {!hideTitle && (
         <div className="flex items-center gap-3 mb-2">
-            <div className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-primary/10 text-primary shrink-0">
+          <div className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-primary/10 text-primary shrink-0">
             <Ticket className="h-4 w-4 sm:h-5 sm:w-5" />
-            </div>
-            <h3 className="font-sans font-bold text-xl sm:text-2xl md:text-3xl leading-tight text-primary drop-shadow-sm text-center w-full">
+          </div>
+          <h3 className="font-sans font-bold text-xl sm:text-2xl md:text-3xl leading-tight text-primary drop-shadow-sm text-center w-full">
             Selecione quem vai participar
-            </h3>
+          </h3>
         </div>
       )}
 
       <div className={cn(
-          "bg-white/50 backdrop-blur-md rounded-[2.5rem] border border-white/60 p-4 sm:p-6 shadow-xl space-y-6",
-          hideMainInfo && "bg-transparent backdrop-blur-none border-none shadow-none p-0"
+        "bg-white/50 backdrop-blur-md rounded-[2.5rem] border border-white/60 p-4 sm:p-6 shadow-xl space-y-6",
+        hideMainInfo && "bg-transparent backdrop-blur-none border-none shadow-none p-0"
       )}>
         {/* Nome & Telefone Row */}
         {!hideMainInfo && (
@@ -579,12 +583,12 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
             <label className="text-xs font-black flex items-center gap-2 text-primary uppercase tracking-widest">
               <CalendarIcon className="h-4 w-4" /> Escolha a Data da Reserva
             </label>
-            
+
             <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen} modal={true}>
               <PopoverTrigger asChild>
                 {entry.visitDate ? (
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="w-full h-12 justify-between px-4 font-sans font-bold text-sm rounded-2xl border-emerald-500/30 bg-emerald-100/50 text-emerald-900 shadow-sm hover:bg-emerald-200/80 hover:text-emerald-950 transition-all uppercase tracking-tight"
                   >
                     <div className="flex items-center gap-2">
@@ -597,8 +601,8 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                     <span className="text-[10px] opacity-60 underline">Mudar data</span>
                   </Button>
                 ) : (
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="w-full h-12 justify-start px-4 font-sans font-bold text-sm rounded-2xl border-primary/20 bg-white text-muted-foreground shadow-sm hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 transition-all uppercase tracking-tight group"
                   >
                     <CalendarIcon className="mr-2 h-5 w-5 shrink-0 text-primary group-hover:scale-110 transition-transform" />
@@ -643,38 +647,38 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                 <User className="h-5 w-5" /> Adicionar Pessoas:
               </h4>
             </div>
-            
+
             <div className="flex flex-col gap-3">
               <div className="grid grid-cols-2 gap-3">
-                <Button 
-                    onClick={() => handleStartWizard('adult')} 
-                    className="w-full h-16 rounded-[1.25rem] bg-gradient-to-br from-[#006020] to-[#004d1a] border-b-4 border-[#003d14] text-white hover:brightness-110 font-black text-sm shadow-xl transition-all active:translate-y-1 active:border-b-0 flex flex-col items-center justify-center gap-0.5 px-1 group"
+                <Button
+                  onClick={() => handleStartWizard('adult')}
+                  className="w-full h-16 rounded-[1.25rem] bg-gradient-to-br from-[#006020] to-[#004d1a] border-b-4 border-[#003d14] text-white hover:brightness-110 font-black text-sm shadow-xl transition-all active:translate-y-1 active:border-b-0 flex flex-col items-center justify-center gap-0.5 px-1 group"
                 >
-                    <span className="text-xl group-hover:scale-125 transition-transform">🎟️</span>
-                    <span className="uppercase tracking-wider">Adulto</span>
+                  <span className="text-xl group-hover:scale-125 transition-transform">🎟️</span>
+                  <span className="uppercase tracking-wider">Adulto</span>
                 </Button>
-                <Button 
-                    onClick={() => handleStartWizard('child')} 
-                    className="w-full h-16 rounded-[1.25rem] bg-gradient-to-br from-[#007030] to-[#005020] border-b-4 border-[#004018] text-white hover:brightness-110 font-black text-sm shadow-xl transition-all active:translate-y-1 active:border-b-0 flex flex-col items-center justify-center gap-0.5 px-1 group"
+                <Button
+                  onClick={() => handleStartWizard('child')}
+                  className="w-full h-16 rounded-[1.25rem] bg-gradient-to-br from-[#007030] to-[#005020] border-b-4 border-[#004018] text-white hover:brightness-110 font-black text-sm shadow-xl transition-all active:translate-y-1 active:border-b-0 flex flex-col items-center justify-center gap-0.5 px-1 group"
                 >
-                    <span className="text-xl group-hover:scale-125 transition-transform">👶</span>
-                    <span className="uppercase tracking-wider">Criança</span>
+                  <span className="text-xl group-hover:scale-125 transition-transform">👶</span>
+                  <span className="uppercase tracking-wider">Criança</span>
                 </Button>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <Button 
-                    onClick={() => handleStartWizard('senior')} 
-                    className="w-full h-16 rounded-[1.25rem] bg-gradient-to-br from-[#005020] to-[#004018] border-b-4 border-[#002d12] text-white hover:brightness-110 font-black text-sm shadow-xl transition-all active:translate-y-1 active:border-b-0 flex flex-col items-center justify-center gap-0.5 px-1 group"
+                <Button
+                  onClick={() => handleStartWizard('senior')}
+                  className="w-full h-16 rounded-[1.25rem] bg-gradient-to-br from-[#005020] to-[#004018] border-b-4 border-[#002d12] text-white hover:brightness-110 font-black text-sm shadow-xl transition-all active:translate-y-1 active:border-b-0 flex flex-col items-center justify-center gap-0.5 px-1 group"
                 >
-                    <span className="text-xl group-hover:scale-125 transition-transform">🧓</span>
-                    <span className="uppercase tracking-wider whitespace-nowrap">Idoso (60+)</span>
+                  <span className="text-xl group-hover:scale-125 transition-transform">🧓</span>
+                  <span className="uppercase tracking-wider whitespace-nowrap">Idoso (60+)</span>
                 </Button>
-                <Button 
-                    onClick={() => handleStartWizard('pcd')} 
-                    className="w-full h-16 rounded-[1.25rem] bg-gradient-to-br from-[#005020] to-[#004018] border-b-4 border-[#002d12] text-white hover:brightness-110 font-black text-sm shadow-xl transition-all active:translate-y-1 active:border-b-0 flex flex-col items-center justify-center gap-0.5 px-1 group"
+                <Button
+                  onClick={() => handleStartWizard('pcd')}
+                  className="w-full h-16 rounded-[1.25rem] bg-gradient-to-br from-[#005020] to-[#004018] border-b-4 border-[#002d12] text-white hover:brightness-110 font-black text-sm shadow-xl transition-all active:translate-y-1 active:border-b-0 flex flex-col items-center justify-center gap-0.5 px-1 group"
                 >
-                    <span className="text-xl group-hover:scale-125 transition-transform">♿</span>
-                    <span className="uppercase tracking-wider">PCD & TEA</span>
+                  <span className="text-xl group-hover:scale-125 transition-transform">♿</span>
+                  <span className="uppercase tracking-wider">PCD & TEA</span>
                 </Button>
               </div>
             </div>
@@ -683,144 +687,144 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
 
           <div className="space-y-3">
             <h4 className="font-bold text-primary/60 text-xs uppercase tracking-widest pl-2">Lista de Acesso:</h4>
-            
+
             {/* Adult Cards Ultra-Compact */}
             <AnimatePresence mode="popLayout">
               {entry.adults.map((adult, i) => (
-                <motion.div 
+                <motion.div
                   layout
                   initial={{ opacity: 0, scale: 0.9, y: 10 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.9, y: -10 }}
-                  key={`adult-${i}`} 
+                  key={`adult-${i}`}
                   className="bg-white/80 border border-primary/5 rounded-[1.5rem] px-4 py-3 flex items-center justify-between shadow-sm hover:shadow-md transition-all group overflow-hidden"
                 >
-                <div className="flex items-center gap-3">
-                  <div className="bg-primary/5 p-2 rounded-xl text-primary group-hover:bg-primary group-hover:text-white transition-colors">
-                    {adult.isTeacher || adult.isStudent ? <GraduationCap className="h-4 w-4" /> :
-                     adult.isServer ? <Briefcase className="h-4 w-4" /> :
-                     adult.isBirthday ? <Gift className="h-4 w-4" /> :
-                     adult.isPCD ? <Accessibility className="h-4 w-4" /> :
-                     (adult as any).isBloodDonor ? <Heart className="h-4 w-4" /> :
-                     adult.age >= 60 ? <UserPlus className="h-4 w-4" /> :
-                     <User className="h-4 w-4" />}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-black text-sm text-foreground">
-                        {adult.quantity && adult.quantity > 1 ? `${adult.quantity}x ` : ''}
-                        {adult.isTeacher ? 'Lessa Professor Pass' :
-                         adult.isStudent ? 'Lessa Estudante Pass' :
-                         adult.isServer ? 'Lessa Servidor Pass' :
-                         (adult as any).isBloodDonor ? 'Doador de Sangue/Medula' :
-                         adult.isBirthday ? 'Aniversariante da Semana' :
-                         (adult.age >= 60 && adult.isPCD) ? 'Lessa Vitalício - PCD & TEA' :
-                         adult.isPCD ? 'Lessa Inclusão - PCD & TEA' :
-                         (adult.age >= 60) ? 'Lessa Vitalício' :
-                         adult.takeDonation ? 'Adulto Solidário' :
-                         'Adulto - Entrada Inteira'}
-                      </span>
-                      {adult.isPCD && <span className="text-[8px] sm:text-[9px] bg-whatsapp/20 text-whatsapp-dark px-2 py-0.5 rounded-full font-black uppercase">♿ PCD</span>}
-                      {(adult.isTeacher || adult.isStudent || adult.isServer || (adult as any).isBloodDonor) && <span className="text-[8px] sm:text-[9px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-black uppercase">Meia-Entrada</span>}
-                      {adult.takeDonation && <span className="text-[8px] sm:text-[9px] bg-sun/20 text-sun-dark px-2 py-0.5 rounded-full font-black uppercase">❤️ Solidária</span>}
+                  <div className="flex items-center gap-3">
+                    <div className="bg-primary/5 p-2 rounded-xl text-primary group-hover:bg-primary group-hover:text-white transition-colors">
+                      {adult.isTeacher || adult.isStudent ? <GraduationCap className="h-4 w-4" /> :
+                        adult.isServer ? <Briefcase className="h-4 w-4" /> :
+                          adult.isBirthday ? <Gift className="h-4 w-4" /> :
+                            adult.isPCD ? <Accessibility className="h-4 w-4" /> :
+                              (adult as any).isBloodDonor ? <Heart className="h-4 w-4" /> :
+                                adult.age >= 60 ? <UserPlus className="h-4 w-4" /> :
+                                  <User className="h-4 w-4" />}
                     </div>
-                    {adult.isBirthday && <p className="text-[10px] text-sun-dark font-bold">🎂 Entrada grátis (mediante comprovação)</p>}
-                    {adult.isPCD && <p className="text-[10px] text-whatsapp-dark font-bold">✨ entrada gratuita + 1 acompanhante gratuito</p>}
-                    {adult.age >= 60 && !adult.isPCD && <p className="text-[10px] text-whatsapp-dark font-bold">✨ entrada gratuita - sócio vitalício</p>}
-                    {(adult.isTeacher || adult.isStudent || adult.isServer || (adult as any).isBloodDonor) && <p className="text-[10px] text-primary font-bold">✨ benefício de meia-entrada 50% OFF</p>}
-                    {adult.takeDonation && <p className="text-[10px] text-sun-dark font-bold">❤️ Levará 1kg de alimento para desconto ou outro donativo</p>}
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-black text-sm text-foreground">
+                          {adult.quantity && adult.quantity > 1 ? `${adult.quantity}x ` : ''}
+                          {adult.isTeacher ? 'Lessa Professor Pass' :
+                            adult.isStudent ? 'Lessa Estudante Pass' :
+                              adult.isServer ? 'Lessa Servidor Pass' :
+                                (adult as any).isBloodDonor ? 'Doador de Sangue/Medula' :
+                                  adult.isBirthday ? 'Aniversariante da Semana' :
+                                    (adult.age >= 60 && adult.isPCD) ? 'Lessa Vitalício - PCD & TEA' :
+                                      adult.isPCD ? 'Lessa Inclusão - PCD & TEA' :
+                                        (adult.age >= 60) ? 'Lessa Vitalício' :
+                                          adult.takeDonation ? 'Adulto Solidário' :
+                                            'Adulto - Entrada Inteira'}
+                        </span>
+                        {adult.isPCD && <span className="text-[8px] sm:text-[9px] bg-whatsapp/20 text-whatsapp-dark px-2 py-0.5 rounded-full font-black uppercase">♿ PCD</span>}
+                        {(adult.isTeacher || adult.isStudent || adult.isServer || (adult as any).isBloodDonor) && <span className="text-[8px] sm:text-[9px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-black uppercase">Meia-Entrada</span>}
+                        {adult.takeDonation && <span className="text-[8px] sm:text-[9px] bg-sun/20 text-sun-dark px-2 py-0.5 rounded-full font-black uppercase">❤️ Solidária</span>}
+                      </div>
+                      {adult.isBirthday && <p className="text-[10px] text-sun-dark font-bold">🎂 Entrada grátis (mediante comprovação)</p>}
+                      {adult.isPCD && <p className="text-[10px] text-whatsapp-dark font-bold">✨ entrada gratuita + 1 acompanhante gratuito</p>}
+                      {adult.age >= 60 && !adult.isPCD && <p className="text-[10px] text-whatsapp-dark font-bold">✨ entrada gratuita - sócio vitalício</p>}
+                      {(adult.isTeacher || adult.isStudent || adult.isServer || (adult as any).isBloodDonor) && <p className="text-[10px] text-primary font-bold">✨ benefício de meia-entrada 50% OFF</p>}
+                      {adult.takeDonation && <p className="text-[10px] text-sun-dark font-bold">❤️ Levará 1kg de alimento para desconto ou outro donativo</p>}
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className={cn(
-                    "font-black text-sm sm:text-base tabular-nums",
-                    (adult.age >= 60 || adult.isPCD || adult.isBirthday) ? "text-whatsapp-dark" : "text-primary"
-                  )}>
-                    {(adult.age >= 60 || adult.isPCD || adult.isBirthday) 
-                      ? "GRÁTIS" 
-                      : formatCurrency(((adult.isTeacher || adult.isStudent || adult.isServer || (adult as any).isBloodDonor || adult.takeDonation) ? 25 : 50) * (adult.quantity || 1))
-                    }
-                  </span>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={() => {
-                      if (adult.quantity && adult.quantity > 1) {
-                        onUpdateAdult(i, { quantity: adult.quantity - 1 });
-                      } else {
-                        onRemoveAdult(i);
+                  <div className="flex items-center gap-4">
+                    <span className={cn(
+                      "font-black text-sm sm:text-base tabular-nums",
+                      (adult.age >= 60 || adult.isPCD || adult.isBirthday) ? "text-whatsapp-dark" : "text-primary"
+                    )}>
+                      {(adult.age >= 60 || adult.isPCD || adult.isBirthday)
+                        ? "GRÁTIS"
+                        : formatCurrency(((adult.isTeacher || adult.isStudent || adult.isServer || (adult as any).isBloodDonor || adult.takeDonation) ? 25 : 50) * (adult.quantity || 1))
                       }
-                    }}
-                    className="h-8 w-8 rounded-full text-destructive hover:bg-destructive/10 hover:text-destructive"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              </motion.div>
-            ))}
-          </AnimatePresence>
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        if (adult.quantity && adult.quantity > 1) {
+                          onUpdateAdult(i, { quantity: adult.quantity - 1 });
+                        } else {
+                          onRemoveAdult(i);
+                        }
+                      }}
+                      className="h-8 w-8 rounded-full text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
 
             {/* Child Cards Ultra-Compact */}
             <AnimatePresence mode="popLayout">
               {entry.children.map((child, i) => (
-                <motion.div 
+                <motion.div
                   layout
                   initial={{ opacity: 0, scale: 0.9, y: 10 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.9, y: -10 }}
-                  key={`child-${i}`} 
+                  key={`child-${i}`}
                   className="bg-white/80 border border-primary/5 rounded-[1.5rem] px-4 py-3 flex items-center justify-between shadow-sm hover:shadow-md transition-all group overflow-hidden"
                 >
-                <div className="flex items-center gap-3">
-                  <div className="bg-primary/5 p-2 rounded-xl text-primary group-hover:bg-primary group-hover:text-white transition-colors">
-                    <Baby className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-black text-sm text-foreground">
-                        {child.quantity && child.quantity > 1 ? `${child.quantity}x ` : ''}
-                        {child.isPCD && child.age <= 11 ? 'Lessa Kids - PCD & TEA' :
-                         child.isPCD ? 'Lessa Inclusão - PCD & TEA' :
-                         'Lessa Kids'}
-                      </span>
-                      {child.isPCD && <span className="text-[8px] sm:text-[9px] bg-whatsapp/20 text-whatsapp-dark px-2 py-0.5 rounded-full font-black uppercase">♿ PCD</span>}
-                      {child.isBirthday && <span className="text-[8px] sm:text-[9px] bg-sun/20 text-sun-dark px-2 py-0.5 rounded-full font-black uppercase">🎂 B-Day</span>}
+                  <div className="flex items-center gap-3">
+                    <div className="bg-primary/5 p-2 rounded-xl text-primary group-hover:bg-primary group-hover:text-white transition-colors">
+                      <Baby className="h-4 w-4" />
                     </div>
-                    {child.isPCD ? (
-                      <p className="text-[10px] text-whatsapp-dark font-bold">✨ entrada gratuita + 1 acompanhante gratuito</p>
-                    ) : (
-                      <p className="text-[10px] text-whatsapp-dark font-bold">✨ entrada gratuita até 11 anos</p>
-                    )}
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-black text-sm text-foreground">
+                          {child.quantity && child.quantity > 1 ? `${child.quantity}x ` : ''}
+                          {child.isPCD && child.age <= 11 ? 'Lessa Kids - PCD & TEA' :
+                            child.isPCD ? 'Lessa Inclusão - PCD & TEA' :
+                              'Lessa Kids'}
+                        </span>
+                        {child.isPCD && <span className="text-[8px] sm:text-[9px] bg-whatsapp/20 text-whatsapp-dark px-2 py-0.5 rounded-full font-black uppercase">♿ PCD</span>}
+                        {child.isBirthday && <span className="text-[8px] sm:text-[9px] bg-sun/20 text-sun-dark px-2 py-0.5 rounded-full font-black uppercase">🎂 B-Day</span>}
+                      </div>
+                      {child.isPCD ? (
+                        <p className="text-[10px] text-whatsapp-dark font-bold">✨ entrada gratuita + 1 acompanhante gratuito</p>
+                      ) : (
+                        <p className="text-[10px] text-whatsapp-dark font-bold">✨ entrada gratuita até 11 anos</p>
+                      )}
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className={cn(
-                    "font-black text-sm sm:text-base tabular-nums",
-                    (child.age <= 11 || child.isPCD || child.isBirthday) ? "text-whatsapp-dark" : "text-primary"
-                  )}>
-                    {(child.age <= 11 || child.isPCD || child.isBirthday) 
-                      ? "GRÁTIS" 
-                      : formatCurrency(50 * (child.quantity || 1))
-                    }
-                  </span>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={() => {
-                      if (child.quantity && child.quantity > 1) {
-                        onUpdateChild(i, { quantity: child.quantity - 1 });
-                      } else {
-                        onRemoveChild(i);
+                  <div className="flex items-center gap-4">
+                    <span className={cn(
+                      "font-black text-sm sm:text-base tabular-nums",
+                      (child.age <= 11 || child.isPCD || child.isBirthday) ? "text-whatsapp-dark" : "text-primary"
+                    )}>
+                      {(child.age <= 11 || child.isPCD || child.isBirthday)
+                        ? "GRÁTIS"
+                        : formatCurrency(50 * (child.quantity || 1))
                       }
-                    }}
-                    className="h-8 w-8 rounded-full text-destructive hover:bg-destructive/10 hover:text-destructive"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              </motion.div>
-            ))}
-          </AnimatePresence>
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        if (child.quantity && child.quantity > 1) {
+                          onUpdateChild(i, { quantity: child.quantity - 1 });
+                        } else {
+                          onRemoveChild(i);
+                        }
+                      }}
+                      className="h-8 w-8 rounded-full text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
 
             {(entry.adults.length === 0 && entry.children.length === 0) && (
               <div className="text-center py-10 border-2 border-dashed border-primary/10 rounded-[2.5rem] bg-primary/5">
@@ -836,7 +840,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
             <CheckCircle2 className="h-4 w-4 text-emerald-700" />
           </div>
           <p className="text-[11px] font-bold text-emerald-800 leading-relaxed">
-            {entry.dayOfWeek === 'domingo' 
+            {entry.dayOfWeek === 'domingo'
               ? '✅ DOMINGO: Valor único de R$ 50,00 Inteira. PCD e TEA, Crianças, Idosos e Aniversariantes mantêm gratuidade. Professores, Estudantes e Servidores têm meia-entrada mediante comprovação.'
               : '✅ DICA POSITIVA: Traga 1kg de alimento, livro, brinquedo ou roupas em bom estado para ativar seu benefício de Meia-Entrada (R$ 25,00) e ajudar quem precisa!'}
           </p>
@@ -844,15 +848,15 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
       </div>
 
       {/* Simplified Guided Wizard Modal */}
-      <Dialog open={isWizardOpen} onOpenChange={(open) => { if(!open) resetWizard(); setIsWizardOpen(open); }}>
+      <Dialog open={isWizardOpen} onOpenChange={(open) => { if (!open) resetWizard(); setIsWizardOpen(open); }}>
         <DialogContent className="w-[calc(100vw-16px)] max-w-md sm:max-w-md bg-white rounded-3xl sm:rounded-[3rem] border-white shadow-2xl p-4 sm:p-6 overflow-x-hidden overflow-y-auto max-h-[92dvh]">
           <DialogHeader className="mb-0 sm:mb-2 top-0 bg-white z-20 py-2 border-b sm:border-none">
             <div className="flex items-center justify-center relative">
               <DialogTitle className="text-xl sm:text-2xl font-bold text-center text-primary font-sans mt-2">
-                {wizardType === 'pcd' ? 'PCD / TEA' : 
+                {wizardType === 'pcd' ? 'PCD / TEA' :
                   wizardType === 'senior' ? 'Acesso Melhor Idade' :
-                  wizardType === 'child' ? 'Acesso Kids' :
-                  'Participante'}
+                    wizardType === 'child' ? 'Acesso Kids' :
+                      'Participante'}
               </DialogTitle>
             </div>
           </DialogHeader>
