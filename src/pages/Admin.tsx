@@ -1031,15 +1031,18 @@ const updateBookingStatus = async (bookingId: string, status: string, isOrder?: 
                     <h4 className="text-lg font-black text-emerald-950 tracking-tight">Resumo Geral</h4>
                  </div>
                  <p className="text-[11px] font-bold text-emerald-800/70 leading-relaxed mb-6">
-                    Selecione uma data para organizar seu dia de operaçíµes.
+                    Selecione uma data para organizar seu dia de operações.
                  </p>
                  
-                 <div className="grid grid-cols-1 gap-2">
-                    <div className="flex items-center justify-center gap-2 py-2.5 px-4 bg-emerald-800 text-white rounded-[0.8rem] text-[10px] font-black uppercase tracking-wider">
-                       <Tent className="w-3.5 h-3.5" /> Quiosques Ocupados
+                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <div className="flex items-center justify-center gap-2 py-2 px-3 bg-emerald-800 text-white rounded-xl text-[9px] font-black uppercase tracking-wider">
+                       <Tent className="w-3.5 h-3.5" /> Quiosques
                     </div>
-                    <div className="flex items-center justify-center gap-2 py-2.5 px-4 bg-blue-700 text-white rounded-[0.8rem] text-[10px] font-black uppercase tracking-wider">
-                       <Bike className="w-3.5 h-3.5" /> Quadriciclos Alugados
+                    <div className="flex items-center justify-center gap-2 py-2 px-3 bg-blue-700 text-white rounded-xl text-[9px] font-black uppercase tracking-wider">
+                       <Bike className="w-3.5 h-3.5" /> Quads
+                    </div>
+                    <div className="flex items-center justify-center gap-2 py-2 px-3 bg-red-500 text-white rounded-xl text-[9px] font-black uppercase tracking-wider">
+                       <Users className="w-3.5 h-3.5" /> Reservas (Entrada)
                     </div>
                  </div>
               </div>
@@ -1098,7 +1101,7 @@ const updateBookingStatus = async (bookingId: string, status: string, isOrder?: 
                             <div className="flex gap-1 mt-0.5">
                               {hasKiosk && <div className={cn("w-2 h-2 rounded-full shadow-md border border-white/40", kiosksFull ? "bg-red-600" : "bg-emerald-600")} />}
                               {hasQuad && <div className={cn("w-2 h-2 rounded-full shadow-md border border-white/40", quadsFull ? "bg-red-600" : "bg-blue-600")} />}
-                              {isSimpleBooking && <div className="w-2 h-2 rounded-full bg-yellow-400 shadow-md border border-white/40" />}
+                              {isSimpleBooking && <div className="w-2 h-2 rounded-full bg-red-500 shadow-md border border-white/40" />}
                             </div>
                           </div>
                         );
