@@ -177,7 +177,7 @@ export default function Admin() {
   const [availableKiosks, setAvailableKiosks] = useState<number[]>([]);
   const [quadSlotsAvail, setQuadSlotsAvail] = useState<Record<string, number>>({});
   const [isFetchingAvail, setIsFetchingAvail] = useState(false);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+
   useEffect(() => {
     if (isNewBookingOpen && newBookingData.visit_date) {
       const fetchAvail = async () => {
