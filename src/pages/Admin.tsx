@@ -72,24 +72,24 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 // Constants from common types
 const KIOSKS = [
-  { id: 1, name: 'QUIOSQUE - 01 (Grande)', price: 100, capacity: 'AtÃ© 30 pessoas', type: 'Maior' },
-  { id: 2, name: 'QUIOSQUE - 02', price: 75, capacity: 'AtÃ© 15 pessoas', type: 'Menor' },
-  { id: 3, name: 'QUIOSQUE - 03', price: 75, capacity: 'AtÃ© 15 pessoas', type: 'Menor' },
-  { id: 4, name: 'QUIOSQUE - 04', price: 75, capacity: 'AtÃ© 15 pessoas', type: 'Menor' },
-  { id: 5, name: 'QUIOSQUE - 05', price: 75, capacity: 'AtÃ© 15 pessoas', type: 'Menor' }
+  { id: 1, name: 'QUIOSQUE - 01 (Grande)', price: 100, capacity: 'Até 30 pessoas', type: 'Maior' },
+  { id: 2, name: 'QUIOSQUE - 02', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' },
+  { id: 3, name: 'QUIOSQUE - 03', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' },
+  { id: 4, name: 'QUIOSQUE - 04', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' },
+  { id: 5, name: 'QUIOSQUE - 05', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' }
 ];
 
 const QUAD_TIMES = ['09:00', '10:30', '14:00', '15:30'];
 const PAYMENT_METHODS = [
-  { value: 'pix', label: 'PIX / TransferÃªncia' },
-  { value: 'credit_card', label: 'CartÃ£o de CrÃ©dito' },
+  { value: 'pix', label: 'PIX / Transferência' },
+  { value: 'credit_card', label: 'Cartão de Crédito' },
   { value: 'cash', label: 'Dinheiro (Local)' }
 ];
 
 const QUAD_MODELS_LABELS: Record<string, string> = {
   individual: 'Individual',
   dupla: 'Dupla',
-  'adulto-crianca': 'Adulto + CrianÃ§a',
+  'adulto-crianca': 'Adulto + Criança',
   'INDIV': 'Individual',
   'DUPLA': 'Dupla'
 };
@@ -274,8 +274,8 @@ export default function Admin() {
                const qty = item.quantity || 1;
                
                // Listas categorizadas para contagem de pessoas
-                const adultKeywords = ['adulto', 'solidÃ¡rio', 'solidario', 'professor', 'estudante', 'servidor'];
-                const gratuityKeywords = ['crianÃ§a', 'crianca', 'idoso', 'pcd', 'aniversariante'];
+                const adultKeywords = ['adulto', 'solidário', 'solidario', 'professor', 'estudante', 'servidor'];
+                const gratuityKeywords = ['criança', 'crianca', 'idoso', 'pcd', 'aniversariante'];
 
                 const isAdult = adultKeywords.some(key => pName.includes(key) || pId.includes(key));
                 const isGratuity = gratuityKeywords.some(key => pName.includes(key) || pId.includes(key));
@@ -366,7 +366,7 @@ export default function Admin() {
                }
             });
             
-            // Atribuir contagens extraÃ­das se nÃ£o estiverem presentes
+            // Atribuir contagens extraí­das se não estiverem presentes
             o.adults = o.adults || orderAdults;
             o.children = o.children || orderChildren;
          });
@@ -453,7 +453,7 @@ export default function Admin() {
         if (editData[f] !== undefined) payload[f] = editData[f];
       });
 
-      // Se for uma reserva virtual extraÃ­da de um pedido, precisa virar real no banco
+      // Se for uma reserva virtual extraí­da de um pedido, precisa virar real no banco
       if (typeof editingId === 'string' && editingId.startsWith('order-')) {
         payload.order_id = editData.order_id;
         const { error } = await supabase.from(table).insert([payload]);
@@ -463,7 +463,7 @@ export default function Admin() {
         if (error) throw error;
       }
       
-      toast({ title: "âœ” AlteraÃ§Ãµes salvas" });
+      toast({ title: "âœ” Alteraçíµes salvas" });
       setEditingId(null);
       setEditData({});
       await fetchData();
@@ -490,8 +490,8 @@ export default function Admin() {
       
       if (!name || !visit_date || !isValidCPF(cpf)) {
         toast({ 
-          title: !isValidCPF(cpf) ? "CPF INVÃLIDO" : "Dados incompletos", 
-          description: "A reserva sÃ³ Ã© salva com um CPF vÃ¡lido e QR Code gerado.", 
+          title: !isValidCPF(cpf) ? "CPF INVíLIDO" : "Dados incompletos", 
+          description: "A reserva só é salva com um CPF válido e QR Code gerado.", 
           variant: "destructive" 
         });
         setLoading(false);
@@ -582,10 +582,10 @@ export default function Admin() {
       const item = isOrder ? orders.find((o: any) => o.id === bookingId) : bookings.find((b: any) => b.id === bookingId);
       if (!item) throw new Error("Reserva não encontrada");
 
-      // Validar valor da reserva para o Asaas (mÃ­nimo R$ 5,00 costuma ser exigido)
+      // Validar valor da reserva para o Asaas (mí­nimo R$ 5,00 costuma ser exigido)
       const numericValue = Number(item.total_amount);
       if (isNaN(numericValue) || numericValue <= 0) {
-        throw new Error("O valor da reserva Ã© invÃ¡lido para gerar pagamento.");
+        throw new Error("O valor da reserva é inválido para gerar pagamento.");
       }
 
       console.log(`Gerando PIX de R$ ${numericValue} para ${item.name || item.customer_name}`);
@@ -598,7 +598,7 @@ export default function Admin() {
           phone: item.phone || item.customer_phone,
           cpf: item.cpf || '000.000.000-00', 
           value: numericValue,
-          description: `Reserva BalneÃ¡rio Lessa - ${item.name || item.customer_name}`
+          description: `Reserva Balneário Lessa - ${item.name || item.customer_name}`
         }
       });
 
@@ -615,7 +615,7 @@ export default function Admin() {
           name: item.name || item.customer_name
         });
       } else {
-        const errorMsg = response?.error || "A funÃ§Ã£o nÃ£o retornou um QR Code vÃ¡lido. Verifique se o CPF Ã© vÃ¡lido.";
+        const errorMsg = response?.error || "A função não retornou um QR Code válido. Verifique se o CPF é válido.";
         console.warn('Payment creation failed:', response);
         throw new Error(errorMsg);
       }
@@ -650,7 +650,7 @@ const updateBookingStatus = async (bookingId: string, status: string, isOrder?: 
       const table = isOrder ? 'orders' : 'bookings';
       const { error } = await supabase.from(table).update({ notes }).eq('id', bookingId);
       if (error) throw error;
-      toast({ title: "Ã¢Å“â€œ Nota adicionada" });
+      toast({ title: "í¢Å“â€œ Nota adicionada" });
       fetchData();
     } catch (err) {
       toast({ title: "Erro ao adicionar nota", variant: "destructive" });
@@ -720,9 +720,9 @@ const updateBookingStatus = async (bookingId: string, status: string, isOrder?: 
       ));
       
       const hasError = results.some(r => r.error);
-      if (hasError) throw new Error('Algumas atualizaÃ§Ãµes falharam');
+      if (hasError) throw new Error('Algumas atualizaçíµes falharam');
       
-      toast({ title: 'Ã¢Å“â€œ Reagendado com sucesso' });
+      toast({ title: 'í¢Å“â€œ Reagendado com sucesso' });
       fetchData();
       setRescheduleData(null);
     } catch (err) {
@@ -787,7 +787,7 @@ const updateBookingStatus = async (bookingId: string, status: string, isOrder?: 
       const isOrder = resId.toString().startsWith('order-');
       if (isOrder) {
          // It's a virtual reservation from an order, we might need to update the order instead or just toast
-         toast({ title: "Esta Ã© uma reserva de pedido. O comprovante deve ser anexado ao pedido na aba Reservas." });
+         toast({ title: "Esta é uma reserva de pedido. O comprovante deve ser anexado ao pedido na aba Reservas." });
       } else {
          const { error: updateError } = await supabase.from('kiosk_reservations').update({ receipt_url: publicUrl }).eq('id', resId);
          if (updateError) throw updateError;
@@ -809,7 +809,7 @@ const updateBookingStatus = async (bookingId: string, status: string, isOrder?: 
       
       const isOrder = resId.toString().startsWith('order-');
       if (isOrder) {
-         toast({ title: "Esta Ã© uma reserva de pedido. O comprovante deve ser anexado ao pedido na aba Reservas." });
+         toast({ title: "Esta é uma reserva de pedido. O comprovante deve ser anexado ao pedido na aba Reservas." });
       } else {
          const { error: updateError } = await supabase.from('quad_reservations').update({ receipt_url: publicUrl }).eq('id', resId);
          if (updateError) throw updateError;
@@ -895,7 +895,7 @@ const updateBookingStatus = async (bookingId: string, status: string, isOrder?: 
                          {targetDate.getDate()}
                       </div>
                       <div>
-                         <h3 className="text-[16px] font-black text-emerald-950 tracking-tight leading-none mb-1">OperaÃ§Ã£o DiÃ¡ria</h3>
+                         <h3 className="text-[16px] font-black text-emerald-950 tracking-tight leading-none mb-1">Operação Diária</h3>
                          <p className="text-[11px] font-black text-emerald-950 uppercase tracking-tighter">{format(targetDate, "EEEE, yyyy", { locale: ptBR })}</p>
                       </div>
                    </div>
@@ -989,7 +989,7 @@ const updateBookingStatus = async (bookingId: string, status: string, isOrder?: 
                       <div className="bg-amber-50/50 rounded-[1.25rem] p-3 shadow-sm border border-amber-200 mt-2 space-y-2.5">
                          <div className="flex items-center justify-between px-1">
                             <span className="font-black text-amber-900 text-[11px] uppercase tracking-wider flex items-center gap-2">
-                               <AlertTriangle className="w-3.5 h-3.5" /> Extra / S. HorÃ¡rio
+                               <AlertTriangle className="w-3.5 h-3.5" /> Extra / S. Horário
                             </span>
                          </div>
                          <div className="rounded-xl border border-amber-100 bg-white/40 p-1.5 min-h-[32px] flex items-center justify-center text-center">
@@ -1027,7 +1027,7 @@ const updateBookingStatus = async (bookingId: string, status: string, isOrder?: 
                     <h4 className="text-lg font-black text-emerald-950 tracking-tight">Resumo Geral</h4>
                  </div>
                  <p className="text-[11px] font-bold text-emerald-800/70 leading-relaxed mb-6">
-                    Selecione uma data para organizar seu dia de operaÃ§Ãµes.
+                    Selecione uma data para organizar seu dia de operaçíµes.
                  </p>
                  
                  <div className="grid grid-cols-1 gap-2">
@@ -1139,9 +1139,9 @@ const updateBookingStatus = async (bookingId: string, status: string, isOrder?: 
         if (bid === 'MENOR') {
           const menors = dayKiosks.filter(dk => dk.kiosk_id === 'MENOR');
           const idx = menors.findIndex(dk => dk.id === r.id);
-          return KIOSKS.find(k => k.id === idx + 2) || { id: 99, name: 'Quiosque Extra', capacity: 'AtÃ© 15 pessoas' };
+          return KIOSKS.find(k => k.id === idx + 2) || { id: 99, name: 'Quiosque Extra', capacity: 'Até 15 pessoas' };
         }
-        return KIOSKS.find(k => k.id === Number(bid)) || { id: 99, name: `Q-${bid}`, capacity: 'AtÃ© 15 pessoas' };
+        return KIOSKS.find(k => k.id === Number(bid)) || { id: 99, name: `Q-${bid}`, capacity: 'Até 15 pessoas' };
       });
       const names = resolved.map((k: any) => k?.name.replace('Quiosque ', 'Q-')).join(', ');
       const capacity = resolved.reduce((s: number, k: any) => s + parseInt((k?.capacity || '0').replace(/\D/g, '') || '15'), 0);
@@ -1151,7 +1151,7 @@ const updateBookingStatus = async (bookingId: string, status: string, isOrder?: 
     const subTabConfig = [
       { key: 'hoje', label: 'Ativos Hoje', count: groupsByTab.hoje.length, color: 'bg-emerald-600 text-white' },
       { key: 'futuras', label: 'Reservas Futuras', count: groupsByTab.futuras.length, color: 'bg-blue-100 text-blue-700' },
-      { key: 'historico', label: 'HistÃ³rico', count: groupsByTab.historico.length, color: 'bg-slate-100 text-slate-600' },
+      { key: 'historico', label: 'Histórico', count: groupsByTab.historico.length, color: 'bg-slate-100 text-slate-600' },
     ];
 
     return (
@@ -1238,7 +1238,7 @@ const updateBookingStatus = async (bookingId: string, status: string, isOrder?: 
             <div className="hidden md:block">
               {tabGroups.length === 0 ? (
                 <div className="text-center py-16 text-muted-foreground/40 font-bold uppercase text-xs tracking-widest">
-                  {kioskSubTab === 'hoje' ? 'Nenhuma reserva ativa hoje' : kioskSubTab === 'futuras' ? 'Sem reservas futuras' : 'Sem histÃ³rico'}
+                  {kioskSubTab === 'hoje' ? 'Nenhuma reserva ativa hoje' : kioskSubTab === 'futuras' ? 'Sem reservas futuras' : 'Sem histórico'}
                 </div>
               ) : (
                 <table className="w-full text-left">
@@ -1248,7 +1248,7 @@ const updateBookingStatus = async (bookingId: string, status: string, isOrder?: 
                       <th className="px-6 py-4">Cliente</th>
                       <th className="px-6 py-4">Quiosques / Capacidade</th>
                       <th className="px-6 py-4">Valor</th>
-                      <th className="px-6 py-4 text-right">AÃ§Ãµes</th>
+                      <th className="px-6 py-4 text-right">Açíµes</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y-2 divide-slate-100">
@@ -1334,7 +1334,7 @@ const updateBookingStatus = async (bookingId: string, status: string, isOrder?: 
     const subTabConfig = [
       { key: 'hoje', label: 'Ativos Hoje', count: groupsByTab.hoje.length, color: 'bg-blue-600 text-white' },
       { key: 'futuras', label: 'Reservas Futuras', count: groupsByTab.futuras.length, color: 'bg-blue-100 text-blue-700' },
-      { key: 'historico', label: 'HistÃ³rico', count: groupsByTab.historico.length, color: 'bg-slate-100 text-slate-600' },
+      { key: 'historico', label: 'Histórico', count: groupsByTab.historico.length, color: 'bg-slate-100 text-slate-600' },
     ];
 
     return (
@@ -1344,7 +1344,7 @@ const updateBookingStatus = async (bookingId: string, status: string, isOrder?: 
             <div className="flex items-center justify-between flex-wrap gap-4">
               <div>
                 <h3 className="text-lg font-black text-blue-950">Reservas de Quadriciclos</h3>
-                <p className="text-xs text-blue-900 font-bold">Clique em um grupo para ver os horÃ¡rios</p>
+                <p className="text-xs text-blue-900 font-bold">Clique em um grupo para ver os horários</p>
               </div>
               <div className="grid grid-cols-2 md:flex gap-2 bg-slate-100 p-1 rounded-2xl w-full md:w-auto">
                 {subTabConfig.map(t => (
@@ -1408,7 +1408,7 @@ const updateBookingStatus = async (bookingId: string, status: string, isOrder?: 
                               </div>
                               
                               <div className="space-y-2">
-                                 <span className="text-[9px] font-black text-blue-700/60 uppercase tracking-widest block mb-1">HorÃ¡rios Reservados</span>
+                                 <span className="text-[9px] font-black text-blue-700/60 uppercase tracking-widest block mb-1">Horários Reservados</span>
                                  {group.items.map((r: any, i: number) => (
                                    <div key={i} className="flex justify-between items-center bg-white p-3 rounded-xl border border-blue-100 shadow-sm">
                                       <div className="flex items-center gap-2">
@@ -1442,7 +1442,7 @@ const updateBookingStatus = async (bookingId: string, status: string, isOrder?: 
             <div className="hidden md:block">
               {tabGroups.length === 0 ? (
                 <div className="text-center py-16 text-muted-foreground/40 font-bold uppercase text-xs tracking-widest">
-                  {quadSubTab === 'hoje' ? 'Nenhuma reserva ativa hoje' : quadSubTab === 'futuras' ? 'Sem reservas futuras' : 'Sem histÃ³rico'}
+                  {quadSubTab === 'hoje' ? 'Nenhuma reserva ativa hoje' : quadSubTab === 'futuras' ? 'Sem reservas futuras' : 'Sem histórico'}
                 </div>
               ) : (
                 <table className="w-full text-left">
@@ -1454,7 +1454,7 @@ const updateBookingStatus = async (bookingId: string, status: string, isOrder?: 
                       <th className="px-6 py-4">Modelos</th>
                       <th className="px-6 py-4 text-center">Total Quadriciclos</th>
                       <th className="px-6 py-4">Valor Total</th>
-                      <th className="px-6 py-4 text-right">AÃ§Ãµes</th>
+                      <th className="px-6 py-4 text-right">Açíµes</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y-2 divide-slate-100">
@@ -1486,7 +1486,7 @@ const updateBookingStatus = async (bookingId: string, status: string, isOrder?: 
                             </td>
                             <td className="px-6 py-4">
                               <span className="font-black text-slate-900 uppercase text-base">{group.customer_name}</span>
-                              <div className="text-[10px] text-slate-500 font-bold mt-0.5">{group.items.length} horÃ¡rio(s) reservado(s)</div>
+                              <div className="text-[10px] text-slate-500 font-bold mt-0.5">{group.items.length} horário(s) reservado(s)</div>
                             </td>
                             <td className="px-6 py-4">
                               <div className="flex flex-wrap gap-1">
@@ -1544,7 +1544,7 @@ const updateBookingStatus = async (bookingId: string, status: string, isOrder?: 
                                       {(r.time_slot === 'INDIV' || r.time_slot === 'DUPLA') ? (
                                         <>
                                           <AlertTriangle className="w-3 h-3" />
-                                          {r.time_slot === 'INDIV' ? 'HORÃRIO NÃƒÆ’O DEFINIDO' : 'DUPLA (AGUARDANDO)'}
+                                          {r.time_slot === 'INDIV' ? 'HORíRIO NíƒÆ’O DEFINIDO' : 'DUPLA (AGUARDANDO)'}
                                         </>
                                       ) : (
                                         <>
@@ -1633,8 +1633,8 @@ const updateBookingStatus = async (bookingId: string, status: string, isOrder?: 
     <div className="bg-white rounded-3xl border border-border/50 shadow-card overflow-hidden animate-in fade-in duration-500">
        <div className="p-6 border-b border-border/50 bg-amber-50/30 flex items-center justify-between">
           <div>
-             <h3 className="text-lg font-bold text-amber-900">HistÃ³rico de Vendas e Pedidos</h3>
-             <p className="text-xs text-muted-foreground">GestÃ£o financeira centralizada</p>
+             <h3 className="text-lg font-bold text-amber-900">Histórico de Vendas e Pedidos</h3>
+             <p className="text-xs text-muted-foreground">Gestão financeira centralizada</p>
           </div>
           <div className="flex items-center gap-2">
              <Badge className="bg-amber-100 text-amber-900 border-0 font-bold">Total: {orders.length}</Badge>
@@ -1648,7 +1648,7 @@ const updateBookingStatus = async (bookingId: string, status: string, isOrder?: 
                    <th className="px-6 py-4">Cliente</th>
                    <th className="px-6 py-4">Total</th>
                    <th className="px-6 py-4">Status</th>
-                   <th className="px-6 py-4 text-right">AÃ§Ãµes</th>
+                   <th className="px-6 py-4 text-right">Açíµes</th>
                 </tr>
              </thead>
              <tbody className="divide-y divide-border/30">
@@ -1707,7 +1707,7 @@ const updateBookingStatus = async (bookingId: string, status: string, isOrder?: 
                              <span className="text-4xl md:text-4xl md:text-5xl text-[#FFF033] shadow-md">Painel</span>
                           </div>
                        </h1>
-                     <p className="text-[#FFF033] font-black uppercase tracking-[0.2em] md:tracking-[0.3em] text-[8px] md:text-[10px] bg-[#FFF033]/10 w-fit px-3 py-1 rounded-full border border-[#FFF033]/30 backdrop-blur-sm">GestÃ£o Integrada de Reservas â€¢ BalneÃ¡rio</p>
+                     <p className="text-[#FFF033] font-black uppercase tracking-[0.2em] md:tracking-[0.3em] text-[8px] md:text-[10px] bg-[#FFF033]/10 w-fit px-3 py-1 rounded-full border border-[#FFF033]/30 backdrop-blur-sm">Gestão Integrada de Reservas â€¢ Balneário</p>
                  </div>
 
                  {/* MOBILE BUTTONS (TOP RIGHT) */}
@@ -1812,7 +1812,7 @@ const updateBookingStatus = async (bookingId: string, status: string, isOrder?: 
                "px-4 md:px-4 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap", 
                activeTab === 'painel' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
              )}>
-                <LayoutDashboard className="w-4 h-4 md:w-4.5 md:h-4.5" /> VisÃ£o Geral
+                <LayoutDashboard className="w-4 h-4 md:w-4.5 md:h-4.5" /> Visão Geral
              </button>
              <button onClick={() => setActiveTab('quiosques')} className={cn(
                "px-4 md:px-4 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap", 
@@ -1856,7 +1856,7 @@ const updateBookingStatus = async (bookingId: string, status: string, isOrder?: 
                     <div className="relative flex-1 group">
                       <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-100 group-hover:text-white transition-colors" />
                       <Input 
-                        placeholder="Filtrar por nome, telefone ou cÃ³digo..." 
+                        placeholder="Filtrar por nome, telefone ou código..." 
                         className="pl-11 h-14 rounded-2xl bg-emerald-600 shadow-lg border-2 border-emerald-700 font-extrabold text-white placeholder:text-emerald-100 focus-visible:ring-emerald-400 text-lg transition-all hover:bg-emerald-700 hover:border-emerald-500" 
                         value={search} 
                         onChange={e => setSearch(e.target.value)} 
@@ -1942,14 +1942,14 @@ const updateBookingStatus = async (bookingId: string, status: string, isOrder?: 
                       const table = isOrder ? 'orders' : 'bookings';
                       const { error } = await supabase.from(table).update({ visit_date: date }).eq('id', id);
                       if (error) toast({ title: "Erro ao reagendar", variant: "destructive" });
-                      else { toast({ title: "Ã¢Å“â€œ Reagendado" }); fetchData(); }
+                      else { toast({ title: "í¢Å“â€œ Reagendado" }); fetchData(); }
                    }}
                     onDelete={async (id, isOrder) => {
                        const table = isOrder ? 'orders' : 'bookings';
                        try {
                          const { error } = await supabase.from(table).delete().eq('id', id);
                          if (error) throw error;
-                         toast({ title: "Ã¢Å“â€œ Removido com sucesso" });
+                         toast({ title: "í¢Å“â€œ Removido com sucesso" });
                          fetchData();
                        } catch (err: any) {
                          console.error('Delete error:', err);
@@ -2002,10 +2002,10 @@ const updateBookingStatus = async (bookingId: string, status: string, isOrder?: 
                    <div className="w-12 h-12 rounded-2xl bg-red-100 flex items-center justify-center border-2 border-red-200">
                       <AlertTriangle className="w-6 h-6 text-red-600" />
                    </div>
-                   <AlertDialogTitle className="text-xl font-black text-slate-900">Confirmar ExclusÃ£o</AlertDialogTitle>
+                   <AlertDialogTitle className="text-xl font-black text-slate-900">Confirmar Exclusão</AlertDialogTitle>
                 </div>
                 <AlertDialogDescription className="text-slate-600 font-bold">
-                   Deseja realmente remover esta reserva? Esta aÃ§Ã£o nÃ£o pode ser desfeita e liberarÃ¡ o horÃ¡rio/espaÃ§o para novos clientes.
+                   Deseja realmente remover esta reserva? Esta ação não pode ser desfeita e liberará o horário/espaço para novos clientes.
                 </AlertDialogDescription>
              </AlertDialogHeader>
              <AlertDialogFooter className="gap-2">
@@ -2100,7 +2100,7 @@ const updateBookingStatus = async (bookingId: string, status: string, isOrder?: 
                         <DialogTitle className="text-2xl font-black text-white uppercase tracking-tighter flex items-center justify-center gap-3">
                            <CalendarPlus className="w-8 h-8" /> Assistente de Reserva Interna
                         </DialogTitle>
-                        <p className="text-emerald-100 text-[11px] font-black uppercase mt-1.5 tracking-widest bg-emerald-700/50 inline-block px-4 py-1.5 rounded-full border border-emerald-500/30">LÃ³gica Integrada â€¢ Sem CPF</p>
+                        <p className="text-emerald-100 text-[11px] font-black uppercase mt-1.5 tracking-widest bg-emerald-700/50 inline-block px-4 py-1.5 rounded-full border border-emerald-500/30">Lógica Integrada â€¢ Sem CPF</p>
                       </div>
                       
                       <div className="flex-1 overflow-y-auto p-10 space-y-10 custom-scrollbar">
@@ -2125,7 +2125,7 @@ const updateBookingStatus = async (bookingId: string, status: string, isOrder?: 
                                value={newBookingData.phone} 
                                onChange={e => setNewBookingData({...newBookingData, phone: e.target.value})}
                                className="h-14 rounded-2xl border-2 border-emerald-100 focus:ring-4 focus:ring-emerald-500/10 font-bold bg-white text-emerald-950"
-                               placeholder="DDD + NÃºmero"
+                               placeholder="DDD + Número"
                              />
                            </div>
                            <div className="space-y-2">
@@ -2159,12 +2159,12 @@ const updateBookingStatus = async (bookingId: string, status: string, isOrder?: 
                                  { k: 'is_student', l: 'Estudante', p: 'R$ 25' },
                                  { k: 'is_server', l: 'Servidor', p: 'R$ 25' },
                                  { k: 'is_donor', l: 'Doador Sangue', p: 'R$ 25' },
-                                 { k: 'is_solidarity', l: 'Adulto SolidÃ¡rio', p: 'R$ 25' },
-                                 { k: 'is_pcd', l: 'PCD', p: 'GrÃ¡tis' },
-                                 { k: 'is_tea', l: 'TEA', p: 'GrÃ¡tis' },
-                                 { k: 'is_senior', l: 'Idoso (60+)', p: 'GrÃ¡tis' },
-                                 { k: 'is_birthday', l: 'Aniversariante', p: 'GrÃ¡tis' },
-                                { k: 'children_free', l: 'Kids (AtÃ© 11a)', p: 'GrÃ¡tis' }
+                                 { k: 'is_solidarity', l: 'Adulto Solidário', p: 'R$ 25' },
+                                 { k: 'is_pcd', l: 'PCD', p: 'Grátis' },
+                                 { k: 'is_tea', l: 'TEA', p: 'Grátis' },
+                                 { k: 'is_senior', l: 'Idoso (60+)', p: 'Grátis' },
+                                 { k: 'is_birthday', l: 'Aniversariante', p: 'Grátis' },
+                                { k: 'children_free', l: 'Kids (Até 11a)', p: 'Grátis' }
                               ].map(cat => (
                                 <div key={cat.k} className="bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100 text-center space-y-2 hover:bg-emerald-50 transition-colors">
                                    <p className="text-[9px] font-black text-emerald-800/60 uppercase">{cat.l}</p>
@@ -2182,7 +2182,7 @@ const updateBookingStatus = async (bookingId: string, status: string, isOrder?: 
                         {/* SECTION 3: QUIOSQUES */}
                         <div className="bg-white p-8 rounded-[2rem] border-2 border-emerald-100 shadow-sm space-y-6">
                            <h4 className="text-[11px] font-black text-emerald-900 uppercase tracking-widest flex items-center gap-2 border-b-2 border-emerald-50 pb-4">
-                              <Tent className="w-4 h-4" /> 2. Quiosques DisponÃ­veis
+                              <Tent className="w-4 h-4" /> 2. Quiosques Disponí­veis
                            </h4>
                            <div className="grid grid-cols-6 sm:grid-cols-8 gap-2">
                               {[
@@ -2218,7 +2218,7 @@ const updateBookingStatus = async (bookingId: string, status: string, isOrder?: 
                                 );
                               })}
                            </div>
-                           <p className="text-[9px] font-bold text-emerald-600/60 uppercase tracking-widest">PreÃ§o: Quiosque 01 (R$ 100) | Outros (R$ 75)</p>
+                           <p className="text-[9px] font-bold text-emerald-600/60 uppercase tracking-widest">Preço: Quiosque 01 (R$ 100) | Outros (R$ 75)</p>
                         </div>
 
                         {/* SECTION 4: QUADRICICLOS */}
@@ -2238,7 +2238,7 @@ const updateBookingStatus = async (bookingId: string, status: string, isOrder?: 
                                        <div className="flex items-center gap-3">
                                           <div className={cn("px-4 py-2 rounded-xl text-xs font-black border-2", isFull ? "bg-red-50 text-red-500 border-red-200" : "bg-white text-emerald-950 border-emerald-100")}>{slot}</div>
                                           <div className="flex flex-col">
-                                             <span className="text-[10px] font-black uppercase text-emerald-800/60 tracking-wider">Vagas DisponÃ­veis</span>
+                                             <span className="text-[10px] font-black uppercase text-emerald-800/60 tracking-wider">Vagas Disponí­veis</span>
                                              <div className="flex gap-1">
                                                 {Array.from({length: 5}, (_, i) => (
                                                    <div key={i} className={cn("w-2 h-2 rounded-full", i < (used + localUsed) ? "bg-red-500" : "bg-emerald-400")} />
@@ -2305,7 +2305,7 @@ const updateBookingStatus = async (bookingId: string, status: string, isOrder?: 
                             <div className="bg-white p-6 rounded-[2.5rem] shadow-2xl border-8 border-emerald-500/20">
                                <img src={`data:image/png;base64,${generatedPix.encodedImage}`} alt="QR" className="w-56 h-56" />
                             </div>
-                            <Button onClick={() => { setIsNewBookingOpen(false); setGeneratedPix(null); fetchData(); }} className="w-full h-16 bg-white text-emerald-900 rounded-2xl font-black">CONCLUÃDO - FECHAR</Button>
+                            <Button onClick={() => { setIsNewBookingOpen(false); setGeneratedPix(null); fetchData(); }} className="w-full h-16 bg-white text-emerald-900 rounded-2xl font-black">CONCLUíDO - FECHAR</Button>
                           </div>
                         ) : (
                            <>
@@ -2360,7 +2360,7 @@ const updateBookingStatus = async (bookingId: string, status: string, isOrder?: 
                                        })()}
                                     </span>
                                  </div>
-                                 <p className="text-[9px] font-bold text-emerald-300/50 italic">* CÃ¡lculo automÃ¡tico incluindo descontos do dia</p>
+                                 <p className="text-[9px] font-bold text-emerald-300/50 italic">* Cálculo automático incluindo descontos do dia</p>
                               </div>
                            </div>
 

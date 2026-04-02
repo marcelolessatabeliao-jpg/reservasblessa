@@ -206,7 +206,7 @@ export function SpecialPlansSection() {
                 <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full -mr-8 -mt-8 pointer-events-none" />
                 
                 <h4 className="font-display font-black text-primary uppercase tracking-tighter text-sm mb-4 flex items-center gap-2">
-                  <Ticket className="h-5 w-5" /> RESUMO DA SIMULAÇÃO
+                  <Ticket className="h-5 w-5" /> RESUMO DA SIMULAÇíO
                 </h4>
                 
                 <div className="flex items-start gap-4 mb-4 bg-primary/5 p-4 rounded-2xl border border-primary/10">
