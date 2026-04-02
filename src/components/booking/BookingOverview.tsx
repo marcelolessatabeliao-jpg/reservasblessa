@@ -1,4 +1,5 @@
 import { MessageCircle, CheckCircle, Loader2, ArrowRight, User, CreditCard, QrCode, Copy, Sparkles } from 'lucide-react';
+import { isValidCPF } from '@/utils/cpf-validator';
 import { Link } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { saveBooking } from '@/lib/booking-service';
@@ -92,10 +93,10 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
       return;
     }
 
-    if (method !== 'LOCAL' && (!booking.entry.cpf || booking.entry.cpf.replace(/\D/g, '').length < 11)) {
+    if (method !== 'LOCAL' && (!booking.entry.cpf || !isValidCPF(booking.entry.cpf))) {
        toast({
-         title: 'CPF Obrigatório',
-         description: 'O CPF é necessário para pagamentos PIX ou Cartão.',
+         title: !booking.entry.cpf ? 'CPF Obrigatório' : 'CPF INVÁLIDO',
+         description: 'Um CPF válido é necessário para pagamentos PIX ou Cartão.',
          variant: 'destructive'
        });
        return;
@@ -163,6 +164,7 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
       });
     });
     
+    let orderIdToRollback: string | null = currentOrderId;
     setSaving(true);
     try {
       let orderId = currentOrderId;
@@ -176,6 +178,7 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
         
         if (!result?.orderId) throw new Error("Erro ao salvar pedido.");
         orderId = result.orderId;
+        orderIdToRollback = orderId;
         confCode = result.confirmationCode;
         setCurrentOrderId(orderId);
         setCurrentConfirmationCode(confCode);
@@ -245,6 +248,14 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
       }
     } catch (err: any) {
       console.error("[Booking] Error:", err);
+      // Rollback: se o pedido foi criado mas o pagamento falhou, deletamos o pedido para evitar dados sujos
+      // IMPORTANTE: apenas deletamos se for pagamento online (PIX/CARTAO) que falhou agora
+      if (orderIdToRollback && method !== 'LOCAL') {
+        console.log("[Booking] Rolling back order:", orderIdToRollback);
+        await supabase.from('orders').delete().eq('id', orderIdToRollback);
+        setCurrentOrderId(null);
+        setCurrentConfirmationCode(null);
+      }
       toast({ title: 'Falha no Agendamento', description: err.message || 'Erro desconhecido', variant: 'destructive' });
     } finally {
       setSaving(false);
