@@ -500,7 +500,7 @@ export default function Admin() {
 
       total = Math.max(0, total - manual_discount);
 
-            // 0. Define Local Link
+      // 0. Generate Link Code
       const confCode = 'L-' + Math.random().toString(36).substring(2, 10).toUpperCase();
 
       // 2. Create Booking
@@ -509,43 +509,37 @@ export default function Admin() {
         phone,
         visit_date,
         confirmation_code: confCode,
-        adults: adults_normal + adults_half + is_teacher + is_student + is_server + is_donor + is_solidarity + is_pcd + is_tea + is_senior + is_birthday,
-        children: Array(children_free).fill({ age: 10 }),
+        adults: (Number(adults_normal) || 0) + (Number(adults_half) || 0) + (Number(is_teacher) || 0) + (Number(is_student) || 0) + (Number(is_server) || 0) + (Number(is_donor) || 0) + (Number(is_solidarity) || 0) + (Number(is_pcd) || 0) + (Number(is_tea) || 0) + (Number(is_senior) || 0) + (Number(is_birthday) || 0),
+        children: Array(Number(children_free) || 0).fill({ age: 10 }),
         total_amount: total,
         status: status || 'pending'
       }).select().single();
 
       if (bError) throw bError;
 
-      // 3. Create Order
-      const orderItems = [
-        { product_name: 'Adulto Integral', quantity: adults_normal, unit_price: 50 },
-        { product_name: 'Meia-Entrada', quantity: adults_half, unit_price: 25 },
-        { product_name: 'Professor', quantity: is_teacher, unit_price: 25 },
-        { product_name: 'Estudante', quantity: is_student, unit_price: 25 },
-        { product_name: 'Servidor Público', quantity: is_server, unit_price: 25 },
-        { product_name: 'Doador de Sangue', quantity: is_donor, unit_price: 25 },
-        { product_name: 'Adulto Solidário', quantity: is_solidarity, unit_price: 25 },
-        { product_name: 'PCD', quantity: is_pcd, unit_price: 0 },
-        { product_name: 'TEA', quantity: is_tea, unit_price: 0 },
-        { product_name: 'Idoso (60+)', quantity: is_senior, unit_price: 0 },
-        { product_name: 'Aniversariante', quantity: is_birthday, unit_price: 0 },
-        { product_name: 'Criança (Até 11a)', quantity: children_free, unit_price: 0 },
-        ...selected_kiosks.map((id: number) => ({ product_name: 'Quiosque ' + id, quantity: 1, unit_price: (id === 1 ? 100 : 75) })),
-        ...quads.map((q: any) => ({ product_name: `Quad ${q.type.toUpperCase()} (${q.time})`, quantity: q.quantity, unit_price: (q.type === 'dupla' ? 250 : q.type === 'adulto-crianca' ? 200 : 150) * (1 - quadDiscount) }))
-      ].filter(i => i.quantity > 0);
-
+      // 3. Create Order (Header only)
       const { data: order, error: oError } = await supabase.from('orders').insert({
         customer_name: name,
         customer_phone: phone,
         visit_date,
         total_amount: total,
         status: status || 'pending',
-        confirmation_code: confCode,
-        order_items: orderItems
+        confirmation_code: confCode
       }).select().single();
 
       if (oError) throw oError;
+
+      // 3.5 Create Order Items (Line entries)
+      if (order && orderItems.length > 0) {
+        const itemsToInsert = orderItems.map(item => ({
+          order_id: order.id,
+          product_id: item.product_name, // Projects uses product_id to store the label/name
+          quantity: item.quantity,
+          unit_price: item.unit_price
+        }));
+        const { error: itemsErr } = await supabase.from('order_items').insert(itemsToInsert);
+        if (itemsErr) console.error('Error inserting items:', itemsErr);
+      }
 
       // 4. Kiosk Reservations
       if (selected_kiosks.length > 0) {
