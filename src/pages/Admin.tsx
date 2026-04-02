@@ -239,7 +239,7 @@ export default function Admin() {
       // Enrich bookings with their order items from the orders table
       const enrichedBookings = (bks || []).map(b => {
         const relatedOrder = (orderData || []).find(o => 
-          (o.confirmation_code === b.confirmation_code && b.confirmation_code) || 
+          (o.confirmation_code && b.confirmation_code && o.confirmation_code === b.confirmation_code) || 
           (nameMatch(o.customer_name, b.name) && matchDate(o.visit_date, b.visit_date))
         );
         return { ...b, order_items: relatedOrder?.order_items || [] };
@@ -370,7 +370,7 @@ export default function Admin() {
       }
 
       // Merge booking data with order payment info for display
-      const flattenedBks = (bks || []).map(b => {
+      const flattenedBks = (enrichedBookings || []).map(b => {
         const order = orderData?.find((o: any) => o.confirmation_code === b.confirmation_code);
         return {
           ...b,
