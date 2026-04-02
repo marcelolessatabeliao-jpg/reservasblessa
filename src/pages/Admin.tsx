@@ -1075,6 +1075,12 @@ const updateBookingStatus = async (bookingId: string, status: string, isOrder?: 
                         const dateStr = format(date, 'yyyy-MM-dd');
                         const hasKiosk = (kioskReservations || []).some(r => r.reservation_date === dateStr);
                         const hasQuad = (quadReservations || []).some(r => r.reservation_date === dateStr);
+                        const hasAnyBooking = (bookings || []).some(b => {
+                          const bDate = typeof b.visit_date === 'string' ? b.visit_date.split('T')[0] : format(new Date(b.visit_date), 'yyyy-MM-dd');
+                          return bDate === dateStr;
+                        });
+                        
+                        const isSimpleBooking = hasAnyBooking && !hasKiosk && !hasQuad;
                         
                         // Availability logic
                         const kiosksFull = (kioskReservations || []).filter(r => r.reservation_date === dateStr).length >= 5;
@@ -1088,6 +1094,7 @@ const updateBookingStatus = async (bookingId: string, status: string, isOrder?: 
                             <div className="flex gap-1 mt-0.5">
                               {hasKiosk && <div className={cn("w-2 h-2 rounded-full shadow-md border border-white/40", kiosksFull ? "bg-red-600" : "bg-emerald-600")} />}
                               {hasQuad && <div className={cn("w-2 h-2 rounded-full shadow-md border border-white/40", quadsFull ? "bg-red-600" : "bg-blue-600")} />}
+                              {isSimpleBooking && <div className="w-2 h-2 rounded-full bg-yellow-400 shadow-md border border-white/40" />}
                             </div>
                           </div>
                         );
