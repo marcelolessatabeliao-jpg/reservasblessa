@@ -805,6 +805,35 @@ export default function Admin() {
     });
 
     const dayBookings = bookings.filter(b => b.visit_date === format(targetDate, 'yyyy-MM-dd'));
+    
+    // Add manual bookings representing kiosks to dayKiosks to show in visual map
+    dayBookings.forEach(b => {
+      const bItems = b.order_items || [];
+      const hasKiosk = bItems.some((i) => (i.product_name || '').toLowerCase().includes('quiosque'));
+      if (hasKiosk && !dayKiosks.some(dk => dk.id === b.id)) {
+        dayKiosks.push({
+           id: b.id,
+           kiosk_id: b.kiosk_id || 'MAIOR',
+           customer_name: b.name || 'Cliente (Interno)',
+           reservation_date: b.visit_date,
+           status: b.status
+        });
+      }
+      
+      const hasQuad = bItems.some((i) => (i.product_name || '').toLowerCase().includes('quadri'));
+      if (hasQuad && !dayQuads.some(dq => dq.id === b.id)) {
+        bItems.filter(i => (i.product_name || '').toLowerCase().includes('quadri')).forEach(qi => {
+           dayQuads.push({
+              id: b.id + '-' + Math.random().toString(36).substr(2, 5),
+              customer_name: b.name || 'Cliente (Interno)',
+              reservation_date: b.visit_date,
+              time_slot: b.quad_time_slot || '10:30',
+              quantity: qi.quantity || 1,
+              status: b.status
+           });
+        });
+      }
+    });
     const dayOrders = orders.filter(o => (o.visit_date || o.created_at.split('T')[0]) === format(targetDate, 'yyyy-MM-dd'));
     
     return (

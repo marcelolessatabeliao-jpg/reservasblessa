@@ -222,7 +222,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                       {((!['pago', 'paid', 'checked-in', 'cancelled', 'cancelado'].includes(booking.status?.toLowerCase() || ''))) && onGeneratePayment && (
                                         <Button 
                                           onClick={(e) => { e.stopPropagation(); onGeneratePayment(booking.id, !!booking.is_order); }} 
-                                          className="bg-amber-500 hover:bg-amber-600 border border-amber-600 text-white h-10 rounded-xl text-[9px] font-black uppercase shadow-sm flex flex-col items-center justify-center gap-0.5"
+                                          className="bg-amber-500 hover:bg-amber-600 border border-amber-600 text-white h-12 rounded-xl text-[9px] font-black uppercase shadow-sm flex flex-col items-center justify-center gap-0.5 transition-all hover:scale-105 active:scale-95"
                                         >
                                           <QrCode className="w-4 h-4" />
                                           Gerar PIX
@@ -244,7 +244,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                          } else {
                                              alert('Telefone do cliente não encontrado!');
                                          }
-                                      }} className="bg-blue-600 border border-blue-700 text-white hover:bg-blue-700 h-10 rounded-xl text-[9px] font-black uppercase shadow-sm flex flex-col items-center justify-center gap-0.5"><FileCheck className="w-4 h-4" />Voucher</Button>
+                                      }}
                                      <Button onClick={(e) => {e.stopPropagation(); onStatusChange(booking.id, 'checked-in', booking.is_order);}} className="bg-emerald-700 h-10 rounded-xl text-[9px] font-black uppercase shadow-sm">Check-in</Button>
                                      <Button 
                                        variant="outline" 
@@ -519,6 +519,12 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                               )}
 
                                               <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
+                                                  {onGeneratePayment && !['paid', 'pago', 'checked-in', 'cancelled', 'cancelado'].includes(booking.status?.toLowerCase() || '') && (
+                                                    <Button onClick={(e) => { e.stopPropagation(); onGeneratePayment(booking.id, !!booking.is_order); }} className="bg-amber-500 hover:bg-amber-600 border border-amber-600 text-white font-bold uppercase text-[9px] h-12 rounded-xl px-2 flex flex-col items-center justify-center gap-0.5 transition-all hover:scale-105 active:scale-95 shadow-sm">
+                                                      <QrCode className="w-4 h-4" />
+                                                      <span>GERAR PIX</span>
+                                                    </Button>
+                                                  )}
                                                  <Button 
                                                    onClick={() => onStatusChange(booking.id, 'paid', booking.is_order)} 
                                                    disabled={booking.status === 'paid' || updatingId === booking.id} 
