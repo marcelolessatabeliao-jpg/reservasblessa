@@ -574,33 +574,48 @@ export default function Admin() {
     }
   };
 
-  const handleGeneratePayment = async (bookingId: string, isOrder?: boolean) => {
+    const handleGeneratePayment = async (bookingId: string, isOrder?: boolean) => {
     setIsGeneratingPix(true);
     try {
-      const item = isOrder ? orders.find(o => o.id === bookingId) : bookings.find(b => b.id === bookingId);
+      const item = isOrder ? orders.find((o: any) => o.id === bookingId) : bookings.find((b: any) => b.id === bookingId);
       if (!item) throw new Error("Reserva não encontrada");
 
-      const { data, error } = await supabase.functions.invoke('create-payment', {
+      // Validar valor da reserva para o Asaas (mínimo R$ 5,00 costuma ser exigido)
+      const numericValue = Number(item.total_amount);
+      if (isNaN(numericValue) || numericValue <= 0) {
+        throw new Error("O valor da reserva é inválido para gerar pagamento.");
+      }
+
+      console.log(`Gerando PIX de R$ ${numericValue} para ${item.name || item.customer_name}`);
+
+      const { data: response, error } = await supabase.functions.invoke('create-payment', {
         body: { 
           orderId: bookingId, 
           billingType: 'PIX',
-          customer: {
-            name: item.name || item.customer_name,
-            phone: item.phone || item.customer_phone
-          }
+          name: item.name || item.customer_name,
+          phone: item.phone || item.customer_phone,
+          cpf: item.cpf || '000.000.000-00', 
+          value: numericValue,
+          description: `Reserva Balneário Lessa - ${item.name || item.customer_name}`
         }
       });
 
-      if (error) throw error;
-      if (data && data.encodedImage) {
+      if (error) {
+        console.error('Edge Function Error:', error);
+        throw error;
+      }
+      
+      if (response && response.success && response.data?.pix) {
         setPixData({
-          qrCode: data.encodedImage,
-          payload: data.payload,
-          amount: item.total_amount,
+          qrCode: response.data.pix.encodedImage,
+          payload: response.data.pix.payload,
+          amount: numericValue,
           name: item.name || item.customer_name
         });
       } else {
-        throw new Error("Erro ao gerar QR Code");
+        const errorMsg = response?.error || "A função não retornou um QR Code válido. Verifique se o CPF é válido.";
+        console.warn('Payment creation failed:', response);
+        throw new Error(errorMsg);
       }
     } catch (err: any) {
       console.error('Pix generation error:', err);
@@ -610,7 +625,7 @@ export default function Admin() {
     }
   };
 
-  const updateBookingStatus = async (bookingId: string, status: string, isOrder?: boolean) => {
+const updateBookingStatus = async (bookingId: string, status: string, isOrder?: boolean) => {
     setUpdatingId(bookingId);
     try {
       const table = isOrder ? 'orders' : 'bookings';
