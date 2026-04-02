@@ -381,7 +381,7 @@ export default function Admin() {
       const adultKeywords = ['adulto', 'solidario', 'professor', 'estudante', 'servidor'];
       const gratuityKeywords = ['crianca', 'kids', 'idoso', 'pcd', 'aniversariante'];
 
-      [...(bks || []), ...(orderData || [])].forEach(b => {
+      [...(enrichedBookings || []), ...(orderData || [])].forEach(b => {
         if (b.status === 'confirmed' || b.status === 'paid' || b.status === 'pending') {
           const items = b.order_items || [];
           items.forEach((item: any) => {
