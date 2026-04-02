@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
       if (orderData.booking_id) {
         await supabaseAdmin
           .from('bookings')
-          .update({ status: 'confirmed' })
+          .update({ status: 'paid' })
           .eq('id', orderData.booking_id);
       }
 
