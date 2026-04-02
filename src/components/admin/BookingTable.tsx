@@ -219,7 +219,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                   <p className="text-[9px] font-black uppercase tracking-widest text-emerald-700/60 pl-1">Ações e Controle</p>
                                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                                      
-                                      {((booking.status?.toLowerCase() === 'pending' || booking.status?.toLowerCase() === 'waiting_local')) && onGeneratePayment && (
+                                      {((!['pago', 'paid', 'checked-in', 'cancelled', 'cancelado'].includes(booking.status?.toLowerCase() || ''))) && onGeneratePayment && (
                                         <Button 
                                           onClick={(e) => { e.stopPropagation(); onGeneratePayment(booking.id, !!booking.is_order); }} 
                                           className="bg-amber-500 hover:bg-amber-600 border border-amber-600 text-white h-10 rounded-xl text-[9px] font-black uppercase shadow-sm flex flex-col items-center justify-center gap-0.5"

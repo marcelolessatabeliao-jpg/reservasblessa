@@ -104,7 +104,7 @@ const getBookedKioskIds = async (date: string) => {
 const getQuadAvailability = async (date: string, time: string) => {
   const { data } = await supabase.from('quad_reservations').select('quantity').eq('reservation_date', date).eq('time_slot', time);
   const used = (data || []).reduce((sum, r) => sum + (Number(r.quantity) || 1), 0);
-  return Math.max(0, 5 - used);
+  return used;
 };
 
 const normalizeQuadType = (t: string) => {
@@ -170,6 +170,14 @@ export default function Admin() {
     adults_half: 0,
     adults_free: 0,
     children_free: 0,
+    is_teacher: 0,
+    is_student: 0,
+    is_server: 0,
+    is_donor: 0,
+    is_pcd: 0,
+    is_tea: 0,
+    is_senior: 0,
+    is_birthday: 0,
     selected_kiosks: [],
     quads: [],
     manual_discount: 0,
@@ -1103,7 +1111,7 @@ export default function Admin() {
                          <div>
                             <span className="text-[10px] font-black text-emerald-800/60 uppercase tracking-widest block mb-1">Cliente</span>
                             <span className="font-black text-emerald-950 uppercase text-sm block">{group.customer_name}</span>
-                            <span className="text-[10px] text-emerald-700 font-bold">{group.items.length} reserva(s) â€¢ {formatCurrency(group.total_price)}</span>
+                            <span className="text-[10px] text-emerald-700 font-bold">{group.items.length} reserva(s) • {formatCurrency(group.total_price)}</span>
                          </div>
                          <div>
                             <span className="text-[10px] font-black text-emerald-800/60 uppercase tracking-widest block mb-1">Quiosques</span>
@@ -1309,7 +1317,7 @@ export default function Admin() {
                                       <div className="flex items-center gap-2">
                                          <Clock className="w-3.5 h-3.5 text-blue-500" />
                                          <span className="text-[11px] font-black text-blue-900">{r.time_slot}</span>
-                                         <span className="text-[10px] font-bold text-blue-600/60">â€¢ {QUAD_MODELS_LABELS[r.quad_type] || 'Individual'}</span>
+                                         <span className="text-[10px] font-bold text-blue-600/60">• {QUAD_MODELS_LABELS[r.quad_type] || 'Individual'}</span>
                                       </div>
                                       <span className="text-[10px] font-black text-blue-900">{r.quantity} un.</span>
                                    </div>
@@ -1602,7 +1610,7 @@ export default function Admin() {
                              <span className="text-4xl md:text-4xl md:text-5xl text-[#FFF033] shadow-md">Painel</span>
                           </div>
                        </h1>
-                     <p className="text-[#FFF033] font-black uppercase tracking-[0.2em] md:tracking-[0.3em] text-[8px] md:text-[10px] bg-[#FFF033]/10 w-fit px-3 py-1 rounded-full border border-[#FFF033]/30 backdrop-blur-sm">Gestão Integrada de Reservas â€¢ Balneário</p>
+                     <p className="text-[#FFF033] font-black uppercase tracking-[0.2em] md:tracking-[0.3em] text-[8px] md:text-[10px] bg-[#FFF033]/10 w-fit px-3 py-1 rounded-full border border-[#FFF033]/30 backdrop-blur-sm">Gestão Integrada de Reservas • Balneário</p>
                  </div>
 
                  {/* MOBILE BUTTONS (TOP RIGHT) */}
@@ -1995,7 +2003,7 @@ export default function Admin() {
                         <DialogTitle className="text-2xl font-black text-white uppercase tracking-tighter flex items-center justify-center gap-3">
                            <CalendarPlus className="w-8 h-8" /> Assistente de Reserva Interna
                         </DialogTitle>
-                        <p className="text-emerald-100 text-[11px] font-black uppercase mt-1.5 tracking-widest bg-emerald-700/50 inline-block px-4 py-1.5 rounded-full border border-emerald-500/30">Lógica Integrada â€¢ Sem CPF</p>
+                        <p className="text-emerald-100 text-[11px] font-black uppercase mt-1.5 tracking-widest bg-emerald-700/50 inline-block px-4 py-1.5 rounded-full border border-emerald-500/30">Lógica Integrada • Sem CPF</p>
                       </div>
                       
                       <div className="flex-1 overflow-y-auto p-10 space-y-10 custom-scrollbar">
