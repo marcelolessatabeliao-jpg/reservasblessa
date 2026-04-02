@@ -196,10 +196,28 @@ export default function Admin() {
                
                // Only add Kiosks from orders if NOT already in parsedKiosks (via order_id)
                if ((pId.includes('quiosque') || pName.includes('quiosque')) && !parsedKiosks.some(pk => pk.order_id === o.id)) {
+                                  // First check metadata
+                 let meta = item.metadata;
+                 if (typeof meta === 'string') {
+                    try { meta = JSON.parse(meta); } catch(e) {}
+                 }
+                 const sIds = meta?.selectedIds || [];
+
                  for(let i=0; i<item.quantity; i++) {
+                   let kioskIdVal: any = (pId.includes('maior') || pName.includes('maior')) ? 1 : 'MENOR';
+                   
+                   if (sIds.length > i) {
+                     kioskIdVal = sIds[i];
+                   } else {
+                     const match = (pId + ' ' + pName).match(/quiosque\s*(\d+)/i);
+                     if (match && match[1]) {
+                       kioskIdVal = parseInt(match[1], 10);
+                     }
+                   }
+
                    parsedKiosks.push({
                      id: `order-${o.id}-k-${i}`,
-                     kiosk_id: (pId.includes('maior') || pName.includes('maior')) ? 1 : 'MENOR',
+                     kiosk_id: kioskIdVal,
                      reservation_date: resDate,
                      customer_name: customerName,
                      price: item.unit_price,

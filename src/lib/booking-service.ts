@@ -155,15 +155,18 @@ export async function saveBooking(
 
   // 3. Save quad reservations for slot tracking
   try {
-    const activeQuads = booking.quads.filter(q => q.quantity > 0 && q.date && q.time);
+    const activeQuads = booking.quads.filter(q => q.quantity > 0 && q.time);
     if (activeQuads.length > 0 && finalOrderId) {
-      const quadReservations = activeQuads.map(q => ({
-        order_id: finalOrderId,
-        quad_type: q.type,
-        reservation_date: format(new Date(q.date!), 'yyyy-MM-dd'),
-        time_slot: q.time!,
-        quantity: q.quantity,
-      }));
+      const quadReservations = activeQuads.map(q => {
+        const validDate = q.date || entry.visitDate;
+        return {
+          order_id: finalOrderId,
+          quad_type: q.type,
+          reservation_date: format(new Date(validDate!), 'yyyy-MM-dd'),
+          time_slot: q.time!,
+          quantity: q.quantity,
+        };
+      });
 
       const { error: qErr } = await (supabase.from('quad_reservations') as any).insert(quadReservations);
       if (qErr) console.error('Error in quad_reservations sync:', qErr);
@@ -174,10 +177,11 @@ export async function saveBooking(
 
   // 4. Save kiosk reservations for availability tracking
   try {
-    const activeKiosks = booking.kiosks.filter(k => k.quantity > 0 && k.date);
+    const activeKiosks = booking.kiosks.filter(k => k.quantity > 0);
     if (activeKiosks.length > 0 && finalOrderId) {
       const kioskReservations: any[] = [];
       activeKiosks.forEach(k => {
+        const validDate = k.date || entry.visitDate;
         if (k.selectedIds && k.selectedIds.length > 0) {
           // Save individual rows per selected kiosk ID
           k.selectedIds.forEach(kioskId => {
@@ -185,7 +189,7 @@ export async function saveBooking(
               order_id: finalOrderId,
               kiosk_id: kioskId,
               kiosk_type: k.type,
-              reservation_date: format(new Date(k.date!), 'yyyy-MM-dd'),
+              reservation_date: format(new Date(validDate!), 'yyyy-MM-dd'),
               quantity: 1
             });
           });
@@ -194,7 +198,7 @@ export async function saveBooking(
           kioskReservations.push({
             order_id: finalOrderId,
             kiosk_type: k.type,
-            reservation_date: format(new Date(k.date!), 'yyyy-MM-dd'),
+            reservation_date: format(new Date(validDate!), 'yyyy-MM-dd'),
             quantity: k.quantity
           });
         }
