@@ -160,6 +160,24 @@ export default function Admin() {
   const [itemToDelete, setItemToDelete] = useState<{item: any, type: 'kiosk' | 'quad' | 'order' | 'reservas'} | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [isNewBookingOpen, setIsNewBookingOpen] = useState(false);
+  const [newBookingData, setNewBookingData] = useState<any>({
+    name: '',
+    phone: '',
+    visit_date: format(new Date(), 'yyyy-MM-dd'),
+    adults_normal: 1,
+    adults_half: 0,
+    adults_free: 0,
+    children_free: 0,
+    selected_kiosks: [],
+    quads: [],
+    manual_discount: 0,
+    status: 'pending'
+  });
+  const [availableKiosks, setAvailableKiosks] = useState<number[]>([]);
+  const [quadSlotsAvail, setQuadSlotsAvail] = useState<Record<string, number>>({});
+  const [isFetchingAvail, setIsFetchingAvail] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   useEffect(() => {
     if (isNewBookingOpen && newBookingData.visit_date) {
       const fetchAvail = async () => {
@@ -191,23 +209,6 @@ export default function Admin() {
   const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set());
   const [pixData, setPixData] = useState<{ qrCode: string, payload: string, amount: number, name: string } | null>(null);
   const [isGeneratingPix, setIsGeneratingPix] = useState(false);
-  const [isNewBookingOpen, setIsNewBookingOpen] = useState(false);
-  const [newBookingData, setNewBookingData] = useState<any>({
-    name: '',
-    phone: '',
-    visit_date: format(new Date(), 'yyyy-MM-dd'),
-    adults_normal: 1,
-    adults_half: 0,
-    adults_free: 0,
-    children_free: 0,
-    selected_kiosks: [],
-    quads: [],
-    manual_discount: 0,
-    status: 'pending'
-  });
-  const [availableKiosks, setAvailableKiosks] = useState<number[]>([]);
-  const [quadSlotsAvail, setQuadSlotsAvail] = useState<Record<string, number>>({});
-  const [isFetchingAvail, setIsFetchingAvail] = useState(false);
 
   const normalizeString = (str: string) => 
     str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -2237,5 +2238,3 @@ export default function Admin() {
     </div>
   );
 }
-
-export default Admin;
