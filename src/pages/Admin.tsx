@@ -544,22 +544,22 @@ export default function Admin() {
       // 4. Kiosk Reservations
       if (selected_kiosks.length > 0) {
         await supabase.from('kiosk_reservations').insert(selected_kiosks.map((id: number) => ({
-          kiosk_id: id,
-          reservation_date: visit_date,
-          booking_id: booking.id,
           order_id: order.id,
-          status: 'confirmed'
+          kiosk_id: id,
+          kiosk_type: (id === 1 ? 'maior' : 'menor'),
+          reservation_date: visit_date,
+          quantity: 1
         })));
       }
 
       // 5. Quad Reservations
       if (quads.length > 0) {
         await supabase.from('quad_reservations').insert(quads.map((q: any) => ({
+          order_id: order.id,
           quad_type: q.type,
           reservation_date: visit_date,
           time_slot: q.time,
-          quantity: q.quantity,
-          order_id: order.id
+          quantity: q.quantity
         })));
       }
 
