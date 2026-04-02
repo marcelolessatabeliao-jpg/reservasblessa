@@ -221,20 +221,19 @@ export default function Admin() {
   const normalizeString = (str: string) => 
     str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
-  const fetchData = useCallback(async () => {
+    const fetchData = useCallback(async () => {
     setLoading(true);
     try {
+      const orderData = await getAdminOrders();
       const { data: bks } = await supabase.from('bookings').select('*').order('visit_date', { ascending: false });
-      // orderData fetched earlier
+      const { data: kiosks } = await supabase.from('kiosk_reservations').select('*, orders(customer_name), bookings(name)').order('reservation_date', { ascending: false });
+      const { data: quads } = await supabase.from('quad_reservations').select('*, orders(customer_name), bookings(name)').order('reservation_date', { ascending: false });
       
       // Enrich bookings with their order items from the orders table
       const enrichedBookings = (bks || []).map(b => {
         const relatedOrder = (orderData || []).find(o => o.confirmation_code === b.confirmation_code);
         return { ...b, order_items: relatedOrder?.order_items || [] };
       });
-      const { data: kiosks } = await supabase.from('kiosk_reservations').select('*, orders(customer_name), bookings(name)').order('reservation_date', { ascending: false });
-      const { data: quads } = await supabase.from('quad_reservations').select('*, orders(customer_name), bookings(name)').order('reservation_date', { ascending: false });
-      const orderData = await getAdminOrders();
       
       // Map reservations to include customer names correctly from either source
       let parsedKiosks = (kiosks || []).map(k => ({
