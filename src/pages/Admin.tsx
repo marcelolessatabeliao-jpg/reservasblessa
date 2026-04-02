@@ -500,11 +500,15 @@ export default function Admin() {
 
       total = Math.max(0, total - manual_discount);
 
+            // 0. Define Local Link
+      const confCode = 'L-' + Math.random().toString(36).substring(2, 10).toUpperCase();
+
       // 2. Create Booking
       const { data: booking, error: bError } = await supabase.from('bookings').insert({
         name,
         phone,
         visit_date,
+        confirmation_code: confCode,
         adults: adults_normal + adults_half + is_teacher + is_student + is_server + is_donor + is_solidarity + is_pcd + is_tea + is_senior + is_birthday,
         children: Array(children_free).fill({ age: 10 }),
         total_amount: total,
