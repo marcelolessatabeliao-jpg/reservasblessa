@@ -185,7 +185,7 @@ export default function Admin() {
         try {
           // Kiosks
           const booked = await getBookedKioskIds(newBookingData.visit_date);
-          setAvailableKiosks(Array.from({length: 24}, (_, i) => i + 1).filter(id => !booked.includes(id)));
+          setAvailableKiosks(Array.from({length: 5}, (_, i) => i + 1).filter(id => !booked.includes(id)));
           
           // Quads slots
           const slots: Record<string, number> = {};
