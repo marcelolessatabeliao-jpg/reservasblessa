@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { format, parseISO, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { 
-  ChevronDown, CheckCircle, XCircle, Clock, 
+  ChevronDown, CheckCircle, XCircle, Clock, QrCode, 
   UserCheck, Trash2, Plus, 
   Users, Calendar, Upload, FileCheck, Loader2,
   CalendarClock, StickyNote, CalendarRange,
@@ -54,6 +54,7 @@ interface BookingTableProps {
   isUploading?: boolean;
   onRemoveReceipt?: (bookingId: string) => void;
   onRefresh?: () => void;
+  onGeneratePayment?: (id: string, isOrder: boolean) => void;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive'; icon: React.ElementType; color: string; bgColor: string; borderColor: string }> = {
@@ -203,7 +204,17 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                <div className="space-y-3">
                                   <p className="text-[9px] font-black uppercase tracking-widest text-emerald-700/60 pl-1">Ações e Controle</p>
                                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                                     <Button onClick={(e) => {e.stopPropagation(); onStatusChange(booking.id, 'paid', booking.is_order);}} className="bg-emerald-600 h-10 rounded-xl text-[9px] font-black uppercase shadow-sm">Efetivar</Button>
+                                     
+                                      {booking.status === 'pending' && onGeneratePayment && (
+                                        <Button 
+                                          onClick={(e) => { e.stopPropagation(); onGeneratePayment(booking.id, !!booking.is_order); }} 
+                                          className="bg-amber-500 hover:bg-amber-600 border border-amber-600 text-white h-10 rounded-xl text-[9px] font-black uppercase shadow-sm flex flex-col items-center justify-center gap-0.5"
+                                        >
+                                          <QrCode className="w-4 h-4" />
+                                          Gerar PIX
+                                        </Button>
+                                      )}
+                                      <Button onClick={(e) => {e.stopPropagation(); onStatusChange(booking.id, 'paid', booking.is_order);}} className="bg-emerald-600 h-10 rounded-xl text-[9px] font-black uppercase shadow-sm">Efetivar</Button>
                                       <Button onClick={(e) => {
                                          e.stopPropagation();
                                          const phone = ((booking as any).customer_phone || (booking as any).phone || '').replace(/\D/g, '');
