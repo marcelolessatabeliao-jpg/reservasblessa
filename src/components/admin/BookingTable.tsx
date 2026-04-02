@@ -65,7 +65,21 @@ const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secon
   cancelled: { label: 'CANCELADA', variant: 'destructive', icon: XCircle, color: 'text-red-600', bgColor: 'bg-red-50', borderColor: 'border-red-200' },
 };
 
-export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule, onDelete, onRemoveItem, updatingId, onFileUpload, isUploading, onRemoveReceipt, onRefresh }: BookingTableProps) {
+const getStatusConfig = (booking: any) => {
+  const baseConfig = STATUS_CONFIG[booking.status] || STATUS_CONFIG.pending;
+  
+  if (booking.status === 'paid' || booking.status === 'confirmed') {
+    const payment = booking.payments?.[0];
+    if (payment) {
+      if (payment.metodo === 'PIX') return { ...baseConfig, label: 'PAGO VIA PIX' };
+      if (payment.metodo === 'CREDIT_CARD' || payment.metodo === 'DEBIT_CARD' || payment.metodo === 'cartao') 
+        return { ...baseConfig, label: 'PAGO VIA CARTÃO' };
+    }
+  }
+  return baseConfig;
+};
+
+export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule, onDelete, onRemoveItem, updatingId, onFileUpload, isUploading, onRemoveReceipt, onRefresh, onGeneratePayment }: BookingTableProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [noteText, setNoteText] = useState('');
