@@ -131,7 +131,7 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
   const kioskTotal = kiosks.reduce((s: number, k: any) => s + (k.price || 75), 0);
   const quadTotal = quads.reduce((s: number, q: any) => s + (q.price || 0), 0);
   const additionalsTotal = additionals.reduce((s: number, a: any) => s + (a.price || 0), 0);
-  const itemsTotal = localItems.reduce((s: number, i: any) => s + (i.price || 0), 0);
+  const itemsTotal = localItems.reduce((s: number, i: any) => s + ((i.unit_price || 0) * (i.quantity || 1)), 0);
   const discount = kioskTotal + quadTotal + additionalsTotal + itemsTotal - booking.total_amount;
 
   return (
@@ -174,10 +174,15 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
                     <span className="font-black text-emerald-700">{formatCurrency(kioskTotal)}</span>
                   </div>
                 )}
-                {quadTotal > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="font-bold text-slate-700">🚴 Quadriciclos ({quads.length}x)</span>
-                    <span className="font-black text-blue-700">{formatCurrency(quadTotal)}</span>
+                {quads.length > 0 && (
+                  <div className="pt-2 border-t border-slate-200 mt-2 space-y-1.5">
+                    <p className="text-[8px] font-black uppercase text-blue-400 tracking-widest mb-1">Reserva de Quadriciclos</p>
+                    {quads.map((q: any, idx: number) => (
+                      <div key={idx} className="flex justify-between text-[11px]">
+                        <span className="font-bold text-slate-700">🚴 Quad {q.time_slot} ({q.quad_type || q.type})</span>
+                        <span className="font-black text-blue-700">{formatCurrency(q.price || 0)}</span>
+                      </div>
+                    ))}
                   </div>
                 )}
                 {additionalsTotal > 0 && (
@@ -202,11 +207,11 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
                     })}
                   </div>
                 )}
-                {discount !== 0 && (
+                {Math.abs(discount) > 0.01 && (
                   <div className="flex justify-between text-xs pt-2 border-t border-slate-100 italic">
-                    <span className="text-slate-500">Ajuste/Desconto em Lote</span>
-                    <span className={cn("font-bold", discount < 0 ? "text-emerald-600" : "text-red-500")}>
-                      {discount < 0 ? '-' : '+'}{formatCurrency(Math.abs(discount))}
+                    <span className="text-slate-500">{discount > 0 ? 'Desconto Aplicado' : 'Ajuste de Valor'}</span>
+                    <span className={cn("font-bold", discount > 0 ? "text-emerald-600" : "text-amber-600")}>
+                      {discount > 0 ? '-' : '+'}{formatCurrency(Math.abs(discount))}
                     </span>
                   </div>
                 )}
@@ -330,6 +335,18 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
                 <div className="flex flex-col min-w-0 flex-1 mr-3 overflow-hidden">
                   <span className={cn('font-black text-[11px] md:text-[13px] whitespace-normal transition-colors uppercase leading-tight md:leading-normal', item.is_redeemed ? 'text-emerald-900 line-through' : 'text-slate-950')}>
                     {item.quantity}x {((item.product_name || item.product_id || '').includes('Adulto') && item.unit_price === 25) ? 'Adulto Solidário' : (item.product_name || item.product_id || 'Item')}
+                    {((item.product_name || item.product_id || '').toLowerCase().includes('quad')) && (
+                      <span className="ml-1 text-blue-600 font-black lowercase text-[10px] bg-blue-50 px-1.5 py-0.5 rounded-md border border-blue-100">
+                        {(() => {
+                           const searchStr = `${item.product_name} ${item.product_id} ${JSON.stringify(item.metadata || {})}`.toUpperCase();
+                           const match = searchStr.match(/(\d{1,2}[:H]\d{2})/);
+                           if (match) return match[1].replace('H', ':');
+                           // Tentar buscar no array principal se matchear modelo
+                           const qMatch = quads.find((q: any) => (q.quad_type || q.type || '').toUpperCase() === (item.product_id || '').toUpperCase() || (item.product_name || '').toUpperCase().includes((q.quad_type || q.type || '').toUpperCase()));
+                           return qMatch?.time_slot || '';
+                        })()}
+                      </span>
+                    )}
                   </span>
                   <span className={cn('text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 mt-1.5', item.is_redeemed ? 'text-emerald-800' : 'text-slate-400')}>
                     {item.is_redeemed ? (<><CheckCircle2 className="w-4 h-4 text-emerald-600 shadow-sm" /> UTILIZADO</>) : (<><Circle className="w-4 h-4 text-slate-300" /> AGUARDANDO</>)}
