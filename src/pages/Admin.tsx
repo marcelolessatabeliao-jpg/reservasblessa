@@ -231,7 +231,11 @@ export default function Admin() {
       
       // Enrich bookings with their order items from the orders table
       const enrichedBookings = (bks || []).map(b => {
-        const relatedOrder = (orderData || []).find(o => o.confirmation_code === b.confirmation_code);
+        const nameMatch = (name1, name2) => (name1 || '').toLowerCase().trim() === (name2 || '').toLowerCase().trim();
+        const relatedOrder = (orderData || []).find(o => 
+          (o.confirmation_code === b.confirmation_code && b.confirmation_code) || 
+          (nameMatch(o.customer_name, b.name) && (o.visit_date === b.visit_date))
+        );
         return { ...b, order_items: relatedOrder?.order_items || [] };
       });
       
@@ -527,7 +531,7 @@ export default function Admin() {
         visit_date,
         total_amount: total,
         status: status || 'pending',
-        confirmation_code: booking.confirmation_code,
+        confirmation_code: confCode,
         order_items: orderItems
       }).select().single();
 
