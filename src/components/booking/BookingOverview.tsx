@@ -1,4 +1,4 @@
-import { MessageCircle, CheckCircle, Loader2, ArrowRight, User, CreditCard, QrCode, Copy, Sparkles } from 'lucide-react';
+import { MessageCircle, CheckCircle, Loader2, ArrowRight, User, CreditCard, QrCode, Copy, Sparkles, Phone } from 'lucide-react';
 import { isValidCPF } from '@/utils/cpf-validator';
 import { Link } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
@@ -611,15 +611,26 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
                 </div>
 
                 <div className="flex flex-col gap-3 w-full">
+                  <Button 
+                    onClick={() => {
+                      const msg = `Olá! Minha reserva no Balneário Lessa foi confirmada! ✅\n\n📋 *RESUMO DO PEDIDO*\n👤 *Titular:* ${booking.entry.name}\n📅 *Data:* ${booking.entry.visitDate ? format(new Date(booking.entry.visitDate), "dd/MM/yyyy") : '—'}\n🔢 *Voucher:* ${currentConfirmationCode}\n\n🔗 *VOUCHER DIGITAL:*\nhttps://reservas.balneariolessa.com.br/voucher/${currentConfirmationCode}\n\n📍 *COMO CHEGAR:*\nVia Araras, Setor 09 – Ariquemes/RO`;
+                      const phone = booking.entry.phone?.replace(/\D/g, '') || '';
+                      window.open(`https://wa.me/55${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+                    }}
+                    className="w-full h-16 rounded-2xl bg-[#25D366] hover:bg-[#128C7E] text-white font-black shadow-lg flex items-center justify-center gap-3 animate-pulse border-b-4 border-[#075E54]"
+                  >
+                     <Phone className="w-6 h-6 fill-current" /> RECEBER NO WHATSAPP
+                  </Button>
+
                   <Link to={`/voucher/${currentConfirmationCode}`} target="_blank" className="w-full">
-                    <Button className="w-full h-14 rounded-2xl bg-sun hover:bg-sun/90 text-primary-dark font-black shadow-lg flex gap-2">
+                    <Button variant="outline" className="w-full h-14 rounded-2xl border-2 border-primary/10 text-primary font-black shadow-sm flex gap-2 hover:bg-primary/5">
                        VER MEU VOUCHER DIGITAL <QrCode className="w-5 h-5" />
                     </Button>
                   </Link>
-                  <Button onClick={() => window.location.reload()} variant="outline" className="w-full h-12 rounded-2xl font-bold">FECHAR E VOLTAR</Button>
+                  <Button onClick={() => window.location.reload()} variant="ghost" className="w-full h-10 rounded-2xl font-bold text-muted-foreground">FECHAR E VOLTAR</Button>
                 </div>
                 <p className="text-[10px] text-muted-foreground text-center px-4">
-                  Clique no botão acima para abrir seu voucher oficial. Enviamos os detalhes também para o seu WhatsApp/E-mail.
+                  Clique no botão verde acima para receber seu comprovante oficial no WhatsApp.
                 </p>
               </motion.div>
             ) : !pixData ? (

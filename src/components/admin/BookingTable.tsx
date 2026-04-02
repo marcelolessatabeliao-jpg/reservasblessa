@@ -430,17 +430,46 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                                        <UserCheck className="w-4 h-4" /> 
                                                        <span>CHECK-IN</span>
                                                     </Button>
-                                                    <Button 
-                                                      variant="outline" 
-                                                      onClick={(e) => { e.stopPropagation(); setRescheduleId(rescheduleId === booking.id ? null : booking.id); setRescheduleDate(booking.visit_date || ''); }} 
-                                                      className={cn(
-                                                        "bg-blue-50 border-2 border-blue-100 text-blue-700 font-black uppercase text-[9px] h-14 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all duration-300 hover:bg-blue-600 hover:text-white hover:border-blue-600",
-                                                        rescheduleId === booking.id && "bg-blue-600 text-white border-blue-700 scale-105 shadow-lg"
-                                                      )}
-                                                    >
-                                                       <CalendarRange className="w-4 h-4" /> 
-                                                       <span>REAGENDAR</span>
-                                                    </Button>
+                                                    <Popover>
+                                                       <PopoverTrigger asChild>
+                                                          <Button 
+                                                            variant="outline" 
+                                                            className={cn(
+                                                              "bg-blue-50 border-2 border-blue-100 text-blue-700 font-black uppercase text-[9px] h-14 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all duration-300 hover:bg-blue-600 hover:text-white hover:border-blue-600",
+                                                              rescheduleId === booking.id && "bg-blue-600 text-white border-blue-700 scale-105 shadow-lg"
+                                                            )}
+                                                          >
+                                                             <CalendarRange className="w-4 h-4" /> 
+                                                             <span>REAGENDAR</span>
+                                                          </Button>
+                                                       </PopoverTrigger>
+                                                       <PopoverContent className="w-auto p-0 rounded-3xl border-2 border-blue-100 shadow-2xl overflow-hidden" align="end">
+                                                          <div className="bg-blue-50 p-4 border-b border-blue-100">
+                                                             <p className="text-[10px] font-black text-blue-700 uppercase tracking-widest">Nova Data da Visita</p>
+                                                          </div>
+                                                          <CalendarUI
+                                                            mode="single"
+                                                            selected={rescheduleDate ? parseISO(rescheduleDate) : undefined}
+                                                            onSelect={(date) => setRescheduleDate(date ? format(date, 'yyyy-MM-dd') : '')}
+                                                            initialFocus
+                                                            className="p-3"
+                                                          />
+                                                          <div className="p-4 bg-white flex gap-2">
+                                                             <Button 
+                                                               onClick={() => { 
+                                                                 if (rescheduleDate) {
+                                                                   onReschedule(booking.id, rescheduleDate, booking.is_order);
+                                                                   setRescheduleId(null);
+                                                                 }
+                                                               }}
+                                                               disabled={!rescheduleDate || updatingId === booking.id}
+                                                               className="flex-1 bg-blue-600 text-white font-black text-[10px] h-10 rounded-xl"
+                                                             >
+                                                                CONFIRMAR
+                                                             </Button>
+                                                          </div>
+                                                       </PopoverContent>
+                                                    </Popover>
                                                     <Button 
                                                       onClick={() => onStatusChange(booking.id, 'cancelled', booking.is_order)} 
                                                       className="bg-red-50 border-2 border-red-100 text-red-700 hover:bg-red-600 hover:text-white hover:border-red-600 font-black uppercase text-[9px] h-14 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all duration-300"
