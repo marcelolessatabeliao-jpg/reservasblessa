@@ -15,7 +15,11 @@ import {
   Bike, 
   CalendarCheck, 
   ShoppingBag, 
-  Trash2, 
+  Trash2,   User, 
+  Phone, 
+  CalendarPlus, 
+  Tag, 
+
   FileText, 
   CalendarClock, 
   History, 
@@ -2007,7 +2011,7 @@ export default function Admin() {
                            </div>
                            <div className="space-y-2">
                              <label className="text-[10px] font-black text-emerald-800 uppercase tracking-widest flex items-center gap-1.5">
-                                <Calendar className="w-3.5 h-3.5" /> Data da Visita
+                                <CalendarIcon className="w-3.5 h-3.5" /> Data da Visita
                              </label>
                              <Input 
                                type="date"
@@ -2054,7 +2058,14 @@ export default function Admin() {
                               <Tent className="w-4 h-4" /> 2. Quiosques Disponíveis
                            </h4>
                            <div className="grid grid-cols-6 sm:grid-cols-8 gap-2">
-                              {Array.from({length: 24}, (_, i) => i + 1).map(id => {
+                              {[
+                                { id: 1, label: '01', type: 'maior' },
+                                { id: 2, label: '02', type: 'menor' },
+                                { id: 3, label: '03', type: 'menor' },
+                                { id: 4, label: '04', type: 'menor' },
+                                { id: 5, label: '05', type: 'menor' }
+                              ].map(k => {
+                                const id = k.id;
                                 const isBooked = !availableKiosks.includes(id) && !newBookingData.selected_kiosks.includes(id);
                                 const isSelected = newBookingData.selected_kiosks.includes(id);
                                 return (
@@ -2069,13 +2080,13 @@ export default function Admin() {
                                        });
                                     }}
                                     className={cn(
-                                       "h-10 rounded-xl text-[11px] font-black transition-all border-2",
+                                       "h-12 rounded-xl text-[11px] font-black transition-all border-2",
                                        isSelected ? "bg-emerald-600 text-white border-emerald-700 shadow-md scale-105" : 
                                        isBooked ? "bg-slate-100 text-slate-300 border-slate-200 cursor-not-allowed" : 
                                        "bg-white text-emerald-700 border-emerald-100 hover:border-emerald-500 hover:bg-emerald-50"
                                     )}
                                   >
-                                    {id.toString().padStart(2, '0')}
+                                    {k.label}
                                   </button>
                                 );
                               })}
