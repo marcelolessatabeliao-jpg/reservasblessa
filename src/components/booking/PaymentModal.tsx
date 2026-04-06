@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Loader2, QrCode, CreditCard, Copy, CheckCircle, Wallet, AlertTriangle } from 'lucide-react';
+import { Loader2, QrCode, CreditCard, Copy, CheckCircle, Wallet, AlertTriangle, MessageCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency } from '@/lib/booking-types';
 import { useToast } from '@/hooks/use-toast';
@@ -180,6 +180,18 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, phone, 
     });
   };
 
+  const handleSendWhatsApp = () => {
+    if (!pixData || !phone) return;
+    const cleanPhone = phone.replace(/\D/g, '');
+    // Ensure international format (55 for BR if not present)
+    const formattedPhone = cleanPhone.length <= 11 ? `55${cleanPhone}` : cleanPhone;
+    
+    const message = `*Pagamento Seguro*\n\nEscaneie o QR Code no app do seu banco ou copie o código abaixo:\n\n*PIX Copia e Cola:*\n${pixData.payload}\n\n⚠️ *AVISO IMPORTANTE*\n\nSua reserva *SÓ SERÁ GARANTIDA* após a confirmação do pagamento. O QR Code expira e a sua reserva pode ser ocupada por outro cliente se não for pago agora.`;
+    
+    const url = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md bg-white rounded-[2rem] p-6 shadow-2xl border-primary/10">
@@ -324,6 +336,16 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, phone, 
               {copied ? <CheckCircle className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
               {copied ? 'Código PIX Copiado' : 'Copiar Código PIX'}
             </Button>
+
+            {phone && (
+              <Button 
+                onClick={handleSendWhatsApp}
+                className="w-full h-12 flex items-center justify-center gap-2 font-black text-xs sm:text-sm rounded-xl bg-[#25D366] hover:bg-[#128C7E] text-white shadow-lg transition-all"
+              >
+                <MessageCircle className="h-5 w-5" />
+                Enviar para WhatsApp do Cliente
+              </Button>
+            )}
 
             <Button 
               onClick={async () => {

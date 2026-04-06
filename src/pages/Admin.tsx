@@ -1068,7 +1068,9 @@ export default function Admin() {
       futuras: allGroups.filter((g: any) => g.reservation_date > todayStr),
       historico: allGroups.filter((g: any) => g.reservation_date < todayStr),
     };
-    const tabGroups = groupsByTab[kioskSubTab];
+    const tabGroups = search 
+      ? allGroups.filter((g: any) => normalizeString(g.customer_name).includes(normalizeString(search)))
+      : groupsByTab[kioskSubTab];
 
     const resolveGroup = (group: any) => {
       const dayKiosks = (kioskReservations || []).filter(k => k.reservation_date === group.reservation_date);
@@ -1103,24 +1105,17 @@ export default function Admin() {
                 <h3 className="text-lg font-bold text-primary">Reservas de Quiosques</h3>
                 <p className="text-xs text-muted-foreground">Gerencie todas as reservas por status</p>
               </div>
-              <div className="flex flex-row overflow-x-auto gap-2 bg-slate-100 p-1 rounded-2xl w-full md:w-auto">
-                {subTabConfig.map(t => (
-                  <button
-                    key={t.key}
-                    onClick={() => setKioskSubTab(t.key as any)}
-                    className={cn(
-                      'flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all',
-                      kioskSubTab === t.key ? t.color + ' shadow-md' : 'text-slate-500 hover:text-slate-700',
-                      t.key === 'historico' && 'col-span-2 md:col-auto'
-                    )}
-                  >
-                    {t.label}
-                    <span className={cn('rounded-full px-1.5 py-0.5 text-[9px] font-black', kioskSubTab === t.key ? 'bg-white/30' : 'bg-slate-200')}>
-                      {t.count}
-                    </span>
-                  </button>
-                ))}
-              </div>
+              <AgendaHeader 
+                agendaSubTab={kioskSubTab as any}
+                setAgendaSubTab={setKioskSubTab as any}
+                search={search}
+                setSearch={setSearch}
+                filterDate={''} // We don't filter by date here yet
+                setFilterDate={() => {}}
+                statusFilter={'all'} 
+                setStatusFilter={() => {}}
+                isAllowedDay={isAllowedDay}
+              />
             </div>
           </div>
 
@@ -1274,7 +1269,9 @@ export default function Admin() {
       futuras: allGroups.filter((g: any) => g.reservation_date > todayStr),
       historico: allGroups.filter((g: any) => g.reservation_date < todayStr),
     };
-    const tabGroups = groupsByTab[quadSubTab];
+    const tabGroups = search 
+      ? allGroups.filter((g: any) => normalizeString(g.customer_name).includes(normalizeString(search)))
+      : groupsByTab[quadSubTab];
 
     const subTabConfig = [
       { key: 'hoje', label: 'Ativos Hoje', count: groupsByTab.hoje.length, color: 'bg-blue-600 text-white' },
@@ -1325,24 +1322,17 @@ export default function Admin() {
                 <h3 className="text-lg font-black text-blue-950">Reservas de Quadriciclos</h3>
                 <p className="text-xs text-blue-900 font-bold">Clique em um grupo para ver os horários</p>
               </div>
-              <div className="flex flex-row overflow-x-auto gap-2 bg-slate-100 p-1 rounded-2xl w-full md:w-auto">
-                {subTabConfig.map(t => (
-                  <button
-                    key={t.key}
-                    onClick={() => setQuadSubTab(t.key as any)}
-                    className={cn(
-                      'flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all',
-                      quadSubTab === t.key ? t.color + ' shadow-md' : 'text-slate-500 hover:text-slate-700',
-                      t.key === 'historico' && 'col-span-2 md:col-auto'
-                    )}
-                  >
-                    {t.label}
-                    <span className={cn('rounded-full px-1.5 py-0.5 text-[9px] font-black', quadSubTab === t.key ? 'bg-white/30' : 'bg-slate-200')}>
-                      {t.count}
-                    </span>
-                  </button>
-                ))}
-              </div>
+              <AgendaHeader 
+                agendaSubTab={quadSubTab as any}
+                setAgendaSubTab={setQuadSubTab as any}
+                search={search}
+                setSearch={setSearch}
+                filterDate={''}
+                setFilterDate={() => {}}
+                statusFilter={'all'}
+                setStatusFilter={() => {}}
+                isAllowedDay={isAllowedDay}
+              />
             </div>
           </div>
 
@@ -1669,8 +1659,17 @@ export default function Admin() {
                          </div>
                       </td>
                       <td className="px-6 py-4 font-bold text-foreground">
-                         {order.customer_name || 'Cliente Geral'}
-                      </td>
+                          <button 
+                            onClick={() => {
+                              setActiveTab('reservas');
+                              setSearch(order.customer_name || '');
+                              setFilterDate('');
+                            }}
+                            className="hover:text-amber-600 transition-colors cursor-pointer text-left font-bold"
+                          >
+                            {order.customer_name || 'Cliente Geral'}
+                          </button>
+                       </td>
                       <td className="px-6 py-4 font-bold text-primary">
                          {formatCurrency(order.total_amount)}
                       </td>
@@ -1709,8 +1708,7 @@ export default function Admin() {
                                  {updatingId === order.id ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Efetivar'}
                                </Button>
                             )}
-                            <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-500" onClick={() => convertToCredit(order, 'order')} title="Converter em Crédito"><Wallet className="w-4 h-4" /></Button>
-                            <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500" onClick={() => requestDelete(order, 'order')} title="Excluir"><Trash2 className="w-4 h-4" /></Button>
+                             <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500" onClick={() => requestDelete(order, 'order')} title="Excluir"><Trash2 className="w-4 h-4" /></Button>
                          </div>
                       </td>
                    </tr>
@@ -1919,7 +1917,7 @@ export default function Admin() {
                           (b.status && b.status.toLowerCase() === statusFilter.toLowerCase());
                         let matchesDate = true;
                         if (filterDate) { matchesDate = bDate && bDate.startsWith(filterDate); } 
-                        else {
+                        else if (!search) {
                           if (agendaSubTab === 'hoje') matchesDate = bDate === today;
                           else if (agendaSubTab === 'futuras') matchesDate = bDate > today;
                           else if (agendaSubTab === 'historico') matchesDate = bDate < today;
