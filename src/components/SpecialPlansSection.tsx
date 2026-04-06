@@ -39,8 +39,17 @@ export function SpecialPlansSection() {
       if (payingPeople === 5) return 'https://cartaobl.com.br/planos/?regPlano=1231212252657405';
     }
 
-    // Qualquer outro caso (mais de 6 pessoas ou misto) -> WhatsApp
-    const message = `Olá! Realizei uma simulação no Lessa Club para ${payingPeople} pessoas e gostaria de finalizar minha adesão.`;
+    // Build Detailed Message
+    const choices = [];
+    if (quantities.adult > 0) choices.push(`${quantities.adult} Lessa Club`);
+    if (quantities.student > 0) choices.push(`${quantities.student} Estudante${quantities.student > 1 ? 's' : ''}`);
+    if (quantities.teacher > 0) choices.push(`${quantities.teacher} Professor${quantities.teacher > 1 ? 'es' : ''}`);
+    if (quantities.server > 0) choices.push(`${quantities.server} Servidor${quantities.server > 1 ? 'es' : ''}`);
+    if (quantities.child > 0) choices.push(`${quantities.child} Criança${quantities.child > 1 ? 's' : ''}`);
+    if (quantities.senior > 0) choices.push(`${quantities.senior} Idoso${quantities.senior > 1 ? 's' : ''}`);
+    if (quantities.pcd > 0) choices.push(`${quantities.pcd} PCD/TEA`);
+
+    const message = `Olá! Gostaria de finalizar minha adesão ao Lessa Club baseada na minha simulação:\n\n*Resumo:*\n- Total: ${payingPeople} pessoas pagantes\n- Escolhas: ${choices.join(', ')}\n- Valor Total: ${formatCurrency(totalMonthly)}`;
     return `https://wa.me/5569992626140?text=${encodeURIComponent(message)}`;
   };
 
