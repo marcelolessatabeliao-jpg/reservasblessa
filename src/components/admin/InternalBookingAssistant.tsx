@@ -131,6 +131,29 @@ export function InternalBookingAssistant({
     }
   };
 
+  const handleCreateCredit = async () => {
+    setLoading(true);
+    try {
+      const { error } = await supabase.from('internal_credits').insert({
+          customer_name: newBookingData.name,
+          customer_phone: newBookingData.phone,
+          customer_cpf: newBookingData.cpf,
+          amount: calculateTotalRaw(),
+          notes: `Crédito gerado no Assistente (Orçamento avulso)`
+      });
+
+      if (error) throw error;
+      
+      toast({ title: 'Sucesso!', description: 'Crédito interno gerado com sucesso.' });
+      setIsOpen(false);
+      onBookingComplete();
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message || 'Falha ao gerar crédito.', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const calculateTotalRaw = () => {
     const { 
       adults_normal, adults_half, is_teacher, is_student, is_server, is_donor, is_solidarity, 
@@ -349,7 +372,7 @@ export function InternalBookingAssistant({
                 </div>
              </div>
 
-             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+             <div className="flex flex-col gap-6">
                 <div className="bg-white/70 backdrop-blur-sm p-6 rounded-[2.5rem] border-2 border-emerald-50 shadow-sm space-y-5">
                    <div className="flex items-center justify-between border-b border-emerald-100/50 pb-4">
                       <h4 className="text-xs font-black text-emerald-950 uppercase tracking-widest flex items-center gap-3">
@@ -406,12 +429,12 @@ export function InternalBookingAssistant({
 
                          return (
                            <div key={t} className={cn(
-                             "flex flex-col p-4 rounded-[1.75rem] border-2 transition-all",
+                             "flex flex-col p-3 rounded-2xl border-2 transition-all",
                              localUsed > 0 ? "bg-emerald-50/30 border-emerald-200" : "bg-white border-slate-100"
                            )}>
-                              <div className="flex items-center justify-between mb-4">
+                              <div className="flex items-center justify-between mb-2">
                                  <div className="flex items-center gap-2">
-                                    <div className="w-8 h-8 rounded-xl bg-emerald-950 text-white flex items-center justify-center text-xs font-black shadow-sm">{t}</div>
+                                    <div className="w-7 h-7 rounded-xl bg-emerald-950 text-white flex items-center justify-center text-[11px] font-black shadow-sm">{t}</div>
                                     <div className="flex flex-col">
                                        <span className="text-[9px] font-black uppercase text-slate-400 leading-none mb-1">Vagas</span>
                                        <div className="flex gap-1">
@@ -531,16 +554,26 @@ export function InternalBookingAssistant({
                           <span className="text-[9.5px] font-bold text-emerald-400 mt-3 italic tracking-wide opacity-70">* Cálculo automático incluindo descontos do dia</span>
                        </div>
                        
-                       <Button onClick={handleCreateInternalBooking} disabled={loading || !newBookingData.name} className="w-full h-16 bg-emerald-300 hover:bg-white text-emerald-950 rounded-2xl font-black text-base uppercase shadow-xl transition-all active:scale-95 group overflow-hidden border-2 border-emerald-400">
-                          {loading ? <Loader2 className="w-6 h-6 animate-spin mx-auto" /> : 
-                             <div className="flex items-center justify-center gap-3">
-                                <span>Concluir Reserva</span>
-                                <div className="w-8 h-8 bg-emerald-950 text-emerald-300 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
-                                   <Check className="w-5 h-5" />
-                                </div>
-                             </div>
-                          }
-                       </Button>
+                       <div className="flex flex-col gap-2 w-full">
+                         <Button onClick={handleCreateInternalBooking} disabled={loading || !newBookingData.name} className="w-full h-16 bg-emerald-300 hover:bg-white text-emerald-950 rounded-2xl font-black text-base uppercase shadow-xl transition-all active:scale-95 group overflow-hidden border-2 border-emerald-400">
+                            {loading ? <Loader2 className="w-6 h-6 animate-spin mx-auto" /> : 
+                               <div className="flex items-center justify-center gap-3">
+                                  <span>Concluir Reserva</span>
+                                  <div className="w-8 h-8 bg-emerald-950 text-emerald-300 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                                     <Check className="w-5 h-5" />
+                                  </div>
+                               </div>
+                            }
+                         </Button>
+                         <Button onClick={handleCreateCredit} disabled={loading || !newBookingData.name} variant="outline" className="w-full h-14 bg-white hover:bg-emerald-50 text-emerald-800 border-2 border-emerald-200 rounded-2xl font-black text-xs uppercase shadow-sm transition-all active:scale-95 group">
+                            {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 
+                               <div className="flex items-center justify-center gap-2">
+                                  <Gift className="w-4 h-4 text-emerald-600" />
+                                  <span>Adicionar aos Créditos</span>
+                               </div>
+                            }
+                         </Button>
+                       </div>
                     </div>
                  </div>
               </div>
