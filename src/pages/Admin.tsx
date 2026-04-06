@@ -81,24 +81,24 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 // Constants from common types
 const KIOSKS = [
-  { id: 1, name: 'QUIOSQUE - 01 (Grande)', price: 100, capacity: 'Até 30 pessoas', type: 'Maior' },
-  { id: 2, name: 'QUIOSQUE - 02', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' },
-  { id: 3, name: 'QUIOSQUE - 03', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' },
-  { id: 4, name: 'QUIOSQUE - 04', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' },
-  { id: 5, name: 'QUIOSQUE - 05', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' }
+  { id: 1, name: 'QUIOSQUE - 01 (Grande)', price: 100, capacity: 'AtÃƒÂ© 30 pessoas', type: 'Maior' },
+  { id: 2, name: 'QUIOSQUE - 02', price: 75, capacity: 'AtÃƒÂ© 15 pessoas', type: 'Menor' },
+  { id: 3, name: 'QUIOSQUE - 03', price: 75, capacity: 'AtÃƒÂ© 15 pessoas', type: 'Menor' },
+  { id: 4, name: 'QUIOSQUE - 04', price: 75, capacity: 'AtÃƒÂ© 15 pessoas', type: 'Menor' },
+  { id: 5, name: 'QUIOSQUE - 05', price: 75, capacity: 'AtÃƒÂ© 15 pessoas', type: 'Menor' }
 ];
 
 const QUAD_TIMES = ['09:00', '10:30', '14:00', '15:30'];
 const PAYMENT_METHODS = [
-  { value: 'pix', label: 'PIX / Transferência' },
-  { value: 'credit_card', label: 'Cartão de Crédito' },
+  { value: 'pix', label: 'PIX / TransferÃƒÂªncia' },
+  { value: 'credit_card', label: 'CartÃƒÂ£o de CrÃƒÂ©dito' },
   { value: 'cash', label: 'Dinheiro (Local)' }
 ];
 
 const QUAD_MODELS_LABELS: Record<string, string> = {
   individual: 'Individual',
   dupla: 'Dupla',
-  'adulto-crianca': 'Adulto + Criança'
+  'adulto-crianca': 'Adulto + CrianÃƒÂ§a'
 };
 
 type TabType = 'painel' | 'reservas' | 'quiosques' | 'quads' | 'vendas';
@@ -107,7 +107,7 @@ type TabType = 'painel' | 'reservas' | 'quiosques' | 'quads' | 'vendas';
 const normalizeQuadType = (t: string) => {
   const slow = (t || '').toLowerCase();
   if (slow.includes('dupla')) return 'dupla';
-  if (slow.includes('criança')) return 'adulto-crianca';
+  if (slow.includes('crianÃƒÂ§a')) return 'adulto-crianca';
   return 'individual';
 };
 
@@ -140,6 +140,8 @@ export default function Admin() {
   const [loading, setLoading] = useState(false);
   const [kioskSubTab, setKioskSubTab] = useState<'hoje' | 'futuras' | 'historico'>('hoje');
   const [quadSubTab, setQuadSubTab] = useState<'hoje' | 'futuras' | 'historico'>('hoje');
+  const [agendaSubTab, setAgendaSubTab] = useState<'hoje' | 'futuras' | 'historico'>('hoje');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [expandedQuadGroupId, setExpandedQuadGroupId] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -256,8 +258,8 @@ export default function Admin() {
                const qty = item.quantity || 1;
                
                // Listas categorizadas para contagem de pessoas
-                const adultKeywords = ['adulto', 'solidário', 'solidario', 'professor', 'estudante', 'servidor'];
-                const gratuityKeywords = ['criança', 'criança', 'idoso', 'pcd', 'aniversariante'];
+                const adultKeywords = ['adulto', 'solidÃƒÂ¡rio', 'solidario', 'professor', 'estudante', 'servidor'];
+                const gratuityKeywords = ['crianÃƒÂ§a', 'crianÃƒÂ§a', 'idoso', 'pcd', 'aniversariante'];
 
                 const isAdult = adultKeywords.some(key => pName.includes(key) || pId.includes(key));
                 const isGratuity = gratuityKeywords.some(key => pName.includes(key) || pId.includes(key));
@@ -348,7 +350,7 @@ export default function Admin() {
                }
             });
             
-            // Atribuir contagens extraídas se não estiverem presentes
+            // Atribuir contagens extraÃƒÂ­das se nÃƒÂ£o estiverem presentes
             o.adults = o.adults || orderAdults;
             o.children = o.children || orderChildren;
          });
@@ -374,7 +376,7 @@ export default function Admin() {
       let tAdults = 0;
       let tChildren = 0;
       const adultKeywords = ['adulto', 'solidario', 'professor', 'estudante', 'servidor'];
-      const gratuityKeywords = ['criança', 'kids', 'idoso', 'pcd', 'aniversariante'];
+      const gratuityKeywords = ['crianÃƒÂ§a', 'kids', 'idoso', 'pcd', 'aniversariante'];
 
       [...(enrichedBookings || []), ...(orderData || [])].forEach(b => {
         if (b.status === 'confirmed' || b.status === 'paid' || b.status === 'pending') {
@@ -439,7 +441,7 @@ export default function Admin() {
         if (editData[f] !== undefined) payload[f] = editData[f];
       });
 
-      // Se for uma reserva virtual extraída de um pedido, precisa virar real no banco
+      // Se for uma reserva virtual extraÃƒÂ­da de um pedido, precisa virar real no banco
       if (typeof editingId === 'string' && editingId.startsWith('order-')) {
         payload.order_id = editData.order_id;
         const { error } = await supabase.from(table).insert([payload]);
@@ -449,7 +451,7 @@ export default function Admin() {
         if (error) throw error;
       }
       
-      toast({ title: "✓ Alterações salvas" });
+      toast({ title: "✓ AlteraÃƒÂ§ÃƒÂµes salvas" });
       setEditingId(null);
       setEditData({});
       await fetchData();
@@ -482,10 +484,10 @@ export default function Admin() {
           toast({ title: "Pagamento Sincronizado!", description: `Status: ${data.status}. O pedido foi marcado como PAGO.` });
           fetchData();
         } else {
-          toast({ title: "Sincronização Concluída", description: `Status: ${data.status}. Nenhuma alteração necessária.` });
+          toast({ title: "SincronizaÃƒÂ§ÃƒÂ£o ConcluÃƒÂ­da", description: `Status: ${data.status}. Nenhuma alteraÃƒÂ§ÃƒÂ£o necessÃƒÂ¡ria.` });
         }
       } else {
-        toast({ title: "Erro na Sincronização", description: data?.error || "Erro desconhecido", variant: "destructive" });
+        toast({ title: "Erro na SincronizaÃƒÂ§ÃƒÂ£o", description: data?.error || "Erro desconhecido", variant: "destructive" });
       }
     } catch (err: any) {
       console.error('Sync error:', err);
@@ -594,7 +596,7 @@ export default function Admin() {
       ));
       
       const hasError = results.some(r => r.error);
-      if (hasError) throw new Error('Algumas atualizações falharam');
+      if (hasError) throw new Error('Algumas atualizaÃƒÂ§ÃƒÂµes falharam');
       
       toast({ title: '✓ Reagendado com sucesso' });
       fetchData();
@@ -661,7 +663,7 @@ export default function Admin() {
       const isOrder = resId.toString().startsWith('order-');
       if (isOrder) {
          // It's a virtual reservation from an order, we might need to update the order instead or just toast
-         toast({ title: "Esta é uma reserva de pedido. O comprovante deve ser anexado ao pedido na aba Reservas." });
+         toast({ title: "Esta ÃƒÂ© uma reserva de pedido. O comprovante deve ser anexado ao pedido na aba Reservas." });
       } else {
          const { error: updateError } = await supabase.from('kiosk_reservations').update({ receipt_url: publicUrl }).eq('id', resId);
          if (updateError) throw updateError;
@@ -683,7 +685,7 @@ export default function Admin() {
       
       const isOrder = resId.toString().startsWith('order-');
       if (isOrder) {
-         toast({ title: "Esta é uma reserva de pedido. O comprovante deve ser anexado ao pedido na aba Reservas." });
+         toast({ title: "Esta ÃƒÂ© uma reserva de pedido. O comprovante deve ser anexado ao pedido na aba Reservas." });
       } else {
          const { error: updateError } = await supabase.from('quad_reservations').update({ receipt_url: publicUrl }).eq('id', resId);
          if (updateError) throw updateError;
@@ -781,7 +783,7 @@ export default function Admin() {
                          {targetDate.getDate()}
                       </div>
                       <div>
-                         <h3 className="text-[16px] font-black text-emerald-950 tracking-tight leading-none mb-1">Operação Diária</h3>
+                         <h3 className="text-[16px] font-black text-emerald-950 tracking-tight leading-none mb-1">OperaÃƒÂ§ÃƒÂ£o DiÃƒÂ¡ria</h3>
                          <p className="text-[11px] font-black text-emerald-950 uppercase tracking-tighter">{format(targetDate, "EEEE, yyyy", { locale: ptBR })}</p>
                       </div>
                    </div>
@@ -875,7 +877,7 @@ export default function Admin() {
                       <div className="bg-amber-50/50 rounded-[1.25rem] p-3 shadow-sm border border-amber-200 mt-2 space-y-2.5">
                          <div className="flex items-center justify-between px-1">
                             <span className="font-black text-amber-900 text-[11px] uppercase tracking-wider flex items-center gap-2">
-                               <AlertTriangle className="w-3.5 h-3.5" /> Extra / S. Horário
+                               <AlertTriangle className="w-3.5 h-3.5" /> Extra / S. HorÃƒÂ¡rio
                             </span>
                          </div>
                          <div className="rounded-xl border border-amber-100 bg-white/40 p-1.5 min-h-[32px] flex items-center justify-center text-center">
@@ -913,7 +915,7 @@ export default function Admin() {
                     <h4 className="text-lg font-black text-emerald-950 tracking-tight">Resumo Geral</h4>
                  </div>
                  <p className="text-[11px] font-bold text-emerald-800/70 leading-relaxed mb-6">
-                    Selecione uma data para organizar seu dia de operações.
+                    Selecione uma data para organizar seu dia de operaÃƒÂ§ÃƒÂµes.
                  </p>
                  
                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -1028,9 +1030,9 @@ export default function Admin() {
         if (bid === 'MENOR') {
           const menors = dayKiosks.filter(dk => dk.kiosk_id === 'MENOR');
           const idx = menors.findIndex(dk => dk.id === r.id);
-          return KIOSKS.find(k => k.id === idx + 2) || { id: 99, name: 'Quiosque Extra', capacity: 'Até 15 pessoas' };
+          return KIOSKS.find(k => k.id === idx + 2) || { id: 99, name: 'Quiosque Extra', capacity: 'AtÃƒÂ© 15 pessoas' };
         }
-        return KIOSKS.find(k => k.id === Number(bid)) || { id: 99, name: `Q-${bid}`, capacity: 'Até 15 pessoas' };
+        return KIOSKS.find(k => k.id === Number(bid)) || { id: 99, name: `Q-${bid}`, capacity: 'AtÃƒÂ© 15 pessoas' };
       });
       const names = resolved.map((k: any) => k?.name.replace('Quiosque ', 'Q-')).join(', ');
       const capacity = resolved.reduce((s: number, k: any) => s + parseInt((k?.capacity || '0').replace(/\D/g, '') || '15'), 0);
@@ -1040,7 +1042,7 @@ export default function Admin() {
     const subTabConfig = [
       { key: 'hoje', label: 'Ativos Hoje', count: groupsByTab.hoje.length, color: 'bg-emerald-600 text-white' },
       { key: 'futuras', label: 'Reservas Futuras', count: groupsByTab.futuras.length, color: 'bg-blue-100 text-blue-700' },
-      { key: 'historico', label: 'Histórico', count: groupsByTab.historico.length, color: 'bg-slate-100 text-slate-600' },
+      { key: 'historico', label: 'HistÃƒÂ³rico', count: groupsByTab.historico.length, color: 'bg-slate-100 text-slate-600' },
     ];
 
     return (
@@ -1127,7 +1129,7 @@ export default function Admin() {
             <div className="hidden md:block">
               {tabGroups.length === 0 ? (
                 <div className="text-center py-16 text-muted-foreground/40 font-bold uppercase text-xs tracking-widest">
-                  {kioskSubTab === 'hoje' ? 'Nenhuma reserva ativa hoje' : kioskSubTab === 'futuras' ? 'Sem reservas futuras' : 'Sem histórico'}
+                  {kioskSubTab === 'hoje' ? 'Nenhuma reserva ativa hoje' : kioskSubTab === 'futuras' ? 'Sem reservas futuras' : 'Sem histÃƒÂ³rico'}
                 </div>
               ) : (
                 <table className="w-full text-left">
@@ -1137,7 +1139,7 @@ export default function Admin() {
                       <th className="px-6 py-4">Cliente</th>
                       <th className="px-6 py-4">Quiosques / Capacidade</th>
                       <th className="px-6 py-4">Valor</th>
-                      <th className="px-6 py-4 text-right">Ações</th>
+                      <th className="px-6 py-4 text-right">AÃƒÂ§ÃƒÂµes</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y-2 divide-slate-100">
@@ -1229,7 +1231,7 @@ export default function Admin() {
     const subTabConfig = [
       { key: 'hoje', label: 'Ativos Hoje', count: groupsByTab.hoje.length, color: 'bg-blue-600 text-white' },
       { key: 'futuras', label: 'Reservas Futuras', count: groupsByTab.futuras.length, color: 'bg-blue-100 text-blue-700' },
-      { key: 'historico', label: 'Histórico', count: groupsByTab.historico.length, color: 'bg-slate-100 text-slate-600' },
+      { key: 'historico', label: 'HistÃƒÂ³rico', count: groupsByTab.historico.length, color: 'bg-slate-100 text-slate-600' },
     ];
 
     return (
@@ -1239,7 +1241,7 @@ export default function Admin() {
             <div className="flex items-center justify-between flex-wrap gap-4">
               <div>
                 <h3 className="text-lg font-black text-blue-950">Reservas de Quadriciclos</h3>
-                <p className="text-xs text-blue-900 font-bold">Clique em um grupo para ver os horários</p>
+                <p className="text-xs text-blue-900 font-bold">Clique em um grupo para ver os horÃƒÂ¡rios</p>
               </div>
               <div className="grid grid-cols-2 md:flex gap-2 bg-slate-100 p-1 rounded-2xl w-full md:w-auto">
                 {subTabConfig.map(t => (
@@ -1303,7 +1305,7 @@ export default function Admin() {
                               </div>
                               
                               <div className="space-y-2">
-                                 <span className="text-[9px] font-black text-blue-700/60 uppercase tracking-widest block mb-1">Horários Reservados</span>
+                                 <span className="text-[9px] font-black text-blue-700/60 uppercase tracking-widest block mb-1">HorÃƒÂ¡rios Reservados</span>
                                  {group.items.map((r: any, i: number) => (
                                    <div key={i} className="flex justify-between items-center bg-white p-3 rounded-xl border border-blue-100 shadow-sm">
                                       <div className="flex items-center gap-2">
@@ -1338,7 +1340,7 @@ export default function Admin() {
             <div className="hidden md:block">
               {tabGroups.length === 0 ? (
                 <div className="text-center py-16 text-muted-foreground/40 font-bold uppercase text-xs tracking-widest">
-                  {quadSubTab === 'hoje' ? 'Nenhuma reserva ativa hoje' : quadSubTab === 'futuras' ? 'Sem reservas futuras' : 'Sem histórico'}
+                  {quadSubTab === 'hoje' ? 'Nenhuma reserva ativa hoje' : quadSubTab === 'futuras' ? 'Sem reservas futuras' : 'Sem histÃƒÂ³rico'}
                 </div>
               ) : (
                 <table className="w-full text-left">
@@ -1350,7 +1352,7 @@ export default function Admin() {
                       <th className="px-6 py-4">Modelos</th>
                       <th className="px-6 py-4 text-center">Total Quadriciclos</th>
                       <th className="px-6 py-4">Valor Total</th>
-                      <th className="px-6 py-4 text-right">Ações</th>
+                      <th className="px-6 py-4 text-right">AÃƒÂ§ÃƒÂµes</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y-2 divide-slate-100">
@@ -1382,7 +1384,7 @@ export default function Admin() {
                             </td>
                             <td className="px-6 py-4">
                               <span className="font-black text-slate-900 uppercase text-base">{group.customer_name}</span>
-                              <div className="text-[10px] text-slate-500 font-bold mt-0.5">{group.items.length} horário(s) reservado(s)</div>
+                              <div className="text-[10px] text-slate-500 font-bold mt-0.5">{group.items.length} horÃƒÂ¡rio(s) reservado(s)</div>
                             </td>
                             <td className="px-6 py-4">
                               <div className="flex flex-wrap gap-1">
@@ -1441,7 +1443,7 @@ export default function Admin() {
                                       {(r.time_slot === 'INDIV' || r.time_slot === 'DUPLA') ? (
                                         <>
                                           <AlertTriangle className="w-3 h-3" />
-                                          {r.time_slot === 'INDIV' ? 'HORíRIO NíƒÆ’O DEFINIDO' : 'DUPLA (AGUARDANDO)'}
+                                          {r.time_slot === 'INDIV' ? 'HORÃƒÂ­Ã‚ÂRIO NÃƒÂ­Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢O DEFINIDO' : 'DUPLA (AGUARDANDO)'}
                                         </>
                                       ) : (
                                         <>
@@ -1528,15 +1530,26 @@ export default function Admin() {
 
   const renderOrderTab = () => (
     <div className="bg-white rounded-3xl border border-border/50 shadow-card overflow-hidden animate-in fade-in duration-500">
-       <div className="p-6 border-b border-border/50 bg-amber-50/30 flex items-center justify-between">
-          <div>
-             <h3 className="text-lg font-bold text-amber-900">Histórico de Vendas e Pedidos</h3>
-             <p className="text-xs text-muted-foreground">Gestão financeira centralizada</p>
-          </div>
-          <div className="flex items-center gap-2">
-             <Badge className="bg-amber-100 text-amber-900 border-0 font-bold">Total: {orders.length}</Badge>
-          </div>
-       </div>
+        <div className="p-6 border-b border-border/50 bg-amber-50/30 flex items-center justify-between flex-wrap gap-4">
+           <div>
+              <h3 className="text-lg font-bold text-amber-900">HistÃƒÂ³rico de Vendas e Pedidos</h3>
+              <p className="text-xs text-muted-foreground">GestÃƒÂ£o financeira centralizada</p>
+           </div>
+           <div className="flex items-center gap-3">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[180px] h-10 rounded-xl border-amber-200 bg-white shadow-sm font-bold text-xs uppercase">
+                  <SelectValue placeholder="Filtrar Status" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl border-amber-100 shadow-xl">
+                  <SelectItem value="all" className="text-xs font-bold uppercase">Todos os Status</SelectItem>
+                  <SelectItem value="paid" className="text-xs font-bold uppercase text-whatsapp">Pagos</SelectItem>
+                  <SelectItem value="pending" className="text-xs font-bold uppercase text-amber-600">Pendentes</SelectItem>
+                  <SelectItem value="cancelled" className="text-xs font-bold uppercase text-red-500">Cancelados</SelectItem>
+                </SelectContent>
+              </Select>
+              <Badge className="bg-amber-100 text-amber-900 border-0 font-bold h-10 px-4 rounded-xl flex items-center">Total: {orders.filter(o => statusFilter === 'all' || o.status === statusFilter).length}</Badge>
+           </div>
+        </div>
        <div className="overflow-x-auto">
           <table className="w-full text-left">
              <thead className="bg-muted/50 text-[10px] font-bold uppercase text-muted-foreground tracking-widest border-b border-border/50">
@@ -1545,11 +1558,13 @@ export default function Admin() {
                    <th className="px-6 py-4">Cliente</th>
                    <th className="px-6 py-4">Total</th>
                    <th className="px-6 py-4">Status</th>
-                   <th className="px-6 py-4 text-right">Ações</th>
+                   <th className="px-6 py-4 text-right">AÃƒÂ§ÃƒÂµes</th>
                 </tr>
              </thead>
              <tbody className="divide-y divide-border/30">
-                {(orders || []).map(order => (
+                {(orders || [])
+                   .filter(order => statusFilter === 'all' || order.status === statusFilter)
+                   .map(order => (
                    <tr key={order.id} className="hover:bg-muted/20 transition-colors">
                       <td className="px-6 py-4">
                          <div className="flex flex-col">
@@ -1574,7 +1589,26 @@ export default function Admin() {
                       <td className="px-6 py-4 text-right">
                          <div className="flex items-center justify-end gap-2">
                             {order.status !== 'paid' && (
-                              <Button size="sm" className="h-8 bg-primary rounded-lg text-[10px] font-bold" onClick={() => markOrderAsPaid(order.id).then(() => fetchData())}>Efetivar</Button>
+                              <Button 
+                                 size="sm" 
+                                 className="h-8 bg-primary rounded-lg text-[10px] font-bold" 
+                                 disabled={updatingId === order.id}
+                                 onClick={() => {
+                                   setUpdatingId(order.id);
+                                   markOrderAsPaid(order.id)
+                                     .then(() => {
+                                       toast({ title: "✓ Pedido Efetivado!", description: "O status foi atualizado para PAGO e o voucher gerado." });
+                                       fetchData();
+                                     })
+                                     .catch(err => {
+                                       console.error(err);
+                                       toast({ title: "Erro ao efetivar", description: err.message, variant: "destructive" });
+                                     })
+                                     .finally(() => setUpdatingId(null));
+                                 }}
+                               >
+                                 {updatingId === order.id ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Efetivar'}
+                               </Button>
                             )}
                             <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500" onClick={() => requestDelete(order, 'order')}><Trash2 className="w-4 h-4" /></Button>
                          </div>
@@ -1604,7 +1638,7 @@ export default function Admin() {
                              <span className="text-4xl md:text-4xl md:text-5xl text-[#FFF033] shadow-md">Painel</span>
                           </div>
                        </h1>
-                     <p className="text-[#FFF033] font-black uppercase tracking-[0.2em] md:tracking-[0.3em] text-[8px] md:text-[10px] bg-[#FFF033]/10 w-fit px-3 py-1 rounded-full border border-[#FFF033]/30 backdrop-blur-sm">Gestão Integrada de Reservas - Balneário</p>
+                     <p className="text-[#FFF033] font-black uppercase tracking-[0.2em] md:tracking-[0.3em] text-[8px] md:text-[10px] bg-[#FFF033]/10 w-fit px-3 py-1 rounded-full border border-[#FFF033]/30 backdrop-blur-sm">GestÃƒÂ£o Integrada de Reservas - BalneÃƒÂ¡rio</p>
                  </div>
 
                  {/* MOBILE BUTTONS (TOP RIGHT) */}
@@ -1709,7 +1743,7 @@ export default function Admin() {
                "px-4 md:px-4 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap", 
                activeTab === 'painel' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
              )}>
-                <LayoutDashboard className="w-4 h-4 md:w-4.5 md:h-4.5" /> Visão Geral
+                <LayoutDashboard className="w-4 h-4 md:w-4.5 md:h-4.5" /> VisÃƒÂ£o Geral
              </button>
              <button onClick={() => setActiveTab('quiosques')} className={cn(
                "px-4 md:px-4 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap", 
@@ -1753,11 +1787,39 @@ export default function Admin() {
              {activeTab === 'painel' && renderDashboard()}
              {activeTab === 'reservas' && (
                <div className="space-y-6">
-                 <div className="flex flex-col md:flex-row gap-4 w-full max-w-4xl">
+                                   {/* Agenda Navigation Sub-Tabs */}
+                  <div className="flex items-center justify-between flex-wrap gap-4 bg-emerald-900/10 p-4 rounded-3xl border-2 border-emerald-100 mb-6">
+                    <div>
+                      <h3 className="text-lg font-black text-emerald-900">Agenda Geral</h3>
+                      <p className="text-[10px] font-bold text-emerald-700/70 uppercase tracking-widest">Todos os Pedidos e Reservas</p>
+                    </div>
+                    <div className="grid grid-cols-2 md:flex gap-2 bg-white/50 p-1 rounded-2xl w-full md:w-auto">
+                      {[
+                        { key: 'hoje', label: 'Ativos Hoje', color: 'bg-emerald-600 text-white' },
+                        { key: 'futuras', label: 'Reservas Futuras', color: 'bg-blue-100 text-blue-700' },
+                        { key: 'historico', label: 'Histórico', color: 'bg-slate-200 text-slate-700' },
+                      ].map(t => (
+                        <button
+                          key={t.key}
+                          onClick={() => {
+                            setAgendaSubTab(t.key as any);
+                            setFilterDate(''); 
+                          }}
+                          className={cn(
+                            'flex items-center gap-1.5 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all',
+                            agendaSubTab === t.key ? t.color + ' shadow-md' : 'text-slate-500 hover:text-slate-700'
+                          )}
+                        >
+                          {t.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex flex-col md:flex-row gap-4 w-full max-w-4xl">
                     <div className="relative flex-1 group">
                       <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-100 group-hover:text-white transition-colors" />
                       <Input 
-                        placeholder="Filtrar por nome, telefone ou código..." 
+                        placeholder="Filtrar por nome, telefone ou cÃƒÂ³digo..." 
                         className="pl-11 h-14 rounded-2xl bg-emerald-600 shadow-lg border-2 border-emerald-700 font-extrabold text-white placeholder:text-emerald-100 focus-visible:ring-emerald-400 text-lg transition-all hover:bg-emerald-700 hover:border-emerald-500" 
                         value={search} 
                         onChange={e => setSearch(e.target.value)} 
@@ -1818,25 +1880,55 @@ export default function Admin() {
                         />
                       </PopoverContent>
                     </Popover>
+
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                      <SelectTrigger className="h-14 px-6 rounded-2xl bg-white shadow-lg border-2 border-emerald-100 font-black text-emerald-900 hover:border-emerald-500 transition-all gap-3 text-lg justify-start min-w-[200px]">
+                        <Users className="w-5 h-5 text-emerald-600" />
+                        <SelectValue placeholder="Status" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-2xl border-2 border-emerald-100 shadow-2xl">
+                        <SelectItem value="all" className="font-bold">TODOS OS STATUS</SelectItem>
+                        <SelectItem value="paid" className="font-bold text-whatsapp">PAGOS</SelectItem>
+                        <SelectItem value="confirmed" className="font-bold text-whatsapp">CONFIRMADOS</SelectItem>
+                        <SelectItem value="pending" className="font-bold text-amber-600">PENDENTES</SelectItem>
+                        <SelectItem value="awaiting_payment" className="font-bold text-blue-600">AGUARDANDO PGTO</SelectItem>
+                        <SelectItem value="cancelled" className="font-bold text-red-500">CANCELADOS</SelectItem>
+                        <SelectItem value="checked-in" className="font-bold text-purple-600">CHECK-IN REALIZADO</SelectItem>
+                      </SelectContent>
+                    </Select>
                     
-                    {filterDate && (
+                    {(filterDate || statusFilter !== 'all' || search) && (
                       <Button 
                         variant="ghost" 
-                        className="h-14 px-4 text-emerald-700 font-black hover:bg-emerald-100/50 rounded-2xl"
-                        onClick={() => setFilterDate('')}
+                        className="h-14 px-4 text-emerald-700 font-black hover:bg-emerald-100/50 rounded-2xl flex items-center gap-2"
+                        onClick={() => {
+                          setFilterDate('');
+                          setStatusFilter('all');
+                          setSearch('');
+                        }}
                       >
-                        LIMPAR
+                        <X className="w-4 h-4" /> LIMPAR FILTROS
                       </Button>
                     )}
                   </div>
                  <BookingTable 
-                   bookings={[...bookings, ...(orders || []).map(o => ({...o, is_order: true}))].filter(b => 
-                     (!search || 
-                      (b.name || b.customer_name || '').toLowerCase().includes(search.toLowerCase()) ||
-                      (b.phone || '').includes(search) ||
-                      (b.confirmation_code || '').includes(search)) &&
-                     (!filterDate || (b.visit_date && b.visit_date.startsWith(filterDate)))
-                   )}
+                                       bookings={[...bookings, ...(orders || []).map(o => ({...o, is_order: true}))].filter(b => {
+                      const bDate = b.visit_date || (typeof b.created_at === 'string' ? b.created_at.split('T')[0] : '');
+                      const today = format(new Date(), 'yyyy-MM-dd');
+                      const matchesSearch = !search || 
+                        (b.name || b.customer_name || '').toLowerCase().includes(search.toLowerCase()) ||
+                        (b.phone || b.customer_phone || '').includes(search) ||
+                        (b.confirmation_code || '').includes(search);
+                      const matchesStatus = statusFilter === 'all' || b.status === statusFilter;
+                      let matchesDate = true;
+                      if (filterDate) { matchesDate = bDate && bDate.startsWith(filterDate); } 
+                      else {
+                        if (agendaSubTab === 'hoje') matchesDate = bDate === today;
+                        else if (agendaSubTab === 'futuras') matchesDate = bDate > today;
+                        else if (agendaSubTab === 'historico') matchesDate = bDate < today;
+                      }
+                      return matchesSearch && matchesStatus && matchesDate;
+                    })}
                    onStatusChange={updateBookingStatus}
                    onAddNote={addBookingNote}
                    onReschedule={async (id, date, isOrder) => {
@@ -1904,10 +1996,10 @@ export default function Admin() {
                    <div className="w-12 h-12 rounded-2xl bg-red-100 flex items-center justify-center border-2 border-red-200">
                       <AlertTriangle className="w-6 h-6 text-red-600" />
                    </div>
-                   <AlertDialogTitle className="text-xl font-black text-slate-900">Confirmar Exclusão</AlertDialogTitle>
+                   <AlertDialogTitle className="text-xl font-black text-slate-900">Confirmar ExclusÃƒÂ£o</AlertDialogTitle>
                 </div>
                 <AlertDialogDescription className="text-slate-600 font-bold">
-                   Deseja realmente remover esta reserva? Esta ação não pode ser desfeita e liberará o horário/espaço para novos clientes.
+                   Deseja realmente remover esta reserva? Esta aÃƒÂ§ÃƒÂ£o nÃƒÂ£o pode ser desfeita e liberarÃƒÂ¡ o horÃƒÂ¡rio/espaÃƒÂ§o para novos clientes.
                 </AlertDialogDescription>
              </AlertDialogHeader>
              <AlertDialogFooter className="gap-2">
@@ -2057,7 +2149,7 @@ function EditKioskDialog({ group, onClose, onUpdated, updateOrderTotal }: any) {
 
   const handleSave = async () => {
     if (selectedKiosks.length !== group.items.length) {
-      toast({ title: 'Atenção', description: `Selecione exatamente ${group.items.length} quiosque(s).`, variant: 'destructive' });
+      toast({ title: 'AtenÃƒÂ§ÃƒÂ£o', description: `Selecione exatamente ${group.items.length} quiosque(s).`, variant: 'destructive' });
       return;
     }
     setLoading(true);

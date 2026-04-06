@@ -146,6 +146,15 @@ export async function markOrderAsPaid(orderId: string) {
  * Generates a unique voucher for an order.
  */
 export async function generateVoucher(orderId: string) {
+  // Check if voucher exists first to avoid duplicate errors
+  const { data: existingVoucher } = await (supabase
+    .from('vouchers') as any)
+    .select('*')
+    .eq('order_id', orderId)
+    .maybeSingle();
+
+  if (existingVoucher) return existingVoucher;
+
   // Try to get the confirmation_code from the order first for consistency
   const { data: order } = await (supabase
     .from('orders') as any)
