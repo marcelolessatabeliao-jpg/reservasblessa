@@ -28,7 +28,7 @@ if (content.indexOf('if (token) fetchData();') !== -1) {
 }
 
 // Check-in logic
-const oldRedeem = /toast\(\{ title: "âœ“ Status atualizado" \}\);\s*fetchData\(\);/g;
+const oldRedeem = /toast\(\{ title: "✓ Status atualizado" \}\);\s*fetchData\(\);/g;
 const newRedeem = `if (status === 'checked-in' && isOrder) {
         await supabase.from('order_items').update({ is_redeemed: true }).eq('order_id', bookingId);
       }

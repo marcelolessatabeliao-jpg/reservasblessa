@@ -107,7 +107,7 @@ type TabType = 'painel' | 'reservas' | 'quiosques' | 'quads' | 'vendas';
 const normalizeQuadType = (t: string) => {
   const slow = (t || '').toLowerCase();
   if (slow.includes('dupla')) return 'dupla';
-  if (slow.includes('crianca')) return 'adulto-crianca';
+  if (slow.includes('criança')) return 'adulto-crianca';
   return 'individual';
 };
 
@@ -257,7 +257,7 @@ export default function Admin() {
                
                // Listas categorizadas para contagem de pessoas
                 const adultKeywords = ['adulto', 'solidário', 'solidario', 'professor', 'estudante', 'servidor'];
-                const gratuityKeywords = ['criança', 'crianca', 'idoso', 'pcd', 'aniversariante'];
+                const gratuityKeywords = ['criança', 'criança', 'idoso', 'pcd', 'aniversariante'];
 
                 const isAdult = adultKeywords.some(key => pName.includes(key) || pId.includes(key));
                 const isGratuity = gratuityKeywords.some(key => pName.includes(key) || pId.includes(key));
@@ -348,7 +348,7 @@ export default function Admin() {
                }
             });
             
-            // Atribuir contagens extraí­das se não estiverem presentes
+            // Atribuir contagens extraídas se não estiverem presentes
             o.adults = o.adults || orderAdults;
             o.children = o.children || orderChildren;
          });
@@ -374,7 +374,7 @@ export default function Admin() {
       let tAdults = 0;
       let tChildren = 0;
       const adultKeywords = ['adulto', 'solidario', 'professor', 'estudante', 'servidor'];
-      const gratuityKeywords = ['crianca', 'kids', 'idoso', 'pcd', 'aniversariante'];
+      const gratuityKeywords = ['criança', 'kids', 'idoso', 'pcd', 'aniversariante'];
 
       [...(enrichedBookings || []), ...(orderData || [])].forEach(b => {
         if (b.status === 'confirmed' || b.status === 'paid' || b.status === 'pending') {
@@ -439,7 +439,7 @@ export default function Admin() {
         if (editData[f] !== undefined) payload[f] = editData[f];
       });
 
-      // Se for uma reserva virtual extraí­da de um pedido, precisa virar real no banco
+      // Se for uma reserva virtual extraída de um pedido, precisa virar real no banco
       if (typeof editingId === 'string' && editingId.startsWith('order-')) {
         payload.order_id = editData.order_id;
         const { error } = await supabase.from(table).insert([payload]);
@@ -510,7 +510,7 @@ export default function Admin() {
       if (status === 'checked-in' && isOrder) {
         await supabase.from('order_items').update({ is_redeemed: true }).eq('order_id', bookingId);
       }
-      toast({ title: "âœ“ Status atualizado" });
+      toast({ title: "✓ Status atualizado" });
       fetchData();
     } catch (err) {
       console.error('Update status error:', err);
@@ -524,7 +524,7 @@ export default function Admin() {
       const table = isOrder ? 'orders' : 'bookings';
       const { error } = await supabase.from(table).update({ notes }).eq('id', bookingId);
       if (error) throw error;
-      toast({ title: "í¢Å“â€œ Nota adicionada" });
+      toast({ title: "✓ Nota adicionada" });
       fetchData();
     } catch (err) {
       toast({ title: "Erro ao adicionar nota", variant: "destructive" });
@@ -594,9 +594,9 @@ export default function Admin() {
       ));
       
       const hasError = results.some(r => r.error);
-      if (hasError) throw new Error('Algumas atualizaçíµes falharam');
+      if (hasError) throw new Error('Algumas atualizações falharam');
       
-      toast({ title: 'í¢Å“â€œ Reagendado com sucesso' });
+      toast({ title: '✓ Reagendado com sucesso' });
       fetchData();
       setRescheduleData(null);
     } catch (err) {
@@ -661,7 +661,7 @@ export default function Admin() {
       const isOrder = resId.toString().startsWith('order-');
       if (isOrder) {
          // It's a virtual reservation from an order, we might need to update the order instead or just toast
-         toast({ title: "Esta ├® uma reserva de pedido. O comprovante deve ser anexado ao pedido na aba Reservas." });
+         toast({ title: "Esta é uma reserva de pedido. O comprovante deve ser anexado ao pedido na aba Reservas." });
       } else {
          const { error: updateError } = await supabase.from('kiosk_reservations').update({ receipt_url: publicUrl }).eq('id', resId);
          if (updateError) throw updateError;
@@ -683,7 +683,7 @@ export default function Admin() {
       
       const isOrder = resId.toString().startsWith('order-');
       if (isOrder) {
-         toast({ title: "Esta ├® uma reserva de pedido. O comprovante deve ser anexado ao pedido na aba Reservas." });
+         toast({ title: "Esta é uma reserva de pedido. O comprovante deve ser anexado ao pedido na aba Reservas." });
       } else {
          const { error: updateError } = await supabase.from('quad_reservations').update({ receipt_url: publicUrl }).eq('id', resId);
          if (updateError) throw updateError;
@@ -743,7 +743,7 @@ export default function Admin() {
       
       // BROADENED QUAD DETECTION
       // Manual bookings use "Passeio" keywords instead of "Quadri"
-      const quadKeywords = ['quadri', 'passeio', 'quadriciclo', 'quadricido'];
+      const quadKeywords = ['quadri', 'passeio', 'quadriciclo', 'quadriciclo'];
       const quadItems = bItems.filter(i => quadKeywords.some(k => (i.product_name || '').toLowerCase().includes(k)));
       
       quadItems.forEach(qi => {
@@ -781,7 +781,7 @@ export default function Admin() {
                          {targetDate.getDate()}
                       </div>
                       <div>
-                         <h3 className="text-[16px] font-black text-emerald-950 tracking-tight leading-none mb-1">Opera├º├úo Di├íria</h3>
+                         <h3 className="text-[16px] font-black text-emerald-950 tracking-tight leading-none mb-1">Operação Diária</h3>
                          <p className="text-[11px] font-black text-emerald-950 uppercase tracking-tighter">{format(targetDate, "EEEE, yyyy", { locale: ptBR })}</p>
                       </div>
                    </div>
@@ -875,7 +875,7 @@ export default function Admin() {
                       <div className="bg-amber-50/50 rounded-[1.25rem] p-3 shadow-sm border border-amber-200 mt-2 space-y-2.5">
                          <div className="flex items-center justify-between px-1">
                             <span className="font-black text-amber-900 text-[11px] uppercase tracking-wider flex items-center gap-2">
-                               <AlertTriangle className="w-3.5 h-3.5" /> Extra / S. Hor├írio
+                               <AlertTriangle className="w-3.5 h-3.5" /> Extra / S. Horário
                             </span>
                          </div>
                          <div className="rounded-xl border border-amber-100 bg-white/40 p-1.5 min-h-[32px] flex items-center justify-center text-center">
@@ -913,7 +913,7 @@ export default function Admin() {
                     <h4 className="text-lg font-black text-emerald-950 tracking-tight">Resumo Geral</h4>
                  </div>
                  <p className="text-[11px] font-bold text-emerald-800/70 leading-relaxed mb-6">
-                    Selecione uma data para organizar seu dia de opera├º├Áes.
+                    Selecione uma data para organizar seu dia de operações.
                  </p>
                  
                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -1137,7 +1137,7 @@ export default function Admin() {
                       <th className="px-6 py-4">Cliente</th>
                       <th className="px-6 py-4">Quiosques / Capacidade</th>
                       <th className="px-6 py-4">Valor</th>
-                      <th className="px-6 py-4 text-right">Açíµes</th>
+                      <th className="px-6 py-4 text-right">Ações</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y-2 divide-slate-100">
@@ -1350,7 +1350,7 @@ export default function Admin() {
                       <th className="px-6 py-4">Modelos</th>
                       <th className="px-6 py-4 text-center">Total Quadriciclos</th>
                       <th className="px-6 py-4">Valor Total</th>
-                      <th className="px-6 py-4 text-right">Açíµes</th>
+                      <th className="px-6 py-4 text-right">Ações</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y-2 divide-slate-100">
@@ -1545,7 +1545,7 @@ export default function Admin() {
                    <th className="px-6 py-4">Cliente</th>
                    <th className="px-6 py-4">Total</th>
                    <th className="px-6 py-4">Status</th>
-                   <th className="px-6 py-4 text-right">Açíµes</th>
+                   <th className="px-6 py-4 text-right">Ações</th>
                 </tr>
              </thead>
              <tbody className="divide-y divide-border/30">
@@ -1843,14 +1843,14 @@ export default function Admin() {
                       const table = isOrder ? 'orders' : 'bookings';
                       const { error } = await supabase.from(table).update({ visit_date: date }).eq('id', id);
                       if (error) toast({ title: "Erro ao reagendar", variant: "destructive" });
-                      else { toast({ title: "í¢Å“â€œ Reagendado" }); fetchData(); }
+                      else { toast({ title: "✓ Reagendado" }); fetchData(); }
                    }}
                     onDelete={async (id, isOrder) => {
                        const table = isOrder ? 'orders' : 'bookings';
                        try {
                          const { error } = await supabase.from(table).delete().eq('id', id);
                          if (error) throw error;
-                         toast({ title: "í¢Å“â€œ Removido com sucesso" });
+                         toast({ title: "✓ Removido com sucesso" });
                          fetchData();
                        } catch (err: any) {
                          console.error('Delete error:', err);

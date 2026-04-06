@@ -37,7 +37,7 @@ const oldFunc = `const updateBookingStatus = async (bookingId: string, status: s
       const table = isOrder ? 'orders' : 'bookings';
       const { error } = await supabase.from(table).update({ status }).eq('id', bookingId);
       if (error) throw error;
-      toast({ title: "âœ“ Status atualizado" });
+      toast({ title: "✓ Status atualizado" });
       fetchData();
     } catch (err) {
       console.error('Update status error:', err);
@@ -59,7 +59,7 @@ const oldFragment = `  const updateBookingStatus = async (bookingId: string, sta
       const table = isOrder ? 'orders' : 'bookings';
       const { error } = await supabase.from(table).update({ status }).eq('id', bookingId);
       if (error) throw error;
-      toast({ title: "âœ“ Status atualizado" });
+      toast({ title: "✓ Status atualizado" });
       fetchData();
     } catch (err) {
       console.error('Update status error:', err);
