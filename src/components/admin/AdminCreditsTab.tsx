@@ -9,7 +9,8 @@ import {
   CheckCircle2,
   History,
   Pencil,
-  Loader2
+  Loader2,
+  Upload
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -61,8 +62,10 @@ export function AdminCreditsTab({
     phone: '',
     cpf: '',
     amount: '',
-    notes: ''
+    notes: '',
+    receipt_url: ''
   });
+  const [isUploading, setIsUploading] = useState(false);
 
   const startEditing = (cred: any) => {
     setEditingCredit(cred);
@@ -71,7 +74,8 @@ export function AdminCreditsTab({
       phone: cred.customer_phone || '',
       cpf: cred.customer_cpf || '',
       amount: cred.amount.toString(),
-      notes: cred.notes || ''
+      notes: cred.notes || '',
+      receipt_url: cred.receipt_url || ''
     });
     setIsDialogOpen(true);
   };
@@ -79,7 +83,28 @@ export function AdminCreditsTab({
   const resetForm = () => {
     setIsDialogOpen(false);
     setEditingCredit(null);
-    setFormData({ name: '', phone: '', cpf: '', amount: '', notes: '' });
+    setFormData({ name: '', phone: '', cpf: '', amount: '', notes: '', receipt_url: '' });
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${crypto.randomUUID()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage.from('receipts').upload(fileName, file);
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage.from('receipts').getPublicUrl(fileName);
+      setFormData(prev => ({ ...prev, receipt_url: publicUrl }));
+      toast({ title: "Comprovante anexado!" });
+    } catch (err: any) {
+      toast({ title: "Erro no upload", description: err.message, variant: "destructive" });
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleMarkUsed = async (id: string, amount: number) => {
@@ -109,7 +134,8 @@ export function AdminCreditsTab({
           customer_phone: formData.phone,
           customer_cpf: formData.cpf,
           amount: parseFloat(formData.amount),
-          notes: formData.notes
+          notes: formData.notes,
+          receipt_url: formData.receipt_url
         }).eq('id', editingCredit.id);
         if (error) throw error;
         toast({ title: "✓ Crédito Atualizado!" });
@@ -119,7 +145,8 @@ export function AdminCreditsTab({
           customer_phone: formData.phone,
           customer_cpf: formData.cpf,
           amount: parseFloat(formData.amount),
-          notes: formData.notes
+          notes: formData.notes,
+          receipt_url: formData.receipt_url
         });
         if (error) throw error;
         toast({ title: "✓ Crédito Adicionado!", description: `R$ ${formData.amount} para ${formData.name}` });
@@ -259,6 +286,27 @@ export function AdminCreditsTab({
                   />
                 </div>
 
+                <div className="space-y-1.5 pt-2 border-t border-amber-50">
+                  <Label className="text-[10px] font-black uppercase text-amber-700/60 ml-1 flex items-center gap-1.5">
+                    <Upload className="w-3 h-3" /> Comprovante (Opcional)
+                  </Label>
+                  <div className="flex items-center gap-3">
+                    <Input 
+                      type="file" 
+                      accept="image/*,.pdf"
+                      onChange={handleFileUpload}
+                      disabled={isUploading}
+                      className="h-10 rounded-xl focus:border-amber-200 bg-slate-50 font-bold file:mr-4 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-[10px] file:font-black file:bg-amber-100 file:text-amber-700 hover:file:bg-amber-200 cursor-pointer"
+                    />
+                    {isUploading && <Loader2 className="w-5 h-5 animate-spin text-amber-500" />}
+                  </div>
+                  {formData.receipt_url && (
+                    <a href={formData.receipt_url} target="_blank" rel="noreferrer" className="text-[10px] font-black text-blue-600 hover:underline flex items-center gap-1 mt-1">
+                      <FileText className="w-3 h-3" /> Visualizar comprovante salvo
+                    </a>
+                  )}
+                </div>
+
                 <DialogFooter className="pt-4 gap-3">
                   <Button 
                     type="button"
@@ -299,7 +347,7 @@ export function AdminCreditsTab({
                    <tr key={cred.id} className="hover:bg-amber-50/30 transition-colors">
                       <td className="px-6 py-5">
                          <div className="font-bold text-slate-900">{cred.customer_name}</div>
-                         {cred.notes && <div className="text-[10px] text-amber-600 font-bold italic mt-0.5 line-clamp-1">{cred.notes}</div>}
+                         {cred.notes && <div className="text-[10px] text-amber-600 font-bold italic mt-1 break-words max-w-sm">{cred.notes}</div>}
                       </td>
                       <td className="px-6 py-5">
                          <div className="flex flex-col text-xs font-bold text-slate-500">
@@ -318,6 +366,17 @@ export function AdminCreditsTab({
                       </td>
                       <td className="px-6 py-5 text-right">
                          <div className="flex items-center justify-end gap-1">
+                            {cred.receipt_url && (
+                                <Button 
+                                  size="icon" 
+                                  variant="ghost" 
+                                  className="h-9 w-9 text-blue-600 hover:bg-blue-50 hover:text-blue-700 rounded-xl"
+                                  onClick={() => window.open(cred.receipt_url, '_blank')}
+                                  title="Ver Comprovante"
+                                >
+                                  <FileText className="w-4 h-4" />
+                                </Button>
+                            )}
                             {currentTab === 'ativos' && (
                               <>
                                 <Button 

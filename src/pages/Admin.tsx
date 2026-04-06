@@ -189,6 +189,9 @@ export default function Admin() {
   const normalizeString = (str: string) => 
     str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
+  const normalizePhone = (phone: string | null | undefined) => 
+    (phone || '').replace(/\D/g, '');
+
   const matchDate = (d1: any, d2: any) => {
     if (!d1 || !d2) return false;
     const s1 = typeof d1 === 'string' ? d1.split('T')[0] : format(d1, 'yyyy-MM-dd');
@@ -372,12 +375,19 @@ export default function Admin() {
 
       // Merge booking data with order payment info for display
       const flattenedBks = (enrichedBookings || []).map(b => {
-        const order = orderData?.find((o: any) => o.confirmation_code === b.confirmation_code);
+        // Match by confirmation_code or fuzzy name/phone
+        const order = (orderData || []).find((o: any) => 
+          (o.confirmation_code && b.confirmation_code && o.confirmation_code === b.confirmation_code) ||
+          (normalizeString(o.customer_name || '') === normalizeString(b.name || '') && 
+           (normalizePhone(o.customer_phone || '') === normalizePhone(b.phone || '') || !b.phone))
+        );
+        
         return {
           ...b,
           payments: order?.payments || [],
           customer_phone: order?.customer_phone || (b as any).phone,
-          customer_cpf: order?.customer_cpf || (b as any).cpf
+          customer_cpf: order?.customer_cpf || (b as any).cpf,
+          is_order: !!order
         };
       });
 
@@ -1097,25 +1107,31 @@ export default function Admin() {
 
     return (
       <div className="space-y-6 animate-in fade-in duration-500">
-        {/* Header */}
+        {/* TAB HEADER - CLEAN & PREMIUM PILLS */}
         <div className="bg-white rounded-3xl border-2 border-slate-300 shadow-xl overflow-hidden">
           <div className="p-6 border-b-2 border-slate-200 bg-slate-50">
             <div className="flex items-center justify-between flex-wrap gap-4">
               <div>
-                <h3 className="text-lg font-bold text-primary">Reservas de Quiosques</h3>
-                <p className="text-xs text-muted-foreground">Gerencie todas as reservas por status</p>
+                <h3 className="text-lg font-black text-emerald-900 uppercase tracking-tight">Reservas de Quiosques</h3>
+                <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-widest">Controle total por status e período</p>
               </div>
-              <AgendaHeader 
-                agendaSubTab={kioskSubTab as any}
-                setAgendaSubTab={setKioskSubTab as any}
-                search={search}
-                setSearch={setSearch}
-                filterDate={''} // We don't filter by date here yet
-                setFilterDate={() => {}}
-                statusFilter={'all'} 
-                setStatusFilter={() => {}}
-                isAllowedDay={isAllowedDay}
-              />
+              <div className="flex flex-row overflow-x-auto gap-2 bg-slate-100 p-1 rounded-2xl w-full md:w-auto shadow-inner border border-slate-200">
+                {subTabConfig.map(t => (
+                  <button
+                    key={t.key}
+                    onClick={() => setKioskSubTab(t.key as any)}
+                    className={cn(
+                      'flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300',
+                      kioskSubTab === t.key ? t.color + ' shadow-lg scale-105 ring-4 ring-emerald-500/10' : 'text-slate-500 hover:text-slate-900 hover:bg-white/50'
+                    )}
+                  >
+                    {t.label}
+                    <span className={cn('rounded-full px-2 py-0.5 text-[9px] font-black shadow-sm', kioskSubTab === t.key ? 'bg-white/30 text-white' : 'bg-slate-200 text-slate-700')}>
+                      {t.count}
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -1319,20 +1335,26 @@ export default function Admin() {
           <div className="p-6 border-b-2 border-slate-200 bg-blue-50/50">
             <div className="flex items-center justify-between flex-wrap gap-4">
               <div>
-                <h3 className="text-lg font-black text-blue-950">Reservas de Quadriciclos</h3>
-                <p className="text-xs text-blue-900 font-bold">Clique em um grupo para ver os horários</p>
+                <h3 className="text-lg font-black text-blue-900 uppercase tracking-tight">Reservas de Quadriciclos</h3>
+                <p className="text-[10px] text-blue-600 font-bold uppercase tracking-widest">Gestão de frota e horários</p>
               </div>
-              <AgendaHeader 
-                agendaSubTab={quadSubTab as any}
-                setAgendaSubTab={setQuadSubTab as any}
-                search={search}
-                setSearch={setSearch}
-                filterDate={''}
-                setFilterDate={() => {}}
-                statusFilter={'all'}
-                setStatusFilter={() => {}}
-                isAllowedDay={isAllowedDay}
-              />
+              <div className="flex flex-row overflow-x-auto gap-2 bg-slate-100 p-1 rounded-2xl w-full md:w-auto shadow-inner border border-slate-200">
+                {subTabConfig.map(t => (
+                  <button
+                    key={t.key}
+                    onClick={() => setQuadSubTab(t.key as any)}
+                    className={cn(
+                      'flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300',
+                      quadSubTab === t.key ? t.color + ' shadow-lg scale-105 ring-4 ring-blue-500/10' : 'text-slate-500 hover:text-slate-900 hover:bg-white/50'
+                    )}
+                  >
+                    {t.label}
+                    <span className={cn('rounded-full px-2 py-0.5 text-[9px] font-black shadow-sm', quadSubTab === t.key ? 'bg-white/30 text-white' : 'bg-slate-200 text-slate-700')}>
+                      {t.count}
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 

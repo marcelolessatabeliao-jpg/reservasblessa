@@ -55,14 +55,17 @@ export const AgendaHeader: React.FC<AgendaHeaderProps> = ({
         ))}
       </div>
 
-      {/* BARRA DE PESQUISA DOMINANTE */}
-      <div className="relative flex-1 min-w-[120px] md:min-w-[300px] group">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-emerald-100 group-hover:text-white transition-colors" />
-        <Input 
-          placeholder="Pesquisar Nome, CPF, Telefone ou ID..." 
-          className="pl-9 h-10 rounded-lg bg-emerald-600 border-2 border-emerald-700 font-bold text-white placeholder:text-emerald-100/60 focus-visible:ring-emerald-400 text-xs transition-all w-full shadow-md" 
-          value={search} 
-          onChange={e => setSearch(e.target.value)} 
+      {/* BUSCA DE RESERVAS */}
+      <div className="flex-1 min-w-[150px] relative group h-10">
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <Search className="h-3.5 w-3.5 text-emerald-500 group-focus-within:text-emerald-700 transition-colors" />
+        </div>
+        <Input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="PESQUISAR NOME / CPF / TEL..."
+          className="h-full pl-9 pr-4 rounded-lg bg-white border-emerald-100 focus:border-emerald-500 focus:ring-emerald-500/20 text-[10px] font-bold uppercase tracking-wider shadow-sm transition-all"
         />
       </div>
 
