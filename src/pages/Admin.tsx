@@ -783,7 +783,7 @@ export default function Admin() {
                          {targetDate.getDate()}
                       </div>
                       <div>
-                         <h3 className="text-[16px] font-black text-emerald-950 tracking-tight leading-none mb-1">OperaÃƒÂ§ÃƒÂ£o DiÃƒÂ¡ria</h3>
+                         <h3 className="text-[16px] font-black text-emerald-950 tracking-tight leading-none mb-1">Operação Diária</h3>
                          <p className="text-[11px] font-black text-emerald-950 uppercase tracking-tighter">{format(targetDate, "EEEE, yyyy", { locale: ptBR })}</p>
                       </div>
                    </div>
@@ -1045,7 +1045,7 @@ export default function Admin() {
     const subTabConfig = [
       { key: 'hoje', label: 'Ativos Hoje', count: groupsByTab.hoje.length, color: 'bg-emerald-600 text-white' },
       { key: 'futuras', label: 'Reservas Futuras', count: groupsByTab.futuras.length, color: 'bg-blue-100 text-blue-700' },
-      { key: 'historico', label: 'HistÃƒÂ³rico', count: groupsByTab.historico.length, color: 'bg-slate-100 text-slate-600' },
+      { key: 'historico', label: 'Histórico', count: groupsByTab.historico.length, color: 'bg-slate-100 text-slate-600' },
     ];
 
     return (
@@ -1142,7 +1142,7 @@ export default function Admin() {
                       <th className="px-6 py-4">Cliente</th>
                       <th className="px-6 py-4">Quiosques / Capacidade</th>
                       <th className="px-6 py-4">Valor</th>
-                      <th className="px-6 py-4 text-right">AÃƒÂ§ÃƒÂµes</th>
+                      <th className="px-6 py-4 text-right">Ações</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y-2 divide-slate-100">
@@ -1234,7 +1234,7 @@ export default function Admin() {
     const subTabConfig = [
       { key: 'hoje', label: 'Ativos Hoje', count: groupsByTab.hoje.length, color: 'bg-blue-600 text-white' },
       { key: 'futuras', label: 'Reservas Futuras', count: groupsByTab.futuras.length, color: 'bg-blue-100 text-blue-700' },
-      { key: 'historico', label: 'HistÃƒÂ³rico', count: groupsByTab.historico.length, color: 'bg-slate-100 text-slate-600' },
+      { key: 'historico', label: 'Histórico', count: groupsByTab.historico.length, color: 'bg-slate-100 text-slate-600' },
     ];
 
     return (
@@ -1244,7 +1244,7 @@ export default function Admin() {
             <div className="flex items-center justify-between flex-wrap gap-4">
               <div>
                 <h3 className="text-lg font-black text-blue-950">Reservas de Quadriciclos</h3>
-                <p className="text-xs text-blue-900 font-bold">Clique em um grupo para ver os horÃƒÂ¡rios</p>
+                <p className="text-xs text-blue-900 font-bold">Clique em um grupo para ver os horários</p>
               </div>
               <div className="flex flex-row overflow-x-auto gap-2 bg-slate-100 p-1 rounded-2xl w-full md:w-auto">
                 {subTabConfig.map(t => (
@@ -1355,7 +1355,7 @@ export default function Admin() {
                       <th className="px-6 py-4">Modelos</th>
                       <th className="px-6 py-4 text-center">Total Quadriciclos</th>
                       <th className="px-6 py-4">Valor Total</th>
-                      <th className="px-6 py-4 text-right">AÃƒÂ§ÃƒÂµes</th>
+                      <th className="px-6 py-4 text-right">Ações</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y-2 divide-slate-100">
@@ -1387,7 +1387,7 @@ export default function Admin() {
                             </td>
                             <td className="px-6 py-4">
                               <span className="font-black text-slate-900 uppercase text-base">{group.customer_name}</span>
-                              <div className="text-[10px] text-slate-500 font-bold mt-0.5">{group.items.length} horÃƒÂ¡rio(s) reservado(s)</div>
+                              <div className="text-[10px] text-slate-500 font-bold mt-0.5">{group.items.length} horário(s) reservado(s)</div>
                             </td>
                             <td className="px-6 py-4">
                               <div className="flex flex-wrap gap-1">
@@ -1535,8 +1535,8 @@ export default function Admin() {
     <div className="bg-white rounded-3xl border border-border/50 shadow-card overflow-hidden animate-in fade-in duration-500">
         <div className="p-6 border-b border-border/50 bg-amber-50/30 flex items-center justify-between flex-wrap gap-4">
            <div>
-              <h3 className="text-lg font-bold text-amber-900">HistÃƒÂ³rico de Vendas e Pedidos</h3>
-              <p className="text-xs text-muted-foreground">GestÃƒÂ£o financeira centralizada</p>
+              <h3 className="text-lg font-bold text-amber-900">Histórico de Vendas e Pedidos</h3>
+              <p className="text-xs text-muted-foreground">Gestão financeira centralizada</p>
            </div>
            <div className="flex items-center gap-3">
               <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -1561,7 +1561,7 @@ export default function Admin() {
                    <th className="px-6 py-4">Cliente</th>
                    <th className="px-6 py-4">Total</th>
                    <th className="px-6 py-4">Status</th>
-                   <th className="px-6 py-4 text-right">AÃƒÂ§ÃƒÂµes</th>
+                   <th className="px-6 py-4 text-right">Ações</th>
                 </tr>
              </thead>
              <tbody className="divide-y divide-border/30">
@@ -1641,7 +1641,7 @@ export default function Admin() {
                              <span className="text-4xl md:text-4xl md:text-5xl text-[#FFF033] shadow-md">Painel</span>
                           </div>
                        </h1>
-                     <p className="text-[#FFF033] font-black uppercase tracking-[0.2em] md:tracking-[0.3em] text-[8px] md:text-[10px] bg-[#FFF033]/10 w-fit px-3 py-1 rounded-full border border-[#FFF033]/30 backdrop-blur-sm">GestÃƒÂ£o Integrada de Reservas - BalneÃƒÂ¡rio</p>
+                     <p className="text-[#FFF033] font-black uppercase tracking-[0.2em] md:tracking-[0.3em] text-[8px] md:text-[10px] bg-[#FFF033]/10 w-fit px-3 py-1 rounded-full border border-[#FFF033]/30 backdrop-blur-sm">Gestão Integrada de Reservas - BalneÃƒÂ¡rio</p>
                  </div>
 
                  {/* MOBILE BUTTONS (TOP RIGHT) */}
@@ -1791,7 +1791,7 @@ export default function Admin() {
              {activeTab === 'reservas' && (
                <div className="space-y-6">
                                    {/* Agenda Navigation Sub-Tabs */}
-                  <div className="flex items-center justify-between flex-wrap gap-4 bg-emerald-900/10 p-4 rounded-3xl border-2 border-emerald-100 mb-6">
+                  <div className="flex flex-row items-center justify-between gap-4 bg-emerald-900/10 p-4 rounded-3xl border-2 border-emerald-100 mb-6">
                     <div>
                       <h3 className="text-lg font-black text-emerald-900">Agenda Geral</h3>
                       <p className="text-[10px] font-bold text-emerald-700/70 uppercase tracking-widest">Todos os Pedidos e Reservas</p>
@@ -1818,12 +1818,12 @@ export default function Admin() {
                       ))}
                     </div>
                   </div>
-                  <div className="flex flex-col md:flex-row gap-4 w-full max-w-4xl">
-                    <div className="relative flex-[2.5] group">
+                  <div className="flex flex-col md:flex-row items-center gap-2 w-full">
+                    <div className="relative flex-1 group">
                       <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-100 group-hover:text-white transition-colors" />
                       <Input 
                         placeholder="Filtrar por nome, telefone ou cÃƒÂ³digo..." 
-                        className="pl-11 h-14 rounded-2xl bg-emerald-600 shadow-lg border-2 border-emerald-700 font-extrabold text-white placeholder:text-emerald-100 focus-visible:ring-emerald-400 text-lg transition-all hover:bg-emerald-700 hover:border-emerald-500" 
+                        className="pl-10 h-10 rounded-lg bg-emerald-600 shadow-md border-2 border-emerald-700 font-bold text-white placeholder:text-emerald-50/70 focus-visible:ring-emerald-400 text-sm transition-all hover:bg-emerald-700 hover:border-emerald-500" 
                         value={search} 
                         onChange={e => setSearch(e.target.value)} 
                       />
@@ -1834,7 +1834,7 @@ export default function Admin() {
                         <Button
                           variant="outline"
                           className={cn(
-                            "h-14 px-6 rounded-2xl bg-emerald-600 shadow-lg border-2 border-emerald-700 font-black text-white hover:bg-emerald-700 hover:border-emerald-500 transition-all gap-3 text-lg justify-start min-w-[140px]",
+                            "h-10 px-3 rounded-lg bg-emerald-600 shadow-md border-2 border-emerald-700 font-bold text-white hover:bg-emerald-700 hover:border-emerald-500 transition-all gap-2 text-xs justify-start shrink-0",
                             !filterDate && "text-emerald-100"
                           )}
                         >
@@ -1885,7 +1885,7 @@ export default function Admin() {
                     </Popover>
 
                     <Select value={statusFilter} onValueChange={setStatusFilter}>
-                      <SelectTrigger className="h-14 px-6 rounded-2xl bg-white shadow-lg border-2 border-emerald-100 font-black text-emerald-900 hover:border-emerald-500 transition-all gap-3 text-lg justify-start min-w-[140px]">
+                      <SelectTrigger className="h-14 px-6 rounded-2xl bg-white shadow-lg border-2 border-emerald-100 font-black text-emerald-900 hover:border-emerald-500 transition-all gap-3 text-lg justify-start min-w-[120px]">
                         <Users className="w-5 h-5 text-emerald-600" />
                         <SelectValue placeholder="Status" />
                       </SelectTrigger>
@@ -1922,9 +1922,9 @@ export default function Admin() {
                         (b.name || b.customer_name || '').toLowerCase().includes(search.toLowerCase()) ||
                         (b.phone || b.customer_phone || '').includes(search) ||
                         (b.confirmation_code || '').includes(search);
-                      const matchesStatus = statusFilter === 'all' ||
-                        (statusFilter === 'pending' && (!b.status || b.status === 'pending' || b.status === 'awaiting_payment')) ||
-                        b.status === statusFilter;
+                      const matchesStatus = statusFilter === 'all' || 
+                        (statusFilter === 'pending' && (!b.status || b.status.toLowerCase() === 'pending' || b.status.toLowerCase() === 'awaiting_payment' || b.status.toLowerCase() === 'waiting_local')) ||
+                        (b.status && b.status.toLowerCase() === statusFilter.toLowerCase());
                       let matchesDate = true;
                       if (filterDate) { matchesDate = bDate && bDate.startsWith(filterDate); } 
                       else {
@@ -2004,7 +2004,7 @@ export default function Admin() {
                    <AlertDialogTitle className="text-xl font-black text-slate-900">Confirmar ExclusÃƒÂ£o</AlertDialogTitle>
                 </div>
                 <AlertDialogDescription className="text-slate-600 font-bold">
-                   Deseja realmente remover esta reserva? Esta aÃƒÂ§ÃƒÂ£o nÃƒÂ£o pode ser desfeita e liberarÃƒÂ¡ o horÃƒÂ¡rio/espaÃƒÂ§o para novos clientes.
+                   Deseja realmente remover esta reserva? Esta aÃƒÂ§ÃƒÂ£o nÃƒÂ£o pode ser desfeita e liberarÃƒÂ¡ o horário/espaÃƒÂ§o para novos clientes.
                 </AlertDialogDescription>
              </AlertDialogHeader>
              <AlertDialogFooter className="gap-2">
