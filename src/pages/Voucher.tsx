@@ -109,6 +109,11 @@ export default function Voucher() {
                           <div>
                             <p className={`text-sm font-bold ${item.is_redeemed ? "line-through opacity-50" : "text-foreground"}`}>
                                {item.quantity}x {item.product_id}
+                                {((item.product_id || '').toLowerCase().includes('quad')) && (
+                                  <span className="ml-1 text-primary font-black lowercase text-[10px] bg-sun/10 px-1.5 py-0.5 rounded-md border border-sun/20">
+                                    {item.metadata?.time_slot || ''}
+                                  </span>
+                                )}
                             </p>
                             {item.is_redeemed && <span className="text-[8px] font-bold text-green-600 uppercase">Utilizado</span>}
                           </div>

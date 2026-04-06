@@ -2554,6 +2554,7 @@ function EditKioskDialog({ group, onClose, onUpdated, updateOrderTotal }: any) {
 
 function EditQuadDialog({ item, onClose, onUpdated, updateOrderTotal }: any) {
   const [model, setModel] = useState(item.quad_type || 'individual');
+  const [time, setTime] = useState(item.time_slot || '09:00');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -2564,11 +2565,14 @@ function EditQuadDialog({ item, onClose, onUpdated, updateOrderTotal }: any) {
       const discount = getQuadDiscount(new Date(item.reservation_date));
       const prices: any = { individual: 150, dupla: 250, 'adulto-crianca': 200 };
       const unitPrice = prices[model] * (1 - discount);
-      await (supabase.from('quad_reservations') as any).update({ quad_type: model, price: unitPrice * (item.quantity || 1) }).eq('id', item.id);
+      await (supabase.from('quad_reservations') as any).update({ quad_type: model, time_slot: time, price: unitPrice * (item.quantity || 1) }).eq('id', item.id);
       if (orderId && !String(orderId).startsWith('order-')) {
          const { data: oItems } = await supabase.from('order_items').select('*').eq('order_id', orderId);
          const quadItem = oItems?.find(oi => oi.product_id?.toLowerCase().includes('quad') || oi.product_name?.toLowerCase().includes('quad'));
-         if (quadItem) await supabase.from('order_items').update({ unit_price: unitPrice, product_id: `Quadriciclo ${QUAD_MODELS_LABELS[model]}` }).eq('id', quadItem.id);
+         if (quadItem) {
+            const newMeta = { ...(quadItem.metadata || {}), time_slot: time };
+            await supabase.from('order_items').update({ unit_price: unitPrice, product_id: `Quadriciclo ${QUAD_MODELS_LABELS[model]}`, metadata: newMeta }).eq('id', quadItem.id);
+         }
       }
       if (orderId) await updateOrderTotal(orderId);
       toast({ title: 'Sucesso!', description: 'Modelo atualizado.' });

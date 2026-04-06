@@ -229,6 +229,26 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                <div className="space-y-3">
                                   <p className="text-[9px] font-black uppercase tracking-widest text-emerald-700/60 pl-1">Ações e Controle</p>
                                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                      <Button 
+                                        onClick={(e: any) => { 
+                                                          e.stopPropagation(); 
+                                                          const phone = (booking.customer_phone || (booking as any).phone || '').replace(/\D/g, ''); 
+                                                          if (phone) { 
+                                                            const items = (booking as any).order_items || [];
+                                                            const itemsList = items.map((it: any) => `- ${it.quantity}x ${it.product_name || it.product_id} (${formatCurrency(it.unit_price)})`).join('%0A');
+                                                            const dateStr = format(parseISO(booking.visit_date || new Date().toISOString()), "dd/MM/yyyy", { locale: ptBR });
+                                                            const name = booking.name || (booking as any).customer_name;
+                                                            
+                                                            const text = `🍀 *BALNEÁRIO FAMÍLIA LESSA*%0A%0AEsse é seu voucher de confirmação da sua reserva e o resumo do seu pedido para apresentar caso seja solicitado.%0A%0A📅 *Data:* ${dateStr}%0A👤 *Titular:* ${name}%0A%0A📝 *Resumo do Pedido:*%0A${itemsList}%0A%0A💰 *Total:* ${formatCurrency(booking.total_amount)}%0A%0AVoucher: https://reservas.balneariolessa.com.br/voucher/${booking.confirmation_code}%0A%0A✨ *Aguardamos vocês para o lazer que a sua família merece.*`;
+                                                            
+                                                            window.open("https://wa.me/55" + phone + "?text=" + text, '_blank'); 
+                                                          } 
+                                                        }} 
+                                        className="bg-indigo-50 border-2 border-indigo-100 text-indigo-700 hover:bg-indigo-600 hover:text-white border-indigo-600 font-black uppercase text-[9px] h-12 rounded-xl flex flex-col items-center justify-center gap-1 transition-all duration-300"
+                                      >
+                                         <FileCheck className="w-3.5 h-3.5" /> 
+                                         Voucher
+                                      </Button>
                                       {((!['pago', 'paid', 'checked-in', 'cancelled', 'cancelado'].includes(booking.status?.toLowerCase() || ''))) && onGeneratePayment && (
                                         <Button 
                                           onClick={(e) => { e.stopPropagation(); onGeneratePayment(booking.id, !!booking.is_order); }} 
