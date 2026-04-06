@@ -1645,7 +1645,13 @@ export default function Admin() {
                 <ShoppingBag className="w-4 h-4 md:w-4.5 md:h-4.5" /> Vendas
              </button>
 
-             <InternalBookingAssistant onCreated={fetchData} isHoliday={isHoliday} isAllowedDay={isAllowedDay} />
+             <InternalBookingAssistant 
+                onCreated={fetchData} 
+                isHoliday={isHoliday} 
+                isAllowedDay={isAllowedDay} 
+                kioskReservations={kioskReservations}
+                quadReservations={quadReservations}
+             />
 
              
              

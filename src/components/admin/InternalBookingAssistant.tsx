@@ -25,7 +25,13 @@ const KIOSKS = [
   { id: 5, name: 'QUIOSQUE - 05', price: 75, type: 'Menor' }
 ];
 
-export function InternalBookingAssistant({ onCreated, isAllowedDay }: any) {
+export function InternalBookingAssistant({ 
+  onCreated, 
+  isAllowedDay, 
+  isHoliday, 
+  kioskReservations = [], 
+  quadReservations = [] 
+}: any) {
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isFetchingAvail, setIsFetchingAvail] = useState(false);
@@ -163,7 +169,6 @@ export function InternalBookingAssistant({ onCreated, isAllowedDay }: any) {
              </div>
           ) : (
              <>
-             {/* SECTION 1: CLIENTE E DATA */}
              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-1.5">
                    <label className="text-[10px] font-black text-emerald-800 uppercase tracking-widest flex items-center gap-1.5">
@@ -215,43 +220,61 @@ export function InternalBookingAssistant({ onCreated, isAllowedDay }: any) {
                                day_today: "bg-emerald-100 text-emerald-900 font-bold rounded-lg",
                                day_selected: "bg-emerald-600 text-white font-bold hover:bg-emerald-600 hover:text-white rounded-lg",
                             }}
+                            components={{
+                              DayContent: ({ date }) => {
+                                const dateStr = format(date, 'yyyy-MM-dd');
+                                const hasKiosk = (kioskReservations || []).some((r: any) => r.reservation_date === dateStr);
+                                const hasQuad = (quadReservations || []).some((r: any) => r.reservation_date === dateStr);
+                                const kiosksFull = (kioskReservations || []).filter((r: any) => r.reservation_date === dateStr).length >= 5;
+                                const quadsFull = (quadReservations || []).filter((r: any) => r.reservation_date === dateStr).reduce((s: any, r: any) => s + (Number(r.quantity) || 1), 0) >= 20;
+                                const isFull = kiosksFull && quadsFull;
+                                return (
+                                  <div className={cn("relative flex flex-col items-center p-0.5 rounded w-full h-full justify-center", isFull && "bg-red-50/50")}>
+                                    <span className={cn("text-[11px]", isFull && "text-red-500 font-black")}>{date.getDate()}</span>
+                                    <div className="flex gap-0.5 mt-0.5">
+                                      {hasKiosk && <div className={cn("w-1 h-1 rounded-full", kiosksFull ? "bg-red-500" : "bg-emerald-500")} />}
+                                      {hasQuad && <div className={cn("w-1 h-1 rounded-full", quadsFull ? "bg-red-500" : "bg-blue-500")} />}
+                                    </div>
+                                  </div>
+                                );
+                              }
+                            }}
                          />
                          <div className="flex justify-between p-2 border-t border-emerald-50">
-                            <Button variant="ghost" size="sm" onClick={() => setNewBookingData({...newBookingData, visit_date: ''})} className="text-[10px] uppercase font-bold text-emerald-600 h-8">Limpar</Button>
-                            <Button variant="ghost" size="sm" onClick={() => { setNewBookingData({...newBookingData, visit_date: format(new Date(), 'yyyy-MM-dd')}); setIsCalendarOpen(false); }} className="text-[10px] uppercase font-bold text-emerald-600 h-8">Hoje</Button>
+                            <Button variant="ghost" size="sm" onClick={() => setNewBookingData({...newBookingData, visit_date: ''})} className="text-[10px] uppercase font-black text-emerald-600 h-8">Limpar</Button>
+                            <Button variant="ghost" size="sm" onClick={() => { setNewBookingData({...newBookingData, visit_date: format(new Date(), 'yyyy-MM-dd')}); setIsCalendarOpen(false); }} className="text-[10px] uppercase font-black text-emerald-600 h-8">Hoje</Button>
                          </div>
                       </PopoverContent>
                    </Popover>
                 </div>
              </div>
 
-             {/* SECTION 2: PARTICIPANTES */}
              <div className="bg-white p-5 rounded-[2rem] border border-emerald-100 shadow-sm space-y-4">
                 <h4 className="text-[11px] font-black text-emerald-900 uppercase tracking-widest flex items-center gap-2 border-b border-emerald-50 pb-3">
                    <Users className="w-4 h-4" /> 1. Participantes
                 </h4>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                    {[
-                      { k: 'adults_normal', l: 'Adulto Integral', p: 'R$ 50', bg: 'emerald' },
-                      { k: 'adults_half', l: 'Meia-Entrada', p: 'R$ 25', bg: 'emerald' },
-                      { k: 'is_teacher', l: 'Professor', p: 'R$ 25', bg: 'emerald' },
-                      { k: 'is_student', l: 'Estudante', p: 'R$ 25', bg: 'emerald' },
-                      { k: 'is_server', l: 'Servidor', p: 'R$ 25', bg: 'emerald' },
-                      { k: 'is_donor', l: 'Doador Sangue', p: 'R$ 25', bg: 'emerald' },
-                      { k: 'is_solidarity', l: 'Adulto Solidário', p: 'R$ 25', bg: 'emerald' },
-                      { k: 'is_pcd', l: 'PCD', p: 'Grátis', bg: 'emerald' },
-                      { k: 'is_tea', l: 'TEA', p: 'Grátis', bg: 'emerald' },
-                      { k: 'is_senior', l: 'Idoso (60+)', p: 'Grátis', bg: 'emerald' },
-                      { k: 'is_birthday', l: 'Aniversariante', p: 'Grátis', bg: 'emerald' },
-                      { k: 'children_free', l: 'Kids (até 11A)', p: 'Grátis', bg: 'emerald' }
+                      { k: 'adults_normal', l: 'Adulto Integral', p: 'R$ 50' },
+                      { k: 'adults_half', l: 'Meia-Entrada', p: 'R$ 25' },
+                      { k: 'is_teacher', l: 'Professor', p: 'R$ 25' },
+                      { k: 'is_student', l: 'Estudante', p: 'R$ 25' },
+                      { k: 'is_server', l: 'Servidor', p: 'R$ 25' },
+                      { k: 'is_donor', l: 'Doador Sangue', p: 'R$ 25' },
+                      { k: 'is_solidarity', l: 'Adulto Solidário', p: 'R$ 25' },
+                      { k: 'is_pcd', l: 'PCD', p: 'Grátis' },
+                      { k: 'is_tea', l: 'TEA', p: 'Grátis' },
+                      { k: 'is_senior', l: 'Idoso (60+)', p: 'Grátis' },
+                      { k: 'is_birthday', l: 'Aniversariante', p: 'Grátis' },
+                      { k: 'children_free', l: 'Kids (até 11A)', p: 'Grátis' }
                    ].map(cat => (
                       <div key={cat.k} className="bg-white border border-emerald-100 rounded-[1.25rem] p-3 flex flex-col items-center justify-center text-center hover:shadow-md transition-all shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)]">
-                         <span className="text-[9px] sm:text-[10px] font-black text-emerald-800 uppercase tracking-tight leading-none mb-1">{cat.l}</span>
+                         <span className="text-[9px] sm:text-[10px] font-black text-emerald-800 uppercase tracking-tight mb-1">{cat.l}</span>
                          <span className="text-[10px] sm:text-[11px] font-bold text-emerald-600 mb-2.5">{cat.p}</span>
                          <div className="flex items-center justify-center gap-2 bg-emerald-50/50 rounded-full border border-emerald-100 p-0.5">
-                            <button onClick={() => setNewBookingData({...newBookingData, [cat.k]: Math.max(0, (newBookingData as any)[cat.k] - 1)})} className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-white border border-emerald-200 text-emerald-700 font-black flex items-center justify-center text-xs hover:bg-emerald-100 transition-colors shadow-sm">-</button>
-                            <span className="w-5 text-center font-black text-sm sm:text-base text-emerald-950">{(newBookingData as any)[cat.k]}</span>
-                            <button onClick={() => setNewBookingData({...newBookingData, [cat.k]: (newBookingData as any)[cat.k] + 1})} className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-white border border-emerald-200 text-emerald-700 font-black flex items-center justify-center text-xs hover:bg-emerald-100 transition-colors shadow-sm">+</button>
+                            <button onClick={() => setNewBookingData({...newBookingData, [cat.k]: Math.max(0, (newBookingData as any)[cat.k] - 1)})} className="w-6 h-6 rounded-full bg-white border border-emerald-200 text-emerald-700 font-black flex items-center justify-center text-xs hover:bg-emerald-100 shadow-sm">-</button>
+                            <span className="w-5 text-center font-black text-sm text-emerald-950">{(newBookingData as any)[cat.k]}</span>
+                            <button onClick={() => setNewBookingData({...newBookingData, [cat.k]: (newBookingData as any)[cat.k] + 1})} className="w-6 h-6 rounded-full bg-white border border-emerald-200 text-emerald-700 font-black flex items-center justify-center text-xs hover:bg-emerald-100 shadow-sm">+</button>
                          </div>
                       </div>
                    ))}
@@ -259,7 +282,6 @@ export function InternalBookingAssistant({ onCreated, isAllowedDay }: any) {
              </div>
 
              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* COL 1: QUIOSQUES */}
                 <div className="bg-white p-5 rounded-[2rem] border border-emerald-100 shadow-sm space-y-4">
                    <h4 className="text-[11px] font-black text-emerald-900 uppercase tracking-widest flex items-center gap-2 pb-3 border-b border-emerald-50">
                       <Tag className="w-4 h-4" /> 2. Quiosques
@@ -273,14 +295,13 @@ export function InternalBookingAssistant({ onCreated, isAllowedDay }: any) {
                                if (isSelected) setNewBookingData({...newBookingData, selected_kiosks: newBookingData.selected_kiosks.filter(id => id !== k.id)});
                                else setNewBookingData({...newBookingData, selected_kiosks: [...newBookingData.selected_kiosks, k.id]});
                             }} className={cn("h-12 rounded-xl font-black text-[10px] md:text-xs transition-all border-2 flex items-center justify-center", isBooked ? "bg-slate-100 border-slate-200 text-slate-300" : isSelected ? "bg-emerald-600 border-emerald-700 text-white shadow-md scale-[1.02]" : "bg-white border-emerald-100 text-emerald-800 hover:border-emerald-300")}>
-                               Q-{k.id}
+                                Q-{k.id}
                             </button>
                          );
                       })}
                    </div>
                 </div>
 
-                {/* COL 2: QUADS */}
                 <div className="bg-white p-5 rounded-[2rem] border border-emerald-100 shadow-sm space-y-4">
                    <h4 className="text-[11px] font-black text-emerald-900 uppercase tracking-widest flex items-center gap-2 pb-3 border-b border-emerald-50">
                       <Bike className="w-4 h-4" /> 3. Quadriciclos (Máx. 3 por horário)
@@ -325,11 +346,9 @@ export function InternalBookingAssistant({ onCreated, isAllowedDay }: any) {
                                                   setNewBookingData({...newBookingData, quads: newQuads});
                                                }
                                            }} disabled={qty === 0} className={cn("w-full h-5 flex items-center justify-center rounded-t-full border border-b-0 font-bold text-xs transition-colors", qty > 0 ? "bg-emerald-100 border-emerald-200 text-emerald-700 hover:bg-emerald-200 cursor-pointer" : "bg-slate-50 border-slate-200 text-slate-300 opacity-60")}>-</button>
-                                           
                                            <div className={cn("w-full h-8 flex items-center justify-center border font-black text-[9px] sm:text-[10px] leading-none transition-colors", qty > 0 ? "border-emerald-500 bg-emerald-600 text-white shadow-inner" : "border-slate-200 bg-white text-emerald-800")}>
                                               {qty > 0 ? `${qty}x ${labels[type]}` : labels[type]}
                                            </div>
-                                           
                                            <button onClick={() => {
                                                if (remaining > 0) {
                                                   const existing = newBookingData.quads.find(q => q.type === type && q.time === t);
@@ -353,14 +372,11 @@ export function InternalBookingAssistant({ onCreated, isAllowedDay }: any) {
                 </div>
              </div>
 
-             {/* SECTION 4: AJUSTES E STATUS */}
              <div className="bg-[#114030] p-6 lg:p-8 rounded-[2rem] shadow-xl text-white mt-8">
                 <h4 className="text-xs font-black text-emerald-100 uppercase tracking-widest flex items-center gap-2 pb-5 opacity-90">
                    <Tag className="w-4 h-4" /> Ajustes e Status
                 </h4>
                 <div className="flex flex-col lg:flex-row gap-8 lg:gap-12 items-end">
-                   
-                   {/* Configurações lado Esquerdo */}
                    <div className="flex-1 space-y-6 w-full">
                       <div className="space-y-2 flex flex-col">
                          <label className="text-[10px] font-black text-emerald-200 uppercase tracking-widest border-l-2 border-emerald-400 pl-2">
@@ -400,7 +416,6 @@ export function InternalBookingAssistant({ onCreated, isAllowedDay }: any) {
                       </div>
                    </div>
 
-                   {/* Total e Botão lado Direito */}
                    <div className="flex-[1.2] flex flex-col items-end w-full">
                       <div className="flex flex-col items-end mb-6">
                          <span className="text-[10px] font-black uppercase tracking-widest text-emerald-300 opacity-80 border-r-2 border-emerald-400 pr-2 pb-1">Total da Reserva</span>
@@ -409,25 +424,25 @@ export function InternalBookingAssistant({ onCreated, isAllowedDay }: any) {
                             <span className="text-7xl lg:text-[5.5rem] font-black tracking-tighter leading-none text-white drop-shadow-lg">
                                {calculateTotalRaw().toFixed(2).replace('.', ',')}
                             </span>
-                         </div>
-                         <span className="text-[9.5px] font-bold text-emerald-400 mt-3 italic tracking-wide opacity-70">* Cálculo automático incluindo descontos do dia</span>
-                      </div>
-                      
-                      <Button onClick={handleCreateInternalBooking} disabled={loading || !newBookingData.name} className="w-full h-16 bg-[#8eb29c] hover:bg-white text-[#0a291f] rounded-2xl font-black text-[13px] uppercase shadow-xl transition-all active:scale-95 group overflow-hidden">
-                         {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : 
-                            <span className="flex items-center gap-2">
-                               Concluir e Salvar Reserva
-                               <Check className="w-5 h-5 group-hover:scale-125 transition-transform" />
-                            </span>
-                         }
-                      </Button>
-                   </div>
-                </div>
-             </div>
-             </>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
+                          </div>
+                          <span className="text-[9.5px] font-bold text-emerald-400 mt-3 italic tracking-wide opacity-70">* Cálculo automático incluindo descontos do dia</span>
+                       </div>
+                       
+                       <Button onClick={handleCreateInternalBooking} disabled={loading || !newBookingData.name} className="w-full h-16 bg-[#8eb29c] hover:bg-white text-[#0a291f] rounded-2xl font-black text-[13px] uppercase shadow-xl transition-all active:scale-95 group overflow-hidden">
+                          {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : 
+                             <span className="flex items-center gap-2">
+                                Concluir e Salvar Reserva
+                                <Check className="w-5 h-5 group-hover:scale-125 transition-transform" />
+                             </span>
+                          }
+                       </Button>
+                    </div>
+                 </div>
+              </div>
+              </>
+           )}
+         </div>
+       </DialogContent>
+     </Dialog>
+   );
 }
