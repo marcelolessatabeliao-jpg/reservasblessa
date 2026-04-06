@@ -1058,7 +1058,7 @@ export default function Admin() {
                 <h3 className="text-lg font-bold text-primary">Reservas de Quiosques</h3>
                 <p className="text-xs text-muted-foreground">Gerencie todas as reservas por status</p>
               </div>
-              <div className="grid grid-cols-2 md:flex gap-2 bg-slate-100 p-1 rounded-2xl w-full md:w-auto">
+              <div className="flex flex-row overflow-x-auto gap-2 bg-slate-100 p-1 rounded-2xl w-full md:w-auto">
                 {subTabConfig.map(t => (
                   <button
                     key={t.key}
@@ -1246,7 +1246,7 @@ export default function Admin() {
                 <h3 className="text-lg font-black text-blue-950">Reservas de Quadriciclos</h3>
                 <p className="text-xs text-blue-900 font-bold">Clique em um grupo para ver os horÃƒÂ¡rios</p>
               </div>
-              <div className="grid grid-cols-2 md:flex gap-2 bg-slate-100 p-1 rounded-2xl w-full md:w-auto">
+              <div className="flex flex-row overflow-x-auto gap-2 bg-slate-100 p-1 rounded-2xl w-full md:w-auto">
                 {subTabConfig.map(t => (
                   <button
                     key={t.key}
@@ -1796,7 +1796,7 @@ export default function Admin() {
                       <h3 className="text-lg font-black text-emerald-900">Agenda Geral</h3>
                       <p className="text-[10px] font-bold text-emerald-700/70 uppercase tracking-widest">Todos os Pedidos e Reservas</p>
                     </div>
-                    <div className="grid grid-cols-2 md:flex gap-2 bg-white/50 p-1 rounded-2xl w-full md:w-auto">
+                    <div className="flex flex-row overflow-x-auto gap-2 bg-white/50 p-1 rounded-2xl w-full md:w-auto">
                       {[
                         { key: 'hoje', label: 'Ativos Hoje', color: 'bg-emerald-600 text-white' },
                         { key: 'futuras', label: 'Reservas Futuras', color: 'bg-blue-100 text-blue-700' },
@@ -1819,7 +1819,7 @@ export default function Admin() {
                     </div>
                   </div>
                   <div className="flex flex-col md:flex-row gap-4 w-full max-w-4xl">
-                    <div className="relative flex-1 group">
+                    <div className="relative flex-[2.5] group">
                       <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-100 group-hover:text-white transition-colors" />
                       <Input 
                         placeholder="Filtrar por nome, telefone ou cÃƒÂ³digo..." 
@@ -1834,7 +1834,7 @@ export default function Admin() {
                         <Button
                           variant="outline"
                           className={cn(
-                            "h-14 px-6 rounded-2xl bg-emerald-600 shadow-lg border-2 border-emerald-700 font-black text-white hover:bg-emerald-700 hover:border-emerald-500 transition-all gap-3 text-lg justify-start min-w-[240px]",
+                            "h-14 px-6 rounded-2xl bg-emerald-600 shadow-lg border-2 border-emerald-700 font-black text-white hover:bg-emerald-700 hover:border-emerald-500 transition-all gap-3 text-lg justify-start min-w-[140px]",
                             !filterDate && "text-emerald-100"
                           )}
                         >
@@ -1885,7 +1885,7 @@ export default function Admin() {
                     </Popover>
 
                     <Select value={statusFilter} onValueChange={setStatusFilter}>
-                      <SelectTrigger className="h-14 px-6 rounded-2xl bg-white shadow-lg border-2 border-emerald-100 font-black text-emerald-900 hover:border-emerald-500 transition-all gap-3 text-lg justify-start min-w-[200px]">
+                      <SelectTrigger className="h-14 px-6 rounded-2xl bg-white shadow-lg border-2 border-emerald-100 font-black text-emerald-900 hover:border-emerald-500 transition-all gap-3 text-lg justify-start min-w-[140px]">
                         <Users className="w-5 h-5 text-emerald-600" />
                         <SelectValue placeholder="Status" />
                       </SelectTrigger>
@@ -1922,7 +1922,9 @@ export default function Admin() {
                         (b.name || b.customer_name || '').toLowerCase().includes(search.toLowerCase()) ||
                         (b.phone || b.customer_phone || '').includes(search) ||
                         (b.confirmation_code || '').includes(search);
-                      const matchesStatus = statusFilter === 'all' || b.status === statusFilter;
+                      const matchesStatus = statusFilter === 'all' ||
+                        (statusFilter === 'pending' && (!b.status || b.status === 'pending' || b.status === 'awaiting_payment')) ||
+                        b.status === statusFilter;
                       let matchesDate = true;
                       if (filterDate) { matchesDate = bDate && bDate.startsWith(filterDate); } 
                       else {

@@ -68,6 +68,7 @@ const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secon
   paid: { label: 'PAGO OK', variant: 'secondary', icon: CheckCircle, color: 'text-emerald-700', bgColor: 'bg-emerald-50', borderColor: 'border-emerald-200' },
   'checked-in': { label: 'CHECK-IN ✓', variant: 'default', icon: UserCheck, color: 'text-white', bgColor: 'bg-emerald-600', borderColor: 'border-emerald-700' },
   cancelled: { label: 'CANCELADA', variant: 'destructive', icon: XCircle, color: 'text-red-600', bgColor: 'bg-red-50', borderColor: 'border-red-200' },
+  awaiting_payment: { label: 'AGUARDANDO PGTO', variant: 'outline', icon: Clock, color: 'text-amber-600', bgColor: 'bg-amber-50', borderColor: 'border-amber-200' },
 };
 
 const getStatusConfig = (booking: any) => {
