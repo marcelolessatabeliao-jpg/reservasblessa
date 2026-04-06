@@ -17,9 +17,9 @@ export default function Voucher() {
       if (!code) return;
       const { data, error } = await supabase
         .from('orders')
-        .select(`*, order_items (*), quad_reservations (*)`) as any
+        .select(`*, order_items (*), quad_reservations (*)`)
         .eq('confirmation_code', code.toUpperCase())
-        .single();
+        .single() as any;
       
       if (data) setOrder(data);
       setLoading(true);

@@ -61,7 +61,7 @@ import { BookingTable } from '@/components/admin/BookingTable';
 import { getAdminOrders, markOrderAsPaid } from '@/integrations/supabase/orders';
 import { PaymentModal } from '@/components/booking/PaymentModal';
 import { InternalBookingAssistant } from '@/components/admin/InternalBookingAssistant';
-import { EditKioskDialog, EditQuadDialog } from '@/components/admin/AdminDialogs';
+
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { cn } from "@/lib/utils";
@@ -2101,4 +2101,3 @@ function EditQuadDialog({ item, onClose, onUpdated, updateOrderTotal }: any) {
     </Dialog>
   );
 }
-export default Admin;
