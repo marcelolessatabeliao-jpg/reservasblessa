@@ -26,7 +26,7 @@ const KIOSKS = [
 ];
 
 export function InternalBookingAssistant({ 
-  onCreated, 
+  onBookingComplete, 
   isAllowedDay, 
   isHoliday, 
   kioskReservations = [], 
@@ -106,7 +106,7 @@ export function InternalBookingAssistant({
       } else {
           toast({ title: 'Sucesso!', description: 'Reserva criada com sucesso.' });
           setIsOpen(false);
-          onCreated();
+          onBookingComplete();
       }
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message || 'Falha ao criar reserva.', variant: 'destructive' });
@@ -165,7 +165,7 @@ export function InternalBookingAssistant({
                 <div className="bg-white p-6 rounded-[2rem] shadow-2xl border-8 border-emerald-500/20">
                    <img src={`data:image/png;base64,${generatedPix.encodedImage}`} alt="QR" className="w-56 h-56" />
                 </div>
-                <Button onClick={() => { setIsOpen(false); setGeneratedPix(null); onCreated(); }} className="w-full max-w-sm h-16 bg-emerald-950 text-white hover:bg-emerald-900 rounded-2xl font-black transition-all">CONCLUÍDO - FECHAR</Button>
+                <Button onClick={() => { setIsOpen(false); setGeneratedPix(null); onBookingComplete(); }} className="w-full max-w-sm h-16 bg-emerald-950 text-white hover:bg-emerald-900 rounded-2xl font-black transition-all">CONCLUÍDO - FECHAR</Button>
              </div>
           ) : (
              <>

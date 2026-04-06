@@ -9,7 +9,7 @@ import {
   Users, Calendar, Upload, FileCheck, Loader2,
   CalendarClock, StickyNote, CalendarRange,
   Search, Filter, MapPin, Phone, CreditCard, ChevronRight,
-  Calendar as CalendarIcon, RotateCcw
+  Calendar as CalendarIcon, RotateCcw, Wallet
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -60,6 +60,7 @@ interface BookingTableProps {
   onRefresh?: () => void;
   onGeneratePayment?: (id: string, isOrder: boolean) => void;
   onSyncPayment?: (orderId: string) => void;
+  onConvertToCredit?: (booking: any) => void;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive'; icon: React.ElementType; color: string; bgColor: string; borderColor: string }> = {
@@ -85,7 +86,7 @@ const getStatusConfig = (booking: any) => {
   return baseConfig;
 };
 
-export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule, onDelete, onRemoveItem, updatingId, onFileUpload, isUploading, onRemoveReceipt, onRefresh, onGeneratePayment, onSyncPayment }: BookingTableProps) {
+export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule, onDelete, onRemoveItem, updatingId, onFileUpload, isUploading, onRemoveReceipt, onRefresh, onGeneratePayment, onSyncPayment, onConvertToCredit }: BookingTableProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [noteText, setNoteText] = useState('');
@@ -261,6 +262,15 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                       )}
                                       <Button onClick={(e) => {e.stopPropagation(); onStatusChange(booking.id, 'paid', booking.is_order);}} className="bg-emerald-600 hover:bg-emerald-700 text-white h-12 rounded-xl text-[9px] font-black uppercase shadow-sm flex flex-col items-center justify-center">Efetivar</Button>
                                       <Button onClick={(e) => {e.stopPropagation(); onStatusChange(booking.id, 'checked-in', booking.is_order);}} className="bg-emerald-700 hover:bg-emerald-800 text-white h-12 rounded-xl text-[9px] font-black uppercase shadow-sm flex flex-col items-center justify-center">Check-in</Button>
+                                      {onConvertToCredit && (
+                                        <Button 
+                                          onClick={(e) => { e.stopPropagation(); onConvertToCredit(booking); }} 
+                                          className="bg-purple-600 hover:bg-purple-700 text-white h-12 rounded-xl text-[9px] font-black uppercase shadow-sm flex flex-col items-center justify-center gap-0.5"
+                                        >
+                                          <Wallet className="w-3.5 h-3.5" />
+                                          Reserva em Aberto
+                                        </Button>
+                                      )}
                                       <Button 
                                         variant="outline" 
                                         onClick={(e) => { e.stopPropagation(); setRescheduleId(rescheduleId === booking.id ? null : booking.id); setRescheduleDate(booking.visit_date || ''); }} 
@@ -533,6 +543,15 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                                         <XCircle className="w-4 h-4" /> 
                                                         <span>CANCELAR</span>
                                                      </Button>
+                                                     {onConvertToCredit && (
+                                                       <Button 
+                                                         onClick={() => onConvertToCredit(booking)} 
+                                                         className="bg-purple-50 border-2 border-purple-100 text-purple-700 hover:bg-purple-600 hover:text-white hover:border-purple-600 font-black uppercase text-[9px] h-14 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all duration-300 shadow-sm"
+                                                       >
+                                                          <Wallet className="w-4 h-4" /> 
+                                                          <span>CRÉDITO / ABERTO</span>
+                                                       </Button>
+                                                     )}
                                                      <Button 
                                                        onClick={(e) => { 
                                                           e.stopPropagation(); 

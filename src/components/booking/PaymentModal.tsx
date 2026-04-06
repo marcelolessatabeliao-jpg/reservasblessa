@@ -255,7 +255,7 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, phone, 
                 <AlertTriangle className="w-3.5 h-3.5 fill-red-100" /> Aviso de Segurança
               </div>
               <p className="text-[10px] font-bold text-red-900 leading-tight">
-                O Balneário Lessa <span className="underline italic">NíƒÆ’O se responsabiliza</span> por pagamentos via PIX realizados para CPFs de terceiros. 
+                O Balneário Lessa <span className="underline italic">NÃO se responsabiliza</span> por pagamentos via PIX realizados para CPFs de terceiros. 
                 Utilize <span className="underline italic">APENAS</span> o QR Code ou o Código Copia e Cola gerado abaixo.
               </p>
             </div>
