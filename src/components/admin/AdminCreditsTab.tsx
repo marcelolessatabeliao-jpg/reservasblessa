@@ -33,6 +33,21 @@ export function AdminCreditsTab({
   fetchData,
   toast
 }: AdminCreditsTabProps) {
+  const formatCPF = (val: string) => {
+    const numeric = val.replace(/\D/g, '').substring(0, 11);
+    return numeric.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")
+                 .replace(/(\d{3})(\d{3})(\d{3})/, "$1.$2.$3")
+                 .replace(/(\d{3})(\d{3})/, "$1.$2");
+  };
+
+  const formatPhone = (val: string) => {
+    const numeric = val.replace(/\D/g, '').substring(0, 11);
+    if (numeric.length <= 10) {
+      return numeric.replace(/(\d{2})(\d{4})(\d{4})/, "($1) $2-$3");
+    }
+    return numeric.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
+  };
+
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -133,7 +148,7 @@ export function AdminCreditsTab({
                     </Label>
                     <Input 
                       value={formData.phone}
-                      onChange={e => setFormData({...formData, phone: e.target.value})}
+                      onChange={e => setFormData({...formData, phone: formatPhone(e.target.value)})}
                       placeholder="(00) 00000-0000"
                       className="h-12 rounded-xl border-2 border-amber-50 focus:border-amber-200 bg-slate-50 font-bold"
                     />
@@ -144,7 +159,7 @@ export function AdminCreditsTab({
                     </Label>
                     <Input 
                       value={formData.cpf}
-                      onChange={e => setFormData({...formData, cpf: e.target.value})}
+                      onChange={e => setFormData({...formData, cpf: formatCPF(e.target.value)})}
                       placeholder="000.000.000-00"
                       className="h-12 rounded-xl border-2 border-amber-50 focus:border-amber-200 bg-slate-50 font-bold"
                     />
@@ -222,8 +237,8 @@ export function AdminCreditsTab({
                       </td>
                       <td className="px-6 py-5">
                          <div className="flex flex-col text-xs font-bold text-slate-500">
-                            <span>{cred.customer_phone || "-"}</span>
-                            <span>{cred.customer_cpf || "-"}</span>
+                            <span>{cred.customer_phone ? formatPhone(cred.customer_phone) : "-"}</span>
+                            <span>{cred.customer_cpf ? formatCPF(cred.customer_cpf) : "-"}</span>
                          </div>
                       </td>
                       <td className="px-6 py-5 font-black text-amber-600 text-lg">
