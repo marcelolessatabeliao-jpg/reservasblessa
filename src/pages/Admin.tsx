@@ -1790,115 +1790,85 @@ export default function Admin() {
              {activeTab === 'painel' && renderDashboard()}
              {activeTab === 'reservas' && (
                <div className="space-y-6">
-                                   {/* Agenda Navigation Sub-Tabs */}
-                  <div className="flex flex-row items-center justify-between gap-4 bg-emerald-900/10 p-4 rounded-3xl border-2 border-emerald-100 mb-6">
-                    <div>
-                      <h3 className="text-lg font-black text-emerald-900">Agenda Geral</h3>
-                      <p className="text-[10px] font-bold text-emerald-700/70 uppercase tracking-widest">Todos os Pedidos e Reservas</p>
-                    </div>
-                    <div className="flex flex-row overflow-x-auto gap-2 bg-white/50 p-1 rounded-2xl w-full md:w-auto">
-                      {[
-                        { key: 'hoje', label: 'Ativos Hoje', color: 'bg-emerald-600 text-white' },
-                        { key: 'futuras', label: 'Reservas Futuras', color: 'bg-blue-100 text-blue-700' },
-                        { key: 'historico', label: 'Histórico', color: 'bg-slate-200 text-slate-700' },
-                      ].map(t => (
-                        <button
-                          key={t.key}
-                          onClick={() => {
-                            setAgendaSubTab(t.key as any);
-                            setFilterDate(''); 
-                          }}
-                          className={cn(
-                            'flex items-center gap-1.5 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all',
-                            agendaSubTab === t.key ? t.color + ' shadow-md' : 'text-slate-500 hover:text-slate-700'
-                          )}
-                        >
-                          {t.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="flex flex-col md:flex-row items-center gap-2 w-full">
-                    <div className="relative flex-1 group">
-                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-100 group-hover:text-white transition-colors" />
-                      <Input 
-                        placeholder="Filtrar por nome, telefone ou cíƒÂ³digo..." 
-                        className="pl-10 h-10 rounded-lg bg-emerald-600 shadow-md border-2 border-emerald-700 font-bold text-white placeholder:text-emerald-50/70 focus-visible:ring-emerald-400 text-sm transition-all hover:bg-emerald-700 hover:border-emerald-500" 
-                        value={search} 
-                        onChange={e => setSearch(e.target.value)} 
-                      />
-                    </div>
+                 
+                  {/* CABEÇALHO UNIFICADO EM LINHA ÚNICA (ABAS + FILTROS) */}
+                  <div className="flex flex-row items-center gap-2 bg-emerald-900/5 p-2 rounded-xl border border-emerald-100 shadow-sm w-full mb-6 overflow-x-auto no-scrollbar">
                     
+                    {/* ABAS DE NAVEGAÇÃO PÍLULA */}
+                    <div className="flex flex-row gap-0.5 bg-white/60 p-0.5 rounded-lg shrink-0 shadow-inner">
+                       {[
+                         { key: 'hoje', label: 'Hoje', color: 'bg-emerald-600 text-white shadow-sm' },
+                         { key: 'futuras', label: 'Futuras', color: 'bg-blue-600 text-white shadow-sm' },
+                         { key: 'historico', label: 'Histórico', color: 'bg-slate-700 text-white shadow-sm' },
+                       ].map(t => (
+                         <button
+                           key={t.key}
+                           onClick={() => { setAgendaSubTab(t.key as any); setFilterDate(''); }}
+                           className={cn(
+                             'px-3 py-1.5 rounded-md text-[9px] font-black uppercase tracking-wider transition-all duration-300',
+                             agendaSubTab === t.key ? t.color : 'text-slate-500 hover:bg-white/80'
+                           )}
+                         >
+                           {t.label}
+                         </button>
+                       ))}
+                    </div>
+
+                    {/* BARRA DE PESQUISA DOMINANTE */}
+                    <div className="relative flex-1 min-w-[200px] group">
+                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-emerald-100 group-hover:text-white transition-colors" />
+                       <Input 
+                         placeholder="Pesquisar Nome, CPF, Telefone ou ID..." 
+                         className="pl-9 h-10 rounded-lg bg-emerald-600 border-2 border-emerald-700 font-bold text-white placeholder:text-emerald-100/60 focus-visible:ring-emerald-400 text-xs transition-all w-full shadow-md" 
+                         value={search} 
+                         onChange={e => setSearch(e.target.value)} 
+                       />
+                    </div>
+
+                    {/* FILTRO DE DATA COMPACTO */}
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button
                           variant="outline"
                           className={cn(
-                            "h-10 px-3 rounded-lg bg-emerald-600 shadow-md border-2 border-emerald-700 font-bold text-white hover:bg-emerald-700 hover:border-emerald-500 transition-all gap-2 text-xs justify-start shrink-0",
-                            !filterDate && "text-emerald-100"
+                            "h-10 px-3 rounded-lg bg-white shadow-sm border-2 border-emerald-100 font-bold text-emerald-900 transition-all gap-2 text-[10px] shrink-0",
+                            !filterDate && "text-slate-400"
                           )}
                         >
-                          <CalendarIcon className="w-5 h-5 text-emerald-100" />
-                          {filterDate ? format(parseISO(filterDate), 'dd/MM/yyyy', { locale: ptBR }) : "Filtrar por Data"}
+                          <CalendarIcon className="w-3.5 h-3.5" />
+                          <span className="hidden md:inline">{filterDate ? format(parseISO(filterDate), 'dd/MM/yyyy', { locale: ptBR }) : "Data"}</span>
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0 rounded-3xl overflow-hidden border-2 border-emerald-100 shadow-2xl" align="end">
+                      <PopoverContent className="w-auto p-0 rounded-2xl overflow-hidden border-2 border-emerald-100 shadow-2xl" align="end">
                         <Calendar
                           mode="single"
                           selected={filterDate ? parseISO(filterDate) : undefined}
                           onSelect={(date) => setFilterDate(date ? format(date, 'yyyy-MM-dd') : '')}
                           locale={ptBR}
-                          className="p-4"
+                          className="p-3"
                           toDate={new Date(2030, 11, 31)}
                           fromDate={new Date(2024, 0, 1)}
                           disabled={(date) => !isAllowedDay(date)}
-                          classNames={{
-                            month: "space-y-4",
-                            caption: "flex justify-center pt-1 relative items-center mb-2 bg-emerald-800 rounded-xl py-3 border-2 border-emerald-900 shadow-lg w-full",
-                            caption_label: "text-sm font-black text-white uppercase tracking-widest",
-                            nav: "flex items-center justify-between absolute inset-x-0 inset-y-0 px-4 pointer-events-none z-30",
-                            nav_button: "h-8 w-8 bg-emerald-500 text-white border border-emerald-400 hover:bg-emerald-400 shadow-md rounded-lg transition-all pointer-events-auto flex items-center justify-center",
-                            nav_button_previous: "relative left-0",
-                            nav_button_next: "relative right-0",
-                          }}
-                          components={{
-                            DayContent: ({ date }) => {
-                              const dateStr = format(date, 'yyyy-MM-dd');
-                              const hasKiosk = (kioskReservations || []).some(r => r.reservation_date === dateStr);
-                              const hasQuad = (quadReservations || []).some(r => r.reservation_date === dateStr);
-                              const kiosksFull = (kioskReservations || []).filter(r => r.reservation_date === dateStr).length >= 5;
-                              const quadsFull = (quadReservations || []).filter(r => r.reservation_date === dateStr).reduce((s, r) => s + (Number(r.quantity) || 1), 0) >= 20;
-                              const isFull = kiosksFull && quadsFull;
-                              return (
-                                <div className={cn("relative flex flex-col items-center p-0.5 rounded w-full h-full justify-center", isFull && "bg-red-50/50")}>
-                                  <span className={cn("text-[11px]", isFull && "text-red-500 font-black")}>{date.getDate()}</span>
-                                  <div className="flex gap-0.5 mt-0.5">
-                                    {hasKiosk && <div className={cn("w-1 h-1 rounded-full", kiosksFull ? "bg-red-500" : "bg-emerald-500")} />}
-                                    {hasQuad && <div className={cn("w-1 h-1 rounded-full", quadsFull ? "bg-red-500" : "bg-blue-500")} />}
-                                  </div>
-                                </div>
-                              );
-                            }
-                          }}
                         />
                       </PopoverContent>
                     </Popover>
 
+                    {/* FILTRO DE STATUS COMPACTO */}
                     <Select value={statusFilter} onValueChange={setStatusFilter}>
-                      <SelectTrigger className="h-14 px-6 rounded-2xl bg-white shadow-lg border-2 border-emerald-100 font-black text-emerald-900 hover:border-emerald-500 transition-all gap-3 text-lg justify-start min-w-[120px]">
-                        <Users className="w-5 h-5 text-emerald-600" />
+                      <SelectTrigger className="h-10 px-3 rounded-lg bg-white shadow-sm border-2 border-emerald-100 font-bold text-emerald-900 transition-all gap-2 text-[10px] shrink-0 min-w-[100px]">
+                        <Filter className="w-3.5 h-3.5 text-emerald-500" />
                         <SelectValue placeholder="Status" />
                       </SelectTrigger>
-                      <SelectContent className="rounded-2xl border-2 border-emerald-100 shadow-2xl">
-                        <SelectItem value="all" className="font-bold">TODOS OS STATUS</SelectItem>
-                        <SelectItem value="paid" className="font-bold text-whatsapp">PAGOS</SelectItem>
-                        <SelectItem value="confirmed" className="font-bold text-whatsapp">CONFIRMADOS</SelectItem>
-                        <SelectItem value="pending" className="font-bold text-amber-600">PENDENTES</SelectItem>
-                        <SelectItem value="awaiting_payment" className="font-bold text-blue-600">AGUARDANDO PGTO</SelectItem>
-                        <SelectItem value="cancelled" className="font-bold text-red-500">CANCELADOS</SelectItem>
-                        <SelectItem value="checked-in" className="font-bold text-purple-600">CHECK-IN REALIZADO</SelectItem>
+                      <SelectContent className="rounded-xl border-2 border-emerald-100 shadow-2xl">
+                        <SelectItem value="all" className="text-[10px] font-bold">TODOS</SelectItem>
+                        <SelectItem value="paid" className="text-[10px] font-bold text-emerald-600">PAGOS</SelectItem>
+                        <SelectItem value="pending" className="text-[10px] font-bold text-amber-600">PENDENTES</SelectItem>
+                        <SelectItem value="awaiting_payment" className="text-[10px] font-bold text-blue-600">AGUARDANDO PGTO</SelectItem>
+                        <SelectItem value="cancelled" className="text-[10px] font-bold text-red-600">CANCELADOS</SelectItem>
+                        <SelectItem value="checked-in" className="text-[10px] font-bold text-purple-600">CHECK-IN</SelectItem>
                       </SelectContent>
                     </Select>
+                 </div>
                     
                     {(filterDate || statusFilter !== 'all' || search) && (
                       <Button 
