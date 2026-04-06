@@ -830,7 +830,13 @@ export default function Admin() {
       } catch { return false; }
     });
 
-    const dayBookings = bookings.filter(b => matchDate(b.visit_date, targetDate));
+    const dayBookings = bookings.filter(b => 
+      matchDate(b.visit_date, targetDate) && 
+      b.status !== 'awaiting_payment' && 
+      b.status !== 'pending' &&
+      b.status !== 'cancelled'
+    );
+
     
     // Add manual bookings representing kiosks to dayKiosks to show in visual map
     dayBookings.forEach(b => {
@@ -875,7 +881,13 @@ export default function Admin() {
          }
       });
     });
-    const dayOrders = orders.filter(o => matchDate(o.visit_date || o.created_at, targetDate));
+    const dayOrders = orders.filter(o => 
+      matchDate(o.visit_date || o.created_at, targetDate) && 
+      o.status !== 'awaiting_payment' && 
+      o.status !== 'pending' &&
+      o.status !== 'cancelled'
+    );
+
     
     return (
       <div className="grid lg:grid-cols-[1fr_360px] gap-8 animate-in fade-in duration-500">

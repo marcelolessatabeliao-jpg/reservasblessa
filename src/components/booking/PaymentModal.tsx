@@ -312,7 +312,7 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, phone, 
                 ⚠️ Aviso Importante
               </p>
               <p className="text-[10px] text-amber-800 leading-tight font-bold">
-                Sua reserva <span className="underline">SÓ SERÁ GARANTIDA</span> e o inventário bloqueado após a confirmação do pagamento. O QR Code expira e a vaga pode ser ocupada por outro cliente se não for pago agora.
+                Sua reserva <span className="underline">SÓ SERÁ GARANTIDA</span> após a confirmação do pagamento. O QR Code expira e a sua reserva pode ser ocupada por outro cliente se não for pago agora.
               </p>
             </div>
             
@@ -328,15 +328,30 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, phone, 
             <Button 
               onClick={async () => {
                 setLoading(true);
-                const { data, error } = await supabase.from('orders').select('status, confirmation_code').eq('id', orderId).single();
-                setLoading(false);
-                
-                if (data?.status === 'paid' || data?.status === 'confirmed') {
-                  setConfirmationCode(data.confirmation_code);
-                  setPaymentConfirmed(true);
-                  toast({ title: "Confirmado!", description: "Seu pagamento já foi identificado." });
-                } else {
-                  toast({ title: "Ainda não identificado", description: "O banco pode levar alguns minutos. Caso já tenha pago, aguarde um pouco." });
+                try {
+                  const { data, error } = await supabase.functions.invoke('check-payment', {
+                    body: { orderId }
+                  });
+                  
+                  if (error) throw error;
+                  
+                  if (data?.success && (data?.status === 'RECEIVED' || data?.status === 'CONFIRMED')) {
+                    // Refetch status to get confirmation code
+                    const { data: order } = await supabase.from('orders').select('confirmation_code').eq('id', orderId).single();
+                    if (order?.confirmation_code) setConfirmationCode(order.confirmation_code);
+                    setPaymentConfirmed(true);
+                    toast({ title: "Confirmado!", description: "Seu pagamento foi identificado com sucesso." });
+                  } else {
+                    toast({ 
+                      title: "Ainda não identificado", 
+                      description: "O banco pode levar alguns minutos. Caso já tenha pago, aguarde um pouco." 
+                    });
+                  }
+                } catch (err) {
+                  console.error('Sync error:', err);
+                  toast({ title: "Erro na verificação", description: "Tente novamente em instantes.", variant: "destructive" });
+                } finally {
+                  setLoading(false);
                 }
               }}
               variant="ghost"
