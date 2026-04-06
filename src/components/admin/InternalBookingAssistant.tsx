@@ -379,7 +379,7 @@ export function InternalBookingAssistant({
                          <div className="p-2 bg-emerald-600 rounded-xl text-white shadow-lg shadow-emerald-200"><Tag className="w-4 h-4" /></div>
                          2. Quiosques
                       </h4>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Unidades 1-5</span>
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Unidades 1-5</span>
                    </div>
                    <div className="grid grid-cols-5 gap-3">
                       {KIOSKS.map(k => {
@@ -400,8 +400,8 @@ export function InternalBookingAssistant({
                                 "bg-white border-slate-100 text-slate-900 hover:border-emerald-300 hover:bg-emerald-50/30"
                               )}
                             >
-                                <span className="text-[10px] opacity-60">Q-</span>
-                                <span className="text-xl">{k.id}</span>
+                                <span className="text-[9px] font-black uppercase opacity-70 tracking-widest leading-none mb-0.5">Quiosque</span>
+                                <span className="text-2xl leading-none font-black">{k.id}</span>
                                 {isSelected && <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-white text-emerald-600 rounded-full flex items-center justify-center shadow-md border-2 border-emerald-600"><Check className="w-2.5 h-2.5" /></div>}
                             </button>
                          );
@@ -436,7 +436,7 @@ export function InternalBookingAssistant({
                                  <div className="flex items-center gap-2">
                                     <div className="w-6 h-6 rounded-lg bg-emerald-950 text-white flex items-center justify-center text-[10px] font-black shadow-sm tracking-tighter">{t}</div>
                                     <div className="flex flex-col">
-                                       <span className="text-[8px] font-black uppercase text-slate-400 leading-none mb-0.5">Vagas</span>
+                                       <span className="text-[8px] font-black uppercase text-slate-600 leading-none mb-0.5">Vagas</span>
                                        <div className="flex gap-0.5">
                                           {Array.from({length: maxQuads}).map((_, i) => (
                                              <div key={i} className={cn("w-1.5 h-1.5 rounded-full", isFull ? "bg-rose-400" : i < remaining ? "bg-emerald-500" : "bg-slate-200")} />
@@ -457,7 +457,7 @@ export function InternalBookingAssistant({
                                         <div key={type} className="flex flex-col gap-1">
                                            <div className={cn(
                                              "h-7 rounded-lg border flex items-center justify-center font-black text-[8.5px] transition-all",
-                                             qty > 0 ? "bg-emerald-600 border-emerald-700 text-white shadow-inner" : "bg-white border-slate-100 text-slate-400"
+                                             qty > 0 ? "bg-emerald-600 border-emerald-700 text-white shadow-inner" : "bg-white border-slate-300 text-slate-600"
                                            )}>
                                               {qty > 0 ? `${qty}x` : labels[type]}
                                            </div>
@@ -470,8 +470,8 @@ export function InternalBookingAssistant({
                                                    }
                                                 }} 
                                                 disabled={qty === 0} 
-                                                className="flex-1 h-6 rounded-md bg-white border border-slate-200 text-slate-600 hover:bg-rose-500 hover:text-white transition-all flex items-center justify-center text-[10px] font-black shadow-sm disabled:opacity-30">-</button>
-                                              <button 
+                                                className="flex-1 h-6 rounded-md bg-white border border-slate-300 text-slate-800 hover:bg-rose-500 hover:text-white transition-all flex items-center justify-center text-[10px] font-black shadow-sm disabled:opacity-30">-</button>
+                                              <button  
                                                 onClick={() => {
                                                    if (remaining > 0) {
                                                       const existing = newBookingData.quads.find(q => q.type === type && q.time === t);
@@ -485,7 +485,7 @@ export function InternalBookingAssistant({
                                                    }
                                                 }} 
                                                 disabled={remaining <= 0} 
-                                                className="flex-1 h-6 rounded-md bg-white border border-slate-200 text-slate-600 hover:bg-emerald-500 hover:text-white transition-all flex items-center justify-center text-[10px] font-black shadow-sm disabled:opacity-30">+</button>
+                                                className="flex-1 h-6 rounded-md bg-white border border-slate-300 text-slate-800 hover:bg-emerald-500 hover:text-white transition-all flex items-center justify-center text-[10px] font-black shadow-sm disabled:opacity-30">+</button>
                                            </div>
                                         </div>
                                      );
