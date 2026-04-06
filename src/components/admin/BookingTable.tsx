@@ -79,7 +79,7 @@ const getStatusConfig = (booking: any) => {
     if (payment) {
       if (payment.metodo === 'PIX') return { ...baseConfig, label: 'PAGO VIA PIX' };
       if (payment.metodo === 'CREDIT_CARD' || payment.metodo === 'DEBIT_CARD' || payment.metodo === 'cartao') 
-        return { ...baseConfig, label: 'PAGO VIA CARTÃO' };
+        return { ...baseConfig, label: 'PAGO VIA CARTíO' };
     }
   }
   return baseConfig;
