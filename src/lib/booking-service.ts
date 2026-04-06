@@ -43,6 +43,7 @@ export async function saveBooking(
       user_id: userId || null,
       customer_name: customerName,
       customer_phone: customerPhone,
+      customer_cpf: entry.cpf || null,
       visit_date: visitDateStr,
       total_amount: totalAmount,
       status: initialStatus

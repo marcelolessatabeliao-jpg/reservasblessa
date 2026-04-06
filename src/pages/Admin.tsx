@@ -357,7 +357,8 @@ export default function Admin() {
         return {
           ...b,
           payments: order?.payments || [],
-          customer_phone: order?.customer_phone || (b as any).phone
+          customer_phone: order?.customer_phone || (b as any).phone,
+          customer_cpf: order?.customer_cpf || (b as any).cpf
         };
       });
 
@@ -624,7 +625,34 @@ export default function Admin() {
     }
   };
 
-const updateBookingStatus = async (bookingId: string, status: string, isOrder?: boolean) => {
+    const handleSyncPayment = async (orderId: string) => {
+    setUpdatingId(orderId);
+    try {
+      const { data, error } = await supabase.functions.invoke('check-payment', {
+        body: { orderId }
+      });
+      
+      if (error) throw error;
+      
+      if (data?.success) {
+        if (data.updated) {
+          toast({ title: "Pagamento Sincronizado!", description: `Status no Asaas: ${data.status}. O pedido foi marcado como PAGO.` });
+          fetchData();
+        } else {
+          toast({ title: "Sincronização Concluída", description: `Status no Asaas: ${data.status}. Nenhuma alteração necessária.` });
+        }
+      } else {
+        toast({ title: "Erro na Sincronização", description: data?.error || "Erro desconhecido", variant: "destructive" });
+      }
+    } catch (err: any) {
+      console.error('Sync error:', err);
+      toast({ title: "Erro ao sincronizar", description: err.message, variant: "destructive" });
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const updateBookingStatus = async (bookingId: string, status: string, isOrder?: boolean) => {
     setUpdatingId(bookingId);
     try {
       const table = isOrder ? 'orders' : 'bookings';
@@ -1984,6 +2012,7 @@ const updateBookingStatus = async (bookingId: string, status: string, isOrder?: 
                    }}
                    isUploading={isUploading}
                    onRefresh={fetchData}
+                   onSyncPayment={handleSyncPayment}
                     onGeneratePayment={handleGeneratePayment}
                  />
                </div>

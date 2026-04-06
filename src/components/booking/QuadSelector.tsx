@@ -42,7 +42,7 @@ const QUAD_CARDS = [
   },
 ];
 
-const MAX_QUADS_PER_SLOT = 5;
+const MAX_QUADS_PER_SLOT = 3;
 
 export function QuadSelector({ quads, onUpdate }: Props) {
   const { getPrice, isLoading } = useServices();

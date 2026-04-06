@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Loader2, QrCode, CreditCard, Copy, CheckCircle, Wallet } from 'lucide-react';
+import { Loader2, QrCode, CreditCard, Copy, CheckCircle, Wallet, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency } from '@/lib/booking-types';
 import { useToast } from '@/hooks/use-toast';
@@ -248,6 +248,16 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, phone, 
                 onChange={(e) => setCpf(e.target.value.replace(/\D/g, '').slice(0, 11))}
                 className="w-full h-12 px-4 rounded-xl border-2 border-primary/10 focus:border-primary/30 focus:outline-none text-sm font-medium transition-all"
               />
+            </div>
+
+            <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-4 space-y-1 my-2">
+              <div className="flex items-center gap-2 text-red-700 font-black text-[10px] uppercase">
+                <AlertTriangle className="w-3.5 h-3.5 fill-red-100" /> Aviso de Segurança
+              </div>
+              <p className="text-[10px] font-bold text-red-900 leading-tight">
+                O Balneário Lessa <span className="underline italic">NíƒÆ’O se responsabiliza</span> por pagamentos via PIX realizados para CPFs de terceiros. 
+                Utilize <span className="underline italic">APENAS</span> o QR Code ou o Código Copia e Cola gerado abaixo.
+              </p>
             </div>
 
             <Button 

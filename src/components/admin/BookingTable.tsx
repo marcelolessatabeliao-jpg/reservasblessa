@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { format, parseISO, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -8,7 +8,7 @@ import {
   Users, Calendar, Upload, FileCheck, Loader2,
   CalendarClock, StickyNote, CalendarRange,
   Search, Filter, MapPin, Phone, CreditCard, ChevronRight,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon, RotateCcw
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -40,6 +40,8 @@ interface Booking {
   created_at: string;
   is_order?: boolean;
   receipt_url?: string | null;
+  customer_phone?: string | null;
+  customer_cpf?: string | null;
 }
 
 interface BookingTableProps {
@@ -55,6 +57,7 @@ interface BookingTableProps {
   onRemoveReceipt?: (bookingId: string) => void;
   onRefresh?: () => void;
   onGeneratePayment?: (id: string, isOrder: boolean) => void;
+  onSyncPayment?: (orderId: string) => void;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive'; icon: React.ElementType; color: string; bgColor: string; borderColor: string }> = {
@@ -79,7 +82,7 @@ const getStatusConfig = (booking: any) => {
   return baseConfig;
 };
 
-export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule, onDelete, onRemoveItem, updatingId, onFileUpload, isUploading, onRemoveReceipt, onRefresh, onGeneratePayment }: BookingTableProps) {
+export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule, onDelete, onRemoveItem, updatingId, onFileUpload, isUploading, onRemoveReceipt, onRefresh, onGeneratePayment, onSyncPayment }: BookingTableProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [noteText, setNoteText] = useState('');
@@ -167,6 +170,12 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                             <span className="text-base font-black text-emerald-950 uppercase tracking-tight leading-tight">
                                {booking.name || (booking as any).customer_name || 'CLIENTE GERAL'}
                             </span>
+                            {(booking.customer_cpf || booking.customer_phone) && (
+                               <div className="flex flex-wrap gap-1 mt-1">
+                                 {booking.customer_cpf && <span className="text-[7px] font-bold px-1 bg-slate-100 rounded text-slate-500 uppercase tracking-tighter shrink-0">{booking.customer_cpf}</span>}
+                                 {booking.customer_phone && <span className="text-[7px] font-bold px-1 bg-blue-50 rounded text-blue-500 uppercase tracking-tighter shrink-0">{booking.customer_phone}</span>}
+                               </div>
+                            )}
                          </div>
                          <div className="flex flex-col items-end gap-1.5">
                             <div className={cn("flex items-center gap-1 px-2 py-0.5 rounded-md border text-[7px] font-black uppercase", config.bgColor, config.color, config.borderColor)}>
@@ -325,8 +334,22 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                    <span className="font-extrabold text-lg text-emerald-950 uppercase tracking-tight leading-tight group-hover:text-emerald-600 transition-colors">
                                      {booking.name || (booking as any).customer_name || 'CLIENTE GERAL'}
                                    </span>
-                                   <div className="flex items-center gap-2">
-                                      <span className="bg-slate-100 text-slate-800 border-2 border-slate-200 px-3 py-1 rounded-lg font-black text-[10px] uppercase tracking-widest">
+                                   {(booking.customer_cpf || booking.customer_phone) && (
+                                     <div className="flex flex-wrap gap-2 mt-1">
+                                       {booking.customer_cpf && (
+                                          <span className="text-[9px] font-black px-1.5 py-0.5 bg-slate-50 border border-slate-200 text-slate-500 rounded shadow-xs uppercase tracking-tighter">
+                                            CPF: {booking.customer_cpf}
+                                          </span>
+                                       )}
+                                       {booking.customer_phone && (
+                                          <span className="text-[9px] font-black px-1.5 py-0.5 bg-blue-50 border border-blue-100 text-blue-500 rounded shadow-xs uppercase tracking-tighter flex items-center gap-1">
+                                            <Phone className="w-2.5 h-2.5" /> {booking.customer_phone}
+                                          </span>
+                                       )}
+                                     </div>
+                                   )}
+                                   <div className="flex items-center gap-2 mt-1">
+                                      <span className="bg-slate-100 text-slate-800 border-2 border-slate-200 px-3 py-1 rounded-lg font-black text-[10px] uppercase tracking-widest leading-none">
                                          ID: {booking.id.slice(0, 8)}
                                       </span>
                                       {booking.is_associado && (
@@ -388,8 +411,8 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                                              if (e.target.files) onFileUpload(e.target.files[0], booking.id, !!booking.is_order);
                                                           }} />
                                                           <label htmlFor={`upload-${booking.id}`} className={cn(
-                                                              "flex items-center gap-3 px-6 py-3 rounded-2xl cursor-pointer transition-all duration-300 font-black text-[10px] uppercase tracking-widest shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-95 group",
-                                                              booking.receipt_url 
+                                                              "flex items-center gap-3 px-6 py-3 rounded-2xl cursor-pointer transition-all duration-300 font-black text-[10px] uppercase tracking-widest shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-[0.98]",
+                                                               booking.receipt_url 
                                                                 ? "bg-emerald-600 border-2 border-emerald-700 text-white shadow-emerald-900/20" 
                                                                 : "bg-white border-2 border-dashed border-emerald-200 text-emerald-800 hover:bg-emerald-50 hover:border-emerald-400"
                                                            )}>
@@ -410,80 +433,90 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                                          <span>PIX</span>
                                                        </Button>
                                                      )}
-                                                    <Button 
-                                                      onClick={() => onStatusChange(booking.id, 'paid', booking.is_order)} 
-                                                      disabled={booking.status === 'paid' || updatingId === booking.id} 
-                                                      className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-black uppercase text-[9px] h-14 rounded-2xl shadow-md border-b-4 border-emerald-800 hover:border-b-0 hover:translate-y-[2px] transition-all duration-300 flex flex-col items-center justify-center gap-1"
-                                                    >
-                                                       <CheckCircle className="w-4 h-4" /> 
-                                                       <span>PAGO OK</span>
-                                                    </Button>
-                                                    <Button 
-                                                      onClick={() => onStatusChange(booking.id, 'checked-in', booking.is_order)} 
-                                                      className={cn(
-                                                        "font-black uppercase text-[9px] h-14 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all duration-300 border-2 shadow-sm",
-                                                        booking.status === 'checked-in' 
-                                                          ? "bg-emerald-800 border-emerald-950 text-white shadow-inner" 
-                                                          : "bg-emerald-50 border-2 border-emerald-100 text-emerald-700 hover:bg-emerald-600 hover:text-white hover:border-emerald-600"
-                                                      )}
-                                                    >
-                                                       <UserCheck className="w-4 h-4" /> 
-                                                       <span>CHECK-IN</span>
-                                                    </Button>
-                                                    <Popover>
-                                                       <PopoverTrigger asChild>
-                                                          <Button 
-                                                            variant="outline" 
-                                                            className={cn(
-                                                              "bg-blue-50 border-2 border-blue-100 text-blue-700 font-black uppercase text-[9px] h-14 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all duration-300 hover:bg-blue-600 hover:text-white hover:border-blue-600",
-                                                              rescheduleId === booking.id && "bg-blue-600 text-white border-blue-700 scale-105 shadow-lg"
-                                                            )}
-                                                          >
-                                                             <CalendarRange className="w-4 h-4" /> 
-                                                             <span>REAGENDAR</span>
-                                                          </Button>
-                                                       </PopoverTrigger>
-                                                       <PopoverContent className="w-auto p-0 rounded-3xl border-2 border-blue-100 shadow-2xl overflow-hidden" align="end">
-                                                          <div className="bg-blue-50 p-4 border-b border-blue-100">
-                                                             <p className="text-[10px] font-black text-blue-700 uppercase tracking-widest">Nova Data da Visita</p>
-                                                          </div>
-                                                          <CalendarUI
-                                                            mode="single"
-                                                            selected={rescheduleDate ? parseISO(rescheduleDate) : undefined}
-                                                            onSelect={(date) => setRescheduleDate(date ? format(date, 'yyyy-MM-dd') : '')}
-                                                            initialFocus
-                                                            className="p-3"
-                                                          />
-                                                          <div className="p-4 bg-white flex gap-2">
-                                                             <Button 
-                                                               onClick={() => { 
-                                                                 if (rescheduleDate) {
-                                                                   onReschedule(booking.id, rescheduleDate, booking.is_order);
-                                                                   setRescheduleId(null);
-                                                                 }
-                                                               }}
-                                                               disabled={!rescheduleDate || updatingId === booking.id}
-                                                               className="flex-1 bg-blue-600 text-white font-black text-[10px] h-10 rounded-xl"
-                                                             >
-                                                                CONFIRMAR
-                                                             </Button>
-                                                          </div>
-                                                       </PopoverContent>
-                                                    </Popover>
-                                                    <Button 
-                                                      onClick={() => onStatusChange(booking.id, 'cancelled', booking.is_order)} 
-                                                      className="bg-red-50 border-2 border-red-100 text-red-700 hover:bg-red-600 hover:text-white hover:border-red-600 font-black uppercase text-[9px] h-14 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all duration-300"
-                                                    >
-                                                       <XCircle className="w-4 h-4" /> 
-                                                       <span>CANCELAR</span>
-                                                    </Button>
-                                                    <Button 
-                                                      onClick={(e) => { e.stopPropagation(); const phone = ((booking as any).customer_phone || (booking as any).phone || '').replace(/\D/g, ''); if (phone) { window.open("https://wa.me/55" + phone + "?text=" + encodeURIComponent("Voucher: https://reservas.balneariolessa.com.br/voucher/" + booking.confirmation_code), '_blank'); } }} 
-                                                      className="bg-indigo-50 border-2 border-indigo-100 text-indigo-700 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 font-black uppercase text-[9px] h-14 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all duration-300 shadow-sm"
-                                                    >
-                                                       <FileCheck className="w-4 h-4" /> 
-                                                       <span>VOUCHER</span>
-                                                    </Button>
+                                                     {onSyncPayment && !['paid', 'pago', 'checked-in', 'cancelled', 'cancelado'].includes(booking.status?.toLowerCase() || '') && (
+                                                       <Button 
+                                                         onClick={(e) => { e.stopPropagation(); onSyncPayment(booking.id); }} 
+                                                         className="bg-blue-50 hover:bg-blue-500 text-blue-700 hover:text-white border-2 border-blue-100 hover:border-blue-500 font-black uppercase text-[9px] h-14 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all duration-300 shadow-sm"
+                                                         disabled={updatingId === booking.id}
+                                                       >
+                                                         <RotateCcw className={cn("w-4 h-4", updatingId === booking.id && "animate-spin")} />
+                                                         <span>SINC</span>
+                                                       </Button>
+                                                     )}
+                                                     <Button 
+                                                       onClick={() => onStatusChange(booking.id, 'paid', booking.is_order)} 
+                                                       disabled={booking.status === 'paid' || updatingId === booking.id} 
+                                                       className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-black uppercase text-[9px] h-14 rounded-2xl shadow-md border-b-4 border-emerald-800 hover:border-b-0 hover:translate-y-[2px] transition-all duration-300 flex flex-col items-center justify-center gap-1"
+                                                     >
+                                                        <CheckCircle className="w-4 h-4" /> 
+                                                        <span>PAGO OK</span>
+                                                     </Button>
+                                                     <Button 
+                                                       onClick={() => onStatusChange(booking.id, 'checked-in', booking.is_order)} 
+                                                       className={cn(
+                                                         "font-black uppercase text-[9px] h-14 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all duration-300 border-2 shadow-sm",
+                                                         booking.status === 'checked-in' 
+                                                           ? "bg-emerald-800 border-emerald-950 text-white shadow-inner" 
+                                                           : "bg-emerald-50 border-2 border-emerald-100 text-emerald-700 hover:bg-emerald-600 hover:text-white hover:border-emerald-600"
+                                                       )}
+                                                     >
+                                                        <UserCheck className="w-4 h-4" /> 
+                                                        <span>CHECK-IN</span>
+                                                     </Button>
+                                                     <Popover>
+                                                        <PopoverTrigger asChild>
+                                                           <Button 
+                                                             variant="outline" 
+                                                             className={cn(
+                                                               "bg-blue-50 border-2 border-blue-100 text-blue-700 font-black uppercase text-[9px] h-14 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all duration-300 hover:bg-blue-600 hover:text-white hover:border-blue-600",
+                                                               rescheduleId === booking.id && "bg-blue-600 text-white border-blue-700 scale-105 shadow-lg"
+                                                             )}
+                                                           >
+                                                              <CalendarRange className="w-4 h-4" /> 
+                                                              <span>REAGENDAR</span>
+                                                           </Button>
+                                                        </PopoverTrigger>
+                                                        <PopoverContent className="w-auto p-0 rounded-3xl border-2 border-blue-100 shadow-2xl overflow-hidden" align="end">
+                                                           <div className="bg-blue-50 p-4 border-b border-blue-100">
+                                                              <p className="text-[10px] font-black text-blue-700 uppercase tracking-widest">Nova Data da Visita</p>
+                                                           </div>
+                                                           <CalendarUI
+                                                             mode="single"
+                                                             selected={rescheduleDate ? parseISO(rescheduleDate) : undefined}
+                                                             onSelect={(date) => setRescheduleDate(date ? format(date, 'yyyy-MM-dd') : '')}
+                                                             initialFocus
+                                                             className="p-3"
+                                                           />
+                                                           <div className="p-4 bg-white flex gap-2">
+                                                              <Button 
+                                                                onClick={() => { 
+                                                                  if (rescheduleDate) {
+                                                                    onReschedule(booking.id, rescheduleDate, booking.is_order);
+                                                                    setRescheduleId(null);
+                                                                  }
+                                                                }}
+                                                                disabled={!rescheduleDate || updatingId === booking.id}
+                                                                className="flex-1 bg-blue-600 text-white font-black text-[10px] h-10 rounded-xl"
+                                                              >
+                                                                 CONFIRMAR
+                                                              </Button>
+                                                           </div>
+                                                        </PopoverContent>
+                                                     </Popover>
+                                                     <Button 
+                                                       onClick={() => onStatusChange(booking.id, 'cancelled', booking.is_order)} 
+                                                       className="bg-red-50 border-2 border-red-100 text-red-700 hover:bg-red-600 hover:text-white hover:border-red-600 font-black uppercase text-[9px] h-14 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all duration-300"
+                                                     >
+                                                        <XCircle className="w-4 h-4" /> 
+                                                        <span>CANCELAR</span>
+                                                     </Button>
+                                                     <Button 
+                                                       onClick={(e) => { e.stopPropagation(); const phone = ((booking as any).customer_phone || (booking as any).phone || '').replace(/\D/g, ''); if (phone) { window.open("https://wa.me/55" + phone + "?text=" + encodeURIComponent("Voucher: https://reservas.balneariolessa.com.br/voucher/" + booking.confirmation_code), '_blank'); } }} 
+                                                       className="bg-indigo-50 border-2 border-indigo-100 text-indigo-700 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 font-black uppercase text-[9px] h-14 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all duration-300 shadow-sm"
+                                                     >
+                                                        <FileCheck className="w-4 h-4" /> 
+                                                        <span>VOUCHER</span>
+                                                     </Button>
                                                   </div>
                                                </div>
                                             </div>

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { formatCurrency } from '@/lib/booking-types';
-import { CheckCircle2, Circle, Trash2, Eye, X, FileText, ExternalLink, Check, RotateCcw } from 'lucide-react';
+import { CheckCircle2, Circle, Trash2, Eye, X, FileText, ExternalLink, Check, RotateCcw, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
@@ -24,6 +24,8 @@ interface BookingDetailProps {
     order_items?: any[];
     receipt_url?: string | null;
     name?: string;
+    customer_phone?: string;
+    customer_cpf?: string;
     visit_date?: string;
   };
   onRemoveItem?: (orderId: string, itemId: string, productId: string) => void;
@@ -33,6 +35,9 @@ interface BookingDetailProps {
 
 export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefresh }: BookingDetailProps) {
   const { toast } = useToast();
+  const phone = (booking.customer_phone || (booking as any).phone || '').toString();
+  const cpf = (booking.customer_cpf || (booking as any).cpf || '').toString();
+  
   const childrenCount = Array.isArray(booking.children) ? booking.children.length : (typeof booking.children === 'number' ? booking.children : 0);
   const kiosks = Array.isArray(booking.kiosks) ? booking.kiosks : [];
   const quads = Array.isArray(booking.quads) ? booking.quads : [];
@@ -143,7 +148,13 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
             <div className="bg-emerald-900 text-white p-6 flex items-center justify-between">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Resumo Completo</p>
-                <h3 className="text-lg font-black">#{displayId} — {booking.name || 'Reserva'}</h3>
+                <h3 className="text-lg font-black leading-tight">#{displayId} — {booking.name || 'Reserva'}</h3>
+                {(cpf || phone) && (
+                   <div className="flex gap-3 mt-1.5 opacity-80 text-[10px] font-black uppercase tracking-wider">
+                     {cpf && <span>CPF: {cpf}</span>}
+                     {phone && <span className="flex items-center gap-1"><Phone className="w-2.5 h-2.5" /> {phone}</span>}
+                   </div>
+                )}
               </div>
               <button onClick={() => setShowResumo(false)} className="p-2 rounded-xl hover:bg-white/10 transition-all">
                 <X className="w-5 h-5" />
@@ -249,6 +260,29 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
             {booking.created_at ? format(new Date(booking.created_at), 'dd/MM/yy HH:mm', { locale: ptBR }) : '-'}
           </span>
         </div>
+        
+        {phone && (
+          <div className="flex items-center gap-2 bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-200/60 shadow-sm">
+            <Phone className="w-3 h-3 text-indigo-600" />
+            <span className="font-black text-indigo-950 text-xs">{phone}</span>
+            <Button 
+               variant="ghost" 
+               size="sm" 
+               className="h-6 w-6 p-0 hover:bg-emerald-100" 
+               onClick={() => window.open(`https://wa.me/55${phone.replace(/\D/g, '')}`, '_blank')}
+            >
+               <ExternalLink className="w-2.5 h-2.5 text-emerald-600" />
+            </Button>
+          </div>
+        )}
+
+        {cpf && (
+          <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200 shadow-sm">
+            <FileText className="w-3 h-3 text-slate-600" />
+            <span className="font-black text-slate-950 text-xs">{cpf}</span>
+          </div>
+        )}
+
         <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-sm">
           <span className="font-black text-emerald-950 text-sm">{booking.adults || 0}</span>
           <span className="text-[9px] font-black uppercase text-slate-500">Adultos</span>
