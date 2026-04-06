@@ -130,7 +130,24 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
   };
 
   const displayId = booking.id.split('-')[0].toUpperCase();
-  const totalPeople = (booking.adults || 0) + childrenCount;
+  let defaultAdults = booking.adults || 0;
+  let defaultChildren = childrenCount;
+  
+  if (localItems && localItems.length > 0) {
+     defaultAdults = 0;
+     defaultChildren = 0;
+     const adultKeywords = ['adulto', 'solidario', 'professor', 'estudante', 'servidor', 'entrada'];
+     const gratuityKeywords = ['criança', 'kids', 'idoso', 'pcd', 'aniversariante'];
+     
+     localItems.forEach((item: any) => {
+        const name = (item.product_name || item.product_id || '').toLowerCase();
+        const qty = Number(item.quantity) || 1;
+        if (adultKeywords.some(k => name.includes(k))) defaultAdults += qty;
+        else if (gratuityKeywords.some(k => name.includes(k))) defaultChildren += qty;
+     });
+  }
+  
+  const totalPeople = defaultAdults + defaultChildren;
 
   // Build financial summary
   const kioskTotal = kiosks.reduce((s: number, k: any) => s + (k.price || 75), 0);
@@ -164,15 +181,15 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
               {/* People */}
               <div className="grid grid-cols-3 gap-2 md:gap-3">
                 <div className="bg-emerald-50 rounded-2xl p-2 md:p-4 text-center">
-                  <p className="text-lg md:text-2xl font-black text-emerald-900">{booking.adults || 0}</p>
+                  <p className="text-lg md:text-2xl font-black text-emerald-900">{defaultAdults}</p>
                   <p className="text-[7px] md:text-[9px] font-black uppercase text-emerald-600 tracking-wider mt-1 leading-tight">Adultos/ Pagantes</p>
                 </div>
                 <div className="bg-blue-50 rounded-2xl p-2 md:p-4 text-center">
-                  <p className="text-lg md:text-2xl font-black text-blue-900">{childrenCount}</p>
+                  <p className="text-lg md:text-2xl font-black text-blue-900">{defaultChildren}</p>
                   <p className="text-[7px] md:text-[9px] font-black uppercase text-blue-600 tracking-wider mt-1 leading-tight">Gratuidades</p>
                 </div>
                 <div className="bg-slate-50 rounded-2xl p-2 md:p-4 text-center border-2 border-slate-200">
-                  <p className="text-lg md:text-2xl font-black text-slate-900">{(booking.adults || 0) + childrenCount}</p>
+                  <p className="text-lg md:text-2xl font-black text-slate-900">{totalPeople}</p>
                   <p className="text-[7px] md:text-[9px] font-black uppercase text-slate-600 tracking-wider mt-1 leading-tight">Total Pessoas</p>
                 </div>
               </div>
@@ -284,33 +301,16 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
         )}
 
         <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-sm">
-          <span className="font-black text-emerald-950 text-sm">{booking.adults || 0}</span>
+          <span className="font-black text-emerald-950 text-sm">{defaultAdults}</span>
           <span className="text-[9px] font-black uppercase text-slate-500">Adultos</span>
         </div>
         <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-sm">
-          <span className="font-black text-emerald-950 text-sm">{childrenCount}</span>
+          <span className="font-black text-emerald-950 text-sm">{defaultChildren}</span>
           <span className="text-[9px] font-black uppercase text-slate-500">Gratuidades</span>
         </div>
         {booking.is_associado && <Badge className="bg-amber-100 text-amber-800 border-2 border-amber-200 text-[9px] font-black uppercase px-2 h-6 rounded-full shadow-sm">SÓCIO CLUBE</Badge>}
         {booking.has_donation && <Badge className="bg-emerald-100 text-emerald-800 border-2 border-emerald-200 text-[9px] font-black uppercase px-2 h-6 rounded-full shadow-sm">SOLIDÁRIO</Badge>}
 
-        {/* Receipt button with view/delete */}
-        {booking.receipt_url && (
-          <div className="flex items-center gap-1 ml-1">
-            <a href={booking.receipt_url} target="_blank" rel="noopener noreferrer" className="shrink-0">
-              <button className="flex items-center gap-1.5 bg-emerald-600 text-white text-[9px] font-black uppercase tracking-wider px-3 py-1.5 rounded-l-xl border border-emerald-700 hover:bg-emerald-700 transition-all shadow-sm shrink-0">
-                <ExternalLink className="w-3 h-3" /> Ver Comprovante
-              </button>
-            </a>
-            <button
-              onClick={handleRemoveReceipt}
-              className="flex items-center gap-1 bg-red-100 text-red-700 text-[9px] font-black uppercase tracking-wider px-2 py-1.5 rounded-r-xl border border-red-200 hover:bg-red-600 hover:text-white transition-all shadow-sm shrink-0"
-              title="Remover comprovante"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
 
         <div className="flex-1 min-w-[120px] lg:ml-auto flex items-center justify-end gap-2">
           <button

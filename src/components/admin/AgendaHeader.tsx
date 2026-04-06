@@ -36,17 +36,17 @@ export const AgendaHeader: React.FC<AgendaHeaderProps> = ({
     <div className="flex flex-row items-center gap-2 bg-emerald-900/5 p-2 rounded-xl border border-emerald-100 shadow-sm w-full mb-6 overflow-x-auto no-scrollbar">
       
       {/* ABAS DE NAVEGAÇÃO PÍLULA */}
-      <div className="flex flex-row gap-0.5 bg-white/60 p-0.5 rounded-lg shrink-0 shadow-inner">
+      <div className="flex flex-row gap-1 bg-white/60 p-1 rounded-xl shrink-0 shadow-inner border border-white">
         {[
-          { key: 'hoje', label: 'Hoje', color: 'bg-emerald-600 text-white shadow-sm' },
-          { key: 'futuras', label: 'Futuras', color: 'bg-blue-600 text-white shadow-sm' },
-          { key: 'historico', label: 'Histórico', color: 'bg-slate-700 text-white shadow-sm' },
+          { key: 'hoje', label: 'Hoje', color: 'bg-emerald-600 text-white shadow-md' },
+          { key: 'futuras', label: 'Futuras', color: 'bg-blue-600 text-white shadow-md' },
+          { key: 'historico', label: 'Histórico', color: 'bg-slate-700 text-white shadow-md' },
         ].map(t => (
           <button
             key={t.key}
             onClick={() => { setAgendaSubTab(t.key as any); setFilterDate(''); }}
             className={cn(
-              'px-2 py-1 md:px-3 md:py-1.5 rounded-md text-[9px] font-black uppercase tracking-wider transition-all duration-300',
+              'px-4 py-2 md:px-6 md:py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-wider transition-all duration-300',
               agendaSubTab === t.key ? t.color : 'text-slate-500 hover:bg-white/80'
             )}
           >
