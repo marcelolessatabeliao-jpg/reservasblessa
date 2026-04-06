@@ -58,6 +58,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency, getQuadDiscount } from '@/lib/booking-types';
 import { BookingTable } from '@/components/admin/BookingTable';
+import { AgendaHeader } from '@/components/admin/AgendaHeader';
 import { getAdminOrders, markOrderAsPaid } from '@/integrations/supabase/orders';
 import { PaymentModal } from '@/components/booking/PaymentModal';
 import { InternalBookingAssistant } from '@/components/admin/InternalBookingAssistant';
@@ -1788,173 +1789,88 @@ export default function Admin() {
           {/* CONTENT AREA WITH GRADIENT BACKGROUND */}
           <div className="min-h-[500px] md:min-h-[600px] bg-white/40 backdrop-blur-md rounded-2xl md:rounded-[2rem] p-4 md:p-8 border border-white/60 shadow-premium">
              {activeTab === 'painel' && renderDashboard()}
-             {activeTab === 'reservas' && (
-               <div className="space-y-6">
-                 
-                  {/* CABEÇALHO UNIFICADO EM LINHA ÚNICA (ABAS + FILTROS) */}
-                  <div className="flex flex-row items-center gap-2 bg-emerald-900/5 p-2 rounded-xl border border-emerald-100 shadow-sm w-full mb-6 overflow-x-auto no-scrollbar">
-                    
-                    {/* ABAS DE NAVEGAÇÃO PÍLULA */}
-                    <div className="flex flex-row gap-0.5 bg-white/60 p-0.5 rounded-lg shrink-0 shadow-inner">
-                       {[
-                         { key: 'hoje', label: 'Hoje', color: 'bg-emerald-600 text-white shadow-sm' },
-                         { key: 'futuras', label: 'Futuras', color: 'bg-blue-600 text-white shadow-sm' },
-                         { key: 'historico', label: 'Histórico', color: 'bg-slate-700 text-white shadow-sm' },
-                       ].map(t => (
-                         <button
-                           key={t.key}
-                           onClick={() => { setAgendaSubTab(t.key as any); setFilterDate(''); }}
-                           className={cn(
-                             'px-3 py-1.5 rounded-md text-[9px] font-black uppercase tracking-wider transition-all duration-300',
-                             agendaSubTab === t.key ? t.color : 'text-slate-500 hover:bg-white/80'
-                           )}
-                         >
-                           {t.label}
-                         </button>
-                       ))}
-                    </div>
+                                       {activeTab === 'reservas' && (
+               <div className="space-y-4">
+                  <AgendaHeader 
+                    agendaSubTab={agendaSubTab}
+                    setAgendaSubTab={setAgendaSubTab as any}
+                    search={search}
+                    setSearch={setSearch}
+                    filterDate={filterDate}
+                    setFilterDate={setFilterDate}
+                    statusFilter={statusFilter}
+                    setStatusFilter={setStatusFilter}
+                    isAllowedDay={isAllowedDay}
+                  />
 
-                    {/* BARRA DE PESQUISA DOMINANTE */}
-                    <div className="relative flex-1 min-w-[200px] group">
-                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-emerald-100 group-hover:text-white transition-colors" />
-                       <Input 
-                         placeholder="Pesquisar Nome, CPF, Telefone ou ID..." 
-                         className="pl-9 h-10 rounded-lg bg-emerald-600 border-2 border-emerald-700 font-bold text-white placeholder:text-emerald-100/60 focus-visible:ring-emerald-400 text-xs transition-all w-full shadow-md" 
-                         value={search} 
-                         onChange={e => setSearch(e.target.value)} 
-                       />
-                    </div>
-
-                    {/* FILTRO DE DATA COMPACTO */}
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "h-10 px-3 rounded-lg bg-white shadow-sm border-2 border-emerald-100 font-bold text-emerald-900 transition-all gap-2 text-[10px] shrink-0",
-                            !filterDate && "text-slate-400"
-                          )}
-                        >
-                          <CalendarIcon className="w-3.5 h-3.5" />
-                          <span className="hidden md:inline">{filterDate ? format(parseISO(filterDate), 'dd/MM/yyyy', { locale: ptBR }) : "Data"}</span>
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0 rounded-2xl overflow-hidden border-2 border-emerald-100 shadow-2xl" align="end">
-                        <Calendar
-                          mode="single"
-                          selected={filterDate ? parseISO(filterDate) : undefined}
-                          onSelect={(date) => setFilterDate(date ? format(date, 'yyyy-MM-dd') : '')}
-                          locale={ptBR}
-                          className="p-3"
-                          toDate={new Date(2030, 11, 31)}
-                          fromDate={new Date(2024, 0, 1)}
-                          disabled={(date) => !isAllowedDay(date)}
-                        />
-                      </PopoverContent>
-                    </Popover>
-
-                    {/* FILTRO DE STATUS COMPACTO */}
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
-                      <SelectTrigger className="h-10 px-3 rounded-lg bg-white shadow-sm border-2 border-emerald-100 font-bold text-emerald-900 transition-all gap-2 text-[10px] shrink-0 min-w-[100px]">
-                        <Filter className="w-3.5 h-3.5 text-emerald-500" />
-                        <SelectValue placeholder="Status" />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-xl border-2 border-emerald-100 shadow-2xl">
-                        <SelectItem value="all" className="text-[10px] font-bold">TODOS</SelectItem>
-                        <SelectItem value="paid" className="text-[10px] font-bold text-emerald-600">PAGOS</SelectItem>
-                        <SelectItem value="pending" className="text-[10px] font-bold text-amber-600">PENDENTES</SelectItem>
-                        <SelectItem value="awaiting_payment" className="text-[10px] font-bold text-blue-600">AGUARDANDO PGTO</SelectItem>
-                        <SelectItem value="cancelled" className="text-[10px] font-bold text-red-600">CANCELADOS</SelectItem>
-                        <SelectItem value="checked-in" className="text-[10px] font-bold text-purple-600">CHECK-IN</SelectItem>
-                      </SelectContent>
-                    </Select>
-                 </div>
-                    
-                    {(filterDate || statusFilter !== 'all' || search) && (
-                      <Button 
-                        variant="ghost" 
-                        className="h-14 px-4 text-emerald-700 font-black hover:bg-emerald-100/50 rounded-2xl flex items-center gap-2"
-                        onClick={() => {
-                          setFilterDate('');
-                          setStatusFilter('all');
-                          setSearch('');
-                        }}
-                      >
-                        <X className="w-4 h-4" /> LIMPAR FILTROS
-                      </Button>
-                    )}
-                  </div>
-                 <BookingTable 
-                                       bookings={[...bookings, ...(orders || []).map(o => ({...o, is_order: true}))].filter(b => {
-                      const bDate = b.visit_date || (typeof b.created_at === 'string' ? b.created_at.split('T')[0] : '');
-                      const today = format(new Date(), 'yyyy-MM-dd');
-                      const matchesSearch = !search || 
-                        (b.name || b.customer_name || '').toLowerCase().includes(search.toLowerCase()) ||
-                        (b.phone || b.customer_phone || '').includes(search) ||
-                        (b.confirmation_code || '').includes(search);
-                      const matchesStatus = statusFilter === 'all' || 
-                        (statusFilter === 'pending' && (!b.status || b.status.toLowerCase() === 'pending' || b.status.toLowerCase() === 'awaiting_payment' || b.status.toLowerCase() === 'waiting_local')) ||
-                        (b.status && b.status.toLowerCase() === statusFilter.toLowerCase());
-                      let matchesDate = true;
-                      if (filterDate) { matchesDate = bDate && bDate.startsWith(filterDate); } 
-                      else {
-                        if (agendaSubTab === 'hoje') matchesDate = bDate === today;
-                        else if (agendaSubTab === 'futuras') matchesDate = bDate > today;
-                        else if (agendaSubTab === 'historico') matchesDate = bDate < today;
-                      }
-                      return matchesSearch && matchesStatus && matchesDate;
-                    })}
-                   onStatusChange={updateBookingStatus}
-                   onAddNote={addBookingNote}
-                   onReschedule={async (id, date, isOrder) => {
-                      const table = isOrder ? 'orders' : 'bookings';
-                      const { error } = await supabase.from(table).update({ visit_date: date }).eq('id', id);
-                      if (error) toast({ title: "Erro ao reagendar", variant: "destructive" });
-                      else { toast({ title: "✓ Reagendado" }); fetchData(); }
-                   }}
-                    onDelete={async (id, isOrder) => {
-                       const table = isOrder ? 'orders' : 'bookings';
-                       try {
-                         const { error } = await supabase.from(table).delete().eq('id', id);
-                         if (error) throw error;
-                         toast({ title: "✓ Removido com sucesso" });
-                         fetchData();
-                       } catch (err: any) {
-                         console.error('Delete error:', err);
-                         toast({ title: "Erro ao remover: " + (err?.message || ''), variant: "destructive" });
-                       }
-                    }}
-                    onRemoveItem={() => {}}
-                    updatingId={updatingId}
-                    onRemoveReceipt={async (bookingId) => {
-                      await supabase.from('bookings').update({ receipt_url: null }).eq('id', bookingId);
-                      fetchData();
-                    }}
-                   onFileUpload={async (file, id, isOrder) => {
-                     setIsUploading(true);
-                     try {
-                        const fileExt = file.name.split('.').pop();
-                        const fileName = `${crypto.randomUUID()}.${fileExt}`;
-                        const { error: uploadError } = await supabase.storage.from('receipts').upload(fileName, file);
-                        if (uploadError) throw uploadError;
-                        
-                        const { data: { publicUrl } } = supabase.storage.from('receipts').getPublicUrl(fileName);
-                        const table = isOrder ? 'orders' : 'bookings';
-                        const { error } = await supabase.from(table).update({ receipt_url: publicUrl }).eq('id', id);
-                        
-                        if (error) throw error;
-                        toast({ title: "Comprovante anexado!" });
+                  <BookingTable  
+                      bookings={[...bookings, ...(orders || []).map(o => ({...o, is_order: true}))].filter(b => {
+                        const bDate = b.visit_date || (typeof b.created_at === 'string' ? b.created_at.split('T')[0] : '');
+                        const today = format(new Date(), 'yyyy-MM-dd');
+                        const matchesSearch = !search || 
+                          (b.name || b.customer_name || '').toLowerCase().includes(search.toLowerCase()) ||
+                          (b.phone || b.customer_phone || '').includes(search) ||
+                          (b.confirmation_code || '').includes(search);
+                        const matchesStatus = statusFilter === 'all' || 
+                          (statusFilter === 'pending' && (!b.status || b.status.toLowerCase() === 'pending' || b.status.toLowerCase() === 'awaiting_payment' || b.status.toLowerCase() === 'waiting_local')) ||
+                          (b.status && b.status.toLowerCase() === statusFilter.toLowerCase());
+                        let matchesDate = true;
+                        if (filterDate) { matchesDate = bDate && bDate.startsWith(filterDate); } 
+                        else {
+                          if (agendaSubTab === 'hoje') matchesDate = bDate === today;
+                          else if (agendaSubTab === 'futuras') matchesDate = bDate > today;
+                          else if (agendaSubTab === 'historico') matchesDate = bDate < today;
+                        }
+                        return matchesSearch && matchesStatus && matchesDate;
+                      })}
+                      onStatusChange={updateBookingStatus}
+                      onAddNote={addBookingNote}
+                      onReschedule={async (id, date, isOrder) => {
+                         const table = isOrder ? 'orders' : 'bookings';
+                         const { error } = await supabase.from(table).update({ visit_date: date }).eq('id', id);
+                         if (error) toast({ title: "Erro ao reagendar", variant: "destructive" });
+                         else { toast({ title: "✓ Reagendado" }); fetchData(); }
+                      }}
+                      onDelete={async (id, isOrder) => {
+                          const table = isOrder ? 'orders' : 'bookings';
+                          try {
+                            const { error } = await supabase.from(table).delete().eq('id', id);
+                            if (error) throw error;
+                            toast({ title: "✓ Removido com sucesso" });
+                            fetchData();
+                          } catch (err: any) {
+                            console.error('Delete error:', err);
+                            toast({ title: "Erro ao remover: " + (err?.message || ''), variant: "destructive" });
+                          }
+                      }}
+                      onRemoveItem={() => {}}
+                      updatingId={updatingId}
+                      onRemoveReceipt={async (bookingId) => {
+                        await supabase.from('bookings').update({ receipt_url: null }).eq('id', bookingId);
                         fetchData();
-                     } catch (err) { 
-                        toast({ title: "Erro ao anexar comprovante", variant: "destructive" });
-                        console.error(err); 
-                     } finally { setIsUploading(false); }
-                   }}
-                   isUploading={isUploading}
-                   onRefresh={fetchData}
-                   onSyncPayment={handleSyncPayment}
-                    onGeneratePayment={handleGeneratePayment}
-                 />
+                      }}
+                      onFileUpload={async (file, id, isOrder) => {
+                        setIsUploading(true);
+                        try {
+                           const fileExt = file.name.split('.').pop();
+                           const fileName = `${crypto.randomUUID()}.${fileExt}`;
+                           const { error: uploadError } = await supabase.storage.from('receipts').upload(fileName, file);
+                           if (uploadError) throw uploadError;
+                           const { data: { publicUrl } } = supabase.storage.from('receipts').getPublicUrl(fileName);
+                           const table = isOrder ? 'orders' : 'bookings';
+                           const { error } = await supabase.from(table).update({ receipt_url: publicUrl }).eq('id', id);
+                           if (error) throw error;
+                           toast({ title: "Comprovante anexado!" });
+                           fetchData();
+                        } catch (err) { 
+                           toast({ title: "Erro ao anexar comprovante", variant: "destructive" });
+                        } finally { setIsUploading(false); }
+                      }}
+                      isUploading={isUploading}
+                      onRefresh={fetchData}
+                      onSyncPayment={handleSyncPayment}
+                      onGeneratePayment={handleGeneratePayment}
+                  />
                </div>
              )}
              {activeTab === 'quiosques' && renderKioskTab()}
