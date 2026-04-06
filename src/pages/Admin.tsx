@@ -176,7 +176,7 @@ export default function Admin() {
     children_free: 0,
     selected_kiosks: [],
     quads: [],
-    manual_discount: 0,
+    manual_discount: 0, manual_discount_type: 'unit',
     status: 'pending'
   });
   
@@ -1109,7 +1109,7 @@ export default function Admin() {
                         
                         // Availability logic
                         const kiosksFull = (kioskReservations || []).filter(r => r.reservation_date === dateStr).length >= 5;
-                        const quadsFull = (quadReservations || []).filter(r => r.reservation_date === dateStr).reduce((s, r) => s + (Number(r.quantity) || 1), 0) >= 20;
+                        const quadsFull = (quadReservations || []).filter(r => r.reservation_date === dateStr).reduce((s, r) => s + (Number(r.quantity) || 1), 0) >= 12;
                         const isDayToday = isToday(date);
                         const isFull = kiosksFull && quadsFull;
 
@@ -1233,7 +1233,7 @@ export default function Admin() {
                          <div>
                             <span className="text-[10px] font-black text-emerald-800/60 uppercase tracking-widest block mb-1">Cliente</span>
                             <span className="font-black text-emerald-950 uppercase text-sm block">{group.customer_name}</span>
-                            <span className="text-[10px] text-emerald-700 font-bold">{group.items.length} reserva(s) â€¢ {formatCurrency(group.total_price)}</span>
+                            <span className="text-[10px] text-emerald-700 font-bold">{group.items.length} reserva(s) • {formatCurrency(group.total_price)}</span>
                          </div>
                          <div>
                             <span className="text-[10px] font-black text-emerald-800/60 uppercase tracking-widest block mb-1">Quiosques</span>
@@ -1445,7 +1445,7 @@ export default function Admin() {
                                       <div className="flex items-center gap-2">
                                          <Clock className="w-3.5 h-3.5 text-blue-500" />
                                          <span className="text-[11px] font-black text-blue-900">{r.time_slot}</span>
-                                         <span className="text-[10px] font-bold text-blue-600/60">â€¢ {QUAD_MODELS_LABELS[r.quad_type] || 'Individual'}</span>
+                                         <span className="text-[10px] font-bold text-blue-600/60">• {QUAD_MODELS_LABELS[r.quad_type] || 'Individual'}</span>
                                       </div>
                                       <span className="text-[10px] font-black text-blue-900">{r.quantity} un.</span>
                                    </div>
@@ -1731,7 +1731,7 @@ export default function Admin() {
 
        <div className="max-w-7xl mx-auto space-y-6 md:space-y-8 relative z-10 p-3 md:p-8">
           {/* HEADER */}
-          <div className="flex flex-col xl:flex-row xl:items-start justify-between gap-6 mb-4">
+          <div className="flex flex-col xl:flex-row xl:items-start justify-between gap-4 mb-4">
               <div className="flex items-start justify-between w-full xl:w-auto">
                  <div className="space-y-2 shrink-0">
                      <h1 className="text-4xl md:text-5xl font-black tracking-tighter flex items-center gap-4">
@@ -1740,7 +1740,7 @@ export default function Admin() {
                              <span className="text-4xl md:text-4xl md:text-5xl text-[#FFF033] shadow-md">Painel</span>
                           </div>
                        </h1>
-                     <p className="text-[#FFF033] font-black uppercase tracking-[0.2em] md:tracking-[0.3em] text-[8px] md:text-[10px] bg-[#FFF033]/10 w-fit px-3 py-1 rounded-full border border-[#FFF033]/30 backdrop-blur-sm">Gestão Integrada de Reservas â€¢ Balneário</p>
+                     <p className="text-[#FFF033] font-black uppercase tracking-[0.2em] md:tracking-[0.3em] text-[8px] md:text-[10px] bg-[#FFF033]/10 w-fit px-3 py-1 rounded-full border border-[#FFF033]/30 backdrop-blur-sm">Gestão Integrada de Reservas • Balneário</p>
                  </div>
 
                  {/* MOBILE BUTTONS (TOP RIGHT) */}
@@ -1872,7 +1872,17 @@ export default function Admin() {
                 <ShoppingBag className="w-4 h-4 md:w-4.5 md:h-4.5" /> Vendas
              </button>
 
-             <button onClick={() => setIsNewBookingOpen(true)} className="hidden lg:flex px-4 md:px-6 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap bg-emerald-600 text-white hover:bg-emerald-500 shadow-md ml-auto">
+             <button onClick={() => { 
+                setNewBookingData({
+                  name: '', phone: '', email: '', visit_date: '',
+                  adults_normal: 0, adults_half: 0,
+                  is_teacher: 0, is_student: 0, is_server: 0, is_donor: 0, is_solidarity: 0,
+                  is_pcd: 0, is_tea: 0, is_senior: 0, is_birthday: 0,
+                  children_free: 0, selected_kiosks: [], quads: [],
+                  manual_discount: 0, manual_discount_type: 'unit', status: 'pending'
+                });
+                setIsNewBookingOpen(true); 
+              }} className="hidden lg:flex px-4 md:px-6 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap bg-emerald-600 text-white hover:bg-emerald-500 shadow-md ml-auto">
                 <span className="text-lg leading-none">+</span> Nova Reserva
              </button>
 
@@ -2134,7 +2144,7 @@ export default function Admin() {
                         <DialogTitle className="text-2xl font-black text-white uppercase tracking-tighter flex items-center justify-center gap-3">
                            <CalendarPlus className="w-8 h-8" /> Assistente de Reserva Interna
                         </DialogTitle>
-                        <p className="text-emerald-100 text-[11px] font-black uppercase mt-1.5 tracking-widest bg-emerald-700/50 inline-block px-4 py-1.5 rounded-full border border-emerald-500/30">Lógica Integrada â€¢ Sem CPF</p>
+                        <p className="text-emerald-100 text-[11px] font-black uppercase mt-1.5 tracking-widest bg-emerald-700/50 inline-block px-4 py-1.5 rounded-full border border-emerald-500/30">Lógica Integrada • Sem CPF</p>
                       </div>
                       
                       <div className="flex-1 overflow-y-auto p-10 space-y-10 custom-scrollbar">
@@ -2177,7 +2187,7 @@ export default function Admin() {
                         </div>
 
                         {/* SECTION 2: PARTICIPANTES */}
-                        <div className="bg-white p-8 rounded-[2rem] border-2 border-emerald-100 shadow-sm space-y-6">
+                        <div className="bg-white p-5 rounded-2xl border-2 border-emerald-100 shadow-sm space-y-4">
                            <div className="flex items-center justify-between border-b-2 border-emerald-50 pb-4">
                               <h4 className="text-[11px] font-black text-emerald-900 uppercase tracking-widest flex items-center gap-2">
                                  <Users className="w-4 h-4" /> 1. Participantes
@@ -2264,7 +2274,7 @@ export default function Admin() {
                               {['09:00', '10:30', '14:00', '15:30'].map(slot => {
                                  const used = quadSlotsAvail[slot] || 0;
                                  const localUsed = newBookingData.quads.filter((q:any)=>q.time===slot).reduce((s:number,q:any)=>s+q.quantity, 0);
-                                 const remaining = 5 - (used + localUsed);
+                                 const remaining = 3 - (used + localUsed);
                                  const isFull = remaining <= 0;
                                  
                                  return (
@@ -2274,7 +2284,7 @@ export default function Admin() {
                                           <div className="flex flex-col">
                                              <span className="text-[10px] font-black uppercase text-emerald-800/60 tracking-wider">Vagas Disponí­veis</span>
                                              <div className="flex gap-1">
-                                                {Array.from({length: 5}, (_, i) => (
+                                                {Array.from({length: 3}, (_, i) => (
                                                    <div key={i} className={cn("w-2 h-2 rounded-full", i < (used + localUsed) ? "bg-red-500" : "bg-emerald-400")} />
                                                 ))}
                                                 <span className="text-[10px] font-black ml-2 text-emerald-800">{remaining} RESTANTES</span>
@@ -2390,7 +2400,8 @@ export default function Admin() {
                                              const b = q.type === 'dupla' ? 250 : q.type === 'adulto-crianca' ? 200 : 150;
                                              total += (b * (1 - qD)) * q.quantity;
                                           });
-                                          return Math.max(0, total - manual_discount).toFixed(2).replace('.', ',');
+                                          const disc = newBookingData.manual_discount_type === 'percent' ? (total * (manual_discount / 100)) : manual_discount;
+                                           return Math.max(0, total - disc).toFixed(2).replace('.', ',');
                                        })()}
                                     </span>
                                  </div>
