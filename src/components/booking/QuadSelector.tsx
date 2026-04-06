@@ -7,7 +7,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useServices } from '@/hooks/useServices';
-import { getQuadAvailability } from '@/lib/booking-service';
+import { getQuadAvailability, getGlobalSetting } from '@/lib/booking-service';
 import { useToast } from '@/hooks/use-toast';
 
 interface Props {
@@ -42,16 +42,25 @@ const QUAD_CARDS = [
   },
 ];
 
-const MAX_QUADS_PER_SLOT = 3;
+const DEFAULT_MAX_QUADS = 3;
 
 export function QuadSelector({ quads, onUpdate }: Props) {
   const { getPrice, isLoading } = useServices();
   const { toast } = useToast();
+  const [maxQuads, setMaxQuads] = useState<number>(DEFAULT_MAX_QUADS);
   const [slotAvailabilities, setSlotAvailabilities] = useState<Record<string, number>>({});
   const [isFetchingAvailability, setIsFetchingAvailability] = useState(false);
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
 
   const checkDate = quads[0]?.date;
+
+  useEffect(() => {
+    async function fetchConfig() {
+      const total = await getGlobalSetting('total_quads', DEFAULT_MAX_QUADS);
+      setMaxQuads(Number(total));
+    }
+    fetchConfig();
+  }, []);
 
   useEffect(() => {
     async function fetchAvailability() {
@@ -133,8 +142,8 @@ export function QuadSelector({ quads, onUpdate }: Props) {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {QUAD_TIMES.map(t => {
               const totalUsed = getSlotUsage(t);
-              const remaining = Math.max(0, MAX_QUADS_PER_SLOT - totalUsed);
-              const pct = (totalUsed / MAX_QUADS_PER_SLOT) * 100;
+              const remaining = Math.max(0, maxQuads - totalUsed);
+              const pct = (totalUsed / maxQuads) * 100;
               const isFull = remaining <= 0;
 
               return (
@@ -166,7 +175,7 @@ export function QuadSelector({ quads, onUpdate }: Props) {
                     "text-[9px] sm:text-[10px] font-bold mt-1",
                     isFull ? "text-red-500" : remaining <= 2 ? "text-amber-600" : "text-emerald-600"
                   )}>
-                    {isFull ? 'LOTADO' : `${remaining}/${MAX_QUADS_PER_SLOT} vagas`}
+                    {isFull ? 'LOTADO' : `${remaining}/${maxQuads} vagas`}
                   </span>
                 </div>
               );
@@ -323,7 +332,7 @@ export function QuadSelector({ quads, onUpdate }: Props) {
                           if (idx !== cardIndex && qry.time === v) return acc + qry.quantity;
                           return acc;
                         }, 0);
-                        const remaining = MAX_QUADS_PER_SLOT - (used + localUsedOthers);
+                        const remaining = maxQuads - (used + localUsedOthers);
                         
                         if (remaining <= 0) {
                           toast({ title: 'Horário Lotado', description: `Não há vagas disponíveis para as ${v}.`, variant: 'destructive' });
@@ -347,7 +356,7 @@ export function QuadSelector({ quads, onUpdate }: Props) {
                       <SelectContent className="rounded-2xl">
                         {QUAD_TIMES.map(t => {
                           const totalUsed = getSlotUsage(t, cardIndex);
-                          const remaining = Math.max(0, MAX_QUADS_PER_SLOT - totalUsed);
+                          const remaining = Math.max(0, maxQuads - totalUsed);
                           const isFull = remaining <= 0;
                           return (
                             <SelectItem 
@@ -401,7 +410,7 @@ export function QuadSelector({ quads, onUpdate }: Props) {
                         max={(() => {
                           if (!quad.time || !checkDate) return 0;
                           const totalUsed = getSlotUsage(quad.time, cardIndex);
-                          return Math.max(0, MAX_QUADS_PER_SLOT - totalUsed);
+                          return Math.max(0, maxQuads - totalUsed);
                         })()}
                         onChange={(q) => onUpdate(cardIndex, { quantity: q })} 
                       />

@@ -443,15 +443,33 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                                           <input type="file" id={`upload-${booking.id}`} className="hidden" onChange={e => {
                                                              if (e.target.files) onFileUpload(e.target.files[0], booking.id, !!booking.is_order);
                                                           }} />
-                                                          <label htmlFor={`upload-${booking.id}`} className={cn(
-                                                              "flex items-center gap-3 px-6 py-3 rounded-2xl cursor-pointer transition-all duration-300 font-black text-[10px] uppercase tracking-widest shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-[0.98]",
-                                                               booking.receipt_url 
-                                                                ? "bg-emerald-600 border-2 border-emerald-700 text-white shadow-emerald-900/20" 
-                                                                : "bg-white border-2 border-dashed border-emerald-200 text-emerald-800 hover:bg-emerald-50 hover:border-emerald-400"
-                                                           )}>
-                                                              {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : booking.receipt_url ? <FileCheck className="w-4 h-4" /> : <Upload className="w-4 h-4" />}
-                                                              {booking.receipt_url ? 'VER COMPROVANTE ✓' : 'ANEXAR COMPROVANTE'}
-                                                          </label>
+                                                          {booking.receipt_url ? (
+                                                            <>
+                                                              <a 
+                                                                href={booking.receipt_url} 
+                                                                target="_blank" 
+                                                                rel="noopener noreferrer"
+                                                                className="flex items-center gap-2 px-4 py-3 bg-emerald-600 border-2 border-emerald-700 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-sm hover:bg-emerald-700 transition-all"
+                                                              >
+                                                                <FileCheck className="w-4 h-4" /> VER
+                                                              </a>
+                                                              <label 
+                                                                htmlFor={`upload-${booking.id}`} 
+                                                                className="flex items-center gap-2 px-4 py-3 bg-white border-2 border-dashed border-emerald-200 text-emerald-800 rounded-2xl cursor-pointer font-black text-[10px] uppercase tracking-widest hover:bg-emerald-50 transition-all"
+                                                              >
+                                                                {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                                                                SUBSTITUIR
+                                                              </label>
+                                                            </>
+                                                          ) : (
+                                                            <label htmlFor={`upload-${booking.id}`} className={cn(
+                                                                "flex items-center gap-3 px-6 py-3 rounded-2xl cursor-pointer transition-all duration-300 font-black text-[10px] uppercase tracking-widest shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-[0.98]",
+                                                                "bg-white border-2 border-dashed border-emerald-200 text-emerald-800 hover:bg-emerald-50 hover:border-emerald-400"
+                                                             )}>
+                                                                {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                                                                ANEXAR COMPROVANTE
+                                                            </label>
+                                                          )}
                                                        </div>
                                                      )}
                                                   </div>

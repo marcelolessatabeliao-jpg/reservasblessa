@@ -275,3 +275,31 @@ export async function getBookingCount(): Promise<number> {
   if (error) return 0;
   return count || 0;
 }
+
+export async function getGlobalSetting(key: string, defaultValue: any = null): Promise<any> {
+  try {
+    const { data, error } = await (supabase.from('site_settings') as any)
+      .select('value')
+      .eq('key', key)
+      .maybeSingle();
+    
+    if (error || !data) return defaultValue;
+    return typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
+  } catch (error) {
+    console.error(`Error fetching setting ${key}:`, error);
+    return defaultValue;
+  }
+}
+
+export async function updateGlobalSetting(key: string, value: any): Promise<boolean> {
+  try {
+    const { error } = await (supabase.from('site_settings') as any)
+      .upsert({ key, value, updated_at: new Date().toISOString() });
+    
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error(`Error updating setting ${key}:`, error);
+    return false;
+  }
+}

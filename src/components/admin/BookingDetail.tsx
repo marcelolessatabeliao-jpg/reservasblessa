@@ -297,14 +297,14 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
         {/* Receipt button with view/delete */}
         {booking.receipt_url && (
           <div className="flex items-center gap-1 ml-1">
-            <a href={booking.receipt_url} target="_blank" rel="noopener noreferrer">
-              <button className="flex items-center gap-1.5 bg-emerald-600 text-white text-[9px] font-black uppercase tracking-wider px-3 py-1.5 rounded-l-xl border border-emerald-700 hover:bg-emerald-700 transition-all shadow-sm">
+            <a href={booking.receipt_url} target="_blank" rel="noopener noreferrer" className="shrink-0">
+              <button className="flex items-center gap-1.5 bg-emerald-600 text-white text-[9px] font-black uppercase tracking-wider px-3 py-1.5 rounded-l-xl border border-emerald-700 hover:bg-emerald-700 transition-all shadow-sm shrink-0">
                 <ExternalLink className="w-3 h-3" /> Ver Comprovante
               </button>
             </a>
             <button
               onClick={handleRemoveReceipt}
-              className="flex items-center gap-1 bg-red-100 text-red-700 text-[9px] font-black uppercase tracking-wider px-2 py-1.5 rounded-r-xl border border-red-200 hover:bg-red-600 hover:text-white transition-all shadow-sm"
+              className="flex items-center gap-1 bg-red-100 text-red-700 text-[9px] font-black uppercase tracking-wider px-2 py-1.5 rounded-r-xl border border-red-200 hover:bg-red-600 hover:text-white transition-all shadow-sm shrink-0"
               title="Remover comprovante"
             >
               <Trash2 className="w-3.5 h-3.5" />

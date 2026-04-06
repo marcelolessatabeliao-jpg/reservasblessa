@@ -34,6 +34,8 @@ interface AdminQuadTabProps {
   setRescheduleData: (data: any) => void;
   setRescheduleDate: (date: Date) => void;
   requestDelete: (item: any, type: string) => void;
+  totalQuads?: number;
+  onUpdateTotalQuads?: (val: number) => void;
 }
 
 export function AdminQuadTab({
@@ -52,6 +54,8 @@ export function AdminQuadTab({
   setRescheduleData,
   setRescheduleDate,
   requestDelete,
+  totalQuads = 3,
+  onUpdateTotalQuads
 }: AdminQuadTabProps) {
   const todayStr = format(new Date(), 'yyyy-MM-dd');
   
@@ -87,6 +91,30 @@ export function AdminQuadTab({
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="bg-white rounded-3xl border-2 border-slate-300 shadow-xl overflow-hidden">
+        {/* Priority Control */}
+        <div className="bg-amber-50 md:p-6 p-4 border-b-2 border-amber-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+           <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-900/20">
+                 <Clock className="w-6 h-6" />
+              </div>
+              <div>
+                 <h3 className="text-xs md:text-sm font-black text-blue-950 uppercase tracking-wider">Capacidade Prioritária</h3>
+                 <p className="text-[10px] text-blue-800 font-bold uppercase tracking-tighter">Define o total de quadriciclos disponíveis no sistema</p>
+              </div>
+           </div>
+           <div className="flex items-center gap-3">
+              <div className="flex flex-col">
+                 <span className="text-[9px] font-black text-amber-700 uppercase ml-1 mb-1">Qtd. Total</span>
+                 <input 
+                   type="number" 
+                   value={totalQuads} 
+                   onChange={(e) => onUpdateTotalQuads?.(Number(e.target.value))}
+                   className="w-24 h-11 rounded-xl border-2 border-amber-200 bg-white px-4 text-center font-black text-blue-900 focus:border-blue-500 transition-all outline-none"
+                 />
+              </div>
+           </div>
+        </div>
+
         <div className="p-6 border-b-2 border-slate-200 bg-blue-50/50">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>

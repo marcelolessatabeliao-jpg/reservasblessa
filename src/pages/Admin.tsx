@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { isValidCPF } from '@/utils/cpf-validator';
-import { saveBooking, getBookedKioskIds, getQuadAvailability, type OrderItemInput } from '@/lib/booking-service';
+import { saveBooking, getBookedKioskIds, getQuadAvailability, getGlobalSetting, updateGlobalSetting, type OrderItemInput } from '@/lib/booking-service';
 import { format, isToday, isTomorrow, isThisWeek, parseISO, isBefore, startOfDay, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { 
@@ -84,24 +84,24 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 // Constants from common types
 const KIOSKS = [
-  { id: 1, name: 'QUIOSQUE - 01 (Grande)', price: 100, capacity: 'AtíƒÂ© 30 pessoas', type: 'Maior' },
-  { id: 2, name: 'QUIOSQUE - 02', price: 75, capacity: 'AtíƒÂ© 15 pessoas', type: 'Menor' },
-  { id: 3, name: 'QUIOSQUE - 03', price: 75, capacity: 'AtíƒÂ© 15 pessoas', type: 'Menor' },
-  { id: 4, name: 'QUIOSQUE - 04', price: 75, capacity: 'AtíƒÂ© 15 pessoas', type: 'Menor' },
-  { id: 5, name: 'QUIOSQUE - 05', price: 75, capacity: 'AtíƒÂ© 15 pessoas', type: 'Menor' }
+  { id: 1, name: 'QUIOSQUE - 01 (Grande)', price: 100, capacity: 'Até 30 pessoas', type: 'Maior' },
+  { id: 2, name: 'QUIOSQUE - 02', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' },
+  { id: 3, name: 'QUIOSQUE - 03', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' },
+  { id: 4, name: 'QUIOSQUE - 04', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' },
+  { id: 5, name: 'QUIOSQUE - 05', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' }
 ];
 
 const QUAD_TIMES = ['09:00', '10:30', '14:00', '15:30'];
 const PAYMENT_METHODS = [
-  { value: 'pix', label: 'PIX / TransferíƒÂªncia' },
-  { value: 'credit_card', label: 'CartíƒÂ£o de CríƒÂ©dito' },
+  { value: 'pix', label: 'PIX / Transferência' },
+  { value: 'credit_card', label: 'Cartão de Crédito' },
   { value: 'cash', label: 'Dinheiro (Local)' }
 ];
 
 const QUAD_MODELS_LABELS: Record<string, string> = {
   individual: 'Individual',
   dupla: 'Dupla',
-  'adulto-crianca': 'Adulto + CrianíƒÂ§a'
+  'adulto-crianca': 'Adulto + Criança'
 };
 
 type TabType = 'painel' | 'reservas' | 'quiosques' | 'quads' | 'vendas' | 'creditos';
@@ -110,7 +110,7 @@ type TabType = 'painel' | 'reservas' | 'quiosques' | 'quads' | 'vendas' | 'credi
 const normalizeQuadType = (t: string) => {
   const slow = (t || '').toLowerCase();
   if (slow.includes('dupla')) return 'dupla';
-  if (slow.includes('crianíƒÂ§a')) return 'adulto-crianca';
+  if (slow.includes('criança')) return 'adulto-crianca';
   return 'individual';
 };
 
@@ -155,6 +155,7 @@ export default function Admin() {
   const [orders, setOrders] = useState<any[]>([]);
   const [credits, setCredits] = useState<any[]>([]);
   const [targetDate, setTargetDate] = useState<Date>(new Date());
+  const [totalQuads, setTotalQuads] = useState<number>(3);
 
   // Editing States
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -227,6 +228,8 @@ export default function Admin() {
         .select('*')
         .order('created_at', { ascending: false });
       
+      const tQuads = await getGlobalSetting('total_quads', 3);
+      setTotalQuads(Number(tQuads));
       setCredits(creds || []);
       
       // Filter out awaiting_payment from reservations too
@@ -270,7 +273,7 @@ export default function Admin() {
                
                // Listas categorizadas para contagem de pessoas
                 const adultKeywords = ['adulto', 'solidário', 'solidario', 'professor', 'estudante', 'servidor'];
-                const gratuityKeywords = ['crianíƒÂ§a', 'crianíƒÂ§a', 'idoso', 'pcd', 'aniversariante'];
+                const gratuityKeywords = ['criança', 'crianca', 'idoso', 'pcd', 'aniversariante'];
 
                 const isAdult = adultKeywords.some(key => pName.includes(key) || pId.includes(key));
                 const isGratuity = gratuityKeywords.some(key => pName.includes(key) || pId.includes(key));
@@ -361,7 +364,7 @@ export default function Admin() {
                }
             });
             
-            // Atribuir contagens extraíƒÂ­das se níƒÂ£o estiverem presentes
+            // Atribuir contagens extraídas se não estiverem presentes
             o.adults = o.adults || orderAdults;
             o.children = o.children || orderChildren;
          });
@@ -387,7 +390,7 @@ export default function Admin() {
       let tAdults = 0;
       let tChildren = 0;
       const adultKeywords = ['adulto', 'solidario', 'professor', 'estudante', 'servidor'];
-      const gratuityKeywords = ['crianíƒÂ§a', 'kids', 'idoso', 'pcd', 'aniversariante'];
+      const gratuityKeywords = ['criança', 'kids', 'idoso', 'pcd', 'aniversariante'];
 
       [...(enrichedBookings || []), ...(orderData || [])].forEach(b => {
         if (b.status === 'confirmed' || b.status === 'paid' || b.status === 'pending') {
@@ -893,8 +896,8 @@ export default function Admin() {
                         return (
                           <div key={slot.start} className="bg-white rounded-[1.25rem] p-3 shadow-sm border border-blue-200/80 space-y-2.5">
                              <div className="flex items-center justify-between px-1">
-                                <span className="font-black text-blue-900 text-[13px]">{slot.start} - {slot.end}</span>
-                                <span className="text-blue-600 font-bold text-[11px]">{count}/3 ocupados</span>
+                                <span className="text-blue-900 font-black text-[13px]">{slot.start} - {slot.end}</span>
+                                <span className="text-blue-600 font-bold text-[11px]">{count}/{totalQuads} ocupados</span>
                              </div>
                              
                              <div className="rounded-xl border border-blue-50 bg-blue-50/20 p-1.5 min-h-[32px] flex items-center justify-center">
@@ -919,7 +922,7 @@ export default function Admin() {
                       <div className="bg-amber-50/50 rounded-[1.25rem] p-3 shadow-sm border border-amber-200 mt-2 space-y-2.5">
                          <div className="flex items-center justify-between px-1">
                             <span className="font-black text-amber-900 text-[11px] uppercase tracking-wider flex items-center gap-2">
-                               <AlertTriangle className="w-3.5 h-3.5" /> Extra / S. HoríƒÂ¡rio
+                               <AlertTriangle className="w-3.5 h-3.5" /> Extra / S. Horário
                             </span>
                          </div>
                          <div className="rounded-xl border border-amber-100 bg-white/40 p-1.5 min-h-[32px] flex items-center justify-center text-center">
@@ -957,7 +960,7 @@ export default function Admin() {
                     <h4 className="text-lg font-black text-emerald-950 tracking-tight">Resumo Geral</h4>
                  </div>
                  <p className="text-[11px] font-bold text-emerald-800/70 leading-relaxed mb-6">
-                    Selecione uma data para organizar seu dia de operaíƒÂ§íƒÂµes.
+                    Selecione uma data para organizar seu dia de operações.
                  </p>
                  
                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -1020,7 +1023,7 @@ export default function Admin() {
                         
                         // Availability logic
                         const kiosksFull = (kioskReservations || []).filter(r => r.reservation_date === dateStr).length >= 5;
-                        const quadsFull = (quadReservations || []).filter(r => r.reservation_date === dateStr).reduce((s, r) => s + (Number(r.quantity) || 1), 0) >= 20;
+                        const quadsFull = (quadReservations || []).filter(r => r.reservation_date === dateStr).reduce((s, r) => s + (Number(r.quantity) || 1), 0) >= (totalQuads * 4);
                         const isDayToday = isToday(date);
                         const isFull = kiosksFull && quadsFull;
 
@@ -1075,9 +1078,9 @@ export default function Admin() {
         if (bid === 'MENOR') {
           const menors = dayKiosks.filter(dk => dk.kiosk_id === 'MENOR');
           const idx = menors.findIndex(dk => dk.id === r.id);
-          return KIOSKS.find(k => k.id === idx + 2) || { id: 99, name: 'Quiosque Extra', capacity: 'AtíƒÂ© 15 pessoas' };
+          return KIOSKS.find(k => k.id === idx + 2) || { id: 99, name: 'Quiosque Extra', capacity: 'Até 15 pessoas' };
         }
-        return KIOSKS.find(k => k.id === Number(bid)) || { id: 99, name: `Q-${bid}`, capacity: 'AtíƒÂ© 15 pessoas' };
+        return KIOSKS.find(k => k.id === Number(bid)) || { id: 99, name: `Q-${bid}`, capacity: 'Até 15 pessoas' };
       });
       const names = resolved.map((k: any) => k?.name.replace('Quiosque ', 'Q-')).join(', ');
       const capacity = resolved.reduce((s: number, k: any) => s + parseInt((k?.capacity || '0').replace(/\D/g, '') || '15'), 0);
@@ -1174,7 +1177,7 @@ export default function Admin() {
             <div className="hidden md:block">
               {tabGroups.length === 0 ? (
                 <div className="text-center py-16 text-muted-foreground/40 font-bold uppercase text-xs tracking-widest">
-                  {kioskSubTab === 'hoje' ? 'Nenhuma reserva ativa hoje' : kioskSubTab === 'futuras' ? 'Sem reservas futuras' : 'Sem histíƒÂ³rico'}
+                  {kioskSubTab === 'hoje' ? 'Nenhuma reserva ativa hoje' : kioskSubTab === 'futuras' ? 'Sem reservas futuras' : 'Sem histórico'}
                 </div>
               ) : (
                 <table className="w-full text-left">
@@ -1281,6 +1284,40 @@ export default function Admin() {
 
     return (
       <div className="space-y-6 animate-in fade-in duration-500">
+        {/* Priority Control - MOVED OUTSIDE FOR MAXIMUM VISIBILITY */}
+        <div className="bg-amber-50 md:p-6 p-4 rounded-3xl border-2 border-amber-300 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-amber-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-amber-900/20">
+              <Bike className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-xs md:text-sm font-black text-amber-950 uppercase tracking-wider">Capacidade Prioritária do Sistema</h3>
+              <p className="text-[10px] text-amber-800 font-bold uppercase tracking-tighter">Define o total de quadriciclos disponíveis em todos os sites</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex flex-col">
+              <span className="text-[9px] font-black text-amber-700 uppercase ml-1 mb-1">Total Disponível</span>
+              <input 
+                type="number" 
+                value={totalQuads} 
+                onChange={(e) => setTotalQuads(Number(e.target.value))}
+                className="w-24 h-11 rounded-xl border-2 border-amber-400 bg-white px-4 text-center font-black text-amber-900 focus:border-amber-500 transition-all outline-none"
+              />
+            </div>
+            <Button 
+              onClick={async () => {
+                const ok = await updateGlobalSetting('total_quads', totalQuads);
+                if (ok) toast({ title: "✓ Configuração Atualizada!", description: "A nova capacidade já está refletindo em todo o sistema." });
+                else toast({ title: "Erro ao atualizar", variant: "destructive" });
+              }}
+              className="h-11 px-6 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-black shadow-lg shadow-amber-900/20 active:scale-95 transition-all text-[11px] uppercase"
+            >
+              Salvar Alteração Master
+            </Button>
+          </div>
+        </div>
+
         <div className="bg-white rounded-3xl border-2 border-slate-300 shadow-xl overflow-hidden">
           <div className="p-6 border-b-2 border-slate-200 bg-blue-50/50">
             <div className="flex items-center justify-between flex-wrap gap-4">
@@ -1350,7 +1387,7 @@ export default function Admin() {
                               </div>
                               
                               <div className="space-y-2">
-                                 <span className="text-[9px] font-black text-blue-700/60 uppercase tracking-widest block mb-1">HoríƒÂ¡rios Reservados</span>
+                                 <span className="text-[9px] font-black text-blue-700/60 uppercase tracking-widest block mb-1">Horários Reservados</span>
                                  {group.items.map((r: any, i: number) => (
                                    <div key={i} className="flex justify-between items-center bg-white p-3 rounded-xl border border-blue-100 shadow-sm">
                                       <div className="flex items-center gap-2">
@@ -1385,7 +1422,7 @@ export default function Admin() {
             <div className="hidden md:block">
               {tabGroups.length === 0 ? (
                 <div className="text-center py-16 text-muted-foreground/40 font-bold uppercase text-xs tracking-widest">
-                  {quadSubTab === 'hoje' ? 'Nenhuma reserva ativa hoje' : quadSubTab === 'futuras' ? 'Sem reservas futuras' : 'Sem histíƒÂ³rico'}
+                  {quadSubTab === 'hoje' ? 'Nenhuma reserva ativa hoje' : quadSubTab === 'futuras' ? 'Sem reservas futuras' : 'Sem histórico'}
                 </div>
               ) : (
                 <table className="w-full text-left">
@@ -1488,7 +1525,7 @@ export default function Admin() {
                                       {(r.time_slot === 'INDIV' || r.time_slot === 'DUPLA') ? (
                                         <>
                                           <AlertTriangle className="w-3 h-3" />
-                                          {r.time_slot === 'INDIV' ? 'HORíƒÂ­í‚ÂRIO NíƒÂ­í†â€™íƒâ€ í¢â‚¬â„¢O DEFINIDO' : 'DUPLA (AGUARDANDO)'}
+                                          {r.time_slot === 'INDIV' ? 'HORÁRIO NÃO DEFINIDO' : 'DUPLA (AGUARDANDO)'}
                                         </>
                                       ) : (
                                         <>
@@ -1806,7 +1843,7 @@ export default function Admin() {
                "px-4 md:px-4 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap", 
                activeTab === 'painel' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
              )}>
-                <LayoutDashboard className="w-4 h-4 md:w-4.5 md:h-4.5" /> VisíƒÂ£o Geral
+                <LayoutDashboard className="w-4 h-4 md:w-4.5 md:h-4.5" /> Visão Geral
              </button>
              <button onClick={() => setActiveTab('quiosques')} className={cn(
                "px-4 md:px-4 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap", 
@@ -1956,10 +1993,10 @@ export default function Admin() {
                    <div className="w-12 h-12 rounded-2xl bg-red-100 flex items-center justify-center border-2 border-red-200">
                       <AlertTriangle className="w-6 h-6 text-red-600" />
                    </div>
-                   <AlertDialogTitle className="text-xl font-black text-slate-900">Confirmar ExclusíƒÂ£o</AlertDialogTitle>
+                   <AlertDialogTitle className="text-xl font-black text-slate-900">Confirmar Exclusão</AlertDialogTitle>
                 </div>
                 <AlertDialogDescription className="text-slate-600 font-bold">
-                   Deseja realmente remover esta reserva? Esta aíƒÂ§íƒÂ£o níƒÂ£o pode ser desfeita e liberaríƒÂ¡ o horário/espaíƒÂ§o para novos clientes.
+                   Deseja realmente remover esta reserva? Esta ação não pode ser desfeita e liberará o horário/espaço para novos clientes.
                 </AlertDialogDescription>
              </AlertDialogHeader>
              <AlertDialogFooter className="gap-2">
@@ -2012,7 +2049,7 @@ export default function Admin() {
                       const hasKiosk = (kioskReservations || []).some(r => r.reservation_date === dateStr);
                       const hasQuad = (quadReservations || []).some(r => r.reservation_date === dateStr);
                       const kiosksFull = (kioskReservations || []).filter(r => r.reservation_date === dateStr).length >= 5;
-                      const quadsFull = (quadReservations || []).filter(r => r.reservation_date === dateStr).reduce((s, r) => s + (Number(r.quantity) || 1), 0) >= 20;
+                      const quadsFull = (quadReservations || []).filter(r => r.reservation_date === dateStr).reduce((s, r) => s + (Number(r.quantity) || 1), 0) >= (totalQuads * 4);
                       const isFull = kiosksFull && quadsFull;
                       return (
                         <div className={cn("relative flex flex-col items-center p-0.5 rounded w-full h-full justify-center", isFull && "bg-red-50/50")}>
@@ -2109,7 +2146,7 @@ function EditKioskDialog({ group, onClose, onUpdated, updateOrderTotal }: any) {
 
   const handleSave = async () => {
     if (selectedKiosks.length !== group.items.length) {
-      toast({ title: 'AteníƒÂ§íƒÂ£o', description: `Selecione exatamente ${group.items.length} quiosque(s).`, variant: 'destructive' });
+      toast({ title: 'Atenção', description: `Selecione exatamente ${group.items.length} quiosque(s).`, variant: 'destructive' });
       return;
     }
     setLoading(true);

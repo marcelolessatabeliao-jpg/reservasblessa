@@ -25,6 +25,7 @@ interface AdminDashboardTabProps {
   orders: any[];
   isAllowedDay: (date: Date) => boolean;
   isHoliday: (date: Date) => boolean;
+  totalQuads?: number;
 }
 
 export function AdminDashboardTab({
@@ -35,7 +36,8 @@ export function AdminDashboardTab({
   bookings,
   orders,
   isAllowedDay,
-  isHoliday
+  isHoliday,
+  totalQuads = 3
 }: AdminDashboardTabProps) {
   
   const matchDate = (d1: any, d2: any) => {
@@ -186,7 +188,7 @@ export function AdminDashboardTab({
                            <div key={slot.start} className="bg-white rounded-[1.25rem] p-3 shadow-sm border border-blue-200/80 space-y-2.5">
                               <div className="flex items-center justify-between px-1">
                                  <span className="font-black text-blue-900 text-[13px]">{slot.start} - {slot.end}</span>
-                                 <span className="text-blue-600 font-bold text-[11px]">{count}/3 ocupados</span>
+                                 <span className="text-blue-600 font-bold text-[11px]">{count}/{totalQuads} ocupados</span>
                               </div>
                               
                               <div className="rounded-xl border border-blue-50 bg-blue-50/20 p-1.5 min-h-[32px] flex items-center justify-center">
