@@ -58,6 +58,8 @@ import { Badge } from '@/components/ui/badge';
 import { formatCurrency, getQuadDiscount } from '@/lib/booking-types';
 import { BookingTable } from '@/components/admin/BookingTable';
 import { getAdminOrders, markOrderAsPaid } from '@/integrations/supabase/orders';
+import { PaymentModal } from '@/components/booking/PaymentModal';
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -187,6 +189,10 @@ export default function Admin() {
   const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set());
   const [pixData, setPixData] = useState<{ qrCode: string, payload: string, amount: number, name: string } | null>(null);
   const [isGeneratingPix, setIsGeneratingPix] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [selectedPaymentBooking, setSelectedPaymentBooking] = useState<any | null>(null);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+
 
   const normalizeString = (str: string) => 
     str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -574,72 +580,30 @@ export default function Admin() {
     }
   };
 
-    const handleGeneratePayment = async (bookingId: string, isOrder?: boolean) => {
-    setIsGeneratingPix(true);
-    try {
-      const item = isOrder ? orders.find((o: any) => o.id === bookingId) : bookings.find((b: any) => b.id === bookingId);
-      if (!item) throw new Error("Reserva não encontrada");
-
-      // Validar valor da reserva para o Asaas (mí­nimo R$ 5,00 costuma ser exigido)
-      const numericValue = Number(item.total_amount);
-      if (isNaN(numericValue) || numericValue <= 0) {
-        throw new Error("O valor da reserva é inválido para gerar pagamento.");
-      }
-
-      console.log(`Gerando PIX de R$ ${numericValue} para ${item.name || item.customer_name}`);
-
-      const { data: response, error } = await supabase.functions.invoke('create-payment', {
-        body: { 
-          orderId: bookingId, 
-          billingType: 'PIX',
-          name: item.name || item.customer_name,
-          phone: item.phone || item.customer_phone,
-          cpf: item.cpf || '000.000.000-00', 
-          value: numericValue,
-          description: `Reserva Balneário Lessa - ${item.name || item.customer_name}`
-        }
-      });
-
-      if (error) {
-        console.error('Edge Function Error:', error);
-        throw error;
-      }
-      
-      if (response && response.success && response.data?.pix) {
-        setPixData({
-          qrCode: response.data.pix.encodedImage,
-          payload: response.data.pix.payload,
-          amount: numericValue,
-          name: item.name || item.customer_name
-        });
-      } else {
-        const errorMsg = response?.error || "A função não retornou um QR Code válido. Verifique se o CPF é válido.";
-        console.warn('Payment creation failed:', response);
-        throw new Error(errorMsg);
-      }
-    } catch (err: any) {
-      console.error('Pix generation error:', err);
-      toast({ title: "Erro ao gerar PIX", description: err.message, variant: "destructive" });
-    } finally {
-      setIsGeneratingPix(false);
+    const openPaymentModal = (bookingId: string, isOrder?: boolean) => {
+    const list = isOrder ? orders : bookings;
+    const item = list.find((b: any) => b.id === bookingId);
+    if (item) {
+      setSelectedPaymentBooking(item);
+      setIsPaymentModalOpen(true);
     }
   };
 
-    const handleSyncPayment = async (orderId: string) => {
+  const handleSyncPayment = async (orderId: string) => {
     setUpdatingId(orderId);
     try {
       const { data, error } = await supabase.functions.invoke('check-payment', {
         body: { orderId }
       });
-      
+
       if (error) throw error;
-      
+
       if (data?.success) {
         if (data.updated) {
-          toast({ title: "Pagamento Sincronizado!", description: `Status no Asaas: ${data.status}. O pedido foi marcado como PAGO.` });
+          toast({ title: "Pagamento Sincronizado!", description: `Status: ${data.status}. O pedido foi marcado como PAGO.` });
           fetchData();
         } else {
-          toast({ title: "Sincronização Concluída", description: `Status no Asaas: ${data.status}. Nenhuma alteração necessária.` });
+          toast({ title: "Sincronização Concluída", description: `Status: ${data.status}. Nenhuma alteração necessária.` });
         }
       } else {
         toast({ title: "Erro na Sincronização", description: data?.error || "Erro desconhecido", variant: "destructive" });
@@ -651,6 +615,12 @@ export default function Admin() {
       setUpdatingId(null);
     }
   };
+
+  // Original handleGeneratePayment kept for legacy references and as a fallback
+  const handleGeneratePayment = async (bookingId: string, isOrder?: boolean) => {
+    openPaymentModal(bookingId, isOrder);
+  };
+
 
   const updateBookingStatus = async (bookingId: string, status: string, isOrder?: boolean) => {
     setUpdatingId(bookingId);
@@ -2406,6 +2376,25 @@ export default function Admin() {
                       </div>
                     </DialogContent>
                   </Dialog>
+        {/* Payment Modal for Admin PIX Generation */}
+        {selectedPaymentBooking && (
+          <PaymentModal
+            open={isPaymentModalOpen}
+            onOpenChange={setIsPaymentModalOpen}
+            orderId={selectedPaymentBooking.id}
+            name={selectedPaymentBooking.name || selectedPaymentBooking.customer_name}
+            email={selectedPaymentBooking.email || 'contato@balneariolessa.com.br'}
+            phone={selectedPaymentBooking.phone || selectedPaymentBooking.customer_phone}
+            cpf={selectedPaymentBooking.cpf || selectedPaymentBooking.customer_cpf}
+            totalAmount={selectedPaymentBooking.total_amount}
+            initialMethod="PIX"
+            onSuccess={() => {
+               fetchData();
+               setIsPaymentModalOpen(false);
+            }}
+          />
+        )}
     </div>
+
   );
 }
