@@ -60,6 +60,8 @@ import { formatCurrency, getQuadDiscount } from '@/lib/booking-types';
 import { BookingTable } from '@/components/admin/BookingTable';
 import { getAdminOrders, markOrderAsPaid } from '@/integrations/supabase/orders';
 import { PaymentModal } from '@/components/booking/PaymentModal';
+import { InternalBookingAssistant } from '@/components/admin/InternalBookingAssistant';
+import { EditKioskDialog, EditQuadDialog } from '@/components/admin/AdminDialogs';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { cn } from "@/lib/utils";
@@ -156,29 +158,9 @@ export default function Admin() {
   const [itemToDelete, setItemToDelete] = useState<{item: any, type: 'kiosk' | 'quad' | 'order' | 'reservas'} | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [isNewBookingOpen, setIsNewBookingOpen] = useState(false);
-  const [generatedPix, setGeneratedPix] = useState<{encodedImage:string, payload:string} | null>(null);
-  const [newBookingData, setNewBookingData] = useState<any>({
-    name: '',
-    cpf: '',
-    phone: '',
-    adults_normal: 1,
-    adults_half: 0,
-    is_teacher: 0,
-    is_student: 0,
-    is_server: 0,
-    is_donor: 0,
-    is_solidarity: 0,
-    is_pcd: 0,
-    is_tea: 0,
-    is_senior: 0,
-    is_birthday: 0,
-    children_free: 0,
-    selected_kiosks: [],
-    quads: [],
-    manual_discount: 0, manual_discount_type: 'unit',
-    status: 'pending'
-  });
+  
+  
+  
   
   // New Rescheduling Dialog States
   const [rescheduleData, setRescheduleData] = useState<{type: 'kiosk' | 'quad', group: any} | null>(null);
@@ -511,27 +493,7 @@ export default function Admin() {
     }
   }, [isNewBookingOpen, newBookingData.visit_date]);
 
-  const handleCreateInternalBooking = async () => {
-    if (!newBookingData.name || !newBookingData.visit_date) {
-      toast({ title: "Nome e Data são obrigatórios", variant: "destructive" });
-      return;
-    }
-    
-    setLoading(true);
-    try {
-      const { 
-        name, phone, visit_date, cpf,
-        adults_normal, adults_half, 
-        is_teacher, is_student, is_server, is_donor, is_solidarity, 
-        is_pcd, is_tea, is_senior, is_birthday,
-        children_free, selected_kiosks, quads, manual_discount, status 
-      } = newBookingData;
-
-      // 1. Build Order Items
-      const items: OrderItemInput[] = [];
-      const addEntry = (id: string, qty: number, price: number) => {
-        if (qty > 0) items.push({ product_id: id, quantity: qty, unit_price: price });
-      };
+  
 
       addEntry('Adulto', adults_normal, 50);
       addEntry('Meia-Entrada', adults_half, 25);
@@ -1814,7 +1776,7 @@ export default function Admin() {
           </div>
 
           {/* CONTENT AREA WITH GRADIENT BACKGROUND */}
-          <div className="min-h-[500px] md:min-h-[600px] bg-white/40 backdrop-blur-md rounded-2xl md:rounded-[2.5rem] p-4 md:p-8 border border-white/60 shadow-premium">
+          <div className="min-h-[500px] md:min-h-[600px] bg-white/40 backdrop-blur-md rounded-2xl md:rounded-[2rem] p-4 md:p-8 border border-white/60 shadow-premium">
              {activeTab === 'painel' && renderDashboard()}
              {activeTab === 'reservas' && (
                <div className="space-y-6">
@@ -1984,7 +1946,7 @@ export default function Admin() {
 
        {/* RESCHEDULE DIALOG */}
        <Dialog open={!!rescheduleData} onOpenChange={(open) => !open && setRescheduleData(null)}>
-         <DialogContent className="rounded-[2.5rem] border-4 border-blue-200 shadow-3xl max-w-md bg-white p-0 overflow-hidden">
+         <DialogContent className="rounded-[2rem] border-4 border-blue-200 shadow-3xl max-w-md bg-white p-0 overflow-hidden">
            <div className="bg-blue-600 p-8 text-white">
              <div className="flex items-center gap-4 mb-2">
                <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm border border-white/30">
@@ -2060,332 +2022,7 @@ export default function Admin() {
            </div>
          </DialogContent>
        </Dialog>
-                  <Dialog open={isNewBookingOpen} onOpenChange={setIsNewBookingOpen}>
-                    <DialogContent className="sm:max-w-3xl bg-slate-50 rounded-[2.5rem] border-4 border-emerald-200 overflow-hidden p-0 max-h-[95vh] flex flex-col shadow-3xl">
-                      <div className="bg-emerald-600 p-8 text-center shrink-0 border-b-4 border-emerald-700 shadow-lg relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 blur-3xl rounded-full -mr-16 -mt-16" />
-                        <DialogTitle className="text-2xl font-black text-white uppercase tracking-tighter flex items-center justify-center gap-3">
-                           <CalendarPlus className="w-8 h-8" /> Assistente de Reserva Interna
-                        </DialogTitle>
-                        <p className="text-emerald-100 text-[11px] font-black uppercase mt-1.5 tracking-widest bg-emerald-700/50 inline-block px-4 py-1.5 rounded-full border border-emerald-500/30">Lógica Integrada - Sem CPF</p>
-                      </div>
-                      
-                      <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
-                        {/* SECTION 1: CLIENTE E DATA */}
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                           <div className="space-y-2">
-                             <label className="text-[10px] font-black text-emerald-800 uppercase tracking-widest flex items-center gap-1.5">
-                                <User className="w-3.5 h-3.5" /> Nome do Cliente
-                             </label>
-                             <Input 
-                               value={newBookingData.name} 
-                               onChange={e => setNewBookingData({...newBookingData, name: e.target.value})}
-                               className="h-14 rounded-2xl border-2 border-emerald-100 focus:ring-4 focus:ring-emerald-500/10 font-bold bg-white text-emerald-950"
-                               placeholder="Nome Completo"
-                             />
-                           </div>
-                           <div className="space-y-2">
-                             <label className="text-[10px] font-black text-emerald-800 uppercase tracking-widest flex items-center gap-1.5">
-                                <Phone className="w-3.5 h-3.5" /> Telefone
-                             </label>
-                             <Input 
-                               value={newBookingData.phone} 
-                               onChange={e => setNewBookingData({...newBookingData, phone: e.target.value})}
-                               className="h-14 rounded-2xl border-2 border-emerald-100 focus:ring-4 focus:ring-emerald-500/10 font-bold bg-white text-emerald-950"
-                               placeholder="DDD + Número"
-                             />
-                           </div>
-                           <div className="space-y-2">
-                             <label className="text-[10px] font-black text-emerald-800 uppercase tracking-widest flex items-center gap-1.5">
-                                <CalendarIcon className="w-3.5 h-3.5" /> Data da Visita
-                             </label>
-                             <Popover>
-                                <PopoverTrigger asChild>
-                                  <Button
-                                    variant="outline"
-                                    className={cn(
-                                      "h-14 w-full rounded-2xl border-2 border-emerald-100 font-black bg-white text-emerald-950 justify-start px-4",
-                                      !newBookingData.visit_date && "text-emerald-400"
-                                    )}
-                                    disabled={isFetchingAvail}
-                                  >
-                                    <CalendarIcon className="mr-2 h-4 w-4 text-emerald-600" />
-                                    {newBookingData.visit_date ? format(parseISO(newBookingData.visit_date), 'dd/MM/yyyy') : "DD/MM/AAAA"}
-                                  </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0 rounded-3xl overflow-hidden border-2 border-emerald-100 shadow-2xl" align="start">
-                                  <Calendar
-                                    mode="single"
-                                    selected={newBookingData.visit_date ? parseISO(newBookingData.visit_date) : undefined}
-                                    onSelect={(date) => setNewBookingData({...newBookingData, visit_date: date ? format(date, 'yyyy-MM-dd') : ''})}
-                                    locale={ptBR}
-                                    className="p-4"
-                                    toDate={new Date(2030, 11, 31)}
-                                    fromDate={new Date()}
-                                    disabled={(date) => !isAllowedDay(date)}
-                                    classNames={{
-                                      month: "space-y-4",
-                                      caption: "flex justify-center pt-1 relative items-center mb-2 bg-emerald-800 rounded-xl py-3 border-2 border-emerald-900 shadow-lg w-full",
-                                      caption_label: "text-sm font-black text-white uppercase tracking-widest",
-                                      nav: "flex items-center justify-between absolute inset-x-0 inset-y-0 px-4 pointer-events-none z-30",
-                                      nav_button: "h-8 w-8 bg-emerald-500 text-white border border-emerald-400 hover:bg-emerald-400 shadow-md rounded-lg transition-all pointer-events-auto flex items-center justify-center",
-                                      nav_button_previous: "relative left-0",
-                                      nav_button_next: "relative right-0",
-                                    }}
-                                  />
-                                </PopoverContent>
-                              </Popover>
-                           </div>
-                        </div>
-
-                        {/* SECTION 2: PARTICIPANTES */}
-                        <div className="bg-white p-5 rounded-2xl border-2 border-emerald-100 shadow-sm space-y-4">
-                           <div className="flex items-center justify-between border-b-2 border-emerald-50 pb-4">
-                              <h4 className="text-[11px] font-black text-emerald-900 uppercase tracking-widest flex items-center gap-2">
-                                 <Users className="w-4 h-4" /> 1. Participantes
-                              </h4>
-                              {isFetchingAvail && <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />}
-                           </div>
-                           
-                           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-                              {[
-                                { k: 'adults_normal', l: 'Adulto Integral', p: 'R$ 50' },
-                                { k: 'adults_half', l: 'Meia-Entrada', p: 'R$ 25' },
-                                { k: 'is_teacher', l: 'Professor', p: 'R$ 25' },
-                                 { k: 'is_student', l: 'Estudante', p: 'R$ 25' },
-                                 { k: 'is_server', l: 'Servidor', p: 'R$ 25' },
-                                 { k: 'is_donor', l: 'Doador Sangue', p: 'R$ 25' },
-                                 { k: 'is_solidarity', l: 'Adulto Solidário', p: 'R$ 25' },
-                                 { k: 'is_pcd', l: 'PCD', p: 'Grátis' },
-                                 { k: 'is_tea', l: 'TEA', p: 'Grátis' },
-                                 { k: 'is_senior', l: 'Idoso (60+)', p: 'Grátis' },
-                                 { k: 'is_birthday', l: 'Aniversariante', p: 'Grátis' },
-                                { k: 'children_free', l: 'Kids (Até 11a)', p: 'Grátis' }
-                              ].map(cat => (
-                                <div key={cat.k} className="bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100 text-center space-y-2 hover:bg-emerald-50 transition-colors">
-                                   <p className="text-[9px] font-black text-emerald-800/60 uppercase">{cat.l}</p>
-                                   <p className="text-[10px] font-bold text-emerald-600 mb-1">{cat.p}</p>
-                                   <div className="flex items-center justify-center gap-2">
-                                      <button onClick={() => setNewBookingData({...newBookingData, [cat.k]: Math.max(0, newBookingData[cat.k] - 1)})} className="w-8 h-8 rounded-lg bg-white border border-emerald-200 flex items-center justify-center font-black text-emerald-700 hover:bg-emerald-600 hover:text-white transition-all shadow-sm">-</button>
-                                      <span className="w-8 font-black text-emerald-950 text-lg">{newBookingData[cat.k]}</span>
-                                      <button onClick={() => setNewBookingData({...newBookingData, [cat.k]: newBookingData[cat.k] + 1})} className="w-8 h-8 rounded-lg bg-white border border-emerald-200 flex items-center justify-center font-black text-emerald-700 hover:bg-emerald-600 hover:text-white transition-all shadow-sm">+</button>
-                                   </div>
-                                </div>
-                              ))}
-                           </div>
-                        </div>
-
-                        {/* SECTION 3: QUIOSQUES */}
-                        <div className="bg-white p-8 rounded-[2rem] border-2 border-emerald-100 shadow-sm space-y-6">
-                           <h4 className="text-[11px] font-black text-emerald-900 uppercase tracking-widest flex items-center gap-2 border-b-2 border-emerald-50 pb-4">
-                              <Tent className="w-4 h-4" /> 2. Quiosques Disponí­veis
-                           </h4>
-                           <div className="grid grid-cols-6 sm:grid-cols-8 gap-2">
-                              {[
-                                { id: 1, label: '01', type: 'maior' },
-                                { id: 2, label: '02', type: 'menor' },
-                                { id: 3, label: '03', type: 'menor' },
-                                { id: 4, label: '04', type: 'menor' },
-                                { id: 5, label: '05', type: 'menor' }
-                              ].map(k => {
-                                const id = k.id;
-                                const isBooked = !availableKiosks.includes(id) && !newBookingData.selected_kiosks.includes(id);
-                                const isSelected = newBookingData.selected_kiosks.includes(id);
-                                return (
-                                  <button 
-                                    key={id}
-                                    disabled={isBooked}
-                                    onClick={() => {
-                                       const isS = newBookingData.selected_kiosks.includes(id);
-                                       setNewBookingData({
-                                          ...newBookingData,
-                                          selected_kiosks: isS ? newBookingData.selected_kiosks.filter((v:number)=>v!==id) : [...newBookingData.selected_kiosks, id]
-                                       });
-                                    }}
-                                    className={cn(
-                                       "h-12 rounded-xl text-[11px] font-black transition-all border-2",
-                                       isSelected ? "bg-emerald-600 text-white border-emerald-700 shadow-md scale-105" : 
-                                       isBooked ? "bg-slate-100 text-slate-300 border-slate-200 cursor-not-allowed" : 
-                                       "bg-white text-emerald-700 border-emerald-100 hover:border-emerald-500 hover:bg-emerald-50"
-                                    )}
-                                  >
-                                    {k.label}
-                                  </button>
-                                );
-                              })}
-                           </div>
-                           <p className="text-[9px] font-bold text-emerald-600/60 uppercase tracking-widest">Preço: Quiosque 01 (R$ 100) | Outros (R$ 75)</p>
-                        </div>
-
-                        {/* SECTION 4: QUADRICICLOS */}
-                        <div className="bg-white p-8 rounded-[2rem] border-2 border-emerald-100 shadow-sm space-y-6">
-                           <h4 className="text-[11px] font-black text-emerald-900 uppercase tracking-widest flex items-center gap-2 border-b-2 border-emerald-50 pb-4">
-                              <Bike className="w-4 h-4" /> 3. Passeio de Quadriciclo (Limite Bloqueado)
-                           </h4>
-                           <div className="space-y-4">
-                              {['09:00', '10:30', '14:00', '15:30'].map(slot => {
-                                 const used = quadSlotsAvail[slot] || 0;
-                                 const localUsed = newBookingData.quads.filter((q:any)=>q.time===slot).reduce((s:number,q:any)=>s+q.quantity, 0);
-                                 const remaining = 3 - (used + localUsed);
-                                 const isFull = remaining <= 0;
-                                 
-                                 return (
-                                    <div key={slot} className="flex flex-col md:flex-row items-center justify-between p-4 bg-emerald-50/30 rounded-2xl border border-emerald-100 gap-4">
-                                       <div className="flex items-center gap-3">
-                                          <div className={cn("px-4 py-2 rounded-xl text-xs font-black border-2", isFull ? "bg-red-50 text-red-500 border-red-200" : "bg-white text-emerald-950 border-emerald-100")}>{slot}</div>
-                                          <div className="flex flex-col">
-                                             <span className="text-[10px] font-black uppercase text-emerald-800/60 tracking-wider">Vagas Disponí­veis</span>
-                                             <div className="flex gap-1">
-                                                {Array.from({length: 3}, (_, i) => (
-                                                   <div key={i} className={cn("w-2 h-2 rounded-full", i < (used + localUsed) ? "bg-red-500" : "bg-emerald-400")} />
-                                                ))}
-                                                <span className="text-[10px] font-black ml-2 text-emerald-800">{remaining} RESTANTES</span>
-                                             </div>
-                                          </div>
-                                       </div>
-                                       
-                                       <div className="flex gap-2">
-                                          {['individual', 'dupla', 'adulto-crianca'].map(type => {
-                                             const active = newBookingData.quads.find((q:any)=>q.time===slot && q.type===type);
-                                             return (
-                                                <div key={type} className="flex flex-col items-center gap-1">
-                                                   <button 
-                                                      onClick={() => {
-                                                         const idx = newBookingData.quads.findIndex((q:any)=>q.time===slot && q.type===type);
-                                                         if (idx >= 0) {
-                                                            const nq = [...newBookingData.quads];
-                                                            if (nq[idx].quantity > 1) nq[idx].quantity -= 1;
-                                                            else nq.splice(idx, 1);
-                                                            setNewBookingData({...newBookingData, quads: nq});
-                                                         }
-                                                      }}
-                                                      className="w-8 h-6 bg-slate-100 text-slate-400 hover:bg-emerald-100 hover:text-emerald-700 rounded-t-lg font-black text-xs transition-colors flex items-center justify-center border-2 border-slate-200 border-b-0"
-                                                   >-</button>
-                                                   <div 
-                                                      className={cn(
-                                                         "w-[70px] h-10 flex flex-col items-center justify-center rounded-sm border-2 transition-all",
-                                                         active ? "bg-blue-600 text-white border-blue-700 shadow-md" : "bg-white text-blue-700 border-blue-100"
-                                                      )}
-                                                   >
-                                                      <span className="text-[8px] font-black uppercase leading-none">{type.split('-')[0]}</span>
-                                                      {active && <span className="text-xs font-black">{active.quantity}x</span>}
-                                                   </div>
-                                                   <button 
-                                                      disabled={isFull}
-                                                      onClick={() => {
-                                                         const idx = newBookingData.quads.findIndex((q:any)=>q.time===slot && q.type===type);
-                                                         const nq = [...newBookingData.quads];
-                                                         if (idx >= 0) nq[idx].quantity += 1;
-                                                         else nq.push({ type, time: slot, quantity: 1 });
-                                                         setNewBookingData({...newBookingData, quads: nq});
-                                                      }}
-                                                      className={cn(
-                                                         "w-8 h-6 rounded-b-lg font-black text-xs transition-colors flex items-center justify-center border-2 border-t-0",
-                                                         isFull ? "bg-slate-100 text-slate-300 cursor-not-allowed" : "bg-slate-100 text-slate-400 hover:bg-emerald-100 hover:text-emerald-700 border-slate-200"
-                                                      )}
-                                                   >+</button>
-                                                </div>
-                                             );
-                                          })}
-                                       </div>
-                                    </div>
-                                 );
-                              })}
-                           </div>
-                        </div>
-
-                        {/* SECTION 5: FINANCEIRO FINAL */}
-                        <div className="bg-emerald-900 p-6 rounded-[2.5rem] text-white space-y-8 shadow-2xl relative overflow-hidden">
-                        {generatedPix ? (
-                          <div className="flex flex-col items-center py-10 space-y-6">
-                            <div className="bg-white p-6 rounded-[2.5rem] shadow-2xl border-8 border-emerald-500/20">
-                               <img src={`data:image/png;base64,${generatedPix.encodedImage}`} alt="QR" className="w-56 h-56" />
-                            </div>
-                            <Button onClick={() => { setIsNewBookingOpen(false); setGeneratedPix(null); fetchData(); }} className="w-full h-16 bg-white text-emerald-900 rounded-2xl font-black">CONCLUíDO - FECHAR</Button>
-                          </div>
-                        ) : (
-                           <>
-                           <div className="absolute bottom-0 right-0 w-64 h-64 bg-emerald-800/30 blur-3xl rounded-full -mb-32 -mr-32" />
-                           
-                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
-                              <div className="space-y-4">
-                                 <h4 className="text-[11px] font-black text-emerald-100 uppercase tracking-widest flex items-center gap-2">
-                                    <Tag className="w-4 h-4" /> Ajustes e Status
-                                 </h4>
-                                 <div className="space-y-3">
-                                    <div className="space-y-1">
-                                       <label className="text-[9px] font-black text-emerald-200 uppercase pl-1">Desconto Manual (R$)</label>
-                                       <div className="flex gap-2">
-                                           <Input 
-                                              type="number" 
-                                              min="0" 
-                                              value={newBookingData.manual_discount}
-                                              onChange={e => setNewBookingData({...newBookingData, manual_discount: parseFloat(e.target.value) || 0})}
-                                              className="h-12 bg-white/10 border-white/20 text-white rounded-xl focus:ring-emerald-500 placeholder:text-white/20 font-bold flex-1"
-                                              placeholder="0,00"
-                                           />
-                                           <div className="flex bg-white/5 rounded-xl border border-white/10 p-1">
-                                              <button 
-                                                onClick={() => setNewBookingData({...newBookingData, manual_discount_type: 'unit'})}
-                                                className={cn("px-3 rounded-lg text-[10px] font-black transition-all", newBookingData.manual_discount_type === 'unit' ? "bg-emerald-500 text-white shadow-lg" : "text-emerald-100 hover:text-white")}
-                                              >R$</button>
-                                              <button 
-                                                onClick={() => setNewBookingData({...newBookingData, manual_discount_type: 'percent'})}
-                                                className={cn("px-3 rounded-lg text-[10px] font-black transition-all", newBookingData.manual_discount_type === 'percent' ? "bg-emerald-500 text-white shadow-lg" : "text-emerald-100 hover:text-white")}
-                                              >%</button>
-                                           </div>
-                                        </div>
-                                    </div>
-                                    <div className="space-y-1">
-                                       <label className="text-[9px] font-black text-emerald-200 uppercase pl-1">Status de Pagamento</label>
-                                       <select 
-                                          className="w-full h-12 px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500 text-white"
-                                          value={newBookingData.status}
-                                          onChange={e => setNewBookingData({...newBookingData, status: e.target.value})}
-                                       >
-                                          <option value="pending" className="text-emerald-950 font-bold">Aguardando Pagamento</option>
-                                          <option value="paid" className="text-emerald-950 font-bold">Confirmada e Paga</option>
-                                       </select>
-                                    </div>
-                                 </div>
-                              </div>
-                              
-                              <div className="flex flex-col justify-center items-center md:items-end space-y-2">
-                                 <p className="text-[10px] font-black text-emerald-200 uppercase tracking-[0.2em] mb-1">Total da Reserva</p>
-                                 <div className="flex items-baseline gap-2">
-                                    <span className="text-2xl font-black text-emerald-200/60 leading-none">R$</span>
-                                    <span className="text-6xl font-black tracking-tighter leading-none">
-                                       {(() => {
-                                          const { adults_normal, adults_half, is_teacher, is_student, is_server, is_donor, is_solidarity, selected_kiosks, quads, manual_discount, visit_date } = newBookingData;
-                                          let total = (adults_normal * 50) + ((adults_half + is_teacher + is_student + is_server + is_donor + is_solidarity) * 25);
-                                          selected_kiosks.forEach((id: number) => total += (id === 1 ? 100 : 75));
-                                          const qD = getQuadDiscount(visit_date);
-                                          quads.forEach((q: any) => {
-                                             const b = q.type === 'dupla' ? 250 : q.type === 'adulto-crianca' ? 200 : 150;
-                                             total += (b * (1 - qD)) * q.quantity;
-                                          });
-                                          const disc = newBookingData.manual_discount_type === 'percent' ? (total * (manual_discount / 100)) : manual_discount;
-                                           return Math.max(0, total - disc).toFixed(2).replace('.', ',');
-                                       })()}
-                                    </span>
-                                 </div>
-                                 <p className="text-[9px] font-bold text-emerald-300/50 italic">* Cálculo automático incluindo descontos do dia</p>
-                              </div>
-                           </div>
-
-                           <Button 
-                              onClick={handleCreateInternalBooking}
-                              disabled={loading || !newBookingData.name}
-                              className="w-full h-16 bg-white hover:bg-emerald-50 text-emerald-900 rounded-3xl font-black text-lg uppercase tracking-tight shadow-2xl relative z-10 transition-all active:scale-[0.98] disabled:opacity-50"
-                           >
-                              {loading ? <Loader2 className="w-8 h-8 animate-spin" /> : 'CONCLUIR E SALVAR RESERVA'}
-                           </Button>
-                           </>
-                        )}
-                        </div>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
+                  /* MODAL HIDDEN */
         {/* Payment Modal for Admin PIX Generation */}
         {selectedPaymentBooking && (
           <PaymentModal
@@ -2588,3 +2225,4 @@ function EditQuadDialog({ item, onClose, onUpdated, updateOrderTotal }: any) {
     </Dialog>
   );
 }
+export default Admin;
