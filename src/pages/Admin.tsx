@@ -906,20 +906,48 @@ export default function Admin() {
 
         <div className="space-y-6">
            
-           <div className="bg-white p-6 rounded-[2rem] border-2 border-amber-300 shadow-xl overflow-hidden">
-              <div className="flex items-center gap-2 mb-4 border-b border-amber-100 pb-2">
-                <CalendarIcon className="w-4 h-4 text-emerald-800" />
-                <span className="text-[11px] font-black uppercase text-emerald-900 tracking-widest">Selecionar Data</span>
-              </div>
+           <div className="bg-white rounded-[2rem] border-2 border-amber-300 shadow-xl overflow-hidden">
               <Calendar
                 mode="single"
                 selected={targetDate}
                 onSelect={(date) => date && setTargetDate(date)}
                 locale={ptBR}
-                className="p-3"
+                className="p-4"
+                toDate={new Date(2030, 11, 31)}
+                fromDate={new Date(2024, 0, 1)}
+                disabled={(date) => !isAllowedDay(date)}
                 classNames={{
-                  day_today: "bg-amber-100 text-amber-900 font-black rounded-lg",
-                  day_selected: "bg-emerald-600 text-white font-black hover:bg-emerald-600 hover:text-white rounded-lg",
+                  month: "space-y-4",
+                  caption: "flex justify-center pt-1 relative items-center mb-2 bg-emerald-800 rounded-xl py-3 border-2 border-emerald-900 shadow-lg w-full",
+                  caption_label: "text-sm font-black text-white uppercase tracking-widest",
+                  nav: "flex items-center justify-between absolute inset-x-0 inset-y-0 px-4 pointer-events-none z-30",
+                  nav_button: "h-8 w-8 bg-emerald-500 text-white border border-emerald-400 hover:bg-emerald-400 shadow-md rounded-lg transition-all pointer-events-auto flex items-center justify-center",
+                  nav_button_previous: "relative left-0",
+                  nav_button_next: "relative right-0",
+                  day: cn(
+                        "h-8 w-8 md:h-12 md:w-12 p-0 font-black text-[10px] md:text-sm transition-all rounded-full border-2 border-emerald-50 bg-emerald-50/20 text-emerald-950 hover:border-emerald-300 hover:bg-emerald-100 shadow-sm mx-auto"
+                      ),
+                  day_selected: "bg-amber-400 text-amber-950 font-black hover:bg-amber-500 shadow-md",
+                  day_today: "bg-emerald-100 text-emerald-900 font-bold"
+                }}
+                components={{
+                  DayContent: ({ date }) => {
+                    const dateStr = format(date, 'yyyy-MM-dd');
+                    const hasKiosk = (kioskReservations || []).some(r => r.reservation_date === dateStr);
+                    const hasQuad = (quadReservations || []).some(r => r.reservation_date === dateStr);
+                    const kiosksFull = (kioskReservations || []).filter(r => r.reservation_date === dateStr).length >= 5;
+                    const quadsFull = (quadReservations || []).filter(r => r.reservation_date === dateStr).reduce((s, r) => s + (Number(r.quantity) || 1), 0) >= 20;
+                    const isFull = kiosksFull && quadsFull;
+                    return (
+                      <div className={cn("relative flex flex-col items-center rounded-full w-full h-full justify-center transition-all", isFull && "bg-red-50/50 border border-red-100")}>
+                        <span className={cn("text-[11px]", isFull && "text-red-500 font-black")}>{date.getDate()}</span>
+                        <div className="flex gap-0.5 mt-0.5">
+                          {hasKiosk && <div className={cn("w-1.5 h-1.5 rounded-full ring-1 ring-white/50", kiosksFull ? "bg-red-600" : "bg-emerald-600")} />}
+                          {hasQuad && <div className={cn("w-1.5 h-1.5 rounded-full ring-1 ring-white/50", quadsFull ? "bg-red-600" : "bg-blue-600")} />}
+                        </div>
+                      </div>
+                    );
+                  }
                 }}
               />
            </div>
