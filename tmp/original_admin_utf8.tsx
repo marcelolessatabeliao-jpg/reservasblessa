@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+﻿import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { isValidCPF } from '@/utils/cpf-validator';
 import { saveBooking, getBookedKioskIds, getQuadAvailability, type OrderItemInput } from '@/lib/booking-service';
 import { format, isToday, isTomorrow, isThisWeek, parseISO, isBefore, startOfDay, addDays } from 'date-fns';
@@ -60,8 +60,6 @@ import { formatCurrency, getQuadDiscount } from '@/lib/booking-types';
 import { BookingTable } from '@/components/admin/BookingTable';
 import { getAdminOrders, markOrderAsPaid } from '@/integrations/supabase/orders';
 import { PaymentModal } from '@/components/booking/PaymentModal';
-import { InternalBookingAssistant } from '@/components/admin/InternalBookingAssistant';
-
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { cn } from "@/lib/utils";
@@ -81,24 +79,24 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 // Constants from common types
 const KIOSKS = [
-  { id: 1, name: 'QUIOSQUE - 01 (Grande)', price: 100, capacity: 'Até 30 pessoas', type: 'Maior' },
-  { id: 2, name: 'QUIOSQUE - 02', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' },
-  { id: 3, name: 'QUIOSQUE - 03', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' },
-  { id: 4, name: 'QUIOSQUE - 04', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' },
-  { id: 5, name: 'QUIOSQUE - 05', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' }
+  { id: 1, name: 'QUIOSQUE - 01 (Grande)', price: 100, capacity: 'At├® 30 pessoas', type: 'Maior' },
+  { id: 2, name: 'QUIOSQUE - 02', price: 75, capacity: 'At├® 15 pessoas', type: 'Menor' },
+  { id: 3, name: 'QUIOSQUE - 03', price: 75, capacity: 'At├® 15 pessoas', type: 'Menor' },
+  { id: 4, name: 'QUIOSQUE - 04', price: 75, capacity: 'At├® 15 pessoas', type: 'Menor' },
+  { id: 5, name: 'QUIOSQUE - 05', price: 75, capacity: 'At├® 15 pessoas', type: 'Menor' }
 ];
 
 const QUAD_TIMES = ['09:00', '10:30', '14:00', '15:30'];
 const PAYMENT_METHODS = [
-  { value: 'pix', label: 'PIX / Transferência' },
-  { value: 'credit_card', label: 'Cartão de Crédito' },
+  { value: 'pix', label: 'PIX / Transfer├¬ncia' },
+  { value: 'credit_card', label: 'Cart├úo de Cr├®dito' },
   { value: 'cash', label: 'Dinheiro (Local)' }
 ];
 
 const QUAD_MODELS_LABELS: Record<string, string> = {
   individual: 'Individual',
   dupla: 'Dupla',
-  'adulto-crianca': 'Adulto + Criança'
+  'adulto-crianca': 'Adulto + Crian├ºa'
 };
 
 type TabType = 'painel' | 'reservas' | 'quiosques' | 'quads' | 'vendas';
@@ -158,9 +156,29 @@ export default function Admin() {
   const [itemToDelete, setItemToDelete] = useState<{item: any, type: 'kiosk' | 'quad' | 'order' | 'reservas'} | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  
-  
-  
+  const [isNewBookingOpen, setIsNewBookingOpen] = useState(false);
+  const [generatedPix, setGeneratedPix] = useState<{encodedImage:string, payload:string} | null>(null);
+  const [newBookingData, setNewBookingData] = useState<any>({
+    name: '',
+    cpf: '',
+    phone: '',
+    adults_normal: 1,
+    adults_half: 0,
+    is_teacher: 0,
+    is_student: 0,
+    is_server: 0,
+    is_donor: 0,
+    is_solidarity: 0,
+    is_pcd: 0,
+    is_tea: 0,
+    is_senior: 0,
+    is_birthday: 0,
+    children_free: 0,
+    selected_kiosks: [],
+    quads: [],
+    manual_discount: 0,
+    status: 'pending'
+  });
   
   // New Rescheduling Dialog States
   const [rescheduleData, setRescheduleData] = useState<{type: 'kiosk' | 'quad', group: any} | null>(null);
@@ -256,8 +274,8 @@ export default function Admin() {
                const qty = item.quantity || 1;
                
                // Listas categorizadas para contagem de pessoas
-                const adultKeywords = ['adulto', 'solidário', 'solidario', 'professor', 'estudante', 'servidor'];
-                const gratuityKeywords = ['criança', 'crianca', 'idoso', 'pcd', 'aniversariante'];
+                const adultKeywords = ['adulto', 'solid├írio', 'solidario', 'professor', 'estudante', 'servidor'];
+                const gratuityKeywords = ['crian├ºa', 'crianca', 'idoso', 'pcd', 'aniversariante'];
 
                 const isAdult = adultKeywords.some(key => pName.includes(key) || pId.includes(key));
                 const isGratuity = gratuityKeywords.some(key => pName.includes(key) || pId.includes(key));
@@ -348,7 +366,7 @@ export default function Admin() {
                }
             });
             
-            // Atribuir contagens extraí­das se não estiverem presentes
+            // Atribuir contagens extra├¡┬¡das se n├úo estiverem presentes
             o.adults = o.adults || orderAdults;
             o.children = o.children || orderChildren;
          });
@@ -439,7 +457,7 @@ export default function Admin() {
         if (editData[f] !== undefined) payload[f] = editData[f];
       });
 
-      // Se for uma reserva virtual extraí­da de um pedido, precisa virar real no banco
+      // Se for uma reserva virtual extra├¡┬¡da de um pedido, precisa virar real no banco
       if (typeof editingId === 'string' && editingId.startsWith('order-')) {
         payload.order_id = editData.order_id;
         const { error } = await supabase.from(table).insert([payload]);
@@ -449,7 +467,7 @@ export default function Admin() {
         if (error) throw error;
       }
       
-      toast({ title: "✓ Alterações salvas" });
+      toast({ title: "Ô£ô Altera├º├Áes salvas" });
       setEditingId(null);
       setEditData({});
       await fetchData();
@@ -459,7 +477,125 @@ export default function Admin() {
     }
   };
 
-  const openPaymentModal = (bookingId: string, isOrder?: boolean) => {
+  const [isFetchingAvail, setIsFetchingAvail] = useState(false);
+  const [availableKiosks, setAvailableKiosks] = useState<number[]>([]);
+  const [quadSlotsAvail, setQuadSlotsAvail] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    if (isNewBookingOpen && newBookingData.visit_date) {
+      const checkAvail = async () => {
+        setIsFetchingAvail(true);
+        try {
+          const [bookedIds, q9, q10, q14, q15] = await Promise.all([
+            getBookedKioskIds(newBookingData.visit_date),
+            getQuadAvailability(newBookingData.visit_date, '09:00'),
+            getQuadAvailability(newBookingData.visit_date, '10:30'),
+            getQuadAvailability(newBookingData.visit_date, '14:00'),
+            getQuadAvailability(newBookingData.visit_date, '15:30')
+          ]);
+          
+          setAvailableKiosks([1, 2, 3, 4, 5].filter(id => !bookedIds.includes(id)));
+          setQuadSlotsAvail({
+            '09:00': q9,
+            '10:30': q10,
+            '14:00': q14,
+            '15:30': q15
+          });
+        } catch (err) {
+          console.error('Error checking availability:', err);
+        } finally {
+          setIsFetchingAvail(false);
+        }
+      };
+      checkAvail();
+    }
+  }, [isNewBookingOpen, newBookingData.visit_date]);
+
+  const handleCreateInternalBooking = async () => {
+    if (!newBookingData.name || !newBookingData.visit_date) {
+      toast({ title: "Nome e Data s├úo obrigat├│rios", variant: "destructive" });
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const { 
+        name, phone, visit_date, cpf,
+        adults_normal, adults_half, 
+        is_teacher, is_student, is_server, is_donor, is_solidarity, 
+        is_pcd, is_tea, is_senior, is_birthday,
+        children_free, selected_kiosks, quads, manual_discount, status 
+      } = newBookingData;
+
+      // 1. Build Order Items
+      const items: OrderItemInput[] = [];
+      const addEntry = (id: string, qty: number, price: number) => {
+        if (qty > 0) items.push({ product_id: id, quantity: qty, unit_price: price });
+      };
+
+      addEntry('Adulto', adults_normal, 50);
+      addEntry('Meia-Entrada', adults_half, 25);
+      addEntry('Professor', is_teacher, 25);
+      addEntry('Estudante', is_student, 25);
+      addEntry('Servidor', is_server, 25);
+      addEntry('Doador Sangue', is_donor, 25);
+      addEntry('Adulto Solid├írio', is_solidarity, 25);
+      addEntry('PCD', is_pcd, 0);
+      addEntry('TEA', is_tea, 0);
+      addEntry('Idoso', is_senior, 0);
+      addEntry('Aniversariante', is_birthday, 0);
+      addEntry('Kids', children_free, 0);
+
+      const kiosksToReserve: any[] = [];
+      (selected_kiosks || []).forEach((id: number) => {
+        const kType = id === 1 ? 'maior' : 'menor';
+        const kPrice = id === 1 ? 100 : 75;
+        items.push({ product_id: `Quiosque ${id.toString().padStart(2, '0')}`, quantity: 1, unit_price: kPrice });
+        kiosksToReserve.push({ type: kType, quantity: 1, selectedIds: [id], price: kPrice });
+      });
+
+      const quadsToReserve: any[] = [];
+      const qD = getQuadDiscount(visit_date);
+      (quads || []).forEach((q: any) => {
+        const base = q.type === 'dupla' ? 250 : q.type === 'adulto-crianca' ? 200 : 150;
+        const finalP = base * (1 - qD);
+        items.push({ product_id: `Quadriciclo ${q.type.toUpperCase()} (${q.time})`, quantity: q.quantity, unit_price: finalP });
+        quadsToReserve.push({ slot: q.time, type: q.type, quantity: q.quantity, price: finalP });
+      });
+
+      if (manual_discount > 0) items.push({ product_id: 'Desconto Manual', quantity: 1, unit_price: -manual_discount });
+
+      const total = Math.max(0, items.reduce((s, i) => s + (i.quantity * i.unit_price), 0));
+
+      // 2. Prepare BookingState
+      const bookingState: any = {
+        entry: {
+          name, phone, cpf,
+          visitDate: parseISO(visit_date),
+          adults: [{ quantity: adults_normal + adults_half + is_teacher + is_student + is_server + is_donor + is_solidarity + is_pcd + is_tea + is_senior + is_birthday }],
+          children: [{ quantity: children_free }]
+        },
+        kiosks: kiosksToReserve,
+        quads: quadsToReserve
+      };
+
+      // 3. Save using central service (This updates everything: orders, items, reservations, bookings)
+      const result = await saveBooking(bookingState, total, null, items, status);
+      
+      if (result) {
+        toast({ title: "Reserva Interna Criada!", description: `Voucher: ${result.confirmationCode}` });
+        setIsNewBookingOpen(false);
+        fetchData();
+      }
+    } catch (err: any) {
+      console.error('Create error:', err);
+      toast({ title: "Erro ao criar reserva", description: err.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+    const openPaymentModal = (bookingId: string, isOrder?: boolean) => {
     const list = isOrder ? orders : bookings;
     const item = list.find((b: any) => b.id === bookingId);
     if (item) {
@@ -482,10 +618,10 @@ export default function Admin() {
           toast({ title: "Pagamento Sincronizado!", description: `Status: ${data.status}. O pedido foi marcado como PAGO.` });
           fetchData();
         } else {
-          toast({ title: "Sincronização Concluída", description: `Status: ${data.status}. Nenhuma alteração necessária.` });
+          toast({ title: "Sincroniza├º├úo Conclu├¡da", description: `Status: ${data.status}. Nenhuma altera├º├úo necess├íria.` });
         }
       } else {
-        toast({ title: "Erro na Sincronização", description: data?.error || "Erro desconhecido", variant: "destructive" });
+        toast({ title: "Erro na Sincroniza├º├úo", description: data?.error || "Erro desconhecido", variant: "destructive" });
       }
     } catch (err: any) {
       console.error('Sync error:', err);
@@ -510,7 +646,7 @@ export default function Admin() {
       if (status === 'checked-in' && isOrder) {
         await supabase.from('order_items').update({ is_redeemed: true }).eq('order_id', bookingId);
       }
-      toast({ title: "âœ“ Status atualizado" });
+      toast({ title: "├ó┼ôÔÇ£ Status atualizado" });
       fetchData();
     } catch (err) {
       console.error('Update status error:', err);
@@ -524,7 +660,7 @@ export default function Admin() {
       const table = isOrder ? 'orders' : 'bookings';
       const { error } = await supabase.from(table).update({ notes }).eq('id', bookingId);
       if (error) throw error;
-      toast({ title: "í¢Å“â€œ Nota adicionada" });
+      toast({ title: "├¡┬ó├àÔÇ£├óÔé¼┼ô Nota adicionada" });
       fetchData();
     } catch (err) {
       toast({ title: "Erro ao adicionar nota", variant: "destructive" });
@@ -594,9 +730,9 @@ export default function Admin() {
       ));
       
       const hasError = results.some(r => r.error);
-      if (hasError) throw new Error('Algumas atualizaçíµes falharam');
+      if (hasError) throw new Error('Algumas atualiza├º├¡┬Áes falharam');
       
-      toast({ title: 'í¢Å“â€œ Reagendado com sucesso' });
+      toast({ title: '├¡┬ó├àÔÇ£├óÔé¼┼ô Reagendado com sucesso' });
       fetchData();
       setRescheduleData(null);
     } catch (err) {
@@ -850,7 +986,7 @@ export default function Admin() {
                           <div key={slot.start} className="bg-white rounded-[1.25rem] p-3 shadow-sm border border-blue-200/80 space-y-2.5">
                              <div className="flex items-center justify-between px-1">
                                 <span className="font-black text-blue-900 text-[13px]">{slot.start} - {slot.end}</span>
-                                <span className="text-blue-600 font-bold text-[11px]">{count}/3 ocupados</span>
+                                <span className="text-blue-600 font-bold text-[11px]">{count}/5 ocupados</span>
                              </div>
                              
                              <div className="rounded-xl border border-blue-50 bg-blue-50/20 p-1.5 min-h-[32px] flex items-center justify-center">
@@ -1028,9 +1164,9 @@ export default function Admin() {
         if (bid === 'MENOR') {
           const menors = dayKiosks.filter(dk => dk.kiosk_id === 'MENOR');
           const idx = menors.findIndex(dk => dk.id === r.id);
-          return KIOSKS.find(k => k.id === idx + 2) || { id: 99, name: 'Quiosque Extra', capacity: 'Até 15 pessoas' };
+          return KIOSKS.find(k => k.id === idx + 2) || { id: 99, name: 'Quiosque Extra', capacity: 'At├® 15 pessoas' };
         }
-        return KIOSKS.find(k => k.id === Number(bid)) || { id: 99, name: `Q-${bid}`, capacity: 'Até 15 pessoas' };
+        return KIOSKS.find(k => k.id === Number(bid)) || { id: 99, name: `Q-${bid}`, capacity: 'At├® 15 pessoas' };
       });
       const names = resolved.map((k: any) => k?.name.replace('Quiosque ', 'Q-')).join(', ');
       const capacity = resolved.reduce((s: number, k: any) => s + parseInt((k?.capacity || '0').replace(/\D/g, '') || '15'), 0);
@@ -1040,7 +1176,7 @@ export default function Admin() {
     const subTabConfig = [
       { key: 'hoje', label: 'Ativos Hoje', count: groupsByTab.hoje.length, color: 'bg-emerald-600 text-white' },
       { key: 'futuras', label: 'Reservas Futuras', count: groupsByTab.futuras.length, color: 'bg-blue-100 text-blue-700' },
-      { key: 'historico', label: 'Histórico', count: groupsByTab.historico.length, color: 'bg-slate-100 text-slate-600' },
+      { key: 'historico', label: 'Hist├│rico', count: groupsByTab.historico.length, color: 'bg-slate-100 text-slate-600' },
     ];
 
     return (
@@ -1097,7 +1233,7 @@ export default function Admin() {
                          <div>
                             <span className="text-[10px] font-black text-emerald-800/60 uppercase tracking-widest block mb-1">Cliente</span>
                             <span className="font-black text-emerald-950 uppercase text-sm block">{group.customer_name}</span>
-                            <span className="text-[10px] text-emerald-700 font-bold">{group.items.length} reserva(s) - {formatCurrency(group.total_price)}</span>
+                            <span className="text-[10px] text-emerald-700 font-bold">{group.items.length} reserva(s) ├óÔé¼┬ó {formatCurrency(group.total_price)}</span>
                          </div>
                          <div>
                             <span className="text-[10px] font-black text-emerald-800/60 uppercase tracking-widest block mb-1">Quiosques</span>
@@ -1127,7 +1263,7 @@ export default function Admin() {
             <div className="hidden md:block">
               {tabGroups.length === 0 ? (
                 <div className="text-center py-16 text-muted-foreground/40 font-bold uppercase text-xs tracking-widest">
-                  {kioskSubTab === 'hoje' ? 'Nenhuma reserva ativa hoje' : kioskSubTab === 'futuras' ? 'Sem reservas futuras' : 'Sem histórico'}
+                  {kioskSubTab === 'hoje' ? 'Nenhuma reserva ativa hoje' : kioskSubTab === 'futuras' ? 'Sem reservas futuras' : 'Sem hist├│rico'}
                 </div>
               ) : (
                 <table className="w-full text-left">
@@ -1137,7 +1273,7 @@ export default function Admin() {
                       <th className="px-6 py-4">Cliente</th>
                       <th className="px-6 py-4">Quiosques / Capacidade</th>
                       <th className="px-6 py-4">Valor</th>
-                      <th className="px-6 py-4 text-right">Açíµes</th>
+                      <th className="px-6 py-4 text-right">A├º├¡┬Áes</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y-2 divide-slate-100">
@@ -1229,7 +1365,7 @@ export default function Admin() {
     const subTabConfig = [
       { key: 'hoje', label: 'Ativos Hoje', count: groupsByTab.hoje.length, color: 'bg-blue-600 text-white' },
       { key: 'futuras', label: 'Reservas Futuras', count: groupsByTab.futuras.length, color: 'bg-blue-100 text-blue-700' },
-      { key: 'historico', label: 'Histórico', count: groupsByTab.historico.length, color: 'bg-slate-100 text-slate-600' },
+      { key: 'historico', label: 'Hist├│rico', count: groupsByTab.historico.length, color: 'bg-slate-100 text-slate-600' },
     ];
 
     return (
@@ -1239,7 +1375,7 @@ export default function Admin() {
             <div className="flex items-center justify-between flex-wrap gap-4">
               <div>
                 <h3 className="text-lg font-black text-blue-950">Reservas de Quadriciclos</h3>
-                <p className="text-xs text-blue-900 font-bold">Clique em um grupo para ver os horários</p>
+                <p className="text-xs text-blue-900 font-bold">Clique em um grupo para ver os hor├írios</p>
               </div>
               <div className="grid grid-cols-2 md:flex gap-2 bg-slate-100 p-1 rounded-2xl w-full md:w-auto">
                 {subTabConfig.map(t => (
@@ -1303,13 +1439,13 @@ export default function Admin() {
                               </div>
                               
                               <div className="space-y-2">
-                                 <span className="text-[9px] font-black text-blue-700/60 uppercase tracking-widest block mb-1">Horários Reservados</span>
+                                 <span className="text-[9px] font-black text-blue-700/60 uppercase tracking-widest block mb-1">Hor├írios Reservados</span>
                                  {group.items.map((r: any, i: number) => (
                                    <div key={i} className="flex justify-between items-center bg-white p-3 rounded-xl border border-blue-100 shadow-sm">
                                       <div className="flex items-center gap-2">
                                          <Clock className="w-3.5 h-3.5 text-blue-500" />
                                          <span className="text-[11px] font-black text-blue-900">{r.time_slot}</span>
-                                         <span className="text-[10px] font-bold text-blue-600/60">- {QUAD_MODELS_LABELS[r.quad_type] || 'Individual'}</span>
+                                         <span className="text-[10px] font-bold text-blue-600/60">├óÔé¼┬ó {QUAD_MODELS_LABELS[r.quad_type] || 'Individual'}</span>
                                       </div>
                                       <span className="text-[10px] font-black text-blue-900">{r.quantity} un.</span>
                                    </div>
@@ -1338,7 +1474,7 @@ export default function Admin() {
             <div className="hidden md:block">
               {tabGroups.length === 0 ? (
                 <div className="text-center py-16 text-muted-foreground/40 font-bold uppercase text-xs tracking-widest">
-                  {quadSubTab === 'hoje' ? 'Nenhuma reserva ativa hoje' : quadSubTab === 'futuras' ? 'Sem reservas futuras' : 'Sem histórico'}
+                  {quadSubTab === 'hoje' ? 'Nenhuma reserva ativa hoje' : quadSubTab === 'futuras' ? 'Sem reservas futuras' : 'Sem hist├│rico'}
                 </div>
               ) : (
                 <table className="w-full text-left">
@@ -1350,7 +1486,7 @@ export default function Admin() {
                       <th className="px-6 py-4">Modelos</th>
                       <th className="px-6 py-4 text-center">Total Quadriciclos</th>
                       <th className="px-6 py-4">Valor Total</th>
-                      <th className="px-6 py-4 text-right">Açíµes</th>
+                      <th className="px-6 py-4 text-right">A├º├¡┬Áes</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y-2 divide-slate-100">
@@ -1382,7 +1518,7 @@ export default function Admin() {
                             </td>
                             <td className="px-6 py-4">
                               <span className="font-black text-slate-900 uppercase text-base">{group.customer_name}</span>
-                              <div className="text-[10px] text-slate-500 font-bold mt-0.5">{group.items.length} horário(s) reservado(s)</div>
+                              <div className="text-[10px] text-slate-500 font-bold mt-0.5">{group.items.length} hor├írio(s) reservado(s)</div>
                             </td>
                             <td className="px-6 py-4">
                               <div className="flex flex-wrap gap-1">
@@ -1441,7 +1577,7 @@ export default function Admin() {
                                       {(r.time_slot === 'INDIV' || r.time_slot === 'DUPLA') ? (
                                         <>
                                           <AlertTriangle className="w-3 h-3" />
-                                          {r.time_slot === 'INDIV' ? 'HORíRIO NíƒÆ’O DEFINIDO' : 'DUPLA (AGUARDANDO)'}
+                                          {r.time_slot === 'INDIV' ? 'HOR├¡┬üRIO N├¡ãÆ├åÔÇÖO DEFINIDO' : 'DUPLA (AGUARDANDO)'}
                                         </>
                                       ) : (
                                         <>
@@ -1530,8 +1666,8 @@ export default function Admin() {
     <div className="bg-white rounded-3xl border border-border/50 shadow-card overflow-hidden animate-in fade-in duration-500">
        <div className="p-6 border-b border-border/50 bg-amber-50/30 flex items-center justify-between">
           <div>
-             <h3 className="text-lg font-bold text-amber-900">Histórico de Vendas e Pedidos</h3>
-             <p className="text-xs text-muted-foreground">Gestão financeira centralizada</p>
+             <h3 className="text-lg font-bold text-amber-900">Hist├│rico de Vendas e Pedidos</h3>
+             <p className="text-xs text-muted-foreground">Gest├úo financeira centralizada</p>
           </div>
           <div className="flex items-center gap-2">
              <Badge className="bg-amber-100 text-amber-900 border-0 font-bold">Total: {orders.length}</Badge>
@@ -1545,7 +1681,7 @@ export default function Admin() {
                    <th className="px-6 py-4">Cliente</th>
                    <th className="px-6 py-4">Total</th>
                    <th className="px-6 py-4">Status</th>
-                   <th className="px-6 py-4 text-right">Açíµes</th>
+                   <th className="px-6 py-4 text-right">A├º├¡┬Áes</th>
                 </tr>
              </thead>
              <tbody className="divide-y divide-border/30">
@@ -1595,7 +1731,7 @@ export default function Admin() {
 
        <div className="max-w-7xl mx-auto space-y-6 md:space-y-8 relative z-10 p-3 md:p-8">
           {/* HEADER */}
-          <div className="flex flex-col xl:flex-row xl:items-start justify-between gap-4 mb-4">
+          <div className="flex flex-col xl:flex-row xl:items-start justify-between gap-6 mb-4">
               <div className="flex items-start justify-between w-full xl:w-auto">
                  <div className="space-y-2 shrink-0">
                      <h1 className="text-4xl md:text-5xl font-black tracking-tighter flex items-center gap-4">
@@ -1604,7 +1740,7 @@ export default function Admin() {
                              <span className="text-4xl md:text-4xl md:text-5xl text-[#FFF033] shadow-md">Painel</span>
                           </div>
                        </h1>
-                     <p className="text-[#FFF033] font-black uppercase tracking-[0.2em] md:tracking-[0.3em] text-[8px] md:text-[10px] bg-[#FFF033]/10 w-fit px-3 py-1 rounded-full border border-[#FFF033]/30 backdrop-blur-sm">Gestão Integrada de Reservas - Balneário</p>
+                     <p className="text-[#FFF033] font-black uppercase tracking-[0.2em] md:tracking-[0.3em] text-[8px] md:text-[10px] bg-[#FFF033]/10 w-fit px-3 py-1 rounded-full border border-[#FFF033]/30 backdrop-blur-sm">Gest├úo Integrada de Reservas ├óÔé¼┬ó Balne├írio</p>
                  </div>
 
                  {/* MOBILE BUTTONS (TOP RIGHT) */}
@@ -1709,7 +1845,7 @@ export default function Admin() {
                "px-4 md:px-4 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap", 
                activeTab === 'painel' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
              )}>
-                <LayoutDashboard className="w-4 h-4 md:w-4.5 md:h-4.5" /> Visão Geral
+                <LayoutDashboard className="w-4 h-4 md:w-4.5 md:h-4.5" /> Vis├úo Geral
              </button>
              <button onClick={() => setActiveTab('quiosques')} className={cn(
                "px-4 md:px-4 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap", 
@@ -1736,20 +1872,16 @@ export default function Admin() {
                 <ShoppingBag className="w-4 h-4 md:w-4.5 md:h-4.5" /> Vendas
              </button>
 
-             <InternalBookingAssistant 
-                onCreated={fetchData} 
-                isHoliday={isHoliday} 
-                isAllowedDay={isAllowedDay} 
-                kioskReservations={kioskReservations}
-                quadReservations={quadReservations}
-             />
+             <button onClick={() => setIsNewBookingOpen(true)} className="hidden lg:flex px-4 md:px-6 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap bg-emerald-600 text-white hover:bg-emerald-500 shadow-md ml-auto">
+                <span className="text-lg leading-none">+</span> Nova Reserva
+             </button>
 
              
              
           </div>
 
           {/* CONTENT AREA WITH GRADIENT BACKGROUND */}
-          <div className="min-h-[500px] md:min-h-[600px] bg-white/40 backdrop-blur-md rounded-2xl md:rounded-[2rem] p-4 md:p-8 border border-white/60 shadow-premium">
+          <div className="min-h-[500px] md:min-h-[600px] bg-white/40 backdrop-blur-md rounded-2xl md:rounded-[3rem] p-4 md:p-8 border border-white/60 shadow-premium">
              {activeTab === 'painel' && renderDashboard()}
              {activeTab === 'reservas' && (
                <div className="space-y-6">
@@ -1757,7 +1889,7 @@ export default function Admin() {
                     <div className="relative flex-1 group">
                       <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-100 group-hover:text-white transition-colors" />
                       <Input 
-                        placeholder="Filtrar por nome, telefone ou código..." 
+                        placeholder="Filtrar por nome, telefone ou c├│digo..." 
                         className="pl-11 h-14 rounded-2xl bg-emerald-600 shadow-lg border-2 border-emerald-700 font-extrabold text-white placeholder:text-emerald-100 focus-visible:ring-emerald-400 text-lg transition-all hover:bg-emerald-700 hover:border-emerald-500" 
                         value={search} 
                         onChange={e => setSearch(e.target.value)} 
@@ -1843,14 +1975,14 @@ export default function Admin() {
                       const table = isOrder ? 'orders' : 'bookings';
                       const { error } = await supabase.from(table).update({ visit_date: date }).eq('id', id);
                       if (error) toast({ title: "Erro ao reagendar", variant: "destructive" });
-                      else { toast({ title: "í¢Å“â€œ Reagendado" }); fetchData(); }
+                      else { toast({ title: "├¡┬ó├àÔÇ£├óÔé¼┼ô Reagendado" }); fetchData(); }
                    }}
                     onDelete={async (id, isOrder) => {
                        const table = isOrder ? 'orders' : 'bookings';
                        try {
                          const { error } = await supabase.from(table).delete().eq('id', id);
                          if (error) throw error;
-                         toast({ title: "í¢Å“â€œ Removido com sucesso" });
+                         toast({ title: "├¡┬ó├àÔÇ£├óÔé¼┼ô Removido com sucesso" });
                          fetchData();
                        } catch (err: any) {
                          console.error('Delete error:', err);
@@ -1904,10 +2036,10 @@ export default function Admin() {
                    <div className="w-12 h-12 rounded-2xl bg-red-100 flex items-center justify-center border-2 border-red-200">
                       <AlertTriangle className="w-6 h-6 text-red-600" />
                    </div>
-                   <AlertDialogTitle className="text-xl font-black text-slate-900">Confirmar Exclusão</AlertDialogTitle>
+                   <AlertDialogTitle className="text-xl font-black text-slate-900">Confirmar Exclus├úo</AlertDialogTitle>
                 </div>
                 <AlertDialogDescription className="text-slate-600 font-bold">
-                   Deseja realmente remover esta reserva? Esta ação não pode ser desfeita e liberará o horário/espaço para novos clientes.
+                   Deseja realmente remover esta reserva? Esta a├º├úo n├úo pode ser desfeita e liberar├í o hor├írio/espa├ºo para novos clientes.
                 </AlertDialogDescription>
              </AlertDialogHeader>
              <AlertDialogFooter className="gap-2">
@@ -1919,7 +2051,7 @@ export default function Admin() {
 
        {/* RESCHEDULE DIALOG */}
        <Dialog open={!!rescheduleData} onOpenChange={(open) => !open && setRescheduleData(null)}>
-         <DialogContent className="rounded-[2rem] border-4 border-blue-200 shadow-3xl max-w-md bg-white p-0 overflow-hidden">
+         <DialogContent className="rounded-[2.5rem] border-4 border-blue-200 shadow-3xl max-w-md bg-white p-0 overflow-hidden">
            <div className="bg-blue-600 p-8 text-white">
              <div className="flex items-center gap-4 mb-2">
                <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm border border-white/30">
@@ -1995,7 +2127,290 @@ export default function Admin() {
            </div>
          </DialogContent>
        </Dialog>
-                  /* MODAL HIDDEN */
+                  <Dialog open={isNewBookingOpen} onOpenChange={setIsNewBookingOpen}>
+                    <DialogContent className="sm:max-w-3xl bg-slate-50 rounded-[2.5rem] border-4 border-emerald-200 overflow-hidden p-0 max-h-[95vh] flex flex-col shadow-3xl">
+                      <div className="bg-emerald-600 p-8 text-center shrink-0 border-b-4 border-emerald-700 shadow-lg relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 blur-3xl rounded-full -mr-16 -mt-16" />
+                        <DialogTitle className="text-2xl font-black text-white uppercase tracking-tighter flex items-center justify-center gap-3">
+                           <CalendarPlus className="w-8 h-8" /> Assistente de Reserva Interna
+                        </DialogTitle>
+                        <p className="text-emerald-100 text-[11px] font-black uppercase mt-1.5 tracking-widest bg-emerald-700/50 inline-block px-4 py-1.5 rounded-full border border-emerald-500/30">L├│gica Integrada ├óÔé¼┬ó Sem CPF</p>
+                      </div>
+                      
+                      <div className="flex-1 overflow-y-auto p-10 space-y-10 custom-scrollbar">
+                        {/* SECTION 1: CLIENTE E DATA */}
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                           <div className="space-y-2">
+                             <label className="text-[10px] font-black text-emerald-800 uppercase tracking-widest flex items-center gap-1.5">
+                                <User className="w-3.5 h-3.5" /> Nome do Cliente
+                             </label>
+                             <Input 
+                               value={newBookingData.name} 
+                               onChange={e => setNewBookingData({...newBookingData, name: e.target.value})}
+                               className="h-14 rounded-2xl border-2 border-emerald-100 focus:ring-4 focus:ring-emerald-500/10 font-bold bg-white text-emerald-950"
+                               placeholder="Nome Completo"
+                             />
+                           </div>
+                           <div className="space-y-2">
+                             <label className="text-[10px] font-black text-emerald-800 uppercase tracking-widest flex items-center gap-1.5">
+                                <Phone className="w-3.5 h-3.5" /> Telefone
+                             </label>
+                             <Input 
+                               value={newBookingData.phone} 
+                               onChange={e => setNewBookingData({...newBookingData, phone: e.target.value})}
+                               className="h-14 rounded-2xl border-2 border-emerald-100 focus:ring-4 focus:ring-emerald-500/10 font-bold bg-white text-emerald-950"
+                               placeholder="DDD + N├║mero"
+                             />
+                           </div>
+                           <div className="space-y-2">
+                             <label className="text-[10px] font-black text-emerald-800 uppercase tracking-widest flex items-center gap-1.5">
+                                <CalendarIcon className="w-3.5 h-3.5" /> Data da Visita
+                             </label>
+                             <Input 
+                               type="date"
+                               value={newBookingData.visit_date} 
+                               onChange={e => setNewBookingData({...newBookingData, visit_date: e.target.value})}
+                               className="h-14 rounded-2xl border-2 border-emerald-100 focus:ring-4 focus:ring-emerald-500/10 font-black bg-white text-emerald-950 uppercase"
+                               disabled={isFetchingAvail}
+                             />
+                           </div>
+                        </div>
+
+                        {/* SECTION 2: PARTICIPANTES */}
+                        <div className="bg-white p-8 rounded-[2rem] border-2 border-emerald-100 shadow-sm space-y-6">
+                           <div className="flex items-center justify-between border-b-2 border-emerald-50 pb-4">
+                              <h4 className="text-[11px] font-black text-emerald-900 uppercase tracking-widest flex items-center gap-2">
+                                 <Users className="w-4 h-4" /> 1. Participantes
+                              </h4>
+                              {isFetchingAvail && <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />}
+                           </div>
+                           
+                           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                              {[
+                                { k: 'adults_normal', l: 'Adulto Integral', p: 'R$ 50' },
+                                { k: 'adults_half', l: 'Meia-Entrada', p: 'R$ 25' },
+                                { k: 'is_teacher', l: 'Professor', p: 'R$ 25' },
+                                 { k: 'is_student', l: 'Estudante', p: 'R$ 25' },
+                                 { k: 'is_server', l: 'Servidor', p: 'R$ 25' },
+                                 { k: 'is_donor', l: 'Doador Sangue', p: 'R$ 25' },
+                                 { k: 'is_solidarity', l: 'Adulto Solid├írio', p: 'R$ 25' },
+                                 { k: 'is_pcd', l: 'PCD', p: 'Gr├ítis' },
+                                 { k: 'is_tea', l: 'TEA', p: 'Gr├ítis' },
+                                 { k: 'is_senior', l: 'Idoso (60+)', p: 'Gr├ítis' },
+                                 { k: 'is_birthday', l: 'Aniversariante', p: 'Gr├ítis' },
+                                { k: 'children_free', l: 'Kids (At├® 11a)', p: 'Gr├ítis' }
+                              ].map(cat => (
+                                <div key={cat.k} className="bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100 text-center space-y-2 hover:bg-emerald-50 transition-colors">
+                                   <p className="text-[9px] font-black text-emerald-800/60 uppercase">{cat.l}</p>
+                                   <p className="text-[10px] font-bold text-emerald-600 mb-1">{cat.p}</p>
+                                   <div className="flex items-center justify-center gap-2">
+                                      <button onClick={() => setNewBookingData({...newBookingData, [cat.k]: Math.max(0, newBookingData[cat.k] - 1)})} className="w-8 h-8 rounded-lg bg-white border border-emerald-200 flex items-center justify-center font-black text-emerald-700 hover:bg-emerald-600 hover:text-white transition-all shadow-sm">-</button>
+                                      <span className="w-8 font-black text-emerald-950 text-lg">{newBookingData[cat.k]}</span>
+                                      <button onClick={() => setNewBookingData({...newBookingData, [cat.k]: newBookingData[cat.k] + 1})} className="w-8 h-8 rounded-lg bg-white border border-emerald-200 flex items-center justify-center font-black text-emerald-700 hover:bg-emerald-600 hover:text-white transition-all shadow-sm">+</button>
+                                   </div>
+                                </div>
+                              ))}
+                           </div>
+                        </div>
+
+                        {/* SECTION 3: QUIOSQUES */}
+                        <div className="bg-white p-8 rounded-[2rem] border-2 border-emerald-100 shadow-sm space-y-6">
+                           <h4 className="text-[11px] font-black text-emerald-900 uppercase tracking-widest flex items-center gap-2 border-b-2 border-emerald-50 pb-4">
+                              <Tent className="w-4 h-4" /> 2. Quiosques Dispon├¡┬¡veis
+                           </h4>
+                           <div className="grid grid-cols-6 sm:grid-cols-8 gap-2">
+                              {[
+                                { id: 1, label: '01', type: 'maior' },
+                                { id: 2, label: '02', type: 'menor' },
+                                { id: 3, label: '03', type: 'menor' },
+                                { id: 4, label: '04', type: 'menor' },
+                                { id: 5, label: '05', type: 'menor' }
+                              ].map(k => {
+                                const id = k.id;
+                                const isBooked = !availableKiosks.includes(id) && !newBookingData.selected_kiosks.includes(id);
+                                const isSelected = newBookingData.selected_kiosks.includes(id);
+                                return (
+                                  <button 
+                                    key={id}
+                                    disabled={isBooked}
+                                    onClick={() => {
+                                       const isS = newBookingData.selected_kiosks.includes(id);
+                                       setNewBookingData({
+                                          ...newBookingData,
+                                          selected_kiosks: isS ? newBookingData.selected_kiosks.filter((v:number)=>v!==id) : [...newBookingData.selected_kiosks, id]
+                                       });
+                                    }}
+                                    className={cn(
+                                       "h-12 rounded-xl text-[11px] font-black transition-all border-2",
+                                       isSelected ? "bg-emerald-600 text-white border-emerald-700 shadow-md scale-105" : 
+                                       isBooked ? "bg-slate-100 text-slate-300 border-slate-200 cursor-not-allowed" : 
+                                       "bg-white text-emerald-700 border-emerald-100 hover:border-emerald-500 hover:bg-emerald-50"
+                                    )}
+                                  >
+                                    {k.label}
+                                  </button>
+                                );
+                              })}
+                           </div>
+                           <p className="text-[9px] font-bold text-emerald-600/60 uppercase tracking-widest">Pre├ºo: Quiosque 01 (R$ 100) | Outros (R$ 75)</p>
+                        </div>
+
+                        {/* SECTION 4: QUADRICICLOS */}
+                        <div className="bg-white p-8 rounded-[2rem] border-2 border-emerald-100 shadow-sm space-y-6">
+                           <h4 className="text-[11px] font-black text-emerald-900 uppercase tracking-widest flex items-center gap-2 border-b-2 border-emerald-50 pb-4">
+                              <Bike className="w-4 h-4" /> 3. Passeio de Quadriciclo (Limite Bloqueado)
+                           </h4>
+                           <div className="space-y-4">
+                              {['09:00', '10:30', '14:00', '15:30'].map(slot => {
+                                 const used = quadSlotsAvail[slot] || 0;
+                                 const localUsed = newBookingData.quads.filter((q:any)=>q.time===slot).reduce((s:number,q:any)=>s+q.quantity, 0);
+                                 const remaining = 5 - (used + localUsed);
+                                 const isFull = remaining <= 0;
+                                 
+                                 return (
+                                    <div key={slot} className="flex flex-col md:flex-row items-center justify-between p-4 bg-emerald-50/30 rounded-2xl border border-emerald-100 gap-4">
+                                       <div className="flex items-center gap-3">
+                                          <div className={cn("px-4 py-2 rounded-xl text-xs font-black border-2", isFull ? "bg-red-50 text-red-500 border-red-200" : "bg-white text-emerald-950 border-emerald-100")}>{slot}</div>
+                                          <div className="flex flex-col">
+                                             <span className="text-[10px] font-black uppercase text-emerald-800/60 tracking-wider">Vagas Dispon├¡┬¡veis</span>
+                                             <div className="flex gap-1">
+                                                {Array.from({length: 5}, (_, i) => (
+                                                   <div key={i} className={cn("w-2 h-2 rounded-full", i < (used + localUsed) ? "bg-red-500" : "bg-emerald-400")} />
+                                                ))}
+                                                <span className="text-[10px] font-black ml-2 text-emerald-800">{remaining} RESTANTES</span>
+                                             </div>
+                                          </div>
+                                       </div>
+                                       
+                                       <div className="flex gap-2">
+                                          {['individual', 'dupla', 'adulto-crianca'].map(type => {
+                                             const active = newBookingData.quads.find((q:any)=>q.time===slot && q.type===type);
+                                             return (
+                                                <div key={type} className="flex flex-col items-center gap-1">
+                                                   <button 
+                                                      onClick={() => {
+                                                         const idx = newBookingData.quads.findIndex((q:any)=>q.time===slot && q.type===type);
+                                                         if (idx >= 0) {
+                                                            const nq = [...newBookingData.quads];
+                                                            if (nq[idx].quantity > 1) nq[idx].quantity -= 1;
+                                                            else nq.splice(idx, 1);
+                                                            setNewBookingData({...newBookingData, quads: nq});
+                                                         }
+                                                      }}
+                                                      className="w-8 h-6 bg-slate-100 text-slate-400 hover:bg-emerald-100 hover:text-emerald-700 rounded-t-lg font-black text-xs transition-colors flex items-center justify-center border-2 border-slate-200 border-b-0"
+                                                   >-</button>
+                                                   <div 
+                                                      className={cn(
+                                                         "w-[70px] h-10 flex flex-col items-center justify-center rounded-sm border-2 transition-all",
+                                                         active ? "bg-blue-600 text-white border-blue-700 shadow-md" : "bg-white text-blue-700 border-blue-100"
+                                                      )}
+                                                   >
+                                                      <span className="text-[8px] font-black uppercase leading-none">{type.split('-')[0]}</span>
+                                                      {active && <span className="text-xs font-black">{active.quantity}x</span>}
+                                                   </div>
+                                                   <button 
+                                                      disabled={isFull}
+                                                      onClick={() => {
+                                                         const idx = newBookingData.quads.findIndex((q:any)=>q.time===slot && q.type===type);
+                                                         const nq = [...newBookingData.quads];
+                                                         if (idx >= 0) nq[idx].quantity += 1;
+                                                         else nq.push({ type, time: slot, quantity: 1 });
+                                                         setNewBookingData({...newBookingData, quads: nq});
+                                                      }}
+                                                      className={cn(
+                                                         "w-8 h-6 rounded-b-lg font-black text-xs transition-colors flex items-center justify-center border-2 border-t-0",
+                                                         isFull ? "bg-slate-100 text-slate-300 cursor-not-allowed" : "bg-slate-100 text-slate-400 hover:bg-emerald-100 hover:text-emerald-700 border-slate-200"
+                                                      )}
+                                                   >+</button>
+                                                </div>
+                                             );
+                                          })}
+                                       </div>
+                                    </div>
+                                 );
+                              })}
+                           </div>
+                        </div>
+
+                        {/* SECTION 5: FINANCEIRO FINAL */}
+                        <div className="bg-emerald-900 p-10 rounded-[3rem] text-white space-y-8 shadow-2xl relative overflow-hidden">
+                        {generatedPix ? (
+                          <div className="flex flex-col items-center py-10 space-y-6">
+                            <div className="bg-white p-6 rounded-[2.5rem] shadow-2xl border-8 border-emerald-500/20">
+                               <img src={`data:image/png;base64,${generatedPix.encodedImage}`} alt="QR" className="w-56 h-56" />
+                            </div>
+                            <Button onClick={() => { setIsNewBookingOpen(false); setGeneratedPix(null); fetchData(); }} className="w-full h-16 bg-white text-emerald-900 rounded-2xl font-black">CONCLU├¡┬ìDO - FECHAR</Button>
+                          </div>
+                        ) : (
+                           <>
+                           <div className="absolute bottom-0 right-0 w-64 h-64 bg-emerald-800/30 blur-3xl rounded-full -mb-32 -mr-32" />
+                           
+                           <div className="grid grid-cols-1 md:grid-cols-2 gap-10 relative z-10">
+                              <div className="space-y-4">
+                                 <h4 className="text-[11px] font-black text-emerald-100 uppercase tracking-widest flex items-center gap-2">
+                                    <Tag className="w-4 h-4" /> Ajustes e Status
+                                 </h4>
+                                 <div className="space-y-3">
+                                    <div className="space-y-1">
+                                       <label className="text-[9px] font-black text-emerald-200 uppercase pl-1">Desconto Manual (R$)</label>
+                                       <Input 
+                                          type="number" 
+                                          min="0" 
+                                          value={newBookingData.manual_discount}
+                                          onChange={e => setNewBookingData({...newBookingData, manual_discount: parseFloat(e.target.value) || 0})}
+                                          className="h-12 bg-white/10 border-white/20 text-white rounded-xl focus:ring-emerald-500 placeholder:text-white/20 font-bold"
+                                          placeholder="0,00"
+                                       />
+                                    </div>
+                                    <div className="space-y-1">
+                                       <label className="text-[9px] font-black text-emerald-200 uppercase pl-1">Status de Pagamento</label>
+                                       <select 
+                                          className="w-full h-12 px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500 text-white"
+                                          value={newBookingData.status}
+                                          onChange={e => setNewBookingData({...newBookingData, status: e.target.value})}
+                                       >
+                                          <option value="pending" className="text-emerald-950 font-bold">Aguardando Pagamento</option>
+                                          <option value="paid" className="text-emerald-950 font-bold">Confirmada e Paga</option>
+                                       </select>
+                                    </div>
+                                 </div>
+                              </div>
+                              
+                              <div className="flex flex-col justify-center items-center md:items-end space-y-2">
+                                 <p className="text-[10px] font-black text-emerald-200 uppercase tracking-[0.2em] mb-1">Total da Reserva</p>
+                                 <div className="flex items-baseline gap-2">
+                                    <span className="text-2xl font-black text-emerald-200/60 leading-none">R$</span>
+                                    <span className="text-6xl font-black tracking-tighter leading-none">
+                                       {(() => {
+                                          const { adults_normal, adults_half, is_teacher, is_student, is_server, is_donor, is_solidarity, selected_kiosks, quads, manual_discount, visit_date } = newBookingData;
+                                          let total = (adults_normal * 50) + ((adults_half + is_teacher + is_student + is_server + is_donor + is_solidarity) * 25);
+                                          selected_kiosks.forEach((id: number) => total += (id === 1 ? 100 : 75));
+                                          const qD = getQuadDiscount(visit_date);
+                                          quads.forEach((q: any) => {
+                                             const b = q.type === 'dupla' ? 250 : q.type === 'adulto-crianca' ? 200 : 150;
+                                             total += (b * (1 - qD)) * q.quantity;
+                                          });
+                                          return Math.max(0, total - manual_discount).toFixed(2).replace('.', ',');
+                                       })()}
+                                    </span>
+                                 </div>
+                                 <p className="text-[9px] font-bold text-emerald-300/50 italic">* C├ílculo autom├ítico incluindo descontos do dia</p>
+                              </div>
+                           </div>
+
+                           <Button 
+                              onClick={handleCreateInternalBooking}
+                              disabled={loading || !newBookingData.name}
+                              className="w-full h-16 bg-white hover:bg-emerald-50 text-emerald-900 rounded-3xl font-black text-lg uppercase tracking-tight shadow-2xl relative z-10 transition-all active:scale-[0.98] disabled:opacity-50"
+                           >
+                              {loading ? <Loader2 className="w-8 h-8 animate-spin" /> : 'CONCLUIR E SALVAR RESERVA'}
+                           </Button>
+                           </>
+                        )}
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
         {/* Payment Modal for Admin PIX Generation */}
         {selectedPaymentBooking && (
           <PaymentModal
@@ -2057,7 +2472,7 @@ function EditKioskDialog({ group, onClose, onUpdated, updateOrderTotal }: any) {
 
   const handleSave = async () => {
     if (selectedKiosks.length !== group.items.length) {
-      toast({ title: 'Atenção', description: `Selecione exatamente ${group.items.length} quiosque(s).`, variant: 'destructive' });
+      toast({ title: 'Aten├º├úo', description: `Selecione exatamente ${group.items.length} quiosque(s).`, variant: 'destructive' });
       return;
     }
     setLoading(true);
