@@ -969,6 +969,9 @@ export default function Admin() {
                         const hasAnyBooking = (bookings || []).some(b => {
                           const bDate = typeof b.visit_date === 'string' ? b.visit_date.split('T')[0] : format(new Date(b.visit_date), 'yyyy-MM-dd');
                           return bDate === dateStr;
+                        }) || (orders || []).some(o => {
+                          const oDate = o.visit_date || (o.created_at ? o.created_at.split('T')[0] : '');
+                          return oDate === dateStr && o.status !== 'cancelled' && o.status !== 'awaiting_payment';
                         });
                         
                         const isSimpleBooking = hasAnyBooking && !hasKiosk && !hasQuad;
