@@ -6,11 +6,15 @@ import {
   Phone,
   FileText,
   DollarSign,
+  CheckCircle2,
+  History,
+  Pencil,
   Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { 
   Dialog, 
   DialogContent, 
@@ -50,6 +54,8 @@ export function AdminCreditsTab({
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [currentTab, setCurrentTab] = useState<'ativos' | 'historico'>('ativos');
+  const [editingCredit, setEditingCredit] = useState<any>(null);
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -57,6 +63,36 @@ export function AdminCreditsTab({
     amount: '',
     notes: ''
   });
+
+  const startEditing = (cred: any) => {
+    setEditingCredit(cred);
+    setFormData({
+      name: cred.customer_name,
+      phone: cred.customer_phone || '',
+      cpf: cred.customer_cpf || '',
+      amount: cred.amount.toString(),
+      notes: cred.notes || ''
+    });
+    setIsDialogOpen(true);
+  };
+
+  const resetForm = () => {
+    setIsDialogOpen(false);
+    setEditingCredit(null);
+    setFormData({ name: '', phone: '', cpf: '', amount: '', notes: '' });
+  };
+
+  const handleMarkUsed = async (id: string, amount: number) => {
+    if (confirm("Marcar este crédito como totalmente utilizado? Ele será movido para o histórico.")) {
+      const { error } = await supabase.from('internal_credits').update({ used_amount: amount }).eq('id', id);
+      if (error) {
+        toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" });
+      } else {
+        toast({ title: "Crédito atualizado!" });
+        fetchData();
+      }
+    }
+  };
 
   const handleAddNewCredit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,22 +103,32 @@ export function AdminCreditsTab({
 
     setLoading(true);
     try {
-      const { error } = await supabase.from('internal_credits').insert({
-        customer_name: formData.name,
-        customer_phone: formData.phone,
-        customer_cpf: formData.cpf,
-        amount: parseFloat(formData.amount),
-        notes: formData.notes
-      });
+      if (editingCredit) {
+        const { error } = await supabase.from('internal_credits').update({
+          customer_name: formData.name,
+          customer_phone: formData.phone,
+          customer_cpf: formData.cpf,
+          amount: parseFloat(formData.amount),
+          notes: formData.notes
+        }).eq('id', editingCredit.id);
+        if (error) throw error;
+        toast({ title: "✓ Crédito Atualizado!" });
+      } else {
+        const { error } = await supabase.from('internal_credits').insert({
+          customer_name: formData.name,
+          customer_phone: formData.phone,
+          customer_cpf: formData.cpf,
+          amount: parseFloat(formData.amount),
+          notes: formData.notes
+        });
+        if (error) throw error;
+        toast({ title: "✓ Crédito Adicionado!", description: `R$ ${formData.amount} para ${formData.name}` });
+      }
       
-      if (error) throw error;
-
-      toast({ title: "✓ Crédito Adicionado!", description: `R$ ${formData.amount} para ${formData.name}` });
-      setIsDialogOpen(false);
-      setFormData({ name: '', phone: '', cpf: '', amount: '', notes: '' });
+      resetForm();
       fetchData();
     } catch (error: any) {
-      toast({ title: "Erro ao adicionar crédito", description: error.message, variant: "destructive" });
+      toast({ title: "Erro ao processar", description: error.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -100,17 +146,37 @@ export function AdminCreditsTab({
     }
   };
 
+  const activeCredits = credits.filter(c => (c.used_amount || 0) < c.amount);
+  const historyCredits = credits.filter(c => (c.used_amount || 0) >= c.amount);
+  const shownCredits = currentTab === 'ativos' ? activeCredits : historyCredits;
+
   return (
     <div className="bg-white/95 backdrop-blur-md rounded-[2.5rem] p-8 md:p-10 shadow-2xl border-2 border-amber-100/50 animate-in fade-in duration-500">
        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
           <div>
              <h2 className="text-3xl font-black text-amber-950 tracking-tight">Créditos Internos</h2>
-             <p className="text-amber-600 font-bold text-xs uppercase tracking-widest mt-1">Saldo em haver para clientes e reagendamentos</p>
+             <div className="flex items-center gap-4 mt-2">
+                <button 
+                  onClick={() => setCurrentTab('ativos')}
+                  className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-all ${currentTab === 'ativos' ? 'bg-amber-100 text-amber-800 border-2 border-amber-200' : 'text-slate-400 hover:text-slate-600'}`}
+                >
+                  Ativos ({activeCredits.length})
+                </button>
+                <button 
+                  onClick={() => setCurrentTab('historico')}
+                  className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl transition-all ${currentTab === 'historico' ? 'bg-slate-100 text-slate-800 border-2 border-slate-200' : 'text-slate-400 hover:text-slate-600'}`}
+                >
+                  Histórico ({historyCredits.length})
+                </button>
+             </div>
           </div>
           
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <Dialog open={isDialogOpen} onOpenChange={(open) => {
+            if (!open) resetForm();
+            setIsDialogOpen(open);
+          }}>
             <DialogTrigger asChild>
-              <Button className="bg-amber-500 hover:bg-amber-600 text-white font-black rounded-2xl h-14 px-8 shadow-lg border-2 border-amber-600 flex items-center gap-3 transition-all hover:scale-105 active:scale-95">
+              <Button onClick={() => setEditingCredit(null)} className="bg-amber-500 hover:bg-amber-600 text-white font-black rounded-2xl h-14 px-8 shadow-lg border-2 border-amber-600 flex items-center gap-3 transition-all hover:scale-105 active:scale-95">
                 <Plus className="w-6 h-6" /> NOVO CRÉDITO
               </Button>
             </DialogTrigger>
@@ -118,11 +184,11 @@ export function AdminCreditsTab({
               <div className="bg-amber-500 p-8 text-white">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm border border-white/30">
-                    <Plus className="w-6 h-6" />
+                    {editingCredit ? <Pencil className="w-6 h-6" /> : <Plus className="w-6 h-6" />}
                   </div>
                   <div>
-                    <h3 className="text-xl font-black tracking-tight">Adicionar Crédito</h3>
-                    <p className="text-amber-100 text-xs font-bold uppercase tracking-wider">Preencha os dados do cliente</p>
+                    <h3 className="text-xl font-black tracking-tight">{editingCredit ? 'Editar Crédito' : 'Adicionar Crédito'}</h3>
+                    <p className="text-amber-100 text-xs font-bold uppercase tracking-wider">{editingCredit ? 'Atualize os dados do cliente' : 'Preencha os dados do cliente'}</p>
                   </div>
                 </div>
               </div>
@@ -198,7 +264,7 @@ export function AdminCreditsTab({
                     type="button"
                     variant="ghost" 
                     className="flex-1 h-12 rounded-xl font-black text-slate-400 uppercase text-xs"
-                    onClick={() => setIsDialogOpen(false)}
+                    onClick={resetForm}
                   >
                     Cancelar
                   </Button>
@@ -207,7 +273,7 @@ export function AdminCreditsTab({
                     disabled={loading}
                     className="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-black h-12 rounded-xl text-xs uppercase shadow-lg shadow-amber-900/20"
                   >
-                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Confirmar Crédito'}
+                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : editingCredit ? 'Salvar Alterações' : 'Confirmar Crédito'}
                   </Button>
                 </DialogFooter>
               </form>
@@ -226,10 +292,10 @@ export function AdminCreditsTab({
                    <th className="px-6 py-5 text-right">Ações</th>
                 </tr>
              </thead>
-             <tbody className="divide-y divide-amber-50">
-                {credits.length === 0 ? (
-                  <tr><td colSpan={5} className="py-20 text-center text-slate-400 font-bold italic">Nenhum crédito registrado.</td></tr>
-                ) : credits.map(cred => (
+              <tbody className="divide-y divide-amber-50">
+                {shownCredits.length === 0 ? (
+                  <tr><td colSpan={5} className="py-20 text-center text-slate-400 font-bold italic">{currentTab === 'ativos' ? 'Nenhum crédito ativo.' : 'Histórico vazio.'}</td></tr>
+                ) : shownCredits.map(cred => (
                    <tr key={cred.id} className="hover:bg-amber-50/30 transition-colors">
                       <td className="px-6 py-5">
                          <div className="font-bold text-slate-900">{cred.customer_name}</div>
@@ -246,9 +312,43 @@ export function AdminCreditsTab({
                       </td>
                       <td className="px-6 py-5 font-bold text-slate-400">
                          {formatCurrency(cred.used_amount || 0)}
+                         {(cred.used_amount || 0) >= cred.amount && (
+                           <Badge variant="outline" className="ml-2 text-[8px] bg-slate-50 border-slate-200">UTILIZADO</Badge>
+                         )}
                       </td>
                       <td className="px-6 py-5 text-right">
-                         <Button size="icon" variant="ghost" className="h-9 w-9 text-red-500 hover:bg-red-50 rounded-xl" onClick={() => handleDeleteCredit(cred.id)}><Trash2 className="w-4.5 h-4.5" /></Button>
+                         <div className="flex items-center justify-end gap-1">
+                            {currentTab === 'ativos' && (
+                              <>
+                                <Button 
+                                  size="icon" 
+                                  variant="ghost" 
+                                  className="h-9 w-9 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 rounded-xl"
+                                  onClick={() => handleMarkUsed(cred.id, cred.amount)}
+                                  title="Marcar como usado"
+                                >
+                                  <CheckCircle2 className="w-4.5 h-4.5" />
+                                </Button>
+                                <Button 
+                                  size="icon" 
+                                  variant="ghost" 
+                                  className="h-9 w-9 text-blue-600 hover:bg-blue-50 hover:text-blue-700 rounded-xl"
+                                  onClick={() => startEditing(cred)}
+                                  title="Editar dados"
+                                >
+                                  <Pencil className="w-4.5 h-4.5" />
+                                </Button>
+                              </>
+                            )}
+                            <Button 
+                              size="icon" 
+                              variant="ghost" 
+                              className="h-9 w-9 text-red-500 hover:bg-red-100 hover:text-red-700 rounded-xl transition-colors" 
+                              onClick={() => handleDeleteCredit(cred.id)}
+                            >
+                              <Trash2 className="w-4.5 h-4.5" />
+                            </Button>
+                         </div>
                       </td>
                    </tr>
                 ))}
