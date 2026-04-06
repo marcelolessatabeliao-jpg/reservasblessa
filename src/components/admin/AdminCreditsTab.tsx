@@ -39,7 +39,8 @@ export function AdminCreditsTab({
     name: '',
     phone: '',
     cpf: '',
-    amount: ''
+    amount: '',
+    notes: ''
   });
 
   const handleAddNewCredit = async (e: React.FormEvent) => {
@@ -55,14 +56,15 @@ export function AdminCreditsTab({
         customer_name: formData.name,
         customer_phone: formData.phone,
         customer_cpf: formData.cpf,
-        amount: parseFloat(formData.amount)
+        amount: parseFloat(formData.amount),
+        notes: formData.notes
       });
       
       if (error) throw error;
 
       toast({ title: "✓ Crédito Adicionado!", description: `R$ ${formData.amount} para ${formData.name}` });
       setIsDialogOpen(false);
-      setFormData({ name: '', phone: '', cpf: '', amount: '' });
+      setFormData({ name: '', phone: '', cpf: '', amount: '', notes: '' });
       fetchData();
     } catch (error: any) {
       toast({ title: "Erro ao adicionar crédito", description: error.message, variant: "destructive" });
@@ -151,6 +153,18 @@ export function AdminCreditsTab({
 
                 <div className="space-y-1.5">
                   <Label className="text-[10px] font-black uppercase text-amber-700/60 ml-1 flex items-center gap-1.5">
+                    <FileText className="w-3 h-3" /> Motivo / Observação
+                  </Label>
+                  <Input 
+                    value={formData.notes}
+                    onChange={e => setFormData({...formData, notes: e.target.value})}
+                    placeholder="Ex: Reagendamento da reserva #123"
+                    className="h-12 rounded-xl border-2 border-amber-50 focus:border-amber-200 bg-slate-50 font-bold"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-black uppercase text-amber-700/60 ml-1 flex items-center gap-1.5">
                     <DollarSign className="w-3 h-3" /> Valor do Crédito (R$)
                   </Label>
                   <Input 
@@ -202,8 +216,9 @@ export function AdminCreditsTab({
                   <tr><td colSpan={5} className="py-20 text-center text-slate-400 font-bold italic">Nenhum crédito registrado.</td></tr>
                 ) : credits.map(cred => (
                    <tr key={cred.id} className="hover:bg-amber-50/30 transition-colors">
-                      <td className="px-6 py-5 font-bold text-slate-900">
-                         {cred.customer_name}
+                      <td className="px-6 py-5">
+                         <div className="font-bold text-slate-900">{cred.customer_name}</div>
+                         {cred.notes && <div className="text-[10px] text-amber-600 font-bold italic mt-0.5 line-clamp-1">{cred.notes}</div>}
                       </td>
                       <td className="px-6 py-5">
                          <div className="flex flex-col text-xs font-bold text-slate-500">
