@@ -850,7 +850,7 @@ export default function Admin() {
                           <div key={slot.start} className="bg-white rounded-[1.25rem] p-3 shadow-sm border border-blue-200/80 space-y-2.5">
                              <div className="flex items-center justify-between px-1">
                                 <span className="font-black text-blue-900 text-[13px]">{slot.start} - {slot.end}</span>
-                                <span className="text-blue-600 font-bold text-[11px]">{count}/5 ocupados</span>
+                                <span className="text-blue-600 font-bold text-[11px]">{count}/3 ocupados</span>
                              </div>
                              
                              <div className="rounded-xl border border-blue-50 bg-blue-50/20 p-1.5 min-h-[32px] flex items-center justify-center">
@@ -906,7 +906,23 @@ export default function Admin() {
 
         <div className="space-y-6">
            
-           {/* Calendário removido por simplificação */}
+           <div className="bg-white p-6 rounded-[2rem] border-2 border-amber-300 shadow-xl overflow-hidden">
+              <div className="flex items-center gap-2 mb-4 border-b border-amber-100 pb-2">
+                <CalendarIcon className="w-4 h-4 text-emerald-800" />
+                <span className="text-[11px] font-black uppercase text-emerald-900 tracking-widest">Selecionar Data</span>
+              </div>
+              <Calendar
+                mode="single"
+                selected={targetDate}
+                onSelect={(date) => date && setTargetDate(date)}
+                locale={ptBR}
+                className="p-3"
+                classNames={{
+                  day_today: "bg-amber-100 text-amber-900 font-black rounded-lg",
+                  day_selected: "bg-emerald-600 text-white font-black hover:bg-emerald-600 hover:text-white rounded-lg",
+                }}
+              />
+           </div>
         </div>
       </div>
     );

@@ -253,7 +253,7 @@ export function InternalBookingAssistant({
                 <h4 className="text-[11px] font-black text-emerald-900 uppercase tracking-widest flex items-center gap-2 border-b border-emerald-50 pb-3">
                    <Users className="w-4 h-4" /> 1. Participantes
                 </h4>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
                    {[
                       { k: 'adults_normal', l: 'Adulto Integral', p: 'R$ 50' },
                       { k: 'adults_half', l: 'Meia-Entrada', p: 'R$ 25' },
@@ -261,12 +261,7 @@ export function InternalBookingAssistant({
                       { k: 'is_student', l: 'Estudante', p: 'R$ 25' },
                       { k: 'is_server', l: 'Servidor', p: 'R$ 25' },
                       { k: 'is_donor', l: 'Doador Sangue', p: 'R$ 25' },
-                      { k: 'is_solidarity', l: 'Adulto Solidário', p: 'R$ 25' },
-                      { k: 'is_pcd', l: 'PCD', p: 'Grátis' },
-                      { k: 'is_tea', l: 'TEA', p: 'Grátis' },
-                      { k: 'is_senior', l: 'Idoso (60+)', p: 'Grátis' },
-                      { k: 'is_birthday', l: 'Aniversariante', p: 'Grátis' },
-                      { k: 'children_free', l: 'Kids (até 11A)', p: 'Grátis' }
+                      { k: 'is_solidarity', l: 'Adulto Solidário', p: 'R$ 25' }
                    ].map(cat => (
                       <div key={cat.k} className="bg-white border border-emerald-100 rounded-[1.25rem] p-3 flex flex-col items-center justify-center text-center hover:shadow-md transition-all shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)]">
                          <span className="text-[9px] sm:text-[10px] font-black text-emerald-800 uppercase tracking-tight mb-1">{cat.l}</span>
@@ -281,12 +276,16 @@ export function InternalBookingAssistant({
                 </div>
              </div>
 
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+             <div className="space-y-6">
+                {/* QUIOSQUES SECTION - SINGLE ROW ABOVE QUADS */}
                 <div className="bg-white p-5 rounded-[2rem] border border-emerald-100 shadow-sm space-y-4">
-                   <h4 className="text-[11px] font-black text-emerald-900 uppercase tracking-widest flex items-center gap-2 pb-3 border-b border-emerald-50">
-                      <Tag className="w-4 h-4" /> 2. Quiosques
-                   </h4>
-                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-emerald-50">
+                      <h4 className="text-[11px] font-black text-emerald-900 uppercase tracking-widest flex items-center gap-2">
+                         <Tag className="w-4 h-4" /> 2. Quiosques
+                      </h4>
+                      <p className="text-[9px] font-bold text-emerald-600/60 uppercase">Selecione o quiosque desejado</p>
+                   </div>
+                   <div className="flex flex-wrap md:flex-nowrap gap-2">
                       {KIOSKS.map(k => {
                          const isBooked = bookedIds.includes(k.id);
                          const isSelected = newBookingData.selected_kiosks.includes(k.id);
@@ -294,7 +293,7 @@ export function InternalBookingAssistant({
                             <button key={k.id} disabled={isBooked} onClick={() => {
                                if (isSelected) setNewBookingData({...newBookingData, selected_kiosks: newBookingData.selected_kiosks.filter(id => id !== k.id)});
                                else setNewBookingData({...newBookingData, selected_kiosks: [...newBookingData.selected_kiosks, k.id]});
-                            }} className={cn("h-12 rounded-xl font-black text-[10px] md:text-xs transition-all border-2 flex items-center justify-center", isBooked ? "bg-slate-100 border-slate-200 text-slate-300" : isSelected ? "bg-emerald-600 border-emerald-700 text-white shadow-md scale-[1.02]" : "bg-white border-emerald-100 text-emerald-800 hover:border-emerald-300")}>
+                            }} className={cn("flex-1 h-12 rounded-xl font-black text-[10px] md:text-xs transition-all border-2 flex items-center justify-center min-w-[60px]", isBooked ? "bg-slate-100 border-slate-200 text-slate-300" : isSelected ? "bg-emerald-600 border-emerald-700 text-white shadow-md scale-[1.02]" : "bg-white border-emerald-100 text-emerald-800 hover:border-emerald-300")}>
                                 Q-{k.id}
                             </button>
                          );
@@ -302,6 +301,7 @@ export function InternalBookingAssistant({
                    </div>
                 </div>
 
+                {/* QUADS SECTION */}
                 <div className="bg-white p-5 rounded-[2rem] border border-emerald-100 shadow-sm space-y-4">
                    <h4 className="text-[11px] font-black text-emerald-900 uppercase tracking-widest flex items-center gap-2 pb-3 border-b border-emerald-50">
                       <Bike className="w-4 h-4" /> 3. Quadriciclos (Máx. 3 por horário)
@@ -371,6 +371,7 @@ export function InternalBookingAssistant({
                    </div>
                 </div>
              </div>
+
 
              <div className="bg-[#114030] p-6 lg:p-8 rounded-[2rem] shadow-xl text-white mt-8">
                 <h4 className="text-xs font-black text-emerald-100 uppercase tracking-widest flex items-center gap-2 pb-5 opacity-90">
