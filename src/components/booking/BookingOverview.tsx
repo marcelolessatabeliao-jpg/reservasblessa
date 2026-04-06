@@ -725,20 +725,22 @@ export function BookingOverview({
               </motion.div>
             )}
 
-            <Button
-              size="lg"
-              onClick={() => handleAction('LOCAL')}
-              disabled={saving}
-              className="w-full h-20 sm:h-24 rounded-[2rem] bg-[#006020] hover:bg-[#004d1a] border-b-8 border-[#004015] text-white font-black flex items-center justify-center gap-2 sm:gap-4 shadow-lg active:scale-[0.97] transition-all relative overflow-hidden group"
-            >
-              <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md shrink-0">
-                <MessageCircle className="h-7 w-7 text-white" />
-              </div>
-              <div className="text-left leading-tight min-w-0">
-                <span className="block text-[10px] sm:text-[11px] text-white/80 font-black uppercase tracking-widest mb-0.5 truncate uppercase">Pagar Presencialmente</span>
-                <span className="text-lg sm:text-2xl uppercase tracking-tighter block whitespace-nowrap overflow-hidden text-ellipsis">Confirmar no WhatsApp</span>
-              </div>
-            </Button>
+            {!pixData && (
+              <Button
+                size="lg"
+                onClick={() => handleAction('LOCAL')}
+                disabled={saving}
+                className="w-full h-20 sm:h-24 rounded-[2rem] bg-[#006020] hover:bg-[#004d1a] border-b-8 border-[#004015] text-white font-black flex items-center justify-center gap-2 sm:gap-4 shadow-lg active:scale-[0.97] transition-all relative overflow-hidden group"
+              >
+                <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md shrink-0">
+                  <MessageCircle className="h-7 w-7 text-white" />
+                </div>
+                <div className="text-left leading-tight min-w-0">
+                  <span className="block text-[10px] sm:text-[11px] text-white/80 font-black uppercase tracking-widest mb-0.5 truncate uppercase">Pagar Presencialmente</span>
+                  <span className="text-lg sm:text-2xl uppercase tracking-tighter block whitespace-nowrap overflow-hidden text-ellipsis">Confirmar no WhatsApp</span>
+                </div>
+              </Button>
+            )}
           </div>
         </div>
 
