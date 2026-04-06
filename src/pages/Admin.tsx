@@ -459,105 +459,7 @@ export default function Admin() {
     }
   };
 
-  const [isFetchingAvail, setIsFetchingAvail] = useState(false);
-  const [availableKiosks, setAvailableKiosks] = useState<number[]>([]);
-  const [quadSlotsAvail, setQuadSlotsAvail] = useState<Record<string, number>>({});
-
-  useEffect(() => {
-    if (isNewBookingOpen && newBookingData.visit_date) {
-      const checkAvail = async () => {
-        setIsFetchingAvail(true);
-        try {
-          const [bookedIds, q9, q10, q14, q15] = await Promise.all([
-            getBookedKioskIds(newBookingData.visit_date),
-            getQuadAvailability(newBookingData.visit_date, '09:00'),
-            getQuadAvailability(newBookingData.visit_date, '10:30'),
-            getQuadAvailability(newBookingData.visit_date, '14:00'),
-            getQuadAvailability(newBookingData.visit_date, '15:30')
-          ]);
-          
-          setAvailableKiosks([1, 2, 3, 4, 5].filter(id => !bookedIds.includes(id)));
-          setQuadSlotsAvail({
-            '09:00': q9,
-            '10:30': q10,
-            '14:00': q14,
-            '15:30': q15
-          });
-        } catch (err) {
-          console.error('Error checking availability:', err);
-        } finally {
-          setIsFetchingAvail(false);
-        }
-      };
-      checkAvail();
-    }
-  }, [isNewBookingOpen, newBookingData.visit_date]);
-
-  
-
-      addEntry('Adulto', adults_normal, 50);
-      addEntry('Meia-Entrada', adults_half, 25);
-      addEntry('Professor', is_teacher, 25);
-      addEntry('Estudante', is_student, 25);
-      addEntry('Servidor', is_server, 25);
-      addEntry('Doador Sangue', is_donor, 25);
-      addEntry('Adulto Solidário', is_solidarity, 25);
-      addEntry('PCD', is_pcd, 0);
-      addEntry('TEA', is_tea, 0);
-      addEntry('Idoso', is_senior, 0);
-      addEntry('Aniversariante', is_birthday, 0);
-      addEntry('Kids', children_free, 0);
-
-      const kiosksToReserve: any[] = [];
-      (selected_kiosks || []).forEach((id: number) => {
-        const kType = id === 1 ? 'maior' : 'menor';
-        const kPrice = id === 1 ? 100 : 75;
-        items.push({ product_id: `Quiosque ${id.toString().padStart(2, '0')}`, quantity: 1, unit_price: kPrice });
-        kiosksToReserve.push({ type: kType, quantity: 1, selectedIds: [id], price: kPrice });
-      });
-
-      const quadsToReserve: any[] = [];
-      const qD = getQuadDiscount(visit_date);
-      (quads || []).forEach((q: any) => {
-        const base = q.type === 'dupla' ? 250 : q.type === 'adulto-crianca' ? 200 : 150;
-        const finalP = base * (1 - qD);
-        items.push({ product_id: `Quadriciclo ${q.type.toUpperCase()} (${q.time})`, quantity: q.quantity, unit_price: finalP });
-        quadsToReserve.push({ slot: q.time, type: q.type, quantity: q.quantity, price: finalP });
-      });
-
-      if (manual_discount > 0) items.push({ product_id: 'Desconto Manual', quantity: 1, unit_price: -manual_discount });
-
-      const total = Math.max(0, items.reduce((s, i) => s + (i.quantity * i.unit_price), 0));
-
-      // 2. Prepare BookingState
-      const bookingState: any = {
-        entry: {
-          name, phone, cpf,
-          visitDate: parseISO(visit_date),
-          adults: [{ quantity: adults_normal + adults_half + is_teacher + is_student + is_server + is_donor + is_solidarity + is_pcd + is_tea + is_senior + is_birthday }],
-          children: [{ quantity: children_free }]
-        },
-        kiosks: kiosksToReserve,
-        quads: quadsToReserve
-      };
-
-      // 3. Save using central service (This updates everything: orders, items, reservations, bookings)
-      const result = await saveBooking(bookingState, total, null, items, status);
-      
-      if (result) {
-        toast({ title: "Reserva Interna Criada!", description: `Voucher: ${result.confirmationCode}` });
-        setIsNewBookingOpen(false);
-        fetchData();
-      }
-    } catch (err: any) {
-      console.error('Create error:', err);
-      toast({ title: "Erro ao criar reserva", description: err.message, variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-    const openPaymentModal = (bookingId: string, isOrder?: boolean) => {
+  const openPaymentModal = (bookingId: string, isOrder?: boolean) => {
     const list = isOrder ? orders : bookings;
     const item = list.find((b: any) => b.id === bookingId);
     if (item) {
@@ -1004,21 +906,7 @@ export default function Admin() {
 
         <div className="space-y-6">
            
-           <Card className="bg-white border-2 border-emerald-100 shadow-sm rounded-3xl overflow-hidden">
-              <div className="p-6 border-b border-emerald-100 bg-emerald-50/50">
-                 <div className="flex items-center gap-3 mb-2">
-                    <Calendar
-                                    mode="single"
-                                    selected={newBookingData.visit_date ? parseISO(newBookingData.visit_date) : undefined}
-                                    onSelect={(date) => setNewBookingData({...newBookingData, visit_date: date ? format(date, 'yyyy-MM-dd') : ''})}
-                                    locale={ptBR}
-                                    className="p-3 shadow-none border-0"
-                                    toDate={new Date(2030, 11, 31)}
-                                    fromDate={new Date()}
-                                    disabled={(date) => !isAllowedDay(date)}
-                                  />
-                </div>
-           </Card>
+           {/* Calendário removido por simplificação */}
         </div>
       </div>
     );
@@ -1757,19 +1645,7 @@ export default function Admin() {
                 <ShoppingBag className="w-4 h-4 md:w-4.5 md:h-4.5" /> Vendas
              </button>
 
-             <button onClick={() => { 
-                setNewBookingData({
-                  name: '', phone: '', email: '', visit_date: '',
-                  adults_normal: 0, adults_half: 0,
-                  is_teacher: 0, is_student: 0, is_server: 0, is_donor: 0, is_solidarity: 0,
-                  is_pcd: 0, is_tea: 0, is_senior: 0, is_birthday: 0,
-                  children_free: 0, selected_kiosks: [], quads: [],
-                  manual_discount: 0, manual_discount_type: 'unit', status: 'pending'
-                });
-                setIsNewBookingOpen(true); 
-              }} className="hidden lg:flex px-4 md:px-6 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap bg-emerald-600 text-white hover:bg-emerald-500 shadow-md ml-auto">
-                <span className="text-lg leading-none">+</span> Nova Reserva
-             </button>
+             <InternalBookingAssistant onCreated={fetchData} isHoliday={isHoliday} isAllowedDay={isAllowedDay} />
 
              
              
