@@ -113,22 +113,29 @@ export default function Voucher() {
                             {item.is_redeemed && <span className="text-[8px] font-bold text-green-600 uppercase">Utilizado</span>}
                           </div>
                        </div>
-                       <span className="text-xs font-black text-muted-foreground">#{(i+1).toString().padStart(2, '0')}</span>
-                    </div>
+                     </div>
                   ))}
                </div>
             </div>
 
             {/* Important Notes */}
-            <div className="bg-sun/5 rounded-2xl p-5 border border-sun/20 space-y-2">
+            <div className="bg-sun/5 rounded-2xl p-5 border border-sun/20 space-y-3">
                <div className="flex items-center gap-2 text-primary">
                   <MapPin className="w-4 h-4" />
-                  <p className="text-xs font-black uppercase">Como chegar</p>
+                  <p className="text-xs font-black uppercase">Localização</p>
                </div>
                <p className="text-[10px] text-primary/80 leading-relaxed font-medium">
                   Via Araras, Setor 09 – Ariquemes/RO<br />
                   Apresente este QR Code na entrada para validação.
                </p>
+               <Button 
+                 asChild
+                 className="w-full bg-[#FFF033] hover:bg-[#e6d800] text-primary font-black rounded-xl text-[10px] h-10 shadow-sm border border-primary/10"
+               >
+                 <a href="https://maps.app.goo.gl/cegNBpNfLQwraW8v8" target="_blank" rel="noopener noreferrer">
+                   📍 VER NO GOOGLE MAPS
+                 </a>
+               </Button>
             </div>
           </div>
 

@@ -43,6 +43,7 @@ interface Booking {
   receipt_url?: string | null;
   customer_phone?: string | null;
   customer_cpf?: string | null;
+  order_items?: any[];
 }
 
 interface BookingTableProps {
@@ -512,7 +513,20 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                                         <span>CANCELAR</span>
                                                      </Button>
                                                      <Button 
-                                                       onClick={(e) => { e.stopPropagation(); const phone = ((booking as any).customer_phone || (booking as any).phone || '').replace(/\D/g, ''); if (phone) { window.open("https://wa.me/55" + phone + "?text=" + encodeURIComponent("Voucher: https://reservas.balneariolessa.com.br/voucher/" + booking.confirmation_code), '_blank'); } }} 
+                                                       onClick={(e) => { 
+                                                          e.stopPropagation(); 
+                                                          const phone = (booking.customer_phone || (booking as any).phone || '').replace(/\D/g, ''); 
+                                                          if (phone) { 
+                                                            const items = (booking as any).order_items || [];
+                                                            const itemsList = items.map((it: any) => `- ${it.quantity}x ${it.product_name || it.product_id} (${formatCurrency(it.unit_price)})`).join('%0A');
+                                                            const dateStr = format(parseISO(booking.visit_date || new Date().toISOString()), "dd/MM/yyyy", { locale: ptBR });
+                                                            const name = booking.name || (booking as any).customer_name;
+                                                            
+                                                            const text = `🍀 *BALNEÁRIO FAMÍLIA LESSA*%0A%0AEsse é seu voucher de confirmação da sua reserva e o resumo do seu pedido para apresentar caso seja solicitado.%0A%0A📅 *Data:* ${dateStr}%0A👤 *Titular:* ${name}%0A%0A📝 *Resumo do Pedido:*%0A${itemsList}%0A%0A💰 *Total:* ${formatCurrency(booking.total_amount)}%0A%0AVoucher: https://reservas.balneariolessa.com.br/voucher/${booking.confirmation_code}`;
+                                                            
+                                                            window.open("https://wa.me/55" + phone + "?text=" + text, '_blank'); 
+                                                          } 
+                                                        }}
                                                        className="bg-indigo-50 border-2 border-indigo-100 text-indigo-700 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 font-black uppercase text-[9px] h-14 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all duration-300 shadow-sm"
                                                      >
                                                         <FileCheck className="w-4 h-4" /> 

@@ -52,6 +52,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { AdminLogin } from '@/components/admin/AdminLogin';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -95,9 +96,7 @@ const PAYMENT_METHODS = [
 const QUAD_MODELS_LABELS: Record<string, string> = {
   individual: 'Individual',
   dupla: 'Dupla',
-  'adulto-crianca': 'Adulto + Criança',
-  'INDIV': 'Individual',
-  'DUPLA': 'Dupla'
+  'adulto-crianca': 'Adulto + Criança'
 };
 
 type TabType = 'painel' | 'reservas' | 'quiosques' | 'quads' | 'vendas';
@@ -192,18 +191,34 @@ export default function Admin() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [selectedPaymentBooking, setSelectedPaymentBooking] = useState<any | null>(null);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [editingKioskGroup, setEditingKioskGroup] = useState<any | null>(null);
+  const [editingQuadItem, setEditingQuadItem] = useState<any | null>(null);
+  const [isUpdatingKiosk, setIsUpdatingKiosk] = useState(false);
+  const [isUpdatingQuad, setIsUpdatingQuad] = useState(false);
 
 
   const normalizeString = (str: string) => 
     str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
-    const matchDate = (d1: any, d2: any) => {
+  const matchDate = (d1: any, d2: any) => {
     if (!d1 || !d2) return false;
     const s1 = typeof d1 === 'string' ? d1.split('T')[0] : format(d1, 'yyyy-MM-dd');
     const s2 = typeof d2 === 'string' ? d2.split('T')[0] : format(d2, 'yyyy-MM-dd');
     return s1 === s2;
   };
   const nameMatch = (n1: string, n2: string) => (n1 || '').toLowerCase().trim() === (n2 || '').toLowerCase().trim();
+
+  const updateOrderTotal = async (orderId: string) => {
+    if (!orderId || orderId.startsWith('order-')) return;
+    try {
+      const { data: items } = await supabase.from('order_items').select('unit_price, quantity').eq('order_id', orderId);
+      if (items) {
+        const total = items.reduce((acc, it) => acc + (Number(it.unit_price) * (Number(it.quantity) || 1)), 0);
+        await supabase.from('orders').update({ total_amount: total, updated_at: new Date().toISOString() }).eq('id', orderId);
+      }
+    } catch(e) { console.error("Error syncing total:", e); }
+  };
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -1295,15 +1310,21 @@ export default function Admin() {
                                   <FileText className="w-4 h-4" />
                                 </Button>
                               )}
-                              <Button
-                                size="icon" variant="ghost"
-                                className="h-8 w-8 text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm"
-                                title="Reagendar"
-                                onClick={() => {
-                                  setRescheduleData({ type: 'kiosk', group });
-                                  setRescheduleDate(parseISO(group.reservation_date));
-                                }}
-                              ><CalendarClock className="w-4 h-4" /></Button>
+                                <Button
+                                  size="icon" variant="ghost"
+                                  className="h-8 w-8 text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm"
+                                  title="Alterar Quiosque"
+                                  onClick={() => setEditingKioskGroup(group)}
+                                ><Pencil className="w-4 h-4" /></Button>
+                                <Button
+                                  size="icon" variant="ghost"
+                                  className="h-8 w-8 text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm"
+                                  title="Reagendar Data"
+                                  onClick={() => {
+                                    setRescheduleData({ type: 'kiosk', group });
+                                    setRescheduleDate(parseISO(group.reservation_date));
+                                  }}
+                                ><CalendarClock className="w-4 h-4" /></Button>
                               <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500 hover:bg-red-600 hover:text-white transition-all shadow-sm" onClick={() => requestDelete(group.items[0], 'kiosk')}>
                                 <Trash2 className="w-4 h-4" />
                               </Button>
@@ -1437,6 +1458,7 @@ export default function Admin() {
                                      <FileText className="w-4 h-4" />
                                    </Button>
                                  )}
+                                 <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600 bg-blue-50 rounded-lg" onClick={() => setEditingQuadItem(group.items[0])}><Pencil className="w-4 h-4" /></Button>
                                  <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600 bg-blue-50 rounded-lg" onClick={() => {setRescheduleData({ type: 'quad', group }); setRescheduleDate(parseISO(group.reservation_date));}}><CalendarClock className="w-4 h-4" /></Button>
                                  <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500 bg-red-50 rounded-lg" onClick={() => requestDelete(group.items[0], 'quad')}><Trash2 className="w-4 h-4" /></Button>
                               </div>
@@ -1516,6 +1538,7 @@ export default function Admin() {
                                     <FileText className="w-4 h-4" />
                                   </Button>
                                 )}
+                                <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600 hover:bg-blue-600 hover:text-white transition-all" onClick={() => setEditingQuadItem(group.items[0])}><Pencil className="w-4 h-4" /></Button>
                                 <Button
                                   size="icon" variant="ghost"
                                   className="h-8 w-8 text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm"
@@ -2406,7 +2429,183 @@ export default function Admin() {
             }}
           />
         )}
+
+        {editingKioskGroup && (
+           <EditKioskDialog 
+             group={editingKioskGroup} 
+             onClose={() => setEditingKioskGroup(null)} 
+             onUpdated={() => fetchData()} 
+             updateOrderTotal={updateOrderTotal}
+           />
+        )}
+
+        {editingQuadItem && (
+           <EditQuadDialog 
+             item={editingQuadItem} 
+             onClose={() => setEditingQuadItem(null)} 
+             onUpdated={() => fetchData()} 
+             updateOrderTotal={updateOrderTotal}
+           />
+        )}
     </div>
 
+  );
+}
+
+// Logic for Editing Kiosks
+function EditKioskDialog({ group, onClose, onUpdated, updateOrderTotal }: any) {
+  const [selectedKiosks, setSelectedKiosks] = useState<number[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [bookedIds, setBookedIds] = useState<number[]>([]);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const fetchOccupied = async () => {
+      const ids = await getBookedKioskIds(group.reservation_date);
+      // Exclude current kiosks from occupied list so they show as selectable
+      const currentIds = group.items.map((i: any) => i.kiosk_id).filter((id: any) => !isNaN(id)).map(Number);
+      setBookedIds(ids.filter(id => !currentIds.includes(id)));
+      setSelectedKiosks(currentIds);
+    };
+    fetchOccupied();
+  }, [group]);
+
+  const handleSave = async () => {
+    if (selectedKiosks.length !== group.items.length) {
+      toast({ title: 'Atenção', description: `Selecione exatamente ${group.items.length} quiosque(s).`, variant: 'destructive' });
+      return;
+    }
+    setLoading(true);
+    try {
+      const orderId = group.items[0].order_id;
+      
+      for (let i = 0; i < group.items.length; i++) {
+        const item = group.items[i];
+        const newKioskId = selectedKiosks[i];
+        const newKiosk = KIOSKS.find(k => k.id === newKioskId);
+
+        await (supabase.from('kiosk_reservations') as any).update({
+          kiosk_id: newKioskId,
+          kiosk_type: newKiosk?.type === 'Maior' ? 'maior' : 'menor'
+        }).eq('id', item.id);
+
+        if (orderId && !String(orderId).startsWith('order-')) {
+          const newPrice = newKiosk?.type === 'Maior' ? 100 : 75;
+          const { data: oItems } = await supabase.from('order_items').select('*').eq('order_id', orderId);
+          const kioskItem = oItems?.find(oi => oi.product_id?.toLowerCase().includes('quiosque') || oi.product_name?.toLowerCase().includes('quiosque'));
+          
+          if (kioskItem) {
+             await supabase.from('order_items').update({ unit_price: newPrice }).eq('id', kioskItem.id);
+          }
+        }
+      }
+      
+      if (orderId) await updateOrderTotal(orderId);
+      toast({ title: 'Sucesso!', description: 'Quiosques atualizados.' });
+      onUpdated();
+      onClose();
+    } catch(e) { toast({ title: 'Erro', description: 'Falha ao atualizar.', variant: 'destructive' }); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-md bg-white rounded-3xl p-6">
+        <DialogHeader>
+          <DialogTitle className="text-xl font-black text-primary uppercase">Mudar Quiosques</DialogTitle>
+        </DialogHeader>
+        <div className="py-4 space-y-4">
+          <p className="text-xs font-bold text-muted-foreground uppercase">Selecione {group.items.length} unidades para a data {format(parseISO(group.reservation_date), 'dd/MM/yyyy')}:</p>
+          <div className="grid grid-cols-3 gap-2">
+            {[1, 2, 3, 4, 5].map(id => {
+              const kiosk = KIOSKS.find(k => k.id === id);
+              const isBooked = bookedIds.includes(id);
+              const isSelected = selectedKiosks.includes(id);
+              return (
+                <button
+                  key={id} disabled={isBooked || loading}
+                  onClick={() => {
+                    if (isSelected) setSelectedKiosks(prev => prev.filter(v => v !== id));
+                    else if (selectedKiosks.length < group.items.length) setSelectedKiosks(prev => [...prev, id]);
+                  }}
+                  className={cn("p-3 rounded-2xl flex flex-col items-center gap-1 transition-all border-2", 
+                    isBooked ? "bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed" :
+                    isSelected ? "bg-emerald-600 border-emerald-700 text-white shadow-lg scale-105" :
+                    "bg-white border-slate-100 hover:border-emerald-200 text-slate-700"
+                  )}
+                >
+                  <span className="text-[10px] font-black uppercase">{kiosk?.name.replace('QUIOSQUE - ', 'Q-')}</span>
+                  {isBooked && <span className="text-[8px] font-bold">OCUPADO</span>}
+                </button>
+              );
+            })}
+          </div>
+          <div className="pt-4 flex gap-2">
+             <Button variant="outline" className="flex-1 rounded-xl font-bold" onClick={onClose}>Cancelar</Button>
+             <Button className="flex-1 bg-primary rounded-xl font-black" onClick={handleSave} disabled={loading || selectedKiosks.length !== group.items.length}>
+               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Confirmar'}
+             </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EditQuadDialog({ item, onClose, onUpdated, updateOrderTotal }: any) {
+  const [model, setModel] = useState(item.quad_type || 'individual');
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+
+  const handleSave = async () => {
+    setLoading(true);
+    try {
+      const orderId = item.order_id;
+      const discount = getQuadDiscount(new Date(item.reservation_date));
+      const prices: any = { individual: 150, dupla: 250, 'adulto-crianca': 200 };
+      const unitPrice = prices[model] * (1 - discount);
+      await (supabase.from('quad_reservations') as any).update({ quad_type: model, price: unitPrice * (item.quantity || 1) }).eq('id', item.id);
+      if (orderId && !String(orderId).startsWith('order-')) {
+         const { data: oItems } = await supabase.from('order_items').select('*').eq('order_id', orderId);
+         const quadItem = oItems?.find(oi => oi.product_id?.toLowerCase().includes('quad') || oi.product_name?.toLowerCase().includes('quad'));
+         if (quadItem) await supabase.from('order_items').update({ unit_price: unitPrice, product_id: `Quadriciclo ${QUAD_MODELS_LABELS[model]}` }).eq('id', quadItem.id);
+      }
+      if (orderId) await updateOrderTotal(orderId);
+      toast({ title: 'Sucesso!', description: 'Modelo atualizado.' });
+      onUpdated();
+      onClose();
+    } catch(e) { toast({ title: 'Erro', description: 'Falha ao atualizar.', variant: 'destructive' }); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-sm bg-white rounded-3xl p-6">
+        <DialogHeader>
+          <DialogTitle className="text-xl font-black text-primary uppercase">Mudar Modelo do Quad</DialogTitle>
+        </DialogHeader>
+        <div className="py-4 space-y-4">
+           <div className="space-y-1.5">
+              <Label className="text-[10px] font-black uppercase text-primary/60 ml-1">Modelo</Label>
+              <Select value={model} onValueChange={setModel}>
+                <SelectTrigger className="rounded-xl border-slate-200 h-12 font-black uppercase text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-white rounded-2xl shadow-xl">
+                  {Object.entries(QUAD_MODELS_LABELS).map(([k, v]) => (
+                    <SelectItem key={k} value={k} className="font-black uppercase text-xs py-3">{v}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+           </div>
+           <div className="pt-4 flex gap-2">
+             <Button variant="outline" className="flex-1 rounded-xl font-bold" onClick={onClose}>Cancelar</Button>
+             <Button className="flex-1 bg-primary rounded-xl font-black" onClick={handleSave} disabled={loading}>
+               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Confirmar'}
+             </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
