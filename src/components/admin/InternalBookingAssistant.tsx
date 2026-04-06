@@ -436,10 +436,10 @@ export function InternalBookingAssistant({
                                  <div className="flex items-center gap-2">
                                     <div className="px-2 h-6 rounded-lg bg-emerald-950 text-white flex items-center justify-center text-[10px] font-black shadow-sm tracking-tighter">{t}</div>
                                     <div className="flex flex-col">
-                                       <span className="text-[8px] font-black uppercase text-slate-600 leading-none mb-0.5">Vagas</span>
-                                       <div className="flex gap-0.5">
+                                       <span className="text-[10px] font-black uppercase text-slate-800 leading-none mb-1">Vagas</span>
+                                       <div className="flex gap-1">
                                           {Array.from({length: maxQuads}).map((_, i) => (
-                                             <div key={i} className={cn("w-1.5 h-1.5 rounded-full", isFull ? "bg-rose-400" : i < remaining ? "bg-emerald-500" : "bg-slate-200")} />
+                                             <div key={i} className={cn("w-2 h-2 rounded-full border border-black/10", isFull ? "bg-rose-500 shadow-sm" : i < remaining ? "bg-emerald-500 shadow-sm" : "bg-slate-200 shadow-inner")} />
                                           ))}
                                        </div>
                                     </div>
