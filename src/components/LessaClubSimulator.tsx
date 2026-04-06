@@ -47,7 +47,7 @@ export function LessaClubSimulator() {
     if (quantities.senior > 0) choices.push(`${quantities.senior} Idoso${quantities.senior > 1 ? 's' : ''}`);
     if (quantities.pcd > 0) choices.push(`${quantities.pcd} PCD/TEA`);
 
-    const message = `Olá! Gostaria de finalizar minha adesão ao Lessa Club baseada na minha simulação:\n\n*Resumo:*\n- Total: ${payingPeople} pessoas pagantes\n- Escolhas: ${choices.join(', ')}\n- Valor Total: ${formatCurrency(totalMonthly)}`;
+    const message = `Olá! Gostaria de finalizar minha adesão ao Lessa Club baseada na minha simulação:\n\n*Resumo:*\n- Total: ${totalPeople} pessoas\n- Escolhas: ${choices.join(', ')}\n- Valor Total: ${formatCurrency(totalMonthly)}`;
     return `https://wa.me/5569992626140?text=${encodeURIComponent(message)}`;
   };
 
@@ -216,10 +216,10 @@ export function LessaClubSimulator() {
                    </div>
                    <div>
                       <p className="text-xs sm:text-sm text-foreground font-bold leading-tight mb-1">
-                        Pessoas pagantes (12 a 59 anos)
+                        Total de Pessoas (Com Gratuidades)
                       </p>
                       <p className="text-primary font-black text-xl flex items-center gap-2">
-                        {payingPeople} {payingPeople === 1 ? 'Pessoa' : 'Pessoas'}
+                        {totalPeople} {totalPeople === 1 ? 'Pessoa' : 'Pessoas'}
                         <CheckCircle2 className="h-5 w-5 text-whatsapp" />
                       </p>
                    </div>
