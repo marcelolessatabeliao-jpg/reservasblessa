@@ -420,7 +420,7 @@ export function InternalBookingAssistant({
                          <span className="text-[9px] font-bold text-emerald-700 uppercase tracking-wider">Limite: {maxQuads}</span>
                       </div>
                    </div>
-                   <div className="grid grid-cols-1 gap-3">
+                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
                       {QUAD_TIMES.map(t => {
                          const dbRemaining = slotAvailabilities[t] ?? maxQuads;
                          const localUsed = newBookingData.quads.filter(q => q.time === t).reduce((sum, q) => sum + (q.quantity || 0), 0);
@@ -429,25 +429,25 @@ export function InternalBookingAssistant({
 
                          return (
                            <div key={t} className={cn(
-                             "flex flex-col p-3 rounded-2xl border-2 transition-all",
+                             "flex flex-col p-2.5 rounded-xl border-2 transition-all",
                              localUsed > 0 ? "bg-emerald-50/30 border-emerald-200" : "bg-white border-slate-100"
                            )}>
                               <div className="flex items-center justify-between mb-2">
                                  <div className="flex items-center gap-2">
-                                    <div className="w-7 h-7 rounded-xl bg-emerald-950 text-white flex items-center justify-center text-[11px] font-black shadow-sm">{t}</div>
+                                    <div className="w-6 h-6 rounded-lg bg-emerald-950 text-white flex items-center justify-center text-[10px] font-black shadow-sm tracking-tighter">{t}</div>
                                     <div className="flex flex-col">
-                                       <span className="text-[9px] font-black uppercase text-slate-400 leading-none mb-1">Vagas</span>
-                                       <div className="flex gap-1">
+                                       <span className="text-[8px] font-black uppercase text-slate-400 leading-none mb-0.5">Vagas</span>
+                                       <div className="flex gap-0.5">
                                           {Array.from({length: maxQuads}).map((_, i) => (
-                                             <div key={i} className={cn("w-2 h-1.5 rounded-full", isFull ? "bg-rose-400" : i < remaining ? "bg-emerald-500" : "bg-slate-200")} />
+                                             <div key={i} className={cn("w-1.5 h-1.5 rounded-full", isFull ? "bg-rose-400" : i < remaining ? "bg-emerald-500" : "bg-slate-200")} />
                                           ))}
                                        </div>
                                     </div>
                                  </div>
-                                 {isFull && <span className="text-[8px] font-black text-rose-500 uppercase bg-rose-50 px-2 py-0.5 rounded-full border border-rose-100">Lotado</span>}
+                                 {isFull && <span className="text-[7.5px] font-black text-rose-500 uppercase bg-rose-50 px-1.5 py-0.5 rounded-full border border-rose-100 tracking-wider">Lotado</span>}
                               </div>
                               
-                              <div className="grid grid-cols-3 gap-1.5">
+                              <div className="grid grid-cols-3 gap-1">
                                   {['individual', 'dupla', 'adulto-crianca'].map(type => {
                                      const qItem = newBookingData.quads.find(q => q.type === type && q.time === t);
                                      const qty = qItem ? qItem.quantity : 0;
@@ -456,7 +456,7 @@ export function InternalBookingAssistant({
                                      return (
                                         <div key={type} className="flex flex-col gap-1">
                                            <div className={cn(
-                                             "h-10 rounded-xl border flex items-center justify-center font-black text-[9px] transition-all",
+                                             "h-7 rounded-lg border flex items-center justify-center font-black text-[8.5px] transition-all",
                                              qty > 0 ? "bg-emerald-600 border-emerald-700 text-white shadow-inner" : "bg-white border-slate-100 text-slate-400"
                                            )}>
                                               {qty > 0 ? `${qty}x` : labels[type]}
@@ -470,7 +470,7 @@ export function InternalBookingAssistant({
                                                    }
                                                 }} 
                                                 disabled={qty === 0} 
-                                                className="flex-1 h-7 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-rose-500 hover:text-white transition-all flex items-center justify-center text-xs font-black shadow-sm disabled:opacity-30">-</button>
+                                                className="flex-1 h-6 rounded-md bg-white border border-slate-200 text-slate-600 hover:bg-rose-500 hover:text-white transition-all flex items-center justify-center text-[10px] font-black shadow-sm disabled:opacity-30">-</button>
                                               <button 
                                                 onClick={() => {
                                                    if (remaining > 0) {
@@ -485,7 +485,7 @@ export function InternalBookingAssistant({
                                                    }
                                                 }} 
                                                 disabled={remaining <= 0} 
-                                                className="flex-1 h-7 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-emerald-500 hover:text-white transition-all flex items-center justify-center text-xs font-black shadow-sm disabled:opacity-30">+</button>
+                                                className="flex-1 h-6 rounded-md bg-white border border-slate-200 text-slate-600 hover:bg-emerald-500 hover:text-white transition-all flex items-center justify-center text-[10px] font-black shadow-sm disabled:opacity-30">+</button>
                                            </div>
                                         </div>
                                      );
