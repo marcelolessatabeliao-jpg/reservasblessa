@@ -1045,93 +1045,16 @@ export default function Admin() {
            <Card className="bg-white border-2 border-emerald-100 shadow-sm rounded-3xl overflow-hidden">
               <div className="p-6 border-b border-emerald-100 bg-emerald-50/50">
                  <div className="flex items-center gap-3 mb-2">
-                    <CalendarCheck className="w-5 h-5 text-emerald-800" />
-                    <h4 className="text-lg font-black text-emerald-950 tracking-tight">Resumo Geral</h4>
-                 </div>
-                 <p className="text-[11px] font-bold text-emerald-800/70 leading-relaxed mb-6">
-                    Selecione uma data para organizar seu dia de operações.
-                 </p>
-                 
-                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    <div className="flex items-center justify-center gap-2 py-2 px-3 bg-emerald-800 text-white rounded-xl text-[9px] font-black uppercase tracking-wider">
-                       <Tent className="w-3.5 h-3.5" /> Quiosques
-                    </div>
-                    <div className="flex items-center justify-center gap-2 py-2 px-3 bg-blue-700 text-white rounded-xl text-[9px] font-black uppercase tracking-wider">
-                       <Bike className="w-3.5 h-3.5" /> Quads
-                    </div>
-                    <div className="flex items-center justify-center gap-2 py-2 px-3 bg-red-500 text-white rounded-xl text-[9px] font-black uppercase tracking-wider">
-                       <Users className="w-3.5 h-3.5" /> Reservas (Entrada)
-                    </div>
-                 </div>
-              </div>
-
-                <div className="p-4 bg-white">
-                  <Calendar
-                    mode="single"
-                    selected={targetDate}
-                    onSelect={(d) => d && setTargetDate(d)}
-                    className="p-0 pointer-events-auto"
-                    locale={ptBR}
-                    toDate={new Date(2030, 11, 31)}
-                    fromDate={new Date(2024, 0, 1)}
-                    disabled={(date) => !isAllowedDay(date)}
-                    classNames={{
-                      months: "w-full flex flex-col",
-                      month: "w-full space-y-6",
-                      caption: "relative flex items-center justify-between w-full h-14 bg-emerald-800 rounded-2xl border-2 border-emerald-900 shadow-xl mb-4 px-3",
-                      caption_label: "text-[10px] md:text-[12px] font-black text-white uppercase tracking-[0.2em] flex-1 text-center",
-                      nav: "absolute inset-x-0 inset-y-0 flex items-center justify-between px-2 pointer-events-none z-30",
-                      nav_button: "h-7 w-7 md:h-9 md:w-9 bg-emerald-500 text-white border border-emerald-400 hover:bg-emerald-400 shadow-lg rounded-[0.5rem] transition-all pointer-events-auto flex items-center justify-center",
-                      nav_button_previous: "relative",
-                      nav_button_next: "relative",
-                      table: "w-full border-collapse table-fixed",
-                      head_cell: "text-emerald-900 font-extrabold text-[10px] md:text-[11px] uppercase tracking-[0.1em] md:tracking-[0.2em] w-[14.28%] py-4 text-center",
-                      cell: "h-10 md:h-14 w-[14.28%] text-center p-0 relative focus-within:z-20",
-                      day: cn(
-                        "h-12 w-12 p-0 font-black text-sm transition-all rounded-full border-2 border-emerald-50 bg-emerald-50/20 text-emerald-950 hover:border-emerald-300 hover:bg-emerald-100 shadow-sm mx-auto",
-                        "flex flex-col items-center justify-center gap-1"
-                      ),
-                      day_selected: "bg-emerald-800 !text-white hover:bg-emerald-700 border-emerald-800 shadow-xl shadow-emerald-900/30 !opacity-100 rounded-full",
-                      day_today: "bg-yellow-400 text-emerald-950 border-yellow-500 shadow-lg font-black ring-2 ring-yellow-200 ring-offset-2 rounded-full",
-                      day_outside: "text-emerald-900/60 font-bold opacity-50 bg-transparent shadow-none border-transparent",
-                    }}
-                    components={{
-                      DayContent: ({ date }) => {
-                        const dateStr = format(date, 'yyyy-MM-dd');
-                        const hasKiosk = (kioskReservations || []).some(r => r.reservation_date === dateStr);
-                        const hasQuad = (quadReservations || []).some(r => r.reservation_date === dateStr);
-                        const hasAnyBooking = (bookings || []).some(b => {
-                          const bDate = typeof b.visit_date === 'string' ? b.visit_date.split('T')[0] : format(new Date(b.visit_date), 'yyyy-MM-dd');
-                          return bDate === dateStr;
-                        });
-                        
-                        const isSimpleBooking = hasAnyBooking && !hasKiosk && !hasQuad;
-                        
-                        // Availability logic
-                        const kiosksFull = (kioskReservations || []).filter(r => r.reservation_date === dateStr).length >= 5;
-                        const quadsFull = (quadReservations || []).filter(r => r.reservation_date === dateStr).reduce((s, r) => s + (Number(r.quantity) || 1), 0) >= 12;
-                        const isDayToday = isToday(date);
-                        const isFull = kiosksFull && quadsFull;
-
-                        return (
-                          <div className={cn("relative flex flex-col items-center rounded-full w-full h-full justify-center transition-all", isFull && "bg-red-50/50 border border-red-100")}>
-                            <span className={cn(isDayToday ? "text-emerald-950 font-black" : "font-black", isFull && "text-red-600")}>{date.getDate()}</span>
-                            <div className="flex gap-1 mt-0.5">
-                              {hasKiosk && <div className={cn("w-2 h-2 rounded-full shadow-md border border-white/40", kiosksFull ? "bg-red-600" : "bg-emerald-600")} />}
-                              {hasQuad && <div className={cn("w-2 h-2 rounded-full shadow-md border border-white/40", quadsFull ? "bg-red-600" : "bg-blue-600")} />}
-                              {isSimpleBooking && <div className="w-2 h-2 rounded-full bg-red-500 shadow-md border border-white/40" />}
-                            </div>
-                          </div>
-                        );
-                      }
-                    }}
-                    modifiers={{
-                      holiday: (day) => isHoliday(day),
-                    }}
-                    modifiersStyles={{
-                      holiday: { border: '2px dashed #10b981', color: '#059669' }
-                    }}
-                  />
+                    <Calendar
+                                    mode="single"
+                                    selected={newBookingData.visit_date ? parseISO(newBookingData.visit_date) : undefined}
+                                    onSelect={(date) => setNewBookingData({...newBookingData, visit_date: date ? format(date, 'yyyy-MM-dd') : ''})}
+                                    locale={ptBR}
+                                    className="p-3 shadow-none border-0"
+                                    toDate={new Date(2030, 11, 31)}
+                                    fromDate={new Date()}
+                                    disabled={(date) => !isAllowedDay(date)}
+                                  />
                 </div>
            </Card>
         </div>
@@ -1233,7 +1156,7 @@ export default function Admin() {
                          <div>
                             <span className="text-[10px] font-black text-emerald-800/60 uppercase tracking-widest block mb-1">Cliente</span>
                             <span className="font-black text-emerald-950 uppercase text-sm block">{group.customer_name}</span>
-                            <span className="text-[10px] text-emerald-700 font-bold">{group.items.length} reserva(s) • {formatCurrency(group.total_price)}</span>
+                            <span className="text-[10px] text-emerald-700 font-bold">{group.items.length} reserva(s) - {formatCurrency(group.total_price)}</span>
                          </div>
                          <div>
                             <span className="text-[10px] font-black text-emerald-800/60 uppercase tracking-widest block mb-1">Quiosques</span>
@@ -1445,7 +1368,7 @@ export default function Admin() {
                                       <div className="flex items-center gap-2">
                                          <Clock className="w-3.5 h-3.5 text-blue-500" />
                                          <span className="text-[11px] font-black text-blue-900">{r.time_slot}</span>
-                                         <span className="text-[10px] font-bold text-blue-600/60">• {QUAD_MODELS_LABELS[r.quad_type] || 'Individual'}</span>
+                                         <span className="text-[10px] font-bold text-blue-600/60">- {QUAD_MODELS_LABELS[r.quad_type] || 'Individual'}</span>
                                       </div>
                                       <span className="text-[10px] font-black text-blue-900">{r.quantity} un.</span>
                                    </div>
@@ -1740,7 +1663,7 @@ export default function Admin() {
                              <span className="text-4xl md:text-4xl md:text-5xl text-[#FFF033] shadow-md">Painel</span>
                           </div>
                        </h1>
-                     <p className="text-[#FFF033] font-black uppercase tracking-[0.2em] md:tracking-[0.3em] text-[8px] md:text-[10px] bg-[#FFF033]/10 w-fit px-3 py-1 rounded-full border border-[#FFF033]/30 backdrop-blur-sm">Gestão Integrada de Reservas • Balneário</p>
+                     <p className="text-[#FFF033] font-black uppercase tracking-[0.2em] md:tracking-[0.3em] text-[8px] md:text-[10px] bg-[#FFF033]/10 w-fit px-3 py-1 rounded-full border border-[#FFF033]/30 backdrop-blur-sm">Gestão Integrada de Reservas - Balneário</p>
                  </div>
 
                  {/* MOBILE BUTTONS (TOP RIGHT) */}
@@ -1891,7 +1814,7 @@ export default function Admin() {
           </div>
 
           {/* CONTENT AREA WITH GRADIENT BACKGROUND */}
-          <div className="min-h-[500px] md:min-h-[600px] bg-white/40 backdrop-blur-md rounded-2xl md:rounded-[3rem] p-4 md:p-8 border border-white/60 shadow-premium">
+          <div className="min-h-[500px] md:min-h-[600px] bg-white/40 backdrop-blur-md rounded-2xl md:rounded-[2.5rem] p-4 md:p-8 border border-white/60 shadow-premium">
              {activeTab === 'painel' && renderDashboard()}
              {activeTab === 'reservas' && (
                <div className="space-y-6">
@@ -2144,10 +2067,10 @@ export default function Admin() {
                         <DialogTitle className="text-2xl font-black text-white uppercase tracking-tighter flex items-center justify-center gap-3">
                            <CalendarPlus className="w-8 h-8" /> Assistente de Reserva Interna
                         </DialogTitle>
-                        <p className="text-emerald-100 text-[11px] font-black uppercase mt-1.5 tracking-widest bg-emerald-700/50 inline-block px-4 py-1.5 rounded-full border border-emerald-500/30">Lógica Integrada • Sem CPF</p>
+                        <p className="text-emerald-100 text-[11px] font-black uppercase mt-1.5 tracking-widest bg-emerald-700/50 inline-block px-4 py-1.5 rounded-full border border-emerald-500/30">Lógica Integrada - Sem CPF</p>
                       </div>
                       
-                      <div className="flex-1 overflow-y-auto p-10 space-y-10 custom-scrollbar">
+                      <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
                         {/* SECTION 1: CLIENTE E DATA */}
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                            <div className="space-y-2">
@@ -2176,13 +2099,42 @@ export default function Admin() {
                              <label className="text-[10px] font-black text-emerald-800 uppercase tracking-widest flex items-center gap-1.5">
                                 <CalendarIcon className="w-3.5 h-3.5" /> Data da Visita
                              </label>
-                             <Input 
-                               type="date"
-                               value={newBookingData.visit_date} 
-                               onChange={e => setNewBookingData({...newBookingData, visit_date: e.target.value})}
-                               className="h-14 rounded-2xl border-2 border-emerald-100 focus:ring-4 focus:ring-emerald-500/10 font-black bg-white text-emerald-950 uppercase"
-                               disabled={isFetchingAvail}
-                             />
+                             <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    className={cn(
+                                      "h-14 w-full rounded-2xl border-2 border-emerald-100 font-black bg-white text-emerald-950 justify-start px-4",
+                                      !newBookingData.visit_date && "text-emerald-400"
+                                    )}
+                                    disabled={isFetchingAvail}
+                                  >
+                                    <CalendarIcon className="mr-2 h-4 w-4 text-emerald-600" />
+                                    {newBookingData.visit_date ? format(parseISO(newBookingData.visit_date), 'dd/MM/yyyy') : "DD/MM/AAAA"}
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0 rounded-3xl overflow-hidden border-2 border-emerald-100 shadow-2xl" align="start">
+                                  <Calendar
+                                    mode="single"
+                                    selected={newBookingData.visit_date ? parseISO(newBookingData.visit_date) : undefined}
+                                    onSelect={(date) => setNewBookingData({...newBookingData, visit_date: date ? format(date, 'yyyy-MM-dd') : ''})}
+                                    locale={ptBR}
+                                    className="p-4"
+                                    toDate={new Date(2030, 11, 31)}
+                                    fromDate={new Date()}
+                                    disabled={(date) => !isAllowedDay(date)}
+                                    classNames={{
+                                      month: "space-y-4",
+                                      caption: "flex justify-center pt-1 relative items-center mb-2 bg-emerald-800 rounded-xl py-3 border-2 border-emerald-900 shadow-lg w-full",
+                                      caption_label: "text-sm font-black text-white uppercase tracking-widest",
+                                      nav: "flex items-center justify-between absolute inset-x-0 inset-y-0 px-4 pointer-events-none z-30",
+                                      nav_button: "h-8 w-8 bg-emerald-500 text-white border border-emerald-400 hover:bg-emerald-400 shadow-md rounded-lg transition-all pointer-events-auto flex items-center justify-center",
+                                      nav_button_previous: "relative left-0",
+                                      nav_button_next: "relative right-0",
+                                    }}
+                                  />
+                                </PopoverContent>
+                              </Popover>
                            </div>
                         </div>
 
@@ -2343,7 +2295,7 @@ export default function Admin() {
                         </div>
 
                         {/* SECTION 5: FINANCEIRO FINAL */}
-                        <div className="bg-emerald-900 p-10 rounded-[3rem] text-white space-y-8 shadow-2xl relative overflow-hidden">
+                        <div className="bg-emerald-900 p-6 rounded-[2.5rem] text-white space-y-8 shadow-2xl relative overflow-hidden">
                         {generatedPix ? (
                           <div className="flex flex-col items-center py-10 space-y-6">
                             <div className="bg-white p-6 rounded-[2.5rem] shadow-2xl border-8 border-emerald-500/20">
@@ -2355,7 +2307,7 @@ export default function Admin() {
                            <>
                            <div className="absolute bottom-0 right-0 w-64 h-64 bg-emerald-800/30 blur-3xl rounded-full -mb-32 -mr-32" />
                            
-                           <div className="grid grid-cols-1 md:grid-cols-2 gap-10 relative z-10">
+                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
                               <div className="space-y-4">
                                  <h4 className="text-[11px] font-black text-emerald-100 uppercase tracking-widest flex items-center gap-2">
                                     <Tag className="w-4 h-4" /> Ajustes e Status
@@ -2363,14 +2315,26 @@ export default function Admin() {
                                  <div className="space-y-3">
                                     <div className="space-y-1">
                                        <label className="text-[9px] font-black text-emerald-200 uppercase pl-1">Desconto Manual (R$)</label>
-                                       <Input 
-                                          type="number" 
-                                          min="0" 
-                                          value={newBookingData.manual_discount}
-                                          onChange={e => setNewBookingData({...newBookingData, manual_discount: parseFloat(e.target.value) || 0})}
-                                          className="h-12 bg-white/10 border-white/20 text-white rounded-xl focus:ring-emerald-500 placeholder:text-white/20 font-bold"
-                                          placeholder="0,00"
-                                       />
+                                       <div className="flex gap-2">
+                                           <Input 
+                                              type="number" 
+                                              min="0" 
+                                              value={newBookingData.manual_discount}
+                                              onChange={e => setNewBookingData({...newBookingData, manual_discount: parseFloat(e.target.value) || 0})}
+                                              className="h-12 bg-white/10 border-white/20 text-white rounded-xl focus:ring-emerald-500 placeholder:text-white/20 font-bold flex-1"
+                                              placeholder="0,00"
+                                           />
+                                           <div className="flex bg-white/5 rounded-xl border border-white/10 p-1">
+                                              <button 
+                                                onClick={() => setNewBookingData({...newBookingData, manual_discount_type: 'unit'})}
+                                                className={cn("px-3 rounded-lg text-[10px] font-black transition-all", newBookingData.manual_discount_type === 'unit' ? "bg-emerald-500 text-white shadow-lg" : "text-emerald-100 hover:text-white")}
+                                              >R$</button>
+                                              <button 
+                                                onClick={() => setNewBookingData({...newBookingData, manual_discount_type: 'percent'})}
+                                                className={cn("px-3 rounded-lg text-[10px] font-black transition-all", newBookingData.manual_discount_type === 'percent' ? "bg-emerald-500 text-white shadow-lg" : "text-emerald-100 hover:text-white")}
+                                              >%</button>
+                                           </div>
+                                        </div>
                                     </div>
                                     <div className="space-y-1">
                                        <label className="text-[9px] font-black text-emerald-200 uppercase pl-1">Status de Pagamento</label>
