@@ -17,7 +17,7 @@ export default function Voucher() {
       if (!code) return;
       const { data, error } = await supabase
         .from('orders')
-        .select(`*, order_items (*)`)
+        .select(`*, order_items (*), quad_reservations (*)`) as any
         .eq('confirmation_code', code.toUpperCase())
         .single();
       
@@ -109,9 +109,15 @@ export default function Voucher() {
                           <div>
                             <p className={`text-sm font-bold ${item.is_redeemed ? "line-through opacity-50" : "text-foreground"}`}>
                                {item.quantity}x {item.product_id}
-                                {((item.product_id || '').toLowerCase().includes('quad')) && (
+                                {((item.product_id || '').toLowerCase().includes('quad') || (item.product_name || '').toLowerCase().includes('quad')) && (
                                   <span className="ml-1 text-primary font-black lowercase text-[10px] bg-sun/10 px-1.5 py-0.5 rounded-md border border-sun/20">
-                                    {item.metadata?.time_slot || ''}
+                                    {(item.metadata?.time_slot || 
+                                     (order.quad_reservations?.find((q: any) => 
+                                       (q.quad_type || q.type || '').toUpperCase() === (item.product_id || '').toUpperCase() || 
+                                       (item.product_id || '').toUpperCase().includes((q.quad_type || q.type || '').toUpperCase()) ||
+                                       (item.product_name || '').toUpperCase().includes((q.quad_type || q.type || '').toUpperCase())
+                                     )?.time_slot) || 
+                                     (order.quad_reservations?.[0]?.time_slot) || '')}
                                   </span>
                                 )}
                             </p>
