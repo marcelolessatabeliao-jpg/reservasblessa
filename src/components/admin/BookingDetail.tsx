@@ -140,7 +140,7 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
      const gratuityKeywords = ['criança', 'kids', 'idoso', 'pcd', 'aniversariante'];
      
      localItems.forEach((item: any) => {
-        const name = (item.product_name || item.product_id || '').toLowerCase();
+        const name = (item.product_id || '').toLowerCase();
         const qty = Number(item.quantity) || 1;
         if (adultKeywords.some(k => name.includes(k))) defaultAdults += qty;
         else if (gratuityKeywords.some(k => name.includes(k))) defaultChildren += qty;

@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.check-payment]
 verify_jwt = false
+
+[functions.create-internal-order]
+verify_jwt = false

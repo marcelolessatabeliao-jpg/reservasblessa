@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
     const updateData: Record<string, any> = {}
 
     if (status !== undefined) {
-      const validStatuses = ['pending', 'confirmed', 'checked-in', 'cancelled']
+      const validStatuses = ['pending', 'confirmed', 'checked-in', 'cancelled', 'paid', 'waiting_local', 'awaiting_payment']
       if (!validStatuses.includes(status)) {
         return new Response(JSON.stringify({ error: 'Status inválido' }), {
           status: 400,
