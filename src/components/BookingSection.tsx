@@ -49,7 +49,10 @@ export function BookingSection() {
 
   const [currentStep, setCurrentStep] = useState<Step>('dados');
   const [completedSteps, setCompletedSteps] = useState<Step[]>([]);
+  const [orderId, setOrderId] = useState<string | null>(null);
+  const [confirmationCode, setConfirmationCode] = useState<string | null>(null);
   const isFirstMount = useRef(true);
+  const searchParams = new URLSearchParams(window.location.search);
 
   // Smooth scroll to top of section on step change
   useEffect(() => {
@@ -383,7 +386,15 @@ export function BookingSection() {
                   </div>
 
                   <div className="bg-primary/5 rounded-3xl p-3 sm:p-8 border border-primary/10">
-                    <BookingOverview booking={booking} totals={totals} updateEntry={updateEntry} />
+                    <BookingOverview 
+                      booking={booking} 
+                      totals={totals} 
+                      updateEntry={updateEntry} 
+                      orderId={orderId}
+                      setOrderId={setOrderId}
+                      confirmationCode={confirmationCode}
+                      setConfirmationCode={setConfirmationCode}
+                    />
                   </div>
 
                   <div className="pt-6 flex justify-center px-4">

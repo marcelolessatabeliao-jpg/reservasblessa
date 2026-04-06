@@ -27,13 +27,23 @@ interface Props {
     total: number;
   };
   updateEntry?: (updates: Partial<BookingState['entry']>) => void;
+  orderId: string | null;
+  setOrderId: (id: string | null) => void;
+  confirmationCode: string | null;
+  setConfirmationCode: (code: string | null) => void;
 }
 
-export function BookingOverview({ booking, totals, updateEntry }: Props) {
+export function BookingOverview({ 
+  booking, 
+  totals, 
+  updateEntry,
+  orderId: persistedOrderId,
+  setOrderId: setPersistedOrderId,
+  confirmationCode: persistedConfirmationCode,
+  setConfirmationCode: setPersistedConfirmationCode
+}: Props) {
   const [saving, setSaving] = useState(false);
   const [paymentData, setPaymentData] = useState<{ open: boolean; orderId: string; confirmationCode?: string } | null>(null);
-  const [currentOrderId, setCurrentOrderId] = useState<string | null>(null);
-  const [currentConfirmationCode, setCurrentConfirmationCode] = useState<string | null>(null);
   const [activePaymentMethod, setActivePaymentMethod] = useState<'PIX' | 'CREDIT_CARD' | null>(null);
   const [pixData, setPixData] = useState<{ encodedImage: string; payload: string } | null>(null);
   const [copied, setCopied] = useState(false);
@@ -42,25 +52,25 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
   const { toast } = useToast();
 
   useEffect(() => {
-    if (!currentOrderId || paymentConfirmed) return;
-
+    if (!persistedOrderId || paymentConfirmed) return;
+ 
     const channel = supabase
-      .channel(`order-overview-${currentOrderId}`)
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${currentOrderId}` },
-        (payload) => {
-          if (payload.new.status === 'paid' || payload.new.status === 'confirmed') {
-            setCurrentConfirmationCode(payload.new.confirmation_code);
-            setPaymentConfirmed(true);
-            toast({ title: 'Pagamento Confirmado!', description: 'Sua reserva está garantida!' });
-          }
-        }
-      )
-      .subscribe();
-
+       .channel(`order-overview-${persistedOrderId}`)
+       .on(
+         'postgres_changes',
+         { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${persistedOrderId}` },
+         (payload) => {
+           if (payload.new.status === 'paid' || payload.new.status === 'confirmed') {
+             setPersistedConfirmationCode(payload.new.confirmation_code);
+             setPaymentConfirmed(true);
+             toast({ title: 'Pagamento Confirmado!', description: 'Sua reserva está garantida!' });
+           }
+         }
+       )
+       .subscribe();
+ 
     return () => { supabase.removeChannel(channel); };
-  }, [currentOrderId, paymentConfirmed, toast]);
+  }, [persistedOrderId, paymentConfirmed, toast, setPersistedConfirmationCode]);
 
   function calculateMembershipCost(people: { adultsCount: number; halfPriceCount: number }): number {
     const memberHalf = getPrice('entry_half', 25.0);
@@ -164,25 +174,24 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
       });
     });
     
-    let orderIdToRollback: string | null = currentOrderId;
+    let orderIdToRollback: string | null = null;
     setSaving(true);
     try {
-      let orderId = currentOrderId;
-      let confCode = currentConfirmationCode;
+      let orderId = persistedOrderId;
+      let confCode = persistedConfirmationCode;
 
-      if (!orderId) {
-        const result = await saveBooking({
-          ...booking,
-          entry: { ...booking.entry, name: fullName }
-        }, totals.total, null, items, method !== 'LOCAL' ? 'awaiting_payment' : 'pending');
-        
-        if (!result?.orderId) throw new Error("Erro ao salvar pedido.");
-        orderId = result.orderId;
-        orderIdToRollback = orderId;
-        confCode = result.confirmationCode;
-        setCurrentOrderId(orderId);
-        setCurrentConfirmationCode(confCode);
-      }
+      // Se não temos ordem ou os itens/valor mudaram drasticamente, o back-end cuida de atualizar se passarmos o ID
+      const result = await saveBooking({
+        ...booking,
+        entry: { ...booking.entry, name: fullName }
+      }, totals.total, null, items, method !== 'LOCAL' ? 'awaiting_payment' : 'pending', orderId);
+      
+      if (!result?.orderId) throw new Error("Erro ao salvar pedido.");
+      orderId = result.orderId;
+      confCode = result.confirmationCode;
+      
+      setPersistedOrderId(orderId);
+      setPersistedConfirmationCode(confCode);
 
       if (method === 'PIX') {
         setPaymentData(null);
@@ -253,8 +262,8 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
       if (orderIdToRollback && method !== 'LOCAL') {
         console.log("[Booking] Rolling back order:", orderIdToRollback);
         await supabase.from('orders').delete().eq('id', orderIdToRollback);
-        setCurrentOrderId(null);
-        setCurrentConfirmationCode(null);
+        setPersistedOrderId(null);
+        setPersistedConfirmationCode(null);
       }
       toast({ title: 'Falha no Agendamento', description: err.message || 'Erro desconhecido', variant: 'destructive' });
     } finally {
@@ -598,12 +607,12 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
                 <div className="bg-primary/5 border-2 border-dashed border-primary/20 rounded-3xl p-8 w-full text-center space-y-4">
                   <div>
                     <p className="text-[10px] font-black uppercase text-primary/60 tracking-widest mb-1">CÓDIGO VOUCHER</p>
-                    <p className="text-4xl font-mono font-black text-primary tracking-[0.2em]">{currentConfirmationCode}</p>
+                    <p className="text-4xl font-mono font-black text-primary tracking-[0.2em]">{persistedConfirmationCode}</p>
                   </div>
                   
                   <div className="flex justify-center bg-white p-4 rounded-2xl border shadow-sm max-w-[180px] mx-auto">
                     <img 
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${currentConfirmationCode}`} 
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${persistedConfirmationCode}`} 
                       alt="QR Code" 
                       className="w-32 h-32"
                     />
@@ -613,7 +622,7 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
                 <div className="flex flex-col gap-3 w-full">
                   <Button 
                     onClick={() => {
-                      const msg = `Olá! Minha reserva no Balneário Lessa foi confirmada! ✅\n\n📋 *RESUMO DO PEDIDO*\n👤 *Titular:* ${booking.entry.name}\n📅 *Data:* ${booking.entry.visitDate ? format(new Date(booking.entry.visitDate), "dd/MM/yyyy") : '—'}\n🔢 *Voucher:* ${currentConfirmationCode}\n\n🔗 *VOUCHER DIGITAL:*\nhttps://reservas.balneariolessa.com.br/voucher/${currentConfirmationCode}\n\n📍 *COMO CHEGAR:*\nVia Araras, Setor 09 – Ariquemes/RO`;
+                      const msg = `Olá! Minha reserva no Balneário Lessa foi confirmada! ✅\n\n📋 *RESUMO DO PEDIDO*\n👤 *Titular:* ${booking.entry.name}\n📅 *Data:* ${booking.entry.visitDate ? format(new Date(booking.entry.visitDate), "dd/MM/yyyy") : '—'}\n🔢 *Voucher:* ${persistedConfirmationCode}\n\n🔗 *VOUCHER DIGITAL:*\nhttps://reservas.balneariolessa.com.br/voucher/${persistedConfirmationCode}\n\n📍 *COMO CHEGAR:*\nVia Araras, Setor 09 – Ariquemes/RO`;
                       const phone = booking.entry.phone?.replace(/\D/g, '') || '';
                       window.open(`https://wa.me/55${phone}?text=${encodeURIComponent(msg)}`, '_blank');
                     }}
@@ -622,7 +631,7 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
                      <Phone className="w-6 h-6 fill-current" /> RECEBER NO WHATSAPP
                   </Button>
 
-                  <Link to={`/voucher/${currentConfirmationCode}`} target="_blank" className="w-full">
+                  <Link to={`/voucher/${persistedConfirmationCode}`} target="_blank" className="w-full">
                     <Button variant="outline" className="w-full h-14 rounded-2xl border-2 border-primary/10 text-primary font-black shadow-sm flex gap-2 hover:bg-primary/5">
                        VER MEU VOUCHER DIGITAL <QrCode className="w-5 h-5" />
                     </Button>
@@ -671,9 +680,15 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
                 animate={{ opacity: 1, y: 0 }}
                 className="bg-white rounded-[2rem] border-2 border-[#00bdae] p-6 space-y-4 shadow-lg w-full"
               >
-                <div className="text-center">
+                <div className="text-center space-y-2">
                    <h4 className="text-[#00bdae] font-black text-lg uppercase tracking-wider">PIX Copia e Cola Gerado!</h4>
                    <p className="text-xs text-muted-foreground font-medium">Escaneie o QR Code ou use o botão abaixo:</p>
+                   
+                   <div className="bg-amber-100/50 border border-amber-200 rounded-xl p-2.5">
+                      <p className="text-[10px] text-amber-800 leading-tight font-bold">
+                        ⚠️ Aviso Importante. Sua reserva SÓ SERÁ GARANTIDA após a confirmação do pagamento. O QR Code expira e a sua reserva pode ser ocupada por outro cliente se não for pago agora.
+                      </p>
+                   </div>
                 </div>
                 
                 <div className="flex justify-center bg-white p-4 rounded-3xl border border-primary/5 shadow-inner">
@@ -700,7 +715,7 @@ export function BookingOverview({ booking, totals, updateEntry }: Props) {
                     variant="ghost"
                     size="sm"
                     onClick={() => {
-                        setPaymentData({ open: true, orderId: currentOrderId!, confirmationCode: currentConfirmationCode || undefined });
+                        setPaymentData({ open: true, orderId: persistedOrderId!, confirmationCode: persistedConfirmationCode || undefined });
                     }}
                     className="w-full text-xs font-bold text-muted-foreground uppercase"
                   >

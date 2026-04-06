@@ -20,7 +20,8 @@ export async function saveBooking(
   totalAmount: number, 
   userId?: string | null,
   orderItemsInput?: OrderItemInput[],
-  initialStatus: string = 'awaiting_payment'
+  initialStatus: string = 'awaiting_payment',
+  existingOrderId: string | null = null
 ): Promise<SaveBookingResult | null> {
   const { entry } = booking;
   
@@ -34,36 +35,56 @@ export async function saveBooking(
   const customerName = entry.name.trim().slice(0, 200);
   const customerPhone = entry.phone?.trim()?.slice(0, 20) || null;
   
-  let finalOrderId = null;
+  let finalOrderId = existingOrderId;
   let confirmationCode: string | null = null;
 
   // 2. Integration: Save to orders and order_items tables (MASTER DATA)
   try {
     const orderPayload: any = {
-      user_id: userId || null,
       customer_name: customerName,
       customer_phone: customerPhone,
       customer_cpf: entry.cpf || null,
       visit_date: visitDateStr,
       total_amount: totalAmount,
-      status: initialStatus
+      status: initialStatus,
+      updated_at: new Date().toISOString()
     };
 
-    let { data: orderData, error: orderError } = await (supabase as any)
-      .from('orders')
-      .insert(orderPayload)
-      .select('id, confirmation_code') 
-      .single();
+    if (userId) orderPayload.user_id = userId;
 
-    if (orderError) {
-       console.error('CRITICAL ERROR SAVING ORDER:', orderError);
-       throw new Error(`Erro ao salvar pedido: ${orderError.message}. Por favor, verifique sua conexão ou tente novamente.`);
-    }
+    if (finalOrderId) {
+      // UPDATE existing order
+      console.log('🔄 Atualizando pedido existente:', finalOrderId);
+      const { data: orderData, error: orderError } = await (supabase as any)
+        .from('orders')
+        .update(orderPayload)
+        .eq('id', finalOrderId)
+        .select('id, confirmation_code') 
+        .single();
 
-    if (orderData) {
+      if (orderError) throw orderError;
+      confirmationCode = orderData.confirmation_code;
+
+      // Limpar itens antigos para evitar duplicatas nos itens
+      await (supabase as any).from('order_items').delete().eq('order_id', finalOrderId);
+      await (supabase as any).from('quad_reservations').delete().eq('order_id', finalOrderId);
+      await (supabase as any).from('kiosk_reservations').delete().eq('order_id', finalOrderId);
+
+    } else {
+      // INSERT new order
+      console.log('📝 Criando novo pedido');
+      const { data: orderData, error: orderError } = await (supabase as any)
+        .from('orders')
+        .insert(orderPayload)
+        .select('id, confirmation_code') 
+        .single();
+
+      if (orderError) throw orderError;
       finalOrderId = orderData.id;
       confirmationCode = orderData.confirmation_code;
-      
+    }
+
+    if (finalOrderId) {
       let orderItems: any[] = [];
       
       if (orderItemsInput && orderItemsInput.length > 0) {
@@ -72,7 +93,7 @@ export async function saveBooking(
           order_id: finalOrderId
         }));
       } else {
-        // Fallback mapping if input is missing - Capture everything!
+        // Fallback mapping if input is missing
         const isSunday = booking.entry.dayOfWeek === 'domingo';
         
         // 1. Adults
@@ -122,7 +143,7 @@ export async function saveBooking(
             product_id: `Quadriciclo ${labelMap[q.type]}`,
             quantity: q.quantity, 
             unit_price: baseMap[q.type] || 0,
-            metadata: { time: q.time } // Armazena o horário escolhido nos metadados
+            metadata: { time: q.time } 
           });
         });
 
@@ -142,12 +163,7 @@ export async function saveBooking(
       }
 
       if (orderItems.length > 0) {
-        console.log('📦 Inserindo itens do pedido:', orderItems.length);
-        const { error: itemsErr } = await (supabase as any).from('order_items').insert(orderItems);
-        if (itemsErr) {
-          console.error('❌ ERRO CRÍTICO ao inserir itens:', itemsErr);
-          throw new Error(`Falha ao salvar itens do pedido: ${itemsErr.message}`);
-        }
+        await (supabase as any).from('order_items').insert(orderItems);
       }
     }
   } catch (err: any) {
@@ -170,11 +186,10 @@ export async function saveBooking(
         };
       });
 
-      const { error: qErr } = await (supabase.from('quad_reservations') as any).insert(quadReservations);
-      if (qErr) console.error('Error in quad_reservations sync:', qErr);
+      await (supabase.from('quad_reservations') as any).insert(quadReservations);
     }
   } catch (err) {
-    console.warn('Failed to save quad reservations (non-critical):', err);
+    console.warn('Failed to save quad reservations:', err);
   }
 
   // 4. Save kiosk reservations for availability tracking
@@ -185,7 +200,6 @@ export async function saveBooking(
       activeKiosks.forEach(k => {
         const validDate = k.date || entry.visitDate;
         if (k.selectedIds && k.selectedIds.length > 0) {
-          // Save individual rows per selected kiosk ID
           k.selectedIds.forEach(kioskId => {
             kioskReservations.push({
               order_id: finalOrderId,
@@ -196,7 +210,6 @@ export async function saveBooking(
             });
           });
         } else {
-          // Fallback for legacy bookings without selectedIds
           kioskReservations.push({
             order_id: finalOrderId,
             kiosk_type: k.type,
@@ -206,11 +219,10 @@ export async function saveBooking(
         }
       });
 
-      const { error: kErr } = await (supabase.from('kiosk_reservations') as any).insert(kioskReservations);
-      if (kErr) console.error('Error in kiosk_reservations sync:', kErr);
+      await (supabase.from('kiosk_reservations') as any).insert(kioskReservations);
     }
   } catch (err) {
-    console.warn('Failed to save kiosk reservations (non-critical):', err);
+    console.warn('Failed to save kiosk reservations:', err);
   }
 
   return { 
