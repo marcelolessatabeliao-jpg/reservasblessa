@@ -397,7 +397,7 @@ export function InternalBookingAssistant({
                                 "group relative h-20 rounded-2xl font-black transition-all duration-300 border-2 flex flex-col items-center justify-center gap-1",
                                 isBooked ? "bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed opacity-50" : 
                                 isSelected ? "bg-emerald-600 border-emerald-700 text-white shadow-lg scale-[1.05] -translate-y-1" : 
-                                "bg-white border-slate-100 text-slate-900 hover:border-emerald-300 hover:bg-emerald-50/30"
+                                "bg-emerald-50/50 border-emerald-200 text-emerald-950 hover:border-emerald-400 hover:bg-emerald-100"
                               )}
                             >
                                 <span className="text-[9px] font-black uppercase opacity-70 tracking-widest leading-none mb-0.5">Quiosque</span>
@@ -434,7 +434,7 @@ export function InternalBookingAssistant({
                            )}>
                               <div className="flex items-center justify-between mb-2">
                                  <div className="flex items-center gap-2">
-                                    <div className="w-6 h-6 rounded-lg bg-emerald-950 text-white flex items-center justify-center text-[10px] font-black shadow-sm tracking-tighter">{t}</div>
+                                    <div className="px-2 h-6 rounded-lg bg-emerald-950 text-white flex items-center justify-center text-[10px] font-black shadow-sm tracking-tighter">{t}</div>
                                     <div className="flex flex-col">
                                        <span className="text-[8px] font-black uppercase text-slate-600 leading-none mb-0.5">Vagas</span>
                                        <div className="flex gap-0.5">
