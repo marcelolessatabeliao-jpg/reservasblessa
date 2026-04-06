@@ -321,9 +321,9 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                           <tr 
                             onClick={() => setExpandedId(expanded ? null : booking.id)} 
                             className={cn(
-                              "group transition-all cursor-pointer duration-300",
-                              isSelected ? "bg-emerald-100/50" : "bg-white hover:bg-emerald-50",
-                              expanded && "bg-emerald-100/30 shadow-inner"
+                              "group transition-all cursor-pointer duration-300 overflow-hidden",
+                              isSelected ? "bg-emerald-50/80" : "bg-white hover:bg-slate-50",
+                              expanded && "bg-slate-50 shadow-inner"
                             )}
                           >
                              <td className="p-5 text-center">
@@ -415,17 +415,17 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                           </tr>
                           
                           {expanded && (
-                             <tr className="border-x-4 border-emerald-200">
-                                <td colSpan={6} className="p-0 bg-white border-y-4 border-emerald-200 shadow-2xl">
+                             <tr className="border-x-4 border-slate-200">
+                                <td colSpan={6} className="p-0 bg-slate-50/50 border-y-4 border-slate-200 shadow-2xl rounded-b-3xl">
                                   <div className="p-6 space-y-6 animate-in slide-in-from-top-4 duration-500">
-                                     <div className="bg-white rounded-3xl p-6 shadow-xl border border-emerald-100">
+                                     <div className="bg-white rounded-3xl p-6 shadow-xl border border-slate-200">
                                         <BookingDetail booking={booking} onRemoveReceipt={onRemoveReceipt} onRefresh={onRefresh} />
                                      </div>
                                      
-                                     <div className="grid lg:grid-cols-3 gap-6 items-start">
-                                         {/* Ações Rápidas (Ocupa 2 colunas) */}
-                                         <div className="lg:col-span-2 space-y-6">
-                                            <div className="bg-white p-6 rounded-3xl shadow-lg border border-emerald-100 flex flex-col justify-between space-y-6 relative overflow-hidden group">
+                                     <div className="flex flex-col gap-6 w-full">
+                                         {/* Ações Rápidas - Ocupa 100% da largura em uma linha */}
+                                         <div className="w-full space-y-6">
+                                            <div className="bg-white p-6 md:p-8 rounded-[2rem] shadow-xl border border-slate-200 flex flex-col justify-between space-y-8 relative overflow-hidden group">
                                                <div className="relative z-10 space-y-6">
                                                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-emerald-50 pb-4">
                                                      <div className="flex items-center gap-3">
@@ -474,56 +474,55 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                                      )}
                                                   </div>
                                                  
-                                                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 pt-2">
+                                                  <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-3 pt-2">
                                                      {onGeneratePayment && !['paid', 'pago', 'checked-in', 'cancelled', 'cancelado'].includes(booking.status?.toLowerCase() || '') && (
                                                        <Button 
                                                          onClick={(e) => { e.stopPropagation(); onGeneratePayment(booking.id, !!booking.is_order); }} 
-                                                         className="bg-amber-50 hover:bg-amber-500 text-amber-700 hover:text-white border-2 border-amber-100 hover:border-amber-500 font-black uppercase text-[9px] h-14 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all duration-300 shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
+                                                         className="bg-amber-100 text-amber-900 border-b-4 border-amber-300 hover:border-b-0 hover:translate-y-[2px] hover:bg-amber-500 hover:text-white shadow-md transition-all duration-300 font-black uppercase text-[9px] md:text-[10px] h-14 md:h-16 rounded-2xl flex flex-col items-center justify-center gap-1 w-full p-0"
                                                        >
-                                                         <QrCode className="w-4 h-4" />
+                                                         <QrCode className="w-4 h-4 md:w-5 md:h-5" />
                                                          <span>PIX</span>
                                                        </Button>
                                                      )}
                                                      {onSyncPayment && !['paid', 'pago', 'checked-in', 'cancelled', 'cancelado'].includes(booking.status?.toLowerCase() || '') && (
                                                        <Button 
                                                          onClick={(e) => { e.stopPropagation(); onSyncPayment(booking.id); }} 
-                                                         className="bg-blue-50 hover:bg-blue-500 text-blue-700 hover:text-white border-2 border-blue-100 hover:border-blue-500 font-black uppercase text-[9px] h-14 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all duration-300 shadow-sm"
+                                                         className="bg-blue-100 text-blue-900 border-b-4 border-blue-300 hover:border-b-0 hover:translate-y-[2px] hover:bg-blue-600 hover:text-white shadow-md transition-all duration-300 font-black uppercase text-[9px] md:text-[10px] h-14 md:h-16 rounded-2xl flex flex-col items-center justify-center gap-1 w-full p-0"
                                                          disabled={updatingId === booking.id}
                                                        >
-                                                         <RotateCcw className={cn("w-4 h-4", updatingId === booking.id && "animate-spin")} />
+                                                         <RotateCcw className={cn("w-4 h-4 md:w-5 md:h-5", updatingId === booking.id && "animate-spin")} />
                                                          <span>SINC</span>
                                                        </Button>
                                                      )}
                                                      <Button 
                                                        onClick={() => onStatusChange(booking.id, 'paid', booking.is_order)} 
                                                        disabled={booking.status === 'paid' || updatingId === booking.id} 
-                                                       className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-black uppercase text-[9px] h-14 rounded-2xl shadow-md border-b-4 border-emerald-800 hover:border-b-0 hover:translate-y-[2px] transition-all duration-300 flex flex-col items-center justify-center gap-1"
+                                                       className="bg-emerald-600 text-white border-b-4 border-emerald-900 hover:border-b-0 hover:translate-y-[2px] hover:bg-emerald-700 disabled:opacity-40 shadow-md transition-all duration-300 font-black uppercase text-[9px] md:text-[10px] h-14 md:h-16 rounded-2xl flex flex-col items-center justify-center gap-1 w-full p-0"
                                                      >
-                                                        <CheckCircle className="w-4 h-4" /> 
+                                                        <CheckCircle className="w-4 h-4 md:w-5 md:h-5" /> 
                                                         <span>PAGO OK</span>
                                                      </Button>
                                                      <Button 
                                                        onClick={() => onStatusChange(booking.id, 'checked-in', booking.is_order)} 
                                                        className={cn(
-                                                         "font-black uppercase text-[9px] h-14 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all duration-300 border-2 shadow-sm",
+                                                         "transition-all duration-300 font-black uppercase text-[9px] md:text-[10px] h-14 md:h-16 rounded-2xl flex flex-col items-center justify-center gap-1 w-full p-0 border-b-4 hover:border-b-0 hover:translate-y-[2px] shadow-md",
                                                          booking.status === 'checked-in' 
-                                                           ? "bg-emerald-800 border-emerald-950 text-white shadow-inner" 
-                                                           : "bg-emerald-50 border-2 border-emerald-100 text-emerald-700 hover:bg-emerald-600 hover:text-white hover:border-emerald-600"
+                                                           ? "bg-emerald-900 text-white border-emerald-950 shadow-inner" 
+                                                           : "bg-emerald-100 text-emerald-900 border-emerald-300 hover:bg-emerald-800 hover:text-white"
                                                        )}
                                                      >
-                                                        <UserCheck className="w-4 h-4" /> 
+                                                        <UserCheck className="w-4 h-4 md:w-5 md:h-5" /> 
                                                         <span>CHECK-IN</span>
                                                      </Button>
                                                      <Popover>
                                                         <PopoverTrigger asChild>
                                                            <Button 
-                                                             variant="outline" 
                                                              className={cn(
-                                                               "bg-blue-50 border-2 border-blue-100 text-blue-700 font-black uppercase text-[9px] h-14 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all duration-300 hover:bg-blue-600 hover:text-white hover:border-blue-600",
-                                                               rescheduleId === booking.id && "bg-blue-600 text-white border-blue-700 scale-105 shadow-lg"
+                                                               "transition-all duration-300 font-black uppercase text-[9px] md:text-[10px] h-14 md:h-16 rounded-2xl flex flex-col items-center justify-center gap-1 w-full p-0 shadow-md border-b-4 hover:border-b-0 hover:translate-y-[2px]",
+                                                               rescheduleId === booking.id ? "bg-blue-600 text-white border-blue-800 shadow-inner" : "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-600 hover:text-white hover:border-blue-800"
                                                              )}
                                                            >
-                                                              <CalendarRange className="w-4 h-4" /> 
+                                                              <CalendarRange className="w-4 h-4 md:w-5 md:h-5" /> 
                                                               <span>REAGENDAR</span>
                                                            </Button>
                                                         </PopoverTrigger>
@@ -532,11 +531,11 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                                               <p className="text-[10px] font-black text-blue-700 uppercase tracking-widest">Nova Data da Visita</p>
                                                            </div>
                                                            <CalendarUI
-                                                             mode="single"
-                                                             selected={rescheduleDate ? parseISO(rescheduleDate) : undefined}
-                                                             onSelect={(date) => setRescheduleDate(date ? format(date, 'yyyy-MM-dd') : '')}
-                                                             initialFocus
-                                                             className="p-3"
+                                                              mode="single"
+                                                              selected={rescheduleDate ? parseISO(rescheduleDate) : undefined}
+                                                              onSelect={(date) => setRescheduleDate(date ? format(date, 'yyyy-MM-dd') : '')}
+                                                              initialFocus
+                                                              className="p-3"
                                                            />
                                                            <div className="p-4 bg-white flex gap-2">
                                                               <Button 
@@ -556,18 +555,18 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                                      </Popover>
                                                      <Button 
                                                        onClick={() => onStatusChange(booking.id, 'cancelled', booking.is_order)} 
-                                                       className="bg-red-50 border-2 border-red-100 text-red-700 hover:bg-red-600 hover:text-white hover:border-red-600 font-black uppercase text-[9px] h-14 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all duration-300"
+                                                       className="bg-red-100 text-red-900 border-b-4 border-red-300 hover:border-b-0 hover:translate-y-[2px] hover:bg-red-600 hover:text-white shadow-md transition-all duration-300 font-black uppercase text-[9px] md:text-[10px] h-14 md:h-16 rounded-2xl flex flex-col items-center justify-center gap-1 w-full p-0"
                                                      >
-                                                        <XCircle className="w-4 h-4" /> 
+                                                        <XCircle className="w-4 h-4 md:w-5 md:h-5" /> 
                                                         <span>CANCELAR</span>
                                                      </Button>
                                                      {onConvertToCredit && (
                                                        <Button 
                                                          onClick={() => onConvertToCredit(booking)} 
-                                                         className="bg-purple-50 border-2 border-purple-100 text-purple-700 hover:bg-purple-600 hover:text-white hover:border-purple-600 font-black uppercase text-[9px] h-14 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all duration-300 shadow-sm"
+                                                         className="bg-purple-100 text-purple-900 border-b-4 border-purple-300 hover:border-b-0 hover:translate-y-[2px] hover:bg-purple-600 hover:text-white shadow-md transition-all duration-300 font-black uppercase text-[9px] md:text-[10px] h-14 md:h-16 rounded-2xl flex flex-col items-center justify-center gap-1 w-full p-0"
                                                        >
-                                                          <Wallet className="w-4 h-4" /> 
-                                                          <span>CRÉDITO / ABERTO</span>
+                                                          <Wallet className="w-4 h-4 md:w-5 md:h-5" /> 
+                                                          <span>CRÉDITO</span>
                                                        </Button>
                                                      )}
                                                      <Button 
@@ -585,9 +584,9 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                                             window.open("https://wa.me/55" + phone + "?text=" + text, '_blank'); 
                                                           } 
                                                         }}
-                                                       className="bg-indigo-50 border-2 border-indigo-100 text-indigo-700 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 font-black uppercase text-[9px] h-14 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all duration-300 shadow-sm"
+                                                       className="bg-indigo-100 text-indigo-900 border-b-4 border-indigo-300 hover:border-b-0 hover:translate-y-[2px] hover:bg-indigo-600 hover:text-white shadow-md transition-all duration-300 font-black uppercase text-[9px] md:text-[10px] h-14 md:h-16 rounded-2xl flex flex-col items-center justify-center gap-1 w-full p-0"
                                                      >
-                                                        <FileCheck className="w-4 h-4" /> 
+                                                        <FileCheck className="w-4 h-4 md:w-5 md:h-5" /> 
                                                         <span>VOUCHER</span>
                                                      </Button>
                                                   </div>
@@ -595,36 +594,43 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                             </div>
                                          </div>
 
-                                         {/* Notas Internas (Ocupa 1 coluna) */}
-                                         <div className="bg-emerald-950 text-white p-4 rounded-3xl shadow-lg border border-emerald-900 flex flex-col space-y-4">
-                                            <div className="flex items-center gap-2">
-                                               <StickyNote className="w-4 h-4 text-emerald-700" />
-                                               <p className="text-[8px] font-extrabold uppercase tracking-widest text-white/40">Notas Internas</p>
-                                            </div>
+                                         {/* Notas Internas - Ocupa 100% da largura logo abaixo */}
+                                         <div className="w-full bg-[#0b2b24] text-white p-6 md:p-8 rounded-[2rem] shadow-xl border border-emerald-900 flex flex-col space-y-4 relative overflow-hidden group">
+                                            <div className="absolute inset-0 bg-emerald-800/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                            <div className="relative z-10">
+                                               <div className="flex items-center gap-2 mb-4">
+                                                  <StickyNote className="w-5 h-5 text-emerald-500" />
+                                                  <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-[#a7f3d0]">Notas Internas Gerais</p>
+                                               </div>
 
-                                            {editingNoteId === booking.id ? (
-                                               <div className="space-y-3">
-                                                  <Textarea 
-                                                     value={noteText} 
-                                                     onChange={e => setNoteText(e.target.value)} 
-                                                     className="rounded-xl border-white/10 min-h-[60px] text-[10px] p-3 bg-white/5 text-white" 
-                                                  />
-                                                  <div className="flex gap-2">
-                                                     <Button onClick={() => { onAddNote(booking.id, noteText, booking.is_order); setEditingNoteId(null); }} className="flex-1 bg-emerald-500 text-emerald-950 font-bold text-[8px] h-8 rounded-lg">SALVAR</Button>
-                                                     <Button onClick={() => setEditingNoteId(null)} variant="ghost" className="text-[8px] text-white/40 h-8 font-bold">FECHAR</Button>
+                                               {editingNoteId === booking.id ? (
+                                                  <div className="space-y-4">
+                                                     <Textarea 
+                                                        value={noteText} 
+                                                        onChange={e => setNoteText(e.target.value)} 
+                                                        className="rounded-2xl border-white/20 min-h-[80px] text-xs p-4 bg-black/20 text-white placeholder:text-white/30 focus:border-emerald-500 focus:ring-emerald-500/20" 
+                                                        placeholder="Digite aqui anotações, detalhes de reagendamentos ou avisos importantes..."
+                                                     />
+                                                     <div className="flex gap-3">
+                                                        <Button onClick={() => { onAddNote(booking.id, noteText, booking.is_order); setEditingNoteId(null); }} className="px-8 bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-black text-[10px] h-10 rounded-xl uppercase tracking-wider">SALVAR NOTA</Button>
+                                                        <Button onClick={() => setEditingNoteId(null)} variant="ghost" className="text-[10px] text-white/50 hover:text-white/80 hover:bg-white/10 h-10 rounded-xl font-bold uppercase tracking-wider">CANCELAR</Button>
+                                                     </div>
                                                   </div>
-                                               </div>
-                                            ) : (
-                                               <div onClick={() => { setEditingNoteId(booking.id); setNoteText(booking.notes || ''); }} className="cursor-pointer min-h-[60px] p-3 rounded-xl border border-dashed border-white/10 flex items-center justify-center transition-all hover:bg-white/5">
-                                                 {booking.notes ? (
-                                                   <p className="text-[10px] font-medium text-emerald-100 italic leading-relaxed text-center">"{booking.notes}"</p>
-                                                 ) : (
-                                                   <Plus className="w-4 h-4 text-white/20" />
-                                                 )}
-                                               </div>
-                                            )}
+                                               ) : (
+                                                  <div onClick={() => { setEditingNoteId(booking.id); setNoteText(booking.notes || ''); }} className="cursor-pointer min-h-[60px] p-4 rounded-2xl border-2 border-dashed border-white/10 flex items-center justify-center transition-all hover:bg-white/5 hover:border-emerald-500/50">
+                                                    {booking.notes ? (
+                                                      <p className="text-sm font-medium text-emerald-50 italic leading-relaxed w-full">"{booking.notes}"</p>
+                                                    ) : (
+                                                      <div className="flex items-center gap-2 text-white/30">
+                                                        <Plus className="w-4 h-4" />
+                                                        <span className="text-[10px] font-black uppercase tracking-wider">Adicionar anotação</span>
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                               )}
+                                            </div>
                                          </div>
-                                     </div>
+                                      </div>
                                   </div>
                                 </td>
                              </tr>

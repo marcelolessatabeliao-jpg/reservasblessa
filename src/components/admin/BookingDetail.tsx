@@ -143,9 +143,9 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
     <div className="space-y-4">
       {/* Ver Resumo Completo Modal */}
       {showResumo && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowResumo(false)}>
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl mx-4 overflow-hidden animate-in zoom-in-95 duration-300" onClick={e => e.stopPropagation()}>
-            <div className="bg-emerald-900 text-white p-6 flex items-center justify-between">
+        <div className="fixed inset-0 z-[200] flex items-start justify-center pt-8 md:pt-16 pb-8 px-4 bg-black/60 backdrop-blur-sm overflow-y-auto" onClick={() => setShowResumo(false)}>
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl my-auto md:my-0 md:mt-4 overflow-hidden animate-in zoom-in-95 duration-300 relative" onClick={e => e.stopPropagation()}>
+            <div className="bg-emerald-900 text-white p-6 flex items-center justify-between sticky top-0 z-10">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Resumo Completo</p>
                 <h3 className="text-lg font-black leading-tight">#{displayId} — {booking.name || 'Reserva'}</h3>

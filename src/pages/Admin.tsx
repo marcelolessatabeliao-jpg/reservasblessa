@@ -143,6 +143,7 @@ export default function Admin() {
   const [loading, setLoading] = useState(false);
   const [kioskSubTab, setKioskSubTab] = useState<'hoje' | 'futuras' | 'historico'>('hoje');
   const [quadSubTab, setQuadSubTab] = useState<'hoje' | 'futuras' | 'historico'>('hoje');
+  const [isCapacityUnlocked, setIsCapacityUnlocked] = useState(false);
   const [agendaSubTab, setAgendaSubTab] = useState<'hoje' | 'futuras' | 'historico'>('hoje');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [expandedQuadGroupId, setExpandedQuadGroupId] = useState<string | null>(null);
@@ -496,7 +497,42 @@ export default function Admin() {
         if (editData[f] !== undefined) payload[f] = editData[f];
       });
 
-      // Se for uma reserva virtual extraíƒÂ­da de um pedido, precisa virar real no banco
+      if (type === 'quad') {
+        const { data: dbItem } = await supabase.from('quad_reservations').select('*').eq('id', editingId).single();
+        if (dbItem) {
+          const finalModel = editData.quad_type || dbItem.quad_type || 'individual';
+          const finalDate = editData.reservation_date || dbItem.reservation_date;
+          const finalQty = editData.quantity || dbItem.quantity || 1;
+          const finalTime = editData.time_slot || dbItem.time_slot;
+          
+          const discount = getQuadDiscount(new Date(finalDate));
+          const prices: any = { individual: 150, dupla: 250, 'adulto-crianca': 200 };
+          const unitPrice = prices[finalModel] * (1 - discount);
+          
+          payload.price = unitPrice * finalQty;
+          payload.quad_type = finalModel;
+          payload.quantity = finalQty;
+          payload.time_slot = finalTime;
+          
+          const orderId = dbItem.order_id;
+          if (orderId && !String(orderId).startsWith('order-')) {
+            const { data: oItems } = await supabase.from('order_items').select('*').eq('order_id', orderId);
+            const quadItem = oItems?.find(oi => oi.product_id?.toLowerCase().includes('quad') || oi.product_name?.toLowerCase().includes('quad'));
+            if (quadItem) {
+              const newMeta = { ...(quadItem.metadata || {}), time_slot: finalTime };
+              await supabase.from('order_items').update({ 
+                unit_price: unitPrice, 
+                quantity: finalQty, 
+                product_id: `Quadriciclo ${QUAD_MODELS_LABELS[finalModel as keyof typeof QUAD_MODELS_LABELS] || 'Individual'}`, 
+                metadata: newMeta 
+              }).eq('id', quadItem.id);
+            }
+          }
+          editData.order_id = orderId; // save for updateOrderTotal
+        }
+      }
+
+      // Se for uma reserva virtual extraída de um pedido, precisa virar real no banco
       if (typeof editingId === 'string' && editingId.startsWith('order-')) {
         payload.order_id = editData.order_id;
         const { error } = await supabase.from(table).insert([payload]);
@@ -504,6 +540,10 @@ export default function Admin() {
       } else {
         const { error } = await supabase.from(table).update(payload).eq('id', editingId);
         if (error) throw error;
+      }
+
+      if (type === 'quad' && editData.order_id && !String(editData.order_id).startsWith('order-')) {
+        await updateOrderTotal(editData.order_id);
       }
       
       toast({ title: "✓ AlteraíƒÂ§íƒÂµes salvas" });
@@ -1297,41 +1337,7 @@ export default function Admin() {
 
     return (
       <div className="space-y-6 animate-in fade-in duration-500">
-        {/* Priority Control - MOVED OUTSIDE FOR MAXIMUM VISIBILITY */}
-        <div className="bg-amber-50 md:p-6 p-4 rounded-3xl border-2 border-amber-300 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-amber-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-amber-900/20">
-              <Bike className="w-6 h-6" />
-            </div>
-            <div>
-              <h3 className="text-xs md:text-sm font-black text-amber-950 uppercase tracking-wider">Capacidade Prioritária do Sistema</h3>
-              <p className="text-[10px] text-amber-800 font-bold uppercase tracking-tighter">Define o total de quadriciclos disponíveis em todos os sites</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="flex flex-col">
-              <span className="text-[9px] font-black text-amber-700 uppercase ml-1 mb-1">Total Disponível</span>
-              <input 
-                type="number" 
-                value={totalQuads} 
-                onChange={(e) => setTotalQuads(Number(e.target.value))}
-                className="w-24 h-11 rounded-xl border-2 border-amber-400 bg-white px-4 text-center font-black text-amber-900 focus:border-amber-500 transition-all outline-none"
-              />
-            </div>
-            <Button 
-              onClick={async () => {
-                const ok = await updateGlobalSetting('total_quads', totalQuads);
-                if (ok) toast({ title: "✓ Configuração Atualizada!", description: "A nova capacidade já está refletindo em todo o sistema." });
-                else toast({ title: "Erro ao atualizar", variant: "destructive" });
-              }}
-              className="h-11 px-6 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-black shadow-lg shadow-amber-900/20 active:scale-95 transition-all text-[11px] uppercase"
-            >
-              Salvar Alteração Master
-            </Button>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-3xl border-2 border-slate-300 shadow-xl overflow-hidden">
+        <div className="bg-white rounded-3xl border-2 border-slate-300 shadow-xl overflow-hidden mt-6">
           <div className="p-6 border-b-2 border-slate-200 bg-blue-50/50">
             <div className="flex items-center justify-between flex-wrap gap-4">
               <div>
@@ -1418,7 +1424,6 @@ export default function Admin() {
                                      <FileText className="w-4 h-4" />
                                    </Button>
                                  )}
-                                 <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600 bg-blue-50 rounded-lg" onClick={() => setEditingQuadItem(group.items[0])}><Pencil className="w-4 h-4" /></Button>
                                  <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600 bg-blue-50 rounded-lg" onClick={() => {setRescheduleData({ type: 'quad', group }); setRescheduleDate(parseISO(group.reservation_date));}}><CalendarClock className="w-4 h-4" /></Button>
                                  <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500 bg-red-50 rounded-lg" onClick={() => requestDelete(group.items[0], 'quad')}><Trash2 className="w-4 h-4" /></Button>
                               </div>
@@ -1498,7 +1503,6 @@ export default function Admin() {
                                     <FileText className="w-4 h-4" />
                                   </Button>
                                 )}
-                                <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600 hover:bg-blue-600 hover:text-white transition-all" onClick={() => setEditingQuadItem(group.items[0])}><Pencil className="w-4 h-4" /></Button>
                                 <Button
                                   size="icon" variant="ghost"
                                   className="h-8 w-8 text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm"
@@ -1616,6 +1620,51 @@ export default function Admin() {
                 </table>
               )}
             </div>
+          </div>
+        </div>
+
+        {/* Priority Control - Moved to bottom */}
+        <div className="bg-amber-50 md:p-6 p-4 rounded-3xl border-2 border-amber-300 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4 mt-8">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-amber-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-amber-900/20">
+              <Bike className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-xs md:text-sm font-black text-amber-950 uppercase tracking-wider">Capacidade Prioritária do Sistema</h3>
+              <p className="text-[10px] text-amber-800 font-bold uppercase tracking-tighter">Define o total de quadriciclos disponíveis em todos os sites</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex flex-col relative" onClick={() => {
+              if(!isCapacityUnlocked) {
+                 if (window.confirm("ATENÇÃO: A alteração da capacidade mestre impactará todas as reservas futuras (site aberto ou painel). Deseja desbloquear a edição?")) {
+                    setIsCapacityUnlocked(true);
+                 }
+              }
+            }}>
+              <span className="text-[9px] font-black text-amber-700 uppercase ml-1 mb-1">Total Disponível</span>
+              <input 
+                type="number" 
+                value={totalQuads} 
+                disabled={!isCapacityUnlocked}
+                onChange={(e) => setTotalQuads(Number(e.target.value))}
+                className={cn("w-24 h-11 rounded-xl border-2 px-4 text-center font-black transition-all outline-none", isCapacityUnlocked ? "border-amber-400 text-amber-900 focus:border-amber-500 bg-white shadow-inner" : "border-amber-200 text-amber-900/50 bg-amber-100/50 cursor-not-allowed")}
+              />
+              {!isCapacityUnlocked && <div className="absolute inset-0 cursor-pointer z-10" title="Clique para desbloquear a edição"></div>}
+            </div>
+            <Button 
+              disabled={!isCapacityUnlocked}
+              onClick={async () => {
+                const ok = await updateGlobalSetting('total_quads', totalQuads);
+                if (ok) {
+                   toast({ title: "✓ Configuração Atualizada!", description: "A nova capacidade já está refletindo em todo o sistema." });
+                   setIsCapacityUnlocked(false);
+                } else toast({ title: "Erro ao atualizar", variant: "destructive" });
+              }}
+              className={cn("h-11 px-6 rounded-xl text-white font-black shadow-lg active:scale-95 transition-all text-[11px] uppercase cursor-pointer", isCapacityUnlocked ? "bg-amber-600 hover:bg-amber-700 shadow-amber-900/20" : "bg-amber-400 opacity-50 cursor-not-allowed")}
+            >
+              Salvar Alteração Master
+            </Button>
           </div>
         </div>
       </div>
@@ -2128,15 +2177,6 @@ export default function Admin() {
            <EditKioskDialog 
              group={editingKioskGroup} 
              onClose={() => setEditingKioskGroup(null)} 
-             onUpdated={() => fetchData()} 
-             updateOrderTotal={updateOrderTotal}
-           />
-        )}
-
-        {editingQuadItem && (
-           <EditQuadDialog 
-             item={editingQuadItem} 
-             onClose={() => setEditingQuadItem(null)} 
              onUpdated={() => fetchData()} 
              updateOrderTotal={updateOrderTotal}
            />
