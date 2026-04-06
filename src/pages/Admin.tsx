@@ -1,311 +1,2252 @@
-import React, { useState } from 'react';
-import { parseISO, isBefore, startOfDay, isToday } from 'date-fns';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { isValidCPF } from '@/utils/cpf-validator';
+import { saveBooking, getBookedKioskIds, getQuadAvailability, type OrderItemInput } from '@/lib/booking-service';
+import { format, isToday, isTomorrow, isThisWeek, parseISO, isBefore, startOfDay, addDays } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { 
+  Users, 
+  Settings, 
+  PieChart, 
+  TrendingUp, 
+  Calendar as CalendarIcon, 
+  Search, 
+  RefreshCw, 
   LogOut, 
   LayoutDashboard, 
   Tent, 
   Bike, 
+  CalendarCheck, 
   ShoppingBag, 
+  Trash2,
+  User, 
+  Phone, 
   CalendarPlus, 
-  RefreshCw,
+  Tag,
+  FileText, 
+  CalendarClock, 
+  History, 
+  ChevronDown, 
+  ChevronUp, 
+  Clock, 
+  CheckCircle,
+  AlertTriangle,
+  Loader2,
+  FileCheck,
+  StickyNote,
+  Plus,
+  CalendarRange,
+  QrCode,
+  Pencil,
+  Check,
+  X,
+  DollarSign,
+  UserCheck,
+  Hash,
+  ArrowRight,
+  MessageCircle,
+  Circle,
+  Upload,
+  HelpCircle,
   Wallet
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { AdminLogin } from '@/components/admin/AdminLogin';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { markOrderAsPaid } from '@/integrations/supabase/orders';
-import { InternalBookingAssistant } from '@/components/admin/InternalBookingAssistant';
+import { formatCurrency, getQuadDiscount } from '@/lib/booking-types';
 import { BookingTable } from '@/components/admin/BookingTable';
 import { AgendaHeader } from '@/components/admin/AgendaHeader';
+import { getAdminOrders, markOrderAsPaid } from '@/integrations/supabase/orders';
 import { PaymentModal } from '@/components/booking/PaymentModal';
-
-import { cn } from "@/lib/utils";
-// Shared Components
-import { 
-  EditKioskDialog, 
-  EditQuadDialog, 
-  RescheduleDialog, 
-  DeleteConfirmDialog 
-} from '@/components/admin/AdminDialogs';
-import { AdminDashboardTab } from '@/components/admin/AdminDashboardTab';
-import { AdminKioskTab } from '@/components/admin/AdminKioskTab';
-import { AdminQuadTab } from '@/components/admin/AdminQuadTab';
-import { AdminVendasTab } from '@/components/admin/AdminVendasTab';
+import { InternalBookingAssistant } from '@/components/admin/InternalBookingAssistant';
 import { AdminCreditsTab } from '@/components/admin/AdminCreditsTab';
 
-// Hooks & Constants
-import { useAdminData } from '@/hooks/useAdminData';
-import { isHoliday, isAllowedDay } from '@/lib/admin-constants';
+
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { cn } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+// Constants from common types
+const KIOSKS = [
+  { id: 1, name: 'QUIOSQUE - 01 (Grande)', price: 100, capacity: 'AtíƒÂ© 30 pessoas', type: 'Maior' },
+  { id: 2, name: 'QUIOSQUE - 02', price: 75, capacity: 'AtíƒÂ© 15 pessoas', type: 'Menor' },
+  { id: 3, name: 'QUIOSQUE - 03', price: 75, capacity: 'AtíƒÂ© 15 pessoas', type: 'Menor' },
+  { id: 4, name: 'QUIOSQUE - 04', price: 75, capacity: 'AtíƒÂ© 15 pessoas', type: 'Menor' },
+  { id: 5, name: 'QUIOSQUE - 05', price: 75, capacity: 'AtíƒÂ© 15 pessoas', type: 'Menor' }
+];
+
+const QUAD_TIMES = ['09:00', '10:30', '14:00', '15:30'];
+const PAYMENT_METHODS = [
+  { value: 'pix', label: 'PIX / TransferíƒÂªncia' },
+  { value: 'credit_card', label: 'CartíƒÂ£o de CríƒÂ©dito' },
+  { value: 'cash', label: 'Dinheiro (Local)' }
+];
+
+const QUAD_MODELS_LABELS: Record<string, string> = {
+  individual: 'Individual',
+  dupla: 'Dupla',
+  'adulto-crianca': 'Adulto + CrianíƒÂ§a'
+};
 
 type TabType = 'painel' | 'reservas' | 'quiosques' | 'quads' | 'vendas' | 'creditos';
+
+
+const normalizeQuadType = (t: string) => {
+  const slow = (t || '').toLowerCase();
+  if (slow.includes('dupla')) return 'dupla';
+  if (slow.includes('crianíƒÂ§a')) return 'adulto-crianca';
+  return 'individual';
+};
+
+const BR_HOLIDAYS_2026 = [
+  "2026-01-01", "2026-02-16", "2026-02-17", "2026-04-03", "2026-04-05", 
+  "2026-04-21", "2026-05-01", "2026-05-14", "2026-05-24", "2026-06-04", 
+  "2026-07-09", "2026-09-07", "2026-10-12", "2026-11-02", "2026-11-15", 
+  "2026-11-20", "2026-12-25"
+];
+
+const isHoliday = (date: Date) => {
+  const dateStr = format(date, 'yyyy-MM-dd');
+  return BR_HOLIDAYS_2026.includes(dateStr);
+};
+
+const isAllowedDay = (date: Date) => {
+  if (isToday(date)) return true;
+  const day = date.getDay();
+  // 0: Dom, 1: Seg, 5: Sex, 6: Sab
+  const isOperating = day === 5 || day === 6 || day === 0 || day === 1;
+  return isOperating || isHoliday(date);
+};
 
 export default function Admin() {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('admin_token'));
   const [activeTab, setActiveTab] = useState<TabType>('painel');
+  const [search, setSearch] = useState('');
+  const [filterDate, setFilterDate] = useState<string>('');
+  const [totals, setTotals] = useState({ adults: 0, children: 0 });
+  const [loading, setLoading] = useState(false);
   const [kioskSubTab, setKioskSubTab] = useState<'hoje' | 'futuras' | 'historico'>('hoje');
   const [quadSubTab, setQuadSubTab] = useState<'hoje' | 'futuras' | 'historico'>('hoje');
   const [agendaSubTab, setAgendaSubTab] = useState<'hoje' | 'futuras' | 'historico'>('hoje');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [vendasStatusFilter, setVendasStatusFilter] = useState<string>('all');
-  const [search, setSearch] = useState('');
-  const [filterDate, setFilterDate] = useState('');
+  const [expandedQuadGroupId, setExpandedQuadGroupId] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const {
-    loading,
-    bookings,
-    kioskReservations,
-    quadReservations,
-    orders,
-    credits,
-    targetDate,
-    setTargetDate,
-    fetchData,
-    confirmDelete: dataConfirmDelete,
-    handleRescheduleConfirm: dataRescheduleConfirm,
-    convertToCredit: dataConvertToCredit
-  } = useAdminData();
+  // Data States
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [kioskReservations, setKioskReservations] = useState<any[]>([]);
+  const [quadReservations, setQuadReservations] = useState<any[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [credits, setCredits] = useState<any[]>([]);
+  const [targetDate, setTargetDate] = useState<Date>(new Date());
 
-  // UI States
+  // Editing States
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editData, setEditData] = useState<any>({});
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState<{item: any, type: string} | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<{item: any, type: 'kiosk' | 'quad' | 'order' | 'reservas'} | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  
+  
+  
+  
+  // New Rescheduling Dialog States
   const [rescheduleData, setRescheduleData] = useState<{type: 'kiosk' | 'quad', group: any} | null>(null);
-  const [expandedQuadGroupId, setExpandedQuadGroupId] = useState<string | null>(null);
+  const [rescheduleDate, setRescheduleDate] = useState<Date | undefined>(new Date());
+
+  // History States
+  const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set());
+  const [pixData, setPixData] = useState<{ qrCode: string, payload: string, amount: number, name: string } | null>(null);
+  const [isGeneratingPix, setIsGeneratingPix] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [selectedPaymentBooking, setSelectedPaymentBooking] = useState<any | null>(null);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [editingKioskGroup, setEditingKioskGroup] = useState<any | null>(null);
   const [editingQuadItem, setEditingQuadItem] = useState<any | null>(null);
-  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-  const [selectedPaymentBooking, setSelectedPaymentBooking] = useState<any | null>(null);
+  const [isUpdatingKiosk, setIsUpdatingKiosk] = useState(false);
+  const [isUpdatingQuad, setIsUpdatingQuad] = useState(false);
 
-  const filterBookings = () => {
-    return bookings.filter(b => {
-      const bDate = parseISO(b.visit_date || new Date().toISOString());
-      const today = startOfDay(new Date());
-      
-      if (agendaSubTab === 'hoje' && !isToday(bDate)) return false;
-      if (agendaSubTab === 'futuras' && (isToday(bDate) || isBefore(bDate, today))) return false;
-      if (agendaSubTab === 'historico' && !isBefore(bDate, today)) return false;
-      if (statusFilter !== 'all' && b.status !== statusFilter) return false;
-      if (filterDate && b.visit_date !== filterDate) return false;
 
-      if (search) {
-        const s = search.toLowerCase();
-        return (
-          (b.name || '').toLowerCase().includes(s) ||
-          (b.customer_name || '').toLowerCase().includes(s) ||
-          (b.customer_phone || '').includes(s) ||
-          (b.customer_cpf || '').includes(s) ||
-          b.id.toLowerCase().includes(s)
-        );
+  const normalizeString = (str: string) => 
+    str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+  const matchDate = (d1: any, d2: any) => {
+    if (!d1 || !d2) return false;
+    const s1 = typeof d1 === 'string' ? d1.split('T')[0] : format(d1, 'yyyy-MM-dd');
+    const s2 = typeof d2 === 'string' ? d2.split('T')[0] : format(d2, 'yyyy-MM-dd');
+    return s1 === s2;
+  };
+  const nameMatch = (n1: string, n2: string) => (n1 || '').toLowerCase().trim() === (n2 || '').toLowerCase().trim();
+
+  const updateOrderTotal = async (orderId: string) => {
+    if (!orderId || orderId.startsWith('order-')) return;
+    try {
+      const { data: items } = await supabase.from('order_items').select('unit_price, quantity').eq('order_id', orderId);
+      if (items) {
+        const total = items.reduce((acc, it) => acc + (Number(it.unit_price) * (Number(it.quantity) || 1)), 0);
+        await supabase.from('orders').update({ total_amount: total, updated_at: new Date().toISOString() }).eq('id', orderId);
       }
-      return true;
-    });
+    } catch(e) { console.error("Error syncing total:", e); }
   };
 
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const orderData = await getAdminOrders();
+      const { data: bks } = await supabase.from('bookings').select('*').neq('status', 'awaiting_payment').order('visit_date', { ascending: false });
+      const { data: kiosks } = await (supabase.from('kiosk_reservations') as any)
+        .select('*, orders!inner(customer_name, status), bookings(name)')
+        .neq('orders.status', 'awaiting_payment')
+        .order('reservation_date', { ascending: false });
+        
+      const { data: quads } = await (supabase.from('quad_reservations') as any)
+        .select('*, orders!inner(customer_name, status), bookings(name)')
+        .neq('orders.status', 'awaiting_payment')
+        .order('reservation_date', { ascending: false });
+      
+      const { data: creds } = await supabase
+        .from('internal_credits')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      setCredits(creds || []);
+      
+      // Filter out awaiting_payment from reservations too
+      const filteredKiosks = (kiosks || []).filter((k: any) => k.orders?.status && k.orders.status !== 'awaiting_payment');
+      const filteredQuads = (quads || []).filter((q: any) => q.orders?.status && q.orders.status !== 'awaiting_payment');
+      
+      // Enrich bookings with their order items from the orders table
+      const enrichedBookings = (bks || []).map(b => {
+        const relatedOrder = (orderData || []).find(o => 
+          (o.confirmation_code && b.confirmation_code && o.confirmation_code === b.confirmation_code) || 
+          (nameMatch(o.customer_name, b.name) && matchDate(o.visit_date, b.visit_date))
+        );
+        return { ...b, order_items: relatedOrder?.order_items || [] };
+      });
+      
+      // Map reservations to include customer names correctly from either source
+      let parsedKiosks = filteredKiosks.map((k: any) => ({
+         ...k,
+         customer_name: k.customer_name || k.orders?.customer_name || k.bookings?.name || 'Reserva Direta'
+      }));
+      
+      let parsedQuads = filteredQuads.map((q: any) => ({
+         ...q,
+         customer_name: q.customer_name || q.orders?.customer_name || q.bookings?.name || 'Reserva Direta'
+      }));
+
+      if (orderData) {
+         orderData.forEach((o: any) => {
+            if (o.status === 'awaiting_payment') return;
+            if (!o.order_items) return;
+            const resDate = o.visit_date || o.created_at.split('T')[0];
+            const customerName = o.customer_name || 'Venda Loja';
+            
+            let orderAdults = 0;
+            let orderChildren = 0;
+
+            o.order_items.forEach((item: any) => {
+               const pId = (item.product_id || '').toLowerCase();
+               const pName = (item.product_name || '').toLowerCase();
+               const qty = item.quantity || 1;
+               
+               // Listas categorizadas para contagem de pessoas
+                const adultKeywords = ['adulto', 'solidário', 'solidario', 'professor', 'estudante', 'servidor'];
+                const gratuityKeywords = ['crianíƒÂ§a', 'crianíƒÂ§a', 'idoso', 'pcd', 'aniversariante'];
+
+                const isAdult = adultKeywords.some(key => pName.includes(key) || pId.includes(key));
+                const isGratuity = gratuityKeywords.some(key => pName.includes(key) || pId.includes(key));
+
+                if (isAdult && !isGratuity) {
+                   orderAdults += qty;
+                } else if (isGratuity) {
+                   orderChildren += qty;
+                }
+               
+               // Only add Kiosks from orders if NOT already in parsedKiosks (via order_id)
+               if ((pId.includes('quiosque') || pName.includes('quiosque')) && !parsedKiosks.some(pk => pk.order_id === o.id)) {
+                                  // First check metadata
+                 let meta = item.metadata;
+                 if (typeof meta === 'string') {
+                    try { meta = JSON.parse(meta); } catch(e) {}
+                 }
+                 const sIds = meta?.selectedIds || [];
+
+                 for(let i=0; i<item.quantity; i++) {
+                   let kioskIdVal: any = (pId.includes('maior') || pName.includes('maior')) ? 1 : 'MENOR';
+                   
+                   if (sIds.length > i) {
+                     kioskIdVal = sIds[i];
+                   } else {
+                     const match = (pId + ' ' + pName).match(/quiosque\s*(\d+)/i);
+                     if (match && match[1]) {
+                       kioskIdVal = parseInt(match[1], 10);
+                     }
+                   }
+
+                   parsedKiosks.push({
+                     id: `order-${o.id}-k-${i}`,
+                     kiosk_id: kioskIdVal,
+                     reservation_date: resDate,
+                     customer_name: customerName,
+                     price: item.unit_price,
+                     order_id: o.id,
+                     is_from_order: true
+                   });
+                 }
+               }
+
+               // Only add Quads from orders if NOT already in parsedQuads (via order_id)
+               if ((pId.includes('quad') || pName.includes('quad')) && !parsedQuads.some(pq => pq.order_id === o.id)) {
+                  // Try to find a time slot (HH:MM or HHhMM) in name or metadata
+                  const searchStr = `${pName} ${pId} ${JSON.stringify(item.metadata || {})} ${o.notes || ''}`.toUpperCase();
+                  // 1. Try regex (9:00, 09:00, 9H00, etc.)
+                  const timeMatch = searchStr.match(/(\d{1,2}[:H]\d{2})/);
+                  let finalSlot = null;
+
+                  if (timeMatch) {
+                    let raw = timeMatch[1].replace('H', ':');
+                    if (raw.length === 4) raw = '0' + raw; // Auto-pad (9:00 -> 09:00)
+                    finalSlot = raw;
+                  }
+                  
+                  // 2. Try explicit metadata
+                  let meta = item.metadata;
+                  if (typeof meta === 'string') {
+                     try { meta = JSON.parse(meta); } catch(e) {}
+                  }
+                  if (!finalSlot && meta?.time) {
+                    finalSlot = meta.time;
+                    if (finalSlot && finalSlot.length === 4 && finalSlot.includes(':')) finalSlot = '0' + finalSlot;
+                  }
+
+                  // 3. Fallback to standard slots list
+                  if (!finalSlot) {
+                    const standardSlot = QUAD_TIMES.find(t => {
+                      const short = t.replace(/^0/, '');
+                      return searchStr.includes(t) || searchStr.includes(short);
+                    });
+                    finalSlot = standardSlot || (searchStr.includes('DUPLA') ? 'DUPLA' : 'INDIV');
+                  }
+
+                  parsedQuads.push({
+                     id: `order-${o.id}-q-${item.id}`,
+                     time_slot: finalSlot,
+                     quad_type: searchStr.includes('DUPLA') ? 'dupla' : (searchStr.includes('CRIANCA') ? 'adulto-crianca' : 'individual'),
+                     quantity: item.quantity,
+                     reservation_date: resDate,
+                     customer_name: customerName,
+                     price: item.quantity * item.unit_price,
+                     order_id: o.id,
+                     is_from_order: true
+                  });
+               }
+            });
+            
+            // Atribuir contagens extraíƒÂ­das se níƒÂ£o estiverem presentes
+            o.adults = o.adults || orderAdults;
+            o.children = o.children || orderChildren;
+         });
+      }
+
+      // Merge booking data with order payment info for display
+      const flattenedBks = (enrichedBookings || []).map(b => {
+        const order = orderData?.find((o: any) => o.confirmation_code === b.confirmation_code);
+        return {
+          ...b,
+          payments: order?.payments || [],
+          customer_phone: order?.customer_phone || (b as any).phone,
+          customer_cpf: order?.customer_cpf || (b as any).cpf
+        };
+      });
+
+      setBookings(flattenedBks);
+      setKioskReservations(parsedKiosks);
+      setQuadReservations(parsedQuads);
+      setOrders(orderData || []);
+      
+      // Calculate totals for dashboard
+      let tAdults = 0;
+      let tChildren = 0;
+      const adultKeywords = ['adulto', 'solidario', 'professor', 'estudante', 'servidor'];
+      const gratuityKeywords = ['crianíƒÂ§a', 'kids', 'idoso', 'pcd', 'aniversariante'];
+
+      [...(enrichedBookings || []), ...(orderData || [])].forEach(b => {
+        if (b.status === 'confirmed' || b.status === 'paid' || b.status === 'pending') {
+          // Additional check: exclude guest-side awaiting_payment from totals
+          if (b.status === 'awaiting_payment') return;
+          
+          const items = b.order_items || [];
+          items.forEach((item: any) => {
+            const name = normalizeString(item.product_name || '');
+            const qty = Number(item.quantity) || 1;
+            const isAdult = adultKeywords.some(k => name.includes(k));
+            const isGratuity = gratuityKeywords.some(k => name.includes(k));
+            if (isAdult) tAdults += qty;
+            else if (isGratuity) tChildren += qty;
+            else if (name.includes('entrada')) tAdults += qty;
+          });
+        }
+      });
+      setTotals({ adults: tAdults, children: tChildren });
+
+    } catch (err) {
+      console.error(err);
+      toast({ title: "Erro ao carregar dados", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    {
+      fetchData();
+      const channel = supabase.channel("admin_changes").on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => fetchData()).on("postgres_changes", { event: "*", schema: "public", table: "order_items" }, () => fetchData()).on("postgres_changes", { event: "*", schema: "public", table: "bookings" }, () => fetchData()).on("postgres_changes", { event: "*", schema: "public", table: "kiosk_reservations" }, () => fetchData()).on("postgres_changes", { event: "*", schema: "public", table: "quad_reservations" }, () => fetchData()).subscribe();
+      return () => { supabase.removeChannel(channel); };
+    }
+  }, [token, fetchData]);
+
+  // --- ACTIONS ---
   const handleLogout = () => {
     localStorage.removeItem('admin_token');
     setToken(null);
   };
 
-  const requestDelete = (item: any, type: string) => {
+  const startEditing = (item: any) => {
+    setEditingId(item.id);
+    setEditData({ ...item });
+  };
+
+  const cancelEditing = () => {
+    setEditingId(null);
+    setEditData({});
+  };
+
+  const convertToCredit = async (item: any, type: 'reservas' | 'order') => {
+    const amount = type === 'order' ? item.total_amount : (item.total_price || 0);
+    const name = item.customer_name || item.name;
+    const phone = item.customer_phone || item.phone;
+    const cpf = item.customer_cpf || item.cpf;
+    
+    if (window.confirm(`Deseja cancelar esta reserva e gerar um crédito de R$ ${amount.toFixed(2)} para ${name}?`)) {
+      setLoading(true);
+      try {
+        await supabase.from('internal_credits').insert({
+          customer_name: name,
+          customer_phone: phone,
+          customer_cpf: cpf,
+          amount: amount,
+          notes: `Gerado a partir do pedido #${item.id.slice(0,8)}`
+        });
+        const table = type === 'order' ? 'orders' : 'bookings';
+        await supabase.from(table).update({ status: 'cancelled', notes: (item.notes || '') + ' [Convertido em Crédito]' }).eq('id', item.id);
+        toast({ title: "Sucesso!", description: "Crédito gerado e reserva cancelada." });
+        fetchData();
+        return true;
+      } catch (e: any) {
+        toast({ title: "Erro", description: e.message, variant: "destructive" });
+        return false;
+      } finally {
+        setLoading(false);
+      }
+    }
+    return false;
+  };
+
+  const saveEditing = async (type: 'kiosk' | 'quad') => {
+    try {
+      const table = type === 'kiosk' ? 'kiosk_reservations' : 'quad_reservations';
+      const payload: any = {};
+      const fields = type === 'kiosk' 
+        ? ['kiosk_id', 'reservation_date', 'notes', 'price', 'receipt_url', 'customer_name'] 
+        : ['time_slot', 'quad_type', 'quantity', 'reservation_date', 'notes', 'price', 'receipt_url', 'customer_name'];
+      
+      fields.forEach(f => {
+        if (editData[f] !== undefined) payload[f] = editData[f];
+      });
+
+      // Se for uma reserva virtual extraíƒÂ­da de um pedido, precisa virar real no banco
+      if (typeof editingId === 'string' && editingId.startsWith('order-')) {
+        payload.order_id = editData.order_id;
+        const { error } = await supabase.from(table).insert([payload]);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from(table).update(payload).eq('id', editingId);
+        if (error) throw error;
+      }
+      
+      toast({ title: "✓ AlteraíƒÂ§íƒÂµes salvas" });
+      setEditingId(null);
+      setEditData({});
+      await fetchData();
+    } catch (err: any) {
+      console.error('Save error:', err);
+      toast({ title: `Erro ao salvar: ${err.message || err.details || 'Erro desconhecido'}`, variant: "destructive" });
+    }
+  };
+
+  const openPaymentModal = (bookingId: string, isOrder?: boolean) => {
+    const list = isOrder ? orders : bookings;
+    const item = list.find((b: any) => b.id === bookingId);
+    if (item) {
+      setSelectedPaymentBooking(item);
+      setIsPaymentModalOpen(true);
+    }
+  };
+
+  const handleSyncPayment = async (orderId: string) => {
+    setUpdatingId(orderId);
+    try {
+      const { data, error } = await supabase.functions.invoke('check-payment', {
+        body: { orderId }
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        if (data.updated) {
+          toast({ title: "Pagamento Sincronizado!", description: `Status: ${data.status}. O pedido foi marcado como PAGO.` });
+          fetchData();
+        } else {
+          toast({ title: "SincronizaíƒÂ§íƒÂ£o ConcluíƒÂ­da", description: `Status: ${data.status}. Nenhuma alteraíƒÂ§íƒÂ£o necessíƒÂ¡ria.` });
+        }
+      } else {
+        toast({ title: "Erro na SincronizaíƒÂ§íƒÂ£o", description: data?.error || "Erro desconhecido", variant: "destructive" });
+      }
+    } catch (err: any) {
+      console.error('Sync error:', err);
+      toast({ title: "Erro ao sincronizar", description: err.message, variant: "destructive" });
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  // Original handleGeneratePayment kept for legacy references and as a fallback
+  const handleGeneratePayment = async (bookingId: string, isOrder?: boolean) => {
+    openPaymentModal(bookingId, isOrder);
+  };
+
+
+  const updateBookingStatus = async (bookingId: string, status: string, isOrder?: boolean) => {
+    setUpdatingId(bookingId);
+    try {
+      const table = isOrder ? 'orders' : 'bookings';
+      const { error } = await supabase.from(table).update({ status }).eq('id', bookingId);
+      if (error) throw error;
+      if (status === 'checked-in' && isOrder) {
+        await supabase.from('order_items').update({ is_redeemed: true }).eq('order_id', bookingId);
+      }
+      toast({ title: "✓ Status atualizado" });
+      fetchData();
+    } catch (err) {
+      console.error('Update status error:', err);
+      toast({ title: "Erro ao atualizar", variant: "destructive" });
+    } finally { setUpdatingId(null); }
+  };
+
+  const addBookingNote = async (bookingId: string, notes: string, isOrder?: boolean) => {
+    setUpdatingId(bookingId);
+    try {
+      const table = isOrder ? 'orders' : 'bookings';
+      const { error } = await supabase.from(table).update({ notes }).eq('id', bookingId);
+      if (error) throw error;
+      toast({ title: "✓ Nota adicionada" });
+      fetchData();
+    } catch (err) {
+      toast({ title: "Erro ao adicionar nota", variant: "destructive" });
+    } finally { setUpdatingId(null); }
+  };
+
+  const handleFileUpload = async (file: File) => {
+    setIsUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${crypto.randomUUID()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage.from('receipts').upload(fileName, file);
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage.from('receipts').getPublicUrl(fileName);
+      setEditData((prev: any) => ({ ...prev, receipt_url: publicUrl }));
+      toast({ title: "Comprovante enviado!" });
+    } catch (err) {
+      toast({ title: "Erro no upload", variant: "destructive" });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const requestDelete = (item: any, type: 'kiosk' | 'quad' | 'order' | 'reservas') => {
     setItemToDelete({ item, type });
     setDeleteDialogOpen(true);
   };
 
   const confirmDelete = async () => {
     if (!itemToDelete) return;
-    const success = await dataConfirmDelete(itemToDelete.item, itemToDelete.type);
-    if (success) setDeleteDialogOpen(false);
-  };
+    const { item, type } = itemToDelete;
+    
+    setLoading(true);
+    try {
+      let table = '';
+      if (type === 'kiosk') table = 'kiosk_reservations';
+      else if (type === 'quad') table = 'quad_reservations';
+      else if (type === 'order') table = 'orders';
+      else if (type === 'reservas') table = 'bookings';
 
-  const handleRescheduleConfirm = async (date: Date) => {
-    if (!rescheduleData) return;
-    const success = await dataRescheduleConfirm(rescheduleData.type, rescheduleData.group, date);
-    if (success) setRescheduleData(null);
-  };
-
-  const updateOrderTotal = async (orderId: string) => {
-    if (!orderId || orderId.startsWith('order-')) return;
-    const { data: items } = await supabase.from('order_items').select('unit_price, quantity').eq('order_id', orderId);
-    if (items) {
-      const total = items.reduce((acc, it) => acc + (Number(it.unit_price) * (Number(it.quantity) || 1)), 0);
-      await supabase.from('orders').update({ total_amount: total }).eq('id', orderId);
+      const { error } = await supabase.from(table).delete().eq('id', item.id);
+      if (error) throw error;
+      
+      toast({ title: "Removido com sucesso" });
+      fetchData();
+    } catch (err: any) {
+      console.error('Delete error:', err);
+      toast({ title: "Erro ao remover", variant: "destructive" });
+    } finally {
+      setLoading(false);
+      setDeleteDialogOpen(false);
+      setItemToDelete(null);
     }
+  };
+
+  const handleRescheduleConfirm = async () => {
+    if (!rescheduleData || !rescheduleDate) return;
+    const { type, group } = rescheduleData;
+    const newDateStr = format(rescheduleDate, 'yyyy-MM-dd');
+    
+    setLoading(true);
+    try {
+      const table = type === 'kiosk' ? 'kiosk_reservations' : 'quad_reservations';
+      const results = await Promise.all(group.items.map((r: any) =>
+        supabase.from(table).update({ reservation_date: newDateStr }).eq('id', r.id)
+      ));
+      
+      const hasError = results.some(r => r.error);
+      if (hasError) throw new Error('Algumas atualizaíƒÂ§íƒÂµes falharam');
+      
+      toast({ title: '✓ Reagendado com sucesso' });
+      fetchData();
+      setRescheduleData(null);
+    } catch (err) {
+      console.error('Reschedule error:', err);
+      toast({ title: 'Erro ao reagendar', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // --- GROUPING & FILTERING ---
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  
+  const currentKiosks = (kioskReservations || []).filter(r => !isBefore(parseISO(r.reservation_date), startOfDay(new Date())));
+  const pastKiosks = (kioskReservations || []).filter(r => isBefore(parseISO(r.reservation_date), startOfDay(new Date())));
+
+  const currentQuads = (quadReservations || []).filter(r => !isBefore(parseISO(r.reservation_date), startOfDay(new Date())));
+  const pastQuads = (quadReservations || []).filter(r => isBefore(parseISO(r.reservation_date), startOfDay(new Date())));
+
+  const kioskHistory = useMemo(() => {
+    const groups: Record<string, any[]> = {};
+    pastKiosks.forEach(r => {
+      const month = format(parseISO(r.reservation_date), 'yyyy-MM');
+      if (!groups[month]) groups[month] = [];
+      groups[month].push(r);
+    });
+    return Object.entries(groups).sort((a,b) => b[0].localeCompare(a[0]));
+  }, [pastKiosks]);
+
+  const quadHistory = useMemo(() => {
+    const groups: Record<string, any[]> = {};
+    pastQuads.forEach(r => {
+      const month = format(parseISO(r.reservation_date), 'yyyy-MM');
+      if (!groups[month]) groups[month] = [];
+      groups[month].push(r);
+    });
+    return Object.entries(groups).sort((a,b) => b[0].localeCompare(a[0]));
+  }, [pastQuads]);
+
+  const toggleMonth = (month: string) => {
+    setExpandedMonths(prev => {
+      const next = new Set(prev);
+      next.has(month) ? next.delete(month) : next.add(month);
+      return next;
+    });
   };
 
   if (!token) return <AdminLogin onLogin={setToken} />;
 
-  return (
-    <div className="min-h-screen bg-[#020617] text-slate-100 font-sans selection:bg-emerald-500/30">
-      {/* Sidebar / Header */}
-      <div className="fixed top-0 left-0 right-0 h-20 bg-slate-900/50 backdrop-blur-xl border-b border-slate-800 z-50 px-6 flex items-center justify-between">
-         <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-emerald-400 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
-               <LayoutDashboard className="text-white w-6 h-6" />
-            </div>
-            <div>
-               <h1 className="text-xl font-black tracking-tight text-white uppercase">Balneário Lessa</h1>
-               <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest leading-none mt-1">Painel Administrativo v2.0</p>
-            </div>
-         </div>
+  // --- VIEW RENDERERS ---
 
-         <div className="flex items-center gap-6">
-            <nav className="hidden xl:flex items-center gap-1 bg-slate-950/50 p-1.5 rounded-2xl border border-slate-800">
-               {[
-                 { id: 'painel', label: 'Painel', icon: LayoutDashboard },
-                 { id: 'reservas', label: 'Agenda', icon: CalendarPlus },
-                 { id: 'quiosques', label: 'Quiosques', icon: Tent },
-                 { id: 'quads', label: 'Quadriciclos', icon: Bike },
-                 { id: 'vendas', label: 'Vendas', icon: ShoppingBag },
-                 { id: 'creditos', label: 'Créditos', icon: Wallet },
-               ].map(tab => (
-                 <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id as TabType)}
-                    className={cn(
-                      "flex items-center gap-2.5 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-300",
-                      activeTab === tab.id 
-                        ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 scale-105" 
-                        : "text-slate-400 hover:text-white hover:bg-slate-800"
-                    )}
-                 >
-                    <tab.icon className="w-4 h-4" />
-                    {tab.label}
-                 </button>
-               ))}
-            </nav>
-            
-            <div className="h-8 w-px bg-slate-800" />
-            
-            <button onClick={handleLogout} className="flex items-center gap-2 text-slate-400 hover:text-red-400 font-bold text-xs uppercase tracking-widest transition-colors group">
-               <LogOut className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-               Sair
-            </button>
-         </div>
-      </div>
+ 
+  const handleKioskFileUpload = async (file: File, resId: string) => {
+    setIsUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${crypto.randomUUID()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage.from('receipts').upload(fileName, file);
+      if (uploadError) throw uploadError;
+      const { data: { publicUrl } } = supabase.storage.from('receipts').getPublicUrl(fileName);
+      
+      const isOrder = resId.toString().startsWith('order-');
+      if (isOrder) {
+         // It's a virtual reservation from an order, we might need to update the order instead or just toast
+         toast({ title: "Esta íƒÂ© uma reserva de pedido. O comprovante deve ser anexado ao pedido na aba Reservas." });
+      } else {
+         const { error: updateError } = await supabase.from('kiosk_reservations').update({ receipt_url: publicUrl }).eq('id', resId);
+         if (updateError) throw updateError;
+         toast({ title: "Comprovante salvo!" });
+         fetchData();
+      }
+    } catch (err) { toast({ title: "Erro no upload", variant: "destructive" }); }
+    finally { setIsUploading(false); }
+  };
 
-      {/* Main Content */}
-      <main className="pt-28 pb-12 px-6 max-w-[1600px] mx-auto min-h-screen">
-        {activeTab === 'painel' && (
-          <AdminDashboardTab 
-            targetDate={targetDate} setTargetDate={setTargetDate}
-            kioskReservations={kioskReservations} quadReservations={quadReservations}
-            bookings={bookings} orders={orders}
-            isAllowedDay={isAllowedDay} isHoliday={isHoliday}
-          />
-        )}
+  const handleQuadFileUpload = async (file: File, resId: string) => {
+    setIsUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${crypto.randomUUID()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage.from('receipts').upload(fileName, file);
+      if (uploadError) throw uploadError;
+      const { data: { publicUrl } } = supabase.storage.from('receipts').getPublicUrl(fileName);
+      
+      const isOrder = resId.toString().startsWith('order-');
+      if (isOrder) {
+         toast({ title: "Esta íƒÂ© uma reserva de pedido. O comprovante deve ser anexado ao pedido na aba Reservas." });
+      } else {
+         const { error: updateError } = await supabase.from('quad_reservations').update({ receipt_url: publicUrl }).eq('id', resId);
+         if (updateError) throw updateError;
+         toast({ title: "Comprovante salvo!" });
+         fetchData();
+      }
+    } catch (err) { toast({ title: "Erro no upload", variant: "destructive" }); }
+    finally { setIsUploading(false); }
+  };
 
-        {activeTab === 'reservas' && (
-          <div className="space-y-8 animate-in fade-in duration-500">
-             <InternalBookingAssistant onBookingComplete={fetchData} />
-             <div className="bg-white/95 backdrop-blur-md rounded-[2.5rem] p-1 shadow-2xl border-2 border-emerald-100 overflow-hidden">
-                <AgendaHeader 
-                  agendaSubTab={agendaSubTab} setAgendaSubTab={setAgendaSubTab as any}
-                  search={search} setSearch={setSearch}
-                  filterDate={filterDate} setFilterDate={setFilterDate}
-                  statusFilter={statusFilter} setStatusFilter={setStatusFilter}
-                  isAllowedDay={isAllowedDay}
-                />
-                <BookingTable 
-                  bookings={filterBookings()}
-                  onStatusChange={(id, s, isOrder) => { setUpdatingId(id); (supabase.from(isOrder ? 'orders' : 'bookings') as any).update({ status: s }).eq('id', id).then(() => fetchData()); }}
-                  onReschedule={(id, d, isOrder) => { setUpdatingId(id); (supabase.from(isOrder ? 'orders' : 'bookings') as any).update({ visit_date: d }).eq('id', id).then(() => fetchData()); }}
-                  onRemoveItem={(orderId, itemId) => { /* Logic to remove item */ }}
-                  onAddNote={(id, n, isOrder) => { setUpdatingId(id); (supabase.from(isOrder ? 'orders' : 'bookings') as any).update({ notes: n }).eq('id', id).then(() => fetchData()); }}
-                  onDelete={(id, isOrder) => requestDelete({ id }, isOrder ? 'order' : 'reservas')}
-                  onGeneratePayment={(id, isOrder) => { setSelectedPaymentBooking(bookings.find(b => b.id === id) || orders.find(o => o.id === id)); setIsPaymentModalOpen(true); }}
-                  updatingId={updatingId}
-                  onConvertToCredit={(b) => dataConvertToCredit(b, b.is_order ? 'order' : 'reservas')}
-                />
+  const renderDashboard = () => {
+    const dayKiosks = (kioskReservations || []).filter(r => {
+      try {
+        const d = typeof r.reservation_date === 'string' ? r.reservation_date.split('T')[0] : format(r.reservation_date, 'yyyy-MM-dd');
+        return matchDate(d, targetDate);
+      } catch { return false; }
+    });
+    
+    const dayQuads = (quadReservations || []).filter(r => {
+      try {
+        const d = typeof r.reservation_date === 'string' ? r.reservation_date.split('T')[0] : format(r.reservation_date, 'yyyy-MM-dd');
+        return d === format(targetDate, 'yyyy-MM-dd');
+      } catch { return false; }
+    });
+
+    const dayBookings = bookings.filter(b => 
+      matchDate(b.visit_date, targetDate) && 
+      b.status !== 'awaiting_payment' && 
+      b.status !== 'pending' &&
+      b.status !== 'cancelled'
+    );
+
+    
+    // Add manual bookings representing kiosks to dayKiosks to show in visual map
+    dayBookings.forEach(b => {
+      const bItems = b.order_items || [];
+      
+      // BROADENED KIOSK DETECTION
+      bItems.forEach(item => {
+        const pNameLower = (item.product_name || '').toLowerCase();
+        if (pNameLower.includes('quiosque') || pNameLower.includes('camping')) {
+           // Extract numeric ID from "Quiosque 04" or similar
+           const kioskIdMatch = pNameLower.match(/quiosque\s*(\d+)/i);
+           const kId = kioskIdMatch ? parseInt(kioskIdMatch[1], 10) : (pNameLower.includes('maior') ? 1 : 'MENOR');
+
+           if (!dayKiosks.some(dk => dk.id === b.id && dk.kiosk_id === kId)) {
+              dayKiosks.push({
+                 id: b.id + '-' + item.id,
+                 kiosk_id: kId,
+                 customer_name: b.name || 'Cliente (Interno)',
+                 reservation_date: b.visit_date,
+                 status: b.status
+              });
+           }
+        }
+      });
+      
+      // BROADENED QUAD DETECTION
+      // Manual bookings use "Passeio" keywords instead of "Quadri"
+      const quadKeywords = ['quadri', 'passeio', 'quadriciclo', 'quadriciclo'];
+      const quadItems = bItems.filter(i => quadKeywords.some(k => (i.product_name || '').toLowerCase().includes(k)));
+      
+      quadItems.forEach(qi => {
+         const qiId = b.id + '-' + qi.id;
+         if (!dayQuads.some(dq => dq.id === qiId)) {
+            dayQuads.push({
+               id: qiId,
+               customer_name: b.name || 'Cliente (Interno)',
+               reservation_date: b.visit_date,
+               time_slot: b.quad_time_slot || '10:30',
+               quantity: qi.quantity || 1,
+               status: b.status
+            });
+         }
+      });
+    });
+    const dayOrders = orders.filter(o => 
+      matchDate(o.visit_date || o.created_at, targetDate) && 
+      o.status !== 'awaiting_payment' && 
+      o.status !== 'pending' &&
+      o.status !== 'cancelled'
+    );
+
+    
+    return (
+      <div className="grid lg:grid-cols-[1fr_360px] gap-8 animate-in fade-in duration-500">
+        <div className="space-y-8">
+
+          <Card className="bg-transparent border-none text-emerald-950 shadow-none p-0">
+             
+             <div className="rounded-[1.5rem] border-2 border-amber-300 bg-amber-100/50 overflow-hidden mb-0 shadow-lg backdrop-blur-sm">
+                <div className="p-3 md:p-5 border-b border-amber-300 flex flex-col md:flex-row md:items-center gap-4">
+                   <div className="flex items-center gap-4 border-r-0 md:border-r border-amber-300/50 pr-4">
+                      <div className="w-12 h-12 bg-emerald-800 rounded-xl flex items-center justify-center text-white font-black text-xl shadow-md border-2 border-emerald-400/30">
+                         {targetDate.getDate()}
+                      </div>
+                      <div>
+                         <h3 className="text-[16px] font-black text-emerald-950 tracking-tight leading-none mb-1">Operação Diária</h3>
+                         <p className="text-[11px] font-black text-emerald-950 uppercase tracking-tighter">{format(targetDate, "EEEE, yyyy", { locale: ptBR })}</p>
+                      </div>
+                   </div>
+                   <div className="flex items-center gap-2">
+                     <HelpCircle className="w-4 h-4 text-amber-800" />
+                     <h4 className="font-black text-amber-950 text-sm tracking-tight text-shadow-sm">Resumo de {format(targetDate, "dd 'de' MMMM", { locale: ptBR })}</h4>
+                   </div>
+                </div>
+                <div className="grid grid-cols-1 xl:grid-cols-2">
+                   {/* Left: Quiosques */}
+                   <div className="p-4 md:p-8 border-b xl:border-b-0 xl:border-r border-amber-300 bg-emerald-100/40 space-y-6">
+                      <h4 className="text-[14px] font-black text-emerald-800 flex items-center gap-3">
+                         <Users className="w-5 h-5 text-emerald-700" /> Quiosques ({dayKiosks.length}/5)
+                      </h4>
+                      
+                      <div className="flex flex-col gap-3">
+                       {KIOSKS.map(k => {
+                        const booking = dayKiosks.find(b => {
+                          const bid = b.kiosk_id;
+                          if (bid === 1 || bid === '1' || bid === 'MAIOR') return k.id === 1;
+                          if (bid === 'MENOR') {
+                             const dayOrderMenors = dayKiosks.filter(dk => dk.kiosk_id === 'MENOR');
+                             const orderIdx = dayOrderMenors.findIndex(dk => dk.id === b.id);
+                             if (k.id === orderIdx + 2) return true;
+                          }
+                          return Number(bid) === k.id;
+                        });
+                        
+                        return (
+                          <div key={k.id} className="bg-white rounded-xl p-4 shadow-sm border border-emerald-200 flex items-center justify-between group hover:bg-emerald-800 transition-all cursor-default">
+                             <span className="font-black text-emerald-950 text-[13px] group-hover:text-white transition-colors">{k.name}</span>
+                             {booking ? (
+                               <span className="text-emerald-700 font-bold italic text-[13px] text-right group-hover:text-emerald-100 transition-colors">
+                                  {booking.customer_name}
+                               </span>
+                             ) : (
+                               <span className="text-emerald-800/80 italic font-bold text-[13px] group-hover:text-emerald-200/50 transition-colors">Livre</span>
+                             )}
+                          </div>
+                        );
+                      })}
+                   </div>
+                   </div>
+
+                   {/* Right: Quadriciclos */}
+                   <div className="p-4 md:p-8 bg-blue-100/30 space-y-6">
+                      <h4 className="text-[14px] font-black text-blue-800 flex items-center gap-3">
+                         <Bike className="w-5 h-5 text-blue-700" /> Quadriciclos
+                      </h4>
+                   
+                   <div className="flex flex-col gap-2.5">
+                      {[
+                        { start: '09:00', end: '10:30' },
+                        { start: '10:30', end: '12:00' },
+                        { start: '14:00', end: '15:30' },
+                        { start: '15:30', end: '17:00' }
+                      ].map(slot => {
+                        const bookings = dayQuads.filter(b => {
+                            const bSlot = (b.time_slot || '').split('(')[0].toUpperCase().replace(/H/g, ':').trim();
+                            const target = slot.start.toUpperCase();
+                            return bSlot === target || (bSlot.length > 2 && target.includes(bSlot)) || (target.length > 2 && bSlot.includes(target));
+                        });
+                        const count = bookings.reduce((s, r) => s + (Number(r.quantity) || 1), 0);
+                        
+                        return (
+                          <div key={slot.start} className="bg-white rounded-[1.25rem] p-3 shadow-sm border border-blue-200/80 space-y-2.5">
+                             <div className="flex items-center justify-between px-1">
+                                <span className="font-black text-blue-900 text-[13px]">{slot.start} - {slot.end}</span>
+                                <span className="text-blue-600 font-bold text-[11px]">{count}/3 ocupados</span>
+                             </div>
+                             
+                             <div className="rounded-xl border border-blue-50 bg-blue-50/20 p-1.5 min-h-[32px] flex items-center justify-center">
+                                {bookings.length > 0 ? (
+                                  <div className="flex flex-wrap gap-1.5 justify-center">
+                                     {bookings.map((b, bi) => (
+                                       <Badge key={bi} className="bg-transparent text-blue-700/80 font-bold italic lowercase text-[11px] px-2 py-0 border-0 shadow-none hover:bg-blue-600 hover:text-white hover:opacity-100 transition-all cursor-default">
+                                          {b.customer_name} ({b.quantity})
+                                       </Badge>
+                                     ))}
+                                  </div>
+                                ) : (
+                                  <span className="text-blue-400/50 italic font-black text-[11px]">Nenhuma reserva</span>
+                                )}
+                             </div>
+                          </div>
+                        );
+                      })}
+                   </div>
+
+                   {dayQuads.filter(b => !['09:00', '10:30', '14:00', '15:30'].some(t => (b.time_slot || '').includes(t))).length > 0 && (
+                      <div className="bg-amber-50/50 rounded-[1.25rem] p-3 shadow-sm border border-amber-200 mt-2 space-y-2.5">
+                         <div className="flex items-center justify-between px-1">
+                            <span className="font-black text-amber-900 text-[11px] uppercase tracking-wider flex items-center gap-2">
+                               <AlertTriangle className="w-3.5 h-3.5" /> Extra / S. HoríƒÂ¡rio
+                            </span>
+                         </div>
+                         <div className="rounded-xl border border-amber-100 bg-white/40 p-1.5 min-h-[32px] flex items-center justify-center text-center">
+                            <div className="flex flex-wrap gap-1.5 justify-center">
+                               {dayQuads.filter(b => !['09:00', '10:30', '14:00', '15:30'].some(t => (b.time_slot || '').includes(t))).map((b, bi) => (
+                                  <Badge key={bi} className="bg-transparent text-amber-800 font-bold italic lowercase text-[11px] px-2 py-0 border-0 shadow-none">
+                                     {b.customer_name} ({b.quantity})
+                                  </Badge>
+                               ))}
+                            </div>
+                         </div>
+                      </div>
+                   )}
+
+
+                </div>
+             </div>
+
+             {/* Footer Summary */}
+             <div className="p-3 md:p-5 border-t border-amber-300 bg-amber-100/60 flex items-center justify-center text-center">
+                <p className="text-amber-900 font-black uppercase tracking-[0.1em] text-[11px]">
+                   Total de Reservas no Dia: {dayKiosks.length + dayQuads.length}
+                </p>
              </div>
           </div>
-        )}
+        </Card>
+        </div>
 
-        {activeTab === 'quiosques' && (
-          <AdminKioskTab 
-            kioskReservations={kioskReservations} kioskSubTab={kioskSubTab} setKioskSubTab={setKioskSubTab}
-            setEditingKioskGroup={setEditingKioskGroup} setRescheduleData={setRescheduleData} setRescheduleDate={(d) => {}}
-            requestDelete={requestDelete}
-          />
-        )}
+        <div className="space-y-6">
+           
+           <Card className="bg-white border-2 border-emerald-100 shadow-sm rounded-3xl overflow-hidden">
+              <div className="p-6 border-b border-emerald-100 bg-emerald-50/50">
+                 <div className="flex items-center gap-3 mb-2">
+                    <CalendarCheck className="w-5 h-5 text-emerald-800" />
+                    <h4 className="text-lg font-black text-emerald-950 tracking-tight">Resumo Geral</h4>
+                 </div>
+                 <p className="text-[11px] font-bold text-emerald-800/70 leading-relaxed mb-6">
+                    Selecione uma data para organizar seu dia de operaíƒÂ§íƒÂµes.
+                 </p>
+                 
+                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <div className="flex items-center justify-center gap-2 py-2 px-3 bg-emerald-800 text-white rounded-xl text-[9px] font-black uppercase tracking-wider">
+                       <Tent className="w-3.5 h-3.5" /> Quiosques
+                    </div>
+                    <div className="flex items-center justify-center gap-2 py-2 px-3 bg-blue-700 text-white rounded-xl text-[9px] font-black uppercase tracking-wider">
+                       <Bike className="w-3.5 h-3.5" /> Quads
+                    </div>
+                    <div className="flex items-center justify-center gap-2 py-2 px-3 bg-red-500 text-white rounded-xl text-[9px] font-black uppercase tracking-wider">
+                       <Users className="w-3.5 h-3.5" /> Reservas (Entrada)
+                    </div>
+                 </div>
+              </div>
 
-        {activeTab === 'quads' && (
-          <AdminQuadTab 
-            quadReservations={quadReservations} quadSubTab={quadSubTab} setQuadSubTab={setQuadSubTab}
-            expandedQuadGroupId={expandedQuadGroupId} setExpandedQuadGroupId={setExpandedQuadGroupId}
-            editingId={editingId} editData={editData} setEditData={setEditData}
-            startEditing={(i) => { setEditingId(i.id); setEditData(i); }} cancelEditing={() => setEditingId(null)}
-            saveEditing={async () => { await supabase.from('quad_reservations').update(editData).eq('id', editingId); setEditingId(null); fetchData(); }}
-            setEditingQuadItem={setEditingQuadItem} setRescheduleData={setRescheduleData} setRescheduleDate={(d) => {}}
-            requestDelete={requestDelete}
-          />
-        )}
+                <div className="p-4 bg-white">
+                  <Calendar
+                    mode="single"
+                    selected={targetDate}
+                    onSelect={(d) => d && setTargetDate(d)}
+                    className="p-0 pointer-events-auto"
+                    locale={ptBR}
+                    toDate={new Date(2030, 11, 31)}
+                    fromDate={new Date(2024, 0, 1)}
+                    disabled={(date) => !isAllowedDay(date)}
+                    classNames={{
+                      months: "w-full flex flex-col",
+                      month: "w-full space-y-6",
+                      caption: "relative flex items-center justify-between w-full h-14 bg-emerald-800 rounded-2xl border-2 border-emerald-900 shadow-xl mb-4 px-3",
+                      caption_label: "text-[10px] md:text-[12px] font-black text-white uppercase tracking-[0.2em] flex-1 text-center",
+                      nav: "absolute inset-x-0 inset-y-0 flex items-center justify-between px-2 pointer-events-none z-30",
+                      nav_button: "h-7 w-7 md:h-9 md:w-9 bg-emerald-500 text-white border border-emerald-400 hover:bg-emerald-400 shadow-lg rounded-[0.5rem] transition-all pointer-events-auto flex items-center justify-center",
+                      nav_button_previous: "relative",
+                      nav_button_next: "relative",
+                      table: "w-full border-collapse table-fixed",
+                      head_cell: "text-emerald-900 font-extrabold text-[10px] md:text-[11px] uppercase tracking-[0.1em] md:tracking-[0.2em] w-[14.28%] py-4 text-center",
+                      cell: "h-10 md:h-14 w-[14.28%] text-center p-0 relative focus-within:z-20",
+                      day: cn(
+                        "h-12 w-12 p-0 font-black text-sm transition-all rounded-full border-2 border-emerald-50 bg-emerald-50/20 text-emerald-950 hover:border-emerald-300 hover:bg-emerald-100 shadow-sm mx-auto",
+                        "flex flex-col items-center justify-center gap-1"
+                      ),
+                      day_selected: "bg-emerald-800 !text-white hover:bg-emerald-700 border-emerald-800 shadow-xl shadow-emerald-900/30 !opacity-100 rounded-full",
+                      day_today: "bg-yellow-400 text-emerald-950 border-yellow-500 shadow-lg font-black ring-2 ring-yellow-200 ring-offset-2 rounded-full",
+                      day_outside: "text-emerald-900/60 font-bold opacity-50 bg-transparent shadow-none border-transparent",
+                    }}
+                    components={{
+                      DayContent: ({ date }) => {
+                        const dateStr = format(date, 'yyyy-MM-dd');
+                        const hasKiosk = (kioskReservations || []).some(r => r.reservation_date === dateStr);
+                        const hasQuad = (quadReservations || []).some(r => r.reservation_date === dateStr);
+                        const hasAnyBooking = (bookings || []).some(b => {
+                          const bDate = typeof b.visit_date === 'string' ? b.visit_date.split('T')[0] : format(new Date(b.visit_date), 'yyyy-MM-dd');
+                          return bDate === dateStr;
+                        }) || (orders || []).some(o => {
+                          const oDate = o.visit_date || (o.created_at ? o.created_at.split('T')[0] : '');
+                          return oDate === dateStr && o.status !== 'cancelled' && o.status !== 'awaiting_payment';
+                        });
+                        
+                        const isSimpleBooking = hasAnyBooking && !hasKiosk && !hasQuad;
+                        
+                        // Availability logic
+                        const kiosksFull = (kioskReservations || []).filter(r => r.reservation_date === dateStr).length >= 5;
+                        const quadsFull = (quadReservations || []).filter(r => r.reservation_date === dateStr).reduce((s, r) => s + (Number(r.quantity) || 1), 0) >= 20;
+                        const isDayToday = isToday(date);
+                        const isFull = kiosksFull && quadsFull;
 
-        {activeTab === 'vendas' && (
-          <AdminVendasTab 
-            orders={orders} vendasStatusFilter={vendasStatusFilter} setVendasStatusFilter={setVendasStatusFilter}
-            updatingId={updatingId} markOrderAsPaid={async (id) => { setUpdatingId(id); return markOrderAsPaid(id); }}
-            requestDelete={requestDelete} fetchData={fetchData} toast={toast}
-            onConvertToCredit={(b) => dataConvertToCredit(b, 'order')}
-          />
-        )}
+                        return (
+                          <div className={cn("relative flex flex-col items-center rounded-full w-full h-full justify-center transition-all", isFull && "bg-red-50/50 border border-red-100")}>
+                            <span className={cn(isDayToday ? "text-emerald-950 font-black" : "font-black", isFull && "text-red-600")}>{date.getDate()}</span>
+                            <div className="flex gap-1 mt-0.5">
+                              {hasKiosk && <div className={cn("w-2 h-2 rounded-full shadow-md border border-white/40", kiosksFull ? "bg-red-600" : "bg-emerald-600")} />}
+                              {hasQuad && <div className={cn("w-2 h-2 rounded-full shadow-md border border-white/40", quadsFull ? "bg-red-600" : "bg-blue-600")} />}
+                              {isSimpleBooking && <div className="w-2 h-2 rounded-full bg-red-500 shadow-md border border-white/40" />}
+                            </div>
+                          </div>
+                        );
+                      }
+                    }}
+                    modifiers={{
+                      holiday: (day) => isHoliday(day),
+                    }}
+                    modifiersStyles={{
+                      holiday: { border: '2px dashed #10b981', color: '#059669' }
+                    }}
+                  />
+                </div>
+           </Card>
+        </div>
+      </div>
+    );
+  };
 
-        {activeTab === 'creditos' && (
-          <AdminCreditsTab credits={credits} fetchData={fetchData} toast={toast} />
-        )}
-      </main>
+  const renderKioskTab = () => {
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    const allGroups = Object.values((kioskReservations || []).reduce((acc, curr) => {
+      const key = `${curr.reservation_date}_${curr.customer_name || 'Venda'}`;
+      if (!acc[key]) acc[key] = { group_key: key, reservation_date: curr.reservation_date, customer_name: curr.customer_name || (curr as any).bookings?.name || 'Venda', items: [], total_price: 0 };
+      acc[key].items.push(curr);
+      acc[key].total_price += (curr.price || (KIOSKS.find(k => k.id === Number(curr.kiosk_id))?.price || 75));
+      return acc;
+    }, {} as Record<string, any>));
 
-      {/* Dialogs */}
-      <DeleteConfirmDialog 
-        open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}
-        onConfirm={confirmDelete} loading={loading}
-      />
-      
-      <RescheduleDialog 
-        data={rescheduleData} onClose={() => setRescheduleData(null)}
-        onConfirm={handleRescheduleConfirm} loading={loading}
-        kioskReservations={kioskReservations} quadReservations={quadReservations}
-        isAllowedDay={isAllowedDay}
-      />
+    const groupsByTab: Record<string, any[]> = {
+      hoje: allGroups.filter((g: any) => g.reservation_date === todayStr),
+      futuras: allGroups.filter((g: any) => g.reservation_date > todayStr),
+      historico: allGroups.filter((g: any) => g.reservation_date < todayStr),
+    };
+    const tabGroups = groupsByTab[kioskSubTab];
 
-      {editingKioskGroup && (
-        <EditKioskDialog 
-          group={editingKioskGroup} onClose={() => setEditingKioskGroup(null)}
-          onUpdated={fetchData} updateOrderTotal={updateOrderTotal}
-        />
-      )}
+    const resolveGroup = (group: any) => {
+      const dayKiosks = (kioskReservations || []).filter(k => k.reservation_date === group.reservation_date);
+      const resolved = group.items.map((r: any) => {
+        const bid = r.kiosk_id;
+        if (bid === 1 || bid === '1' || bid === 'MAIOR') return KIOSKS.find(k => k.id === 1);
+        if (bid === 'MENOR') {
+          const menors = dayKiosks.filter(dk => dk.kiosk_id === 'MENOR');
+          const idx = menors.findIndex(dk => dk.id === r.id);
+          return KIOSKS.find(k => k.id === idx + 2) || { id: 99, name: 'Quiosque Extra', capacity: 'AtíƒÂ© 15 pessoas' };
+        }
+        return KIOSKS.find(k => k.id === Number(bid)) || { id: 99, name: `Q-${bid}`, capacity: 'AtíƒÂ© 15 pessoas' };
+      });
+      const names = resolved.map((k: any) => k?.name.replace('Quiosque ', 'Q-')).join(', ');
+      const capacity = resolved.reduce((s: number, k: any) => s + parseInt((k?.capacity || '0').replace(/\D/g, '') || '15'), 0);
+      return { names, capacity };
+    };
 
-      {editingQuadItem && (
-        <EditQuadDialog 
-          item={editingQuadItem} onClose={() => setEditingQuadItem(null)}
-          onUpdated={fetchData} updateOrderTotal={updateOrderTotal}
-        />
-      )}
+    const subTabConfig = [
+      { key: 'hoje', label: 'Ativos Hoje', count: groupsByTab.hoje.length, color: 'bg-emerald-600 text-white' },
+      { key: 'futuras', label: 'Reservas Futuras', count: groupsByTab.futuras.length, color: 'bg-blue-100 text-blue-700' },
+      { key: 'historico', label: 'Histórico', count: groupsByTab.historico.length, color: 'bg-slate-100 text-slate-600' },
+    ];
 
-      {isPaymentModalOpen && selectedPaymentBooking && (
-        <PaymentModal 
-          open={isPaymentModalOpen} 
-          onOpenChange={(o) => setIsPaymentModalOpen(o)}
-          orderId={selectedPaymentBooking.id}
-          totalAmount={selectedPaymentBooking.total_amount || selectedPaymentBooking.total_price || 0}
-          name={selectedPaymentBooking.name || selectedPaymentBooking.customer_name}
-          email={selectedPaymentBooking.email || 'contato@balneariolessa.com.br'}
-          phone={selectedPaymentBooking.phone || selectedPaymentBooking.customer_phone}
-          cpf={selectedPaymentBooking.cpf || selectedPaymentBooking.customer_cpf}
-          onSuccess={() => { setIsPaymentModalOpen(false); fetchData(); }}
-        />
-      )}
+    return (
+      <div className="space-y-6 animate-in fade-in duration-500">
+        {/* Header */}
+        <div className="bg-white rounded-3xl border-2 border-slate-300 shadow-xl overflow-hidden">
+          <div className="p-6 border-b-2 border-slate-200 bg-slate-50">
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div>
+                <h3 className="text-lg font-bold text-primary">Reservas de Quiosques</h3>
+                <p className="text-xs text-muted-foreground">Gerencie todas as reservas por status</p>
+              </div>
+              <div className="flex flex-row overflow-x-auto gap-2 bg-slate-100 p-1 rounded-2xl w-full md:w-auto">
+                {subTabConfig.map(t => (
+                  <button
+                    key={t.key}
+                    onClick={() => setKioskSubTab(t.key as any)}
+                    className={cn(
+                      'flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all',
+                      kioskSubTab === t.key ? t.color + ' shadow-md' : 'text-slate-500 hover:text-slate-700',
+                      t.key === 'historico' && 'col-span-2 md:col-auto'
+                    )}
+                  >
+                    {t.label}
+                    <span className={cn('rounded-full px-1.5 py-0.5 text-[9px] font-black', kioskSubTab === t.key ? 'bg-white/30' : 'bg-slate-200')}>
+                      {t.count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
 
-      {/* Refresh FAB */}
-      <button 
-        onClick={fetchData}
-        className="fixed bottom-8 right-8 w-14 h-14 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl shadow-2xl flex items-center justify-center transition-all hover:rotate-180 hover:scale-110 active:scale-95 group z-40"
-      >
-        <RefreshCw className={cn("w-6 h-6", loading && "animate-spin")} />
-      </button>
+          {/* Table */}
+          <div className="overflow-x-auto">
+            {/* Mobile Cards View */}
+            <div className="md:hidden space-y-4 p-4 bg-slate-50/50">
+              {tabGroups.length === 0 ? (
+                <div className="text-center py-10 text-muted-foreground/40 font-bold uppercase text-[10px] tracking-widest">Nenhuma reserva</div>
+              ) : (
+                tabGroups.map((group: any) => {
+                  const { names } = resolveGroup(group);
+                  const isToday = group.reservation_date === todayStr;
+                  return (
+                    <div key={group.group_key} className="bg-white rounded-2xl border-2 border-emerald-100 shadow-sm overflow-hidden animate-in slide-in-from-bottom-2 duration-300">
+                      <div className={cn("p-4 border-b border-emerald-100 flex justify-between items-center", isToday ? "bg-emerald-50" : "bg-white")}>
+                         <div className="flex flex-col">
+                            <span className="text-[10px] font-black text-emerald-800/60 uppercase tracking-widest">Data da Visita</span>
+                            <span className="font-black text-emerald-900">{format(parseISO(group.reservation_date), 'dd/MM/yyyy')}</span>
+                         </div>
+                         {isToday && <span className="bg-emerald-600 text-white text-[9px] font-black px-3 py-1 rounded-full uppercase shadow-sm">Hoje</span>}
+                      </div>
+                      <div className="p-4 space-y-3">
+                         <div>
+                            <span className="text-[10px] font-black text-emerald-800/60 uppercase tracking-widest block mb-1">Cliente</span>
+                            <span className="font-black text-emerald-950 uppercase text-sm block">{group.customer_name}</span>
+                            <span className="text-[10px] text-emerald-700 font-bold">{group.items.length} reserva(s) - {formatCurrency(group.total_price)}</span>
+                         </div>
+                         <div>
+                            <span className="text-[10px] font-black text-emerald-800/60 uppercase tracking-widest block mb-1">Quiosques</span>
+                            <div className="flex flex-wrap gap-1.5">
+                               {(names.split(', ') as string[]).map((n, i) => (
+                                 <span key={i} className="px-2.5 py-1 bg-emerald-100 text-emerald-900 rounded-lg text-[10px] font-black border border-emerald-300 hover:bg-emerald-600 hover:text-white transition-colors">{n}</span>
+                               ))}
+                            </div>
+                         </div>
+                         <div className="pt-2 flex items-center justify-end gap-2 border-t border-emerald-50">
+                            {group.items.some((r: any) => r.receipt_url) && (
+                               <Button size="sm" variant="outline" className="h-9 px-3 rounded-xl border-emerald-200 text-emerald-700 font-black text-[10px]" onClick={() => window.open(group.items.find((r: any) => r.receipt_url)?.receipt_url)}>
+                                 <FileText className="w-4 h-4 mr-2" /> Recibo
+                               </Button>
+                            )}
+                            <Button size="icon" variant="ghost" className="h-9 w-9 text-blue-600 bg-blue-50 rounded-xl" onClick={() => {setRescheduleData({ type: 'kiosk', group }); setRescheduleDate(parseISO(group.reservation_date));}}><CalendarClock className="w-4 h-4" /></Button>
+                            <Button size="icon" variant="ghost" className="h-9 w-9 text-red-500 bg-red-50 rounded-xl" onClick={() => requestDelete(group.items[0], 'kiosk')}><Trash2 className="w-4 h-4" /></Button>
+                         </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden md:block">
+              {tabGroups.length === 0 ? (
+                <div className="text-center py-16 text-muted-foreground/40 font-bold uppercase text-xs tracking-widest">
+                  {kioskSubTab === 'hoje' ? 'Nenhuma reserva ativa hoje' : kioskSubTab === 'futuras' ? 'Sem reservas futuras' : 'Sem histíƒÂ³rico'}
+                </div>
+              ) : (
+                <table className="w-full text-left">
+                  <thead className="bg-[#0b2b24] text-[10px] font-black uppercase text-emerald-100/80 tracking-widest border-b-4 border-emerald-900">
+                    <tr>
+                      <th className="px-6 py-4">Data</th>
+                      <th className="px-6 py-4">Cliente</th>
+                      <th className="px-6 py-4">Quiosques / Capacidade</th>
+                      <th className="px-6 py-4">Valor</th>
+                      <th className="px-6 py-4 text-right">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y-2 divide-slate-100">
+                    {tabGroups.map((group: any) => {
+                      const { names } = resolveGroup(group);
+                      const isToday = group.reservation_date === todayStr;
+                      return (
+                        <tr key={group.group_key} className={cn(
+                          'border-b-2 border-slate-100 transition-all duration-300 hover:scale-[1.01] hover:shadow-lg hover:z-10 relative cursor-pointer',
+                          isToday ? 'bg-emerald-50/50 hover:bg-emerald-100' : 'bg-slate-50 hover:bg-white'
+                        )}>
+                          <td className="px-6 py-4">
+                            <div className="flex flex-col gap-1.5 w-fit">
+                              <span className={cn('font-black text-sm px-3 py-1 rounded-lg border', isToday ? 'text-emerald-900 border-emerald-200 bg-white shadow-sm' : 'text-slate-700 border-slate-200 bg-white')}>
+                                {format(parseISO(group.reservation_date), 'dd/MM/yyyy')}
+                              </span>
+                              {isToday && <span className="text-[9px] bg-emerald-600 text-white font-black uppercase px-2 py-0.5 rounded-full w-fit mx-auto shadow-sm">HOJE</span>}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="font-black text-slate-900 uppercase text-base">{group.customer_name}</span>
+                            <div className="text-[10px] text-slate-500 font-bold mt-0.5">{group.items.length} reserva(s)</div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex flex-col gap-1">
+                              <Badge className="bg-emerald-100 text-emerald-900 border-2 border-emerald-300 hover:bg-emerald-600 hover:text-white transition-colors font-bold px-3 py-1 shadow-sm">{names}</Badge>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 font-black text-lg text-emerald-700">{formatCurrency(group.total_price)}</td>
+                          <td className="px-6 py-4 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              {group.items.some((r: any) => r.receipt_url) && (
+                                <Button size="icon" variant="ghost" className="h-8 w-8 text-primary hover:bg-emerald-600 hover:text-white transition-all shadow-sm" onClick={() => window.open(group.items.find((r: any) => r.receipt_url)?.receipt_url)}>
+                                  <FileText className="w-4 h-4" />
+                                </Button>
+                              )}
+                                <Button
+                                  size="icon" variant="ghost"
+                                  className="h-8 w-8 text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm"
+                                  title="Alterar Quiosque"
+                                  onClick={() => setEditingKioskGroup(group)}
+                                ><Pencil className="w-4 h-4" /></Button>
+                                <Button
+                                  size="icon" variant="ghost"
+                                  className="h-8 w-8 text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm"
+                                  title="Reagendar Data"
+                                  onClick={() => {
+                                    setRescheduleData({ type: 'kiosk', group });
+                                    setRescheduleDate(parseISO(group.reservation_date));
+                                  }}
+                                ><CalendarClock className="w-4 h-4" /></Button>
+                              <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500 hover:bg-red-600 hover:text-white transition-all shadow-sm" onClick={() => requestDelete(group.items[0], 'kiosk')}>
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderQuadTab = () => {
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    // Group by date + customer (ignoring timeslot to allow expansion)
+    const allGroups = Object.values((quadReservations || []).reduce((acc, curr) => {
+      const key = `${curr.reservation_date}_${curr.customer_name || 'Venda'}`;
+      if (!acc[key]) acc[key] = { group_key: key, reservation_date: curr.reservation_date, customer_name: curr.customer_name || (curr as any).bookings?.name || 'Cliente', items: [], total_price: 0, total_quantity: 0 };
+      acc[key].items.push(curr);
+      acc[key].total_price += (curr.price || 0);
+      acc[key].total_quantity += (Number(curr.quantity) || 1);
+      return acc;
+    }, {} as Record<string, any>));
+
+    const groupsByTab: Record<string, any[]> = {
+      hoje: allGroups.filter((g: any) => g.reservation_date === todayStr),
+      futuras: allGroups.filter((g: any) => g.reservation_date > todayStr),
+      historico: allGroups.filter((g: any) => g.reservation_date < todayStr),
+    };
+    const tabGroups = groupsByTab[quadSubTab];
+
+    const subTabConfig = [
+      { key: 'hoje', label: 'Ativos Hoje', count: groupsByTab.hoje.length, color: 'bg-blue-600 text-white' },
+      { key: 'futuras', label: 'Reservas Futuras', count: groupsByTab.futuras.length, color: 'bg-blue-100 text-blue-700' },
+      { key: 'historico', label: 'Histórico', count: groupsByTab.historico.length, color: 'bg-slate-100 text-slate-600' },
+    ];
+
+    return (
+      <div className="space-y-6 animate-in fade-in duration-500">
+        <div className="bg-white rounded-3xl border-2 border-slate-300 shadow-xl overflow-hidden">
+          <div className="p-6 border-b-2 border-slate-200 bg-blue-50/50">
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div>
+                <h3 className="text-lg font-black text-blue-950">Reservas de Quadriciclos</h3>
+                <p className="text-xs text-blue-900 font-bold">Clique em um grupo para ver os horários</p>
+              </div>
+              <div className="flex flex-row overflow-x-auto gap-2 bg-slate-100 p-1 rounded-2xl w-full md:w-auto">
+                {subTabConfig.map(t => (
+                  <button
+                    key={t.key}
+                    onClick={() => setQuadSubTab(t.key as any)}
+                    className={cn(
+                      'flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all',
+                      quadSubTab === t.key ? t.color + ' shadow-md' : 'text-slate-500 hover:text-slate-700',
+                      t.key === 'historico' && 'col-span-2 md:col-auto'
+                    )}
+                  >
+                    {t.label}
+                    <span className={cn('rounded-full px-1.5 py-0.5 text-[9px] font-black', quadSubTab === t.key ? 'bg-white/30' : 'bg-slate-200')}>
+                      {t.count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            {/* Mobile Cards View */}
+            <div className="md:hidden space-y-4 p-4 bg-blue-50/30">
+               {tabGroups.length === 0 ? (
+                 <div className="text-center py-10 text-muted-foreground/40 font-bold uppercase text-[10px] tracking-widest">Nenhuma reserva</div>
+               ) : (
+                 tabGroups.map((group: any) => {
+                   const isExpanded = expandedQuadGroupId === group.group_key;
+                   const isToday = group.reservation_date === todayStr;
+                   const uniqueModels = Array.from(new Set(group.items.map((r: any) => QUAD_MODELS_LABELS[r.quad_type || (r.time_slot === 'DUPLA' ? 'dupla' : 'individual')] || 'Individual')));
+                   
+                   return (
+                     <div key={group.group_key} className="bg-white rounded-2xl border-2 border-blue-100 shadow-sm overflow-hidden box-border">
+                        <div className={cn("p-4 flex justify-between items-center cursor-pointer", isToday ? "bg-blue-50/50" : "bg-white")} onClick={() => setExpandedQuadGroupId(isExpanded ? null : group.group_key)}>
+                           <div className="flex flex-col">
+                              <span className="text-[9px] font-black text-blue-700/60 uppercase tracking-widest">Cliente</span>
+                              <span className="font-black text-blue-950 uppercase">{group.customer_name}</span>
+                              <span className="text-[10px] font-bold text-blue-800">{format(parseISO(group.reservation_date), 'dd/MM/yyyy')}</span>
+                           </div>
+                           <div className="flex items-center gap-3">
+                              {isToday && <span className="bg-blue-600 text-white text-[9px] font-black px-2.5 py-1 rounded-full uppercase">Hoje</span>}
+                              <ChevronDown className={cn('w-5 h-5 text-blue-400 transition-transform', isExpanded && 'rotate-180')} />
+                           </div>
+                        </div>
+                        
+                        {isExpanded && (
+                           <div className="p-4 bg-blue-50/30 border-t border-blue-100 space-y-4 animate-in slide-in-from-top-2 duration-300">
+                              <div className="grid grid-cols-2 gap-4">
+                                 <div>
+                                    <span className="text-[9px] font-black text-blue-700/60 uppercase tracking-widest block mb-1">Modelos</span>
+                                    <div className="flex flex-wrap gap-1">
+                                       {(uniqueModels as string[]).map((m, i) => <span key={i} className="px-2 py-0.5 bg-white border border-blue-200 text-blue-800 rounded text-[9px] font-black">{m}</span>)}
+                                    </div>
+                                 </div>
+                                 <div className="text-right">
+                                    <span className="text-[9px] font-black text-blue-700/60 uppercase tracking-widest block mb-1">Total</span>
+                                    <span className="font-black text-blue-900 text-xs">{formatCurrency(group.total_price)}</span>
+                                 </div>
+                              </div>
+                              
+                              <div className="space-y-2">
+                                 <span className="text-[9px] font-black text-blue-700/60 uppercase tracking-widest block mb-1">HoríƒÂ¡rios Reservados</span>
+                                 {group.items.map((r: any, i: number) => (
+                                   <div key={i} className="flex justify-between items-center bg-white p-3 rounded-xl border border-blue-100 shadow-sm">
+                                      <div className="flex items-center gap-2">
+                                         <Clock className="w-3.5 h-3.5 text-blue-500" />
+                                         <span className="text-[11px] font-black text-blue-900">{r.time_slot}</span>
+                                         <span className="text-[10px] font-bold text-blue-600/60">- {QUAD_MODELS_LABELS[r.quad_type] || 'Individual'}</span>
+                                      </div>
+                                      <span className="text-[10px] font-black text-blue-900">{r.quantity} un.</span>
+                                   </div>
+                                 ))}
+                              </div>
+
+                              <div className="flex items-center justify-end gap-2 pt-2">
+                                 {group.items.some((r: any) => r.receipt_url) && (
+                                   <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600 bg-blue-50 rounded-lg" onClick={() => window.open(group.items.find((r: any) => r.receipt_url)?.receipt_url)}>
+                                     <FileText className="w-4 h-4" />
+                                   </Button>
+                                 )}
+                                 <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600 bg-blue-50 rounded-lg" onClick={() => setEditingQuadItem(group.items[0])}><Pencil className="w-4 h-4" /></Button>
+                                 <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600 bg-blue-50 rounded-lg" onClick={() => {setRescheduleData({ type: 'quad', group }); setRescheduleDate(parseISO(group.reservation_date));}}><CalendarClock className="w-4 h-4" /></Button>
+                                 <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500 bg-red-50 rounded-lg" onClick={() => requestDelete(group.items[0], 'quad')}><Trash2 className="w-4 h-4" /></Button>
+                              </div>
+                           </div>
+                        )}
+                     </div>
+                   );
+                 })
+               )}
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden md:block">
+              {tabGroups.length === 0 ? (
+                <div className="text-center py-16 text-muted-foreground/40 font-bold uppercase text-xs tracking-widest">
+                  {quadSubTab === 'hoje' ? 'Nenhuma reserva ativa hoje' : quadSubTab === 'futuras' ? 'Sem reservas futuras' : 'Sem histíƒÂ³rico'}
+                </div>
+              ) : (
+                <table className="w-full text-left">
+                  <thead className="bg-[#0f172a] text-[10px] font-black uppercase text-blue-100/80 tracking-widest border-b-4 border-blue-900">
+                    <tr>
+                      <th className="px-6 py-4 w-8"></th>
+                      <th className="px-6 py-4">Data</th>
+                      <th className="px-6 py-4">Cliente</th>
+                      <th className="px-6 py-4">Modelos</th>
+                      <th className="px-6 py-4 text-center">Total Quadriciclos</th>
+                      <th className="px-6 py-4">Valor Total</th>
+                      <th className="px-6 py-4 text-right">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y-2 divide-slate-100">
+                    {tabGroups.map((group: any) => {
+                      const isExpanded = expandedQuadGroupId === group.group_key;
+                      const isToday = group.reservation_date === todayStr;
+                      const uniqueModels = Array.from(new Set(group.items.map((r: any) => QUAD_MODELS_LABELS[normalizeQuadType(r.quad_type || (r.time_slot === 'DUPLA' ? 'dupla' : 'individual'))] || 'Individual')));
+
+                      return (
+                        <React.Fragment key={group.group_key}>
+                          <tr
+                            className={cn(
+                              'border-b-2 border-slate-100 cursor-pointer transition-all duration-300 hover:scale-[1.01] hover:shadow-lg hover:z-10 relative',
+                              isToday ? 'bg-blue-50/40 hover:bg-blue-100/60' : 'bg-slate-50 hover:bg-white',
+                              isExpanded && 'bg-blue-100/40 border-blue-300'
+                            )}
+                            onClick={() => setExpandedQuadGroupId(isExpanded ? null : group.group_key)}
+                          >
+                            <td className="px-4 py-4 text-center">
+                              <ChevronDown className={cn('w-4 h-4 text-blue-600 transition-transform', isExpanded && 'rotate-180')} />
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex flex-col gap-1.5 w-fit">
+                                <span className={cn('font-black text-sm px-3 py-1 rounded-lg border', isToday ? 'text-blue-900 border-blue-200 bg-white shadow-sm' : 'text-slate-700 border-slate-200 bg-white')}>
+                                  {format(parseISO(group.reservation_date), 'dd/MM/yyyy')}
+                                </span>
+                                {isToday && <span className="text-[9px] bg-blue-600 text-white font-black uppercase px-2 py-0.5 rounded-full w-fit mx-auto shadow-sm">HOJE</span>}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="font-black text-slate-900 uppercase text-base">{group.customer_name}</span>
+                              <div className="text-[10px] text-slate-500 font-bold mt-0.5">{group.items.length} horário(s) reservado(s)</div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex flex-wrap gap-1">
+                                {(uniqueModels as string[]).map((m, i) => (
+                                  <Badge key={i} variant="outline" className="border-indigo-200 text-indigo-900 font-bold bg-indigo-50/80 px-2 py-0.5 text-[10px]">{m}</Badge>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <Badge className="bg-blue-100 text-blue-950 border-2 border-blue-200 shadow-sm font-black px-3 py-1">{group.total_quantity} quadriciclos</Badge>
+                            </td>
+                            <td className="px-6 py-4 font-black text-lg text-blue-800">{formatCurrency(group.total_price)}</td>
+                            <td className="px-6 py-4 text-right">
+                              <div className="flex items-center justify-end gap-2" onClick={e => e.stopPropagation()}>
+                                {group.items.some((r: any) => r.receipt_url) && (
+                                  <Button size="icon" variant="ghost" className="h-9 w-9 text-blue-600 bg-blue-50 hover:bg-blue-600 hover:text-white transition-all shadow-sm rounded-xl" onClick={() => window.open(group.items.find((r: any) => r.receipt_url)?.receipt_url)}>
+                                    <FileText className="w-4 h-4" />
+                                  </Button>
+                                )}
+                                <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600 hover:bg-blue-600 hover:text-white transition-all" onClick={() => setEditingQuadItem(group.items[0])}><Pencil className="w-4 h-4" /></Button>
+                                <Button
+                                  size="icon" variant="ghost"
+                                  className="h-8 w-8 text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm"
+                                  title="Reagendar"
+                                  onClick={() => {
+                                    setRescheduleData({ type: 'quad', group });
+                                    setRescheduleDate(parseISO(group.reservation_date));
+                                  }}
+                                ><CalendarClock className="w-4 h-4" /></Button>
+                                <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500 hover:bg-red-600 hover:text-white transition-all shadow-sm" onClick={() => requestDelete(group.items[0], 'quad')}>
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                          {isExpanded && group.items.map((r: any, idx: number) => {
+                            const isEditing = editingId === r.id;
+                            return (
+                              <tr key={r.id} className={cn("bg-blue-50/30 border-b border-blue-100 transition-all", isEditing ? "bg-amber-50/40" : "")}>
+                                <td className="px-4 py-2"></td>
+                                <td className="px-6 py-2">
+                                  {isEditing ? (
+                                    <Select value={editData.time_slot} onValueChange={v => setEditData({...editData, time_slot: v})}>
+                                       <SelectTrigger className="h-8 text-[11px] font-black w-32 border-blue-200 bg-white shadow-sm"><SelectValue /></SelectTrigger>
+                                       <SelectContent>
+                                          {QUAD_TIMES.map(t => <SelectItem key={t} value={t} className="text-[11px] font-bold">{t}</SelectItem>)}
+                                       </SelectContent>
+                                    </Select>
+                                  ) : (
+                                    <span className={cn(
+                                      'text-[10px] font-black uppercase px-2 py-0.5 rounded-md w-fit inline-block border flex items-center gap-1.5 shadow-sm',
+                                      (r.time_slot === 'INDIV' || r.time_slot === 'DUPLA') 
+                                        ? 'bg-amber-50 text-amber-700 border-amber-200' 
+                                        : 'bg-blue-50 text-blue-700 border-blue-100'
+                                    )}>
+                                      {(r.time_slot === 'INDIV' || r.time_slot === 'DUPLA') ? (
+                                        <>
+                                          <AlertTriangle className="w-3 h-3" />
+                                          {r.time_slot === 'INDIV' ? 'HORíƒÂ­í‚ÂRIO NíƒÂ­í†â€™íƒâ€ í¢â‚¬â„¢O DEFINIDO' : 'DUPLA (AGUARDANDO)'}
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Clock className="w-3 h-3" />
+                                          {r.time_slot}
+                                        </>
+                                      )}
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="px-6 py-2 text-[11px] text-blue-700/60 font-black uppercase tracking-wider">Item #{idx + 1}</td>
+                                <td className="px-6 py-2">
+                                  {isEditing ? (
+                                    <div className="flex flex-col gap-1 w-32">
+                                      <Select value={editData.quad_type || 'individual'} onValueChange={v => setEditData({...editData, quad_type: v})}>
+                                         <SelectTrigger className="h-7 text-[10px] font-bold bg-white"><SelectValue /></SelectTrigger>
+                                         <SelectContent>
+                                            {Object.entries(QUAD_MODELS_LABELS).map(([k, v]) => <SelectItem key={k} value={k} className="text-[10px]">{v}</SelectItem>)}
+                                         </SelectContent>
+                                      </Select>
+                                      <div className="flex items-center gap-2 mt-2">
+                                        <span className="text-[10px] font-bold text-blue-800">Qtd:</span>
+                                        <input type="number" min="1" max="20" className="w-16 h-7 text-[11px] font-black border border-blue-200 rounded px-2" value={editData.quantity || 1} onChange={e => setEditData({...editData, quantity: parseInt(e.target.value) || 1})} />
+                                      </div>
+
+                                    </div>
+                                  ) : (
+                                    <Badge variant="outline" className="text-[9px] border-blue-100 text-blue-700 bg-white/50 font-black tracking-widest px-2">
+                                      {QUAD_MODELS_LABELS[r.quad_type || (r.time_slot === 'DUPLA' ? 'dupla' : 'individual')] || 'Individual'}
+                                    </Badge>
+                                  )}
+                                </td>
+                                <td className="px-6 py-2 text-center">
+                                  {isEditing ? (
+                                    <input
+                                      type="number" min="1" max="20"
+                                      className="w-16 h-8 text-[12px] font-black border-2 border-blue-300 rounded-lg px-2 text-center bg-white shadow-sm"
+                                      value={editData.quantity ?? r.quantity ?? 1}
+                                      onChange={e => setEditData({...editData, quantity: parseInt(e.target.value) || 1})}
+                                    />
+                                  ) : (
+                                    <span className="text-[11px] font-black text-blue-900 bg-blue-100/50 px-2 rounded-full border border-blue-200">{r.quantity || 1}x</span>
+                                  )}
+                                </td>
+                                <td className="px-6 py-2 text-[11px] font-extrabold text-blue-700">{formatCurrency(r.price || 0)}</td>
+                                <td className="px-6 py-2 text-right">
+                                  <div className="flex items-center justify-end gap-1.5">
+                                    {isEditing ? (
+                                      <>
+                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-emerald-600 bg-emerald-50 hover:bg-emerald-600 hover:text-white border border-emerald-200" onClick={() => saveEditing('quad')}>
+                                          <Check className="w-4 h-4" />
+                                        </Button>
+                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 bg-white hover:bg-slate-100 border border-slate-200" onClick={cancelEditing}>
+                                          <X className="w-4 h-4" />
+                                        </Button>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm border border-blue-100 flex items-center justify-center" onClick={(e: any) => { e.stopPropagation(); startEditing(r); }}>
+                                          <Pencil className="w-3.5 h-3.5" />
+                                        </Button>
+                                        <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500 hover:bg-red-600 hover:text-white transition-all shadow-sm border border-red-100" onClick={(e: any) => { e.stopPropagation(); requestDelete(r, 'quad'); }}>
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </Button>
+                                      </>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </React.Fragment>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderOrderTab = () => (
+    <div className="bg-white rounded-3xl border border-border/50 shadow-card overflow-hidden animate-in fade-in duration-500">
+        <div className="p-6 border-b border-border/50 bg-amber-50/30 flex items-center justify-between flex-wrap gap-4">
+           <div>
+              <h3 className="text-lg font-bold text-amber-900">Histórico de Vendas e Pedidos</h3>
+              <p className="text-xs text-muted-foreground">Gestão financeira centralizada</p>
+           </div>
+           <div className="flex items-center gap-3">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[180px] h-10 rounded-xl border-amber-200 bg-white shadow-sm font-bold text-xs uppercase">
+                  <SelectValue placeholder="Filtrar Status" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl border-amber-100 shadow-xl">
+                  <SelectItem value="all" className="text-xs font-bold uppercase">Todos os Status</SelectItem>
+                  <SelectItem value="paid" className="text-xs font-bold uppercase text-whatsapp">Pagos</SelectItem>
+                  <SelectItem value="pending" className="text-xs font-bold uppercase text-amber-600">Pendentes</SelectItem>
+                  <SelectItem value="cancelled" className="text-xs font-bold uppercase text-red-500">Cancelados</SelectItem>
+                </SelectContent>
+              </Select>
+              <Badge className="bg-amber-100 text-amber-900 border-0 font-bold h-10 px-4 rounded-xl flex items-center">Total: {orders.filter(order => {
+                  if (statusFilter === 'all') return true;
+                  const s = (order.status || '').toLowerCase();
+                  if (statusFilter === 'paid') return s === 'paid' || s === 'pago';
+                  if (statusFilter === 'pending') return s === 'pending' || s === 'pendente' || s === 'awaiting_payment' || s === 'waiting_local' || s === 'waiting_confirmation';
+                  if (statusFilter === 'cancelled') return s === 'cancelled' || s === 'cancelado';
+                  return s === statusFilter;
+               }).length}</Badge>
+           </div>
+        </div>
+       <div className="overflow-x-auto">
+          <table className="w-full text-left">
+             <thead className="bg-muted/50 text-[10px] font-bold uppercase text-muted-foreground tracking-widest border-b border-border/50">
+                <tr>
+                   <th className="px-6 py-4">ID / Data</th>
+                   <th className="px-6 py-4">Cliente</th>
+                   <th className="px-6 py-4">Total</th>
+                   <th className="px-6 py-4">Status</th>
+                   <th className="px-6 py-4 text-right">Ações</th>
+                </tr>
+             </thead>
+             <tbody className="divide-y divide-border/30">
+                {(orders || [])
+                   .filter(order => {
+                      if (statusFilter === 'all') return true;
+                      const s = (order.status || '').toLowerCase();
+                      if (statusFilter === 'paid') return s === 'paid' || s === 'pago';
+                      if (statusFilter === 'pending') return s === 'pending' || s === 'pendente' || s === 'awaiting_payment' || s === 'waiting_local' || s === 'waiting_confirmation';
+                      if (statusFilter === 'cancelled') return s === 'cancelled' || s === 'cancelado';
+                      return s === statusFilter;
+                   })
+                   .map(order => (
+                   <tr key={order.id} className="hover:bg-muted/20 transition-colors">
+                      <td className="px-6 py-4">
+                         <div className="flex flex-col">
+                            <span className="font-mono text-[10px] text-muted-foreground">#{order.id.slice(0,8)}</span>
+                            <span className="text-sm font-bold">{format(parseISO(order.created_at), 'dd/MM/yyyy')}</span>
+                         </div>
+                      </td>
+                      <td className="px-6 py-4 font-bold text-foreground">
+                         {order.customer_name || 'Cliente Geral'}
+                      </td>
+                      <td className="px-6 py-4 font-bold text-primary">
+                         {formatCurrency(order.total_amount)}
+                      </td>
+                      <td className="px-6 py-4">
+                         <Badge className={cn(
+                           "rounded-md font-bold text-[9px]",
+                           (order.status === 'paid' || order.status === 'pago') ? "bg-whatsapp/10 text-whatsapp border-whatsapp/20" : 
+                           (order.status === 'cancelled' || order.status === 'cancelado') ? "bg-red-50 text-red-500 border-red-100" :
+                           "bg-amber-50 text-amber-600 border-amber-100"
+                         )} variant="outline">
+                            {order.status === 'paid' || order.status === 'pago' ? 'PAGO' : 
+                             order.status === 'cancelled' || order.status === 'cancelado' ? 'CANCELADO' : 'PENDENTE'}
+                         </Badge>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                         <div className="flex items-center justify-end gap-2">
+                            {order.status !== 'paid' && order.status !== 'pago' && (
+                              <Button 
+                                 size="sm" 
+                                 className="h-8 bg-primary rounded-lg text-[10px] font-bold" 
+                                 disabled={updatingId === order.id}
+                                 onClick={() => {
+                                   setUpdatingId(order.id);
+                                   markOrderAsPaid(order.id)
+                                     .then(() => {
+                                       toast({ title: "✓ Pedido Efetivado!", description: "O status foi atualizado para PAGO e o voucher gerado." });
+                                       fetchData();
+                                     })
+                                     .catch(err => {
+                                       console.error(err);
+                                       toast({ title: "Erro ao efetivar", description: err.message, variant: "destructive" });
+                                     })
+                                     .finally(() => setUpdatingId(null));
+                                 }}
+                               >
+                                 {updatingId === order.id ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Efetivar'}
+                               </Button>
+                            )}
+                            <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-500" onClick={() => convertToCredit(order, 'order')} title="Converter em Crédito"><Wallet className="w-4 h-4" /></Button>
+                            <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500" onClick={() => requestDelete(order, 'order')} title="Excluir"><Trash2 className="w-4 h-4" /></Button>
+                         </div>
+                      </td>
+                   </tr>
+                ))}
+             </tbody>
+          </table>
+       </div>
     </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-emerald-900 via-slate-950 to-black bg-fixed overflow-x-hidden">
+       {/* Ambient Glows */}
+       <div className="absolute -top-24 -right-24 w-96 h-96 bg-emerald-500/10 blur-[120px] rounded-full" />
+       <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-blue-500/10 blur-[120px] rounded-full" />
+
+       <div className="max-w-7xl mx-auto space-y-6 md:space-y-8 relative z-10 p-3 md:p-8">
+          {/* HEADER */}
+          <div className="flex flex-col xl:flex-row xl:items-start justify-between gap-4 mb-4">
+              <div className="flex items-start justify-between w-full xl:w-auto">
+                 <div className="space-y-2 shrink-0">
+                     <h1 className="text-4xl md:text-5xl font-black tracking-tighter flex items-center gap-4">
+                          <div className="flex flex-col -space-y-1 md:-space-y-1 md:-space-y-2">
+                             <span className="text-xl md:text-xl md:text-2xl text-[#FFF033]/80 leading-none shadow-sm">Lessa</span>
+                             <span className="text-4xl md:text-4xl md:text-5xl text-[#FFF033] shadow-md">Painel</span>
+                          </div>
+                       </h1>
+                     <p className="text-[#FFF033] font-black uppercase tracking-[0.2em] md:tracking-[0.3em] text-[8px] md:text-[10px] bg-[#FFF033]/10 w-fit px-3 py-1 rounded-full border border-[#FFF033]/30 backdrop-blur-sm">Gestão Integrada de Reservas - Balneário</p>
+                 </div>
+
+                 {/* MOBILE BUTTONS (TOP RIGHT) */}
+                 <div className="flex xl:hidden items-center gap-2">
+                    <Button 
+                      variant="outline"
+                      className="w-10 h-10 rounded-xl bg-white/10 border border-white/20 p-0 hover:bg-white/20 text-[#FFF033] shadow-lg backdrop-blur-md transition-all active:scale-95 flex items-center justify-center" 
+                      onClick={fetchData} 
+                      disabled={loading}
+                    >
+                       {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
+                    </Button>
+
+                    <Button 
+                      className="w-10 h-10 rounded-xl bg-[#FFF033] text-black p-0 shadow-lg hover:scale-105 active:scale-95 transition-all border-0 flex items-center justify-center" 
+                      onClick={handleLogout}
+                    >
+                       <LogOut className="w-5 h-5" />
+                    </Button>
+                 </div>
+              </div>
+
+              {/* STATS IN HEADER */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 flex-1 px-0 md:px-4">
+                 <Card onClick={() => setActiveTab('quiosques')} className="cursor-pointer bg-emerald-900 border-2 border-emerald-500 shadow-xl rounded-2xl p-2 md:p-3 flex items-center justify-between hover:bg-bg-emerald-900 transition-all group overflow-hidden relative min-h-[60px] md:h-[65px]">
+                    <div className="flex items-center gap-2 relative z-10">
+                       <div className="p-1 px-2 rounded-lg bg-emerald-800 text-emerald-100 border border-emerald-700/50">
+                          <Tent className="w-3.5 h-3.5" />
+                       </div>
+                       <div className="flex flex-col -space-y-0.5">
+                          <span className="text-sm md:text-base font-black tabular-nums text-[#FFF033]">{(kioskReservations || []).filter(r => r.reservation_date === format(targetDate, 'yyyy-MM-dd')).length}</span>
+                          <span className="text-[7px] font-black uppercase tracking-widest text-emerald-200">Quiosques</span>
+                       </div>
+                    </div>
+                 </Card>
+                 
+                 <Card onClick={() => setActiveTab('quads')} className="cursor-pointer bg-blue-900 border-2 border-blue-500 shadow-xl rounded-2xl p-2 md:p-3 flex items-center justify-between hover:bg-bg-blue-900 transition-all group overflow-hidden relative min-h-[60px] md:h-[65px]">
+                    <div className="flex items-center gap-2 relative z-10">
+                       <div className="p-1 px-2 rounded-lg bg-blue-800 text-blue-100 border border-blue-700/50">
+                          <Bike className="w-3.5 h-3.5" />
+                       </div>
+                       <div className="flex flex-col -space-y-0.5">
+                          <span className="text-sm md:text-base font-black tabular-nums text-[#FFF033]">{(quadReservations || []).filter(r => r.reservation_date === format(targetDate, 'yyyy-MM-dd')).length}</span>
+                          <span className="text-[7px] font-black uppercase tracking-widest text-blue-200">Quadriciclos</span>
+                       </div>
+                    </div>
+                 </Card>
+                 
+                 <Card onClick={() => setActiveTab('vendas')} className="cursor-pointer bg-slate-900 border-2 border-[#FFF033]/50 shadow-xl rounded-2xl p-2 flex items-center justify-between hover:bg-black transition-all group overflow-hidden relative h-[65px]">
+                    <div className="flex items-center gap-2 relative z-10">
+                       <div className="p-1 px-2 rounded-lg bg-yellow-500/10 text-[#FFF033] border border-[#FFF033]/30">
+                          <TrendingUp className="w-3.5 h-3.5" />
+                       </div>
+                       <div className="flex flex-col -space-y-0.5">
+                          <span className="text-sm md:text-base font-black tabular-nums text-[#FFF033]">
+                            {formatCurrency(
+                               (bookings.filter(b => b.visit_date === format(targetDate, 'yyyy-MM-dd')).reduce((s, b) => b.status !== 'cancelled' ? s + (b.total_amount || 0) : s, 0)) + 
+                               (orders.filter(o => (o.visit_date || o.created_at.split('T')[0]) === format(targetDate, 'yyyy-MM-dd')).reduce((s, o) => o.status !== 'cancelled' ? s + (o.total_amount || 0) : s, 0))
+                            ).replace('R$', '').trim()}
+                          </span>
+                          <span className="text-[7px] font-black uppercase tracking-widest text-[#FFF033]/70">Receita Dia</span>
+                       </div>
+                    </div>
+                 </Card>
+
+                 <Card onClick={() => setActiveTab('reservas')} className="cursor-pointer bg-amber-900 border-2 border-amber-500 shadow-xl rounded-2xl p-2 md:p-3 flex items-center justify-between hover:bg-bg-amber-900 transition-all group overflow-hidden relative min-h-[60px] md:h-[65px]">
+                    <div className="flex items-center gap-2 relative z-10">
+                       <div className="p-1 px-2 rounded-lg bg-amber-800 text-amber-100 border border-amber-700/50">
+                          <CalendarCheck className="w-3.5 h-3.5" />
+                       </div>
+                       <div className="flex flex-col -space-y-0.5">
+                          <span className="text-sm md:text-base font-black tabular-nums text-[#FFF033]">{bookings.length + orders.length}</span>
+                          <span className="text-[7px] font-black uppercase tracking-widest text-amber-200">Agenda</span>
+                       </div>
+                    </div>
+                 </Card>
+              </div>
+
+              {/* DESKTOP BUTTONS (RIGHT) */}
+              <div className="hidden xl:flex items-center gap-4 shrink-0">
+                 <Button 
+                   variant="outline"
+                   className="rounded-2xl bg-white/10 border-2 border-white/20 font-black h-12 px-6 hover:bg-white/20 text-[#FFF033] flex items-center justify-center shadow-xl backdrop-blur-md transition-all active:scale-95" 
+                   onClick={fetchData} 
+                   disabled={loading}
+                 >
+                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5 mr-2" />}
+                    
+                 </Button>
+
+                 <Button 
+                   className="rounded-2xl bg-[#FFF033] text-black font-black h-12 px-4 shadow-2xl hover:scale-105 active:scale-95 transition-all border-0 text-base flex items-center justify-center" 
+                   onClick={handleLogout}
+                 >
+                    <LogOut className="w-5 h-5 mr-2" /> 
+                 </Button>
+              </div>
+          </div>
+          {/* TABS */}
+          <div className="flex flex-wrap items-center p-2 md:p-3 bg-emerald-950/60 backdrop-blur-xl rounded-2xl md:rounded-3xl w-full max-w-5xl mr-auto border border-white/20 shadow-premium mb-6 gap-1.5 md:gap-2">
+             <button onClick={() => setActiveTab('painel')} className={cn(
+               "px-4 md:px-4 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap", 
+               activeTab === 'painel' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
+             )}>
+                <LayoutDashboard className="w-4 h-4 md:w-4.5 md:h-4.5" /> VisíƒÂ£o Geral
+             </button>
+             <button onClick={() => setActiveTab('quiosques')} className={cn(
+               "px-4 md:px-4 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap", 
+               activeTab === 'quiosques' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
+             )}>
+                <Tent className="w-4 h-4 md:w-4.5 md:h-4.5" /> Quiosques
+             </button>
+             <button onClick={() => setActiveTab('quads')} className={cn(
+               "px-4 md:px-4 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap", 
+               activeTab === 'quads' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
+             )}>
+                <Bike className="w-4 h-4 md:w-4.5 md:h-4.5" /> Quadriciclos
+             </button>
+             <button onClick={() => setActiveTab('reservas')} className={cn(
+               "px-4 md:px-4 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap", 
+               activeTab === 'reservas' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
+             )}>
+                <CalendarCheck className="w-4 h-4 md:w-4.5 md:h-4.5" /> Agenda
+             </button>
+             <button onClick={() => setActiveTab('vendas')} className={cn(
+               "hidden lg:flex lg:flex-1 px-4 md:px-4 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap", 
+               activeTab === 'vendas' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
+             )}>
+                <ShoppingBag className="w-4 h-4 md:w-4.5 md:h-4.5" /> Vendas
+             </button>
+
+             <InternalBookingAssistant 
+                onCreated={fetchData} 
+                isHoliday={isHoliday} 
+                isAllowedDay={isAllowedDay} 
+                kioskReservations={kioskReservations}
+                quadReservations={quadReservations}
+             />
+
+             <button onClick={() => setActiveTab('creditos')} className={cn(
+               "px-4 md:px-4 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap", 
+               activeTab === 'creditos' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
+             )}>
+                <Wallet className="w-4 h-4 md:w-4.5 md:h-4.5" /> Créditos
+             </button>
+
+             
+             
+          </div>
+
+          {/* CONTENT AREA WITH GRADIENT BACKGROUND */}
+          <div className="min-h-[500px] md:min-h-[600px] bg-white/40 backdrop-blur-md rounded-2xl md:rounded-[2rem] p-4 md:p-8 border border-white/60 shadow-premium">
+             {activeTab === 'painel' && renderDashboard()}
+                                       {activeTab === 'reservas' && (
+               <div className="space-y-4">
+                  <AgendaHeader 
+                    agendaSubTab={agendaSubTab}
+                    setAgendaSubTab={setAgendaSubTab as any}
+                    search={search}
+                    setSearch={setSearch}
+                    filterDate={filterDate}
+                    setFilterDate={setFilterDate}
+                    statusFilter={statusFilter}
+                    setStatusFilter={setStatusFilter}
+                    isAllowedDay={isAllowedDay}
+                  />
+
+                  <BookingTable  
+                      bookings={[...bookings, ...(orders || []).map(o => ({...o, is_order: true}))].filter(b => {
+                        const bDate = b.visit_date || (typeof b.created_at === 'string' ? b.created_at.split('T')[0] : '');
+                        const today = format(new Date(), 'yyyy-MM-dd');
+                        const matchesSearch = !search || 
+                          (b.name || b.customer_name || '').toLowerCase().includes(search.toLowerCase()) ||
+                          (b.phone || b.customer_phone || '').includes(search) ||
+                          (b.confirmation_code || '').includes(search);
+                        const matchesStatus = statusFilter === 'all' || 
+                          (statusFilter === 'pending' && (!b.status || b.status.toLowerCase() === 'pending' || b.status.toLowerCase() === 'awaiting_payment' || b.status.toLowerCase() === 'waiting_local')) ||
+                          (b.status && b.status.toLowerCase() === statusFilter.toLowerCase());
+                        let matchesDate = true;
+                        if (filterDate) { matchesDate = bDate && bDate.startsWith(filterDate); } 
+                        else {
+                          if (agendaSubTab === 'hoje') matchesDate = bDate === today;
+                          else if (agendaSubTab === 'futuras') matchesDate = bDate > today;
+                          else if (agendaSubTab === 'historico') matchesDate = bDate < today;
+                        }
+                        return matchesSearch && matchesStatus && matchesDate;
+                      })}
+                      onStatusChange={updateBookingStatus}
+                      onAddNote={addBookingNote}
+                      onReschedule={async (id, date, isOrder) => {
+                         const table = isOrder ? 'orders' : 'bookings';
+                         const { error } = await supabase.from(table).update({ visit_date: date }).eq('id', id);
+                         if (error) toast({ title: "Erro ao reagendar", variant: "destructive" });
+                         else { toast({ title: "✓ Reagendado" }); fetchData(); }
+                      }}
+                      onDelete={async (id, isOrder) => {
+                          const table = isOrder ? 'orders' : 'bookings';
+                          try {
+                            const { error } = await supabase.from(table).delete().eq('id', id);
+                            if (error) throw error;
+                            toast({ title: "✓ Removido com sucesso" });
+                            fetchData();
+                          } catch (err: any) {
+                            console.error('Delete error:', err);
+                            toast({ title: "Erro ao remover: " + (err?.message || ''), variant: "destructive" });
+                          }
+                      }}
+                      onRemoveItem={() => {}}
+                      updatingId={updatingId}
+                      onRemoveReceipt={async (bookingId) => {
+                        await supabase.from('bookings').update({ receipt_url: null }).eq('id', bookingId);
+                        fetchData();
+                      }}
+                      onFileUpload={async (file, id, isOrder) => {
+                        setIsUploading(true);
+                        try {
+                           const fileExt = file.name.split('.').pop();
+                           const fileName = `${crypto.randomUUID()}.${fileExt}`;
+                           const { error: uploadError } = await supabase.storage.from('receipts').upload(fileName, file);
+                           if (uploadError) throw uploadError;
+                           const { data: { publicUrl } } = supabase.storage.from('receipts').getPublicUrl(fileName);
+                           const table = isOrder ? 'orders' : 'bookings';
+                           const { error } = await supabase.from(table).update({ receipt_url: publicUrl }).eq('id', id);
+                           if (error) throw error;
+                           toast({ title: "Comprovante anexado!" });
+                           fetchData();
+                        } catch (err) { 
+                           toast({ title: "Erro ao anexar comprovante", variant: "destructive" });
+                        } finally { setIsUploading(false); }
+                      }}
+                      isUploading={isUploading}
+                      onRefresh={fetchData}
+                      onSyncPayment={handleSyncPayment}
+                      onGeneratePayment={handleGeneratePayment}
+                  />
+               </div>
+             )}
+             {activeTab === 'quiosques' && renderKioskTab()}
+             {activeTab === 'quads' && renderQuadTab()}
+             {activeTab === 'vendas' && renderOrderTab()}
+             {activeTab === 'creditos' && (
+                <AdminCreditsTab credits={credits} fetchData={fetchData} toast={toast} />
+             )}
+          </div>
+       </div>
+
+       {/* DELETE DIALOG */}
+       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent className="rounded-3xl border-2 border-slate-300 shadow-2xl">
+             <AlertDialogHeader>
+                <div className="flex items-center gap-3 mb-4">
+                   <div className="w-12 h-12 rounded-2xl bg-red-100 flex items-center justify-center border-2 border-red-200">
+                      <AlertTriangle className="w-6 h-6 text-red-600" />
+                   </div>
+                   <AlertDialogTitle className="text-xl font-black text-slate-900">Confirmar ExclusíƒÂ£o</AlertDialogTitle>
+                </div>
+                <AlertDialogDescription className="text-slate-600 font-bold">
+                   Deseja realmente remover esta reserva? Esta aíƒÂ§íƒÂ£o níƒÂ£o pode ser desfeita e liberaríƒÂ¡ o horário/espaíƒÂ§o para novos clientes.
+                </AlertDialogDescription>
+             </AlertDialogHeader>
+             <AlertDialogFooter className="gap-2">
+                <AlertDialogCancel className="rounded-xl border-2 border-slate-200 bg-slate-100 font-black text-slate-700 hover:bg-slate-900 hover:text-white transition-all">Cancelar</AlertDialogCancel>
+                <Button onClick={confirmDelete} className="rounded-xl bg-red-600 hover:bg-red-700 text-white font-black h-10 px-6 shadow-md border-2 border-red-700">Sim, Excluir</Button>
+             </AlertDialogFooter>
+          </AlertDialogContent>
+       </AlertDialog>
+
+       {/* RESCHEDULE DIALOG */}
+       <Dialog open={!!rescheduleData} onOpenChange={(open) => !open && setRescheduleData(null)}>
+         <DialogContent className="rounded-[2rem] border-4 border-blue-200 shadow-3xl max-w-md bg-white p-0 overflow-hidden">
+           <div className="bg-blue-600 p-8 text-white">
+             <div className="flex items-center gap-4 mb-2">
+               <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm border border-white/30">
+                 <CalendarClock className="w-6 h-6" />
+               </div>
+               <div>
+                 <h3 className="text-xl font-black tracking-tight">Reagendar Reserva</h3>
+                 <p className="text-blue-100 text-xs font-bold uppercase tracking-wider">Selecione a nova data abaixo</p>
+               </div>
+             </div>
+           </div>
+           
+           <div className="p-8 space-y-6">
+             <div className="bg-slate-50 rounded-3xl border-2 border-slate-200 p-4 shadow-inner">
+                <Calendar
+                  mode="single"
+                  selected={rescheduleDate}
+                  onSelect={setRescheduleDate}
+                  locale={ptBR}
+                  className="rounded-2xl"
+                  toDate={new Date(2030, 11, 31)}
+                  fromDate={new Date(2024, 0, 1)}
+                  disabled={(date) => !isAllowedDay(date) || isBefore(date, startOfDay(new Date()))}
+                  classNames={{
+                    month: "space-y-4",
+                    caption: "flex justify-center pt-1 relative items-center mb-2 bg-blue-800 rounded-xl py-3 border-2 border-blue-900 shadow-lg w-full",
+                    caption_label: "text-sm font-black text-white uppercase tracking-widest",
+                    nav: "flex items-center justify-between absolute inset-x-0 inset-y-0 px-6 pointer-events-none z-30",
+                    nav_button: "h-10 w-10 bg-blue-500 text-white border border-blue-400 hover:bg-blue-400 shadow-lg rounded-xl transition-all pointer-events-auto flex items-center justify-center",
+                    nav_button_previous: "relative left-0",
+                    nav_button_next: "relative right-0",
+                    day_selected: "bg-amber-400 text-amber-950 font-black hover:bg-amber-500 shadow-md",
+                    day_today: "bg-blue-100 text-blue-900 font-bold"
+                  }}
+                  components={{
+                    DayContent: ({ date }) => {
+                      const dateStr = format(date, 'yyyy-MM-dd');
+                      const hasKiosk = (kioskReservations || []).some(r => r.reservation_date === dateStr);
+                      const hasQuad = (quadReservations || []).some(r => r.reservation_date === dateStr);
+                      const kiosksFull = (kioskReservations || []).filter(r => r.reservation_date === dateStr).length >= 5;
+                      const quadsFull = (quadReservations || []).filter(r => r.reservation_date === dateStr).reduce((s, r) => s + (Number(r.quantity) || 1), 0) >= 20;
+                      const isFull = kiosksFull && quadsFull;
+                      return (
+                        <div className={cn("relative flex flex-col items-center p-0.5 rounded w-full h-full justify-center", isFull && "bg-red-50/50")}>
+                          <span className={cn("text-[11px]", isFull && "text-red-600 font-black")}>{date.getDate()}</span>
+                          <div className="flex gap-0.5 mt-0.5">
+                            {hasKiosk && <div className={cn("w-1.5 h-1.5 rounded-full ring-1 ring-white/50", kiosksFull ? "bg-red-600" : "bg-emerald-600")} />}
+                            {hasQuad && <div className={cn("w-1.5 h-1.5 rounded-full ring-1 ring-white/50", quadsFull ? "bg-red-600" : "bg-blue-600")} />}
+                          </div>
+                        </div>
+                      );
+                    }
+                  }}
+                />
+             </div>
+             
+             <div className="flex gap-3">
+               <Button 
+                 variant="outline" 
+                 className="flex-1 h-12 rounded-2xl font-black border-2 border-slate-300 text-slate-600 hover:bg-slate-900 hover:text-white hover:border-slate-800 transition-all"
+                 onClick={() => setRescheduleData(null)}
+               >
+                 CANCELAR
+               </Button>
+               <Button 
+                 className="flex-1 h-12 rounded-2xl font-black bg-blue-600 hover:bg-blue-700 text-white shadow-lg border-2 border-blue-700"
+                 onClick={handleRescheduleConfirm}
+                 disabled={loading}
+               >
+                 {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'CONFIRMAR'}
+               </Button>
+             </div>
+           </div>
+         </DialogContent>
+       </Dialog>
+                  /* MODAL HIDDEN */
+        {/* Payment Modal for Admin PIX Generation */}
+        {selectedPaymentBooking && (
+          <PaymentModal
+            open={isPaymentModalOpen}
+            onOpenChange={setIsPaymentModalOpen}
+            orderId={selectedPaymentBooking.id}
+            name={selectedPaymentBooking.name || selectedPaymentBooking.customer_name}
+            email={selectedPaymentBooking.email || 'contato@balneariolessa.com.br'}
+            phone={selectedPaymentBooking.phone || selectedPaymentBooking.customer_phone}
+            cpf={selectedPaymentBooking.cpf || selectedPaymentBooking.customer_cpf}
+            totalAmount={selectedPaymentBooking.total_amount}
+            initialMethod="PIX"
+            onSuccess={() => {
+               fetchData();
+               setIsPaymentModalOpen(false);
+            }}
+          />
+        )}
+
+        {editingKioskGroup && (
+           <EditKioskDialog 
+             group={editingKioskGroup} 
+             onClose={() => setEditingKioskGroup(null)} 
+             onUpdated={() => fetchData()} 
+             updateOrderTotal={updateOrderTotal}
+           />
+        )}
+
+        {editingQuadItem && (
+           <EditQuadDialog 
+             item={editingQuadItem} 
+             onClose={() => setEditingQuadItem(null)} 
+             onUpdated={() => fetchData()} 
+             updateOrderTotal={updateOrderTotal}
+           />
+        )}
+    </div>
+
+  );
+}
+
+// Logic for Editing Kiosks
+function EditKioskDialog({ group, onClose, onUpdated, updateOrderTotal }: any) {
+  const [selectedKiosks, setSelectedKiosks] = useState<number[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [bookedIds, setBookedIds] = useState<number[]>([]);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const fetchOccupied = async () => {
+      const ids = await getBookedKioskIds(group.reservation_date);
+      // Exclude current kiosks from occupied list so they show as selectable
+      const currentIds = group.items.map((i: any) => i.kiosk_id).filter((id: any) => !isNaN(id)).map(Number);
+      setBookedIds(ids.filter(id => !currentIds.includes(id)));
+      setSelectedKiosks(currentIds);
+    };
+    fetchOccupied();
+  }, [group]);
+
+  const handleSave = async () => {
+    if (selectedKiosks.length !== group.items.length) {
+      toast({ title: 'AteníƒÂ§íƒÂ£o', description: `Selecione exatamente ${group.items.length} quiosque(s).`, variant: 'destructive' });
+      return;
+    }
+    setLoading(true);
+    try {
+      const orderId = group.items[0].order_id;
+      
+      for (let i = 0; i < group.items.length; i++) {
+        const item = group.items[i];
+        const newKioskId = selectedKiosks[i];
+        const newKiosk = KIOSKS.find(k => k.id === newKioskId);
+
+        await (supabase.from('kiosk_reservations') as any).update({
+          kiosk_id: newKioskId,
+          kiosk_type: newKiosk?.type === 'Maior' ? 'maior' : 'menor'
+        }).eq('id', item.id);
+
+        if (orderId && !String(orderId).startsWith('order-')) {
+          const newPrice = newKiosk?.type === 'Maior' ? 100 : 75;
+          const { data: oItems } = await supabase.from('order_items').select('*').eq('order_id', orderId);
+          const kioskItem = oItems?.find(oi => oi.product_id?.toLowerCase().includes('quiosque') || oi.product_name?.toLowerCase().includes('quiosque'));
+          
+          if (kioskItem) {
+             await supabase.from('order_items').update({ unit_price: newPrice }).eq('id', kioskItem.id);
+          }
+        }
+      }
+      
+      if (orderId) await updateOrderTotal(orderId);
+      toast({ title: 'Sucesso!', description: 'Quiosques atualizados.' });
+      onUpdated();
+      onClose();
+    } catch(e) { toast({ title: 'Erro', description: 'Falha ao atualizar.', variant: 'destructive' }); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-md bg-white rounded-3xl p-6">
+        <DialogHeader>
+          <DialogTitle className="text-xl font-black text-primary uppercase">Mudar Quiosques</DialogTitle>
+        </DialogHeader>
+        <div className="py-4 space-y-4">
+          <p className="text-xs font-bold text-muted-foreground uppercase">Selecione {group.items.length} unidades para a data {format(parseISO(group.reservation_date), 'dd/MM/yyyy')}:</p>
+          <div className="grid grid-cols-3 gap-2">
+            {[1, 2, 3, 4, 5].map(id => {
+              const kiosk = KIOSKS.find(k => k.id === id);
+              const isBooked = bookedIds.includes(id);
+              const isSelected = selectedKiosks.includes(id);
+              return (
+                <button
+                  key={id} disabled={isBooked || loading}
+                  onClick={() => {
+                    if (isSelected) setSelectedKiosks(prev => prev.filter(v => v !== id));
+                    else if (selectedKiosks.length < group.items.length) setSelectedKiosks(prev => [...prev, id]);
+                  }}
+                  className={cn("p-3 rounded-2xl flex flex-col items-center gap-1 transition-all border-2", 
+                    isBooked ? "bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed" :
+                    isSelected ? "bg-emerald-600 border-emerald-700 text-white shadow-lg scale-105" :
+                    "bg-white border-slate-100 hover:border-emerald-200 text-slate-700"
+                  )}
+                >
+                  <span className="text-[10px] font-black uppercase">{kiosk?.name.replace('QUIOSQUE - ', 'Q-')}</span>
+                  {isBooked && <span className="text-[8px] font-bold">OCUPADO</span>}
+                </button>
+              );
+            })}
+          </div>
+          <div className="pt-4 flex gap-2">
+             <Button variant="outline" className="flex-1 rounded-xl font-bold" onClick={onClose}>Cancelar</Button>
+             <Button className="flex-1 bg-primary rounded-xl font-black" onClick={handleSave} disabled={loading || selectedKiosks.length !== group.items.length}>
+               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Confirmar'}
+             </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EditQuadDialog({ item, onClose, onUpdated, updateOrderTotal }: any) {
+  const [model, setModel] = useState(item.quad_type || 'individual');
+  const [time, setTime] = useState(item.time_slot || '09:00');
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+
+  const handleSave = async () => {
+    setLoading(true);
+    try {
+      const orderId = item.order_id;
+      const discount = getQuadDiscount(new Date(item.reservation_date));
+      const prices: any = { individual: 150, dupla: 250, 'adulto-crianca': 200 };
+      const unitPrice = prices[model] * (1 - discount);
+      await (supabase.from('quad_reservations') as any).update({ quad_type: model, time_slot: time, price: unitPrice * (item.quantity || 1) }).eq('id', item.id);
+      if (orderId && !String(orderId).startsWith('order-')) {
+         const { data: oItems } = await supabase.from('order_items').select('*').eq('order_id', orderId);
+         const quadItem = oItems?.find(oi => oi.product_id?.toLowerCase().includes('quad') || oi.product_name?.toLowerCase().includes('quad'));
+         if (quadItem) {
+            const newMeta = { ...(quadItem.metadata || {}), time_slot: time };
+            await supabase.from('order_items').update({ unit_price: unitPrice, product_id: `Quadriciclo ${QUAD_MODELS_LABELS[model]}`, metadata: newMeta }).eq('id', quadItem.id);
+         }
+      }
+      if (orderId) await updateOrderTotal(orderId);
+      toast({ title: 'Sucesso!', description: 'Modelo atualizado.' });
+      onUpdated();
+      onClose();
+    } catch(e) { toast({ title: 'Erro', description: 'Falha ao atualizar.', variant: 'destructive' }); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-sm bg-white rounded-3xl p-6">
+        <DialogHeader>
+          <DialogTitle className="text-xl font-black text-primary uppercase">Mudar Modelo do Quad</DialogTitle>
+        </DialogHeader>
+        <div className="py-4 space-y-4">
+           <div className="space-y-1.5">
+              <Label className="text-[10px] font-black uppercase text-primary/60 ml-1">Modelo</Label>
+              <Select value={model} onValueChange={setModel}>
+                <SelectTrigger className="rounded-xl border-slate-200 h-12 font-black uppercase text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-white rounded-2xl shadow-xl">
+                  {Object.entries(QUAD_MODELS_LABELS).map(([k, v]) => (
+                    <SelectItem key={k} value={k} className="font-black uppercase text-xs py-3">{v}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+           </div>
+           <div className="pt-4 flex gap-2">
+             <Button variant="outline" className="flex-1 rounded-xl font-bold" onClick={onClose}>Cancelar</Button>
+             <Button className="flex-1 bg-primary rounded-xl font-black" onClick={handleSave} disabled={loading}>
+               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Confirmar'}
+             </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
