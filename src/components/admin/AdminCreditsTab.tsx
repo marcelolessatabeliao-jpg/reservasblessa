@@ -128,30 +128,42 @@ export function AdminCreditsTab({
 
     setLoading(true);
     try {
-      if (editingCredit) {
-        const { error } = await supabase.from('internal_credits').update({
-          customer_name: formData.name,
-          customer_phone: formData.phone,
-          customer_cpf: formData.cpf,
-          amount: parseFloat(formData.amount),
-          notes: formData.notes,
-          receipt_url: formData.receipt_url
-        }).eq('id', editingCredit.id);
-        if (error) throw error;
-        toast({ title: "✓ Crédito Atualizado!" });
-      } else {
-        const { error } = await supabase.from('internal_credits').insert({
-          customer_name: formData.name,
-          customer_phone: formData.phone,
-          customer_cpf: formData.cpf,
-          amount: parseFloat(formData.amount),
-          notes: formData.notes,
-          receipt_url: formData.receipt_url
-        });
-        if (error) throw error;
-        toast({ title: "✓ Crédito Adicionado!", description: `R$ ${formData.amount} para ${formData.name}` });
+      // Build payload — only include receipt_url if it has a value
+      // This avoids schema cache errors if the column hasn't been migrated yet
+      const basePayload: any = {
+        customer_name: formData.name,
+        customer_phone: formData.phone || null,
+        customer_cpf: formData.cpf || null,
+        amount: parseFloat(formData.amount),
+        notes: formData.notes || null,
+      };
+      if (formData.receipt_url) {
+        basePayload.receipt_url = formData.receipt_url;
       }
-      
+
+      const trySave = async (payload: any) => {
+        if (editingCredit) {
+          return supabase.from('internal_credits').update(payload).eq('id', editingCredit.id);
+        } else {
+          return supabase.from('internal_credits').insert(payload);
+        }
+      };
+
+      let { error } = await trySave(basePayload);
+
+      // If error is about receipt_url column not existing, retry without it
+      if (error && error.message?.includes('receipt_url')) {
+        const { receipt_url: _omit, ...payloadWithoutReceipt } = basePayload;
+        const result = await trySave(payloadWithoutReceipt);
+        error = result.error;
+        if (!error) {
+          toast({ title: "⚠️ Salvo sem comprovante", description: "Execute o SQL de migração no Supabase para habilitar comprovantes.", variant: "destructive" });
+        }
+      }
+
+      if (error) throw error;
+
+      toast({ title: editingCredit ? "✓ Crédito Atualizado!" : "✓ Crédito Adicionado!", description: editingCredit ? undefined : `R$ ${formData.amount} para ${formData.name}` });
       resetForm();
       fetchData();
     } catch (error: any) {

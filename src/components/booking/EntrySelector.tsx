@@ -217,38 +217,52 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
           { id: 'estudante', label: 'Estudante', sublabel: 'Lessa Estudante Pass', price: entryHalfStr, emoji: '🎓', bg: 'bg-violet-50', border: 'border-violet-100', selectedBg: 'bg-violet-100', selectedBorder: 'border-violet-500', priceColor: 'text-violet-700', labelColor: 'text-violet-900' },
           { id: 'servidor', label: 'Servidor Público', sublabel: 'Lessa Servidor Pass', price: entryHalfStr, emoji: '🏛️', bg: 'bg-indigo-50', border: 'border-indigo-100', selectedBg: 'bg-indigo-100', selectedBorder: 'border-indigo-500', priceColor: 'text-indigo-700', labelColor: 'text-indigo-900' },
           { id: 'aniversariante', label: 'Aniversariante', sublabel: 'Da semana · com comprovação', price: 'GRÁTIS', emoji: '🎂', bg: 'bg-amber-50', border: 'border-amber-100', selectedBg: 'bg-amber-100', selectedBorder: 'border-amber-500', priceColor: 'text-amber-700', labelColor: 'text-amber-900' },
-        ].filter(cat => !isSunday || cat.id !== 'solidaria');
+        ];
 
         return (
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-3 py-2">
             <div className="text-center mb-4">
               <h4 className="text-xl font-black text-primary uppercase tracking-tight">Monte seu Day Use no Balneário</h4>
               <p className="text-sm text-primary/60 font-bold italic">
-                {isSunday ? "R$ 50 Inteira (Solidária indisponível aos domingos)" : "R$ 50 ou R$ 25 Solidário/Especiais"}
+                {isSunday ? "R$ 50 ou R$ 25 Especiais" : "R$ 50 ou R$ 25 Solidário/Especiais"}
               </p>
             </div>
             <div className="grid grid-cols-2 gap-2">
               {categories.map((cat) => {
                 const isSelected = wizardData.category === cat.id;
+                const isSundayBlocked = isSunday && cat.id === 'solidaria';
                 return (
                   <div
                     key={cat.id}
                     className={cn(
-                      "flex flex-col items-center justify-center p-3.5 rounded-2xl border-2 transition-all cursor-pointer text-center gap-1.5 active:scale-95 select-none",
-                      isSelected ? `${cat.selectedBg} ${cat.selectedBorder} shadow-md scale-[1.02]` : `${cat.bg} ${cat.border} hover:scale-[1.01] hover:shadow-sm`
+                      "flex flex-col items-center justify-center p-3.5 rounded-2xl border-2 transition-all text-center gap-1 select-none relative overflow-hidden",
+                      isSundayBlocked
+                        ? "opacity-40 cursor-not-allowed grayscale bg-gray-50 border-gray-200"
+                        : cn(
+                            "cursor-pointer active:scale-95",
+                            isSelected
+                              ? `${cat.selectedBg} ${cat.selectedBorder} shadow-md scale-[1.02]`
+                              : `${cat.bg} ${cat.border} hover:scale-[1.01] hover:shadow-sm`
+                          )
                     )}
                     onClick={() => {
+                      if (isSundayBlocked) return;
                       setWizardData({ ...wizardData, category: cat.id });
                       if (cat.id === 'inteira') {
                         handleFinishWizard('inteira', false);
                       } else if (cat.id === 'solidaria') {
                         handleFinishWizard('inteira', true);
                       } else {
-                        setWizardStep(5); // Proof warning
+                        setWizardStep(5);
                       }
                     }}
                   >
-                    <span className="text-2xl leading-none">{cat.emoji}</span>
+                    {isSundayBlocked && (
+                      <span className="absolute top-1 left-1/2 -translate-x-1/2 text-[7px] font-black uppercase tracking-wide bg-gray-500 text-white px-2 py-0.5 rounded-full whitespace-nowrap z-10">
+                        Indisponível aos domingos
+                      </span>
+                    )}
+                    <span className={cn("text-2xl leading-none", isSundayBlocked && "mt-3.5")}>{cat.emoji}</span>
                     <div>
                       <span className={cn("block font-black text-sm leading-tight", cat.labelColor)}>{cat.label}</span>
                       <span className="block text-[9px] text-muted-foreground font-semibold leading-tight mt-0.5">{cat.sublabel}</span>
