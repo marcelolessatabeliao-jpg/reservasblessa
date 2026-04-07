@@ -142,9 +142,14 @@ export function InternalBookingAssistant({
       }
     } catch (err: any) {
       console.error('Internal Booking Catch:', err);
+      
+      const errorDetail = err?.context?.status 
+        ? `Status: ${err.context.status}` 
+        : err.message || 'Erro de rede ou CORS.';
+
       toast({ 
         title: 'ERRO CRÍTICO: FALHA DE CONEXÃO', 
-        description: err.message || 'Ocorreu um erro inesperado.', 
+        description: `Não foi possível alcançar o servidor. Detalhe: ${errorDetail}. Verifique se a Edge Function está publicada.`, 
         variant: 'destructive' 
       });
     } finally {
