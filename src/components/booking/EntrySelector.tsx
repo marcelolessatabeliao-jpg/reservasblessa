@@ -284,9 +284,6 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                       </>
                     )}
                   </div>
-                      {cat.price}
-                    </span>
-                  </div>
                 );
               })}
             </div>
