@@ -142,7 +142,7 @@ export function InternalBookingAssistant({
     } catch (err: any) {
       console.error('Internal Booking Catch:', err);
       toast({ 
-        title: 'Erro na Reserva', 
+        title: 'ERRO CRÍTICO: FALHA DE CONEXÃO', 
         description: err.message || 'Ocorreu um erro inesperado.', 
         variant: 'destructive' 
       });
