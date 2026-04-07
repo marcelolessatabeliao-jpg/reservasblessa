@@ -22,6 +22,7 @@ Deno.serve(async (req) => {
       children_free = 0,
       selected_kiosks = [],
       quads = [],
+      additionals = [],
       manual_discount = 0,
       manual_discount_type = 'unit',
       total_amount = 0
@@ -101,6 +102,19 @@ Deno.serve(async (req) => {
         quantity: q.quantity,
         unit_price: unitPrice,
         metadata: { time: q.time }
+      })
+    })
+    
+    // Serviços Adicionais
+    additionals.forEach((a: any) => {
+      if ((a.quantity || 0) <= 0) return
+      const labelMap: Record<string, string> = { pesca: 'Pesca Esportiva', 'futebol-sabao': 'Futebol de Sabão' }
+      const priceMap: Record<string, number> = { pesca: 20, 'futebol-sabao': 10 }
+      items.push({
+        order_id: orderId,
+        product_id: labelMap[a.type] || a.type,
+        quantity: a.quantity,
+        unit_price: priceMap[a.type] || 0
       })
     })
 

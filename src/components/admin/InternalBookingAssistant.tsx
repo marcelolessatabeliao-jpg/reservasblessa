@@ -67,6 +67,7 @@ export function InternalBookingAssistant({
     is_senior: 0, is_birthday: 0, children_free: 0,
     selected_kiosks: [] as number[],
     quads: [] as any[],
+    additionals: [] as any[],
     manual_discount: 0,
     manual_discount_type: 'unit' as 'unit' | 'percent',
     status: 'pending'
@@ -189,6 +190,11 @@ export function InternalBookingAssistant({
     quads.forEach(q => {
       const b = q.type === 'dupla' ? 250 : q.type === 'adulto-crianca' ? 200 : 150;
       total += (b * (1 - qD)) * q.quantity;
+    });
+
+    newBookingData.additionals.forEach(a => {
+      const price = a.type === 'pesca' ? 20 : 10;
+      total += price * a.quantity;
     });
     
     const disc = newBookingData.manual_discount_type === 'percent' ? (total * (manual_discount / 100)) : manual_discount;
@@ -595,6 +601,57 @@ export function InternalBookingAssistant({
                          </Button>
                        </div>
                     </div>
+                 </div>
+              </div>
+
+              <div className="bg-white/70 backdrop-blur-sm p-6 rounded-[2.5rem] border-2 border-emerald-50 shadow-sm space-y-5">
+                 <div className="flex items-center justify-between border-b border-emerald-100/50 pb-4">
+                    <h4 className="text-xs font-black text-emerald-950 uppercase tracking-widest flex items-center gap-3">
+                       <div className="p-2 bg-emerald-600 rounded-xl text-white shadow-lg shadow-emerald-200"><Tag className="w-4 h-4" /></div>
+                       4. Outros Serviços
+                    </h4>
+                 </div>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {[
+                      { id: 'pesca', label: 'Pesca Esportiva', price: 20, description: 'Acesso ao lago de pesca' },
+                      { id: 'futebol-sabao', label: 'Futebol de Sabão', price: 10, description: '30 min de diversão' }
+                    ].map(service => {
+                       const item = newBookingData.additionals.find(a => a.type === service.id);
+                       const qty = item ? item.quantity : 0;
+                       return (
+                          <div key={service.id} className={cn(
+                            "group relative md:col-span-1 bg-white border-2 rounded-2xl p-4 flex items-center justify-between transition-all",
+                            qty > 0 ? "border-emerald-500 shadow-md" : "border-slate-100"
+                          )}>
+                             <div className="flex flex-col">
+                                <span className="text-[11px] font-black text-slate-900 uppercase">{service.label}</span>
+                                <span className="text-[10px] font-bold text-emerald-600">R$ {service.price},00</span>
+                                <span className="text-[9px] text-slate-400 mt-0.5">{service.description}</span>
+                             </div>
+                             <div className="flex items-center gap-2 bg-slate-50 rounded-xl p-1 border border-slate-100">
+                                <button 
+                                  onClick={() => {
+                                    const newAdd = newBookingData.additionals.map(a => a.type === service.id ? {...a, quantity: Math.max(0, a.quantity - 1)} : a).filter(a => a.quantity > 0);
+                                    setNewBookingData({...newBookingData, additionals: newAdd});
+                                  }}
+                                  className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-sm font-black hover:bg-rose-500 hover:text-white">-</button>
+                                <span className="w-6 text-center text-sm font-black tabular-nums">{qty}</span>
+                                <button 
+                                  onClick={() => {
+                                    const existing = newBookingData.additionals.find(a => a.type === service.id);
+                                    let newAdd = [...newBookingData.additionals];
+                                    if (existing) {
+                                       newAdd = newAdd.map(a => a.type === service.id ? {...a, quantity: a.quantity + 1} : a);
+                                    } else {
+                                       newAdd.push({ type: service.id, quantity: 1 });
+                                    }
+                                    setNewBookingData({...newBookingData, additionals: newAdd});
+                                  }}
+                                  className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-sm font-black hover:bg-emerald-500 hover:text-white">+</button>
+                             </div>
+                          </div>
+                       );
+                    })}
                  </div>
               </div>
              </>
