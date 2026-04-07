@@ -35,13 +35,21 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # 4. Sincronizar Banco de Dados (Supabase)
-Write-Host "`n[4/4] Atualizando regras e tabelas do banco de dados (Supabase)..." -ForegroundColor Yellow
+Write-Host "`n[4/5] Atualizando regras e tabelas do banco de dados (Supabase)..." -ForegroundColor Yellow
 npx supabase db push
 if ($LASTEXITCODE -ne 0) {
     Write-Host "⚠️ Não foi possível sincronizar o banco. Se você não estiver autenticado, rode: npx supabase login" -ForegroundColor Red
-    Write-Host "Se você já vinculou o projeto antes, rode: npx supabase link --project-ref lcymbetnnuokrijynmjm" -ForegroundColor Yellow
 } else {
     Write-Host "✅ Banco de dados sincronizado perfeitamente!" -ForegroundColor Green
+}
+
+# 5. Sincronizar Edge Functions (Supabase)
+Write-Host "`n[5/5] Publicando funções de borda (Supabase Edge Functions)..." -ForegroundColor Yellow
+npx supabase functions deploy --project-ref lcymbetnnuokrijynmjm
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "❌ Falha ao publicar as Edge Functions. Verifique sua autenticação no Supabase." -ForegroundColor Red
+} else {
+    Write-Host "✅ Edge Functions publicadas e prontas para uso!" -ForegroundColor Green
 }
 
 Write-Host "`n===============================================" -ForegroundColor Cyan

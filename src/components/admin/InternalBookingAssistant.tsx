@@ -62,7 +62,7 @@ export function InternalBookingAssistant({
 
   const initialData = {
     name: '', phone: '', cpf: '', visit_date: '',
-    adults_normal: 1, adults_half: 0, is_teacher: 0, is_student: 0, 
+    adults_normal: 0, adults_half: 0, is_teacher: 0, is_student: 0, 
     is_server: 0, is_donor: 0, is_solidarity: 0, is_pcd: 0, is_tea: 0, 
     is_senior: 0, is_birthday: 0, children_free: 0,
     selected_kiosks: [] as number[],
