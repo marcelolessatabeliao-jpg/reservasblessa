@@ -137,7 +137,70 @@ Deno.serve(async (req) => {
       if (qErr) console.warn('Failed to save quad_reservations:', qErr.message)
     }
 
-    // 5. Se status = paid, gerar voucher
+    // 5. Se status = pending, gerar cobrança Asaas (PIX) para que o admin possa mostrar ao cliente
+    let pixData = null
+    if (orderStatus === 'pending') {
+      try {
+        const ASAAS_API_KEY = Deno.env.get('ASAAS_API_KEY')
+        if (ASAAS_API_KEY) {
+          const isLive = ASAAS_API_KEY.startsWith('aact_live_')
+          const ASAAS_URL = isLive ? 'https://www.asaas.com/api/v3' : 'https://sandbox.asaas.com/api/v3'
+          
+          // Criar/Vincular Cliente
+          const customerReq = await fetch(`${ASAAS_URL}/customers`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'access_token': ASAAS_API_KEY },
+            body: JSON.stringify({
+              name: name.trim(),
+              cpfCnpj: cpf ? cpf.replace(/\D/g, '') : null,
+              mobilePhone: phone ? phone.replace(/\D/g, '') : null
+            })
+          })
+          const customerData = await customerReq.json()
+          
+          if (customerReq.ok) {
+            // Gerar Cobrança PIX
+            const paymentReq = await fetch(`${ASAAS_URL}/payments`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'access_token': ASAAS_API_KEY },
+              body: JSON.stringify({
+                customer: customerData.id,
+                billingType: 'PIX',
+                value: total_amount,
+                dueDate: new Date().toISOString().split('T')[0],
+                description: `Reserva Interna - ${name.trim()}`,
+                externalReference: orderId
+              })
+            })
+            const paymentData = await paymentReq.json()
+            
+            if (paymentReq.ok) {
+              // Obter QR Code
+              const qrReq = await fetch(`${ASAAS_URL}/payments/${paymentData.id}/pixQrCode`, {
+                headers: { 'access_token': ASAAS_API_KEY }
+              })
+              const qrData = await qrReq.json()
+              if (qrReq.ok) {
+                pixData = { encodedImage: qrData.encodedImage, payload: qrData.payload }
+              }
+
+              // Registrar pagamento no Supabase
+              await supabase.from('payments').insert({
+                order_id: orderId,
+                gateway: 'asaas',
+                metodo: 'PIX',
+                status: 'pending',
+                external_id: paymentData.id
+              })
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Falha ao gerar PIX Asaas para reserva interna:', e.message)
+      }
+    }
+
+    // 6. Se status = paid, gerar voucher
     if (orderStatus === 'paid') {
       const code = order.confirmation_code || `BL-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
       await supabase.from('vouchers').insert({
@@ -155,14 +218,15 @@ Deno.serve(async (req) => {
       success: true,
       orderId,
       confirmationCode: order.confirmation_code,
-      status: orderStatus
+      status: orderStatus,
+      pix: pixData
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 
   } catch (err: any) {
     console.error('create-internal-order error:', err)
     return new Response(JSON.stringify({ success: false, error: err.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200
+      status: 400 // Mudado para 400 para que o invoke detecte o erro corretamente
     })
   }
 })

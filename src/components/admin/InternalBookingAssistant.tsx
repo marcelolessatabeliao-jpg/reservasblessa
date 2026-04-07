@@ -106,8 +106,15 @@ export function InternalBookingAssistant({
   }, [newBookingData.visit_date, maxQuads]);
 
   const handleCreateInternalBooking = async () => {
+    if (!newBookingData.name || !newBookingData.visit_date) {
+      toast({ title: 'Campos obrigatórios', description: 'Por favor, preencha o nome e a data.', variant: 'destructive' });
+      return;
+    }
+
     setLoading(true);
     try {
+      console.log('Sending internal booking request:', newBookingData);
+      
       const { data, error } = await supabase.functions.invoke('create-internal-order', {
         body: {
           ...newBookingData,
@@ -115,17 +122,30 @@ export function InternalBookingAssistant({
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Edge Function Error:', error);
+        throw new Error(error.message || 'Erro na comunicação com o servidor.');
+      }
       
+      if (data?.success === false) {
+        throw new Error(data.error || 'Falha ao criar reserva.');
+      }
+
       if (newBookingData.status === 'pending' && data?.pix) {
           setGeneratedPix(data.pix);
+          toast({ title: 'Sucesso!', description: 'Reserva criada e PIX gerado.' });
       } else {
           toast({ title: 'Sucesso!', description: 'Reserva criada com sucesso.' });
           setIsOpen(false);
           onBookingComplete();
       }
     } catch (err: any) {
-      toast({ title: 'Erro', description: err.message || 'Falha ao criar reserva.', variant: 'destructive' });
+      console.error('Internal Booking Catch:', err);
+      toast({ 
+        title: 'Erro na Reserva', 
+        description: err.message || 'Ocorreu um erro inesperado.', 
+        variant: 'destructive' 
+      });
     } finally {
       setLoading(false);
     }

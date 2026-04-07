@@ -235,11 +235,11 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                   <div
                     key={cat.id}
                     className={cn(
-                      "flex flex-col items-center justify-center p-3.5 rounded-2xl border-2 transition-all text-center gap-1 select-none relative overflow-hidden",
+                      "flex flex-col items-center justify-center rounded-2xl border-2 transition-all text-center select-none relative overflow-hidden",
                       isSundayBlocked
-                        ? "opacity-40 cursor-not-allowed grayscale bg-gray-50 border-gray-200"
+                        ? "cursor-not-allowed bg-gray-50 border-gray-200"
                         : cn(
-                            "cursor-pointer active:scale-95",
+                            "cursor-pointer active:scale-95 p-3.5 gap-1",
                             isSelected
                               ? `${cat.selectedBg} ${cat.selectedBorder} shadow-md scale-[1.02]`
                               : `${cat.bg} ${cat.border} hover:scale-[1.01] hover:shadow-sm`
@@ -257,17 +257,33 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                       }
                     }}
                   >
-                    {isSundayBlocked && (
-                      <span className="absolute top-1 left-1/2 -translate-x-1/2 text-[7px] font-black uppercase tracking-wide bg-gray-500 text-white px-2 py-0.5 rounded-full whitespace-nowrap z-10">
-                        Indisponível aos domingos
-                      </span>
+                    {isSundayBlocked ? (
+                      <>
+                        {/* Badge visível com cor — fora do filtro grayscale */}
+                        <span className="w-full text-center text-[8px] font-black uppercase tracking-wide bg-orange-500 text-white px-2 py-1 whitespace-nowrap">
+                          🚫 Indisponível aos domingos
+                        </span>
+                        {/* Conteúdo do card esmaecido */}
+                        <div className="flex flex-col items-center gap-1 p-3 opacity-40 grayscale w-full">
+                          <span className="text-2xl leading-none">{cat.emoji}</span>
+                          <div>
+                            <span className={cn("block font-black text-sm leading-tight", cat.labelColor)}>{cat.label}</span>
+                            <span className="block text-[9px] text-muted-foreground font-semibold leading-tight mt-0.5">{cat.sublabel}</span>
+                          </div>
+                          <span className={cn("text-xs font-black px-2.5 py-0.5 rounded-full bg-white/70 mt-0.5", cat.priceColor)}>{cat.price}</span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-2xl leading-none">{cat.emoji}</span>
+                        <div>
+                          <span className={cn("block font-black text-sm leading-tight", cat.labelColor)}>{cat.label}</span>
+                          <span className="block text-[9px] text-muted-foreground font-semibold leading-tight mt-0.5">{cat.sublabel}</span>
+                        </div>
+                        <span className={cn("text-xs font-black px-2.5 py-0.5 rounded-full bg-white/70 mt-0.5", cat.priceColor)}>{cat.price}</span>
+                      </>
                     )}
-                    <span className={cn("text-2xl leading-none", isSundayBlocked && "mt-3.5")}>{cat.emoji}</span>
-                    <div>
-                      <span className={cn("block font-black text-sm leading-tight", cat.labelColor)}>{cat.label}</span>
-                      <span className="block text-[9px] text-muted-foreground font-semibold leading-tight mt-0.5">{cat.sublabel}</span>
-                    </div>
-                    <span className={cn("text-xs font-black px-2.5 py-0.5 rounded-full bg-white/70 mt-0.5", cat.priceColor)}>
+                  </div>
                       {cat.price}
                     </span>
                   </div>
