@@ -241,7 +241,8 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                                             const dateStr = format(parseISO(booking.visit_date || new Date().toISOString()), "dd/MM/yyyy", { locale: ptBR });
                                                             const name = booking.name || (booking as any).customer_name;
                                                             
-                                                            const text = `🍀 *BALNEÁRIO FAMÍLIA LESSA*%0A%0AEsse é seu voucher de confirmação da sua reserva e o resumo do seu pedido para apresentar caso seja solicitado.%0A%0A📅 *Data:* ${dateStr}%0A👤 *Titular:* ${name}%0A%0A📝 *Resumo do Pedido:*%0A${itemsList}%0A%0A💰 *Total:* ${formatCurrency(booking.total_amount)}%0A%0AVoucher: https://reservas.balneariolessa.com.br/voucher/${booking.confirmation_code}%0A%0A✨ *Aguardamos vocês para o lazer que a sua família merece.*`;
+                                                            const message = `🌿 *BALNEÁRIO FAMÍLIA LESSA*\n\nEsse é seu voucher de confirmação da sua reserva e o resumo do seu pedido para apresentar caso seja solicitado.\n\n📅 *Data:* ${dateStr}\n👤 *Titular:* ${name}\n\n📝 *Resumo do Pedido:*\n${itemsList.replace(/%0A/g, '\n')}\n\n💰 *Total:* ${formatCurrency(booking.total_amount)}\n\nVoucher: https://reservas.balneariolessa.com.br/voucher/${booking.confirmation_code}\n\n✨ *Aguardamos vocês para o lazer que a sua família merece.*`;
+                                                            const text = encodeURIComponent(message);
                                                             
                                                             window.open("https://wa.me/55" + phone + "?text=" + text, '_blank'); 
                                                           } 
@@ -579,7 +580,8 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                                             const dateStr = format(parseISO(booking.visit_date || new Date().toISOString()), "dd/MM/yyyy", { locale: ptBR });
                                                             const name = booking.name || (booking as any).customer_name;
                                                             
-                                                            const text = `🍀 *BALNEÁRIO FAMÍLIA LESSA*%0A%0AEsse é seu voucher de confirmação da sua reserva e o resumo do seu pedido para apresentar caso seja solicitado.%0A%0A📅 *Data:* ${dateStr}%0A👤 *Titular:* ${name}%0A%0A📝 *Resumo do Pedido:*%0A${itemsList}%0A%0A💰 *Total:* ${formatCurrency(booking.total_amount)}%0A%0AVoucher: https://reservas.balneariolessa.com.br/voucher/${booking.confirmation_code}%0A%0A✨ *Aguardamos vocês para o lazer que a sua família merece.*`;
+                                                            const message = `🌿 *BALNEÁRIO FAMÍLIA LESSA*\n\nEsse é seu voucher de confirmação da sua reserva e o resumo do seu pedido para apresentar caso seja solicitado.\n\n📅 *Data:* ${dateStr}\n👤 *Titular:* ${name}\n\n📝 *Resumo do Pedido:*\n${itemsList.replace(/%0A/g, '\n')}\n\n💰 *Total:* ${formatCurrency(booking.total_amount)}\n\nVoucher: https://reservas.balneariolessa.com.br/voucher/${booking.confirmation_code}\n\n✨ *Aguardamos vocês para o lazer que a sua família merece.*`;
+                                                            const text = encodeURIComponent(message);
                                                             
                                                             window.open("https://wa.me/55" + phone + "?text=" + text, '_blank'); 
                                                           } 

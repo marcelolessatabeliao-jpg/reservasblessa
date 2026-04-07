@@ -62,9 +62,10 @@ export function InternalBookingAssistant({
 
   const initialData = {
     name: '', phone: '', cpf: '', visit_date: '',
-    adults_normal: 0, adults_half: 0, is_teacher: 0, is_student: 0, 
-    is_server: 0, is_donor: 0, is_solidarity: 0, is_pcd: 0, is_tea: 0, 
-    is_senior: 0, is_birthday: 0, children_free: 0,
+    adults_normal: 0, 
+    is_teacher: 0, is_student: 0, is_server: 0, is_solidarity: 0, 
+    is_pcd: 0, is_tea: 0, is_senior: 0, is_birthday: 0, 
+    children_free: 0,
     selected_kiosks: [] as number[],
     quads: [] as any[],
     additionals: [] as any[],
@@ -132,13 +133,20 @@ export function InternalBookingAssistant({
         throw new Error(data.error || 'Falha ao criar reserva.');
       }
 
+      toast({ 
+        title: 'Sucesso!', 
+        description: newBookingData.status === 'pending' && data?.pix ? 'Reserva criada e PIX gerado.' : 'Reserva criada com sucesso.',
+        variant: 'default'
+      });
+
       if (newBookingData.status === 'pending' && data?.pix) {
-          setGeneratedPix(data.pix);
-          toast({ title: 'Sucesso!', description: 'Reserva criada e PIX gerado.' });
+        setGeneratedPix(data.pix);
       } else {
-          toast({ title: 'Sucesso!', description: 'Reserva criada com sucesso.' });
-          setIsOpen(false);
-          onBookingComplete();
+        setIsOpen(false);
+      }
+
+      if (typeof onBookingComplete === 'function') {
+        onBookingComplete();
       }
     } catch (err: any) {
       console.error('Internal Booking Catch:', err);
@@ -172,7 +180,10 @@ export function InternalBookingAssistant({
       
       toast({ title: 'Sucesso!', description: 'Crédito interno gerado com sucesso.' });
       setIsOpen(false);
-      onBookingComplete();
+      
+      if (typeof onBookingComplete === 'function') {
+        onBookingComplete();
+      }
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message || 'Falha ao gerar crédito.', variant: 'destructive' });
     } finally {
@@ -182,12 +193,12 @@ export function InternalBookingAssistant({
 
   const calculateTotalRaw = () => {
     const { 
-      adults_normal, adults_half, is_teacher, is_student, is_server, is_donor, is_solidarity, 
+      adults_normal, is_teacher, is_student, is_server, is_solidarity, 
       selected_kiosks, quads, manual_discount, visit_date 
     } = newBookingData;
     
     let total = (adults_normal * 50) + 
-      ((adults_half + is_teacher + is_student + is_server + is_donor + is_solidarity) * 25);
+      ((is_teacher + is_student + is_server + is_solidarity) * 25);
       
     selected_kiosks.forEach(id => total += (id === 1 ? 100 : 75));
     
@@ -245,7 +256,7 @@ export function InternalBookingAssistant({
                 <div className="bg-white p-6 rounded-[2rem] shadow-2xl border-8 border-emerald-500/20">
                    <img src={`data:image/png;base64,${generatedPix.encodedImage}`} alt="QR" className="w-56 h-56" />
                 </div>
-                <Button onClick={() => { setIsOpen(false); setGeneratedPix(null); onBookingComplete(); }} className="w-full max-w-sm h-16 bg-emerald-950 text-white hover:bg-emerald-900 rounded-2xl font-black transition-all">CONCLUÍDO - FECHAR</Button>
+                <Button onClick={() => { setIsOpen(false); setGeneratedPix(null); if (typeof onBookingComplete === 'function') onBookingComplete(); }} className="w-full max-w-sm h-16 bg-emerald-950 text-white hover:bg-emerald-900 rounded-2xl font-black transition-all">CONCLUÍDO - FECHAR</Button>
              </div>
           ) : (
              <>
@@ -362,15 +373,13 @@ export function InternalBookingAssistant({
                    <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full uppercase tracking-wider">Múltiplas Categorias</span>
                 </div>
                 
-                <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3">
+                <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
                    {[
                       { k: 'adults_normal', l: 'Adulto', p: '50', icon: User, color: 'bg-blue-500' },
-                      { k: 'adults_half', l: 'Meia', p: '25', icon: GraduationCap, color: 'bg-amber-500' },
+                      { k: 'is_solidarity', l: 'Solid.', p: '25', icon: Gift, color: 'bg-orange-500' },
                       { k: 'is_teacher', l: 'Prof', p: '25', icon: GraduationCap, color: 'bg-emerald-500' },
                       { k: 'is_student', l: 'Estud.', p: '25', icon: GraduationCap, color: 'bg-indigo-500' },
-                      { k: 'is_server', l: 'Serv.', p: '25', icon: Accessibility, color: 'bg-rose-500' },
-                      { k: 'is_donor', l: 'Doad.', p: '25', icon: Gift, color: 'bg-red-500' },
-                      { k: 'is_solidarity', l: 'Solid.', p: '25', icon: Gift, color: 'bg-orange-500' }
+                      { k: 'is_server', l: 'Serv.', p: '25', icon: Accessibility, color: 'bg-rose-500' }
                    ].map(cat => {
                       const Icon = cat.icon;
                       const val = (newBookingData as any)[cat.k];
@@ -401,9 +410,9 @@ export function InternalBookingAssistant({
                       );
                    })}
                 </div>
-             </div>
+              </div>
 
-             <div className="flex flex-col gap-6">
+              <div className="flex flex-col gap-6">
                 <div className="bg-white/70 backdrop-blur-sm p-6 rounded-[2.5rem] border-2 border-emerald-50 shadow-sm space-y-5">
                    <div className="flex items-center justify-between border-b border-emerald-100/50 pb-4">
                       <h4 className="text-xs font-black text-emerald-950 uppercase tracking-widest flex items-center gap-3">
@@ -527,138 +536,138 @@ export function InternalBookingAssistant({
                       })}
                    </div>
                 </div>
-             </div>
 
-             <div className="bg-[#114030] p-6 lg:p-8 rounded-[2rem] shadow-xl text-white">
-                <h4 className="text-xs font-black text-emerald-100 uppercase tracking-widest flex items-center gap-2 pb-5 opacity-90">
-                   <Tag className="w-4 h-4" /> Ajustes e Status
-                </h4>
-                <div className="flex flex-col lg:flex-row gap-8 lg:gap-12 items-end">
-                   <div className="flex-1 space-y-6 w-full">
-                      <div className="space-y-2 flex flex-col">
-                         <label className="text-[10px] font-black text-emerald-200 uppercase tracking-widest border-l-2 border-emerald-400 pl-2">
-                           Desconto Manual ({newBookingData.manual_discount_type === 'percent' ? '%' : 'R$'})
-                         </label>
-                         <div className="flex gap-2">
-                           <Select value={newBookingData.manual_discount_type} onValueChange={(v:any) => setNewBookingData({...newBookingData, manual_discount_type: v, manual_discount: 0})}>
-                              <SelectTrigger className="w-[90px] h-14 bg-[#0a291f] border-[#185e46] text-white font-black text-sm rounded-xl focus:ring-emerald-500">
-                                 <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent className="bg-[#114030] text-emerald-100 border-[#185e46]">
-                                 <SelectItem value="unit" className="font-bold focus:bg-emerald-800">R$</SelectItem>
-                                 <SelectItem value="percent" className="font-bold focus:bg-emerald-800">%</SelectItem>
-                              </SelectContent>
-                           </Select>
-                           <Input 
-                              type="number" min="0" step="0.01"
-                              className="flex-1 h-14 bg-[#0a291f] border-[#185e46] text-white font-black text-xl rounded-xl focus-visible:ring-emerald-500 px-4 placeholder:text-emerald-800/80" 
-                              placeholder="0,00"
-                              value={newBookingData.manual_discount || ''}
-                              onChange={(e) => setNewBookingData({...newBookingData, manual_discount: Number(e.target.value) || 0})}
-                           />
-                         </div>
-                      </div>
-
-                      <div className="space-y-2 flex flex-col">
-                         <label className="text-[10px] font-black text-emerald-200 uppercase tracking-widest border-l-2 border-emerald-400 pl-2">Status de Pagamento</label>
-                         <Select value={newBookingData.status} onValueChange={(v:any) => setNewBookingData({...newBookingData, status: v})}>
-                            <SelectTrigger className="w-full h-14 bg-[#0a291f] border-[#185e46] text-white font-black text-sm rounded-xl focus:ring-emerald-500">
-                               <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent className="bg-[#114030] text-emerald-100 border-[#185e46]">
-                               <SelectItem value="pending" className="font-bold focus:bg-emerald-800">Aguardando Pagamento</SelectItem>
-                               <SelectItem value="paid" className="font-bold focus:bg-emerald-800">Confirmado / Pago Agora</SelectItem>
-                            </SelectContent>
-                         </Select>
-                      </div>
+                <div className="bg-white/70 backdrop-blur-sm p-6 rounded-[2.5rem] border-2 border-emerald-50 shadow-sm space-y-5">
+                   <div className="flex items-center justify-between border-b border-emerald-100/50 pb-4">
+                      <h4 className="text-xs font-black text-emerald-950 uppercase tracking-widest flex items-center gap-3">
+                         <div className="p-2 bg-emerald-600 rounded-xl text-white shadow-lg shadow-emerald-200"><Tag className="w-4 h-4" /></div>
+                         4. Outros Serviços
+                      </h4>
                    </div>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {[
+                        { id: 'pesca', label: 'Pesca Esportiva', price: 20, description: 'Acesso ao lago de pesca' },
+                        { id: 'futebol-sabao', label: 'Futebol de Sabão', price: 10, description: '30 min de diversão' }
+                      ].map(service => {
+                         const item = newBookingData.additionals.find(a => a.type === service.id);
+                         const qty = item ? item.quantity : 0;
+                         return (
+                            <div key={service.id} className={cn(
+                              "group relative md:col-span-1 bg-white border-2 rounded-2xl p-4 flex items-center justify-between transition-all",
+                              qty > 0 ? "border-emerald-500 shadow-md" : "border-slate-100"
+                            )}>
+                               <div className="flex flex-col">
+                                  <span className="text-[11px] font-black text-slate-900 uppercase">{service.label}</span>
+                                  <span className="text-[10px] font-bold text-emerald-600">R$ {service.price},00</span>
+                                  <span className="text-[9px] text-slate-400 mt-0.5">{service.description}</span>
+                               </div>
+                               <div className="flex items-center gap-2 bg-slate-50 rounded-xl p-1 border border-slate-100">
+                                  <button 
+                                    onClick={() => {
+                                      const newAdd = newBookingData.additionals.map(a => a.type === service.id ? {...a, quantity: Math.max(0, a.quantity - 1)} : a).filter(a => a.quantity > 0);
+                                      setNewBookingData({...newBookingData, additionals: newAdd});
+                                    }}
+                                    className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-sm font-black hover:bg-rose-500 hover:text-white">-</button>
+                                  <span className="w-6 text-center text-sm font-black tabular-nums">{qty}</span>
+                                  <button 
+                                    onClick={() => {
+                                      const existing = newBookingData.additionals.find(a => a.type === service.id);
+                                      let newAdd = [...newBookingData.additionals];
+                                      if (existing) {
+                                         newAdd = newAdd.map(a => a.type === service.id ? {...a, quantity: a.quantity + 1} : a);
+                                      } else {
+                                         newAdd.push({ type: service.id, quantity: 1 });
+                                      }
+                                      setNewBookingData({...newBookingData, additionals: newAdd});
+                                    }}
+                                    className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-sm font-black hover:bg-emerald-500 hover:text-white">+</button>
+                               </div>
+                            </div>
+                         );
+                      })}
+                   </div>
+                </div>
+              </div>
 
-                   <div className="flex-[1.2] flex flex-col items-end w-full">
-                      <div className="flex flex-col items-end mb-6">
-                         <span className="text-[10px] font-black uppercase tracking-widest text-emerald-300 opacity-80 border-r-2 border-emerald-400 pr-2 pb-1">Total da Reserva</span>
-                         <div className="flex items-baseline gap-2 mt-2">
-                            <span className="text-3xl font-black text-emerald-400 leading-none opacity-80">R$</span>
-                            <span className="text-7xl lg:text-[5.5rem] font-black tracking-tighter leading-none text-white drop-shadow-lg">
-                               {calculateTotalRaw().toFixed(2).replace('.', ',')}
-                            </span>
+              <div className="bg-[#114030] p-6 lg:p-8 rounded-[2rem] shadow-xl text-white">
+                 <h4 className="text-xs font-black text-emerald-100 uppercase tracking-widest flex items-center gap-2 pb-5 opacity-90">
+                    <Tag className="w-4 h-4" /> Ajustes e Status
+                 </h4>
+                 <div className="flex flex-col lg:flex-row gap-8 lg:gap-12 items-end">
+                    <div className="flex-1 space-y-6 w-full">
+                       <div className="space-y-2 flex flex-col">
+                          <label className="text-[10px] font-black text-emerald-200 uppercase tracking-widest border-l-2 border-emerald-400 pl-2">
+                            Desconto Manual ({newBookingData.manual_discount_type === 'percent' ? '%' : 'R$'})
+                          </label>
+                          <div className="flex gap-2">
+                            <Select value={newBookingData.manual_discount_type} onValueChange={(v:any) => setNewBookingData({...newBookingData, manual_discount_type: v, manual_discount: 0})}>
+                               <SelectTrigger className="w-[90px] h-14 bg-[#0a291f] border-[#185e46] text-white font-black text-sm rounded-xl focus:ring-emerald-500">
+                                  <SelectValue />
+                               </SelectTrigger>
+                               <SelectContent className="bg-[#114030] text-emerald-100 border-[#185e46]">
+                                  <SelectItem value="unit" className="font-bold focus:bg-emerald-800">R$</SelectItem>
+                                  <SelectItem value="percent" className="font-bold focus:bg-emerald-800">%</SelectItem>
+                               </SelectContent>
+                            </Select>
+                            <Input 
+                               type="number" min="0" step="0.01"
+                               className="flex-1 h-14 bg-[#0a291f] border-[#185e46] text-white font-black text-xl rounded-xl focus-visible:ring-emerald-500 px-4 placeholder:text-emerald-800/80" 
+                               placeholder="0,00"
+                               value={newBookingData.manual_discount || ''}
+                               onChange={(e) => setNewBookingData({...newBookingData, manual_discount: Number(e.target.value) || 0})}
+                            />
                           </div>
-                          <span className="text-[9.5px] font-bold text-emerald-400 mt-3 italic tracking-wide opacity-70">* Cálculo automático incluindo descontos do dia</span>
                        </div>
-                       
-                       <div className="flex flex-col gap-2 w-full">
-                         <Button onClick={handleCreateInternalBooking} disabled={loading || !newBookingData.name} className="w-full h-16 bg-emerald-300 hover:bg-white text-emerald-950 rounded-2xl font-black text-base uppercase shadow-xl transition-all active:scale-95 group overflow-hidden border-2 border-emerald-400">
-                            {loading ? <Loader2 className="w-6 h-6 animate-spin mx-auto" /> : 
-                               <div className="flex items-center justify-center gap-3">
-                                  <span>Concluir Reserva</span>
-                                  <div className="w-8 h-8 bg-emerald-950 text-emerald-300 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
-                                     <Check className="w-5 h-5" />
-                                  </div>
-                               </div>
-                            }
-                         </Button>
-                         <Button onClick={handleCreateCredit} disabled={loading || !newBookingData.name} variant="outline" className="w-full h-14 bg-white hover:bg-emerald-50 text-emerald-800 border-2 border-emerald-200 rounded-2xl font-black text-xs uppercase shadow-sm transition-all active:scale-95 group">
-                            {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 
-                               <div className="flex items-center justify-center gap-2">
-                                  <Gift className="w-4 h-4 text-emerald-600" />
-                                  <span>Adicionar aos Créditos</span>
-                               </div>
-                            }
-                         </Button>
+
+                       <div className="space-y-2 flex flex-col">
+                          <label className="text-[10px] font-black text-emerald-200 uppercase tracking-widest border-l-2 border-emerald-400 pl-2">Status de Pagamento</label>
+                          <Select value={newBookingData.status} onValueChange={(v:any) => setNewBookingData({...newBookingData, status: v})}>
+                             <SelectTrigger className="w-full h-14 bg-[#0a291f] border-[#185e46] text-white font-black text-sm rounded-xl focus:ring-emerald-500">
+                                <SelectValue />
+                             </SelectTrigger>
+                             <SelectContent className="bg-[#114030] text-emerald-100 border-[#185e46]">
+                                <SelectItem value="pending" className="font-bold focus:bg-emerald-800">Aguardando Pagamento</SelectItem>
+                                <SelectItem value="paid" className="font-bold focus:bg-emerald-800">Confirmado / Pago Agora</SelectItem>
+                             </SelectContent>
+                          </Select>
                        </div>
                     </div>
-                 </div>
-              </div>
 
-              <div className="bg-white/70 backdrop-blur-sm p-6 rounded-[2.5rem] border-2 border-emerald-50 shadow-sm space-y-5">
-                 <div className="flex items-center justify-between border-b border-emerald-100/50 pb-4">
-                    <h4 className="text-xs font-black text-emerald-950 uppercase tracking-widest flex items-center gap-3">
-                       <div className="p-2 bg-emerald-600 rounded-xl text-white shadow-lg shadow-emerald-200"><Tag className="w-4 h-4" /></div>
-                       4. Outros Serviços
-                    </h4>
-                 </div>
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {[
-                      { id: 'pesca', label: 'Pesca Esportiva', price: 20, description: 'Acesso ao lago de pesca' },
-                      { id: 'futebol-sabao', label: 'Futebol de Sabão', price: 10, description: '30 min de diversão' }
-                    ].map(service => {
-                       const item = newBookingData.additionals.find(a => a.type === service.id);
-                       const qty = item ? item.quantity : 0;
-                       return (
-                          <div key={service.id} className={cn(
-                            "group relative md:col-span-1 bg-white border-2 rounded-2xl p-4 flex items-center justify-between transition-all",
-                            qty > 0 ? "border-emerald-500 shadow-md" : "border-slate-100"
-                          )}>
-                             <div className="flex flex-col">
-                                <span className="text-[11px] font-black text-slate-900 uppercase">{service.label}</span>
-                                <span className="text-[10px] font-bold text-emerald-600">R$ {service.price},00</span>
-                                <span className="text-[9px] text-slate-400 mt-0.5">{service.description}</span>
-                             </div>
-                             <div className="flex items-center gap-2 bg-slate-50 rounded-xl p-1 border border-slate-100">
-                                <button 
-                                  onClick={() => {
-                                    const newAdd = newBookingData.additionals.map(a => a.type === service.id ? {...a, quantity: Math.max(0, a.quantity - 1)} : a).filter(a => a.quantity > 0);
-                                    setNewBookingData({...newBookingData, additionals: newAdd});
-                                  }}
-                                  className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-sm font-black hover:bg-rose-500 hover:text-white">-</button>
-                                <span className="w-6 text-center text-sm font-black tabular-nums">{qty}</span>
-                                <button 
-                                  onClick={() => {
-                                    const existing = newBookingData.additionals.find(a => a.type === service.id);
-                                    let newAdd = [...newBookingData.additionals];
-                                    if (existing) {
-                                       newAdd = newAdd.map(a => a.type === service.id ? {...a, quantity: a.quantity + 1} : a);
-                                    } else {
-                                       newAdd.push({ type: service.id, quantity: 1 });
-                                    }
-                                    setNewBookingData({...newBookingData, additionals: newAdd});
-                                  }}
-                                  className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-sm font-black hover:bg-emerald-500 hover:text-white">+</button>
-                             </div>
-                          </div>
-                       );
-                    })}
-                 </div>
-              </div>
+                    <div className="flex-[1.2] flex flex-col items-end w-full">
+                       <div className="flex flex-col items-end mb-6">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-emerald-300 opacity-80 border-r-2 border-emerald-400 pr-2 pb-1">Total da Reserva</span>
+                          <div className="flex items-baseline gap-2 mt-2">
+                             <span className="text-3xl font-black text-emerald-400 leading-none opacity-80">R$</span>
+                             <span className="text-7xl lg:text-[5.5rem] font-black tracking-tighter leading-none text-white drop-shadow-lg">
+                                {calculateTotalRaw().toFixed(2).replace('.', ',')}
+                             </span>
+                           </div>
+                           <span className="text-[9.5px] font-bold text-emerald-400 mt-3 italic tracking-wide opacity-70">* Cálculo automático incluindo descontos do dia</span>
+                        </div>
+                        
+                        <div className="flex flex-col gap-2 w-full">
+                          <Button onClick={handleCreateInternalBooking} disabled={loading || !newBookingData.name} className="w-full h-16 bg-emerald-300 hover:bg-white text-emerald-950 rounded-2xl font-black text-base uppercase shadow-xl transition-all active:scale-95 group overflow-hidden border-2 border-emerald-400">
+                             {loading ? <Loader2 className="w-6 h-6 animate-spin mx-auto" /> : 
+                                <div className="flex items-center justify-center gap-3">
+                                   <span>Concluir Reserva</span>
+                                   <div className="w-8 h-8 bg-emerald-950 text-emerald-300 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                                      <Check className="w-5 h-5" />
+                                   </div>
+                                </div>
+                             }
+                          </Button>
+                          <Button onClick={handleCreateCredit} disabled={loading || !newBookingData.name} variant="outline" className="w-full h-14 bg-white hover:bg-emerald-50 text-emerald-800 border-2 border-emerald-200 rounded-2xl font-black text-xs uppercase shadow-sm transition-all active:scale-95 group">
+                             {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 
+                                <div className="flex items-center justify-center gap-2">
+                                   <Gift className="w-4 h-4 text-emerald-600" />
+                                   <span>Adicionar aos Créditos</span>
+                                </div>
+                             }
+                          </Button>
+                        </div>
+                     </div>
+                  </div>
+               </div>
              </>
           )}
         </div>
