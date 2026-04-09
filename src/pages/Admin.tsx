@@ -146,7 +146,9 @@ export default function Admin() {
   const [isCapacityUnlocked, setIsCapacityUnlocked] = useState(false);
   const [agendaSubTab, setAgendaSubTab] = useState<'hoje' | 'futuras' | 'historico'>('hoje');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [expandedQuadGroupId, setExpandedQuadGroupId] = useState<string | null>(null);
+  const [lastSync, setLastSync] = useState<Date>(new Date());
   const { toast } = useToast();
 
   // Data States
@@ -165,7 +167,6 @@ export default function Admin() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{item: any, type: 'kiosk' | 'quad' | 'order' | 'reservas'} | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   
   
   
@@ -421,6 +422,7 @@ export default function Admin() {
         }
       });
       setTotals({ adults: tAdults, children: tChildren });
+      setLastSync(new Date());
 
     } catch (err) {
       console.error(err);
@@ -431,11 +433,29 @@ export default function Admin() {
   }, [toast]);
 
   useEffect(() => {
-    {
-      fetchData();
-      const channel = supabase.channel("admin_changes").on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => fetchData()).on("postgres_changes", { event: "*", schema: "public", table: "order_items" }, () => fetchData()).on("postgres_changes", { event: "*", schema: "public", table: "bookings" }, () => fetchData()).on("postgres_changes", { event: "*", schema: "public", table: "kiosk_reservations" }, () => fetchData()).on("postgres_changes", { event: "*", schema: "public", table: "quad_reservations" }, () => fetchData()).subscribe();
-      return () => { supabase.removeChannel(channel); };
-    }
+    if (!token) return;
+
+    console.log("[Admin] Setting up real-time subscriptions...");
+    fetchData();
+
+    const channel = supabase.channel("admin_changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, (payload) => {
+        console.log("[Admin] Change detected in orders:", payload);
+        fetchData();
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "order_items" }, () => fetchData())
+      .on("postgres_changes", { event: "*", schema: "public", table: "bookings" }, () => fetchData())
+      .on("postgres_changes", { event: "*", schema: "public", table: "kiosk_reservations" }, () => fetchData())
+      .on("postgres_changes", { event: "*", schema: "public", table: "quad_reservations" }, () => fetchData())
+      .on("postgres_changes", { event: "*", schema: "public", table: "payments" }, () => fetchData())
+      .subscribe((status) => {
+        console.log("[Admin] Subscription status:", status);
+      });
+
+    return () => { 
+      console.log("[Admin] Cleaning up subscriptions...");
+      supabase.removeChannel(channel); 
+    };
   }, [token, fetchData]);
 
   // --- ACTIONS ---
@@ -1807,7 +1827,13 @@ export default function Admin() {
                              <span className="text-4xl md:text-4xl md:text-5xl text-[#FFF033] shadow-md">Painel</span>
                           </div>
                        </h1>
-                     <p className="text-[#FFF033] font-black uppercase tracking-[0.2em] md:tracking-[0.3em] text-[8px] md:text-[10px] bg-[#FFF033]/10 w-fit px-3 py-1 rounded-full border border-[#FFF033]/30 backdrop-blur-sm">Gestão Integrada de Reservas - Balneário</p>
+                     <p className="text-[#FFF033] font-black uppercase tracking-[0.2em] md:tracking-[0.3em] text-[8px] md:text-[10px] bg-[#FFF033]/10 w-fit px-3 py-1 rounded-full border border-[#FFF033]/30 backdrop-blur-sm mb-2">Gestão Integrada de Reservas - Balneário</p>
+                      
+                      <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 backdrop-blur-md w-fit animate-pulse">
+                        <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                        <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">Live Sync Ativo</span>
+                        <span className="text-[8px] font-bold text-emerald-500/60 lowercase ml-1">{format(lastSync, "HH:mm:ss")}</span>
+                      </div>
                  </div>
 
                  {/* MOBILE BUTTONS (TOP RIGHT) */}
