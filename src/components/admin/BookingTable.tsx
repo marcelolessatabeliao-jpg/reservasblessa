@@ -9,7 +9,7 @@ import {
   Users, Calendar, Upload, FileCheck, Loader2,
   CalendarClock, StickyNote, CalendarRange,
   Search, Filter, MapPin, Phone, CreditCard, ChevronRight,
-  Calendar as CalendarIcon, RotateCcw, Wallet
+  Calendar as CalendarIcon, RotateCcw, Wallet, RefreshCw
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -259,6 +259,15 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                         >
                                           <QrCode className="w-4 h-4" />
                                           PIX
+                                        </Button>
+                                      )}
+                                      {onSyncPayment && ['pending', 'awaiting_payment', 'aguardando pgto', 'waiting_local', 'waiting_confirmation'].includes(booking.status?.toLowerCase() || '') && (
+                                        <Button 
+                                          onClick={(e) => { e.stopPropagation(); onSyncPayment(booking.id); }} 
+                                          className="bg-blue-600 hover:bg-blue-700 text-white h-12 rounded-xl text-[9px] font-black uppercase shadow-sm flex flex-col items-center justify-center gap-0.5 transition-all hover:scale-105 active:scale-95"
+                                        >
+                                          <RefreshCw className="w-4 h-4" />
+                                          Sincronizar
                                         </Button>
                                       )}
                                       <Button onClick={(e) => {e.stopPropagation(); onStatusChange(booking.id, 'paid', booking.is_order);}} className="bg-emerald-600 hover:bg-emerald-700 text-white h-12 rounded-xl text-[9px] font-black uppercase shadow-sm flex flex-col items-center justify-center">Efetivar</Button>
@@ -591,7 +600,17 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                                         <FileCheck className="w-4 h-4 md:w-5 md:h-5" /> 
                                                         <span>VOUCHER</span>
                                                      </Button>
+                                                     {onSyncPayment && ['pending', 'awaiting_payment', 'aguardando pgto', 'waiting_local', 'waiting_confirmation'].includes(booking.status?.toLowerCase() || '') && (
+                                                       <Button 
+                                                         onClick={(e) => { e.stopPropagation(); onSyncPayment(booking.id); }}
+                                                         className="bg-blue-100 text-blue-900 border-b-4 border-blue-300 hover:border-b-0 hover:translate-y-[2px] hover:bg-blue-600 hover:text-white shadow-md transition-all duration-300 font-black uppercase text-[9px] md:text-[10px] h-14 md:h-16 rounded-2xl flex flex-col items-center justify-center gap-1 w-full p-0"
+                                                       >
+                                                         <RefreshCw className="w-4 h-4 md:w-5 md:h-5" /> 
+                                                         <span>SYNC ASAAS</span>
+                                                       </Button>
+                                                     )}
                                                   </div>
+
                                                </div>
                                             </div>
                                          </div>

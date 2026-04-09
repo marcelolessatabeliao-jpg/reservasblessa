@@ -1799,6 +1799,18 @@ export default function Admin() {
                                  {updatingId === order.id ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Efetivar'}
                                </Button>
                             )}
+                            {order.status !== 'paid' && order.status !== 'pago' && (
+                               <Button 
+                                  size="icon" 
+                                  variant="outline" 
+                                  className="h-8 w-8 text-blue-600 border-blue-200 hover:bg-blue-50" 
+                                  disabled={updatingId === order.id}
+                                  title="Verificar Pagamento no Asaas"
+                                  onClick={() => handleSyncPayment(order.id)}
+                                >
+                                  {updatingId === order.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                                </Button>
+                            )}
                              <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500" onClick={() => requestDelete(order, 'order')} title="Excluir"><Trash2 className="w-4 h-4" /></Button>
                          </div>
                       </td>
@@ -2043,6 +2055,8 @@ export default function Admin() {
                       }}
                       onRemoveItem={() => {}}
                       updatingId={updatingId}
+                      onSyncPayment={handleSyncPayment}
+
                       onRemoveReceipt={async (bookingId) => {
                         await supabase.from('bookings').update({ receipt_url: null }).eq('id', bookingId);
                         fetchData();
@@ -2066,7 +2080,6 @@ export default function Admin() {
                       }}
                       isUploading={isUploading}
                       onRefresh={fetchData}
-                      onSyncPayment={handleSyncPayment}
                       onGeneratePayment={handleGeneratePayment}
                   />
                </div>
