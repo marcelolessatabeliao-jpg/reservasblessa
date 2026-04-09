@@ -464,6 +464,8 @@ export default function Admin() {
     setToken(null);
   };
 
+
+
   const startEditing = (item: any) => {
     setEditingId(item.id);
     setEditData({ ...item });
@@ -566,7 +568,7 @@ export default function Admin() {
         await updateOrderTotal(editData.order_id);
       }
       
-      toast({ title: "✓ AlteraíƒÂ§íƒÂµes salvas" });
+      toast({ title: "✓ Alterações salvas" });
       setEditingId(null);
       setEditData({});
       await fetchData();
@@ -599,10 +601,10 @@ export default function Admin() {
           toast({ title: "Pagamento Sincronizado!", description: `Status: ${data.status}. O pedido foi marcado como PAGO.` });
           fetchData();
         } else {
-          toast({ title: "SincronizaíƒÂ§íƒÂ£o ConcluíƒÂ­da", description: `Status: ${data.status}. Nenhuma alteraíƒÂ§íƒÂ£o necessíƒÂ¡ria.` });
+          toast({ title: "Sincronização Concluída", description: `Status: ${data.status}. Nenhuma alteração necessária.` });
         }
       } else {
-        toast({ title: "Erro na SincronizaíƒÂ§íƒÂ£o", description: data?.error || "Erro desconhecido", variant: "destructive" });
+        toast({ title: "Erro na Sincronização", description: data?.error || "Erro desconhecido", variant: "destructive" });
       }
     } catch (err: any) {
       console.error('Sync error:', err);
@@ -711,7 +713,7 @@ export default function Admin() {
       ));
       
       const hasError = results.some(r => r.error);
-      if (hasError) throw new Error('Algumas atualizaíƒÂ§íƒÂµes falharam');
+      if (hasError) throw new Error('Algumas atualizações falharam');
       
       toast({ title: '✓ Reagendado com sucesso' });
       fetchData();
@@ -778,7 +780,7 @@ export default function Admin() {
       const isOrder = resId.toString().startsWith('order-');
       if (isOrder) {
          // It's a virtual reservation from an order, we might need to update the order instead or just toast
-         toast({ title: "Esta íƒÂ© uma reserva de pedido. O comprovante deve ser anexado ao pedido na aba Reservas." });
+         toast({ title: "Esta é uma reserva de pedido. O comprovante deve ser anexado ao pedido na aba Reservas." });
       } else {
          const { error: updateError } = await supabase.from('kiosk_reservations').update({ receipt_url: publicUrl }).eq('id', resId);
          if (updateError) throw updateError;
@@ -800,7 +802,7 @@ export default function Admin() {
       
       const isOrder = resId.toString().startsWith('order-');
       if (isOrder) {
-         toast({ title: "Esta íƒÂ© uma reserva de pedido. O comprovante deve ser anexado ao pedido na aba Reservas." });
+         toast({ title: "Esta é uma reserva de pedido. O comprovante deve ser anexado ao pedido na aba Reservas." });
       } else {
          const { error: updateError } = await supabase.from('quad_reservations').update({ receipt_url: publicUrl }).eq('id', resId);
          if (updateError) throw updateError;
