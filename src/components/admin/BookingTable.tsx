@@ -165,7 +165,7 @@ const getStatusConfig = (booking: any) => {
         payment.metodo === "DEBIT_CARD" ||
         payment.metodo === "cartao"
       )
-        return { ...baseConfig, label: "PAGO VIA CARTÃƒÆ’O" };
+        return { ...baseConfig, label: "PAGO VIA CARTÃ’O" };
     }
   }
   return baseConfig;
@@ -221,7 +221,7 @@ export function BookingTable({
     if (
       action === "delete" &&
       !confirm(
-        `AtenÃƒÂ§ÃƒÂ£o: VocÃƒÂª irÃƒÂ¡ apagar permanentemente ${ids.length} reservas. Continuar?`,
+        `Atenção: Você irá apagar permanentemente ${ids.length} reservas. Continuar?`,
       )
     )
       return;
@@ -446,7 +446,7 @@ export function BookingTable({
                       </div>
                       <div className="space-y-3">
                         <p className="text-[9px] font-black uppercase tracking-widest text-emerald-700/60 pl-1">
-                          AÃƒÂ§ÃƒÂµes e Controle
+                          Ações e Controle
                         </p>
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                           <Button
@@ -626,12 +626,12 @@ export function BookingTable({
                     className="w-5 h-5 border-emerald-800 bg-emerald-900 shadow-sm cursor-pointer accent-emerald-500 rounded-md"
                   />
                 </th>
-                <th className="p-5">Agenda / OperaÃƒÂ§ÃƒÂ£o</th>
-                <th className="p-5">IdentificaÃƒÂ§ÃƒÂ£o Cliente</th>
-                <th className="p-5 text-center">ConfiguraÃƒÂ§ÃƒÂ£o</th>
+                <th className="p-5">Agenda / Operação</th>
+                <th className="p-5">Identificação Cliente</th>
+                <th className="p-5 text-center">Configuração</th>
                 <th className="p-5 text-right">Financeiro TOTAL</th>
                 <th className="p-5 text-center opacity-0 w-20 rounded-r-2xl">
-                  AÃƒÂ§ÃƒÂµes
+                  Ações
                 </th>
               </tr>
             </thead>
@@ -747,7 +747,7 @@ export function BookingTable({
                             </span>
                             {booking.is_associado && (
                               <Badge className="bg-amber-100 text-amber-700 border-none text-[8px] font-black uppercase px-2 h-4 rounded-full">
-                                SÃƒÂ³cio
+                                Sócio
                               </Badge>
                             )}
                           </div>
@@ -806,7 +806,7 @@ export function BookingTable({
                             </div>
 
                             <div className="flex flex-col gap-6 w-full">
-                              {/* AÃƒÂ§ÃƒÂµes RÃƒÂ¡pidas - Ocupa 100% da largura em uma linha */}
+                              {/* Ações Rápidas - Ocupa 100% da largura em uma linha */}
                               <div className="w-full space-y-6">
                                 <div className="bg-white p-6 md:p-8 rounded-[2rem] shadow-xl border border-slate-200 flex flex-col justify-between space-y-8 relative overflow-hidden group">
                                   <div className="relative z-10 space-y-6">
@@ -817,7 +817,7 @@ export function BookingTable({
                                         </div>
                                         <div>
                                           <h4 className="text-[8px] font-black uppercase text-emerald-700/60 tracking-widest text-[#064e3b]">
-                                            AÃƒÂ§ÃƒÂµes RÃƒÂ¡pidas
+                                            Ações Rápidas
                                           </h4>
                                           <p className="text-base font-extrabold text-emerald-950">
                                             Controle de Reserva
@@ -1163,7 +1163,7 @@ export function BookingTable({
                                           setNoteText(e.target.value)
                                         }
                                         className="rounded-2xl border-white/20 min-h-[80px] text-xs p-4 bg-black/20 text-white placeholder:text-white/30 focus:border-emerald-500 focus:ring-emerald-500/20"
-                                        placeholder="Digite aqui anotaÃƒÂ§ÃƒÂµes, detalhes de reagendamentos ou avisos importantes..."
+                                        placeholder="Digite aqui anotações, detalhes de reagendamentos ou avisos importantes..."
                                       />
                                       <div className="flex gap-3">
                                         <Button
@@ -1204,7 +1204,7 @@ export function BookingTable({
                                         <div className="flex items-center gap-2 text-white/30">
                                           <Plus className="w-4 h-4" />
                                           <span className="text-[10px] font-black uppercase tracking-wider">
-                                            Adicionar anotaÃƒÂ§ÃƒÂ£o
+                                            Adicionar anotação
                                           </span>
                                         </div>
                                       )}
