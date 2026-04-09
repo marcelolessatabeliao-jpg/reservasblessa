@@ -67,7 +67,7 @@ const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secon
   pending: { label: 'PENDENTE', variant: 'outline', icon: Clock, color: 'text-amber-600', bgColor: 'bg-amber-50', borderColor: 'border-amber-200' },
   waiting_local: { label: 'WHATSAPP', variant: 'outline', icon: Clock, color: 'text-blue-600', bgColor: 'bg-blue-50', borderColor: 'border-blue-200' },
   paid: { label: 'PAGO OK', variant: 'secondary', icon: CheckCircle, color: 'text-emerald-700', bgColor: 'bg-emerald-50', borderColor: 'border-emerald-200' },
-  'checked-in': { label: 'CHECK-IN ✓', variant: 'default', icon: UserCheck, color: 'text-white', bgColor: 'bg-emerald-600', borderColor: 'border-emerald-700' },
+  'checked-in': { label: 'CHECK-IN Ã¢Å“â€œ', variant: 'default', icon: UserCheck, color: 'text-white', bgColor: 'bg-emerald-600', borderColor: 'border-emerald-700' },
   cancelled: { label: 'CANCELADA', variant: 'destructive', icon: XCircle, color: 'text-red-600', bgColor: 'bg-red-50', borderColor: 'border-red-200' },
   awaiting_payment: { label: 'AGUARDANDO PGTO', variant: 'outline', icon: Clock, color: 'text-amber-600', bgColor: 'bg-amber-50', borderColor: 'border-amber-200' },
 };
@@ -80,7 +80,7 @@ const getStatusConfig = (booking: any) => {
     if (payment) {
       if (payment.metodo === 'PIX') return { ...baseConfig, label: 'PAGO VIA PIX' };
       if (payment.metodo === 'CREDIT_CARD' || payment.metodo === 'DEBIT_CARD' || payment.metodo === 'cartao') 
-        return { ...baseConfig, label: 'PAGO VIA CARTÃO' };
+        return { ...baseConfig, label: 'PAGO VIA CARTÃƒÆ’O' };
     }
   }
   return baseConfig;
@@ -118,7 +118,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
   const handleBulkAction = async (action: 'confirm' | 'cancel' | 'delete') => {
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
-    if (action === 'delete' && !confirm(`Atenção: Você irá apagar permanentemente ${ids.length} reservas. Continuar?`)) return;
+    if (action === 'delete' && !confirm(`AtenÃƒÂ§ÃƒÂ£o: VocÃƒÂª irÃƒÂ¡ apagar permanentemente ${ids.length} reservas. Continuar?`)) return;
     
     for (const id of ids) {
        const b = bookings.find(x => x.id === id);
@@ -229,7 +229,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                   )}
                                </div>
                                <div className="space-y-3">
-                                  <p className="text-[9px] font-black uppercase tracking-widest text-emerald-700/60 pl-1">Ações e Controle</p>
+                                  <p className="text-[9px] font-black uppercase tracking-widest text-emerald-700/60 pl-1">AÃƒÂ§ÃƒÂµes e Controle</p>
                                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                       <Button 
                                         onClick={(e: any) => { 
@@ -241,7 +241,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                                             const dateStr = format(parseISO(booking.visit_date || new Date().toISOString()), "dd/MM/yyyy", { locale: ptBR });
                                                             const name = booking.name || (booking as any).customer_name;
                                                             
-                                                            const message = `🌿 *BALNEÁRIO FAMÍLIA LESSA*\n\nEsse é seu voucher de confirmação da sua reserva e o resumo do seu pedido para apresentar caso seja solicitado.\n\n📅 *Data:* ${dateStr}\n👤 *Titular:* ${name}\n\n📝 *Resumo do Pedido:*\n${itemsList.replace(/%0A/g, '\n')}\n\n💰 *Total:* ${formatCurrency(booking.total_amount)}\n\nVoucher: https://reservas.balneariolessa.com.br/voucher/${booking.confirmation_code}\n\n✨ *Aguardamos vocês para o lazer que a sua família merece.*`;
+                                                             const message = `\u{1F33F} *BALNE\u00C1RIO FAM\u00CDLIA LESSA*\n\nEsse \u00E9 seu voucher de confirma\u00E7\u00E3o da sua reserva e o resumo do seu pedido para apresentar caso seja solicitado.\n\n\u{1F4C5} *Data:* ${dateStr}\n\u{1F464} *Titular:* ${name}\n\n\u{1F4DD} *Resumo do Pedido:*\n${itemsList.replace(/%0A/g, '\n')}\n\n\u{1F4B0} *Total:* ${formatCurrency(booking.total_amount)}\n\nVoucher: https://reservas.balneariolessa.com.br/voucher/${booking.confirmation_code}\n\n\u{2728} *Aguardamos voc\u00EAs para o lazer que a sua fam\u00EDlia merece.*`;
                                                             const text = encodeURIComponent(message);
                                                             
                                                             window.open("https://wa.me/55" + phone + "?text=" + text, '_blank'); 
@@ -299,11 +299,11 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                           className="w-5 h-5 border-emerald-800 bg-emerald-900 shadow-sm cursor-pointer accent-emerald-500 rounded-md" 
                         />
                      </th>
-                     <th className="p-5">Agenda / Operação</th>
-                     <th className="p-5">Identificação Cliente</th>
-                     <th className="p-5 text-center">Configuração</th>
+                     <th className="p-5">Agenda / OperaÃƒÂ§ÃƒÂ£o</th>
+                     <th className="p-5">IdentificaÃƒÂ§ÃƒÂ£o Cliente</th>
+                     <th className="p-5 text-center">ConfiguraÃƒÂ§ÃƒÂ£o</th>
                      <th className="p-5 text-right">Financeiro TOTAL</th>
-                     <th className="p-5 text-center opacity-0 w-20 rounded-r-2xl">Ações</th>
+                     <th className="p-5 text-center opacity-0 w-20 rounded-r-2xl">AÃƒÂ§ÃƒÂµes</th>
                   </tr>
                </thead>
                <tbody className="bg-transparent">
@@ -387,7 +387,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                          ID: {booking.id.slice(0, 8)}
                                       </span>
                                       {booking.is_associado && (
-                                        <Badge className="bg-amber-100 text-amber-700 border-none text-[8px] font-black uppercase px-2 h-4 rounded-full">Sócio</Badge>
+                                        <Badge className="bg-amber-100 text-amber-700 border-none text-[8px] font-black uppercase px-2 h-4 rounded-full">SÃƒÂ³cio</Badge>
                                       )}
                                    </div>
                                 </div>
@@ -424,7 +424,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                      </div>
                                      
                                      <div className="flex flex-col gap-6 w-full">
-                                         {/* Ações Rápidas - Ocupa 100% da largura em uma linha */}
+                                         {/* AÃƒÂ§ÃƒÂµes RÃƒÂ¡pidas - Ocupa 100% da largura em uma linha */}
                                          <div className="w-full space-y-6">
                                             <div className="bg-white p-6 md:p-8 rounded-[2rem] shadow-xl border border-slate-200 flex flex-col justify-between space-y-8 relative overflow-hidden group">
                                                <div className="relative z-10 space-y-6">
@@ -434,7 +434,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                                           <CalendarClock className="w-5 h-5" />
                                                         </div>
                                                         <div>
-                                                           <h4 className="text-[8px] font-black uppercase text-emerald-700/60 tracking-widest text-[#064e3b]">Ações Rápidas</h4>
+                                                           <h4 className="text-[8px] font-black uppercase text-emerald-700/60 tracking-widest text-[#064e3b]">AÃƒÂ§ÃƒÂµes RÃƒÂ¡pidas</h4>
                                                            <p className="text-base font-extrabold text-emerald-950">Controle de Reserva</p>
                                                         </div>
                                                      </div>
@@ -567,7 +567,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                                          className="bg-purple-100 text-purple-900 border-b-4 border-purple-300 hover:border-b-0 hover:translate-y-[2px] hover:bg-purple-600 hover:text-white shadow-md transition-all duration-300 font-black uppercase text-[9px] md:text-[10px] h-14 md:h-16 rounded-2xl flex flex-col items-center justify-center gap-1 w-full p-0"
                                                        >
                                                           <Wallet className="w-4 h-4 md:w-5 md:h-5" /> 
-                                                          <span>CRÉDITO</span>
+                                                          <span>CRÃƒâ€°DITO</span>
                                                        </Button>
                                                      )}
                                                      <Button 
@@ -580,7 +580,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                                             const dateStr = format(parseISO(booking.visit_date || new Date().toISOString()), "dd/MM/yyyy", { locale: ptBR });
                                                             const name = booking.name || (booking as any).customer_name;
                                                             
-                                                            const message = `🌿 *BALNEÁRIO FAMÍLIA LESSA*\n\nEsse é seu voucher de confirmação da sua reserva e o resumo do seu pedido para apresentar caso seja solicitado.\n\n📅 *Data:* ${dateStr}\n👤 *Titular:* ${name}\n\n📝 *Resumo do Pedido:*\n${itemsList.replace(/%0A/g, '\n')}\n\n💰 *Total:* ${formatCurrency(booking.total_amount)}\n\nVoucher: https://reservas.balneariolessa.com.br/voucher/${booking.confirmation_code}\n\n✨ *Aguardamos vocês para o lazer que a sua família merece.*`;
+                                                             const message = `\u{1F33F} *BALNE\u00C1RIO FAM\u00CDLIA LESSA*\n\nEsse \u00E9 seu voucher de confirma\u00E7\u00E3o da sua reserva e o resumo do seu pedido para apresentar caso seja solicitado.\n\n\u{1F4C5} *Data:* ${dateStr}\n\u{1F464} *Titular:* ${name}\n\n\u{1F4DD} *Resumo do Pedido:*\n${itemsList.replace(/%0A/g, '\n')}\n\n\u{1F4B0} *Total:* ${formatCurrency(booking.total_amount)}\n\nVoucher: https://reservas.balneariolessa.com.br/voucher/${booking.confirmation_code}\n\n\u{2728} *Aguardamos voc\u00EAs para o lazer que a sua fam\u00EDlia merece.*`;
                                                             const text = encodeURIComponent(message);
                                                             
                                                             window.open("https://wa.me/55" + phone + "?text=" + text, '_blank'); 
@@ -611,7 +611,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                                         value={noteText} 
                                                         onChange={e => setNoteText(e.target.value)} 
                                                         className="rounded-2xl border-white/20 min-h-[80px] text-xs p-4 bg-black/20 text-white placeholder:text-white/30 focus:border-emerald-500 focus:ring-emerald-500/20" 
-                                                        placeholder="Digite aqui anotações, detalhes de reagendamentos ou avisos importantes..."
+                                                        placeholder="Digite aqui anotaÃƒÂ§ÃƒÂµes, detalhes de reagendamentos ou avisos importantes..."
                                                      />
                                                      <div className="flex gap-3">
                                                         <Button onClick={() => { onAddNote(booking.id, noteText, booking.is_order); setEditingNoteId(null); }} className="px-8 bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-black text-[10px] h-10 rounded-xl uppercase tracking-wider">SALVAR NOTA</Button>
@@ -625,7 +625,7 @@ export function BookingTable({ bookings, onStatusChange, onAddNote, onReschedule
                                                     ) : (
                                                       <div className="flex items-center gap-2 text-white/30">
                                                         <Plus className="w-4 h-4" />
-                                                        <span className="text-[10px] font-black uppercase tracking-wider">Adicionar anotação</span>
+                                                        <span className="text-[10px] font-black uppercase tracking-wider">Adicionar anotaÃƒÂ§ÃƒÂ£o</span>
                                                       </div>
                                                     )}
                                                   </div>

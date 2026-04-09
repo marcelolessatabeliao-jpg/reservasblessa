@@ -20,10 +20,10 @@ BEGIN
     FOREACH tbl IN ARRAY tables_to_enable LOOP
         BEGIN
             EXECUTE format('ALTER PUBLICATION supabase_realtime ADD TABLE public.%I', tbl);
-        EXCEPTION WHEN duplicate_object THEN
-            -- Ignore if already added
-            NULL;
-        END BEGIN;
+        EXCEPTION 
+            WHEN duplicate_object THEN NULL;
+            WHEN others THEN NULL; -- Ignore other errors like table not found
+        END;
     END LOOP;
 END $$;
 
