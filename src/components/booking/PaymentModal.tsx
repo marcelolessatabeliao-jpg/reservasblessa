@@ -5,6 +5,7 @@ import { Loader2, QrCode, CreditCard, Copy, CheckCircle, Wallet, AlertTriangle, 
 import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency } from '@/lib/booking-types';
 import { useToast } from '@/hooks/use-toast';
+import { trackFBEvent } from '@/utils/pixel-events';
 
 interface Props {
   open: boolean;
@@ -62,6 +63,14 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, phone, 
           if (payload.new.status === 'paid' || payload.new.status === 'confirmed') {
             setConfirmationCode(payload.new.confirmation_code);
             setPaymentConfirmed(true);
+
+            trackFBEvent('Purchase', { 
+              value: totalAmount, 
+              currency: 'BRL', 
+              content_name: 'Reserva Balneário Lessa',
+              content_ids: [orderId]
+            });
+
             toast({
               title: 'Pagamento Confirmado!',
               description: 'Seu agendamento foi garantido com sucesso.',
@@ -150,6 +159,13 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, phone, 
       if (updatedOrder?.confirmation_code) {
          setConfirmationCode(updatedOrder.confirmation_code);
          setPaymentConfirmed(true);
+
+         trackFBEvent('Purchase', { 
+           value: totalAmount, 
+           currency: 'BRL', 
+           content_name: 'Reserva Balneário Lessa',
+           content_ids: [orderId]
+         });
       }
 
       toast({
@@ -362,6 +378,14 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, phone, 
                     const { data: order } = await supabase.from('orders').select('confirmation_code').eq('id', orderId).single();
                     if (order?.confirmation_code) setConfirmationCode(order.confirmation_code);
                     setPaymentConfirmed(true);
+
+                    trackFBEvent('Purchase', { 
+                      value: totalAmount, 
+                      currency: 'BRL', 
+                      content_name: 'Reserva Balneário Lessa',
+                      content_ids: [orderId]
+                    });
+
                     toast({ title: "Confirmado!", description: "Seu pagamento foi identificado com sucesso." });
                   } else {
                     toast({ 

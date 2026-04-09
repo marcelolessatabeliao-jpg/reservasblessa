@@ -16,6 +16,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { getPersonPrice, formatCurrency, KIOSK_INFO, QUAD_LABELS, getQuadDiscount, ADDITIONAL_INFO, WHATSAPP_NUMBER, type BookingState, type AdultInfo, type ChildInfo } from '@/lib/booking-types';
 import { useState, useEffect } from 'react';
+import { trackFBEvent } from '@/utils/pixel-events';
 
 interface Props {
   booking: BookingState;
@@ -60,11 +61,19 @@ export function BookingOverview({
          'postgres_changes',
          { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${persistedOrderId}` },
          (payload) => {
-           if (payload.new.status === 'paid' || payload.new.status === 'confirmed') {
-             setPersistedConfirmationCode(payload.new.confirmation_code);
-             setPaymentConfirmed(true);
-             toast({ title: 'Pagamento Confirmado!', description: 'Sua reserva está garantida!' });
-           }
+            if (payload.new.status === 'paid' || payload.new.status === 'confirmed') {
+              setPersistedConfirmationCode(payload.new.confirmation_code);
+              setPaymentConfirmed(true);
+              
+              trackFBEvent('Purchase', { 
+                value: totals.total, 
+                currency: 'BRL', 
+                content_name: 'Reserva Balneário Lessa',
+                content_ids: [persistedOrderId]
+              });
+
+              toast({ title: 'Pagamento Confirmado!', description: 'Sua reserva está garantida!' });
+            }
          }
        )
        .subscribe();
@@ -102,6 +111,13 @@ export function BookingOverview({
       });
       return;
     }
+
+    // Tracker: Lead
+    trackFBEvent('Lead', { 
+      content_name: 'Reserva Balneário Lessa', 
+      value: totals.total, 
+      currency: 'BRL' 
+    });
 
     if (method !== 'LOCAL' && (!booking.entry.cpf || !isValidCPF(booking.entry.cpf))) {
        toast({
@@ -195,6 +211,14 @@ export function BookingOverview({
 
       if (method === 'PIX') {
         setPaymentData(null);
+        
+        trackFBEvent('InitiateCheckout', { 
+          value: totals.total, 
+          currency: 'BRL', 
+          content_name: 'Reserva Balneário Lessa',
+          payment_method: 'PIX'
+        });
+
         const response = await supabase.functions.invoke('create-payment', {
           body: {
             orderId,
@@ -219,6 +243,13 @@ export function BookingOverview({
         setActivePaymentMethod('PIX');
         toast({ title: 'PIX Gerado com Sucesso!', description: 'Finalize o pagamento abaixo.' });
       } else if (method === 'CREDIT_CARD') {
+        trackFBEvent('InitiateCheckout', { 
+          value: totals.total, 
+          currency: 'BRL', 
+          content_name: 'Reserva Balneário Lessa',
+          payment_method: 'CreditCard'
+        });
+
         const response = await supabase.functions.invoke('create-payment', {
           body: {
             orderId,

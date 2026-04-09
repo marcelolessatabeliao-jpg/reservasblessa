@@ -19,9 +19,9 @@ Deno.serve(async (req) => {
     const body = await req.json()
     const {
       name, phone, cpf, visit_date, status,
-      adults_normal = 0, adults_half = 0,
+      adults_normal = 0,
       is_teacher = 0, is_student = 0, is_server = 0,
-      is_donor = 0, is_solidarity = 0,
+      is_solidarity = 0,
       is_pcd = 0, is_tea = 0, is_senior = 0, is_birthday = 0,
       children_free = 0,
       selected_kiosks = [],
@@ -31,6 +31,9 @@ Deno.serve(async (req) => {
       manual_discount_type = 'unit',
       total_amount = 0
     } = body
+
+    // Map any incoming legacy fields to solidarity for safety
+    const consolidatedSolidarity = (is_solidarity || 0) + (body.adults_half || 0) + (body.is_donor || 0)
 
     if (!name || !visit_date) {
       return new Response(JSON.stringify({ success: false, error: 'Nome e data são obrigatórios.' }), {
@@ -71,12 +74,10 @@ Deno.serve(async (req) => {
     }
 
     addItem('Adulto', adults_normal, 50)
-    addItem('Meia-Entrada', adults_half, 25)
+    addItem('Adulto Solidário', consolidatedSolidarity, 25)
     addItem('Lessa Professor Pass', is_teacher, 25)
     addItem('Lessa Estudante Pass', is_student, 25)
     addItem('Lessa Servidor Pass', is_server, 25)
-    addItem('Lessa Doador Pass', is_donor, 25)
-    addItem('Adulto Solidário', is_solidarity, 25)
     addItem('Lessa Inclusão', is_pcd, 0)
     addItem('Lessa TEA', is_tea, 0)
     addItem('Lessa Vitalício', is_senior, 0)
