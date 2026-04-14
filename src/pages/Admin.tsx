@@ -238,8 +238,9 @@ export default function Admin() {
       setCredits(creds || []);
       
       // Filter out awaiting_payment from reservations too
-      const filteredKiosks = (kiosks || []).filter((k: any) => k.orders?.status && k.orders.status !== 'awaiting_payment');
-      const filteredQuads = (quads || []).filter((q: any) => q.orders?.status && q.orders.status !== 'awaiting_payment');
+      // Include direct reservations (no order) AND paid orders, exclude only awaiting_payment orders
+      const filteredKiosks = (kiosks || []).filter((k: any) => !k.orders || k.orders.status !== 'awaiting_payment');
+      const filteredQuads = (quads || []).filter((q: any) => !q.orders || q.orders.status !== 'awaiting_payment');
       
       // Enrich bookings with their order items from the orders table
       const enrichedBookings = (bks || []).map(b => {
@@ -613,7 +614,8 @@ export default function Admin() {
       // Se for uma reserva virtual extraída de um pedido, precisa virar real no banco
       if (typeof editingId === 'string' && editingId.startsWith('order-')) {
         payload.order_id = editData.order_id;
-        payload.order_item_id = editData.order_item_id; // Add this if column exists, else ignored
+        // order_item_id is only used in-memory for logic; do NOT write to quad_reservations (column does not exist)
+        // payload.order_item_id = editData.order_item_id;
         
         // Remove virtual ID fields before insert
         const cleanPayload = { ...payload };

@@ -806,19 +806,21 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                                     (adult.age >= 60 && adult.isPCD) ? 'Lessa Vitalício - PCD & TEA' :
                                       adult.isPCD ? 'Lessa Inclusão - PCD & TEA' :
                                         (adult.age >= 60) ? 'Lessa Vitalício' :
-                                          adult.isMember ? 'Assinante Lessa Club' :
+                                          adult.isMember ? 'Assinante Lessa Club 👑' :
                                           adult.takeDonation ? 'Adulto Solidário' :
                                             'Adulto - Entrada Inteira'}
                         </span>
                         {adult.isPCD && <span className="text-[8px] sm:text-[9px] bg-whatsapp/20 text-whatsapp-dark px-2 py-0.5 rounded-full font-black uppercase">♿ PCD</span>}
                         {(adult.isTeacher || adult.isStudent || adult.isServer || (adult as any).isBloodDonor) && <span className="text-[8px] sm:text-[9px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-black uppercase">Meia-Entrada</span>}
                         {adult.takeDonation && <span className="text-[8px] sm:text-[9px] bg-sun/20 text-sun-dark px-2 py-0.5 rounded-full font-black uppercase">❤️ Solidária</span>}
+                        {adult.isMember && <span className="text-[8px] sm:text-[9px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-black uppercase">👑 Membro</span>}
                       </div>
                       {adult.isBirthday && <p className="text-[10px] text-sun-dark font-bold">🎂 Entrada grátis (mediante comprovação)</p>}
                       {adult.isPCD && <p className="text-[10px] text-whatsapp-dark font-bold">✨ entrada gratuita + 1 acompanhante gratuito</p>}
                       {adult.age >= 60 && !adult.isPCD && <p className="text-[10px] text-whatsapp-dark font-bold">✨ entrada gratuita - sócio vitalício</p>}
                       {(adult.isTeacher || adult.isStudent || adult.isServer || (adult as any).isBloodDonor) && <p className="text-[10px] text-primary font-bold">✨ benefício de meia-entrada 50% OFF</p>}
                       {adult.takeDonation && <p className="text-[10px] text-sun-dark font-bold">❤️ Levará 1kg de alimento para desconto ou outro donativo</p>}
+                      {adult.isMember && <p className="text-[10px] text-amber-700 font-bold">👑 Assinante mensal do Balneário Lessa</p>}
                     </div>
                   </div>
                   <div className="flex items-center gap-4">

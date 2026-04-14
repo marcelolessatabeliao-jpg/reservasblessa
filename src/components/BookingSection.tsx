@@ -205,7 +205,7 @@ export function BookingSection() {
                     hideTitle={true}
                   />
 
-                  <div className="pt-6 flex justify-center px-4">
+                  <div className="pt-6 flex flex-col sm:flex-row justify-center items-center gap-3 px-4">
                     <Button 
                       size="lg"
                       disabled={!booking.entry.name || !booking.entry.phone || !booking.entry.visitDate || (booking.entry.adults.length === 0 && booking.entry.children.length === 0)}
@@ -214,6 +214,13 @@ export function BookingSection() {
                     >
                       Continuar Agendamento <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                     </Button>
+                    <a
+                      href="/consultar"
+                      className="w-full sm:w-auto inline-flex items-center justify-center gap-2 font-bold h-16 px-8 rounded-2xl border-2 border-primary/30 text-primary hover:bg-primary/5 transition-all text-base"
+                    >
+                      <ClipboardList className="h-5 w-5" />
+                      Consultar Reserva
+                    </a>
                   </div>
                 </motion.div>
               )}
