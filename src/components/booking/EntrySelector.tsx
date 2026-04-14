@@ -300,7 +300,10 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
             <div className="flex justify-center pt-2">
               <Button
                 variant="ghost"
-                onClick={() => setWizardStep(1)}
+                onClick={() => {
+                  setIsWizardOpen(false);
+                  resetWizard();
+                }}
                 className="text-gray-400 font-bold text-[10px] h-8 hover:bg-transparent"
               >
                 ← Voltar
