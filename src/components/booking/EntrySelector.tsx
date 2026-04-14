@@ -238,43 +238,46 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
             <div className="grid grid-cols-2 gap-2 px-1">
               <button 
                 className={cn(
-                  "col-span-2 h-auto py-4 px-4 flex items-center justify-between rounded-2xl border-2 transition-all duration-300 active:scale-[0.98] relative overflow-hidden",
+                  "col-span-2 h-auto py-3.5 px-4 flex items-center justify-between rounded-2xl border-2 transition-all duration-300 active:scale-[0.98] relative overflow-hidden",
                   wizardData.category === 'assinante' 
-                    ? "border-amber-600 bg-gradient-to-br from-amber-400 to-amber-600 text-amber-950 shadow-[0_0_20px_rgba(217,119,6,0.2)]" 
-                    : "border-amber-100 bg-gradient-to-br from-amber-50 to-white hover:border-amber-300 hover:shadow-md"
+                    ? "border-[#8a6d3b] bg-gradient-to-br from-[#c39738] via-[#f7e08f] to-[#c39738] text-[#2c1e0a] shadow-[0_4px_20px_rgba(184,134,11,0.25)] ring-1 ring-white/30" 
+                    : "border-[#d4af37]/30 bg-gradient-to-br from-[#fcf6ba]/30 to-white hover:border-[#d4af37] hover:shadow-lg"
                 )}
                 onClick={() => {
                    setWizardData({ ...wizardData, category: 'assinante' });
                    handleFinishWizard('assinante', false);
                 }}
               >
-                {wizardData.category === 'assinante' && (
-                  <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent" />
-                )}
+                {/* Metallic Sheen Effect */}
+                <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/40 to-transparent -translate-x-full animate-[shimmer_3s_infinite]" />
+                
                 <div className="flex items-center gap-3 relative z-10">
                   <div className={cn(
-                    "p-2 rounded-xl transition-colors",
-                    wizardData.category === 'assinante' ? "bg-white/30 shadow-inner" : "bg-amber-100"
+                    "p-2 rounded-xl transition-all duration-300",
+                    wizardData.category === 'assinante' ? "bg-black/10 shadow-inner scale-105" : "bg-[#f1d592]/30"
                   )}>
-                    <span className="text-xl leading-none filter drop-shadow-sm">👑</span>
+                    <span className="text-xl leading-none filter drop-shadow-[0_1px_1px_rgba(255,255,255,0.5)]">👑</span>
                   </div>
                   <div className="flex flex-col items-start">
                     <span className={cn(
                       "font-black text-sm sm:text-base uppercase tracking-tight leading-none",
-                      wizardData.category === 'assinante' ? "text-amber-950" : "text-amber-900"
+                      wizardData.category === 'assinante' ? "text-[#1a1206]" : "text-[#5c4a24]"
                     )}>
                       Sou Assinante Lessa Club
                     </span>
                   </div>
                 </div>
-                <span className={cn(
-                  "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider relative z-10 shadow-sm",
-                  wizardData.category === 'assinante' 
-                    ? "bg-amber-950 text-amber-100" 
-                    : "bg-amber-600 text-white"
-                )}>
-                  💎 ASSINANTE
-                </span>
+
+                <div className="flex items-center gap-2 relative z-10">
+                  <span className={cn(
+                    "px-3 py-1 rounded-full text-[10px] sm:text-[11px] font-black uppercase tracking-widest shadow-sm border transition-colors",
+                    wizardData.category === 'assinante' 
+                      ? "bg-[#1a1206] text-[#f7e08f] border-transparent" 
+                      : "bg-[#d4af37] text-white border-[#b8860b]/30"
+                  )}>
+                    💎 ASSINANTE
+                  </span>
+                </div>
               </button>
 
               {categories.map((cat) => {
