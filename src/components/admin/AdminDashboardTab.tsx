@@ -78,13 +78,14 @@ export function AdminDashboardTab({
          const kioskIdMatch = pNameLower.match(/quiosque\s*(\d+)/i);
          const kId = kioskIdMatch ? parseInt(kioskIdMatch[1], 10) : (pNameLower.includes('maior') ? 1 : 'MENOR');
 
-         if (!dayKiosks.some(dk => dk.id === b.id && dk.kiosk_id === kId)) {
+         if (!dayKiosks.some(dk => dk.order_item_id === item.id || (dk.id === b.id && dk.kiosk_id === kId))) {
             dayKiosks.push({
                id: b.id + '-' + item.id,
                kiosk_id: kId,
-               customer_name: b.name || 'Cliente (Interno)',
+               customer_name: b.customer_name || b.name || 'Cliente',
                reservation_date: b.visit_date,
-               status: b.status
+               status: b.status,
+               order_item_id: item.id
             });
          }
       }
@@ -95,14 +96,16 @@ export function AdminDashboardTab({
     
     quadItems.forEach((qi: any) => {
        const qiId = b.id + '-' + qi.id;
-       if (!dayQuads.some(dq => dq.id === qiId)) {
+       // Check if this specific order_item is already represented in dayQuads (from quad_reservations)
+       if (!dayQuads.some(dq => dq.order_item_id === qi.id || dq.id === qiId)) {
           dayQuads.push({
              id: qiId,
-             customer_name: b.name || 'Cliente (Interno)',
+             customer_name: b.customer_name || b.name || 'Cliente',
              reservation_date: b.visit_date,
-             time_slot: b.quad_time_slot || '10:30',
+             time_slot: qi.metadata?.time || b.quad_time_slot || '10:30',
              quantity: qi.quantity || 1,
-             status: b.status
+             status: b.status,
+             order_item_id: qi.id
           });
        }
     });
@@ -194,11 +197,16 @@ export function AdminDashboardTab({
                               <div className="rounded-xl border border-blue-50 bg-blue-50/20 p-1.5 min-h-[32px] flex items-center justify-center">
                                  {slotBookings.length > 0 ? (
                                    <div className="flex flex-wrap gap-1.5 justify-center">
-                                      {slotBookings.map((b, bi) => (
-                                        <Badge key={bi} className="bg-transparent text-blue-700/80 font-bold italic lowercase text-[11px] px-2 py-0 border-0 shadow-none hover:bg-blue-600 hover:text-white hover:opacity-100 transition-all cursor-default">
-                                           {b.customer_name} ({b.quantity})
-                                        </Badge>
-                                      ))}
+                                      {Object.values(slotBookings.reduce((acc, curr) => {
+                                          const name = curr.customer_name || 'Cliente';
+                                          if (!acc[name]) acc[name] = { name, quantity: 0 };
+                                          acc[name].quantity += (Number(curr.quantity) || 1);
+                                          return acc;
+                                       }, {} as any)).map((b: any, bi) => (
+                                         <Badge key={bi} className="bg-transparent text-blue-700/80 font-bold italic lowercase text-[11px] px-2 py-0 border-0 shadow-none hover:bg-blue-600 hover:text-white hover:opacity-100 transition-all cursor-default">
+                                            {b.name} ({b.quantity})
+                                         </Badge>
+                                       ))}
                                    </div>
                                  ) : (
                                    <span className="text-blue-400/50 italic font-black text-[11px]">Nenhuma reserva</span>

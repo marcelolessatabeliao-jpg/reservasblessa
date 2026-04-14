@@ -6,12 +6,12 @@ import { Link } from 'react-router-dom';
 import logo from '@/assets/logo.png';
 
 const links = [
-  { label: 'Início', href: '#inicio' },
-  { label: 'Sobre', href: '#sobre' },
-  { label: 'Serviços', href: '#servicos' },
-  { label: 'Reservas', href: '#reservas' },
+  { label: 'Início', href: '/#inicio' },
+  { label: 'Sobre', href: '/#sobre' },
+  { label: 'Serviços', href: '/#servicos' },
+  { label: 'Reservas', href: '/#reservas' },
   { label: 'Consultar', href: '/consultar' },
-  { label: 'Contato', href: '#contato' },
+  { label: 'Contato', href: '/#contato' },
 ];
 
 export function Navbar() {
@@ -20,7 +20,7 @@ export function Navbar() {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-primary/95 backdrop-blur-md border-b border-primary-foreground/10">
       <div className="container px-2 sm:px-4 flex items-center justify-between h-12 sm:h-16 relative">
-        <a href="#inicio" className="flex items-center gap-1 sm:gap-3 min-w-0">
+        <a href="/#inicio" className="flex items-center gap-1 sm:gap-3 min-w-0">
           <img src={logo} alt="Balneário Lessa" className="h-7 sm:h-10 shrink-0" />
           <span className="hidden sm:inline font-sans font-bold text-primary-foreground text-lg md:text-xl tracking-wide uppercase whitespace-nowrap">
             Balneário Lessa
@@ -36,7 +36,7 @@ export function Navbar() {
         <div className="hidden lg:flex items-center gap-6">
           <div className="flex items-center gap-5 mr-2">
             {links.map(l => (
-              l.href.startsWith('#') ? (
+              l.href.includes('#') ? (
                 <a key={l.href} href={l.href} className="text-sm font-bold text-primary-foreground/80 hover:text-sun transition-all hover:scale-105 active:scale-95">
                   {l.label}
                 </a>
@@ -60,14 +60,14 @@ export function Navbar() {
               transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
             >
               <Button asChild variant="outline" className="bg-sun text-foreground hover:bg-sun-light border-none font-black shadow-lg shadow-sun/20">
-                <a href="#especiais" className="flex items-center gap-2">
+                <a href={window.location.pathname === '/' ? '#especiais' : '/#especiais'} className="flex items-center gap-2">
                   <Calculator className="h-4 w-4" /> Simular Plano
                 </a>
               </Button>
             </motion.div>
             
             <Button asChild className="bg-sun hover:bg-sun-light text-foreground font-sans font-bold px-6 shadow-lg shadow-sun/20">
-              <a href="#reservas" className="flex items-center gap-2">
+              <a href={window.location.pathname === '/' ? '#reservas' : '/#reservas'} className="flex items-center gap-2">
                 <Ticket className="h-4 w-4" /> Reservar
               </a>
             </Button>
@@ -85,7 +85,7 @@ export function Navbar() {
         <div className="lg:hidden bg-primary border-b border-primary-foreground/10 animate-in fade-in slide-in-from-top-4 duration-300">
           <div className="container px-4 py-6 flex flex-col gap-4">
             {links.map(l => (
-              l.href.startsWith('#') ? (
+              l.href.includes('#') ? (
                 <a key={l.href} href={l.href} onClick={() => setOpen(false)} className="text-base font-bold py-2 text-primary-foreground/90 border-b border-white/5 hover:text-sun transition-colors">
                   {l.label}
                 </a>
@@ -107,14 +107,14 @@ export function Navbar() {
                 transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
               >
                 <Button asChild variant="outline" className="w-full bg-sun/20 text-sun border-sun/40 hover:bg-sun hover:text-foreground h-12 font-black transition-all" onClick={() => setOpen(false)}>
-                  <a href="#especiais" className="flex items-center justify-center gap-2">
+                  <a href={window.location.pathname === '/' ? '#especiais' : '/#especiais'} className="flex items-center justify-center gap-2">
                     <Calculator className="h-5 w-5" /> Simule seu plano
                   </a>
                 </Button>
               </motion.div>
               
               <Button asChild className="bg-sun hover:bg-sun-light text-foreground h-12 font-display font-black shadow-lg" onClick={() => setOpen(false)}>
-                <a href="#reservas" className="flex items-center justify-center gap-2">
+                <a href={window.location.pathname === '/' ? '#reservas' : '/#reservas'} className="flex items-center justify-center gap-2">
                   <Ticket className="h-5 w-5" /> Reservar Agora
                 </a>
               </Button>

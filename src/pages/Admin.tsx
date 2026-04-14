@@ -270,102 +270,119 @@ export default function Admin() {
             
             let orderAdults = 0;
             let orderChildren = 0;
+            // Categories for counting people
+            const adultKeywords = ['adulto', 'solidário', 'solidario', 'professor', 'estudante', 'servidor', 'assinante'];
+            const gratuityKeywords = ['criança', 'crianca', 'idoso', 'pcd', 'aniversariante', 'kids'];
 
+            // 1. Process Order Items for People Count
+            o.order_items.forEach((item: any) => {
+              const pId = (item.product_id || '').toLowerCase();
+              const pName = (item.product_name || '').toLowerCase();
+              const qty = item.quantity || 1;
+              
+              const isAdult = adultKeywords.some(key => pName.includes(key) || pId.includes(key));
+              const isGratuity = gratuityKeywords.some(key => pName.includes(key) || pId.includes(key));
+
+              if (isAdult && !isGratuity) {
+                orderAdults += qty;
+              } else if (isGratuity) {
+                orderChildren += qty;
+              }
+            });
+
+            // 2. Track which real reservations are already accounted for to avoid double counting
+            const matchedKioskIds = new Set();
+            const matchedQuadIds = new Set();
+
+            // 3. Process Order Items for Kiosks and Quads
             o.order_items.forEach((item: any) => {
                const pId = (item.product_id || '').toLowerCase();
                const pName = (item.product_name || '').toLowerCase();
-               const qty = item.quantity || 1;
+               const searchStr = `${pName} ${pId} ${JSON.stringify(item.metadata || {})} ${o.notes || ''}`.toUpperCase();
                
-               // Listas categorizadas para contagem de pessoas
-                const adultKeywords = ['adulto', 'solidário', 'solidario', 'professor', 'estudante', 'servidor'];
-                const gratuityKeywords = ['criança', 'crianca', 'idoso', 'pcd', 'aniversariante'];
+               // KIOSKS
+               if (pId.includes('quiosque') || pName.includes('quiosque')) {
+                 // Try to find if this item is already in parsedKiosks (real record)
+                 const realMatch = parsedKiosks.find(pk => pk.order_id === o.id && !matchedKioskIds.has(pk.id));
+                 if (realMatch) {
+                    realMatch.order_item_id = item.id;
+                    matchedKioskIds.add(realMatch.id);
+                 } else {
+                   // Virtual Kiosks
+                   let meta = item.metadata;
+                   if (typeof meta === 'string') { try { meta = JSON.parse(meta); } catch(e) {} }
+                   const sIds = meta?.selectedIds || [];
 
-                const isAdult = adultKeywords.some(key => pName.includes(key) || pId.includes(key));
-                const isGratuity = gratuityKeywords.some(key => pName.includes(key) || pId.includes(key));
-
-                if (isAdult && !isGratuity) {
-                   orderAdults += qty;
-                } else if (isGratuity) {
-                   orderChildren += qty;
-                }
-               
-               // Only add Kiosks from orders if NOT already in parsedKiosks (via order_id)
-               if ((pId.includes('quiosque') || pName.includes('quiosque')) && !parsedKiosks.some(pk => pk.order_id === o.id)) {
-                                  // First check metadata
-                 let meta = item.metadata;
-                 if (typeof meta === 'string') {
-                    try { meta = JSON.parse(meta); } catch(e) {}
-                 }
-                 const sIds = meta?.selectedIds || [];
-
-                 for(let i=0; i<item.quantity; i++) {
-                   let kioskIdVal: any = (pId.includes('maior') || pName.includes('maior')) ? 1 : 'MENOR';
-                   
-                   if (sIds.length > i) {
-                     kioskIdVal = sIds[i];
-                   } else {
-                     const match = (pId + ' ' + pName).match(/quiosque\s*(\d+)/i);
-                     if (match && match[1]) {
-                       kioskIdVal = parseInt(match[1], 10);
+                   for(let i=0; i<item.quantity; i++) {
+                     let kioskIdVal: any = (pId.includes('maior') || pName.includes('maior')) ? 1 : 'MENOR';
+                     if (sIds.length > i) kioskIdVal = sIds[i];
+                     else {
+                       const match = (pId + ' ' + pName).match(/quiosque\s*(\d+)/i);
+                       if (match && match[1]) kioskIdVal = parseInt(match[1], 10);
                      }
-                   }
 
-                   parsedKiosks.push({
-                     id: `order-${o.id}-k-${i}`,
-                     kiosk_id: kioskIdVal,
-                     reservation_date: resDate,
-                     customer_name: customerName,
-                     price: item.unit_price,
-                     order_id: o.id,
-                     is_from_order: true
-                   });
+                     parsedKiosks.push({
+                       id: `order-${o.id}-k-${item.id}-${i}`,
+                       kiosk_id: kioskIdVal,
+                       reservation_date: resDate,
+                       customer_name: customerName,
+                       price: item.unit_price,
+                       order_id: o.id,
+                       order_item_id: item.id,
+                       is_from_order: true
+                     });
+                   }
                  }
                }
 
-               // Only add Quads from orders if NOT already in parsedQuads (via order_id)
-               if ((pId.includes('quad') || pName.includes('quad')) && !parsedQuads.some(pq => pq.order_id === o.id)) {
-                  // Try to find a time slot (HH:MM or HHhMM) in name or metadata
-                  const searchStr = `${pName} ${pId} ${JSON.stringify(item.metadata || {})} ${o.notes || ''}`.toUpperCase();
-                  // 1. Try regex (9:00, 09:00, 9H00, etc.)
-                  const timeMatch = searchStr.match(/(\d{1,2}[:H]\d{2})/);
-                  let finalSlot = null;
+               // QUADS
+               if (pId.includes('quad') || pName.includes('quad')) {
+                  // Try to find if this item is already in parsedQuads (real record)
+                  const realMatch = parsedQuads.find(pq => 
+                    pq.order_id === o.id && 
+                    !matchedQuadIds.has(pq.id) && 
+                    normalizeQuadType(pq.quad_type) === normalizeQuadType(pName)
+                  );
 
-                  if (timeMatch) {
-                    let raw = timeMatch[1].replace('H', ':');
-                    if (raw.length === 4) raw = '0' + raw; // Auto-pad (9:00 -> 09:00)
-                    finalSlot = raw;
-                  }
-                  
-                  // 2. Try explicit metadata
-                  let meta = item.metadata;
-                  if (typeof meta === 'string') {
-                     try { meta = JSON.parse(meta); } catch(e) {}
-                  }
-                  if (!finalSlot && meta?.time) {
-                    finalSlot = meta.time;
-                    if (finalSlot && finalSlot.length === 4 && finalSlot.includes(':')) finalSlot = '0' + finalSlot;
-                  }
+                  if (realMatch) {
+                    realMatch.order_item_id = item.id;
+                    matchedQuadIds.add(realMatch.id);
+                  } else {
+                    // Virtual Quads
+                    const timeMatch = searchStr.match(/(\d{1,2}[:H]\d{2})/);
+                    let finalSlot = null;
+                    if (timeMatch) {
+                      let raw = timeMatch[1].replace('H', ':');
+                      if (raw.length === 4) raw = '0' + raw;
+                      finalSlot = raw;
+                    }
+                    let meta = item.metadata;
+                    if (typeof meta === 'string') { try { meta = JSON.parse(meta); } catch(e) {} }
+                    if (!finalSlot && meta?.time) {
+                      finalSlot = meta.time;
+                      if (finalSlot && finalSlot.length === 4 && finalSlot.includes(':')) finalSlot = '0' + finalSlot;
+                    }
+                    if (!finalSlot) {
+                      const standardSlot = QUAD_TIMES.find(t => {
+                        const short = t.replace(/^0/, '');
+                        return searchStr.includes(t) || searchStr.includes(short);
+                      });
+                      finalSlot = standardSlot || (searchStr.includes('DUPLA') ? 'DUPLA' : 'INDIV');
+                    }
 
-                  // 3. Fallback to standard slots list
-                  if (!finalSlot) {
-                    const standardSlot = QUAD_TIMES.find(t => {
-                      const short = t.replace(/^0/, '');
-                      return searchStr.includes(t) || searchStr.includes(short);
+                    parsedQuads.push({
+                       id: `order-${o.id}-q-${item.id}`,
+                       time_slot: finalSlot,
+                       quad_type: normalizeQuadType(pName),
+                       quantity: item.quantity,
+                       reservation_date: resDate,
+                       customer_name: customerName,
+                       price: item.quantity * item.unit_price,
+                       order_id: o.id,
+                       order_item_id: item.id,
+                       is_from_order: true
                     });
-                    finalSlot = standardSlot || (searchStr.includes('DUPLA') ? 'DUPLA' : 'INDIV');
                   }
-
-                  parsedQuads.push({
-                     id: `order-${o.id}-q-${item.id}`,
-                     time_slot: finalSlot,
-                     quad_type: searchStr.includes('DUPLA') ? 'dupla' : (searchStr.includes('CRIANCA') ? 'adulto-crianca' : 'individual'),
-                     quantity: item.quantity,
-                     reservation_date: resDate,
-                     customer_name: customerName,
-                     price: item.quantity * item.unit_price,
-                     order_id: o.id,
-                     is_from_order: true
-                  });
                }
             });
             
@@ -521,50 +538,95 @@ export default function Admin() {
 
       if (type === 'quad') {
         const { data: dbItem } = await supabase.from('quad_reservations').select('*').eq('id', editingId).single();
-        if (dbItem) {
-          const finalModel = editData.quad_type || dbItem.quad_type || 'individual';
-          const finalDate = editData.reservation_date || dbItem.reservation_date;
-          const finalQty = editData.quantity || dbItem.quantity || 1;
-          const finalTime = editData.time_slot || dbItem.time_slot;
+        if (dbItem || editingId.toString().startsWith('order-')) {
+          const finalModel = editData.quad_type || dbItem?.quad_type || 'individual';
+          const finalDate = editData.reservation_date || dbItem?.reservation_date || todayStr;
+          const finalQty = editData.quantity || dbItem?.quantity || 1;
+          const finalTime = editData.time_slot || dbItem?.time_slot;
           
           const discount = getQuadDiscount(new Date(finalDate));
           const prices: any = { individual: 150, dupla: 250, 'adulto-crianca': 200 };
-          const unitPrice = prices[finalModel] * (1 - discount);
+          const unitPrice = (prices[finalModel] || 150) * (1 - discount);
           
           payload.price = unitPrice * finalQty;
           payload.quad_type = finalModel;
           payload.quantity = finalQty;
           payload.time_slot = finalTime;
           
-          const orderId = dbItem.order_id;
+          const orderId = dbItem?.order_id || editData.order_id;
+          const orderItemId = dbItem?.order_item_id || editData.order_item_id;
+
           if (orderId && !String(orderId).startsWith('order-')) {
-            const { data: oItems } = await supabase.from('order_items').select('*').eq('order_id', orderId);
-            const quadItem = oItems?.find(oi => oi.product_id?.toLowerCase().includes('quad') || oi.product_name?.toLowerCase().includes('quad'));
-            if (quadItem) {
-              const newMeta = { ...(quadItem.metadata || {}), time_slot: finalTime };
+            if (orderItemId) {
               await supabase.from('order_items').update({ 
                 unit_price: unitPrice, 
                 quantity: finalQty, 
                 product_id: `Quadriciclo ${QUAD_MODELS_LABELS[finalModel as keyof typeof QUAD_MODELS_LABELS] || 'Individual'}`, 
-                metadata: newMeta 
-              }).eq('id', quadItem.id);
+                metadata: { time: finalTime } 
+              }).eq('id', orderItemId);
+            } else {
+              // Fallback if no order_item_id: try to find the item
+              const { data: oItems } = await supabase.from('order_items').select('*').eq('order_id', orderId);
+              const quadItem = oItems?.find(oi => 
+                (oi.product_id?.toLowerCase().includes('quad') || oi.product_name?.toLowerCase().includes('quad')) &&
+                (normalizeQuadType(oi.product_name) === normalizeQuadType(finalModel))
+              );
+              if (quadItem) {
+                await supabase.from('order_items').update({ 
+                  unit_price: unitPrice, 
+                  quantity: finalQty, 
+                  metadata: { time: finalTime } 
+                }).eq('id', quadItem.id);
+              }
             }
           }
-          editData.order_id = orderId; // save for updateOrderTotal
+          editData.order_id = orderId;
+        }
+      }
+
+      if (type === 'kiosk') {
+        const { data: dbItem } = await supabase.from('kiosk_reservations').select('*').eq('id', editingId).single();
+        if (dbItem || editingId.toString().startsWith('order-')) {
+          const finalKId = editData.kiosk_id || dbItem?.kiosk_id;
+          const finalDate = editData.reservation_date || dbItem?.reservation_date || todayStr;
+          const orderId = dbItem?.order_id || editData.order_id;
+          const orderItemId = dbItem?.order_item_id || editData.order_item_id;
+
+          if (orderId && !String(orderId).startsWith('order-') && orderItemId) {
+             const kioskType = (finalKId === 1 || finalKId === 'MAIOR' || finalKId === '1') ? 'Maior' : 'Menor';
+             const kioskPrice = kioskType === 'Maior' ? 100 : 75;
+             
+             await supabase.from('order_items').update({
+               product_id: `Quiosque ${kioskType}`,
+               product_name: `Quiosque ${kioskType} - #${finalKId}`,
+               unit_price: kioskPrice,
+               metadata: { selectedIds: [finalKId] }
+             }).eq('id', orderItemId);
+
+             payload.price = kioskPrice;
+             payload.kiosk_id = finalKId;
+          }
+          editData.order_id = orderId;
         }
       }
 
       // Se for uma reserva virtual extraída de um pedido, precisa virar real no banco
       if (typeof editingId === 'string' && editingId.startsWith('order-')) {
         payload.order_id = editData.order_id;
-        const { error } = await supabase.from(table).insert([payload]);
+        payload.order_item_id = editData.order_item_id; // Add this if column exists, else ignored
+        
+        // Remove virtual ID fields before insert
+        const cleanPayload = { ...payload };
+        delete cleanPayload.is_from_order;
+
+        const { error } = await supabase.from(table).insert([cleanPayload]);
         if (error) throw error;
       } else {
         const { error } = await supabase.from(table).update(payload).eq('id', editingId);
         if (error) throw error;
       }
 
-      if (type === 'quad' && editData.order_id && !String(editData.order_id).startsWith('order-')) {
+      if (editData.order_id && !String(editData.order_id).startsWith('order-')) {
         await updateOrderTotal(editData.order_id);
       }
       
