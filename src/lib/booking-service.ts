@@ -105,12 +105,13 @@ export async function saveBooking(
                        (a as any).isBloodDonor ? 'Lessa Doador Pass' :
                        a.isStudent ? 'Lessa Estudante Pass' :
                        a.isServer ? 'Lessa Servidor Pass' :
+                       a.isMember ? 'Assinante Lessa Club' :
                        a.isBirthday ? 'Lessa Aniversariante Pass' : 'Adulto';
           orderItems.push({ 
             order_id: finalOrderId, 
             product_id: label,
             quantity: a.quantity || 1, 
-            unit_price: (a.age >= 60 || a.isPCD || a.isBirthday) ? 0 : price
+            unit_price: (a.age >= 60 || a.isPCD || a.isBirthday || a.isMember) ? 0 : price
           });
         });
 

@@ -115,6 +115,9 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
             <span className="text-[10px] sm:text-xs font-black text-emerald-800/70 uppercase tracking-widest">
               Mapa dos Quiosques
             </span>
+            <span className="hidden sm:inline-block text-[9px] font-bold text-emerald-700/60 ml-1 italic">
+              — Representação da posição no local
+            </span>
           </div>
           {isFetching && (
             <div className="flex items-center gap-1.5 text-emerald-600">
@@ -173,9 +176,19 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
                     !isBooked && !isSelected && "bg-white/90 border-emerald-500/50 hover:border-emerald-600 hover:bg-emerald-50 hover:shadow-md hover:scale-[1.03] active:scale-[0.98]",
                   )}
                 >
+                  {/* Best Choice Badge for 02 and 05 */}
+                  {(kioskDef.id === 2 || kioskDef.id === 5) && (
+                    <div className={cn(
+                      "absolute -top-3 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-tighter shadow-sm z-10 whitespace-nowrap border animate-pulse",
+                      isSelected ? "bg-white text-emerald-900 border-white" : "bg-emerald-600 text-white border-emerald-400"
+                    )}>
+                      🌟 Melhor Escolha
+                    </div>
+                  )}
+
                   {/* Selected check */}
                   {isSelected && (
-                    <div className="absolute -top-1.5 -right-1.5 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-md border-2 border-emerald-700">
+                    <div className="absolute -top-1.5 -right-1.5 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-md border-2 border-emerald-700 z-20">
                       <Check className="h-3.5 w-3.5 text-emerald-700 stroke-[3]" />
                     </div>
                   )}
@@ -303,6 +316,11 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
             </span>
           </div>
         )}
+
+        {/* Small disclaimer text for map representation */}
+        <p className="mt-3 text-[9px] text-emerald-800/50 font-medium italic text-center w-full">
+           * O mapa dos quiosques representa fielmente o posicionamento físico dos mesmos no Balneário.
+        </p>
       </div>
 
       {/* Included items info & Rules */}

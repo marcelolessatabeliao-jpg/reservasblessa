@@ -41,7 +41,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
   const resetWizard = () => {
     setWizardType(null);
     setWizardStep(1);
-    setWizardData({ age: null, category: 'inteira', takeDonation: false, isPCD: false });
+    setWizardData({ age: null, category: 'inteira', takeDonation: false, isPCD: false, isMember: false });
   };
 
   const handleStartWizard = (type: WizardType) => {
@@ -83,6 +83,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
       isServer: category === 'servidor',
       isBloodDonor: category === 'doador',
       isBirthday: category === 'aniversariante',
+      isMember: category === 'assinante',
       takeDonation: !!takeDonation
     };
 
@@ -226,6 +227,54 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
               <p className="text-sm text-primary/60 font-bold italic">
                 {isSunday ? "R$ 50 ou R$ 25 Especiais" : "R$ 50 ou R$ 25 Solidário/Especiais"}
               </p>
+            </div>
+
+            {/* Premium Subscriber Card */}
+            <div className="px-1 mb-2">
+              <div 
+                className={cn(
+                  "relative w-full overflow-hidden rounded-[2rem] border-4 transition-all duration-300 group cursor-pointer active:scale-95",
+                  wizardData.category === 'assinante' 
+                    ? "border-emerald-500 shadow-2xl bg-emerald-900 text-white" 
+                    : "border-emerald-100 bg-white hover:border-emerald-300 shadow-lg"
+                )}
+                onClick={() => {
+                   setWizardData({ ...wizardData, category: 'assinante' });
+                   handleFinishWizard('assinante', false);
+                }}
+              >
+                <div className={cn("absolute inset-0 bg-gradient-to-r from-emerald-600/20 via-transparent to-emerald-600/20 opacity-50", wizardData.category === 'assinante' ? "opacity-100" : "")} />
+                
+                <div className="relative p-5 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center transition-colors shadow-inner", wizardData.category === 'assinante' ? "bg-white/20" : "bg-emerald-50")}>
+                      <span className="text-3xl filter drop-shadow-md group-hover:scale-110 transition-transform">👑</span>
+                    </div>
+                    <div>
+                      <h5 className={cn("text-lg font-black uppercase tracking-tight leading-none mb-1", wizardData.category === 'assinante' ? "text-white" : "text-emerald-950")}>
+                        Sou Assinante
+                      </h5>
+                      <p className={cn("text-[10px] font-bold uppercase tracking-wider opacity-60", wizardData.category === 'assinante' ? "text-emerald-100" : "text-emerald-800")}>
+                        Lessa Club Premium
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="text-right">
+                    <span className={cn(
+                      "px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest shadow-lg",
+                      wizardData.category === 'assinante' ? "bg-white text-emerald-900" : "bg-emerald-600 text-white"
+                    )}>
+                      ASSINANTE
+                    </span>
+                  </div>
+                </div>
+
+                {/* Sparkling particles simulation decoration */}
+                <div className="absolute top-0 right-0 p-2 opacity-20">
+                   <div className="w-1 h-1 bg-white rounded-full animate-ping" />
+                </div>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-2">
               {categories.map((cat) => {
@@ -748,6 +797,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                                     (adult.age >= 60 && adult.isPCD) ? 'Lessa Vitalício - PCD & TEA' :
                                       adult.isPCD ? 'Lessa Inclusão - PCD & TEA' :
                                         (adult.age >= 60) ? 'Lessa Vitalício' :
+                                          adult.isMember ? 'Assinante Lessa Club' :
                                           adult.takeDonation ? 'Adulto Solidário' :
                                             'Adulto - Entrada Inteira'}
                         </span>
@@ -767,8 +817,8 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                       "font-black text-sm sm:text-base tabular-nums",
                       (adult.age >= 60 || adult.isPCD || adult.isBirthday) ? "text-whatsapp-dark" : "text-primary"
                     )}>
-                      {(adult.age >= 60 || adult.isPCD || adult.isBirthday)
-                        ? "GRÁTIS"
+                      {(adult.age >= 60 || adult.isPCD || adult.isBirthday || adult.isMember)
+                         ? (adult.isMember ? "ASSINANTE" : "GRÁTIS")
                         : formatCurrency(((adult.isTeacher || adult.isStudent || adult.isServer || (adult as any).isBloodDonor || adult.takeDonation) ? 25 : 50) * (adult.quantity || 1))
                       }
                     </span>

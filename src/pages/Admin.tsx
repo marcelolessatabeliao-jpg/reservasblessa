@@ -401,7 +401,7 @@ export default function Admin() {
       // Calculate totals for dashboard
       let tAdults = 0;
       let tChildren = 0;
-      const adultKeywords = ['adulto', 'solidario', 'professor', 'estudante', 'servidor'];
+      const adultKeywords = ['adulto', 'solidario', 'professor', 'estudante', 'servidor', 'assinante'];
       const gratuityKeywords = ['criança', 'kids', 'idoso', 'pcd', 'aniversariante'];
 
       [...(enrichedBookings || []), ...(orderData || [])].forEach(b => {

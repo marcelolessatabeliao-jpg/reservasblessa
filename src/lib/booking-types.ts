@@ -156,8 +156,8 @@ export function getPersonPrice(
   isSunday: boolean,
   getPrice: (type: string, fallback: number) => number
 ): number {
-  // Gratuidades: PCD/TEA, Aniversariante, Idoso (60+), Criança (≤11)
-  if (defaultGratuity || person.isPCD || person.isTEA || person.isBirthday) {
+  // Gratuidades: PCD/TEA, Aniversariante, Idoso (60+), Criança (≤11), Assinante Lessa Club
+  if (defaultGratuity || person.isPCD || person.isTEA || person.isBirthday || person.isMember) {
     return 0;
   }
   
