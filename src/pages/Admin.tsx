@@ -147,6 +147,7 @@ export default function Admin() {
   const [isCapacityUnlocked, setIsCapacityUnlocked] = useState(false);
   const [agendaSubTab, setAgendaSubTab] = useState<'hoje' | 'futuras' | 'historico'>('hoje');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [kioskStatusFilter, setKioskStatusFilter] = useState<string>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [expandedQuadGroupId, setExpandedQuadGroupId] = useState<string | null>(null);
   const [lastSync, setLastSync] = useState<Date>(new Date());
@@ -220,13 +221,11 @@ export default function Admin() {
       const orderData = await getAdminOrders();
       const { data: bks } = await supabase.from('bookings').select('*').neq('status', 'awaiting_payment').order('visit_date', { ascending: false });
       const { data: kiosks } = await (supabase.from('kiosk_reservations') as any)
-        .select('*, orders!inner(customer_name, status), bookings(name)')
-        .neq('orders.status', 'awaiting_payment')
+        .select('*, orders(customer_name, status), bookings(name)')
         .order('reservation_date', { ascending: false });
         
       const { data: quads } = await (supabase.from('quad_reservations') as any)
-        .select('*, orders!inner(customer_name, status), bookings(name)')
-        .neq('orders.status', 'awaiting_payment')
+        .select('*, orders(customer_name, status), bookings(name)')
         .order('reservation_date', { ascending: false });
       
       const { data: creds } = await supabase
@@ -252,15 +251,17 @@ export default function Admin() {
         return { ...b, order_items: relatedOrder?.order_items || [] };
       });
       
-      // Map reservations to include customer names correctly from either source
+      // Map reservations to include customer names correctly and status
       let parsedKiosks = filteredKiosks.map((k: any) => ({
          ...k,
-         customer_name: k.customer_name || k.orders?.customer_name || k.bookings?.name || 'Reserva Direta'
+         customer_name: k.customer_name || k.orders?.customer_name || k.bookings?.name || 'Reserva Direta',
+         status: k.orders?.status || 'confirmed'
       }));
       
       let parsedQuads = filteredQuads.map((q: any) => ({
          ...q,
-         customer_name: q.customer_name || q.orders?.customer_name || q.bookings?.name || 'Reserva Direta'
+         customer_name: q.customer_name || q.orders?.customer_name || q.bookings?.name || 'Reserva Direta',
+         status: q.orders?.status || 'confirmed'
       }));
 
       if (orderData) {
@@ -331,7 +332,8 @@ export default function Admin() {
                        price: item.unit_price,
                        order_id: o.id,
                        order_item_id: item.id,
-                       is_from_order: true
+                       is_from_order: true,
+                       status: o.status
                      });
                    }
                  }
@@ -383,7 +385,8 @@ export default function Admin() {
                        price: item.quantity * item.unit_price,
                        order_id: o.id,
                        order_item_id: item.id,
-                       is_from_order: true
+                       is_from_order: true,
+                       status: o.status
                     });
                   }
                }
@@ -776,20 +779,61 @@ export default function Admin() {
     
     setLoading(true);
     try {
+      // 1. Availability Check
+      if (type === 'kiosk') {
+        const bookedIds = await getBookedKioskIds(newDateStr);
+        const currentIds = group.items.map((r: any) => r.kiosk_id).filter((id: any) => !isNaN(id)).map(Number);
+        // If we are moving to a new date, we check if ALL kiosks in the group are free on the NEW date
+        const conflicts = currentIds.filter((id: number) => bookedIds.includes(id));
+        if (conflicts.length > 0) {
+          throw new Error(`O(s) quiosque(s) ${conflicts.join(', ')} já estão ocupados nesta data.`);
+        }
+      } else {
+        const { available } = await getQuadAvailability(newDateStr);
+        const requested = group.items.reduce((s: number, r: any) => s + (Number(r.quantity) || 1), 0);
+        if (available < requested) {
+          throw new Error(`Não há quadriciclos disponíveis suficientes para esta data (${available} disponíveis).`);
+        }
+      }
+
       const table = type === 'kiosk' ? 'kiosk_reservations' : 'quad_reservations';
-      const results = await Promise.all(group.items.map((r: any) =>
-        supabase.from(table).update({ reservation_date: newDateStr }).eq('id', r.id)
-      ));
+      const orderId = group.items[0]?.order_id;
+
+      // 2. Perform Updates
+      const results = await Promise.all(group.items.map(async (r: any) => {
+        let updatePayload: any = { reservation_date: newDateStr };
+        
+        // If it's a quad, we might need to update the price because the discount changes by day of week
+        if (type === 'quad') {
+          const discount = getQuadDiscount(parseToRODate(newDateStr));
+          const prices: any = { individual: 150, dupla: 250, 'adulto-crianca': 200 };
+          const unitPrice = (prices[r.quad_type] || 150) * (1 - discount);
+          updatePayload.price = unitPrice * (r.quantity || 1);
+          
+          // Also update order_items if linked
+          if (orderId && !String(orderId).startsWith('order-') && r.order_item_id) {
+             await supabase.from('order_items').update({ unit_price: unitPrice }).eq('id', r.order_item_id);
+          }
+        }
+        
+        return supabase.from(table).update(updatePayload).eq('id', r.id);
+      }));
       
       const hasError = results.some(r => r.error);
-      if (hasError) throw new Error('Algumas atualizações falharam');
+      if (hasError) throw new Error('Algumas atualizações falharam no banco de dados.');
+
+      // 3. Update Order Level
+      if (orderId && !String(orderId).startsWith('order-')) {
+        await supabase.from('orders').update({ visit_date: newDateStr }).eq('id', orderId);
+        await updateOrderTotal(orderId);
+      }
       
       toast({ title: '✓ Reagendado com sucesso' });
       fetchData();
       setRescheduleData(null);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Reschedule error:', err);
-      toast({ title: 'Erro ao reagendar', variant: 'destructive' });
+      toast({ title: 'Erro ao reagendar', description: err.message, variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -1209,9 +1253,20 @@ export default function Admin() {
       futuras: allGroups.filter((g: any) => g.reservation_date > todayStr),
       historico: allGroups.filter((g: any) => g.reservation_date < todayStr),
     };
-    const tabGroups = search 
-      ? allGroups.filter((g: any) => normalizeString(g.customer_name).includes(normalizeString(search)))
-      : groupsByTab[kioskSubTab];
+
+    let tabGroups = groupsByTab[kioskSubTab];
+    
+    // Status Filtering
+    if (kioskStatusFilter !== 'all') {
+      tabGroups = tabGroups.filter(g => 
+        g.items.some((item: any) => item.status === kioskStatusFilter)
+      );
+    }
+
+    // Search Filtering
+    if (search) {
+      tabGroups = tabGroups.filter((g: any) => normalizeString(g.customer_name).includes(normalizeString(search)));
+    }
 
     const resolveGroup = (group: any) => {
       const dayKiosks = (kioskReservations || []).filter(k => k.reservation_date === group.reservation_date);
@@ -1240,7 +1295,7 @@ export default function Admin() {
       <div className="space-y-6 animate-in fade-in duration-500">
         {/* TAB HEADER - CLEAN & PREMIUM PILLS */}
         <div className="bg-white rounded-3xl border-2 border-slate-300 shadow-xl overflow-hidden">
-          <div className="p-6 border-b-2 border-slate-200 bg-slate-50">
+          <div className="p-6 border-b-2 border-slate-200 bg-slate-50 space-y-4">
             <div className="flex items-center justify-between flex-wrap gap-4">
               <div>
                 <h3 className="text-lg font-black text-emerald-900 uppercase tracking-tight">Reservas de Quiosques</h3>
@@ -1263,6 +1318,24 @@ export default function Admin() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            <div className="flex items-center gap-4 bg-white/50 p-3 rounded-2xl border border-emerald-100 shadow-sm">
+              <div className="flex items-center gap-2">
+                <Tag className="w-4 h-4 text-emerald-600" />
+                <span className="text-[10px] font-black uppercase text-emerald-800">Filtrar Status:</span>
+              </div>
+              <Select value={kioskStatusFilter} onValueChange={setKioskStatusFilter}>
+                <SelectTrigger className="w-[200px] h-9 rounded-xl border-emerald-200 bg-white font-bold text-xs">
+                  <SelectValue placeholder="Todos os Status" />
+                </SelectTrigger>
+                <SelectContent className="bg-white rounded-xl shadow-xl border-emerald-100">
+                  <SelectItem value="all" className="font-bold text-xs">Todos os Pedidos</SelectItem>
+                  <SelectItem value="paid" className="font-bold text-xs">Pagos</SelectItem>
+                  <SelectItem value="pending" className="font-bold text-xs">Pendentes</SelectItem>
+                  <SelectItem value="confirmed" className="font-bold text-xs">Confirmados</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -2327,29 +2400,46 @@ function EditKioskDialog({ group, onClose, onUpdated, updateOrderTotal }: any) {
         const item = group.items[i];
         const newKioskId = selectedKiosks[i];
         const newKiosk = KIOSKS.find(k => k.id === newKioskId);
+        const kioskType = newKiosk?.type === 'Maior' ? 'maior' : 'menor';
+        const newPrice = newKiosk?.type === 'Maior' ? 100 : 75;
 
+        // 1. Update kiosk_reservations
         await (supabase.from('kiosk_reservations') as any).update({
           kiosk_id: newKioskId,
-          kiosk_type: newKiosk?.type === 'Maior' ? 'maior' : 'menor'
+          kiosk_type: kioskType,
+          price: newPrice
         }).eq('id', item.id);
 
+        // 2. Update order_items if linked
         if (orderId && !String(orderId).startsWith('order-')) {
-          const newPrice = newKiosk?.type === 'Maior' ? 100 : 75;
           const { data: oItems } = await supabase.from('order_items').select('*').eq('order_id', orderId);
-          const kioskItem = oItems?.find(oi => oi.product_id?.toLowerCase().includes('quiosque') || oi.product_name?.toLowerCase().includes('quiosque'));
+          // Find the specific order item for this kiosk
+          const kioskItem = oItems?.find(oi => 
+            (oi.product_id?.toLowerCase().includes('quiosque') || (oi as any).product_name?.toLowerCase().includes('quiosque')) &&
+            (oi.id === item.order_item_id || group.items.length === 1) // Match by ID if possible, or if it's the only one
+          );
           
           if (kioskItem) {
-             await supabase.from('order_items').update({ unit_price: newPrice }).eq('id', kioskItem.id);
+             const kioskLabel = newKiosk?.type === 'Maior' ? 'Maior' : 'Menor';
+             await supabase.from('order_items').update({ 
+               unit_price: newPrice,
+               product_id: `Quiosque ${kioskLabel}`,
+               metadata: { selectedIds: [newKioskId] } 
+             }).eq('id', kioskItem.id);
           }
         }
       }
       
-      if (orderId) await updateOrderTotal(orderId);
+      if (orderId && !String(orderId).startsWith('order-')) {
+        await updateOrderTotal(orderId);
+      }
       toast({ title: 'Sucesso!', description: 'Quiosques atualizados.' });
       onUpdated();
       onClose();
-    } catch(e) { toast({ title: 'Erro', description: 'Falha ao atualizar.', variant: 'destructive' }); }
-    finally { setLoading(false); }
+    } catch(e: any) { 
+      console.error(e);
+      toast({ title: 'Erro', description: 'Falha ao atualizar.', variant: 'destructive' }); 
+    } finally { setLoading(false); }
   };
 
   return (
