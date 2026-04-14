@@ -451,59 +451,70 @@ export function BookingTable({
                         </p>
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                           <Button
-                            onClick={async (e: any) => {
+                            onClick={(e: any) => {
                               e.stopPropagation();
                               const phone = (
                                 booking.customer_phone ||
                                 (booking as any).phone ||
                                 ""
                               ).replace(/\D/g, "");
-                              if (phone) {
-                                const items =
-                                  (booking as any).order_items || [];
-                                const itemsList = items
-                                  .map(
-                                    (it: any) =>
-                                      `* ${it.quantity}x ${it.product_name || it.product_id} (${formatCurrency(it.unit_price)})`,
-                                  )
-                                  .join("\n");
-                                const dateStr = format(
-                                  parseISO(
-                                    booking.visit_date ||
-                                      new Date().toISOString(),
-                                  ),
-                                  "dd/MM/yyyy",
-                                  { locale: ptBR },
-                                );
-                                const name =
-                                  booking.name ||
-                                  (booking as any).customer_name;
+                              
+                              if (!phone) {
+                                toast({ title: "Erro", description: "Telefone do cliente não encontrado.", variant: "destructive" });
+                                return;
+                              }
 
-                                // Build message with literal emojis for best compatibility
-                                const message = 
-                                  `🌿 *BALNEÁRIO FAMÍLIA LESSA*\n\n` +
-                                  `Esse é seu voucher de confirmação da sua reserva e o resumo do seu pedido para apresentar caso seja solicitado.\n\n` +
-                                  `📅 *Data:* ${dateStr}\n` +
-                                  `👤 *Titular:* ${name}\n\n` +
-                                  `📝 *Resumo do Pedido:*\n${itemsList}\n\n` +
-                                  `💰 *Total:* ${formatCurrency(booking.total_amount)}\n\n` +
-                                  `Voucher: https://reservas.balneariolessa.com.br/voucher/${booking.confirmation_code}\n\n` +
-                                  `✨ *Aguardamos vocês para o lazer que a sua família merece.*`;
-                                
-                                const text = encodeURIComponent(message);
+                              const code = booking.confirmation_code;
+                              if (!code) {
+                                toast({ title: "Erro", description: "Código do voucher não encontrado.", variant: "destructive" });
+                                return;
+                              }
 
-                                // Update marker in DB
-                                if (booking.id && !booking.id.startsWith('order-')) {
-                                  await supabase.from('orders')
-                                    .update({ last_voucher_sent_at: new Date().toISOString() })
-                                    .eq('id', booking.id);
-                                  if (onRefresh) onRefresh();
-                                }
+                              const items = (booking as any).order_items || [];
+                              const itemsList = items
+                                .map(
+                                  (it: any) =>
+                                    `* ${it.quantity}x ${it.product_name || it.product_id} (${formatCurrency(it.unit_price)})`,
+                                )
+                                .join("\n");
+                              
+                              const dateStr = format(
+                                parseISO(
+                                  booking.visit_date ||
+                                    new Date().toISOString(),
+                                ),
+                                "dd/MM/yyyy",
+                                { locale: ptBR },
+                              );
+                              
+                              const name = booking.name || (booking as any).customer_name;
 
-                                window.open(
-                                  "https://wa.me/55" + phone + "?text=" + text,
-                                  "_blank",
-                                );
+                              const message = 
+                                `🌿 *BALNEÁRIO FAMÍLIA LESSA*\n\n` +
+                                `Esse é seu voucher de confirmação da sua reserva e o resumo do seu pedido para apresentar caso seja solicitado.\n\n` +
+                                `📅 *Data:* ${dateStr}\n` +
+                                `👤 *Titular:* ${name}\n\n` +
+                                `📝 *Resumo do Pedido:*\n${itemsList}\n\n` +
+                                `💰 *Total:* ${formatCurrency(booking.total_amount)}\n\n` +
+                                `Voucher: https://reservas.balneariolessa.com.br/voucher/${code}\n\n` +
+                                `✨ *Aguardamos vocês para o lazer que a sua família merece.*`;
+                              
+                              const text = encodeURIComponent(message);
+
+                              // Open WhatsApp immediately to avoid popup blocking
+                              window.open(
+                                "https://wa.me/55" + phone + "?text=" + text,
+                                "_blank",
+                              );
+
+                              // Update marker in DB asynchronously
+                              if (booking.id && !booking.id.startsWith('order-')) {
+                                supabase.from('orders')
+                                  .update({ last_voucher_sent_at: new Date().toISOString() })
+                                  .eq('id', booking.id)
+                                  .then(() => {
+                                    if (onRefresh) onRefresh();
+                                  });
                               }
                             }}
                             className={cn(
@@ -1076,62 +1087,75 @@ export function BookingTable({
                                         </Button>
                                       )}
                                         <Button
-                                          onClick={async (e) => {
+                                          onClick={(e) => {
                                             e.stopPropagation();
                                             const phone = (
                                               booking.customer_phone ||
                                               (booking as any).phone ||
                                               ""
                                             ).replace(/\D/g, "");
-                                            if (phone) {
-                                              const items =
-                                                (booking as any).order_items ||
-                                                [];
-                                              const itemsList = items
-                                                .map(
-                                                  (it: any) =>
-                                                    `* ${it.quantity}x ${it.product_name || it.product_id} (${formatCurrency(it.unit_price)})`,
-                                                )
-                                                .join("\n");
-                                              const dateStr = format(
-                                                parseISO(
-                                                  booking.visit_date ||
-                                                    new Date().toISOString(),
-                                                ),
-                                                "dd/MM/yyyy",
-                                                { locale: ptBR },
-                                              );
-                                              const name =
-                                                booking.name ||
-                                                (booking as any).customer_name;
+                                            
+                                            if (!phone) {
+                                              toast({ title: "Erro", description: "Telefone do cliente não encontrado.", variant: "destructive" });
+                                              return;
+                                            }
 
-                                              const message = 
-                                                `🌿 *BALNEÁRIO FAMÍLIA LESSA*\n\n` +
-                                                `Esse é seu voucher de confirmação da sua reserva e o resumo do seu pedido para apresentar caso seja solicitado.\n\n` +
-                                                `📅 *Data:* ${dateStr}\n` +
-                                                `👤 *Titular:* ${name}\n\n` +
-                                                `📝 *Resumo do Pedido:*\n${itemsList}\n\n` +
-                                                `💰 *Total:* ${formatCurrency(booking.total_amount)}\n\n` +
-                                                `Voucher: https://reservas.balneariolessa.com.br/voucher/${booking.confirmation_code}\n\n` +
-                                                `✨ *Aguardamos vocês para o lazer que a sua família merece.*`;
-                                              
-                                              const text = encodeURIComponent(message);
+                                            const code = booking.confirmation_code;
+                                            if (!code) {
+                                              toast({ title: "Erro", description: "Código do voucher não encontrado.", variant: "destructive" });
+                                              return;
+                                            }
 
-                                              // Update marker in DB
-                                              if (booking.id && !booking.id.startsWith('order-')) {
-                                                await supabase.from('orders')
-                                                  .update({ last_voucher_sent_at: new Date().toISOString() })
-                                                  .eq('id', booking.id);
-                                                if (onRefresh) onRefresh();
-                                              }
+                                            const items =
+                                              (booking as any).order_items ||
+                                              [];
+                                            const itemsList = items
+                                              .map(
+                                                (it: any) =>
+                                                  `* ${it.quantity}x ${it.product_name || it.product_id} (${formatCurrency(it.unit_price)})`,
+                                              )
+                                              .join("\n");
+                                            const dateStr = format(
+                                              parseISO(
+                                                booking.visit_date ||
+                                                  new Date().toISOString(),
+                                              ),
+                                              "dd/MM/yyyy",
+                                              { locale: ptBR },
+                                            );
+                                            const name =
+                                              booking.name ||
+                                              (booking as any).customer_name;
 
-                                              window.open(
-                                                "https://wa.me/55" +
-                                                  phone +
-                                                  "?text=" +
-                                                  text,
-                                                "_blank",
-                                              );
+                                            const message = 
+                                              `🌿 *BALNEÁRIO FAMÍLIA LESSA*\n\n` +
+                                              `Esse é seu voucher de confirmação da sua reserva e o resumo do seu pedido para apresentar caso seja solicitado.\n\n` +
+                                              `📅 *Data:* ${dateStr}\n` +
+                                              `👤 *Titular:* ${name}\n\n` +
+                                              `📝 *Resumo do Pedido:*\n${itemsList}\n\n` +
+                                              `💰 *Total:* ${formatCurrency(booking.total_amount)}\n\n` +
+                                              `Voucher: https://reservas.balneariolessa.com.br/voucher/${code}\n\n` +
+                                              `✨ *Aguardamos vocês para o lazer que a sua família merece.*`;
+                                            
+                                            const text = encodeURIComponent(message);
+
+                                            // Open WhatsApp immediately
+                                            window.open(
+                                              "https://wa.me/55" +
+                                                phone +
+                                                "?text=" +
+                                                text,
+                                              "_blank",
+                                            );
+
+                                            // Update marker in DB
+                                            if (booking.id && !booking.id.startsWith('order-')) {
+                                              supabase.from('orders')
+                                                .update({ last_voucher_sent_at: new Date().toISOString() })
+                                                .eq('id', booking.id)
+                                                .then(() => {
+                                                  if (onRefresh) onRefresh();
+                                                });
                                             }
                                           }}
                                           className={cn(

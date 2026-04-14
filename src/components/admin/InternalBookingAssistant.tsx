@@ -15,7 +15,8 @@ import { cn } from "@/lib/utils";
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { getBookedKioskIds, getQuadAvailability, getGlobalSetting } from '@/lib/booking-service';
-import { getQuadDiscount } from '@/lib/booking-types';
+import { getQuadDiscount, QUAD_PRICES } from '@/lib/booking-types';
+import { parseToRODate } from '@/utils/date-utils';
 
 const KIOSKS = [
   { id: 1, name: 'QUIOSQUE - 01 (Grande)', price: 100, type: 'Maior' },
@@ -210,10 +211,10 @@ export function InternalBookingAssistant({
       
     selected_kiosks.forEach(id => total += (id === 1 ? 100 : 75));
     
-    const qD = getQuadDiscount(visit_date);
+    const qD = getQuadDiscount(parseToRODate(visit_date));
     quads.forEach(q => {
-      const b = q.type === 'dupla' ? 250 : q.type === 'adulto-crianca' ? 200 : 150;
-      total += (b * (1 - qD)) * q.quantity;
+      const basePrice = QUAD_PRICES[q.type as keyof typeof QUAD_PRICES] || 150;
+      total += (basePrice * (1 - qD)) * q.quantity;
     });
 
     newBookingData.additionals.forEach(a => {

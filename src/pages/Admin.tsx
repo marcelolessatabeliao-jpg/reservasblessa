@@ -57,7 +57,8 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { formatCurrency, getQuadDiscount } from '@/lib/booking-types';
+import { formatCurrency, getQuadDiscount, QUAD_PRICES } from '@/lib/booking-types';
+import { parseToRODate } from '@/utils/date-utils';
 import { BookingTable } from '@/components/admin/BookingTable';
 import { AgendaHeader } from '@/components/admin/AgendaHeader';
 import { getAdminOrders, markOrderAsPaid } from '@/integrations/supabase/orders';
@@ -248,20 +249,32 @@ export default function Admin() {
           (o.confirmation_code && b.confirmation_code && o.confirmation_code === b.confirmation_code) || 
           (nameMatch(o.customer_name, b.name) && matchDate(o.visit_date, b.visit_date))
         );
-        return { ...b, order_items: relatedOrder?.order_items || [] };
+        return { 
+          ...b, 
+          order_items: relatedOrder?.order_items || [],
+          confirmation_code: b.confirmation_code || relatedOrder?.confirmation_code,
+          customer_phone: b.phone || relatedOrder?.customer_phone,
+          last_voucher_sent_at: relatedOrder?.last_voucher_sent_at
+        };
       });
       
       // Map reservations to include customer names correctly and status
       let parsedKiosks = filteredKiosks.map((k: any) => ({
          ...k,
          customer_name: k.customer_name || k.orders?.customer_name || k.bookings?.name || 'Reserva Direta',
-         status: k.orders?.status || 'confirmed'
+         status: k.orders?.status || 'confirmed',
+         confirmation_code: k.confirmation_code || k.orders?.confirmation_code,
+         customer_phone: k.customer_phone || k.orders?.customer_phone || k.bookings?.phone,
+         last_voucher_sent_at: k.last_voucher_sent_at || k.orders?.last_voucher_sent_at
       }));
       
       let parsedQuads = filteredQuads.map((q: any) => ({
          ...q,
          customer_name: q.customer_name || q.orders?.customer_name || q.bookings?.name || 'Reserva Direta',
-         status: q.orders?.status || 'confirmed'
+         status: q.orders?.status || 'confirmed',
+         confirmation_code: q.confirmation_code || q.orders?.confirmation_code,
+         customer_phone: q.customer_phone || q.orders?.customer_phone || q.bookings?.phone,
+         last_voucher_sent_at: q.last_voucher_sent_at || q.orders?.last_voucher_sent_at
       }));
 
       if (orderData) {
@@ -329,6 +342,9 @@ export default function Admin() {
                        kiosk_id: kioskIdVal,
                        reservation_date: resDate,
                        customer_name: customerName,
+                       customer_phone: o.customer_phone,
+                       confirmation_code: o.confirmation_code,
+                       last_voucher_sent_at: o.last_voucher_sent_at,
                        price: item.unit_price,
                        order_id: o.id,
                        order_item_id: item.id,
@@ -382,6 +398,9 @@ export default function Admin() {
                        quantity: item.quantity,
                        reservation_date: resDate,
                        customer_name: customerName,
+                       customer_phone: o.customer_phone,
+                       confirmation_code: o.confirmation_code,
+                       last_voucher_sent_at: o.last_voucher_sent_at,
                        price: item.quantity * item.unit_price,
                        order_id: o.id,
                        order_item_id: item.id,
@@ -551,8 +570,7 @@ export default function Admin() {
           const finalTime = editData.time_slot || dbItem?.time_slot;
           
           const discount = getQuadDiscount(parseToRODate(finalDate));
-          const prices: any = { individual: 150, dupla: 250, 'adulto-crianca': 200 };
-          const unitPrice = (prices[finalModel] || 150) * (1 - discount);
+          const unitPrice = (QUAD_PRICES[finalModel as keyof typeof QUAD_PRICES] || 150) * (1 - discount);
           
           payload.price = unitPrice * finalQty;
           payload.quad_type = finalModel;
@@ -2497,8 +2515,7 @@ function EditQuadDialog({ item, onClose, onUpdated, updateOrderTotal }: any) {
     try {
       const orderId = item.order_id;
       const discount = getQuadDiscount(parseToRODate(item.reservation_date));
-      const prices: any = { individual: 150, dupla: 250, 'adulto-crianca': 200 };
-      const unitPrice = prices[model] * (1 - discount);
+      const unitPrice = (QUAD_PRICES[model as keyof typeof QUAD_PRICES] || 150) * (1 - discount);
       
       // 1. Update quad_reservations
       await (supabase.from('quad_reservations') as any).update({ 

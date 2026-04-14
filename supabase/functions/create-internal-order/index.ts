@@ -112,7 +112,8 @@ Deno.serve(async (req) => {
     })
 
     // Quadriciclos — com desconto do dia já embutido no total_amount
-    const dayOfWeek = new Date(visit_date + 'T12:00:00').getDay()
+    // Forçar fuso horário de Porto Velho (-04:00) para garantir o dia da semana correto
+    const dayOfWeek = new Date(visit_date + 'T12:00:00-04:00').getDay()
     let quadDiscount = 0
     if (dayOfWeek === 1 || dayOfWeek === 5) quadDiscount = 0.2
     else if (dayOfWeek === 0 || dayOfWeek === 6) quadDiscount = 0.1
