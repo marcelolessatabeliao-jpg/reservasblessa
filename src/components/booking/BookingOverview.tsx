@@ -343,12 +343,6 @@ export function BookingOverview({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3 mb-2">
-        <div className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-primary/10 text-primary shrink-0">
-          <span className="text-base sm:text-lg">\uD83D\uDCDD</span>
-        </div>
-        <h3 className="font-sans font-bold text-lg sm:text-xl">Resumo da Experiência</h3>
-      </div>
 
       <div className="bg-white/50 backdrop-blur-md rounded-2xl border border-white/60 p-5 sm:p-6 shadow-xl space-y-5">
 

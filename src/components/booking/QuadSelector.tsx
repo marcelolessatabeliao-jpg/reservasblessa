@@ -365,7 +365,7 @@ export function QuadSelector({ quads, onUpdate }: Props) {
                               className={cn("font-bold py-3", isFull ? "text-destructive" : "text-foreground")}
                               disabled={isFull && quad.time !== t}
                             >
-                              {t} \u2014 1h30 ({isFull ? 'LOTADO' : `${totalUsed}/${maxQuads} ocupadas`})
+                              {t}
                             </SelectItem>
                           );
                         })}
