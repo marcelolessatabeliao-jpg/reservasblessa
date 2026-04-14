@@ -32,6 +32,8 @@ Deno.serve(async (req) => {
       .select('external_id, status')
       .eq('order_id', orderId)
       .eq('gateway', 'asaas')
+      .order('created_at', { ascending: false })
+      .limit(1)
       .maybeSingle()
 
     if (payError) throw payError

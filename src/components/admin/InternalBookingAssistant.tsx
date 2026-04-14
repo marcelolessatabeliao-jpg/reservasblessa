@@ -133,11 +133,19 @@ export function InternalBookingAssistant({
         throw new Error(data.error || 'Falha ao criar reserva.');
       }
 
-      toast({ 
-        title: 'Sucesso!', 
-        description: newBookingData.status === 'pending' && data?.pix ? 'Reserva criada e PIX gerado.' : 'Reserva criada com sucesso.',
-        variant: 'default'
-      });
+      if (data?.is_duplicate) {
+        toast({ 
+          title: 'AVISO: Venda já existe', 
+          description: data.message || 'Uma reserva pendente já existe para este CPF nesta data.',
+          variant: 'destructive'
+        });
+      } else {
+        toast({ 
+          title: 'Sucesso!', 
+          description: newBookingData.status === 'pending' && data?.pix ? 'Reserva criada e PIX gerado.' : 'Reserva criada com sucesso.',
+          variant: 'default'
+        });
+      }
 
       if (newBookingData.status === 'pending' && data?.pix) {
         setGeneratedPix(data.pix);

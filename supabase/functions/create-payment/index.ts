@@ -26,6 +26,39 @@ Deno.serve(async (req) => {
     const cleanCpf = cpf ? cpf.replace(/\D/g, '') : '';
 
     if (!cleanCpf) throw new Error('Para cobranças reais em produção, o CPF é obrigatório.');
+    
+    // 2.5 Idempotência: Verificar se já existe um pagamento pendente para este pedido/método
+    const supabaseAdmin = createClient(Deno.env.get('SUPABASE_URL') || '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '');
+    const { data: existingPayment } = await supabaseAdmin
+        .from('payments')
+        .select('*')
+        .eq('order_id', orderId)
+        .eq('metodo', billingType)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+    if (existingPayment?.external_id && existingPayment?.payment_url) {
+        // Se for PIX, precisamos recuperar o QR Code novamente
+        let pixData = null;
+        if (billingType === 'PIX') {
+            const pixReq = await fetch(`${ASAAS_URL}/payments/${existingPayment.external_id}/pixQrCode`, {
+                headers: { 'access_token': ASAAS_API_KEY }
+            });
+            if (pixReq.ok) pixData = await pixReq.json();
+        }
+
+        return new Response(JSON.stringify({
+            success: true,
+            is_reused: true,
+            data: {
+                paymentId: existingPayment.external_id,
+                invoiceUrl: existingPayment.payment_url,
+                pix: pixData ? { encodedImage: pixData.encodedImage, payload: pixData.payload } : null
+            }
+        }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });
+    }
 
     // 3. Criar/Vincular Cliente no Asaas
     const customerReq = await fetch(`${ASAAS_URL}/customers`, {

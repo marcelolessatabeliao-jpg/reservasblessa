@@ -46,6 +46,28 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
     )
 
+    // 0. Duplicity Check: Verificar se já existe um pedido pendente para este CPF na mesma data
+    if (cpf) {
+      const cleanCpf = cpf.replace(/\D/g, '')
+      const { data: existingOrder } = await supabase
+        .from('orders')
+        .select('id, confirmation_code')
+        .eq('customer_cpf', cleanCpf)
+        .eq('visit_date', visit_date)
+        .eq('status', 'pending')
+        .maybeSingle()
+      
+      if (existingOrder) {
+        return new Response(JSON.stringify({ 
+          success: true, 
+          is_duplicate: true,
+          orderId: existingOrder.id,
+          confirmationCode: existingOrder.confirmation_code,
+          message: 'Já existe uma reserva pendente para este CPF nesta data. Carregando dados existentes...'
+        }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
+    }
+
     // 1. Criar o pedido principal
     const orderStatus = status === 'paid' ? 'paid' : 'pending'
     const { data: order, error: orderError } = await supabase
@@ -166,52 +188,71 @@ Deno.serve(async (req) => {
           const isLive = ASAAS_API_KEY.startsWith('aact_live_')
           const ASAAS_URL = isLive ? 'https://www.asaas.com/api/v3' : 'https://sandbox.asaas.com/api/v3'
           
-          // Criar/Vincular Cliente
-          const customerReq = await fetch(`${ASAAS_URL}/customers`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'access_token': ASAAS_API_KEY },
-            body: JSON.stringify({
-              name: name.trim(),
-              cpfCnpj: cpf ? cpf.replace(/\D/g, '') : null,
-              mobilePhone: phone ? phone.replace(/\D/g, '') : null
+          // 5.1 Idempotência: Verificar se já existe um pagamento pendente para este pedido
+          const { data: existingPay } = await supabase
+            .from('payments')
+            .select('*')
+            .eq('order_id', orderId)
+            .eq('status', 'pending')
+            .maybeSingle()
+
+          if (existingPay?.external_id) {
+            const qrReq = await fetch(`${ASAAS_URL}/payments/${existingPay.external_id}/pixQrCode`, {
+              headers: { 'access_token': ASAAS_API_KEY }
             })
-          })
-          const customerData = await customerReq.json()
-          
-          if (customerReq.ok) {
-            // Gerar Cobrança PIX
-            const paymentReq = await fetch(`${ASAAS_URL}/payments`, {
+            const qrData = await qrReq.json()
+            if (qrReq.ok) {
+              pixData = { encodedImage: qrData.encodedImage, payload: qrData.payload }
+            }
+          } else {
+            // Criar/Vincular Cliente
+            const customerReq = await fetch(`${ASAAS_URL}/customers`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'access_token': ASAAS_API_KEY },
               body: JSON.stringify({
-                customer: customerData.id,
-                billingType: 'PIX',
-                value: total_amount,
-                dueDate: new Date().toISOString().split('T')[0],
-                description: `Reserva Interna - ${name.trim()}`,
-                externalReference: orderId
+                name: name.trim(),
+                cpfCnpj: cpf ? cpf.replace(/\D/g, '') : null,
+                mobilePhone: phone ? phone.replace(/\D/g, '') : null
               })
             })
-            const paymentData = await paymentReq.json()
+            const customerData = await customerReq.json()
             
-            if (paymentReq.ok) {
-              // Obter QR Code
-              const qrReq = await fetch(`${ASAAS_URL}/payments/${paymentData.id}/pixQrCode`, {
-                headers: { 'access_token': ASAAS_API_KEY }
+            if (customerReq.ok) {
+              // Gerar Cobrança PIX
+              const paymentReq = await fetch(`${ASAAS_URL}/payments`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'access_token': ASAAS_API_KEY },
+                body: JSON.stringify({
+                  customer: customerData.id,
+                  billingType: 'PIX',
+                  value: total_amount,
+                  dueDate: new Date().toISOString().split('T')[0],
+                  description: `Reserva Interna - ${name.trim()}`,
+                  externalReference: orderId
+                })
               })
-              const qrData = await qrReq.json()
-              if (qrReq.ok) {
-                pixData = { encodedImage: qrData.encodedImage, payload: qrData.payload }
-              }
+              const paymentData = await paymentReq.json()
+              
+              if (paymentReq.ok) {
+                // Obter QR Code
+                const qrReq = await fetch(`${ASAAS_URL}/payments/${paymentData.id}/pixQrCode`, {
+                  headers: { 'access_token': ASAAS_API_KEY }
+                })
+                const qrData = await qrReq.json()
+                if (qrReq.ok) {
+                  pixData = { encodedImage: qrData.encodedImage, payload: qrData.payload }
+                }
 
-              // Registrar pagamento no Supabase
-              await supabase.from('payments').insert({
-                order_id: orderId,
-                gateway: 'asaas',
-                metodo: 'PIX',
-                status: 'pending',
-                external_id: paymentData.id
-              })
+                // Registrar pagamento no Supabase
+                await supabase.from('payments').insert({
+                  order_id: orderId,
+                  gateway: 'asaas',
+                  metodo: 'PIX',
+                  status: 'pending',
+                  external_id: paymentData.id,
+                  payment_url: paymentData.invoiceUrl
+                })
+              }
             }
           }
         }
