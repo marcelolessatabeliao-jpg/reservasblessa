@@ -1882,9 +1882,7 @@ export default function Admin() {
                   if (statusFilter === 'cancelled') return s === 'cancelled' || s === 'cancelado';
                   return s === statusFilter;
                 });
-                const totalAmount = filtered
-                  .filter(o => (o.status || '').toLowerCase() === 'paid' || (o.status || '').toLowerCase() === 'pago')
-                  .reduce((acc, curr) => acc + (curr.total_amount || 0), 0);
+                const totalAmount = filtered.reduce((acc, curr) => acc + (curr.total_amount || 0), 0);
                 
                 return (
                   <div className="flex gap-2">
@@ -1892,7 +1890,7 @@ export default function Admin() {
                       Pedidos: {filtered.length}
                     </Badge>
                     <Badge className="bg-emerald-600 text-white border-0 font-black h-10 px-4 rounded-xl flex items-center shadow-lg shadow-emerald-900/20">
-                      Total Pago: {formatCurrency(totalAmount)}
+                      Total ({statusFilter === 'all' ? 'Geral' : statusFilter.toUpperCase()}): {formatCurrency(totalAmount)}
                     </Badge>
                   </div>
                 );
