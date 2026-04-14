@@ -1,4 +1,4 @@
-import { MessageCircle, CheckCircle, Loader2, ArrowRight, User, CreditCard, QrCode, Copy, Sparkles, Phone } from 'lucide-react';
+import { MessageCircle, CheckCircle, Loader2, ArrowRight, User, CreditCard, QrCode, Copy, Sparkles, Phone, X, ArrowLeft } from 'lucide-react';
 import { isValidCPF } from '@/utils/cpf-validator';
 import { Link } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
@@ -32,6 +32,12 @@ interface Props {
   setOrderId: (id: string | null) => void;
   confirmationCode: string | null;
   setConfirmationCode: (code: string | null) => void;
+  onRemoveAdult?: (index: number) => void;
+  onRemoveChild?: (index: number) => void;
+  onUpdateKiosk?: (index: number, updates: any) => void;
+  onUpdateQuad?: (index: number, updates: any) => void;
+  onUpdateAdditional?: (index: number, updates: any) => void;
+  onPrevStep?: () => void;
 }
 
 export function BookingOverview({ 
@@ -41,7 +47,13 @@ export function BookingOverview({
   orderId: persistedOrderId,
   setOrderId: setPersistedOrderId,
   confirmationCode: persistedConfirmationCode,
-  setConfirmationCode: setPersistedConfirmationCode
+  setConfirmationCode: setPersistedConfirmationCode,
+  onRemoveAdult,
+  onRemoveChild,
+  onUpdateKiosk,
+  onUpdateQuad,
+  onUpdateAdditional,
+  onPrevStep
 }: Props) {
   const [saving, setSaving] = useState(false);
   const [paymentData, setPaymentData] = useState<{ open: boolean; orderId: string; confirmationCode?: string } | null>(null);
@@ -364,12 +376,24 @@ export function BookingOverview({
                 if (p.isBirthday) label = 'Aniversariante da Semana';
 
                 return (
-                  <div key={`free-${i}`} className="flex justify-between items-start text-emerald-700 font-bold bg-emerald-50/50 p-2.5 rounded-xl border border-emerald-100/50">
+                  <div key={`free-${i}`} className="relative flex justify-between items-start text-emerald-700 font-bold bg-emerald-50/50 p-2.5 rounded-xl border border-emerald-100/50 group/item">
                     <div>
                       <span className="text-sm">{qty}x {label}</span>
                       <span className="block text-[10px] uppercase tracking-wider opacity-60">Acesso Gratuito</span>
                     </div>
-                    <span className="whitespace-nowrap uppercase text-[10px] bg-emerald-100 px-2 py-0.5 rounded-full">Grátis</span>
+                    <div className="flex items-center gap-2">
+                       <span className="whitespace-nowrap uppercase text-[10px] bg-emerald-100 px-2 py-0.5 rounded-full">Grátis</span>
+                       {onRemoveAdult && !((p as any).age <= 11) && (
+                         <button onClick={() => i < booking.entry.adults.length ? onRemoveAdult(i) : null} className="p-1 hover:bg-emerald-200 rounded-full transition-colors">
+                           <X className="h-3 w-3" />
+                         </button>
+                       )}
+                       {onRemoveChild && (p as any).age <= 11 && (
+                         <button onClick={() => onRemoveChild(i - booking.entry.adults.length)} className="p-1 hover:bg-emerald-200 rounded-full transition-colors">
+                           <X className="h-3 w-3" />
+                         </button>
+                       )}
+                    </div>
                   </div>
                 );
               })}
@@ -387,12 +411,19 @@ export function BookingOverview({
                 else if ((a as any).isBloodDonor) label = 'Lessa Doador Pass';
                 
                 return (
-                  <div key={`adult-pay-${i}`} className="flex justify-between items-start py-1">
+                  <div key={`adult-pay-${i}`} className="flex justify-between items-start py-1 group/item">
                     <div className="flex flex-col">
                       <span className="text-sm font-bold text-foreground">{qty}x {label}</span>
                       {a.takeDonation && <span className="text-[10px] text-primary/60 font-bold italic">Levar 1kg de alimento/doativo</span>}
                     </div>
-                    <span className="font-bold text-sm whitespace-nowrap text-primary">{formatCurrency(price * qty)}</span>
+                    <div className="flex items-center gap-3">
+                      <span className="font-bold text-sm whitespace-nowrap text-primary">{formatCurrency(price * qty)}</span>
+                      {onRemoveAdult && (
+                        <button onClick={() => onRemoveAdult(i)} className="p-1 hover:bg-primary/10 rounded-full transition-colors text-primary/40 hover:text-primary">
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -401,11 +432,18 @@ export function BookingOverview({
                 const qty = c.quantity || 1;
                 const price = getPersonPrice(c, c.age <= 11, booking.entry.dayOfWeek === 'domingo', getPrice);
                 return (
-                  <div key={`child-pay-${i}`} className="flex justify-between items-start mt-2">
+                  <div key={`child-pay-${i}`} className="flex justify-between items-start mt-2 group/item">
                     <div>
                       <span>{qty}x Criança</span>
                     </div>
-                    <span className="font-medium whitespace-nowrap">{formatCurrency(price * qty)}</span>
+                    <div className="flex items-center gap-3">
+                      <span className="font-medium whitespace-nowrap">{formatCurrency(price * qty)}</span>
+                      {onRemoveChild && (
+                        <button onClick={() => onRemoveChild(i)} className="p-1 hover:bg-primary/10 rounded-full transition-colors text-primary/40 hover:text-primary">
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -426,7 +464,7 @@ export function BookingOverview({
               {booking.kiosks.filter(k => k.quantity > 0).map(k => {
                 const basePrice = getPrice(`kiosk_${k.type}`, KIOSK_INFO[k.type].price);
                 return (
-                <div key={k.type} className="flex justify-between">
+                <div key={k.type} className="flex justify-between group/item items-center">
                   <div>
                     <span>
                       {k.selectedIds && k.selectedIds.length > 0
@@ -434,7 +472,17 @@ export function BookingOverview({
                         : `${k.quantity}x ${KIOSK_INFO[k.type].label}`}
                     </span>
                   </div>
-                  <span>{formatCurrency(k.quantity * basePrice)}</span>
+                  <div className="flex items-center gap-3">
+                    <span>{formatCurrency(k.quantity * basePrice)}</span>
+                    {onUpdateKiosk && (
+                      <button onClick={() => {
+                        const idx = booking.kiosks.findIndex(x => x.type === k.type);
+                        onUpdateKiosk(idx, { quantity: 0, selectedIds: [] });
+                      }} className="p-1 hover:bg-primary/10 rounded-full transition-colors text-primary/40 hover:text-primary">
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               )})}
               <div className="flex justify-between font-bold text-foreground pt-1">
@@ -456,11 +504,21 @@ export function BookingOverview({
                 const basePrice = getPrice(`quad_${q.type}`, fallbackMap[q.type]);
                 const final_ = basePrice * (1 - discount);
                 return (
-                  <div key={q.type} className="flex justify-between items-start">
+                  <div key={q.type} className="flex justify-between items-center group/item">
                     <div>
                       <span>{q.quantity}x Quad. {QUAD_LABELS[q.type]}</span>
                     </div>
-                    <span>{formatCurrency(q.quantity * final_)}</span>
+                    <div className="flex items-center gap-3">
+                      <span>{formatCurrency(q.quantity * final_)}</span>
+                      {onUpdateQuad && (
+                        <button onClick={() => {
+                          const idx = booking.quads.findIndex(x => x.type === q.type);
+                          onUpdateQuad(idx, { quantity: 0 });
+                        }} className="p-1 hover:bg-primary/10 rounded-full transition-colors text-primary/40 hover:text-primary">
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -480,11 +538,21 @@ export function BookingOverview({
               {booking.additionals.filter(a => a.quantity > 0).map(a => {
                 const basePrice = getPrice(`add_${a.type}`, ADDITIONAL_INFO[a.type].price);
                 return (
-                <div key={a.type} className="flex justify-between items-start">
+                <div key={a.type} className="flex justify-between items-center group/item">
                   <div>
                     <span>{a.quantity}x {ADDITIONAL_INFO[a.type].label}</span>
                   </div>
-                  <span>{formatCurrency(a.quantity * basePrice)}</span>
+                  <div className="flex items-center gap-3">
+                    <span>{formatCurrency(a.quantity * basePrice)}</span>
+                    {onUpdateAdditional && (
+                      <button onClick={() => {
+                        const idx = booking.additionals.findIndex(x => x.type === a.type);
+                        onUpdateAdditional(idx, { quantity: 0 });
+                      }} className="p-1 hover:bg-primary/10 rounded-full transition-colors text-primary/40 hover:text-primary">
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               )})}
               <div className="flex justify-between font-bold text-foreground pt-1">
@@ -495,78 +563,6 @@ export function BookingOverview({
           </div>
         )}
 
-        {/* Membership Comparison Action Card */}
-        {(() => {
-          const allAdults = booking.entry.adults;
-          
-          // O QUE ELE PAGA HOJE (Soma real das entradas na lista)
-          const reservaHojeEntries = totals.entriesTotal;
-
-          // QUANTO CUSTARIA O CLUB (Somente mensalidades)
-          // USER RULE: Professionals (Prof, Stud, Serv) = 25. Everyone else = 49.9
-          const halfPriceCount = allAdults.filter(a => a.isTeacher || a.isServer || a.isStudent || (a as any).isBloodDonor).reduce((acc, a) => acc + (a.quantity || 1), 0);
-          const fullPriceCount = allAdults.reduce((acc, a) => acc + (a.quantity || 1), 0) - halfPriceCount;
-          const membershipPrice = (fullPriceCount * 49.9) + (halfPriceCount * 25);
-
-          if ((fullPriceCount + halfPriceCount) > 0) {
-            const isCheaper = membershipPrice <= reservaHojeEntries;
-            const savings = reservaHojeEntries - membershipPrice;
-            return (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="bg-gradient-to-br from-[#FFD700] via-[#FFB900] to-[#E5A500] border-4 border-white/40 rounded-3xl p-5 sm:p-6 relative overflow-hidden group shadow-2xl"
-              >
-                <div className="absolute top-0 right-0 -mr-12 -mt-12 w-48 h-48 bg-white/30 rounded-full blur-3xl group-hover:bg-white/50 transition-all duration-700 animate-pulse" />
-                <div className="absolute bottom-0 left-0 -ml-12 -mb-12 w-32 h-32 bg-amber-400/20 rounded-full blur-2xl" />
-
-                <div className="flex items-center gap-4 mb-6 relative z-10">
-                  <div className="relative">
-                    <div className="w-12 h-12 rounded-2xl bg-emerald-950/10 flex items-center justify-center border-2 border-emerald-950/20 shadow-xl backdrop-blur-sm">
-                      <Sparkles className="w-7 h-7 text-emerald-950 drop-shadow-sm" />
-                    </div>
-                    {/* Extra sparkles for effect */}
-                    <motion.div 
-                      animate={{ scale: [1, 1.2, 1], opacity: [0.6, 1, 0.6] }}
-                      transition={{ duration: 2, repeat: Infinity }}
-                      className="absolute -top-2 -right-2 text-emerald-950 drop-shadow-md"
-                    >
-                      <Sparkles className="w-4 h-4" />
-                    </motion.div>
-                  </div>
-                  
-                  <h3 className="font-display font-black text-emerald-950 text-xl sm:text-2xl tracking-tighter leading-tight">
-                    {isCheaper ? 'Vale mais a pena ser Sócio!' : 'Acesso Ilimitado o mês inteiro!'}
-                  </h3>
-                </div>
-
-                <div className="space-y-5 relative z-10">
-                  <p className="text-emerald-950/90 text-sm sm:text-lg leading-snug font-black">
-                    Sua reserva de hoje custa <span className="bg-emerald-950/15 text-emerald-950 font-black px-3 py-1 rounded-xl border border-emerald-950/10 shadow-sm">{formatCurrency(reservaHojeEntries)}</span>.
-                    No <span className="text-emerald-950 font-black underline decoration-emerald-950/40 underline-offset-4">Lessa Club</span>, 
-                    você paga {isCheaper ? 'apenas ' : ''} <span className="bg-white/40 text-emerald-950 font-black px-3 py-1 rounded-xl border border-white/50 shadow-md backdrop-blur-sm">{formatCurrency(membershipPrice)}</span> e tem 
-                    <span className="inline-flex items-center text-white font-black mx-1 uppercase tracking-tighter bg-emerald-950 px-3 py-1 rounded-lg shadow-lg">ENTRADAS ILIMITADAS</span> 
-                    o mês inteiro!
-                  </p>
-
-                  <Button 
-                    variant="default"
-                    className="w-full h-16 bg-emerald-950 hover:bg-emerald-900 text-white font-black text-lg uppercase tracking-widest rounded-[1.5rem] shadow-2xl transition-all hover:scale-[1.03] active:scale-[0.97] flex items-center justify-center gap-3 group border-b-4 border-emerald-900/50"
-                    onClick={() => {
-                      const element = document.getElementById('especiais');
-                      if (element) {
-                        element.scrollIntoView({ behavior: 'smooth' });
-                      }
-                    }}
-                  >
-                    ATIVAR MEU PLANO DOURADO <ArrowRight className="ml-1 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-                  </Button>
-                </div>
-              </motion.div>
-            );
-          }
-          return null;
-        })()}
 
         {/* Total Bruto e Descontos */}
         {(() => {
@@ -577,7 +573,7 @@ export function BookingOverview({
            
            return (
              <div className="pt-4 space-y-2">
-               <div className="flex justify-between items-center bg-primary/5 rounded-2xl p-4 border border-primary/10">
+               <div className="flex justify-between items-center bg-primary/5 rounded-2xl p-4 border border-primary/10 mb-4">
                  <div>
                    <span className="text-xl sm:text-2xl font-black text-primary">Total: {formatCurrency(totals.total)}</span>
                    {savings > 0 && (
@@ -587,6 +583,63 @@ export function BookingOverview({
                    )}
                  </div>
                </div>
+
+                {/* Membership Comparison Action Card - MOVED HERE */}
+                {(() => {
+                  const allAdults = booking.entry.adults;
+                  const reservaHojeEntries = totals.entriesTotal;
+                  const halfPriceCount = allAdults.filter(a => a.isTeacher || a.isServer || a.isStudent || (a as any).isBloodDonor).reduce((acc, a) => acc + (a.quantity || 1), 0);
+                  const fullPriceCount = allAdults.reduce((acc, a) => acc + (a.quantity || 1), 0) - halfPriceCount;
+                  const membershipPrice = (fullPriceCount * 49.9) + (halfPriceCount * 25);
+
+                  if ((fullPriceCount + halfPriceCount) > 0) {
+                    const isCheaper = membershipPrice <= reservaHojeEntries;
+                    return (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="bg-gradient-to-br from-[#FFD700] via-[#FFB900] to-[#E5A500] border-4 border-white/40 rounded-3xl p-5 sm:p-6 relative overflow-hidden group shadow-2xl mb-6"
+                      >
+                        <div className="absolute top-0 right-0 -mr-12 -mt-12 w-48 h-48 bg-white/30 rounded-full blur-3xl group-hover:bg-white/50 transition-all duration-700 animate-pulse" />
+                        <div className="absolute bottom-0 left-0 -ml-12 -mb-12 w-32 h-32 bg-amber-400/20 rounded-full blur-2xl" />
+
+                        <div className="flex items-center gap-4 mb-4 relative z-10">
+                          <div className="relative">
+                            <div className="w-10 h-10 rounded-xl bg-emerald-950/10 flex items-center justify-center border-2 border-emerald-950/20 shadow-xl backdrop-blur-sm">
+                              <Sparkles className="w-6 h-6 text-emerald-950 drop-shadow-sm" />
+                            </div>
+                          </div>
+                          
+                          <h3 className="font-display font-black text-emerald-950 text-lg sm:text-xl tracking-tighter leading-tight">
+                            {isCheaper ? 'Vale mais a pena ser Sócio!' : 'Acesso Ilimitado o mês inteiro!'}
+                          </h3>
+                        </div>
+
+                        <div className="space-y-4 relative z-10">
+                          <p className="text-emerald-950/90 text-xs sm:text-sm leading-snug font-black">
+                            Sua reserva custa <span className="bg-emerald-950/15 text-emerald-950 px-2 py-0.5 rounded-lg">{formatCurrency(reservaHojeEntries)}</span>.
+                            No <span className="text-emerald-950 font-black">Lessa Club</span>, você paga <span className="bg-white/40 text-emerald-950 px-2 py-0.5 rounded-lg">{formatCurrency(membershipPrice)}</span> e tem 
+                            <span className="inline-flex items-center text-white font-black mx-1 uppercase text-[10px] bg-emerald-950 px-2 py-0.5 rounded-lg shadow-lg tracking-tighter">ENTRADAS ILIMITADAS</span>
+                          </p>
+
+                          <Button 
+                            variant="default"
+                            className="w-full h-12 bg-emerald-950 hover:bg-emerald-900 text-white font-black text-sm uppercase tracking-widest rounded-2xl shadow-xl transition-all hover:scale-[1.02] flex items-center justify-center gap-2 border-b-4 border-emerald-900/50"
+                            onClick={() => {
+                              const element = document.getElementById('especiais');
+                              if (element) {
+                                element.scrollIntoView({ behavior: 'smooth' });
+                              }
+                            }}
+                          >
+                            ATIVAR MEU PLANO DOURADO <ArrowRight className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </motion.div>
+                    );
+                  }
+                  return null;
+                })()}
              </div>
            );
         })()}
@@ -675,6 +728,17 @@ export function BookingOverview({
               </motion.div>
             ) : !pixData ? (
               <div className="flex flex-col gap-4 w-full">
+                <div className="flex flex-col items-center">
+                  <button 
+                    onClick={onPrevStep} 
+                    className="inline-flex items-center gap-2 text-primary hover:text-primary-dark font-black text-sm uppercase tracking-widest mb-4 group transition-colors"
+                  >
+                     <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" /> Alterar Pedido
+                  </button>
+                  {/* Visual spacer line */}
+                  <div className="w-12 h-1 bg-primary/10 rounded-full mb-2"></div>
+                </div>
+
                 <Button
                   size="lg"
                   onClick={() => handleAction('PIX')}

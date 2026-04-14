@@ -394,11 +394,13 @@ export function BookingSection() {
                       setOrderId={setOrderId}
                       confirmationCode={confirmationCode}
                       setConfirmationCode={setConfirmationCode}
+                      onRemoveAdult={removeAdult}
+                      onRemoveChild={removeChild}
+                      onUpdateKiosk={updateKiosk}
+                      onUpdateQuad={updateQuad}
+                      onUpdateAdditional={updateAdditional}
+                      onPrevStep={() => prevStep('servicos')}
                     />
-                  </div>
-
-                  <div className="pt-6 flex justify-center px-4">
-                    <Button variant="ghost" onClick={() => prevStep('servicos')} className="w-full sm:w-auto font-bold text-muted-foreground h-12"><ArrowLeft className="mr-2 h-4 w-4" /> Alterar Pedido</Button>
                   </div>
                 </motion.div>
               )}
