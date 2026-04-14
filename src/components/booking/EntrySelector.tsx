@@ -257,7 +257,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                       <span className="text-xl filter drop-shadow-md group-hover:scale-110 transition-transform">👑</span>
                     </div>
                     <div>
-                      <h5 className={cn("text-sm sm:text-base font-black uppercase tracking-tight leading-none", wizardData.category === 'assinante' ? "text-white" : "text-emerald-950")}>
+                      <h5 className={cn("text-sm sm:text-base font-black uppercase tracking-tight leading-none whitespace-nowrap", wizardData.category === 'assinante' ? "text-white" : "text-emerald-950")}>
                         Sou Assinante Lessa Club 👑
                       </h5>
                     </div>

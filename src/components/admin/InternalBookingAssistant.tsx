@@ -343,6 +343,18 @@ export function InternalBookingAssistant({
                       placeholder="(DD) 99999-9999"
                    />
                 </div>
+                <div className="md:col-span-2 space-y-2">
+                   <label className="text-[10px] font-black text-emerald-900 uppercase tracking-widest flex items-center gap-2 ml-1">
+                      <div className="w-4 h-4 rounded-md bg-emerald-100 flex items-center justify-center"><Hash className="w-2.5 h-2.5 text-emerald-700" /></div>
+                      CPF (Opcional)
+                   </label>
+                   <Input 
+                      value={newBookingData.cpf} 
+                      onChange={e => setNewBookingData({...newBookingData, cpf: e.target.value})}
+                      className="h-14 rounded-2xl border-2 border-emerald-100 focus:border-emerald-500 focus:ring-0 font-bold bg-white text-base shadow-sm transition-all text-emerald-900" 
+                      placeholder="000.000.000-00"
+                   />
+                </div>
               </div>
 
               <div className="bg-white/70 backdrop-blur-sm p-6 rounded-[2.5rem] border-2 border-emerald-50 shadow-sm space-y-6">
