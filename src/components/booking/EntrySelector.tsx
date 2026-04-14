@@ -238,10 +238,10 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
             <div className="grid grid-cols-2 gap-2 px-1">
               <button 
                 className={cn(
-                  "col-span-2 h-auto py-5 px-4 flex items-center justify-center rounded-2xl border-2 transition-all duration-300 active:scale-[0.98] relative overflow-hidden",
+                  "col-span-2 h-auto py-5 px-4 flex items-center justify-center rounded-2xl border border-[#bf953f]/50 transition-all duration-300 active:scale-[0.98] relative overflow-hidden",
                   wizardData.category === 'assinante' 
-                    ? "border-[#8a6d3b] bg-gold-metallic text-[#2c1e0a] shadow-[0_4px_30px_rgba(184,134,11,0.3)] shadow-inner" 
-                    : "border-[#d4af37]/30 bg-[#fdfcfb] hover:border-[#d4af37] hover:shadow-lg"
+                    ? "bg-gradient-to-br from-[#bf953f] via-[#fcf6ba] to-[#aa771c] text-[#332200] shadow-xl" 
+                    : "bg-white border-[#bf953f]/20 hover:border-[#bf953f]/50 hover:bg-[#fcf6ba]/10"
                 )}
                 onClick={() => {
                    setWizardData({ ...wizardData, category: 'assinante' });
@@ -249,10 +249,10 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                 }}
               >
                 <div className="flex items-center gap-3 relative z-10">
-                  <span className="text-2xl filter drop-shadow-[0_1px_1px_rgba(255,255,255,0.7)]">👑</span>
+                  <span className="text-2xl filter drop-shadow-sm">👑</span>
                   <span className={cn(
                     "font-black text-sm sm:text-base uppercase tracking-widest leading-none",
-                    wizardData.category === 'assinante' ? "text-[#2c1e0a]" : "text-[#5c4a24]"
+                    wizardData.category === 'assinante' ? "text-[#332200]" : "text-[#5c4a24]"
                   )}>
                     Sou Assinante Lessa Club
                   </span>
