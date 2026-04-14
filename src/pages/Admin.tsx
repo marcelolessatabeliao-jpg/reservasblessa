@@ -617,9 +617,12 @@ export default function Admin() {
         // order_item_id is only used in-memory for logic; do NOT write to quad_reservations (column does not exist)
         // payload.order_item_id = editData.order_item_id;
         
-        // Remove virtual ID fields before insert
-        const cleanPayload = { ...payload };
-        delete cleanPayload.is_from_order;
+        // Strip fields that don't exist on the DB table
+        const QUAD_COLS = ['time_slot','quad_type','quantity','reservation_date','notes','price','receipt_url','customer_name','order_id','status'];
+        const KIOSK_COLS = ['kiosk_id','reservation_date','notes','price','receipt_url','customer_name','order_id','status'];
+        const allowedCols = type === 'quad' ? QUAD_COLS : KIOSK_COLS;
+        const cleanPayload: any = {};
+        allowedCols.forEach(col => { if (payload[col] !== undefined) cleanPayload[col] = payload[col]; });
 
         const { error } = await supabase.from(table).insert([cleanPayload]);
         if (error) throw error;
