@@ -232,10 +232,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
         return (
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-3 py-2">
             <div className="text-center mb-4">
-              <h4 className="text-xl font-black text-primary uppercase tracking-tight">Monte seu Day Use no Balneário</h4>
-              <p className="text-sm text-primary/60 font-bold italic">
-                {isSunday ? "R$ 50 ou R$ 25 Especiais" : "R$ 50 ou R$ 25 Solidário/Especiais"}
-              </p>
+              <h4 className="font-sans font-semibold text-2xl text-primary text-center">Monte seu Day Use no Balneário</h4>
             </div>
 
             {/* Premium Subscriber Card */}
@@ -260,12 +257,9 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                       <span className="text-xl filter drop-shadow-md group-hover:scale-110 transition-transform">👑</span>
                     </div>
                     <div>
-                      <h5 className={cn("text-sm sm:text-base font-black uppercase tracking-tight leading-none mb-0.5", wizardData.category === 'assinante' ? "text-white" : "text-emerald-950")}>
+                      <h5 className={cn("text-sm sm:text-base font-black uppercase tracking-tight leading-none", wizardData.category === 'assinante' ? "text-white" : "text-emerald-950")}>
                         Sou Assinante Lessa Club 👑
                       </h5>
-                      <p className={cn("text-[9px] font-bold uppercase tracking-wider opacity-60", wizardData.category === 'assinante' ? "text-emerald-100" : "text-emerald-800")}>
-                        Assinante mensal do Balneário Lessa
-                      </p>
                     </div>
                   </div>
                   
@@ -943,7 +937,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                 {wizardType === 'pcd' ? 'PCD / TEA' :
                   wizardType === 'senior' ? 'Acesso Melhor Idade' :
                     wizardType === 'child' ? 'Acesso Kids' :
-                      'Participante'}
+                      'Adicione os participantes'}
               </DialogTitle>
             </div>
           </DialogHeader>
