@@ -175,7 +175,7 @@ export function QuadSelector({ quads, onUpdate }: Props) {
                     "text-[9px] sm:text-[10px] font-bold mt-1",
                     isFull ? "text-red-500" : remaining <= 2 ? "text-amber-600" : "text-emerald-600"
                   )}>
-                    {isFull ? 'LOTADO' : `Vagas: ${totalUsed}/${maxQuads} ocupadas`}
+                    {isFull ? 'LOTADO' : `${totalUsed}/${maxQuads} ocupadas`}
                   </span>
                 </div>
               );
@@ -365,7 +365,7 @@ export function QuadSelector({ quads, onUpdate }: Props) {
                               className={cn("font-bold py-3", isFull ? "text-destructive" : "text-foreground")}
                               disabled={isFull && quad.time !== t}
                             >
-                              {t} — 1h30 ({isFull ? 'LOTADO' : `${totalUsed} vagas`})
+                              {t} \u2014 1h30 ({isFull ? 'LOTADO' : `${totalUsed}/${maxQuads} ocupadas`})
                             </SelectItem>
                           );
                         })}
@@ -387,10 +387,10 @@ export function QuadSelector({ quads, onUpdate }: Props) {
                       2. Quantidade
                     </span>
                     <div className="flex items-center justify-between">
-                        <div className="flex flex-row items-baseline gap-2 flex-nowrap min-w-0">
+                        <div className="flex flex-row items-center gap-1.5 flex-nowrap min-w-0">
                           {quad.quantity > 0 ? (
-                            <div className="flex items-center gap-1 whitespace-nowrap overflow-hidden flex-nowrap">
-                              <span className={cn("text-[9px] sm:text-xs font-bold leading-none opacity-80", isActive ? "text-white" : "text-slate-600")}>
+                            <div className="flex items-center gap-1 whitespace-nowrap overflow-hidden flex-nowrap shrink-0">
+                              <span className={cn("text-[8px] sm:text-[10px] font-bold leading-none opacity-80", isActive ? "text-white" : "text-slate-600")}>
                                 {quad.quantity}x =
                               </span>
                               <span className={cn("text-xs sm:text-base font-black leading-none", isActive ? "text-white" : "text-slate-800")}>
@@ -398,8 +398,8 @@ export function QuadSelector({ quads, onUpdate }: Props) {
                               </span>
                             </div>
                           ) : (
-                            <span className={cn("font-black text-sm", isActive ? "text-white" : "text-slate-700")}>
-                              Selecione
+                            <span className={cn("font-black text-xs", isActive ? "text-white" : "text-slate-700")}>
+                              SELECIONE
                             </span>
                           )}
                         </div>

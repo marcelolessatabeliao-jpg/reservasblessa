@@ -491,12 +491,17 @@ export function InternalBookingAssistant({
                                  <div className="flex items-center gap-2">
                                     <div className="px-2 h-6 rounded-lg bg-emerald-950 text-white flex items-center justify-center text-[10px] font-black shadow-sm tracking-tighter">{t}</div>
                                     <div className="flex flex-col">
-                                       <span className="text-[10px] font-black uppercase text-slate-800 leading-none mb-1">Vagas</span>
+                                    <div className="flex flex-col">
+                                       <span className="text-[9px] font-black uppercase text-slate-500 leading-none mb-1 tracking-tighter">Ocupadas ({localUsed + (dbRemaining === maxQuads ? 0 : maxQuads - dbRemaining)}/{maxQuads})</span>
                                        <div className="flex gap-1">
-                                          {Array.from({length: maxQuads}).map((_, i) => (
-                                             <div key={i} className={cn("w-2 h-2 rounded-full border border-black/10", isFull ? "bg-rose-500 shadow-sm" : i < remaining ? "bg-emerald-500 shadow-sm" : "bg-slate-200 shadow-inner")} />
-                                          ))}
+                                          {Array.from({length: maxQuads}).map((_, i) => {
+                                             const used = localUsed + (maxQuads - dbRemaining);
+                                             return (
+                                               <div key={i} className={cn("w-1.5 h-1.5 rounded-full border border-black/5", i < used ? "bg-emerald-600 shadow-sm" : "bg-slate-200 shadow-inner")} />
+                                             );
+                                          })}
                                        </div>
+                                    </div>
                                     </div>
                                  </div>
                                  {isFull && <span className="text-[7.5px] font-black text-rose-500 uppercase bg-rose-50 px-1.5 py-0.5 rounded-full border border-rose-100 tracking-wider">Lotado</span>}
