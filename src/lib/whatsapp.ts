@@ -1,7 +1,7 @@
 import { BookingState, KIOSK_INFO, QUAD_LABELS, QUAD_PRICES, ADDITIONAL_INFO, getQuadDiscount, formatCurrency, getPersonPrice } from '@/lib/booking-types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-
+import { parseToRODate } from '@/utils/date-utils';
 import { formatPhone } from '@/lib/utils/format';
 
 export function buildWhatsAppMessage(booking: BookingState, total: number, isPrepay: boolean = false, code?: string, getPrice?: (type: string, fb: number) => number): string {
@@ -9,8 +9,8 @@ export function buildWhatsAppMessage(booking: BookingState, total: number, isPre
   const safeGetPrice = getPrice || ((t: string, fb: number) => fb);
   const isSunday = entry.dayOfWeek === 'domingo';
   
-  // Mensagem inicial com estilo premium
-  let msg = `\uD83C\uDF0A *BALNE\u00C1RIO LESSA*\n`;
+  // Mensagem inicial com estilo premium usando escapes Unicode (\uXXXX) para evitar mojibake
+  let msg = `\uD83C\uDF0A *BALNE\u00C1RIO FAM\u00CDLIA LESSA*\n`;
   msg += `Gostaria de confirmar uma reserva${isPrepay ? ' e j\u00E1 realizar o pagamento via Pix \uD83D\uDCA0' : ''}.\n\n`;
 
   if (code && isPrepay) {
@@ -23,7 +23,7 @@ export function buildWhatsAppMessage(booking: BookingState, total: number, isPre
   msg += `*DADOS DO CLIENTE*\n`;
   if (entry.name) msg += `\uD83D\uDC64 *Nome:* ${entry.name}\n`;
   if (entry.phone) msg += `\uD83D\uDCF1 *Telefone:* ${formatPhone(entry.phone)}\n`;
-  if (entry.visitDate) msg += `\uD83D\uDDD3\uFE0F *Data da Visita:* ${format(entry.visitDate, "dd/MM/yyyy (EEEE)", { locale: ptBR })}\n`;
+  if (entry.visitDate) msg += `\uD83D\uDDD3\uFE0F *Data da Visita:* ${format(parseToRODate(entry.visitDate), "dd/MM/yyyy (EEEE)", { locale: ptBR })}\n`;
   msg += '\n';
 
   let paidAdultsStr = '';
@@ -46,7 +46,7 @@ export function buildWhatsAppMessage(booking: BookingState, total: number, isPre
       else if ((a as any).isBloodDonor) label = 'Doador de Sangue/Medula';
       else if (a.isPCD) label = 'PCD/TEA';
       else if (a.isBirthday) label = 'Aniversariante';
-      else if (a.takeDonation && !isSunday) details = ' (Ação Solidária)';
+      else if (a.takeDonation && !isSunday) details = ' (A\u00E7\u00E3o Solid\u00E1ria)';
       else if (a.age >= 60) details = ' (Idoso)';
 
       if (price === 0) {
@@ -68,7 +68,7 @@ export function buildWhatsAppMessage(booking: BookingState, total: number, isPre
       else if (c.isBirthday) details = ' (Aniversariante)';
       else if (c.takeDonation && !isSunday) details = ' (A\u00E7\u00E3o Solid\u00E1ria)';
       else if (c.isTeacher) details = ' (Professor)';
-      else if (c.isServer) details = ' (Servidor)';
+      else if (c.isServer) details = ' (Servidor P\u00FAblico)';
       else if (c.isStudent) details = ' (Estudante)';
 
       if (price === 0) {
@@ -91,7 +91,7 @@ export function buildWhatsAppMessage(booking: BookingState, total: number, isPre
 
   const activeKiosks = booking.kiosks.filter(k => k.quantity > 0);
   if (activeKiosks.length) {
-    msg += `\u26FA *QUIOSQUE:*\n`;
+    msg += `\u26FA *QUIOSQUES:*\n`;
     activeKiosks.forEach(k => {
       const basePrice = safeGetPrice(`kiosk_${k.type}`, KIOSK_INFO[k.type].price);
       if (k.selectedIds && k.selectedIds.length > 0) {
@@ -106,17 +106,17 @@ export function buildWhatsAppMessage(booking: BookingState, total: number, isPre
 
   const activeQuads = booking.quads.filter(q => q.quantity > 0);
   if (activeQuads.length) {
-    msg += `\uD83D\uDE9C *QUADRICICLO:*\n`;
+    msg += `\uD83D\uDE9C *QUADRICICLOS:*\n`;
     activeQuads.forEach(q => {
       const fallbackMap: Record<string, number> = { individual: 150, dupla: 250, 'adulto-crianca': 200 };
-      const d = q.date ? new Date(q.date) : null;
+      const d = q.date ? parseToRODate(q.date) : null;
       const discount = getQuadDiscount(d);
       const basePrice = safeGetPrice(`quad_${q.type}`, fallbackMap[q.type]);
       const finalPrice = basePrice * (1 - discount);
       msg += `  ${q.quantity} x ${QUAD_LABELS[q.type]} - ${formatCurrency(q.quantity * finalPrice)}\n`;
       if (d) msg += `  \uD83D\uDCC5 Data: ${format(d, "dd/MM/yyyy", { locale: ptBR })}\n`;
       if (q.time) msg += `  \uD83D\uDD52 Hor\u00E1rio: ${q.time}\n`;
-      if (discount > 0) msg += `  \uD83D\uDCC9 Desconto: ${discount * 100}%\n`;
+      if (discount > 0) msg += `  \uD83D\uDCC9 Desconto: ${Math.round(discount * 100)}%\n`;
     });
     msg += '\n';
   }

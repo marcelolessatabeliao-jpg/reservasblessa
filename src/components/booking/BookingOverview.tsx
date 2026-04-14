@@ -625,7 +625,6 @@ export function BookingOverview({
                           <h3 className="font-display font-black text-emerald-950 text-base sm:text-lg tracking-tighter leading-tight uppercase">
                             {isCheaper ? 'Vale mais a pena ser S\u00F3cio!' : 'Acesso Ilimitado o m\u00EAs inteiro!'}
                           </h3>
-                        </div>
 
                         <div className="space-y-4 relative z-10">
                           <p className="text-emerald-950/90 text-[10px] sm:text-xs font-bold leading-tight uppercase tracking-tight -mb-2 opacity-70">
