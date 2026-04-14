@@ -238,21 +238,49 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
             <div className="grid grid-cols-2 gap-2 px-1">
               <button 
                 className={cn(
-                  "col-span-2 h-auto py-2.5 px-4 flex items-center justify-between rounded-xl border-2 transition-all active:scale-[0.98]",
+                  "col-span-2 h-auto py-3 px-4 flex items-center justify-between rounded-2xl border-2 transition-all duration-300 active:scale-[0.98] relative overflow-hidden",
                   wizardData.category === 'assinante' 
-                    ? "border-emerald-500 bg-emerald-50 text-emerald-900 shadow-sm" 
-                    : "border-emerald-100 bg-white hover:border-emerald-200"
+                    ? "border-emerald-500 bg-emerald-900 text-white shadow-[0_0_20px_rgba(16,185,129,0.2)]" 
+                    : "border-emerald-100 bg-gradient-to-br from-emerald-50/50 to-white hover:border-emerald-300 hover:shadow-md"
                 )}
                 onClick={() => {
                    setWizardData({ ...wizardData, category: 'assinante' });
                    handleFinishWizard('assinante', false);
                 }}
               >
-                <div className="flex items-center gap-3">
-                  <div className="p-1.5 bg-emerald-100 rounded-lg"><span className="text-base leading-none">👑</span></div>
-                  <span className="font-black text-xs sm:text-sm uppercase tracking-tight">Sou Assinante Lessa Club</span>
+                {wizardData.category === 'assinante' && (
+                  <div className="absolute inset-0 bg-gradient-to-r from-emerald-400/10 to-transparent" />
+                )}
+                <div className="flex items-center gap-3 relative z-10">
+                  <div className={cn(
+                    "p-2 rounded-xl transition-colors",
+                    wizardData.category === 'assinante' ? "bg-white/20 shadow-inner" : "bg-emerald-100"
+                  )}>
+                    <span className="text-xl leading-none filter drop-shadow-sm">👑</span>
+                  </div>
+                  <div className="flex flex-col items-start">
+                    <span className={cn(
+                      "font-black text-sm sm:text-base uppercase tracking-tight leading-none",
+                      wizardData.category === 'assinante' ? "text-white" : "text-emerald-950"
+                    )}>
+                      Sou Assinante Lessa Club
+                    </span>
+                    <span className={cn(
+                      "text-[9px] font-bold opacity-70",
+                      wizardData.category === 'assinante' ? "text-emerald-100" : "text-emerald-700"
+                    )}>
+                      Benefício Exclusivo VIP
+                    </span>
+                  </div>
                 </div>
-                <span className="bg-emerald-600 text-white px-2 py-0.5 rounded-full text-[8px] font-black uppercase">ASSINANTE</span>
+                <span className={cn(
+                  "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider relative z-10 shadow-sm",
+                  wizardData.category === 'assinante' 
+                    ? "bg-white text-emerald-900" 
+                    : "bg-emerald-600 text-white"
+                )}>
+                  💎 ASSINANTE
+                </span>
               </button>
 
               {categories.map((cat) => {
@@ -263,7 +291,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                     key={cat.id}
                     disabled={isSundayBlocked}
                     className={cn(
-                      "h-auto flex flex-col items-center justify-center py-2.5 px-1 gap-1 rounded-xl border-2 transition-all text-center select-none relative overflow-hidden active:scale-[0.98]",
+                      "h-auto flex flex-col items-center justify-center py-3 px-1 gap-1 rounded-xl border-2 transition-all text-center select-none relative overflow-hidden active:scale-[0.98]",
                       isSundayBlocked 
                         ? "opacity-50 grayscale cursor-not-allowed bg-slate-50 border-slate-100" 
                         : (isSelected 
@@ -283,14 +311,14 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                     }}
                   >
                     {isSundayBlocked && (
-                      <span className="absolute top-0 left-0 w-full text-[7px] bg-orange-500 text-white font-black py-0.5 uppercase">Indisponível</span>
+                      <span className="absolute top-0 left-0 w-full text-[8px] bg-orange-500 text-white font-black py-0.5 uppercase">Indisponível</span>
                     )}
-                    <span className="text-xl sm:text-2xl leading-none">{cat.emoji}</span>
-                    <div className="flex flex-col">
-                      <span className={cn("text-[10px] sm:text-xs font-black leading-tight", cat.labelColor)}>{cat.label}</span>
-                      <span className="text-[8px] font-medium text-muted-foreground leading-tight hidden sm:block truncate px-1">{cat.sublabel}</span>
+                    <span className="text-2xl sm:text-3xl leading-none">{cat.emoji}</span>
+                    <div className="flex flex-col items-center">
+                      <span className={cn("text-xs sm:text-sm font-black leading-tight", cat.labelColor)}>{cat.label}</span>
+                      <span className="text-[9px] sm:text-[10px] font-bold text-muted-foreground leading-tight hidden sm:block truncate px-1">{cat.sublabel}</span>
                     </div>
-                    <span className={cn("mt-1 text-[9px] px-2 py-0.5 rounded-full font-bold", cat.priceColor, "bg-white/80")}>
+                    <span className={cn("mt-1 text-[10px] sm:text-xs px-3 py-1 rounded-full font-black", cat.priceColor, "bg-white/90 shadow-sm")}>
                       {cat.price === 'GRÁTIS' ? cat.price : (cat.price.startsWith('R$') ? cat.price : `R$ ${cat.price}`)}
                     </span>
                   </button>
