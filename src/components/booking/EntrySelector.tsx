@@ -278,7 +278,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                 </div>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-2 w-full">
+            <div className="grid grid-cols-2 gap-3 w-full max-w-lg mx-auto p-1">
               {categories.map((cat) => {
                 const isSelected = wizardData.category === cat.id;
                 const isSundayBlocked = isSunday && cat.id === 'solidaria';
@@ -286,11 +286,11 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                   <div
                     key={cat.id}
                     className={cn(
-                      "flex flex-col items-center justify-center rounded-2xl border-2 transition-all text-center select-none relative overflow-hidden w-full",
+                      "flex flex-col items-center rounded-2xl border-2 transition-all text-center select-none relative overflow-hidden h-full min-h-[150px]",
                       isSundayBlocked
                         ? "cursor-not-allowed bg-gray-50 border-gray-200"
                         : cn(
-                            "cursor-pointer active:scale-95 p-3.5 gap-1 w-full",
+                            "cursor-pointer active:scale-95",
                             isSelected
                               ? `${cat.selectedBg} ${cat.selectedBorder} shadow-md scale-[1.02]`
                               : `${cat.bg} ${cat.border} hover:scale-[1.01] hover:shadow-sm`
@@ -309,30 +309,36 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                     }}
                   >
                     {isSundayBlocked ? (
-                      <>
-                        {/* Badge visível com cor — fora do filtro grayscale */}
-                        <span className="w-full text-center text-[8px] font-black uppercase tracking-wide bg-orange-500 text-white px-2 py-1 whitespace-nowrap">
+                      <div className="flex flex-col items-center justify-between h-full w-full">
+                        <span className="w-full text-center text-[8px] font-black uppercase tracking-wide bg-orange-500 text-white px-2 py-1.5 whitespace-nowrap z-10">
                           🚫 Indisponível aos domingos
                         </span>
-                        {/* Conteúdo do card esmaecido */}
-                        <div className="flex flex-col items-center gap-1 p-3 opacity-40 grayscale w-full">
-                          <span className="text-2xl leading-none">{cat.emoji}</span>
+                        <div className="flex flex-col items-center justify-center flex-1 w-full gap-2 p-4 opacity-40 grayscale">
+                          <span className="text-3xl leading-none">{cat.emoji}</span>
                           <div>
-                            <span className={cn("block font-black text-sm leading-tight", cat.labelColor)}>{cat.label}</span>
-                            <span className="block text-[9px] text-muted-foreground font-semibold leading-tight mt-0.5">{cat.sublabel}</span>
+                            <span className={cn("block font-black text-sm leading-tight text-gray-500")}>{cat.label}</span>
+                            <span className="block text-[9px] text-gray-400 font-semibold leading-tight mt-1">{cat.sublabel}</span>
                           </div>
-                          <span className={cn("text-xs font-black px-2.5 py-0.5 rounded-full bg-white/70 mt-0.5", cat.priceColor)}>{cat.price}</span>
                         </div>
-                      </>
+                        <div className="mt-auto mb-4 px-3 py-1 bg-gray-200 rounded-lg text-[10px] font-extrabold text-gray-400">
+                          Indisponível
+                        </div>
+                      </div>
                     ) : (
-                      <>
-                        <span className="text-2xl leading-none">{cat.emoji}</span>
-                        <div>
-                          <span className={cn("block font-black text-sm leading-tight", cat.labelColor)}>{cat.label}</span>
-                          <span className="block text-[9px] text-muted-foreground font-semibold leading-tight mt-0.5">{cat.sublabel}</span>
+                      <div className="flex flex-col items-center justify-between h-full w-full p-4">
+                        <div className="flex flex-col items-center flex-1 justify-center gap-2">
+                           <span className="text-3xl filter drop-shadow-md group-hover:scale-110 transition-transform leading-none">{cat.emoji}</span>
+                           <div>
+                              <span className={cn("block font-black text-sm md:text-base leading-tight", cat.labelColor)}>{cat.label}</span>
+                              <span className="block text-[9px] md:text-[10px] font-bold leading-tight mt-1 opacity-70">
+                                {cat.sublabel}
+                              </span>
+                           </div>
                         </div>
-                        <span className={cn("text-xs font-black px-2.5 py-0.5 rounded-full bg-white/70 mt-0.5", cat.priceColor)}>{cat.price}</span>
-                      </>
+                        <div className={cn("mt-3 px-3 py-1 rounded-lg text-xs font-black shadow-sm border border-current/10 w-full", `${cat.priceColor} bg-white/60`)}>
+                           {cat.price === 'GRÁTIS' ? cat.price : (cat.price.startsWith('R$') ? cat.price : `R$ ${cat.price}`)}
+                        </div>
+                      </div>
                     )}
                   </div>
                 );

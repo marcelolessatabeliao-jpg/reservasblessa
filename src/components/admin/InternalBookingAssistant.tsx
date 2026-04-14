@@ -366,7 +366,7 @@ export function InternalBookingAssistant({
                    <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full uppercase tracking-wider">Múltiplas Categorias</span>
                 </div>
                 
-                <div className="flex flex-wrap justify-center gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 max-w-4xl mx-auto w-full">
                    {[
                       { k: 'adults_normal', l: 'Adulto', p: '50', icon: User, color: 'bg-blue-500' },
                       { k: 'is_solidarity', l: 'Solid.', p: '25', icon: Gift, color: 'bg-orange-500' },
@@ -378,31 +378,33 @@ export function InternalBookingAssistant({
                       const val = (newBookingData as any)[cat.k];
                       return (
                         <div key={cat.k} className={cn(
-                          "group relative bg-white border-2 rounded-[1.75rem] p-4 flex flex-col items-center justify-between transition-all duration-300 w-36",
+                          "group relative bg-white border-2 rounded-[1.75rem] p-5 flex flex-col items-center justify-between transition-all duration-300 w-full h-full min-h-[160px]",
                           val > 0 ? "border-emerald-500 shadow-md scale-[1.02]" : "border-slate-100 hover:border-emerald-200"
                         )}>
                            <div className={cn(
-                             "w-8 h-8 rounded-full flex items-center justify-center text-white mb-2 shadow-sm transition-transform group-hover:scale-110",
+                             "w-10 h-10 rounded-xl flex items-center justify-center text-white mb-2 shadow-sm transition-transform group-hover:scale-110",
                              cat.color
                            )}>
-                              <Icon className="w-4 h-4" />
+                              <Icon className="w-5 h-5" />
                            </div>
-                           <span className="text-[10px] font-black text-slate-900 uppercase tracking-tight text-center">{cat.l}</span>
-                           <span className="text-[10px] font-bold text-emerald-600 mb-3">R$ {cat.p}</span>
+                           <div className="text-center flex-1 flex flex-col justify-center">
+                              <span className="text-[11px] font-black text-emerald-950 uppercase tracking-tight leading-tight">{cat.l}</span>
+                              <span className="text-[10px] font-bold text-emerald-600 mt-1">R$ {cat.p}</span>
+                           </div>
                            
-                           <div className="flex items-center w-full justify-between bg-slate-50 rounded-2xl p-1 gap-1 border border-slate-100 group-hover:bg-white transition-colors">
+                           <div className="flex items-center w-full justify-between bg-emerald-50/50 rounded-2xl p-1.5 gap-1 mt-3 border border-emerald-100/50 group-hover:bg-white transition-colors">
                               <button 
                                 onClick={() => setNewBookingData({...newBookingData, [cat.k]: Math.max(0, val - 1)})} 
-                                className="w-7 h-7 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-rose-500 hover:text-white transition-all flex items-center justify-center text-xs font-black shadow-sm">-</button>
-                              <span className="text-sm font-black text-slate-900 tabular-nums">{val}</span>
+                                className="w-8 h-8 rounded-xl bg-white border border-emerald-100 text-emerald-600 hover:bg-rose-500 hover:text-white transition-all flex items-center justify-center text-sm font-black shadow-sm">-</button>
+                              <span className="text-sm font-black text-emerald-950 tabular-nums px-2">{val}</span>
                               <button 
                                 onClick={() => setNewBookingData({...newBookingData, [cat.k]: val + 1})} 
-                                className="w-7 h-7 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-emerald-500 hover:text-white transition-all flex items-center justify-center text-xs font-black shadow-sm">+</button>
+                                className="w-8 h-8 rounded-xl bg-white border border-emerald-100 text-emerald-600 hover:bg-emerald-500 hover:text-white transition-all flex items-center justify-center text-sm font-black shadow-sm">+</button>
                            </div>
                         </div>
                       );
                    })}
-                </div>
+                </div>               </div>
               </div>
 
               <div className="flex flex-col gap-6">
