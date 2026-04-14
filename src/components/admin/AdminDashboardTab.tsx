@@ -117,111 +117,123 @@ export function AdminDashboardTab({
   });
 
   return (
-    <div className="grid lg:grid-cols-[1fr_360px] gap-8 animate-in fade-in duration-500">
-      <div className="space-y-8">
+    <div className="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-8 animate-in fade-in duration-500 max-w-full overflow-hidden">
+      <div className="space-y-8 min-w-0">
         <Card className="bg-transparent border-none text-emerald-950 shadow-none p-0">
            <div className="rounded-[1.5rem] border-2 border-amber-300 bg-amber-100/50 overflow-hidden mb-0 shadow-lg backdrop-blur-sm">
               <div className="p-3 md:p-5 border-b border-amber-300 flex flex-col md:flex-row md:items-center gap-4">
                   <div className="flex items-center gap-4 border-r-0 md:border-r border-amber-300/50 pr-4">
-                    <div className="w-20 h-20 bg-emerald-800 rounded-2xl flex items-center justify-center text-white font-black text-4xl shadow-md border-2 border-emerald-400/30">
+                    <div className="w-16 h-16 bg-emerald-800 rounded-2xl flex items-center justify-center text-white font-black text-3xl shadow-md border-2 border-emerald-400/30">
                        {targetDate.getDate()}
                     </div>
-                    <div>
-                       <h3 className="text-5xl font-black text-emerald-950 tracking-tight leading-none mb-2">Opera\u00E7\u00E3o Di\u00E1ria</h3>
-                       <p className="text-xl font-black text-emerald-950/70 uppercase tracking-tighter">{format(targetDate, "EEEE, yyyy", { locale: ptBR })}</p>
-                    </div>
-                 </div>
-                 <div className="flex items-center gap-3 ml-4">
-                   <HelpCircle className="w-6 h-6 text-amber-800" />
-                   <h4 className="font-black text-amber-950 text-3xl tracking-tight text-shadow-sm">Resumo de {format(targetDate, "dd 'de' MMMM", { locale: ptBR })}</h4>
-                 </div>
-              </div>
-              <div className="grid grid-cols-1 xl:grid-cols-2">
-                 {/* Left: Quiosques */}
-                 <div className="p-4 md:p-8 border-b xl:border-b-0 xl:border-r border-amber-300 bg-emerald-100/40 space-y-6">
-                    <h4 className="text-[14px] font-black text-emerald-800 flex items-center gap-3">
-                       <Users className="w-5 h-5 text-emerald-700" /> Quiosques ({dayKiosks.length}/5)
-                    </h4>
-                    
-                    <div className="flex flex-col gap-3">
-                      {KIOSKS.map(k => {
-                       const booking = dayKiosks.find(b => {
-                         const bid = b.kiosk_id;
-                         if (bid === 1 || bid === '1' || bid === 'MAIOR') return k.id === 1;
-                         if (bid === 'MENOR') {
-                            const dayOrderMenors = dayKiosks.filter(dk => dk.kiosk_id === 'MENOR');
-                            const orderIdx = dayOrderMenors.findIndex(dk => dk.id === b.id);
-                            if (k.id === orderIdx + 2) return true;
-                         }
-                         return Number(bid) === k.id;
-                       });
-                       
-                       return (
-                         <div key={k.id} className="bg-white rounded-xl p-4 shadow-sm border border-emerald-200 flex items-center justify-between group hover:bg-emerald-800 transition-all cursor-default">
-                            <span className="font-black text-emerald-950 text-[13px] group-hover:text-white transition-colors">{k.name}</span>
-                            {booking ? (
-                              <span className="text-emerald-700 font-bold italic text-[13px] text-right group-hover:text-emerald-100 transition-colors">
-                                 {booking.customer_name}
-                              </span>
-                            ) : (
-                              <span className="text-emerald-800/80 italic font-bold text-[13px] group-hover:text-emerald-200/50 transition-colors">Livre</span>
-                            )}
-                         </div>
-                       );
-                     })}
+                     <div>
+                        <h3 className="text-4xl md:text-5xl font-black text-emerald-950 tracking-tight leading-tight mb-1">Operação Diária</h3>
+                        <p className="text-lg md:text-xl font-black text-emerald-950/70 uppercase tracking-tighter">{format(targetDate, "EEEE, yyyy", { locale: ptBR })}</p>
+                     </div>
                   </div>
-                 </div>
+                  <div className="flex items-center gap-3 md:ml-4">
+                    <HelpCircle className="w-6 h-6 text-amber-800 opacity-70" />
+                    <h4 className="font-black text-amber-950 text-2xl md:text-3xl tracking-tight">Resumo de {format(targetDate, "dd 'de' MMMM", { locale: ptBR })}</h4>
+                  </div>
+               </div>
+               <div className="grid grid-cols-1 xl:grid-cols-2">
+                  {/* Left: Quiosques */}
+                  <div className="p-4 md:p-6 border-b xl:border-b-0 xl:border-r border-amber-300 bg-emerald-100/40 space-y-4">
+                     <h4 className="text-[14px] font-black text-emerald-800 flex items-center gap-3">
+                        <Users className="w-5 h-5 text-emerald-700" /> Quiosques ({dayKiosks.length}/5)
+                     </h4>
+                     
+                     <div className="flex flex-col gap-2.5">
+                       {KIOSKS.map(k => {
+                        const booking = dayKiosks.find(b => {
+                          const bid = b.kiosk_id;
+                          if (bid === 1 || bid === '1' || bid === 'MAIOR') return k.id === 1;
+                          if (bid === 'MENOR') {
+                             const dayOrderMenors = dayKiosks.filter(dk => dk.kiosk_id === 'MENOR');
+                             const orderIdx = dayOrderMenors.findIndex(dk => dk.id === b.id);
+                             if (k.id === orderIdx + 2) return true;
+                          }
+                          return Number(bid) === k.id;
+                        });
+                        
+                        return (
+                          <div key={k.id} className="bg-white rounded-xl p-3 shadow-sm border border-emerald-200 flex items-center justify-between group hover:bg-emerald-800 transition-all cursor-default">
+                             <span className="font-black text-emerald-950 text-[12px] md:text-[13px] group-hover:text-white transition-colors">{k.name}</span>
+                             {booking ? (
+                               <span className="text-emerald-700 font-bold italic text-[12px] md:text-[13px] text-right group-hover:text-emerald-100 transition-colors truncate max-w-[140px]">
+                                  {booking.customer_name}
+                               </span>
+                             ) : (
+                               <span className="text-emerald-800/80 italic font-bold text-[12px] md:text-[13px] group-hover:text-emerald-200/50 transition-colors">Livre</span>
+                             )}
+                          </div>
+                        );
+                      })}
+                   </div>
+                  </div>
 
-                 {/* Right: Quadriciclos */}
-                 <div className="p-4 md:p-8 bg-blue-100/30 space-y-6">
-                    <h4 className="text-[14px] font-black text-blue-800 flex items-center gap-3">
-                       <Bike className="w-5 h-5 text-blue-700" /> Quadriciclos
-                    </h4>
-                 
-                    <div className="flex flex-col gap-2.5">
-                       {[
-                         { start: '09:00', end: '10:30' },
-                         { start: '10:30', end: '12:00' },
-                         { start: '14:00', end: '15:30' },
-                         { start: '15:30', end: '17:00' }
-                       ].map(slot => {
-                         const slotBookings = dayQuads.filter(b => {
-                             const bSlot = (b.time_slot || '').split('(')[0].toUpperCase().replace(/H/g, ':').trim();
-                             const target = slot.start.toUpperCase();
-                             return bSlot === target || (bSlot.length > 2 && target.includes(bSlot)) || (target.length > 2 && bSlot.includes(target));
-                         });
-                         const count = slotBookings.reduce((s, r) => s + (Number(r.quantity) || 1), 0);
-                         
-                         return (
-                           <div key={slot.start} className="bg-white rounded-[1.25rem] p-3 shadow-sm border border-blue-200/80 space-y-2.5">
-                              <div className="flex items-center justify-between px-1">
-                                 <span className="font-black text-blue-900 text-[13px]">{slot.start} - {slot.end}</span>
-                                 <span className="text-blue-600 font-bold text-[11px]">{count}/{totalQuads} ocupados</span>
-                              </div>
-                              
-                              <div className="rounded-xl border border-blue-50 bg-blue-50/20 p-1.5 min-h-[32px] flex items-center justify-center">
-                                 {slotBookings.length > 0 ? (
-                                   <div className="flex flex-wrap gap-1.5 justify-center">
-                                      {Object.values(slotBookings.reduce((acc, curr) => {
-                                          const name = curr.customer_name || 'Cliente';
-                                          const type = curr.quad_type || 'individual';
-                                          const typeLabel = type === 'dupla' ? 'Dupla' : (type === 'adulto-crianca' ? 'Kids' : 'Indiv.');
-                                          const key = `${name}_${type}`;
-                                          if (!acc[key]) acc[key] = { name, quantity: 0, typeLabel };
-                                          acc[key].quantity += (Number(curr.quantity) || 1);
-                                          return acc;
-                                       }, {} as any)).map((b: any, bi) => (
-                                         <Badge key={bi} className="bg-transparent text-blue-700/80 font-bold italic lowercase text-[11px] px-2 py-0 border-0 shadow-none hover:bg-blue-600 hover:text-white hover:opacity-100 transition-all cursor-default flex flex-col items-center">
-                                            <span>{b.name} ({b.quantity})</span>
-                                            <span className="text-[8px] opacity-60 -mt-0.5">{b.typeLabel}</span>
-                                         </Badge>
-                                       ))}
-                                   </div>
-                                 ) : (
-                                   <span className="text-blue-400/50 italic font-black text-[11px]">Nenhuma reserva</span>
-                                 )}
-                              </div>
-                           </div>
+                  {/* Right: Quadriciclos */}
+                  <div className="p-4 md:p-6 bg-blue-100/30 space-y-4">
+                     <h4 className="text-[14px] font-black text-blue-800 flex items-center gap-3">
+                        <Bike className="w-5 h-5 text-blue-700" /> Quadriciclos
+                     </h4>
+                  
+                     <div className="flex flex-col gap-2.5">
+                        {[
+                          { start: '09:00', end: '10:30' },
+                          { start: '10:30', end: '12:00' },
+                          { start: '14:00', end: '15:30' },
+                          { start: '15:30', end: '17:00' }
+                        ].map(slot => {
+                          const slotBookings = dayQuads.filter(b => {
+                              const bSlot = (b.time_slot || '').split('(')[0].toUpperCase().replace(/H/g, ':').trim();
+                              const target = slot.start.toUpperCase();
+                              return bSlot === target || (bSlot.length > 2 && target.includes(bSlot)) || (target.length > 2 && bSlot.includes(target));
+                          });
+                          const count = slotBookings.reduce((s, r) => s + (Number(r.quantity) || 1), 0);
+                          
+                          return (
+                            <div key={slot.start} className="bg-white rounded-[1.25rem] p-3 shadow-sm border border-blue-200/80 space-y-2">
+                               <div className="flex items-center justify-between px-1">
+                                  <span className="font-black text-blue-900 text-[12px] md:text-[13px]">{slot.start} - {slot.end}</span>
+                                  <span className="text-blue-600 font-bold text-[10px] md:text-[11px]">{count}/{totalQuads} ocupados</span>
+                               </div>
+                               
+                               <div className="rounded-xl border border-blue-50 bg-blue-50/20 p-2 min-h-[36px] flex items-center justify-center">
+                                  {slotBookings.length > 0 ? (
+                                    <div className="flex flex-col gap-2 w-full">
+                                       {Object.values(slotBookings.reduce((acc, curr) => {
+                                           const name = curr.customer_name || 'Cliente';
+                                           const type = curr.quad_type || 'individual';
+                                           const typeLabel = type === 'dupla' ? 'Dupla' : (type === 'adulto-crianca' ? 'Kids' : 'Indiv.');
+                                           const key = `${name}_${type}`;
+                                           if (!acc[key]) acc[key] = { name, quantity: 0, typeLabel };
+                                           acc[key].quantity += (Number(curr.quantity) || 1);
+                                           return acc;
+                                        }, {} as any)).map((b: any, bi) => (
+                                          <div key={bi} className="bg-white/80 p-2 rounded-lg border border-blue-100 flex items-center justify-between shadow-sm group hover:bg-blue-600 transition-all cursor-default">
+                                             <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                <span className="text-blue-900 font-extrabold text-[13px] group-hover:text-white capitalize truncate">
+                                                  {b.name}
+                                                </span>
+                                                <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-[9px] font-black group-hover:bg-white/20 group-hover:text-white shrink-0">
+                                                  {b.typeLabel}
+                                                </span>
+                                             </div>
+                                             <span className="text-blue-600 font-bold text-[11px] bg-blue-50 px-2 py-0.5 rounded-full group-hover:bg-blue-500 group-hover:text-white ml-2">({b.quantity})</span>
+                                          </div>
+                                        ))}
+                                    </div>
+                                  ) : (
+                                    <span className="text-blue-400/50 italic font-black text-[11px]">Nenhuma reserva</span>
+                                  )}
+                               </div>
+                            </div>
+                          );
+                        })}
+                     </div>
+                  </div>
+               </div>
                          );
                        })}
                     </div>
