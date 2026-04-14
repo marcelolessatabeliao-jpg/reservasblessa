@@ -310,7 +310,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                     <span className="text-2xl sm:text-3xl leading-none">{cat.emoji}</span>
                     <div className="flex flex-col items-center">
                       <span className={cn("text-xs sm:text-sm font-black leading-tight", cat.labelColor)}>{cat.label}</span>
-                      <span className="text-[9px] sm:text-[10px] font-bold text-muted-foreground leading-tight hidden sm:block truncate px-1">{cat.sublabel}</span>
+                      <span className="text-[9px] sm:text-[10px] font-bold text-muted-foreground leading-tight hidden sm:block whitespace-normal px-2 line-clamp-2">{cat.sublabel}</span>
                     </div>
                     <span className={cn("mt-1 text-[10px] sm:text-xs px-3 py-1 rounded-full font-black", cat.priceColor, "bg-white/90 shadow-sm")}>
                       {cat.price === 'GRÁTIS' ? cat.price : (cat.price.startsWith('R$') ? cat.price : `R$ ${cat.price}`)}
