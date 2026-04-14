@@ -68,6 +68,7 @@ interface Booking {
   customer_phone?: string | null;
   customer_cpf?: string | null;
   order_items?: any[];
+  last_voucher_sent_at?: string | null;
 }
 
 interface BookingTableProps {
@@ -450,7 +451,7 @@ export function BookingTable({
                         </p>
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                           <Button
-                            onClick={(e: any) => {
+                            onClick={async (e: any) => {
                               e.stopPropagation();
                               const phone = (
                                 booking.customer_phone ||
@@ -463,9 +464,9 @@ export function BookingTable({
                                 const itemsList = items
                                   .map(
                                     (it: any) =>
-                                      `- ${it.quantity}x ${it.product_name || it.product_id} (${formatCurrency(it.unit_price)})`,
+                                      `* ${it.quantity}x ${it.product_name || it.product_id} (${formatCurrency(it.unit_price)})`,
                                   )
-                                  .join("%0A");
+                                  .join("\n");
                                 const dateStr = format(
                                   parseISO(
                                     booking.visit_date ||
@@ -478,20 +479,26 @@ export function BookingTable({
                                   booking.name ||
                                   (booking as any).customer_name;
 
-                                const message =
-                                  String.fromCodePoint(0x1f33f) +
-                                  ` *BALNE\u00C1RIO FAM\u00CDLIA LESSA*\n\nEsse \u00E9 seu voucher de confirma\u00E7\u00E3o da sua reserva e o resumo do seu pedido para apresentar caso seja solicitado.\n\n` +
-                                  String.fromCodePoint(0x1f4c5) +
-                                  ` *Data:* ${dateStr}\n` +
-                                  String.fromCodePoint(0x1f464) +
-                                  ` *Titular:* ${name}\n\n` +
-                                  String.fromCodePoint(0x1f4dd) +
-                                  ` *Resumo do Pedido:*\n${itemsList.replace(/%0A/g, "\n")}\n\n` +
-                                  String.fromCodePoint(0x1f4b0) +
-                                  ` *Total:* ${formatCurrency(booking.total_amount)}\n\nVoucher: https://reservas.balneariolessa.com.br/voucher/${booking.confirmation_code}\n\n` +
-                                  String.fromCodePoint(0x2728) +
-                                  ` *Aguardamos voc\u00EAs para o lazer que a sua fam\u00EDlia merece.*`;
+                                // Build message with literal emojis for best compatibility
+                                const message = 
+                                  `🌿 *BALNEÁRIO FAMÍLIA LESSA*\n\n` +
+                                  `Esse é seu voucher de confirmação da sua reserva e o resumo do seu pedido para apresentar caso seja solicitado.\n\n` +
+                                  `📅 *Data:* ${dateStr}\n` +
+                                  `👤 *Titular:* ${name}\n\n` +
+                                  `📝 *Resumo do Pedido:*\n${itemsList}\n\n` +
+                                  `💰 *Total:* ${formatCurrency(booking.total_amount)}\n\n` +
+                                  `Voucher: https://reservas.balneariolessa.com.br/voucher/${booking.confirmation_code}\n\n` +
+                                  `✨ *Aguardamos vocês para o lazer que a sua família merece.*`;
+                                
                                 const text = encodeURIComponent(message);
+
+                                // Update marker in DB
+                                if (booking.id && !booking.id.startsWith('order-')) {
+                                  await supabase.from('orders')
+                                    .update({ last_voucher_sent_at: new Date().toISOString() })
+                                    .eq('id', booking.id);
+                                  if (onRefresh) onRefresh();
+                                }
 
                                 window.open(
                                   "https://wa.me/55" + phone + "?text=" + text,
@@ -499,10 +506,20 @@ export function BookingTable({
                                 );
                               }
                             }}
-                            className="bg-indigo-50 border-2 border-indigo-100 text-indigo-700 hover:bg-indigo-600 hover:text-white border-indigo-600 font-black uppercase text-[9px] h-12 rounded-xl flex flex-col items-center justify-center gap-1 transition-all duration-300"
+                            className={cn(
+                              "relative border-2 font-black uppercase text-[9px] h-12 rounded-xl flex flex-col items-center justify-center gap-1 transition-all duration-300",
+                              booking.last_voucher_sent_at 
+                                ? "bg-emerald-50 border-emerald-600 text-emerald-700 hover:bg-emerald-600 hover:text-white" 
+                                : "bg-indigo-50 border-indigo-600 text-indigo-700 hover:bg-indigo-600 hover:text-white"
+                            )}
                           >
                             <FileCheck className="w-3.5 h-3.5" />
-                            Voucher
+                            {booking.last_voucher_sent_at ? "REENVIAR" : "Voucher"}
+                            {booking.last_voucher_sent_at && (
+                              <div className="absolute -top-2 -right-1 bg-emerald-600 text-white text-[6px] px-1.5 py-0.5 rounded-full border border-white shadow-sm">
+                                ENVIADO
+                              </div>
+                            )}
                           </Button>
                           {![
                             "pago",
@@ -1058,66 +1075,80 @@ export function BookingTable({
                                           <span>CRÃƒâ€°DITO</span>
                                         </Button>
                                       )}
-                                      <Button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          const phone = (
-                                            booking.customer_phone ||
-                                            (booking as any).phone ||
-                                            ""
-                                          ).replace(/\D/g, "");
-                                          if (phone) {
-                                            const items =
-                                              (booking as any).order_items ||
-                                              [];
-                                            const itemsList = items
-                                              .map(
-                                                (it: any) =>
-                                                  `- ${it.quantity}x ${it.product_name || it.product_id} (${formatCurrency(it.unit_price)})`,
-                                              )
-                                              .join("%0A");
-                                            const dateStr = format(
-                                              parseISO(
-                                                booking.visit_date ||
-                                                  new Date().toISOString(),
-                                              ),
-                                              "dd/MM/yyyy",
-                                              { locale: ptBR },
-                                            );
-                                            const name =
-                                              booking.name ||
-                                              (booking as any).customer_name;
+                                        <Button
+                                          onClick={async (e) => {
+                                            e.stopPropagation();
+                                            const phone = (
+                                              booking.customer_phone ||
+                                              (booking as any).phone ||
+                                              ""
+                                            ).replace(/\D/g, "");
+                                            if (phone) {
+                                              const items =
+                                                (booking as any).order_items ||
+                                                [];
+                                              const itemsList = items
+                                                .map(
+                                                  (it: any) =>
+                                                    `* ${it.quantity}x ${it.product_name || it.product_id} (${formatCurrency(it.unit_price)})`,
+                                                )
+                                                .join("\n");
+                                              const dateStr = format(
+                                                parseISO(
+                                                  booking.visit_date ||
+                                                    new Date().toISOString(),
+                                                ),
+                                                "dd/MM/yyyy",
+                                                { locale: ptBR },
+                                              );
+                                              const name =
+                                                booking.name ||
+                                                (booking as any).customer_name;
 
-                                            const message =
-                                              String.fromCodePoint(0x1f33f) +
-                                              ` *BALNE\u00C1RIO FAM\u00CDLIA LESSA*\n\nEsse \u00E9 seu voucher de confirma\u00E7\u00E3o da sua reserva e o resumo do seu pedido para apresentar caso seja solicitado.\n\n` +
-                                              String.fromCodePoint(0x1f4c5) +
-                                              ` *Data:* ${dateStr}\n` +
-                                              String.fromCodePoint(0x1f464) +
-                                              ` *Titular:* ${name}\n\n` +
-                                              String.fromCodePoint(0x1f4dd) +
-                                              ` *Resumo do Pedido:*\n${itemsList.replace(/%0A/g, "\n")}\n\n` +
-                                              String.fromCodePoint(0x1f4b0) +
-                                              ` *Total:* ${formatCurrency(booking.total_amount)}\n\nVoucher: https://reservas.balneariolessa.com.br/voucher/${booking.confirmation_code}\n\n` +
-                                              String.fromCodePoint(0x2728) +
-                                              ` *Aguardamos voc\u00EAs para o lazer que a sua fam\u00EDlia merece.*`;
-                                            const text =
-                                              encodeURIComponent(message);
+                                              const message = 
+                                                `🌿 *BALNEÁRIO FAMÍLIA LESSA*\n\n` +
+                                                `Esse é seu voucher de confirmação da sua reserva e o resumo do seu pedido para apresentar caso seja solicitado.\n\n` +
+                                                `📅 *Data:* ${dateStr}\n` +
+                                                `👤 *Titular:* ${name}\n\n` +
+                                                `📝 *Resumo do Pedido:*\n${itemsList}\n\n` +
+                                                `💰 *Total:* ${formatCurrency(booking.total_amount)}\n\n` +
+                                                `Voucher: https://reservas.balneariolessa.com.br/voucher/${booking.confirmation_code}\n\n` +
+                                                `✨ *Aguardamos vocês para o lazer que a sua família merece.*`;
+                                              
+                                              const text = encodeURIComponent(message);
 
-                                            window.open(
-                                              "https://wa.me/55" +
-                                                phone +
-                                                "?text=" +
-                                                text,
-                                              "_blank",
-                                            );
-                                          }
-                                        }}
-                                        className="bg-indigo-100 text-indigo-900 border-b-4 border-indigo-300 hover:border-b-0 hover:translate-y-[2px] hover:bg-indigo-600 hover:text-white shadow-md transition-all duration-300 font-black uppercase text-[9px] md:text-[10px] h-14 md:h-16 rounded-2xl flex flex-col items-center justify-center gap-1 w-full p-0"
-                                      >
-                                        <FileCheck className="w-4 h-4 md:w-5 md:h-5" />
-                                        <span>VOUCHER</span>
-                                      </Button>
+                                              // Update marker in DB
+                                              if (booking.id && !booking.id.startsWith('order-')) {
+                                                await supabase.from('orders')
+                                                  .update({ last_voucher_sent_at: new Date().toISOString() })
+                                                  .eq('id', booking.id);
+                                                if (onRefresh) onRefresh();
+                                              }
+
+                                              window.open(
+                                                "https://wa.me/55" +
+                                                  phone +
+                                                  "?text=" +
+                                                  text,
+                                                "_blank",
+                                              );
+                                            }
+                                          }}
+                                          className={cn(
+                                            "relative shadow-md transition-all duration-300 font-black uppercase text-[9px] md:text-[10px] h-14 md:h-16 rounded-2xl flex flex-col items-center justify-center gap-1 w-full p-0 border-b-4 hover:border-b-0 hover:translate-y-[2px]",
+                                            booking.last_voucher_sent_at 
+                                              ? "bg-emerald-50 text-emerald-900 border-emerald-300 hover:bg-emerald-600 hover:text-white" 
+                                              : "bg-indigo-100 text-indigo-900 border-indigo-300 hover:bg-indigo-600 hover:text-white"
+                                          )}
+                                        >
+                                          <FileCheck className="w-4 h-4 md:w-5 md:h-5" />
+                                          <span>{booking.last_voucher_sent_at ? "REENVIAR" : "VOUCHER"}</span>
+                                          {booking.last_voucher_sent_at && (
+                                            <div className="absolute -top-1 -right-1 bg-emerald-600 text-white text-[7px] px-2 py-0.5 rounded-full border border-white shadow-sm font-black">
+                                              ENVIADO
+                                            </div>
+                                          )}
+                                        </Button>
                                       {onSyncPayment &&
                                         [
                                           "pending",

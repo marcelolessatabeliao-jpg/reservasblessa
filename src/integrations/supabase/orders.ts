@@ -7,6 +7,7 @@ export type Order = {
   status: string;
   created_at: string;
   updated_at?: string;
+  last_voucher_sent_at?: string;
 };
 
 export type OrderItem = {
