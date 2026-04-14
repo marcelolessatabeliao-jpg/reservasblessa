@@ -202,7 +202,7 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, phone, 
     // Ensure international format (55 for BR if not present)
     const formattedPhone = cleanPhone.length <= 11 ? `55${cleanPhone}` : cleanPhone;
     
-    const message = `*Pagamento Seguro*\n\nEscaneie o QR Code no app do seu banco ou copie o código abaixo:\n\n*PIX Copia e Cola:*\n${pixData.payload}\n\n⚠️ *AVISO IMPORTANTE*\n\nSua reserva *SÓ SERÁ GARANTIDA* após a confirmação do pagamento. O QR Code expira e a sua reserva pode ser ocupada por outro cliente se não for pago agora.`;
+    const message = `*Pagamento Seguro*\n\nEscaneie o QR Code no app do seu banco ou copie o c\u00F3digo abaixo:\n\n*PIX Copia e Cola:*\n${pixData.payload}\n\n${String.fromCodePoint(0x26A0)} *AVISO IMPORTANTE*\n\nSua reserva *S\u00D3 SER\u00C1 GARANTIDA* ap\u00F3s a confirma\u00E7\u00E3o do pagamento. O QR Code expira e a sua reserva pode ser ocupada por outro cliente se n\u00E3o for pago agora.`;
     
     const url = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank');

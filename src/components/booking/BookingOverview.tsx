@@ -718,7 +718,7 @@ export function BookingOverview({
                 <div className="flex flex-col gap-3 w-full">
                   <Button 
                     onClick={() => {
-                      const msg = `\uD83C\uDF3F *BALNE\u00C1RIO FAM\u00CDLIA LESSA*\n\nOl\u00E1! Minha reserva no Balne\u00E1rio Lessa foi confirmada! \u2705\n\n\uD83D\uDCCB *RESUMO DO PEDIDO*\n\uD83D\uDC64 *Titular:* ${booking.entry.name}\n\uD83D\uDCC5 *Data:* ${booking.entry.visitDate ? format(new Date(booking.entry.visitDate), "dd/MM/yyyy") : '\u2014'}\n\uD83D\uDD22 *Voucher:* ${persistedConfirmationCode}\n\n\uD83D\uDD17 *VOUCHER DIGITAL:*\nhttps://reservas.balneariolessa.com.br/voucher/${persistedConfirmationCode}\n\n\uD83D\uDCCD *COMO CHEGAR:*\nVia Araras, Setor 09 \u2013 Ariquemes/RO`;
+                      const msg = `${String.fromCodePoint(0x1F33F)} *BALNE\u00C1RIO FAM\u00CDLIA LESSA*\n\nOl\u00E1! Minha reserva no Balne\u00E1rio Lessa foi confirmada! ${String.fromCodePoint(0x2705)}\n\n${String.fromCodePoint(0x1F4CB)} *RESUMO DO PEDIDO*\n${String.fromCodePoint(0x1F464)} *Titular:* ${booking.entry.name}\n${String.fromCodePoint(0x1F4C5)} *Data:* ${booking.entry.visitDate ? format(new Date(booking.entry.visitDate), "dd/MM/yyyy") : '\u2014'}\n${String.fromCodePoint(0x1F522)} *Voucher:* ${persistedConfirmationCode}\n\n${String.fromCodePoint(0x1F517)} *VOUCHER DIGITAL:*\nhttps://reservas.balneariolessa.com.br/voucher/${persistedConfirmationCode}\n\n${String.fromCodePoint(0x1F4CD)} *COMO CHEGAR:*\nVia Araras, Setor 09 \u2013 Ariquemes/RO`;
                       const phone = booking.entry.phone?.replace(/\D/g, '') || '';
                       window.open(`https://wa.me/55${phone}?text=${encodeURIComponent(msg)}`, '_blank');
                     }}

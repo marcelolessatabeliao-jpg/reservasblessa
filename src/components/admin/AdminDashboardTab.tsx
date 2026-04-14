@@ -96,7 +96,11 @@ export function AdminDashboardTab({
     
     quadItems.forEach((qi: any) => {
        const qiId = b.id + '-' + qi.id;
-       // Check if this specific order_item is already represented in dayQuads (from quad_reservations)
+       const pName = (qi.product_name || '').toLowerCase();
+       let qType = 'individual';
+       if (pName.includes('dupla')) qType = 'dupla';
+       else if (pName.includes('crian')) qType = 'adulto-crianca';
+       
        if (!dayQuads.some(dq => dq.order_item_id === qi.id || dq.id === qiId)) {
           dayQuads.push({
              id: qiId,
@@ -105,7 +109,8 @@ export function AdminDashboardTab({
              time_slot: qi.metadata?.time || b.quad_time_slot || '10:30',
              quantity: qi.quantity || 1,
              status: b.status,
-             order_item_id: qi.id
+             order_item_id: qi.id,
+             quad_type: qType
           });
        }
     });
@@ -117,18 +122,18 @@ export function AdminDashboardTab({
         <Card className="bg-transparent border-none text-emerald-950 shadow-none p-0">
            <div className="rounded-[1.5rem] border-2 border-amber-300 bg-amber-100/50 overflow-hidden mb-0 shadow-lg backdrop-blur-sm">
               <div className="p-3 md:p-5 border-b border-amber-300 flex flex-col md:flex-row md:items-center gap-4">
-                 <div className="flex items-center gap-4 border-r-0 md:border-r border-amber-300/50 pr-4">
-                    <div className="w-16 h-16 bg-emerald-800 rounded-2xl flex items-center justify-center text-white font-black text-3xl shadow-md border-2 border-emerald-400/30">
+                  <div className="flex items-center gap-4 border-r-0 md:border-r border-amber-300/50 pr-4">
+                    <div className="w-20 h-20 bg-emerald-800 rounded-2xl flex items-center justify-center text-white font-black text-4xl shadow-md border-2 border-emerald-400/30">
                        {targetDate.getDate()}
                     </div>
                     <div>
-                       <h3 className="text-3xl font-black text-emerald-950 tracking-tight leading-none mb-2">Operação Diária</h3>
-                       <p className="text-base font-black text-emerald-950/70 uppercase tracking-tighter">{format(targetDate, "EEEE, yyyy", { locale: ptBR })}</p>
+                       <h3 className="text-5xl font-black text-emerald-950 tracking-tight leading-none mb-2">Opera\u00E7\u00E3o Di\u00E1ria</h3>
+                       <p className="text-xl font-black text-emerald-950/70 uppercase tracking-tighter">{format(targetDate, "EEEE, yyyy", { locale: ptBR })}</p>
                     </div>
                  </div>
                  <div className="flex items-center gap-3 ml-4">
                    <HelpCircle className="w-6 h-6 text-amber-800" />
-                   <h4 className="font-black text-amber-950 text-xl tracking-tight text-shadow-sm">Resumo de {format(targetDate, "dd 'de' MMMM", { locale: ptBR })}</h4>
+                   <h4 className="font-black text-amber-950 text-3xl tracking-tight text-shadow-sm">Resumo de {format(targetDate, "dd 'de' MMMM", { locale: ptBR })}</h4>
                  </div>
               </div>
               <div className="grid grid-cols-1 xl:grid-cols-2">
@@ -199,12 +204,16 @@ export function AdminDashboardTab({
                                    <div className="flex flex-wrap gap-1.5 justify-center">
                                       {Object.values(slotBookings.reduce((acc, curr) => {
                                           const name = curr.customer_name || 'Cliente';
-                                          if (!acc[name]) acc[name] = { name, quantity: 0 };
-                                          acc[name].quantity += (Number(curr.quantity) || 1);
+                                          const type = curr.quad_type || 'individual';
+                                          const typeLabel = type === 'dupla' ? 'Dupla' : (type === 'adulto-crianca' ? 'Kids' : 'Indiv.');
+                                          const key = `${name}_${type}`;
+                                          if (!acc[key]) acc[key] = { name, quantity: 0, typeLabel };
+                                          acc[key].quantity += (Number(curr.quantity) || 1);
                                           return acc;
                                        }, {} as any)).map((b: any, bi) => (
-                                         <Badge key={bi} className="bg-transparent text-blue-700/80 font-bold italic lowercase text-[11px] px-2 py-0 border-0 shadow-none hover:bg-blue-600 hover:text-white hover:opacity-100 transition-all cursor-default">
-                                            {b.name} ({b.quantity})
+                                         <Badge key={bi} className="bg-transparent text-blue-700/80 font-bold italic lowercase text-[11px] px-2 py-0 border-0 shadow-none hover:bg-blue-600 hover:text-white hover:opacity-100 transition-all cursor-default flex flex-col items-center">
+                                            <span>{b.name} ({b.quantity})</span>
+                                            <span className="text-[8px] opacity-60 -mt-0.5">{b.typeLabel}</span>
                                          </Badge>
                                        ))}
                                    </div>

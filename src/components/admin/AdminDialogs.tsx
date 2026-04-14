@@ -27,6 +27,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { KIOSKS, QUAD_TIMES, QUAD_MODELS_LABELS } from '@/lib/admin-constants';
 import { getBookedKioskIds } from '@/lib/booking-service';
 import { getQuadDiscount } from '@/lib/booking-types';
+import { parseToRODate } from '@/utils/date-utils';
 import { cn } from "@/lib/utils";
 
 // --- DELETE CONFIRM DIALOG ---
@@ -282,7 +283,7 @@ export function EditQuadDialog({ item, onClose, onUpdated, updateOrderTotal }: a
     setLoading(true);
     try {
       const orderId = item.order_id;
-      const discount = getQuadDiscount(new Date(item.reservation_date));
+      const discount = getQuadDiscount(parseToRODate(item.reservation_date));
       const prices: any = { individual: 150, dupla: 250, 'adulto-crianca': 200 };
       const unitPrice = prices[model] * (1 - discount);
       await (supabase.from('quad_reservations') as any).update({ 

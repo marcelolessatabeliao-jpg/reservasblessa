@@ -128,7 +128,7 @@ const STATUS_CONFIG: Record<
     borderColor: "border-emerald-200",
   },
   "checked-in": {
-    label: "CHECK-IN Ã¢Å“â€œ",
+    label: "CHECK-IN \u2713",
     variant: "default",
     icon: UserCheck,
     color: "text-white",
@@ -166,7 +166,7 @@ const getStatusConfig = (booking: any) => {
         payment.metodo === "DEBIT_CARD" ||
         payment.metodo === "cartao"
       )
-        return { ...baseConfig, label: "PAGO VIA CARTÃ’O" };
+        return { ...baseConfig, label: "PAGO VIA CART\u00C3O" };
     }
   }
   return baseConfig;
@@ -490,14 +490,14 @@ export function BookingTable({
                               const name = booking.name || (booking as any).customer_name;
 
                               const message = 
-                                `🌿 *BALNEÁRIO FAMÍLIA LESSA*\n\n` +
-                                `Esse é seu voucher de confirmação da sua reserva e o resumo do seu pedido para apresentar caso seja solicitado.\n\n` +
-                                `📅 *Data:* ${dateStr}\n` +
-                                `👤 *Titular:* ${name}\n\n` +
-                                `📝 *Resumo do Pedido:*\n${itemsList}\n\n` +
-                                `💰 *Total:* ${formatCurrency(booking.total_amount)}\n\n` +
+                                `${String.fromCodePoint(0x1F33F)} *BALNE\u00C1RIO FAM\u00CDLIA LESSA*\n\n` +
+                                `Esse \u00E9 seu voucher de confirma\u00E7\u00E3o da sua reserva e o resumo do seu pedido para apresentar caso seja solicitado.\n\n` +
+                                `${String.fromCodePoint(0x1F4C5)} *Data:* ${dateStr}\n` +
+                                `${String.fromCodePoint(0x1F464)} *Titular:* ${name}\n\n` +
+                                `${String.fromCodePoint(0x1F4DD)} *Resumo do Pedido:*\n${itemsList}\n\n` +
+                                `${String.fromCodePoint(0x1F4B0)} *Total:* ${formatCurrency(booking.total_amount)}\n\n` +
                                 `Voucher: https://reservas.balneariolessa.com.br/voucher/${code}\n\n` +
-                                `✨ *Aguardamos vocês para o lazer que a sua família merece.*`;
+                                `${String.fromCodePoint(0x2728)} *Aguardamos voc\u00EAs para o lazer que a sua fam\u00EDlia merece.*`;
                               
                               const text = encodeURIComponent(message);
 
@@ -654,9 +654,9 @@ export function BookingTable({
                     className="w-5 h-5 border-emerald-800 bg-emerald-900 shadow-sm cursor-pointer accent-emerald-500 rounded-md"
                   />
                 </th>
-                <th className="p-5">Agenda / Operação</th>
-                <th className="p-5">Identificação Cliente</th>
-                <th className="p-5 text-center">Configuração</th>
+                <th className="p-5">Agenda / Opera\u00E7\u00E3o</th>
+                <th className="p-5">Identifica\u00E7\u00E3o Cliente</th>
+                <th className="p-5 text-center">Configura\u00E7\u00E3o</th>
                 <th className="p-5 text-right">Financeiro TOTAL</th>
                 <th className="p-5 text-center opacity-0 w-20 rounded-r-2xl">
                   Ações
@@ -1128,14 +1128,14 @@ export function BookingTable({
                                               (booking as any).customer_name;
 
                                             const message = 
-                                              `\uD83C\uDF3F *BALNE\u00C1RIO FAM\u00CDLIA LESSA*\n\n` +
+                                              `${String.fromCodePoint(0x1F33F)} *BALNE\u00C1RIO FAM\u00CDLIA LESSA*\n\n` +
                                               `Esse \u00E9 seu voucher de confirma\u00E7\u00E3o da sua reserva e o resumo do seu pedido para apresentar caso seja solicitado.\n\n` +
-                                              `\uD83D\uDCC5 *Data:* ${dateStr}\n` +
-                                              `\uD83D\uDC64 *Titular:* ${name}\n\n` +
-                                              `\uD83D\uDCDD *Resumo do Pedido:*\n${itemsList}\n\n` +
-                                              `\uD83D\uDCB0 *Total:* ${formatCurrency(booking.total_amount)}\n\n` +
+                                              `${String.fromCodePoint(0x1F4C5)} *Data:* ${dateStr}\n` +
+                                              `${String.fromCodePoint(0x1F464)} *Titular:* ${name}\n\n` +
+                                              `${String.fromCodePoint(0x1F4DD)} *Resumo do Pedido:*\n${itemsList}\n\n` +
+                                              `${String.fromCodePoint(0x1F4B0)} *Total:* ${formatCurrency(booking.total_amount)}\n\n` +
                                               `Voucher: https://reservas.balneariolessa.com.br/voucher/${code}\n\n` +
-                                              `\u2728 *Aguardamos voc\u00EAs para o lazer que a sua fam\u00EDlia merece.*`;
+                                              `${String.fromCodePoint(0x2728)} *Aguardamos voc\u00EAs para o lazer que a sua fam\u00EDlia merece.*`;
                                             
                                             const text = encodeURIComponent(message);
 

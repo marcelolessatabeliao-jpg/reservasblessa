@@ -117,24 +117,40 @@ Deno.serve(async (req) => {
     const dateObj = new Date(year, month - 1, day, 12, 0, 0)
     const dayOfWeek = dateObj.getDay()
     
-    console.log(`[CreateInternalOrder] Date: ${visit_date}, DayNum: ${dayOfWeek}`)
-    
     let quadDiscount = 0
-    if (dayOfWeek === 1 || dayOfWeek === 5) quadDiscount = 0.2
-    else if (dayOfWeek === 0 || dayOfWeek === 6) quadDiscount = 0.1
+    // Regra: Segunda (1) e Sexta (5) -> 20%. Fim de semana (0, 6) -> 10%.
+    if (dayOfWeek === 1 || dayOfWeek === 5) {
+      quadDiscount = 0.2
+    } else if (dayOfWeek === 0 || dayOfWeek === 6) {
+      quadDiscount = 0.1
+    }
+
+    console.log(`[CreateInternalOrder] VisitDate: ${visit_date}, DayNum: ${dayOfWeek}, appliedDiscount: ${quadDiscount}`)
 
     quads.forEach((q: any) => {
       if ((q.quantity || 0) <= 0) return
-      const baseMap: Record<string, number> = { individual: 150, dupla: 250, 'adulto-crianca': 200 }
-      const labelMap: Record<string, string> = { individual: 'Quadriciclo Individual', dupla: 'Quadriciclo Dupla', 'adulto-crianca': 'Quadriciclo Adulto+Criança' }
+      
+      const baseMap: Record<string, number> = { 
+        individual: 150, 
+        dupla: 250, 
+        'adulto-crianca': 200 
+      }
+      
+      const labelMap: Record<string, string> = { 
+        individual: 'Quad Individual', 
+        dupla: 'Quadriciclo Dupla', 
+        'adulto-crianca': 'Quadriciclo Adulto+Criança' 
+      }
+      
       const base = baseMap[q.type] || 150
       const unitPrice = base * (1 - quadDiscount)
+      
       items.push({
         order_id: orderId,
-        product_id: labelMap[q.type] || 'Quadriciclo Individual',
+        product_id: labelMap[q.type] || 'Quad Individual',
         quantity: q.quantity,
         unit_price: unitPrice,
-        metadata: { time: q.time }
+        metadata: { time: q.time, original_base: base, discount_applied: quadDiscount }
       })
     })
     
