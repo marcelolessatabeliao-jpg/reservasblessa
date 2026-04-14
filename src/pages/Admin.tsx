@@ -1872,14 +1872,29 @@ export default function Admin() {
                   <SelectItem value="cancelled" className="text-xs font-bold uppercase text-red-500">Cancelados</SelectItem>
                 </SelectContent>
               </Select>
-              <Badge className="bg-amber-100 text-amber-900 border-0 font-bold h-10 px-4 rounded-xl flex items-center">Total: {orders.filter(order => {
+              
+              {(() => {
+                const filtered = orders.filter(order => {
                   if (statusFilter === 'all') return true;
                   const s = (order.status || '').toLowerCase();
                   if (statusFilter === 'paid') return s === 'paid' || s === 'pago';
                   if (statusFilter === 'pending') return s === 'pending' || s === 'pendente' || s === 'awaiting_payment' || s === 'waiting_local' || s === 'waiting_confirmation';
                   if (statusFilter === 'cancelled') return s === 'cancelled' || s === 'cancelado';
                   return s === statusFilter;
-               }).length}</Badge>
+                });
+                const totalAmount = filtered.reduce((acc, curr) => acc + (curr.total_amount || 0), 0);
+                
+                return (
+                  <div className="flex gap-2">
+                    <Badge className="bg-amber-100 text-amber-900 border-0 font-bold h-10 px-4 rounded-xl flex items-center">
+                      Pedidos: {filtered.length}
+                    </Badge>
+                    <Badge className="bg-emerald-600 text-white border-0 font-black h-10 px-4 rounded-xl flex items-center shadow-lg shadow-emerald-900/20">
+                      Total: {formatCurrency(totalAmount)}
+                    </Badge>
+                  </div>
+                );
+              })()}
            </div>
         </div>
        <div className="overflow-x-auto">

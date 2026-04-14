@@ -212,14 +212,18 @@ Deno.serve(async (req) => {
             }
           } else {
             // Criar/Vincular Cliente
+            const customerPayload: any = {
+              name: name.trim(),
+              mobilePhone: phone ? phone.replace(/\D/g, '') : null
+            }
+            if (cpf) {
+              customerPayload.cpfCnpj = cpf.replace(/\D/g, '')
+            }
+
             const customerReq = await fetch(`${ASAAS_URL}/customers`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'access_token': ASAAS_API_KEY },
-              body: JSON.stringify({
-                name: name.trim(),
-                cpfCnpj: cpf ? cpf.replace(/\D/g, '') : null,
-                mobilePhone: phone ? phone.replace(/\D/g, '') : null
-              })
+              body: JSON.stringify(customerPayload)
             })
             const customerData = await customerReq.json()
             
