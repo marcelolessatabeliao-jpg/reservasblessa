@@ -238,7 +238,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
             <div className="grid grid-cols-2 gap-2 px-1">
               <button 
                 className={cn(
-                  "col-span-2 sm:col-span-3 h-auto py-2.5 px-4 flex items-center justify-between rounded-xl border-2 transition-all active:scale-[0.98]",
+                  "col-span-2 h-auto py-2.5 px-4 flex items-center justify-between rounded-xl border-2 transition-all active:scale-[0.98]",
                   wizardData.category === 'assinante' 
                     ? "border-emerald-500 bg-emerald-50 text-emerald-900 shadow-sm" 
                     : "border-emerald-100 bg-white hover:border-emerald-200"
