@@ -230,18 +230,18 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
         ];
 
         return (
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-4 pt-1 pb-2">
-            <div className="text-center mb-8">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-3 pt-1 pb-0 overflow-hidden no-scrollbar">
+            <div className="text-center mb-5">
               <h4 className="text-xl font-bold text-center text-primary font-sans">Monte seu Day Use no Balneário</h4>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 px-1">
+            <div className="grid grid-cols-2 gap-2 px-1">
               <button 
                 className={cn(
-                  "col-span-2 h-auto py-5 px-4 flex items-center justify-center rounded-2xl border-2 transition-all duration-300 active:scale-[0.98] relative overflow-hidden bg-gold-metallic",
+                  "col-span-2 h-auto py-4 px-4 flex items-center justify-center rounded-2xl border-2 transition-all duration-300 active:scale-[0.98] relative overflow-hidden bg-gold-metallic",
                   wizardData.category === 'assinante' 
-                    ? "border-[#8a6d3b] text-[#332200] shadow-[0_10px_30px_rgba(184,134,11,0.4)] scale-[1.01]" 
-                    : "border-[#bf953f]/30 text-[#332200]/80 shadow-md opacity-90 hover:opacity-100 hover:border-[#bf953f]/60"
+                    ? "border-[#8a6d3b] text-[#332200] shadow-[0_12px_30px_rgba(184,134,11,0.5)] scale-[1.01]" 
+                    : "border-[#bf953f]/50 text-[#332200] shadow-md hover:border-[#bf953f] hover:shadow-lg"
                 )}
                 onClick={() => {
                    setWizardData({ ...wizardData, category: 'assinante' });
@@ -249,7 +249,13 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                 }}
               >
                 <div className="flex items-center gap-3 relative z-10">
-                  <span className="text-2xl filter drop-shadow-sm">👑</span>
+                  <motion.span 
+                    animate={{ rotate: [0, 8, -8, 0] }}
+                    transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
+                    className="text-2xl filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.3)]"
+                  >
+                    👑
+                  </motion.span>
                   <span className="font-black text-sm sm:text-base uppercase tracking-widest leading-none">
                     Sou Assinante Lessa Club
                   </span>
@@ -264,11 +270,11 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                     key={cat.id}
                     disabled={isSundayBlocked}
                     className={cn(
-                      "h-auto flex flex-col items-center justify-center py-4 px-1 gap-1.5 rounded-xl border-2 transition-all text-center select-none relative overflow-hidden active:scale-[0.98]",
+                      "h-auto flex flex-col items-center justify-center py-3 px-1 gap-1.5 rounded-xl border-2 transition-all text-center select-none relative overflow-hidden active:scale-[0.98]",
                       isSundayBlocked 
                         ? "opacity-50 grayscale cursor-not-allowed bg-slate-50 border-slate-100" 
                         : (isSelected 
-                            ? `${cat.selectedBg} ${cat.selectedBorder} shadow-lg scale-[1.03]` 
+                            ? `${cat.selectedBg} ${cat.selectedBorder} shadow-md scale-[1.02]` 
                             : `${cat.bg} ${cat.border} hover:border-primary/20 hover:scale-[1.01] shadow-sm`)
                     )}
                     onClick={() => {
@@ -298,14 +304,14 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                 );
               })}
             </div>
-            <div className="flex justify-center pt-2">
+            <div className="flex justify-center pt-1 pb-0">
               <Button
                 variant="ghost"
                 onClick={() => {
                   setIsWizardOpen(false);
                   resetWizard();
                 }}
-                className="text-slate-800 font-black uppercase tracking-[0.2em] text-[10px] sm:text-xs h-9 hover:bg-slate-100/50 hover:text-black transition-all flex items-center gap-2"
+                className="text-slate-800 font-black uppercase tracking-[0.2em] text-[10px] h-8 hover:bg-transparent transition-all flex items-center gap-2"
               >
                 ← Voltar
               </Button>
