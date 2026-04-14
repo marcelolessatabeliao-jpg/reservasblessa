@@ -239,7 +239,7 @@ export async function getQuadAvailability(date: string, timeSlot: string): Promi
     .select('quantity, orders!inner(status)')
     .eq('reservation_date', date)
     .eq('time_slot', timeSlot)
-    .in('orders.status', ['paid', 'confirmed', 'pending', 'GERADA', 'PAGO', 'AGUARDANDO PAGAMENTO'])
+    .in('orders.status', ['paid', 'confirmed', 'PAGO', 'CONFIRMADO'])
 
   if (error || !data) return 0;
   return data.reduce((sum: number, r: any) => sum + (Number(r.quantity) || 0), 0);
@@ -251,7 +251,7 @@ export async function getKioskAvailability(date: string, type: string): Promise<
     .select('quantity, orders!inner(status)')
     .eq('reservation_date', date)
     .eq('kiosk_type', type)
-    .in('orders.status', ['paid', 'confirmed', 'pending', 'GERADA', 'PAGO', 'AGUARDANDO PAGAMENTO'])
+    .in('orders.status', ['paid', 'confirmed', 'PAGO', 'CONFIRMADO'])
 
   if (error || !data) return 0;
   return data.reduce((sum: number, r: any) => sum + (Number(r.quantity) || 0), 0);
@@ -262,7 +262,7 @@ export async function getBookedKioskIds(date: string): Promise<number[]> {
     .from('kiosk_reservations') as any)
     .select('kiosk_id, orders!inner(status)')
     .eq('reservation_date', date)
-    .in('orders.status', ['paid', 'confirmed', 'pending', 'GERADA', 'PAGO', 'AGUARDANDO PAGAMENTO']);
+    .in('orders.status', ['paid', 'confirmed', 'PAGO', 'CONFIRMADO']);
 
   if (error || !data) return [];
   return data.map((r: any) => r.kiosk_id).filter((id: any) => id != null);
