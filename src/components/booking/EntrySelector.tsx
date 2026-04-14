@@ -238,10 +238,10 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
             <div className="grid grid-cols-2 gap-2 px-1">
               <button 
                 className={cn(
-                  "col-span-2 h-auto py-3 px-4 flex items-center justify-between rounded-2xl border-2 transition-all duration-300 active:scale-[0.98] relative overflow-hidden",
+                  "col-span-2 h-auto py-4 px-4 flex items-center justify-between rounded-2xl border-2 transition-all duration-300 active:scale-[0.98] relative overflow-hidden",
                   wizardData.category === 'assinante' 
-                    ? "border-emerald-500 bg-emerald-900 text-white shadow-[0_0_20px_rgba(16,185,129,0.2)]" 
-                    : "border-emerald-100 bg-gradient-to-br from-emerald-50/50 to-white hover:border-emerald-300 hover:shadow-md"
+                    ? "border-amber-600 bg-gradient-to-br from-amber-400 to-amber-600 text-amber-950 shadow-[0_0_20px_rgba(217,119,6,0.2)]" 
+                    : "border-amber-100 bg-gradient-to-br from-amber-50 to-white hover:border-amber-300 hover:shadow-md"
                 )}
                 onClick={() => {
                    setWizardData({ ...wizardData, category: 'assinante' });
@@ -249,35 +249,29 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                 }}
               >
                 {wizardData.category === 'assinante' && (
-                  <div className="absolute inset-0 bg-gradient-to-r from-emerald-400/10 to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent" />
                 )}
                 <div className="flex items-center gap-3 relative z-10">
                   <div className={cn(
                     "p-2 rounded-xl transition-colors",
-                    wizardData.category === 'assinante' ? "bg-white/20 shadow-inner" : "bg-emerald-100"
+                    wizardData.category === 'assinante' ? "bg-white/30 shadow-inner" : "bg-amber-100"
                   )}>
                     <span className="text-xl leading-none filter drop-shadow-sm">👑</span>
                   </div>
                   <div className="flex flex-col items-start">
                     <span className={cn(
                       "font-black text-sm sm:text-base uppercase tracking-tight leading-none",
-                      wizardData.category === 'assinante' ? "text-white" : "text-emerald-950"
+                      wizardData.category === 'assinante' ? "text-amber-950" : "text-amber-900"
                     )}>
                       Sou Assinante Lessa Club
-                    </span>
-                    <span className={cn(
-                      "text-[9px] font-bold opacity-70",
-                      wizardData.category === 'assinante' ? "text-emerald-100" : "text-emerald-700"
-                    )}>
-                      Benefício Exclusivo VIP
                     </span>
                   </div>
                 </div>
                 <span className={cn(
                   "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider relative z-10 shadow-sm",
                   wizardData.category === 'assinante' 
-                    ? "bg-white text-emerald-900" 
-                    : "bg-emerald-600 text-white"
+                    ? "bg-amber-950 text-amber-100" 
+                    : "bg-amber-600 text-white"
                 )}>
                   💎 ASSINANTE
                 </span>
