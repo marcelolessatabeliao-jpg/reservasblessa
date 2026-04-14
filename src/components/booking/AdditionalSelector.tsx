@@ -59,22 +59,26 @@ export function AdditionalSelector({ additionals, onUpdate }: Props) {
               </div>
             </div>
             
+            {item.type === 'pesca' && (
               <div className="mt-4 bg-destructive/5 border border-destructive/20 p-3 rounded-xl">
                 <p className="text-[10px] sm:text-xs text-muted-foreground leading-relaxed">
-                  <strong className="text-destructive">\u26A0\uFE0F Observa\u00E7\u00E3o:</strong><br />
+                  <strong className="text-destructive">⚠️ Observação:</strong><br />
                   Taxa por molinete do cliente.<br />
-                  Equipamentos por conta do cliente (n\u00E3o alugamos/vendemos).<br />
+                  Equipamentos por conta do cliente (não alugamos/vendemos).<br />
                   Permitido linha 0.50/0.60 sem filamento e anzol sem fisga.
                 </p>
               </div>
+            )}
             
+            {item.type === 'futebol-sabao' && (
               <div className="mt-4 bg-primary/5 border border-primary/20 p-3 rounded-xl">
                 <p className="text-[10px] sm:text-xs text-muted-foreground leading-relaxed">
-                  <span className="font-bold text-primary">M\u00E1ximo de 4 pessoas por partida.</span><br /><br />
-                  <strong className="text-primary">\uD83D\uDCA1 Recomenda\u00E7\u00E3o:</strong><br />
-                  Recomendado times de at\u00E9 2 pessoas para cada time.
+                  <span className="font-bold text-primary">Máximo de 4 pessoas por partida.</span><br /><br />
+                  <strong className="text-primary">💡 Recomendação:</strong><br />
+                  Recomendado times de até 2 pessoas para cada time.
                 </p>
               </div>
+            )}
           </div>
         );
       })}
