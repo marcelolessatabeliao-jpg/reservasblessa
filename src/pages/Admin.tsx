@@ -61,6 +61,7 @@ import { formatCurrency, getQuadDiscount } from '@/lib/booking-types';
 import { BookingTable } from '@/components/admin/BookingTable';
 import { AgendaHeader } from '@/components/admin/AgendaHeader';
 import { getAdminOrders, markOrderAsPaid } from '@/integrations/supabase/orders';
+import { parseToRODate, getRONow, getROTodayStr } from '@/utils/date-utils';
 import { PaymentModal } from '@/components/booking/PaymentModal';
 import { InternalBookingAssistant } from '@/components/admin/InternalBookingAssistant';
 import { AdminCreditsTab } from '@/components/admin/AdminCreditsTab';
@@ -546,7 +547,7 @@ export default function Admin() {
           const finalQty = editData.quantity || dbItem?.quantity || 1;
           const finalTime = editData.time_slot || dbItem?.time_slot;
           
-          const discount = getQuadDiscount(new Date(finalDate));
+          const discount = getQuadDiscount(parseToRODate(finalDate));
           const prices: any = { individual: 150, dupla: 250, 'adulto-crianca': 200 };
           const unitPrice = (prices[finalModel] || 150) * (1 - discount);
           
@@ -2405,29 +2406,43 @@ function EditQuadDialog({ item, onClose, onUpdated, updateOrderTotal }: any) {
     setLoading(true);
     try {
       const orderId = item.order_id;
-      const discount = getQuadDiscount(new Date(item.reservation_date));
+      const discount = getQuadDiscount(parseToRODate(item.reservation_date));
       const prices: any = { individual: 150, dupla: 250, 'adulto-crianca': 200 };
       const unitPrice = prices[model] * (1 - discount);
-      await (supabase.from('quad_reservations') as any).update({ quad_type: model, time_slot: time, price: unitPrice * (item.quantity || 1) }).eq('id', item.id);
+      
+      // 1. Update quad_reservations
+      await (supabase.from('quad_reservations') as any).update({ 
+        quad_type: model, 
+        time_slot: time, 
+        price: unitPrice * (item.quantity || 1) 
+      }).eq('id', item.id);
+
+      // 2. Update order_items if linked
       if (orderId && !String(orderId).startsWith('order-')) {
          const { data: oItems } = await supabase.from('order_items').select('*').eq('order_id', orderId);
-         const quadItem = oItems?.find(oi => oi.product_id?.toLowerCase().includes('quad') || oi.product_name?.toLowerCase().includes('quad'));
+         const quadItem = oItems?.find(oi => 
+           (oi.product_id?.toLowerCase().includes('quad') || (oi as any).product_name?.toLowerCase().includes('quad')) &&
+           (normalizeQuadType((oi as any).product_name || oi.product_id) === normalizeQuadType(item.quad_type))
+         );
+         
          if (quadItem) {
-            const newMeta = { ...(quadItem.metadata || {}), time_slot: time, time: time };
             await supabase.from('order_items').update({ 
                unit_price: unitPrice, 
                product_id: `Quadriciclo ${QUAD_MODELS_LABELS[model as keyof typeof QUAD_MODELS_LABELS] || 'Individual'}`,
-               product_name: `Quadriciclo ${QUAD_MODELS_LABELS[model as keyof typeof QUAD_MODELS_LABELS] || 'Individual'} - ${time}`,
-               metadata: newMeta 
+               metadata: { time: time, time_slot: time } 
             }).eq('id', quadItem.id);
+            await updateOrderTotal(orderId);
          }
       }
-      if (orderId) await updateOrderTotal(orderId);
-      toast({ title: 'Sucesso!', description: 'Modelo atualizado.' });
+
+      toast({ title: "Sucesso!", description: "Reserva atualizada com sucesso." });
       onUpdated();
       onClose();
-    } catch(e) { toast({ title: 'Erro', description: 'Falha ao atualizar.', variant: 'destructive' }); }
-    finally { setLoading(false); }
+    } catch (e: any) {
+      toast({ title: "Erro", description: e.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -2461,3 +2476,4 @@ function EditQuadDialog({ item, onClose, onUpdated, updateOrderTotal }: any) {
     </Dialog>
   );
 }
+

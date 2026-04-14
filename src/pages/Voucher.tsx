@@ -7,6 +7,8 @@ import { CheckCircle2, MapPin, Calendar, Users, Phone, ArrowLeft, Download, Shar
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/booking-types';
 
+import { parseToRODate } from '@/utils/date-utils';
+
 export default function Voucher() {
   const { code } = useParams();
   const [order, setOrder] = useState<any>(null);
@@ -41,7 +43,7 @@ export default function Voucher() {
     </div>
   );
 
-  const visitDate = order.visit_date ? new Date(order.visit_date) : null;
+  const visitDate = order.visit_date ? parseToRODate(order.visit_date) : null;
 
   return (
     <div className="min-h-screen bg-[#f8fafc] p-4 md:p-10 font-sans flex items-center justify-center">

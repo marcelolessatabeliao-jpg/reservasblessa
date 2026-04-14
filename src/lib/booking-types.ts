@@ -105,17 +105,21 @@ export const ADDITIONAL_INFO: Record<AdditionalService, { label: string; price: 
   },
 };
 
+import { parseToRODate } from '@/utils/date-utils';
+
 export function getQuadDiscount(date: Date | string | null): number {
   if (!date) return 0;
-  const d = new Date(date);
+  const d = parseToRODate(date);
   const day = d.getDay();
+  // Seg (1), Sex (5) -> 20%
   if (day === 1 || day === 5) return 0.2;
+  // Sab (6), Dom (0) -> 10%
   if (day === 0 || day === 6) return 0.1;
   return 0;
 }
 
 export function isOperatingDay(date: Date | string): boolean {
-  const d = new Date(date);
+  const d = parseToRODate(date);
   const day = d.getDay();
   const year = d.getFullYear();
   const month = d.getMonth();
