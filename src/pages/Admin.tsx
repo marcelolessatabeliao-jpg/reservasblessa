@@ -340,9 +340,10 @@ export default function Admin() {
                if (pId.includes('quad') || pName.includes('quad')) {
                   // Try to find if this item is already in parsedQuads (real record)
                   const realMatch = parsedQuads.find(pq => 
+                    !pq.is_from_order &&
                     pq.order_id === o.id && 
                     !matchedQuadIds.has(pq.id) && 
-                    normalizeQuadType(pq.quad_type) === normalizeQuadType(pName)
+                    normalizeQuadType(pq.quad_type) === normalizeQuadType(pName || pId)
                   );
 
                   if (realMatch) {
@@ -374,7 +375,7 @@ export default function Admin() {
                     parsedQuads.push({
                        id: `order-${o.id}-q-${item.id}`,
                        time_slot: finalSlot,
-                       quad_type: normalizeQuadType(pName),
+                       quad_type: normalizeQuadType(pName || pId),
                        quantity: item.quantity,
                        reservation_date: resDate,
                        customer_name: customerName,
@@ -563,22 +564,20 @@ export default function Admin() {
                 unit_price: unitPrice, 
                 quantity: finalQty, 
                 product_id: `Quadriciclo ${QUAD_MODELS_LABELS[finalModel as keyof typeof QUAD_MODELS_LABELS] || 'Individual'}`,
-                product_name: `Quadriciclo ${QUAD_MODELS_LABELS[finalModel as keyof typeof QUAD_MODELS_LABELS] || 'Individual'} - ${finalTime}`,
                 metadata: { time: finalTime, time_slot: finalTime } 
               }).eq('id', orderItemId);
             } else {
               // Fallback if no order_item_id: try to find the item
               const { data: oItems } = await supabase.from('order_items').select('*').eq('order_id', orderId);
               const quadItem = oItems?.find(oi => 
-                (oi.product_id?.toLowerCase().includes('quad') || oi.product_name?.toLowerCase().includes('quad')) &&
-                (normalizeQuadType(oi.product_name) === normalizeQuadType(finalModel))
+                (oi.product_id?.toLowerCase().includes('quad') || (oi as any).product_name?.toLowerCase().includes('quad')) &&
+                (normalizeQuadType((oi as any).product_name || oi.product_id) === normalizeQuadType(finalModel))
               );
               if (quadItem) {
                 await supabase.from('order_items').update({ 
                   unit_price: unitPrice, 
                   quantity: finalQty,
                   product_id: `Quadriciclo ${QUAD_MODELS_LABELS[finalModel as keyof typeof QUAD_MODELS_LABELS] || 'Individual'}`,
-                  product_name: `Quadriciclo ${QUAD_MODELS_LABELS[finalModel as keyof typeof QUAD_MODELS_LABELS] || 'Individual'} - ${finalTime}`,
                   metadata: { time: finalTime, time_slot: finalTime } 
                 }).eq('id', quadItem.id);
               }
@@ -602,7 +601,6 @@ export default function Admin() {
              
              await supabase.from('order_items').update({
                product_id: `Quiosque ${kioskType}`,
-               product_name: `Quiosque ${kioskType} - #${finalKId}`,
                unit_price: kioskPrice,
                metadata: { selectedIds: [finalKId] }
              }).eq('id', orderItemId);
