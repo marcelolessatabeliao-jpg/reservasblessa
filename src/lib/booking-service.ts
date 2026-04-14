@@ -239,7 +239,7 @@ export async function getQuadAvailability(date: string, timeSlot: string): Promi
     .select('quantity, orders!inner(status)')
     .eq('reservation_date', date)
     .eq('time_slot', timeSlot)
-    .in('orders.status', ['paid', 'confirmed', 'PAGO', 'CONFIRMADO'])
+    .in('orders.status', ['paid', 'confirmed', 'PAGO', 'CONFIRMADO', 'pending', 'waiting_local'])
 
   if (error || !data) return 0;
   return data.reduce((sum: number, r: any) => sum + (Number(r.quantity) || 0), 0);

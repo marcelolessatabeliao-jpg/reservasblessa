@@ -278,7 +278,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                 </div>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-2 w-full">
               {categories.map((cat) => {
                 const isSelected = wizardData.category === cat.id;
                 const isSundayBlocked = isSunday && cat.id === 'solidaria';
@@ -286,11 +286,11 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                   <div
                     key={cat.id}
                     className={cn(
-                      "flex flex-col items-center justify-center rounded-2xl border-2 transition-all text-center select-none relative overflow-hidden",
+                      "flex flex-col items-center justify-center rounded-2xl border-2 transition-all text-center select-none relative overflow-hidden w-full",
                       isSundayBlocked
                         ? "cursor-not-allowed bg-gray-50 border-gray-200"
                         : cn(
-                            "cursor-pointer active:scale-95 p-3.5 gap-1",
+                            "cursor-pointer active:scale-95 p-3.5 gap-1 w-full",
                             isSelected
                               ? `${cat.selectedBg} ${cat.selectedBorder} shadow-md scale-[1.02]`
                               : `${cat.bg} ${cat.border} hover:scale-[1.01] hover:shadow-sm`

@@ -306,7 +306,7 @@ export function AdminDashboardTab({
                     
                     const isSimpleBooking = hasAnyBooking && !hasKiosk && !hasQuad;
                     const kiosksFull = (kioskReservations || []).filter(r => r.reservation_date === dateStr).length >= 5;
-                    const quadsFull = (quadReservations || []).filter(r => r.reservation_date === dateStr).reduce((s, r) => s + (Number(r.quantity) || 1), 0) >= 20;
+                    const quadsFull = (quadReservations || []).filter(r => r.reservation_date === dateStr).reduce((s, r) => s + (Number(r.quantity) || 1), 0) >= (totalQuads * 4);
                     const isDayToday = isToday(date);
                     const isFull = kiosksFull && quadsFull;
 

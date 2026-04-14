@@ -366,7 +366,7 @@ export function InternalBookingAssistant({
                    <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full uppercase tracking-wider">Múltiplas Categorias</span>
                 </div>
                 
-                <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+                <div className="flex flex-wrap justify-center gap-3">
                    {[
                       { k: 'adults_normal', l: 'Adulto', p: '50', icon: User, color: 'bg-blue-500' },
                       { k: 'is_solidarity', l: 'Solid.', p: '25', icon: Gift, color: 'bg-orange-500' },
@@ -378,7 +378,7 @@ export function InternalBookingAssistant({
                       const val = (newBookingData as any)[cat.k];
                       return (
                         <div key={cat.k} className={cn(
-                          "group relative bg-white border-2 rounded-[1.75rem] p-4 flex flex-col items-center justify-between transition-all duration-300",
+                          "group relative bg-white border-2 rounded-[1.75rem] p-4 flex flex-col items-center justify-between transition-all duration-300 w-36",
                           val > 0 ? "border-emerald-500 shadow-md scale-[1.02]" : "border-slate-100 hover:border-emerald-200"
                         )}>
                            <div className={cn(

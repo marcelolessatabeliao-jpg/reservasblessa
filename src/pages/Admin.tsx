@@ -67,7 +67,7 @@ import { PaymentModal } from '@/components/booking/PaymentModal';
 import { InternalBookingAssistant } from '@/components/admin/InternalBookingAssistant';
 import { AdminCreditsTab } from '@/components/admin/AdminCreditsTab';
 
-
+import { AdminDashboardTab } from '@/components/admin/AdminDashboardTab';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -107,7 +107,6 @@ const QUAD_MODELS_LABELS: Record<string, string> = {
 };
 
 type TabType = 'painel' | 'reservas' | 'quiosques' | 'quads' | 'vendas' | 'creditos';
-
 
 const normalizeQuadType = (t: string) => {
   const slow = (t || '').toLowerCase();
@@ -208,10 +207,22 @@ export default function Admin() {
   const updateOrderTotal = async (orderId: string) => {
     if (!orderId || orderId.startsWith('order-')) return;
     try {
+      const { data: order } = await supabase.from('orders').select('manual_discount, manual_discount_type').eq('id', orderId).single();
       const { data: items } = await supabase.from('order_items').select('unit_price, quantity').eq('order_id', orderId);
+      
       if (items) {
-        const total = items.reduce((acc, it) => acc + (Number(it.unit_price) * (Number(it.quantity) || 1)), 0);
-        await supabase.from('orders').update({ total_amount: total, updated_at: new Date().toISOString() }).eq('id', orderId);
+        let subtotal = items.reduce((acc, it) => acc + (Number(it.unit_price) * (Number(it.quantity) || 1)), 0);
+        let finalTotal = subtotal;
+        
+        if (order?.manual_discount) {
+          const disc = order.manual_discount_type === 'percent' ? (subtotal * (order.manual_discount / 100)) : order.manual_discount;
+          finalTotal = Math.max(0, subtotal - disc);
+        }
+        
+        await supabase.from('orders').update({ 
+          total_amount: finalTotal, 
+          updated_at: new Date().toISOString() 
+        }).eq('id', orderId);
       }
     } catch(e) { console.error("Error syncing total:", e); }
   };
@@ -1019,240 +1030,17 @@ export default function Admin() {
 
     
     return (
-      <div className="grid lg:grid-cols-[1fr_360px] gap-8 animate-in fade-in duration-500">
-        <div className="space-y-8">
-
-          <Card className="bg-transparent border-none text-emerald-950 shadow-none p-0">
-             
-             <div className="rounded-[1.5rem] border-2 border-amber-300 bg-amber-100/50 overflow-hidden mb-0 shadow-lg backdrop-blur-sm">
-                <div className="p-3 md:p-5 border-b border-amber-300 flex flex-col md:flex-row md:items-center gap-4">
-                   <div className="flex items-center gap-4 border-r-0 md:border-r border-amber-300/50 pr-4">
-                      <div className="w-12 h-12 bg-emerald-800 rounded-xl flex items-center justify-center text-white font-black text-xl shadow-md border-2 border-emerald-400/30">
-                         {targetDate.getDate()}
-                      </div>
-                      <div>
-                         <h3 className="text-[16px] font-black text-emerald-950 tracking-tight leading-none mb-1">Operação Diária</h3>
-                         <p className="text-[11px] font-black text-emerald-950 uppercase tracking-tighter">{format(targetDate, "EEEE, yyyy", { locale: ptBR })}</p>
-                      </div>
-                   </div>
-                   <div className="flex items-center gap-2">
-                     <HelpCircle className="w-4 h-4 text-amber-800" />
-                     <h4 className="font-black text-amber-950 text-sm tracking-tight text-shadow-sm">Resumo de {format(targetDate, "dd 'de' MMMM", { locale: ptBR })}</h4>
-                   </div>
-                </div>
-                <div className="grid grid-cols-1 xl:grid-cols-2">
-                   {/* Left: Quiosques */}
-                   <div className="p-4 md:p-8 border-b xl:border-b-0 xl:border-r border-amber-300 bg-emerald-100/40 space-y-6">
-                      <h4 className="text-[14px] font-black text-emerald-800 flex items-center gap-3">
-                         <Users className="w-5 h-5 text-emerald-700" /> Quiosques ({dayKiosks.length}/5)
-                      </h4>
-                      
-                      <div className="flex flex-col gap-3">
-                       {KIOSKS.map(k => {
-                        const booking = dayKiosks.find(b => {
-                          const bid = b.kiosk_id;
-                          if (bid === 1 || bid === '1' || bid === 'MAIOR') return k.id === 1;
-                          if (bid === 'MENOR') {
-                             const dayOrderMenors = dayKiosks.filter(dk => dk.kiosk_id === 'MENOR');
-                             const orderIdx = dayOrderMenors.findIndex(dk => dk.id === b.id);
-                             if (k.id === orderIdx + 2) return true;
-                          }
-                          return Number(bid) === k.id;
-                        });
-                        
-                        return (
-                          <div key={k.id} className="bg-white rounded-xl p-4 shadow-sm border border-emerald-200 flex items-center justify-between group hover:bg-emerald-800 transition-all cursor-default">
-                             <span className="font-black text-emerald-950 text-[13px] group-hover:text-white transition-colors">{k.name}</span>
-                             {booking ? (
-                               <span className="text-emerald-700 font-bold italic text-[13px] text-right group-hover:text-emerald-100 transition-colors">
-                                  {booking.customer_name}
-                               </span>
-                             ) : (
-                               <span className="text-emerald-800/80 italic font-bold text-[13px] group-hover:text-emerald-200/50 transition-colors">Livre</span>
-                             )}
-                          </div>
-                        );
-                      })}
-                   </div>
-                   </div>
-
-                   {/* Right: Quadriciclos */}
-                   <div className="p-4 md:p-8 bg-blue-100/30 space-y-6">
-                      <h4 className="text-[14px] font-black text-blue-800 flex items-center gap-3">
-                         <Bike className="w-5 h-5 text-blue-700" /> Quadriciclos
-                      </h4>
-                   
-                   <div className="flex flex-col gap-2.5">
-                      {[
-                        { start: '09:00', end: '10:30' },
-                        { start: '10:30', end: '12:00' },
-                        { start: '14:00', end: '15:30' },
-                        { start: '15:30', end: '17:00' }
-                      ].map(slot => {
-                        const bookings = dayQuads.filter(b => {
-                            const bSlot = (b.time_slot || '').split('(')[0].toUpperCase().replace(/H/g, ':').trim();
-                            const target = slot.start.toUpperCase();
-                            return bSlot === target || (bSlot.length > 2 && target.includes(bSlot)) || (target.length > 2 && bSlot.includes(target));
-                        });
-                        const count = bookings.reduce((s, r) => s + (Number(r.quantity) || 1), 0);
-                        
-                        return (
-                          <div key={slot.start} className="bg-white rounded-[1.25rem] p-3 shadow-sm border border-blue-200/80 space-y-2.5">
-                             <div className="flex items-center justify-between px-1">
-                                <span className="text-blue-900 font-black text-[13px]">{slot.start} - {slot.end}</span>
-                                <span className="text-blue-600 font-bold text-[11px]">{count}/{totalQuads} ocupados</span>
-                             </div>
-                             
-                             <div className="rounded-xl border border-blue-50 bg-blue-50/20 p-1.5 min-h-[32px] flex items-center justify-center">
-                                {bookings.length > 0 ? (
-                                  <div className="flex flex-wrap gap-1.5 justify-center">
-                                     {bookings.map((b, bi) => (
-                                       <Badge key={bi} className="bg-transparent text-blue-700/80 font-bold italic lowercase text-[11px] px-2 py-0 border-0 shadow-none hover:bg-blue-600 hover:text-white hover:opacity-100 transition-all cursor-default">
-                                          {b.customer_name} ({b.quantity})
-                                       </Badge>
-                                     ))}
-                                  </div>
-                                ) : (
-                                  <span className="text-blue-400/50 italic font-black text-[11px]">Nenhuma reserva</span>
-                                )}
-                             </div>
-                          </div>
-                        );
-                      })}
-                   </div>
-
-                   {dayQuads.filter(b => !['09:00', '10:30', '14:00', '15:30'].some(t => (b.time_slot || '').includes(t))).length > 0 && (
-                      <div className="bg-amber-50/50 rounded-[1.25rem] p-3 shadow-sm border border-amber-200 mt-2 space-y-2.5">
-                         <div className="flex items-center justify-between px-1">
-                            <span className="font-black text-amber-900 text-[11px] uppercase tracking-wider flex items-center gap-2">
-                               <AlertTriangle className="w-3.5 h-3.5" /> Extra / S. Horário
-                            </span>
-                         </div>
-                         <div className="rounded-xl border border-amber-100 bg-white/40 p-1.5 min-h-[32px] flex items-center justify-center text-center">
-                            <div className="flex flex-wrap gap-1.5 justify-center">
-                               {dayQuads.filter(b => !['09:00', '10:30', '14:00', '15:30'].some(t => (b.time_slot || '').includes(t))).map((b, bi) => (
-                                  <Badge key={bi} className="bg-transparent text-amber-800 font-bold italic lowercase text-[11px] px-2 py-0 border-0 shadow-none">
-                                     {b.customer_name} ({b.quantity})
-                                  </Badge>
-                               ))}
-                            </div>
-                         </div>
-                      </div>
-                   )}
-
-
-                </div>
-             </div>
-
-             {/* Footer Summary */}
-             <div className="p-3 md:p-5 border-t border-amber-300 bg-amber-100/60 flex items-center justify-center text-center">
-                <p className="text-amber-900 font-black uppercase tracking-[0.1em] text-[11px]">
-                   Total de Reservas no Dia: {dayKiosks.length + dayQuads.length}
-                </p>
-             </div>
-          </div>
-        </Card>
-        </div>
-
-        <div className="space-y-6">
-           
-           <Card className="bg-white border-2 border-emerald-100 shadow-sm rounded-3xl overflow-hidden">
-              <div className="p-6 border-b border-emerald-100 bg-emerald-50/50">
-                 <div className="flex items-center gap-3 mb-2">
-                    <CalendarCheck className="w-5 h-5 text-emerald-800" />
-                    <h4 className="text-lg font-black text-emerald-950 tracking-tight">Resumo Geral</h4>
-                 </div>
-                 <p className="text-[11px] font-bold text-emerald-800/70 leading-relaxed mb-6">
-                    Selecione uma data para organizar seu dia de operações.
-                 </p>
-                 
-                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    <div className="flex items-center justify-center gap-2 py-2 px-3 bg-emerald-800 text-white rounded-xl text-[9px] font-black uppercase tracking-wider">
-                       <Tent className="w-3.5 h-3.5" /> Quiosques
-                    </div>
-                    <div className="flex items-center justify-center gap-2 py-2 px-3 bg-blue-700 text-white rounded-xl text-[9px] font-black uppercase tracking-wider">
-                       <Bike className="w-3.5 h-3.5" /> Quads
-                    </div>
-                    <div className="flex items-center justify-center gap-2 py-2 px-3 bg-red-500 text-white rounded-xl text-[9px] font-black uppercase tracking-wider">
-                       <Users className="w-3.5 h-3.5" /> Reservas (Entrada)
-                    </div>
-                 </div>
-              </div>
-
-                <div className="p-4 bg-white">
-                  <Calendar
-                    mode="single"
-                    selected={targetDate}
-                    onSelect={(d) => d && setTargetDate(d)}
-                    className="p-0 pointer-events-auto"
-                    locale={ptBR}
-                    toDate={new Date(2030, 11, 31)}
-                    fromDate={new Date(2024, 0, 1)}
-                    disabled={(date) => !isAllowedDay(date)}
-                    classNames={{
-                      months: "w-full flex flex-col",
-                      month: "w-full space-y-6",
-                      caption: "relative flex items-center justify-between w-full h-14 bg-emerald-800 rounded-2xl border-2 border-emerald-900 shadow-xl mb-4 px-3",
-                      caption_label: "text-[10px] md:text-[12px] font-black text-white uppercase tracking-[0.2em] flex-1 text-center",
-                      nav: "absolute inset-x-0 inset-y-0 flex items-center justify-between px-2 pointer-events-none z-30",
-                      nav_button: "h-7 w-7 md:h-9 md:w-9 bg-emerald-500 text-white border border-emerald-400 hover:bg-emerald-400 shadow-lg rounded-[0.5rem] transition-all pointer-events-auto flex items-center justify-center",
-                      nav_button_previous: "relative",
-                      nav_button_next: "relative",
-                      table: "w-full border-collapse table-fixed",
-                      head_cell: "text-emerald-900 font-extrabold text-[10px] md:text-[11px] uppercase tracking-[0.1em] md:tracking-[0.2em] w-[14.28%] py-4 text-center",
-                      cell: "h-10 md:h-14 w-[14.28%] text-center p-0 relative focus-within:z-20",
-                      day: cn(
-                        "h-12 w-12 p-0 font-black text-sm transition-all rounded-full border-2 border-emerald-50 bg-emerald-50/20 text-emerald-950 hover:border-emerald-300 hover:bg-emerald-100 shadow-sm mx-auto",
-                        "flex flex-col items-center justify-center gap-1"
-                      ),
-                      day_selected: "bg-emerald-800 !text-white hover:bg-emerald-700 border-emerald-800 shadow-xl shadow-emerald-900/30 !opacity-100 rounded-full",
-                      day_today: "bg-yellow-400 text-emerald-950 border-yellow-500 shadow-lg font-black ring-2 ring-yellow-200 ring-offset-2 rounded-full",
-                      day_outside: "text-emerald-900/60 font-bold opacity-50 bg-transparent shadow-none border-transparent",
-                    }}
-                    components={{
-                      DayContent: ({ date }) => {
-                        const dateStr = format(date, 'yyyy-MM-dd');
-                        const hasKiosk = (kioskReservations || []).some(r => r.reservation_date === dateStr);
-                        const hasQuad = (quadReservations || []).some(r => r.reservation_date === dateStr);
-                        const hasAnyBooking = (bookings || []).some(b => {
-                          const bDate = typeof b.visit_date === 'string' ? b.visit_date.split('T')[0] : format(new Date(b.visit_date), 'yyyy-MM-dd');
-                          return bDate === dateStr;
-                        }) || (orders || []).some(o => {
-                          const oDate = o.visit_date || (o.created_at ? o.created_at.split('T')[0] : '');
-                          return oDate === dateStr && o.status !== 'cancelled' && o.status !== 'awaiting_payment';
-                        });
-                        
-                        const isSimpleBooking = hasAnyBooking && !hasKiosk && !hasQuad;
-                        
-                        // Availability logic
-                        const kiosksFull = (kioskReservations || []).filter(r => r.reservation_date === dateStr).length >= 5;
-                        const quadsFull = (quadReservations || []).filter(r => r.reservation_date === dateStr).reduce((s, r) => s + (Number(r.quantity) || 1), 0) >= (totalQuads * 4);
-                        const isDayToday = isToday(date);
-                        const isFull = kiosksFull && quadsFull;
-
-                        return (
-                          <div className={cn("relative flex flex-col items-center rounded-full w-full h-full justify-center transition-all", isFull && "bg-red-50/50 border border-red-100")}>
-                            <span className={cn(isDayToday ? "text-emerald-950 font-black" : "font-black", isFull && "text-red-600")}>{date.getDate()}</span>
-                            <div className="flex gap-1 mt-0.5">
-                              {hasKiosk && <div className={cn("w-2 h-2 rounded-full shadow-md border border-white/40", kiosksFull ? "bg-red-600" : "bg-emerald-600")} />}
-                              {hasQuad && <div className={cn("w-2 h-2 rounded-full shadow-md border border-white/40", quadsFull ? "bg-red-600" : "bg-blue-600")} />}
-                              {isSimpleBooking && <div className="w-2 h-2 rounded-full bg-red-500 shadow-md border border-white/40" />}
-                            </div>
-                          </div>
-                        );
-                      }
-                    }}
-                    modifiers={{
-                      holiday: (day) => isHoliday(day),
-                    }}
-                    modifiersStyles={{
-                      holiday: { border: '2px dashed #10b981', color: '#059669' }
-                    }}
-                  />
-                </div>
-           </Card>
-        </div>
-      </div>
+      <AdminDashboardTab
+        targetDate={targetDate}
+        setTargetDate={setTargetDate}
+        kioskReservations={kioskReservations}
+        quadReservations={quadReservations}
+        bookings={bookings}
+        orders={orders}
+        isAllowedDay={isAllowedDay}
+        isHoliday={isHoliday}
+        totalQuads={totalQuads}
+      />
     );
   };
 
