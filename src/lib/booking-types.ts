@@ -9,6 +9,7 @@ export interface AdultInfo {
   isPCD?: boolean;
   isTEA?: boolean;
   isBirthday?: boolean;
+  isMember?: boolean;
 }
 
 export interface ChildInfo {
@@ -22,6 +23,7 @@ export interface ChildInfo {
   isPCD?: boolean;
   isTEA?: boolean;
   isBirthday?: boolean;
+  isMember?: boolean;
 }
 
 export interface EntryBooking {
@@ -133,10 +135,10 @@ export function isOperatingDay(date: Date | string): boolean {
       { m: 3, d: 5 },  // Apr 5 (Páscoa)
       { m: 3, d: 21 }, // Apr 21 (Tiradentes)
       { m: 4, d: 1 },  // May 1 (Trabalhador)
-      { m: 4, d: 14 }, // May 14 (Ascensão ?)
-      { m: 4, d: 24 }, // May 24 (Nsa Sra Auxiliadora ?)
+      { m: 4, d: 14 }, // May 14 (Ascensão)
+      { m: 4, d: 24 }, // May 24 (Nsa Sra Auxiliadora)
       { m: 5, d: 4 },  // Jun 4 (Corpus Christi)
-      { m: 6, d: 9 },  // Jul 9 (Revolução Constitucionalista ?)
+      { m: 6, d: 9 },  // Jul 9 (Revolução Constitucionalista)
       { m: 8, d: 7 },  // Sep 7 (Independência)
       { m: 9, d: 12 }, // Oct 12 (Nsa Sra Aparecida)
       { m: 10, d: 2 }, // Nov 2 (Finados)
@@ -156,7 +158,7 @@ export function getPersonPrice(
   isSunday: boolean,
   getPrice: (type: string, fallback: number) => number
 ): number {
-  // Gratuidades: PCD/TEA, Aniversariante, Idoso (60+), Criança (≤11), Assinante Lessa Club
+  // Gratuidades: PCD/TEA, Aniversariante, Idoso (60+), Criança (0 a 11), Assinante Lessa Club
   if (defaultGratuity || person.isPCD || person.isTEA || person.isBirthday || person.isMember) {
     return 0;
   }
@@ -167,7 +169,7 @@ export function getPersonPrice(
     return getPrice('entry_half', 25);
   }
 
-  // Adulto Normal: R$ 50,00
+  // Adulto Normal: R$ 50,00 ou R$ 35,00 (ajustável via Admin)
   return getPrice('entry_full', 50);
 }
 

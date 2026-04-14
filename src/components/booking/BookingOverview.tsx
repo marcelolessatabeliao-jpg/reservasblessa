@@ -568,28 +568,33 @@ export function BookingOverview({
         {(() => {
            // Calculate potential "savings"
            // For simplicity, let's just show a row summarizing the total and maybe the "Economia"
-           const totalFullPrice = [...booking.entry.adults, ...booking.entry.children].reduce((acc, p) => acc + ((p.quantity || 1) * 50), 0);
-           const savings = totalFullPrice - totals.entriesTotal;
-           
-           return (
-             <div className="pt-4 space-y-2">
-               <div className="flex justify-between items-center bg-primary/5 rounded-2xl p-4 border border-primary/10 mb-4">
-                 <div>
-                   <span className="text-xl sm:text-2xl font-black text-primary">Total: {formatCurrency(totals.total)}</span>
-                   {savings > 0 && (
-                     <span className="block text-[10px] sm:text-xs text-whatsapp font-bold uppercase tracking-widest mt-0.5">
-                       ✨ VOCÊ ESTÁ ECONOMIZANDO {formatCurrency(savings)} NESTA RESERVA!
-                     </span>
-                   )}
-                 </div>
-               </div>
+            const fullPriceBase = 50;
+            const totalFullPrice = [...booking.entry.adults, ...booking.entry.children].reduce((acc, p) => acc + ((p.quantity || 1) * fullPriceBase), 0);
+            const savings = totalFullPrice - totals.entriesTotal;
+            
+            return (
+              <div className="pt-4 space-y-2">
+                <div className="flex justify-between items-center bg-primary/5 rounded-2xl p-4 border border-primary/10 mb-4">
+                  <div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-xl sm:text-2xl font-black text-primary">Total: {formatCurrency(totals.total)}</span>
+                    </div>
+                    {savings > 0 && (
+                      <span className="block text-[10px] sm:text-xs text-whatsapp font-bold uppercase tracking-widest mt-0.5">
+                        ✨ VOCÊ ESTÁ ECONOMIZANDO {formatCurrency(savings)} NESTA RESERVA!
+                      </span>
+                    )}
+                  </div>
+                </div>
 
-                {/* Membership Comparison Action Card - MOVED HERE */}
+                {/* Membership Comparison Action Card */}
                 {(() => {
                   const allAdults = booking.entry.adults;
                   const reservaHojeEntries = totals.entriesTotal;
-                  const halfPriceCount = allAdults.filter(a => a.isTeacher || a.isServer || a.isStudent || (a as any).isBloodDonor).reduce((acc, a) => acc + (a.quantity || 1), 0);
-                  const fullPriceCount = allAdults.reduce((acc, a) => acc + (a.quantity || 1), 0) - halfPriceCount;
+                  // Contar apenas quem NÃO é assinante para a comparação
+                  const nonMemberAdults = allAdults.filter(a => !a.isMember);
+                  const halfPriceCount = nonMemberAdults.filter(a => a.isTeacher || a.isServer || a.isStudent || (a as any).isBloodDonor).reduce((acc, a) => acc + (a.quantity || 1), 0);
+                  const fullPriceCount = nonMemberAdults.reduce((acc, a) => acc + (a.quantity || 1), 0) - halfPriceCount;
                   const membershipPrice = (fullPriceCount * 49.9) + (halfPriceCount * 25);
 
                   if ((fullPriceCount + halfPriceCount) > 0) {
@@ -616,9 +621,15 @@ export function BookingOverview({
                         </div>
 
                         <div className="space-y-4 relative z-10">
+                          <p className="text-emerald-950/90 text-[10px] sm:text-xs font-bold leading-tight uppercase tracking-tight -mb-2 opacity-70">
+                            Simulação para: {fullPriceCount > 0 ? `${fullPriceCount}x Adulto` : ''} 
+                            {fullPriceCount > 0 && halfPriceCount > 0 ? ' + ' : ''} 
+                            {halfPriceCount > 0 ? `${halfPriceCount}x Meia` : ''}
+                            {allAdults.some(a => a.isMember) ? ' (Assinantes atuais não contam)' : ''}
+                          </p>
                           <p className="text-emerald-950/90 text-xs sm:text-sm leading-snug font-black">
                             Sua reserva custa <span className="bg-emerald-950/15 text-emerald-950 px-2 py-0.5 rounded-lg">{formatCurrency(reservaHojeEntries)}</span>.
-                            No <span className="text-emerald-950 font-black">Lessa Club</span>, você paga <span className="bg-white/40 text-emerald-950 px-2 py-0.5 rounded-lg">{formatCurrency(membershipPrice)}</span> e tem 
+                            No <span className="text-emerald-950 font-black">Lessa Club</span>, você paga <span className="bg-white/40 text-emerald-950 px-2 py-0.5 rounded-lg">{formatCurrency(membershipPrice)}</span>/mês e tem 
                             <span className="inline-flex items-center text-white font-black mx-1 uppercase text-[10px] bg-emerald-950 px-2 py-0.5 rounded-lg shadow-lg tracking-tighter">ENTRADAS ILIMITADAS</span>
                           </p>
 

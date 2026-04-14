@@ -87,7 +87,16 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
       takeDonation: !!takeDonation
     };
 
-    const isSamePerson = (p1: any, p2: any) => p1.age === p2.age && p1.isPCD === p2.isPCD && p1.isTeacher === p2.isTeacher && p1.isStudent === p2.isStudent && p1.isServer === p2.isServer && p1.isBloodDonor === p2.isBloodDonor && p1.isBirthday === p2.isBirthday && p1.takeDonation === p2.takeDonation;
+    const isSamePerson = (p1: any, p2: any) => 
+      p1.age === p2.age && 
+      p1.isPCD === p2.isPCD && 
+      p1.isTeacher === p2.isTeacher && 
+      p1.isStudent === p2.isStudent && 
+      p1.isServer === p2.isServer && 
+      p1.isBloodDonor === p2.isBloodDonor && 
+      p1.isBirthday === p2.isBirthday && 
+      p1.takeDonation === p2.takeDonation &&
+      p1.isMember === p2.isMember;
 
     if (wizardType === 'child' || (flags.age && flags.age <= 11)) {
       const existingIdx = entry.children.findIndex(c => isSamePerson(c, flags));

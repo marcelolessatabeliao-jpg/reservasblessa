@@ -8,19 +8,22 @@ export function buildWhatsAppMessage(booking: BookingState, total: number, isPre
   const { entry } = booking;
   const safeGetPrice = getPrice || ((t: string, fb: number) => fb);
   const isSunday = entry.dayOfWeek === 'domingo';
-  // Removido o código do WhatsApp conforme solicitado pelo usuário para segurança (cliente só recebe após pagar).
-  let msg = `Olá, Balneário Lessa!\nGostaria de confirmar uma reserva${isPrepay ? ' e já realizar o pagamento via Pix' : ''}.\n\n`;
-  // O código e voucher só aparecem se JÁ for um processo de pré-pagamento confirmado ou se explicitamente solicitado.
-  // Por padrão, para contato inicial, omitimos para que o cliente pague primeiro e receba o voucher depois.
+  
+  // Mensagem inicial com estilo premium
+  let msg = `🌊 *BALNEÁRIO LESSA*\n`;
+  msg += `Gostaria de confirmar uma reserva${isPrepay ? ' e já realizar o pagamento via Pix 💠' : ''}.\n\n`;
+
   if (code && isPrepay) {
-    msg += `*Confirmação:* Pago ✅\n`;
-    msg += `*Código do Voucher:* ${code}\n`;
-    msg += `*Link do Voucher:* https://reservas.balneariolessa.com.br/voucher/${code}\n`;
-    msg += `*Pré-reserva:* #${code}\n`;
+    msg += `✅ *Confirmação:* Pago\n`;
+    msg += `🎫 *Código do Voucher:* ${code}\n`;
+    msg += `🔗 *Link do Voucher:* https://reservas.balneariolessa.com.br/voucher/${code}\n`;
+    msg += `📌 *Pré-reserva:* #${code}\n\n`;
   }
-  if (entry.name) msg += `*Nome:* ${entry.name}\n`;
-  if (entry.phone) msg += `*Telefone:* ${formatPhone(entry.phone)}\n`;
-  if (entry.visitDate) msg += `*Data da visita:* ${format(entry.visitDate, "dd/MM/yyyy (EEEE)", { locale: ptBR })}\n`;
+
+  msg += `*DADOS DO CLIENTE*\n`;
+  if (entry.name) msg += `👤 *Nome:* ${entry.name}\n`;
+  if (entry.phone) msg += `📱 *Telefone:* ${formatPhone(entry.phone)}\n`;
+  if (entry.visitDate) msg += `🗓️ *Data da Visita:* ${format(entry.visitDate, "dd/MM/yyyy (EEEE)", { locale: ptBR })}\n`;
   msg += '\n';
 
   let paidAdultsStr = '';
@@ -77,18 +80,18 @@ export function buildWhatsAppMessage(booking: BookingState, total: number, isPre
   }
 
   if (paidAdultsStr) {
-    msg += '*Adultos:*\n' + paidAdultsStr + '\n';
+    msg += `👥 *ADULTOS:*\n${paidAdultsStr}\n`;
   }
   if (paidChildrenStr) {
-    msg += '*Crianças:*\n' + paidChildrenStr + '\n';
+    msg += `🧒 *CRIANÇAS:*\n${paidChildrenStr}\n`;
   }
   if (freeItemsStr) {
-    msg += '*Gratuidades:*\n' + freeItemsStr + '\n';
+    msg += `🎁 *GRATUIDADES:*\n${freeItemsStr}\n`;
   }
 
   const activeKiosks = booking.kiosks.filter(k => k.quantity > 0);
   if (activeKiosks.length) {
-    msg += '*Quiosque:*\n';
+    msg += `⛺ *QUIOSQUE:*\n`;
     activeKiosks.forEach(k => {
       const basePrice = safeGetPrice(`kiosk_${k.type}`, KIOSK_INFO[k.type].price);
       if (k.selectedIds && k.selectedIds.length > 0) {
@@ -103,31 +106,31 @@ export function buildWhatsAppMessage(booking: BookingState, total: number, isPre
 
   const activeQuads = booking.quads.filter(q => q.quantity > 0);
   if (activeQuads.length) {
-    msg += '*Passeio de Quadriciclo:*\n';
+    msg += `🚜 *QUADRICICLO:*\n`;
     activeQuads.forEach(q => {
       const fallbackMap: Record<string, number> = { individual: 150, dupla: 250, 'adulto-crianca': 200 };
       const d = q.date ? new Date(q.date) : null;
       const discount = getQuadDiscount(d);
       const basePrice = safeGetPrice(`quad_${q.type}`, fallbackMap[q.type]);
       const finalPrice = basePrice * (1 - discount);
-      msg += `${q.quantity} x ${QUAD_LABELS[q.type]} - ${formatCurrency(q.quantity * finalPrice)}\n`;
-      if (d) msg += `  Data: ${format(d, "dd/MM/yyyy", { locale: ptBR })}\n`;
-      if (q.time) msg += `  Horário: ${q.time}\n`;
-      if (discount > 0) msg += `  Desconto: ${discount * 100}%\n`;
+      msg += `  ${q.quantity} x ${QUAD_LABELS[q.type]} - ${formatCurrency(q.quantity * finalPrice)}\n`;
+      if (d) msg += `  📅 Data: ${format(d, "dd/MM/yyyy", { locale: ptBR })}\n`;
+      if (q.time) msg += `  🕒 Horário: ${q.time}\n`;
+      if (discount > 0) msg += `  📉 Desconto: ${discount * 100}%\n`;
     });
     msg += '\n';
   }
 
   const activeAdds = booking.additionals.filter(a => a.quantity > 0);
   if (activeAdds.length) {
-    msg += '*Serviços Adicionais:*\n';
+    msg += `✨ *OUTROS SERVIÇOS:*\n`;
     activeAdds.forEach(a => {
       const basePrice = safeGetPrice(`add_${a.type}`, ADDITIONAL_INFO[a.type].price);
-      msg += `${a.quantity} x ${ADDITIONAL_INFO[a.type].label} - ${formatCurrency(a.quantity * basePrice)}\n`;
+      msg += `  ${a.quantity} x ${ADDITIONAL_INFO[a.type].label} - ${formatCurrency(a.quantity * basePrice)}\n`;
     });
     msg += '\n';
   }
 
-  msg += `*Total da Reserva:* ${formatCurrency(total)}\n\nAguardo instruções para pagamento.`;
+  msg += `💰 *TOTAL DA RESERVA: ${formatCurrency(total)}*\n\nAguardo instruções para pagamento.`;
   return msg;
 }
