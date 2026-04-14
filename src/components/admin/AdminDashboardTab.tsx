@@ -234,11 +234,6 @@ export function AdminDashboardTab({
                      </div>
                   </div>
                </div>
-                         );
-                       })}
-                    </div>
-                 </div>
-              </div>
 
               <div className="p-3 md:p-5 border-t border-amber-300 bg-amber-100/60 flex items-center justify-center text-center">
                  <p className="text-amber-900 font-black uppercase tracking-[0.1em] text-[11px]">

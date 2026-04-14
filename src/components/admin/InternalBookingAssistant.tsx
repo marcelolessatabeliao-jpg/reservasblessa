@@ -404,7 +404,7 @@ export function InternalBookingAssistant({
                         </div>
                       );
                    })}
-                </div>               </div>
+                </div>
               </div>
 
               <div className="flex flex-col gap-6">
