@@ -235,7 +235,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
               <h4 className="text-xl font-bold text-center text-primary font-sans">Monte seu Day Use no Balneário</h4>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 px-1">
+            <div className="grid grid-cols-2 gap-2 px-1">
               <button 
                 className={cn(
                   "col-span-2 sm:col-span-3 h-auto py-2.5 px-4 flex items-center justify-between rounded-xl border-2 transition-all active:scale-[0.98]",
