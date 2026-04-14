@@ -230,34 +230,32 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
         ];
 
         return (
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-4 py-2 w-full max-w-2xl mx-auto">
-            <div className="text-center mb-4">
-              <h4 className="font-sans font-extrabold text-2xl text-primary tracking-tight">Monte seu Day Use no Balneário</h4>
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-4 py-2 w-full max-w-md mx-auto">
+            <div className="text-center mb-0">
+              <h4 className="text-xl sm:text-2xl font-bold text-center text-primary font-sans">Monte seu Day Use no Balneário</h4>
             </div>
 
             {/* Premium Subscriber Card */}
             <div className="px-1">
               <div 
                 className={cn(
-                  "relative w-full overflow-hidden rounded-[1.5rem] border-2 transition-all duration-300 group cursor-pointer active:scale-95",
+                  "relative w-full overflow-hidden rounded-2xl border-2 transition-all duration-300 group cursor-pointer active:scale-95",
                   wizardData.category === 'assinante' 
-                    ? "border-emerald-500 shadow-2xl bg-emerald-900 text-white" 
-                    : "border-emerald-100 bg-white hover:border-emerald-300 shadow-lg"
+                    ? "border-emerald-500 shadow-lg bg-emerald-900 text-white" 
+                    : "border-emerald-100 bg-white hover:border-emerald-300 shadow-sm"
                 )}
                 onClick={() => {
                    setWizardData({ ...wizardData, category: 'assinante' });
                    handleFinishWizard('assinante', false);
                 }}
               >
-                <div className={cn("absolute inset-0 bg-gradient-to-r from-emerald-600/20 via-transparent to-emerald-600/20 opacity-50", wizardData.category === 'assinante' ? "opacity-100" : "")} />
-                
-                <div className="relative p-3.5 flex items-center justify-between">
+                <div className="relative p-3 flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-colors shadow-inner", wizardData.category === 'assinante' ? "bg-white/20" : "bg-emerald-50")}>
-                      <span className="text-xl filter drop-shadow-md group-hover:scale-110 transition-transform">👑</span>
+                    <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center transition-colors", wizardData.category === 'assinante' ? "bg-white/20" : "bg-emerald-50")}>
+                      <span className="text-lg">👑</span>
                     </div>
                     <div>
-                      <h5 className={cn("text-base font-black uppercase tracking-tight leading-none", wizardData.category === 'assinante' ? "text-white" : "text-emerald-950")}>
+                      <h5 className={cn("text-sm font-bold uppercase tracking-tight leading-none", wizardData.category === 'assinante' ? "text-white" : "text-emerald-950")}>
                         Sou Assinante Lessa Club 👑
                       </h5>
                     </div>
@@ -265,7 +263,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                   
                   <div className="text-right shrink-0">
                     <span className={cn(
-                      "px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest shadow-lg",
+                      "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest leading-none",
                       wizardData.category === 'assinante' ? "bg-white text-emerald-900" : "bg-emerald-600 text-white"
                     )}>
                       ASSINANTE
@@ -275,7 +273,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 w-full px-1">
+            <div className="grid grid-cols-2 gap-2 w-full px-1">
               {categories.map((cat) => {
                 const isSelected = wizardData.category === cat.id;
                 const isSundayBlocked = isSunday && cat.id === 'solidaria';
@@ -283,13 +281,13 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                   <div
                     key={cat.id}
                     className={cn(
-                      "flex flex-col items-center rounded-2xl border-2 transition-all text-center select-none relative overflow-hidden h-full min-h-[150px] group",
+                      "flex flex-col items-center rounded-2xl border-2 transition-all text-center select-none relative overflow-hidden h-full min-h-[140px] group",
                       isSundayBlocked
                         ? "cursor-not-allowed bg-gray-50 border-gray-200"
                         : cn(
                             "cursor-pointer active:scale-95",
                             isSelected
-                              ? `${cat.selectedBg} ${cat.selectedBorder} shadow-lg scale-[1.02]`
+                              ? `${cat.selectedBg} ${cat.selectedBorder} shadow-md scale-[1.01]`
                               : `${cat.bg} ${cat.border} hover:scale-[1.01] hover:shadow-sm`
                           )
                     )}
@@ -307,32 +305,29 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                   >
                     {isSundayBlocked ? (
                       <div className="flex flex-col items-center justify-between h-full w-full">
-                        <span className="w-full text-center text-[8px] font-black uppercase tracking-wide bg-orange-500 text-white py-1.5 z-10">
-                          🚫 Indisponível aos domingos
+                        <span className="w-full text-center text-[8px] font-black uppercase tracking-wide bg-orange-500 text-white py-1 z-10">
+                          🚫 Indisponível
                         </span>
-                        <div className="flex flex-col items-center justify-center flex-1 w-full gap-2 p-4 opacity-40 grayscale">
-                          <span className="text-3xl leading-none">{cat.emoji}</span>
-                          <div className="min-h-[40px] flex flex-col justify-center">
-                            <span className={cn("block font-black text-sm leading-tight text-gray-500")}>{cat.label}</span>
-                            <span className="block text-[9px] text-gray-400 font-semibold leading-tight mt-1">{cat.sublabel}</span>
+                        <div className="flex flex-col items-center justify-center flex-1 w-full gap-1 p-3 opacity-40 grayscale">
+                          <span className="text-2xl leading-none">{cat.emoji}</span>
+                          <div className="min-h-[30px] flex flex-col justify-center">
+                            <span className={cn("block font-bold text-xs leading-tight text-gray-500")}>{cat.label}</span>
+                            <span className="block text-[8px] text-gray-400 font-semibold leading-tight mt-0.5">{cat.sublabel}</span>
                           </div>
-                        </div>
-                        <div className="mt-auto mb-4 px-3 py-1 bg-gray-200 rounded-lg text-[10px] font-extrabold text-gray-400">
-                          Indisponível
                         </div>
                       </div>
                     ) : (
-                      <div className="flex flex-col items-center justify-between h-full w-full p-4">
+                      <div className="flex flex-col items-center justify-between h-full w-full p-3">
                         <div className="flex flex-col items-center flex-1 justify-center gap-2">
-                           <span className="text-3xl filter drop-shadow-md group-hover:scale-110 transition-transform leading-none">{cat.emoji}</span>
-                           <div className="min-h-[40px] flex flex-col justify-center">
-                              <span className={cn("block font-black text-sm md:text-base leading-tight", cat.labelColor)}>{cat.label}</span>
-                              <span className="block text-[9px] md:text-[10px] font-normal leading-tight mt-1 opacity-70">
+                           <span className="text-2xl transition-transform leading-none">{cat.emoji}</span>
+                           <div className="min-h-[30px] flex flex-col justify-center">
+                              <span className={cn("block font-bold text-sm leading-tight", cat.labelColor)}>{cat.label}</span>
+                              <span className="block text-[8px] md:text-[9px] font-normal leading-tight mt-0.5 opacity-70">
                                 {cat.sublabel}
                               </span>
                            </div>
                         </div>
-                        <div className={cn("mt-3 px-3 py-1 rounded-lg text-xs font-black shadow-sm border border-current/10 w-full", `${cat.priceColor} bg-white/60`)}>
+                        <div className={cn("mt-2 px-2 py-1 rounded-lg text-[10px] font-black shadow-sm border border-current/10 w-full", `${cat.priceColor} bg-white/60`)}>
                            {cat.price === 'GRÁTIS' ? cat.price : (cat.price.startsWith('R$') ? cat.price : `R$ ${cat.price}`)}
                         </div>
                       </div>
@@ -342,11 +337,11 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
               })}
             </div>
 
-            <div className="flex justify-center mt-2">
+            <div className="flex justify-center mt-0">
               <Button
                 variant="ghost"
                 onClick={() => setWizardStep(1)}
-                className="text-gray-400 font-bold text-xs"
+                className="text-gray-400 font-bold text-[10px] h-8"
               >
                 ← Voltar
               </Button>
