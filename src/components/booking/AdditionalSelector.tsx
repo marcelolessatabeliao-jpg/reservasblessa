@@ -67,9 +67,9 @@ export function AdditionalSelector({ additionals, onUpdate }: Props) {
             {item.type === 'futebol-sabao' && (
               <div className="mt-4 bg-primary/5 border border-primary/20 p-3 rounded-xl">
                 <p className="text-[10px] sm:text-xs text-muted-foreground leading-relaxed">
-                  <span className="font-bold text-primary">Mínimo de 6 pessoas por partida.</span><br /><br />
+                  <span className="font-bold text-primary">Máximo de 4 pessoas por partida.</span><br /><br />
                   <strong className="text-primary">💡 Recomendação:</strong><br />
-                  Recomendado times de até 8 pessoas para cada time.
+                  Recomendado times de até 2 pessoas para cada time.
                 </p>
               </div>
             )}
