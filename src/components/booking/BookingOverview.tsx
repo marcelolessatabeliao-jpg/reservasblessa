@@ -372,14 +372,20 @@ export function BookingOverview({
               {[...booking.entry.adults, ...booking.entry.children].filter(p => getPersonPrice(p, (p as any).age >= 60 || (p as any).age <= 11, booking.entry.dayOfWeek === 'domingo', getPrice) === 0).map((p, i) => {
                 const qty = p.quantity || 1;
                 let label = (p as any).age >= 60 ? 'Lessa Vitalício (Idoso)' : (p as any).age <= 11 ? 'Lessa Kids (Criança)' : 'Acesso';
+                let sublabel = 'Acesso Gratuito';
+
                 if (p.isPCD) label = 'Lessa Inclusão (PCD/TEA)';
-                if (p.isBirthday) label = 'Aniversariante da Semana';
+                else if (p.isBirthday) label = 'Aniversariante da Semana';
+                else if (p.isMember) {
+                  label = 'Assinante Lessa Club 👑';
+                  sublabel = 'Sócio Lessa Club Premium';
+                }
 
                 return (
                   <div key={`free-${i}`} className="relative flex justify-between items-start text-emerald-700 font-bold bg-emerald-50/50 p-2.5 rounded-xl border border-emerald-100/50 group/item">
                     <div>
                       <span className="text-sm">{qty}x {label}</span>
-                      <span className="block text-[10px] uppercase tracking-wider opacity-60">Acesso Gratuito</span>
+                      <span className="block text-[10px] uppercase tracking-wider opacity-60">{sublabel}</span>
                     </div>
                     <div className="flex items-center gap-2">
                        <span className="whitespace-nowrap uppercase text-[10px] bg-emerald-100 px-2 py-0.5 rounded-full">Grátis</span>
@@ -591,9 +597,13 @@ export function BookingOverview({
                 {(() => {
                   const allAdults = booking.entry.adults;
                   const reservaHojeEntries = totals.entriesTotal;
-                  // Contar apenas quem NÃO é assinante para a comparação
-                  const nonMemberAdults = allAdults.filter(a => !a.isMember);
-                  const halfPriceCount = nonMemberAdults.filter(a => a.isTeacher || a.isServer || a.isStudent || (a as any).isBloodDonor).reduce((acc, a) => acc + (a.quantity || 1), 0);
+                  // Contar apenas quem NÃO é assinante E NÃO tem gratuidade hoje (Idoso, PCD, etc) para a comparação
+                  const nonMemberAdults = allAdults.filter(a => 
+                    !a.isMember && !a.isPCD && !a.isTEA && !a.isBirthday && !(a.age >= 60)
+                  );
+                  const halfPriceCount = nonMemberAdults.filter(a => 
+                    a.isTeacher || a.isServer || a.isStudent || (a as any).isBloodDonor || a.takeDonation
+                  ).reduce((acc, a) => acc + (a.quantity || 1), 0);
                   const fullPriceCount = nonMemberAdults.reduce((acc, a) => acc + (a.quantity || 1), 0) - halfPriceCount;
                   const membershipPrice = (fullPriceCount * 49.9) + (halfPriceCount * 25);
 

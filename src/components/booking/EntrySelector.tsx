@@ -261,10 +261,10 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                     </div>
                     <div>
                       <h5 className={cn("text-lg font-black uppercase tracking-tight leading-none mb-1", wizardData.category === 'assinante' ? "text-white" : "text-emerald-950")}>
-                        Sou Assinante
+                        Sou Assinante Lessa Club 👑
                       </h5>
                       <p className={cn("text-[10px] font-bold uppercase tracking-wider opacity-60", wizardData.category === 'assinante' ? "text-emerald-100" : "text-emerald-800")}>
-                        Lessa Club Premium
+                        Assinante mensal do Balneário Lessa
                       </p>
                     </div>
                   </div>
