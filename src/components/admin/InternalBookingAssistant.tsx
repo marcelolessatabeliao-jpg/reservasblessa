@@ -276,42 +276,7 @@ export function InternalBookingAssistant({
           ) : (
              <>
               <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
-                <div className="md:col-span-4 space-y-2">
-                   <label className="text-[10px] font-black text-emerald-900 uppercase tracking-widest flex items-center gap-2 ml-1">
-                      <div className="w-4 h-4 rounded-md bg-emerald-100 flex items-center justify-center"><User className="w-2.5 h-2.5 text-emerald-700" /></div>
-                      Nome Completo
-                   </label>
-                   <Input 
-                      value={newBookingData.name} 
-                      onChange={e => setNewBookingData({...newBookingData, name: e.target.value})}
-                      className="h-14 rounded-2xl border-2 border-emerald-100 focus:border-emerald-500 focus:ring-0 font-bold bg-white text-base shadow-sm transition-all" 
-                      placeholder="Ex: João da Silva"
-                   />
-                </div>
-                <div className="md:col-span-3 space-y-2">
-                   <label className="text-[10px] font-black text-emerald-900 uppercase tracking-widest flex items-center gap-2 ml-1">
-                      <div className="w-4 h-4 rounded-md bg-emerald-100 flex items-center justify-center"><Phone className="w-2.5 h-2.5 text-emerald-700" /></div>
-                      WhatsApp
-                   </label>
-                   <Input 
-                      value={newBookingData.phone} 
-                      onChange={e => setNewBookingData({...newBookingData, phone: e.target.value})}
-                      className="h-14 rounded-2xl border-2 border-emerald-100 focus:border-emerald-500 focus:ring-0 font-bold bg-white text-base shadow-sm transition-all text-emerald-900" 
-                      placeholder="(DD) 99999-9999"
-                   />
-                </div>
-                <div className="md:col-span-2 space-y-2">
-                   <label className="text-[10px] font-black text-emerald-900 uppercase tracking-widest flex items-center gap-2 ml-1">
-                      <div className="w-4 h-4 rounded-md bg-emerald-100 flex items-center justify-center"><Hash className="w-2.5 h-2.5 text-emerald-700" /></div>
-                      CPF (Opcional)
-                   </label>
-                   <Input 
-                      value={newBookingData.cpf} 
-                      onChange={e => setNewBookingData({...newBookingData, cpf: e.target.value})}
-                      className="h-14 rounded-2xl border-2 border-emerald-100 focus:border-emerald-500 focus:ring-0 font-bold bg-white text-base shadow-sm transition-all text-emerald-900" 
-                      placeholder="000.000.000-00"
-                   />
-                </div>
+                {/* Data (Movida para Primeiro) */}
                 <div className="md:col-span-3 space-y-2">
                    <label className="text-[10px] font-black text-emerald-900 uppercase tracking-widest flex items-center gap-2 ml-1">
                       <div className="w-4 h-4 rounded-md bg-emerald-100 flex items-center justify-center"><CalendarIcon className="w-2.5 h-2.5 text-emerald-700" /></div>
@@ -320,8 +285,8 @@ export function InternalBookingAssistant({
                    <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                       <PopoverTrigger asChild>
                          <Button variant="outline" className={cn(
-                            "h-14 w-full rounded-2xl border-2 border-emerald-100 font-black text-base shadow-sm transition-all",
-                            !newBookingData.visit_date ? "text-emerald-300 border-emerald-50" : "text-emerald-900 border-emerald-200 bg-white hover:bg-emerald-50"
+                            "h-14 w-full rounded-2xl border-2 font-black text-base shadow-sm transition-all",
+                            !newBookingData.visit_date ? "text-slate-400 border-emerald-100 bg-white" : "text-emerald-950 border-emerald-300 bg-white hover:bg-emerald-50 shadow-md"
                          )} disabled={isFetchingAvail}>
                             {newBookingData.visit_date ? format(parseISO(newBookingData.visit_date), 'dd/MM/yyyy') : "DD/MM/AA"}
                             <ArrowRight className="ml-auto h-4 w-4 opacity-30" />
@@ -348,34 +313,35 @@ export function InternalBookingAssistant({
                             className="p-3"
                             classNames={{
                                day_today: "bg-emerald-100 text-emerald-900 font-bold rounded-lg",
-                               day_selected: "bg-emerald-600 text-white font-bold hover:bg-emerald-600 hover:text-white rounded-lg",
-                            }}
-                            components={{
-                              DayContent: ({ date }) => {
-                                const dateStr = format(date, 'yyyy-MM-dd');
-                                const hasKiosk = (kioskReservations || []).some((r: any) => r.reservation_date === dateStr);
-                                const hasQuad = (quadReservations || []).some((r: any) => r.reservation_date === dateStr);
-                                const kiosksFull = (kioskReservations || []).filter((r: any) => r.reservation_date === dateStr).length >= 5;
-                                const quadsFull = (quadReservations || []).filter((r: any) => r.reservation_date === dateStr).reduce((s: any, r: any) => s + (Number(r.quantity) || 1), 0) >= 20;
-                                const isFull = kiosksFull && quadsFull;
-                                return (
-                                  <div className={cn("relative flex flex-col items-center p-0.5 rounded w-full h-full justify-center", isFull && "bg-red-50/50")}>
-                                    <span className={cn("text-[11px]", isFull && "text-red-500 font-black")}>{date.getDate()}</span>
-                                    <div className="flex gap-0.5 mt-0.5">
-                                      {hasKiosk && <div className={cn("w-1 h-1 rounded-full", kiosksFull ? "bg-red-500" : "bg-emerald-500")} />}
-                                      {hasQuad && <div className={cn("w-1 h-1 rounded-full", quadsFull ? "bg-red-500" : "bg-blue-500")} />}
-                                    </div>
-                                  </div>
-                                );
-                              }
                             }}
                          />
-                         <div className="flex justify-between p-2 border-t border-emerald-50">
-                            <Button variant="ghost" size="sm" onClick={() => setNewBookingData({...newBookingData, visit_date: ''})} className="text-[10px] uppercase font-black text-emerald-600 h-8">Limpar</Button>
-                            <Button variant="ghost" size="sm" onClick={() => { setNewBookingData({...newBookingData, visit_date: format(new Date(), 'yyyy-MM-dd')}); setIsCalendarOpen(false); }} className="text-[10px] uppercase font-black text-emerald-600 h-8">Hoje</Button>
-                         </div>
                       </PopoverContent>
                    </Popover>
+                </div>
+
+                <div className="md:col-span-4 space-y-2">
+                   <label className="text-[10px] font-black text-emerald-900 uppercase tracking-widest flex items-center gap-2 ml-1">
+                      <div className="w-4 h-4 rounded-md bg-emerald-100 flex items-center justify-center"><User className="w-2.5 h-2.5 text-emerald-700" /></div>
+                      Nome Completo
+                   </label>
+                   <Input 
+                      value={newBookingData.name} 
+                      onChange={e => setNewBookingData({...newBookingData, name: e.target.value})}
+                      className="h-14 rounded-2xl border-2 border-emerald-100 focus:border-emerald-500 focus:ring-0 font-bold bg-white text-base shadow-sm transition-all" 
+                      placeholder="Ex: João da Silva"
+                   />
+                </div>
+                <div className="md:col-span-3 space-y-2">
+                   <label className="text-[10px] font-black text-emerald-900 uppercase tracking-widest flex items-center gap-2 ml-1">
+                      <div className="w-4 h-4 rounded-md bg-emerald-100 flex items-center justify-center"><Phone className="w-2.5 h-2.5 text-emerald-700" /></div>
+                      WhatsApp
+                   </label>
+                   <Input 
+                      value={newBookingData.phone} 
+                      onChange={e => setNewBookingData({...newBookingData, phone: e.target.value})}
+                      className="h-14 rounded-2xl border-2 border-emerald-100 focus:border-emerald-500 focus:ring-0 font-bold bg-white text-base shadow-sm transition-all text-emerald-900" 
+                      placeholder="(DD) 99999-9999"
+                   />
                 </div>
               </div>
 
