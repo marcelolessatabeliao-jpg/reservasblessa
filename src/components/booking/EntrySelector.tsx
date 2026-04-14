@@ -238,48 +238,25 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
             <div className="grid grid-cols-2 gap-2 px-1">
               <button 
                 className={cn(
-                  "col-span-2 h-auto py-4 px-4 flex items-center justify-between rounded-2xl border-2 transition-all duration-500 active:scale-[0.98] relative overflow-hidden",
+                  "col-span-2 h-auto py-5 px-4 flex items-center justify-center rounded-2xl border-2 transition-all duration-500 active:scale-[0.98] relative overflow-hidden",
                   wizardData.category === 'assinante' 
-                    ? "border-[#8a6d3b] bg-gold-metallic text-[#1a1206] shadow-[0_4px_25px_rgba(184,134,11,0.3)] ring-1 ring-white/50 animate-sheen" 
-                    : "border-[#d4af37]/30 bg-gradient-to-br from-[#fcf6ba]/20 to-white hover:border-[#d4af37] hover:shadow-lg"
+                    ? "border-[#8a6d3b] bg-gold-metallic text-[#1a1206] shadow-[0_4px_30px_rgba(184,134,11,0.4)] animate-sheen" 
+                    : "border-[#d4af37]/30 bg-[#fdfcfb] hover:border-[#d4af37] hover:shadow-lg"
                 )}
                 onClick={() => {
                    setWizardData({ ...wizardData, category: 'assinante' });
                    handleFinishWizard('assinante', false);
                 }}
               >
-                <div className="flex items-center gap-3 relative z-10">
-                  <div className={cn(
-                    "p-2 rounded-xl transition-all duration-300",
-                    wizardData.category === 'assinante' ? "bg-black/10 shadow-inner scale-110" : "bg-[#f1d592]/30"
-                  )}>
-                    <span className="text-xl sm:text-2xl leading-none filter drop-shadow-[0_1px_2px_rgba(255,255,255,0.7)]">👑</span>
-                  </div>
-                  <div className="flex flex-col items-start text-left">
-                    <span className={cn(
-                      "font-black text-sm sm:text-base uppercase tracking-tight leading-none",
-                      wizardData.category === 'assinante' ? "text-[#1a1206]" : "text-[#5c4a24]"
-                    )}>
-                      Sou Assinante Lessa Club
-                    </span>
-                    <span className={cn(
-                      "text-[10px] sm:text-[11px] font-black uppercase tracking-tighter mt-1 opacity-80",
-                      wizardData.category === 'assinante' ? "text-[#3a2a0a]" : "text-[#b8860b]"
-                    )}>
-                      Membro VIP Exclusive
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 relative z-10">
+                <div className="flex items-center gap-4 relative z-10">
+                  <span className="text-2xl filter drop-shadow-[0_1px_2px_rgba(255,255,255,0.8)]">👑</span>
                   <span className={cn(
-                    "px-3 py-1.5 rounded-full text-[10px] sm:text-[11px] font-black uppercase tracking-widest shadow-md border transition-all duration-500",
-                    wizardData.category === 'assinante' 
-                      ? "bg-[#1a1206] text-[#f7e08f] border-transparent scale-105" 
-                      : "bg-[#d4af37] text-white border-[#b8860b]/30"
+                    "font-black text-sm sm:text-base uppercase tracking-widest leading-none",
+                    wizardData.category === 'assinante' ? "text-[#1a1206]" : "text-[#5c4a24]"
                   )}>
-                    💎 ASSINANTE
+                    Sou Assinante Lessa Club
                   </span>
+                  <span className="text-2xl filter drop-shadow-[0_1px_2px_rgba(255,255,255,0.8)]">👑</span>
                 </div>
               </button>
 
