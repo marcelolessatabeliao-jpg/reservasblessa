@@ -7,6 +7,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Admin from "./pages/Admin";
 import Voucher from "./pages/Voucher";
+import Consultar from "./pages/Consultar";
 import { MetaPixel } from "@/components/MetaPixel";
 
 const queryClient = new QueryClient();
@@ -22,6 +23,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/voucher/:code" element={<Voucher />} />
+          <Route path="/consultar" element={<Consultar />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

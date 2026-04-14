@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Menu, X, Calculator, Ticket, User, LogOut, Settings } from 'lucide-react';
+import { Menu, X, Calculator, Ticket, User, LogOut, Settings, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import logo from '@/assets/logo.png';
 
 const links = [
@@ -9,6 +10,7 @@ const links = [
   { label: 'Sobre', href: '#sobre' },
   { label: 'Serviços', href: '#servicos' },
   { label: 'Reservas', href: '#reservas' },
+  { label: 'Consultar', href: '/consultar' },
   { label: 'Contato', href: '#contato' },
 ];
 
@@ -34,9 +36,15 @@ export function Navbar() {
         <div className="hidden lg:flex items-center gap-6">
           <div className="flex items-center gap-5 mr-2">
             {links.map(l => (
-              <a key={l.href} href={l.href} className="text-sm font-bold text-primary-foreground/80 hover:text-sun transition-all hover:scale-105 active:scale-95">
-                {l.label}
-              </a>
+              l.href.startsWith('#') ? (
+                <a key={l.href} href={l.href} className="text-sm font-bold text-primary-foreground/80 hover:text-sun transition-all hover:scale-105 active:scale-95">
+                  {l.label}
+                </a>
+              ) : (
+                <Link key={l.href} to={l.href} className="text-sm font-bold text-primary-foreground/80 hover:text-sun transition-all hover:scale-105 active:scale-95">
+                  {l.label}
+                </Link>
+              )
             ))}
           </div>
           
@@ -77,9 +85,15 @@ export function Navbar() {
         <div className="lg:hidden bg-primary border-b border-primary-foreground/10 animate-in fade-in slide-in-from-top-4 duration-300">
           <div className="container px-4 py-6 flex flex-col gap-4">
             {links.map(l => (
-              <a key={l.href} href={l.href} onClick={() => setOpen(false)} className="text-base font-bold py-2 text-primary-foreground/90 border-b border-white/5 hover:text-sun transition-colors">
-                {l.label}
-              </a>
+              l.href.startsWith('#') ? (
+                <a key={l.href} href={l.href} onClick={() => setOpen(false)} className="text-base font-bold py-2 text-primary-foreground/90 border-b border-white/5 hover:text-sun transition-colors">
+                  {l.label}
+                </a>
+              ) : (
+                <Link key={l.href} to={l.href} onClick={() => setOpen(false)} className="text-base font-bold py-2 text-primary-foreground/90 border-b border-white/5 hover:text-sun transition-colors">
+                  {l.label}
+                </Link>
+              )
             ))}
             
             <div className="flex flex-col gap-3 pt-2">

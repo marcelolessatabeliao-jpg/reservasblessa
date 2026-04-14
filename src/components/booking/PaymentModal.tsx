@@ -232,29 +232,38 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, phone, 
             </div>
 
             <div className="bg-primary/5 border-2 border-dashed border-primary/20 rounded-3xl p-8 w-full text-center space-y-4">
-               <div>
+               <div className="animate-bounce">
                   <p className="text-[10px] font-black uppercase text-primary/60 tracking-widest mb-1">CÓDIGO VOUCHER</p>
                   <p className="text-4xl font-mono font-black text-primary tracking-[0.2em]">{confirmationCode}</p>
                </div>
                
-               <div className="flex justify-center bg-white p-4 rounded-2xl border shadow-sm max-w-[180px] mx-auto">
+               <div className="flex justify-center bg-white p-4 rounded-2xl border shadow-sm max-w-[180px] mx-auto transition-transform hover:scale-110 duration-500">
                  <img 
                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${confirmationCode}`} 
                    alt="QR Code" 
                    className="w-32 h-32"
                  />
                </div>
+
+               <div className="pt-2">
+                 <p className="text-[10px] font-bold text-primary/60 leading-tight">
+                   Guarde este código! Você poderá usá-lo na seção <span className="font-black text-primary">"Consultar Reserva"</span> no menu do site para acessar seu voucher a qualquer momento.
+                 </p>
+               </div>
             </div>
 
             <Button 
-               onClick={() => onOpenChange(false)}
-               className="w-full h-14 bg-primary hover:bg-primary-dark text-white font-black rounded-2xl shadow-xl"
+               onClick={() => {
+                 onOpenChange(false);
+                 window.location.href = '/'; // Redirecionar para o início para atualizar estado se necessário
+               }}
+               className="w-full h-16 bg-primary hover:bg-primary-dark text-white font-black rounded-2xl shadow-xl shadow-primary/20 transition-all active:scale-95"
             >
-              FECHAR E VOLTAR AO SITE
+              CONCLUÍDO - VOLTAR AO INÍCIO
             </Button>
             
-            <p className="text-[10px] text-muted-foreground text-center px-4">
-              Enviamos os detalhes também para o seu e-mail e você pode tirar um print desta tela para agilizar seu check-in.
+            <p className="text-[10px] text-muted-foreground text-center px-4 font-medium italic">
+              Enviamos um e-mail com os detalhes. Dica: Tire um print desta tela agora para levar com você!
             </p>
           </div>
         ) : loading && !pixData ? (
