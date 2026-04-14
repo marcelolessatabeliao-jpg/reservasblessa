@@ -230,11 +230,15 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
         ];
 
         return (
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-3 py-1">
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-4 py-1">
+            <div className="text-center mb-0">
+              <h4 className="text-xl font-bold text-center text-primary font-sans">Monte seu Day Use no Balneário</h4>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 px-1">
               <button 
                 className={cn(
-                  "col-span-2 sm:col-span-3 h-auto py-2.5 px-4 flex items-center justify-between rounded-xl border-2 transition-all active:scale-[0.98]",
+                  "col-span-2 sm:col-span-3 h-auto py-2 px-4 flex items-center justify-between rounded-xl border-2 transition-all active:scale-[0.98]",
                   wizardData.category === 'assinante' 
                     ? "border-emerald-500 bg-emerald-50 text-emerald-900 shadow-sm" 
                     : "border-emerald-100 bg-white hover:border-emerald-200"
@@ -245,10 +249,10 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                 }}
               >
                 <div className="flex items-center gap-3">
-                  <div className="p-1.5 bg-emerald-100 rounded-lg"><span className="text-base leading-none">👑</span></div>
+                  <div className="p-1 bg-emerald-100 rounded-lg"><span className="text-base leading-none">👑</span></div>
                   <span className="font-black text-xs sm:text-sm uppercase tracking-tight">Sou Assinante Lessa Club</span>
                 </div>
-                <span className="bg-emerald-600 text-white px-2 py-0.5 rounded-full text-[8px] font-black uppercase">ASSINANTE</span>
+                <span className="bg-emerald-600 text-white px-2 py-0.5 rounded-full text-[8px] font-black uppercase shrink-0">ASSINANTE</span>
               </button>
 
               {categories.map((cat) => {
@@ -259,7 +263,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                     key={cat.id}
                     disabled={isSundayBlocked}
                     className={cn(
-                      "h-auto flex flex-col items-center justify-center py-2.5 px-1 gap-1 rounded-xl border-2 transition-all text-center select-none relative overflow-hidden active:scale-[0.98]",
+                      "h-auto flex flex-col items-center justify-center py-2 px-1 gap-1 rounded-xl border-2 transition-all text-center select-none relative overflow-hidden active:scale-[0.98]",
                       isSundayBlocked 
                         ? "opacity-50 grayscale cursor-not-allowed bg-slate-50 border-slate-100" 
                         : (isSelected 
@@ -273,7 +277,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                       } else if (cat.id === 'solidaria') {
                         handleFinishWizard('inteira', true);
                       } else {
-                        setWizardStep(5);
+                        setWizardStep(4);
                       }
                     }}
                   >
@@ -281,21 +285,24 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                       <span className="absolute top-0 left-0 w-full text-[7px] bg-orange-500 text-white font-black py-0.5 uppercase">Indisponível</span>
                     )}
                     <span className="text-xl sm:text-2xl leading-none">{cat.emoji}</span>
-                    <div className="flex flex-col">
+                    <div className="flex flex-col items-center">
                       <span className={cn("text-[10px] sm:text-xs font-black leading-tight", cat.labelColor)}>{cat.label}</span>
+                      <span className="text-[8px] font-medium text-muted-foreground leading-tight line-clamp-1 px-1 hidden sm:block">
+                        {cat.sublabel}
+                      </span>
                     </div>
-                    <span className={cn("mt-1 text-[9px] px-2 py-0.5 rounded-full font-bold", cat.priceColor, "bg-white/80")}>
+                    <span className={cn("mt-1 text-[9px] px-2 py-0.5 rounded-full font-bold", cat.priceColor, "bg-white/80 shrink-0")}>
                       {cat.price === 'GRÁTIS' ? cat.price : (cat.price.startsWith('R$') ? cat.price : `R$ ${cat.price}`)}
                     </span>
                   </button>
                 );
               })}
             </div>
-            <div className="flex justify-center pt-2">
+            <div className="flex justify-center pt-1">
               <Button
                 variant="ghost"
                 onClick={() => setWizardStep(1)}
-                className="text-gray-400 font-bold text-[10px] h-8 hover:bg-transparent"
+                className="text-gray-400 font-bold text-[10px] h-7 hover:bg-transparent"
               >
                 ← Voltar
               </Button>
