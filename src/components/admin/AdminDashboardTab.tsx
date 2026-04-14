@@ -123,17 +123,17 @@ export function AdminDashboardTab({
            <div className="rounded-[1.5rem] border-2 border-amber-300 bg-amber-100/50 overflow-hidden mb-0 shadow-lg backdrop-blur-sm">
               <div className="p-3 md:p-5 border-b border-amber-300 flex flex-col md:flex-row md:items-center gap-4">
                   <div className="flex items-center gap-4 border-r-0 md:border-r border-amber-300/50 pr-4">
-                    <div className="w-16 h-16 bg-emerald-800 rounded-2xl flex items-center justify-center text-white font-black text-3xl shadow-md border-2 border-emerald-400/30">
+                    <div className="w-12 h-12 bg-emerald-800 rounded-xl flex items-center justify-center text-white font-black text-xl shadow-sm border border-emerald-400/30">
                        {targetDate.getDate()}
                     </div>
                      <div>
-                        <h3 className="text-4xl md:text-5xl font-black text-emerald-950 tracking-tight leading-tight mb-1">Operação Diária</h3>
-                        <p className="text-lg md:text-xl font-black text-emerald-950/70 uppercase tracking-tighter">{format(targetDate, "EEEE, yyyy", { locale: ptBR })}</p>
+                        <h3 className="text-2xl md:text-3xl font-black text-emerald-950 tracking-tight leading-tight">Operação Diária</h3>
+                        <p className="text-[10px] md:text-xs font-black text-emerald-950/60 uppercase tracking-widest">{format(targetDate, "EEEE, yyyy", { locale: ptBR })}</p>
                      </div>
                   </div>
-                  <div className="flex items-center gap-3 md:ml-4">
-                    <HelpCircle className="w-6 h-6 text-amber-800 opacity-70" />
-                    <h4 className="font-black text-amber-950 text-2xl md:text-3xl tracking-tight">Resumo de {format(targetDate, "dd 'de' MMMM", { locale: ptBR })}</h4>
+                  <div className="flex items-center gap-2 md:ml-4">
+                    <HelpCircle className="w-4 h-4 text-amber-800 opacity-50" />
+                    <h4 className="font-black text-amber-950 text-lg md:text-xl tracking-tight">Resumo de {format(targetDate, "dd 'de' MMMM", { locale: ptBR })}</h4>
                   </div>
                </div>
                <div className="grid grid-cols-1 xl:grid-cols-2">
