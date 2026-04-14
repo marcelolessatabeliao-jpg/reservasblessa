@@ -562,8 +562,9 @@ export default function Admin() {
               await supabase.from('order_items').update({ 
                 unit_price: unitPrice, 
                 quantity: finalQty, 
-                product_id: `Quadriciclo ${QUAD_MODELS_LABELS[finalModel as keyof typeof QUAD_MODELS_LABELS] || 'Individual'}`, 
-                metadata: { time: finalTime } 
+                product_id: `Quadriciclo ${QUAD_MODELS_LABELS[finalModel as keyof typeof QUAD_MODELS_LABELS] || 'Individual'}`,
+                product_name: `Quadriciclo ${QUAD_MODELS_LABELS[finalModel as keyof typeof QUAD_MODELS_LABELS] || 'Individual'} - ${finalTime}`,
+                metadata: { time: finalTime, time_slot: finalTime } 
               }).eq('id', orderItemId);
             } else {
               // Fallback if no order_item_id: try to find the item
@@ -575,8 +576,10 @@ export default function Admin() {
               if (quadItem) {
                 await supabase.from('order_items').update({ 
                   unit_price: unitPrice, 
-                  quantity: finalQty, 
-                  metadata: { time: finalTime } 
+                  quantity: finalQty,
+                  product_id: `Quadriciclo ${QUAD_MODELS_LABELS[finalModel as keyof typeof QUAD_MODELS_LABELS] || 'Individual'}`,
+                  product_name: `Quadriciclo ${QUAD_MODELS_LABELS[finalModel as keyof typeof QUAD_MODELS_LABELS] || 'Individual'} - ${finalTime}`,
+                  metadata: { time: finalTime, time_slot: finalTime } 
                 }).eq('id', quadItem.id);
               }
             }
@@ -2412,8 +2415,13 @@ function EditQuadDialog({ item, onClose, onUpdated, updateOrderTotal }: any) {
          const { data: oItems } = await supabase.from('order_items').select('*').eq('order_id', orderId);
          const quadItem = oItems?.find(oi => oi.product_id?.toLowerCase().includes('quad') || oi.product_name?.toLowerCase().includes('quad'));
          if (quadItem) {
-            const newMeta = { ...(quadItem.metadata || {}), time_slot: time };
-            await supabase.from('order_items').update({ unit_price: unitPrice, product_id: `Quadriciclo ${QUAD_MODELS_LABELS[model]}`, metadata: newMeta }).eq('id', quadItem.id);
+            const newMeta = { ...(quadItem.metadata || {}), time_slot: time, time: time };
+            await supabase.from('order_items').update({ 
+               unit_price: unitPrice, 
+               product_id: `Quadriciclo ${QUAD_MODELS_LABELS[model as keyof typeof QUAD_MODELS_LABELS] || 'Individual'}`,
+               product_name: `Quadriciclo ${QUAD_MODELS_LABELS[model as keyof typeof QUAD_MODELS_LABELS] || 'Individual'} - ${time}`,
+               metadata: newMeta 
+            }).eq('id', quadItem.id);
          }
       }
       if (orderId) await updateOrderTotal(orderId);
