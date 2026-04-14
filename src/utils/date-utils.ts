@@ -9,14 +9,18 @@ export const TIMEZONE = 'America/Porto_Velho';
  */
 export const parseToRODate = (date: Date | string | null | undefined): Date => {
   if (!date) return new Date();
-  if (date instanceof Date) return date;
   
-  // If it's just a YYYY-MM-DD string, append the start of day in the correct timezone
-  if (typeof date === 'string' && date.length === 10 && date.includes('-')) {
-    return toDate(`${date} 00:00:00`, { timeZone: TIMEZONE });
+  let dateStr = "";
+  if (date instanceof Date) {
+    // If it's a date object, we want to extract the "calendar date" relative to RO timezone
+    // but many components pass UTC midnight dates. To be safe, we extract YYYY-MM-DD.
+    dateStr = formatInTimeZone(date, TIMEZONE, 'yyyy-MM-dd');
+  } else {
+    dateStr = date.split('T')[0];
   }
   
-  return toDate(date, { timeZone: TIMEZONE });
+  // Always create a new Date at midnight in the target timezone
+  return toDate(`${dateStr} 00:00:00`, { timeZone: TIMEZONE });
 };
 
 /**

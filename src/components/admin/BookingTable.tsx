@@ -490,14 +490,14 @@ export function BookingTable({
                               const name = booking.name || (booking as any).customer_name;
 
                               const message = 
-                                `\uD83C\uDF3F *BALNE\u00C1RIO FAM\u00CDLIA LESSA*\n\n` +
-                                `Esse \u00E9 seu voucher de confirma\u00E7\u00E3o da sua reserva e o resumo do seu pedido para apresentar caso seja solicitado.\n\n` +
-                                `\uD83D\uDCC5 *Data:* ${dateStr}\n` +
-                                `\uD83D\uDC64 *Titular:* ${name}\n\n` +
-                                `\uD83D\uDCDD *Resumo do Pedido:*\n${itemsList}\n\n` +
-                                `\uD83D\uDCB0 *Total:* ${formatCurrency(booking.total_amount)}\n\n` +
+                                `🌿 *BALNEÁRIO FAMÍLIA LESSA*\n\n` +
+                                `Esse é seu voucher de confirmação da sua reserva e o resumo do seu pedido para apresentar caso seja solicitado.\n\n` +
+                                `📅 *Data:* ${dateStr}\n` +
+                                `👤 *Titular:* ${name}\n\n` +
+                                `📝 *Resumo do Pedido:*\n${itemsList}\n\n` +
+                                `💰 *Total:* ${formatCurrency(booking.total_amount)}\n\n` +
                                 `Voucher: https://reservas.balneariolessa.com.br/voucher/${code}\n\n` +
-                                `\u2728 *Aguardamos voc\u00EAs para o lazer que a sua fam\u00EDlia merece.*`;
+                                `✨ *Aguardamos vocês para o lazer que a sua família merece.*`;
                               
                               const text = encodeURIComponent(message);
 

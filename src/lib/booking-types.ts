@@ -115,6 +115,7 @@ export function getQuadDiscount(date: Date | string | null): number {
   const day = d.getDay();
   
   // Seg (1), Sex (5) -> 20%
+  // We use an explicit check to be absolutely sure
   if (day === 1 || day === 5) return 0.20;
   
   // Sab (6), Dom (0) -> 10%

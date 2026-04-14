@@ -111,9 +111,14 @@ Deno.serve(async (req) => {
       addItem(`Quiosque ${String(kioskId).padStart(2, '0')}`, 1, kioskId === 1 ? 100 : 75)
     })
 
-    // Quadriciclos — com desconto do dia já embutido no total_amount
-    // Forçar fuso horário de Porto Velho (-04:00) para garantir o dia da semana correto
-    const dayOfWeek = new Date(visit_date + 'T12:00:00-04:00').getDay()
+    // Quadriciclos — com desconto do dia já embutido
+    // Forçar a interpretação da data como o meio do dia em Porto Velho para garantir o getDay correto
+    const [year, month, day] = visit_date.split('-').map(Number)
+    const dateObj = new Date(year, month - 1, day, 12, 0, 0)
+    const dayOfWeek = dateObj.getDay()
+    
+    console.log(`[CreateInternalOrder] Date: ${visit_date}, DayNum: ${dayOfWeek}`)
+    
     let quadDiscount = 0
     if (dayOfWeek === 1 || dayOfWeek === 5) quadDiscount = 0.2
     else if (dayOfWeek === 0 || dayOfWeek === 6) quadDiscount = 0.1
