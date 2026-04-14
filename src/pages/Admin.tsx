@@ -304,7 +304,7 @@ export default function Admin() {
                // KIOSKS
                if (pId.includes('quiosque') || pName.includes('quiosque')) {
                  // Try to find if this item is already in parsedKiosks (real record)
-                 const realMatch = parsedKiosks.find(pk => pk.order_id === o.id && !matchedKioskIds.has(pk.id));
+                 const realMatch = parsedKiosks.find(pk => !pk.is_from_order && pk.order_id === o.id && !matchedKioskIds.has(pk.id));
                  if (realMatch) {
                     realMatch.order_item_id = item.id;
                     matchedKioskIds.add(realMatch.id);
