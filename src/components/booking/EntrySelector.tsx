@@ -132,19 +132,19 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
             <div className="grid grid-cols-1 gap-4">
               <Button
                 variant="outline"
-                className="h-20 rounded-[2rem] border-2 border-primary/20 text-lg font-black bg-primary/5 hover:bg-primary hover:text-white hover:border-primary transition-all flex flex-col items-center justify-center gap-1 shadow-sm"
+                className="min-h-[64px] h-auto rounded-[1.5rem] border-2 border-primary/20 text-base font-black bg-primary/5 hover:bg-primary hover:text-white hover:border-primary transition-all flex flex-col items-center justify-center gap-0.5 shadow-sm p-3"
                 onClick={() => {
                   setWizardData({ ...wizardData, age: 5 });
                   setWizardStep(2);
                 }}
               >
                 Até 11 anos
-                <span className="text-[10px] uppercase font-bold opacity-80">Entrada Kids (Grátis)</span>
+                <span className="text-[9px] uppercase font-bold opacity-80">Entrada Kids (Grátis)</span>
               </Button>
 
               <Button
                 variant="outline"
-                className="h-20 rounded-[2rem] border-2 border-primary/20 text-lg font-black bg-primary/5 hover:bg-primary hover:text-white hover:border-primary transition-all shadow-sm"
+                className="min-h-[64px] h-auto rounded-[1.5rem] border-2 border-primary/20 text-base font-black bg-primary/5 hover:bg-primary hover:text-white hover:border-primary transition-all shadow-sm p-3"
                 onClick={() => {
                   setWizardData({ ...wizardData, age: 30 });
                   setWizardStep(3); // Adult flow
@@ -155,14 +155,14 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
 
               <Button
                 variant="outline"
-                className="h-20 rounded-[2rem] border-2 border-primary/20 text-lg font-black bg-primary/5 hover:bg-primary hover:text-white hover:border-primary transition-all flex flex-col items-center justify-center gap-1 shadow-sm"
+                className="min-h-[64px] h-auto rounded-[1.5rem] border-2 border-primary/20 text-base font-black bg-primary/5 hover:bg-primary hover:text-white hover:border-primary transition-all flex flex-col items-center justify-center gap-0.5 shadow-sm p-3"
                 onClick={() => {
                   setWizardData({ ...wizardData, age: 60, isPCD: false });
                   handleFinishWizard('inteira', false);
                 }}
               >
                 Acima de 60 anos
-                <span className="text-[10px] uppercase font-bold opacity-80">Melhor Idade (Grátis)</span>
+                <span className="text-[9px] uppercase font-bold opacity-80">Melhor Idade (Grátis)</span>
               </Button>
             </div>
           </motion.div>
@@ -180,19 +180,19 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
 
             <div className="grid grid-cols-2 gap-4">
               <Button
-                className="h-24 rounded-[2rem] bg-[#0077b6] text-white font-black text-xl hover:bg-[#03045e] shadow-lg flex flex-col gap-1 transition-all"
+                className="min-h-[80px] h-auto rounded-[1.5rem] bg-[#0077b6] text-white font-black text-lg hover:bg-[#03045e] shadow-lg flex flex-col gap-0.5 transition-all p-3"
                 onClick={() => {
                   setWizardData({ ...wizardData, isPCD: true });
                   setWizardStep(4); // Final display for special case
                 }}
               >
                 Sim
-                <span className="text-[10px] font-bold uppercase opacity-90">(PCD ou TEA)</span>
+                <span className="text-[9px] font-bold uppercase opacity-90">(PCD ou TEA)</span>
               </Button>
 
               <Button
                 variant="outline"
-                className="h-24 rounded-[2rem] border-2 border-primary/20 text-xl font-black opacity-80 hover:opacity-100 transition-all shadow-sm"
+                className="min-h-[80px] h-auto rounded-[1.5rem] border-2 border-primary/20 text-lg font-black opacity-80 hover:opacity-100 transition-all shadow-sm p-3"
                 onClick={() => handleFinishWizard()}
               >
                 Não
@@ -242,7 +242,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
             <div className="px-1 mb-2">
               <div 
                 className={cn(
-                  "relative w-full overflow-hidden rounded-[2rem] border-4 transition-all duration-300 group cursor-pointer active:scale-95",
+                  "relative w-full overflow-hidden rounded-[1.5rem] border-4 transition-all duration-300 group cursor-pointer active:scale-95",
                   wizardData.category === 'assinante' 
                     ? "border-emerald-500 shadow-2xl bg-emerald-900 text-white" 
                     : "border-emerald-100 bg-white hover:border-emerald-300 shadow-lg"
@@ -254,24 +254,24 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
               >
                 <div className={cn("absolute inset-0 bg-gradient-to-r from-emerald-600/20 via-transparent to-emerald-600/20 opacity-50", wizardData.category === 'assinante' ? "opacity-100" : "")} />
                 
-                <div className="relative p-5 flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center transition-colors shadow-inner", wizardData.category === 'assinante' ? "bg-white/20" : "bg-emerald-50")}>
-                      <span className="text-3xl filter drop-shadow-md group-hover:scale-110 transition-transform">👑</span>
+                <div className="relative p-3.5 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-colors shadow-inner", wizardData.category === 'assinante' ? "bg-white/20" : "bg-emerald-50")}>
+                      <span className="text-xl filter drop-shadow-md group-hover:scale-110 transition-transform">👑</span>
                     </div>
                     <div>
-                      <h5 className={cn("text-lg font-black uppercase tracking-tight leading-none mb-1", wizardData.category === 'assinante' ? "text-white" : "text-emerald-950")}>
+                      <h5 className={cn("text-sm sm:text-base font-black uppercase tracking-tight leading-none mb-0.5", wizardData.category === 'assinante' ? "text-white" : "text-emerald-950")}>
                         Sou Assinante Lessa Club 👑
                       </h5>
-                      <p className={cn("text-[10px] font-bold uppercase tracking-wider opacity-60", wizardData.category === 'assinante' ? "text-emerald-100" : "text-emerald-800")}>
+                      <p className={cn("text-[9px] font-bold uppercase tracking-wider opacity-60", wizardData.category === 'assinante' ? "text-emerald-100" : "text-emerald-800")}>
                         Assinante mensal do Balneário Lessa
                       </p>
                     </div>
                   </div>
                   
-                  <div className="text-right">
+                  <div className="text-right shrink-0">
                     <span className={cn(
-                      "px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest shadow-lg",
+                      "px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest shadow-lg",
                       wizardData.category === 'assinante' ? "bg-white text-emerald-900" : "bg-emerald-600 text-white"
                     )}>
                       ASSINANTE
@@ -279,8 +279,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                   </div>
                 </div>
 
-                {/* Sparkling particles simulation decoration */}
-                <div className="absolute top-0 right-0 p-2 opacity-20">
+                <div className="absolute top-0 right-0 p-1.5 opacity-20">
                    <div className="w-1 h-1 bg-white rounded-full animate-ping" />
                 </div>
               </div>

@@ -335,8 +335,8 @@ export function BookingOverview({
   if (!hasAnything) {
     return (
       <div className="flex flex-col items-center justify-center p-10 mt-10 text-center space-y-4 bg-white/30 backdrop-blur-md rounded-2xl border border-white/60">
-        <div className="w-16 h-16 bg-white/50 rounded-full flex items-center justify-center text-2xl shadow-sm">🛒</div>
-        <p className="text-muted-foreground font-medium">Você ainda não selecionou nenhum item.<br />Comece adicionando pessoas no Day Use!</p>
+        <div className="w-16 h-16 bg-white/50 rounded-full flex items-center justify-center text-2xl shadow-sm">\uD83D\uDED2</div>
+        <p className="text-muted-foreground font-medium">Voc\u00EA ainda n\u00E3o selecionou nenhum item.<br />Comece adicionando pessoas no Day Use!</p>
       </div>
     );
   }
@@ -344,8 +344,8 @@ export function BookingOverview({
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3 mb-2">
-        <div className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-primary/10 text-primary shrink-0">
-          <span className="text-base sm:text-lg">📝</span>
+        <div className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-primary/10 text-primary shrink-0">
+          <span className="text-base sm:text-lg">\uD83D\uDCDD</span>
         </div>
         <h3 className="font-sans font-bold text-lg sm:text-xl">Resumo da Experiência</h3>
       </div>
@@ -377,8 +377,8 @@ export function BookingOverview({
                 if (p.isPCD) label = 'Lessa Inclusão (PCD/TEA)';
                 else if (p.isBirthday) label = 'Aniversariante da Semana';
                 else if (p.isMember) {
-                  label = 'Assinante Lessa Club 👑';
-                  sublabel = 'Sócio Lessa Club Premium';
+                  label = 'Assinante Lessa Club \uD83D\uDC51';
+                  sublabel = 'S\u00F3cio Lessa Club Premium';
                 }
 
                 return (
@@ -413,20 +413,20 @@ export function BookingOverview({
                 if (a.isTeacher) label = 'Lessa Professor Pass';
                 else if (a.isServer) label = 'Lessa Servidor Pass';
                 else if (a.isStudent) label = 'Lessa Estudante Pass';
-                else if (a.takeDonation) label = 'Adulto Solidário';
+                else if (a.takeDonation) label = 'Adulto Solid\u00E1rio';
                 else if ((a as any).isBloodDonor) label = 'Lessa Doador Pass';
                 
                 return (
-                  <div key={`adult-pay-${i}`} className="flex justify-between items-start py-1 group/item">
-                    <div className="flex flex-col">
-                      <span className="text-sm font-bold text-foreground">{qty}x {label}</span>
-                      {a.takeDonation && <span className="text-[10px] text-primary/60 font-bold italic">Levar 1kg de alimento/doativo</span>}
+                  <div key={`adult-pay-${i}`} className="flex justify-between items-center py-1 group/item min-h-[32px]">
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <span className="text-xs font-black text-foreground uppercase tracking-tight truncate">{qty}x {label}</span>
+                      {a.takeDonation && <span className="text-[8px] text-primary/60 font-black italic uppercase leading-none mt-0.5">Levar 1kg alimento</span>}
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="font-bold text-sm whitespace-nowrap text-primary">{formatCurrency(price * qty)}</span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="font-black text-xs sm:text-sm whitespace-nowrap text-primary">{formatCurrency(price * qty)}</span>
                       {onRemoveAdult && (
-                        <button onClick={() => onRemoveAdult(i)} className="p-1 hover:bg-primary/10 rounded-full transition-colors text-primary/40 hover:text-primary">
-                          <X className="h-3.5 w-3.5" />
+                        <button onClick={() => onRemoveAdult(i)} className="p-1 hover:bg-primary/10 rounded-full transition-colors text-primary/40">
+                          <X className="h-3 w-3" />
                         </button>
                       )}
                     </div>
@@ -438,15 +438,13 @@ export function BookingOverview({
                 const qty = c.quantity || 1;
                 const price = getPersonPrice(c, c.age <= 11, booking.entry.dayOfWeek === 'domingo', getPrice);
                 return (
-                  <div key={`child-pay-${i}`} className="flex justify-between items-start mt-2 group/item">
-                    <div>
-                      <span>{qty}x Criança</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="font-medium whitespace-nowrap">{formatCurrency(price * qty)}</span>
+                  <div key={`child-pay-${i}`} className="flex justify-between items-center py-1 group/item min-h-[32px]">
+                    <span className="text-xs font-black text-foreground uppercase tracking-tight truncate flex-1 min-w-0">{qty}x Lessa Kids (6 a 11 anos)</span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="font-black text-xs sm:text-sm whitespace-nowrap text-primary">{formatCurrency(price * qty)}</span>
                       {onRemoveChild && (
-                        <button onClick={() => onRemoveChild(i)} className="p-1 hover:bg-primary/10 rounded-full transition-colors text-primary/40 hover:text-primary">
-                          <X className="h-3.5 w-3.5" />
+                        <button onClick={() => onRemoveChild(i)} className="p-1 hover:bg-primary/10 rounded-full transition-colors text-primary/40">
+                          <X className="h-3 w-3" />
                         </button>
                       )}
                     </div>
@@ -586,8 +584,8 @@ export function BookingOverview({
                       <span className="text-xl sm:text-2xl font-black text-primary">Total: {formatCurrency(totals.total)}</span>
                     </div>
                     {savings > 0 && (
-                      <span className="block text-[10px] sm:text-xs text-whatsapp font-bold uppercase tracking-widest mt-0.5">
-                        ✨ VOCÊ ESTÁ ECONOMIZANDO {formatCurrency(savings)} NESTA RESERVA!
+                      <span className="block text-[9px] sm:text-[10px] text-whatsapp font-black uppercase tracking-widest mt-0.5">
+                        \u2728 VOC\u00CA EST\u00C1 ECONOMIZANDO {formatCurrency(savings)} NESTA RESERVA!
                       </span>
                     )}
                   </div>
@@ -618,15 +616,14 @@ export function BookingOverview({
                         <div className="absolute top-0 right-0 -mr-12 -mt-12 w-48 h-48 bg-white/30 rounded-full blur-3xl group-hover:bg-white/50 transition-all duration-700 animate-pulse" />
                         <div className="absolute bottom-0 left-0 -ml-12 -mb-12 w-32 h-32 bg-amber-400/20 rounded-full blur-2xl" />
 
-                        <div className="flex items-center gap-4 mb-4 relative z-10">
                           <div className="relative">
-                            <div className="w-10 h-10 rounded-xl bg-emerald-950/10 flex items-center justify-center border-2 border-emerald-950/20 shadow-xl backdrop-blur-sm">
-                              <Sparkles className="w-6 h-6 text-emerald-950 drop-shadow-sm" />
+                            <div className="w-8 h-8 rounded-lg bg-emerald-950/10 flex items-center justify-center border-2 border-emerald-950/20 shadow-lg backdrop-blur-sm shrink-0">
+                              <Sparkles className="w-4 h-4 text-emerald-950 drop-shadow-sm" />
                             </div>
                           </div>
                           
-                          <h3 className="font-display font-black text-emerald-950 text-lg sm:text-xl tracking-tighter leading-tight">
-                            {isCheaper ? 'Vale mais a pena ser Sócio!' : 'Acesso Ilimitado o mês inteiro!'}
+                          <h3 className="font-display font-black text-emerald-950 text-base sm:text-lg tracking-tighter leading-tight uppercase">
+                            {isCheaper ? 'Vale mais a pena ser S\u00F3cio!' : 'Acesso Ilimitado o m\u00EAs inteiro!'}
                           </h3>
                         </div>
 
@@ -638,14 +635,14 @@ export function BookingOverview({
                             {allAdults.some(a => a.isMember) ? ' (Assinantes atuais não contam)' : ''}
                           </p>
                           <p className="text-emerald-950/90 text-xs sm:text-sm leading-snug font-black">
-                            Sua reserva custa <span className="bg-emerald-950/15 text-emerald-950 px-2 py-0.5 rounded-lg">{formatCurrency(reservaHojeEntries)}</span>.
-                            No <span className="text-emerald-950 font-black">Lessa Club</span>, você paga <span className="bg-white/40 text-emerald-950 px-2 py-0.5 rounded-lg">{formatCurrency(membershipPrice)}</span>/mês e tem 
-                            <span className="inline-flex items-center text-white font-black mx-1 uppercase text-[10px] bg-emerald-950 px-2 py-0.5 rounded-lg shadow-lg tracking-tighter">ENTRADAS ILIMITADAS</span>
+                            Sua reserva custa <span className="bg-emerald-950/20 text-emerald-950 px-1.5 py-0.5 rounded-lg">{formatCurrency(reservaHojeEntries)}</span>.
+                            No <span className="text-emerald-950 font-black">Lessa Club</span>, voc\u00EA paga <span className="bg-white/40 text-emerald-950 px-1.5 py-0.5 rounded-lg">{formatCurrency(membershipPrice)}</span>/m\u00EAs e tem 
+                            <span className="inline-flex items-center text-white font-black mx-1 uppercase text-[9px] bg-emerald-950 px-2 py-0.5 rounded-lg shadow tracking-tighter shrink-0 overflow-hidden">ENTRADAS ILIMITADAS</span>
                           </p>
 
                           <Button 
                             variant="default"
-                            className="w-full h-12 bg-emerald-950 hover:bg-emerald-900 text-white font-black text-sm uppercase tracking-widest rounded-2xl shadow-xl transition-all hover:scale-[1.02] flex items-center justify-center gap-2 border-b-4 border-emerald-900/50"
+                            className="w-full min-h-[40px] h-auto py-2.5 bg-emerald-950 hover:bg-emerald-900 text-white font-black text-xs sm:text-sm uppercase tracking-wider rounded-xl shadow-xl transition-all flex items-center justify-center gap-2 border-b-4 border-emerald-900/50 px-4"
                             onClick={() => {
                               const element = document.getElementById('especiais');
                               if (element) {
@@ -653,7 +650,8 @@ export function BookingOverview({
                               }
                             }}
                           >
-                            ATIVAR MEU PLANO DOURADO <ArrowRight className="h-4 w-4" />
+                            <span className="flex-1 leading-tight">ATIVAR MEU PLANO DOURADO</span>
+                            <ArrowRight className="h-4 w-4 shrink-0" />
                           </Button>
                         </div>
                       </motion.div>
@@ -727,7 +725,7 @@ export function BookingOverview({
                 <div className="flex flex-col gap-3 w-full">
                   <Button 
                     onClick={() => {
-                      const msg = `🌿 *BALNEÁRIO FAMÍLIA LESSA*\n\nOlá! Minha reserva no Balneário Lessa foi confirmada! ✅\n\n📋 *RESUMO DO PEDIDO*\n👤 *Titular:* ${booking.entry.name}\n📅 *Data:* ${booking.entry.visitDate ? format(new Date(booking.entry.visitDate), "dd/MM/yyyy") : '—'}\n🔢 *Voucher:* ${persistedConfirmationCode}\n\n🔗 *VOUCHER DIGITAL:*\nhttps://reservas.balneariolessa.com.br/voucher/${persistedConfirmationCode}\n\n📍 *COMO CHEGAR:*\nVia Araras, Setor 09 – Ariquemes/RO`;
+                      const msg = `\uD83C\uDF3F *BALNE\u00C1RIO FAM\u00CDLIA LESSA*\n\nOl\u00E1! Minha reserva no Balne\u00E1rio Lessa foi confirmada! \u2705\n\n\uD83D\uDCCB *RESUMO DO PEDIDO*\n\uD83D\uDC64 *Titular:* ${booking.entry.name}\n\uD83D\uDCC5 *Data:* ${booking.entry.visitDate ? format(new Date(booking.entry.visitDate), "dd/MM/yyyy") : '\u2014'}\n\uD83D\uDD22 *Voucher:* ${persistedConfirmationCode}\n\n\uD83D\uDD17 *VOUCHER DIGITAL:*\nhttps://reservas.balneariolessa.com.br/voucher/${persistedConfirmationCode}\n\n\uD83D\uDCCD *COMO CHEGAR:*\nVia Araras, Setor 09 \u2013 Ariquemes/RO`;
                       const phone = booking.entry.phone?.replace(/\D/g, '') || '';
                       window.open(`https://wa.me/55${phone}?text=${encodeURIComponent(msg)}`, '_blank');
                     }}
@@ -794,14 +792,14 @@ export function BookingOverview({
                   size="lg"
                   onClick={() => handleAction('LOCAL')}
                   disabled={saving}
-                  className="w-full h-20 sm:h-24 rounded-[2rem] bg-[#006020] hover:bg-[#004d1a] border-b-8 border-[#004015] text-white font-black flex items-center justify-center gap-2 sm:gap-4 shadow-lg active:scale-[0.97] transition-all relative overflow-hidden group"
+                  className="w-full h-16 sm:h-20 rounded-2xl bg-[#006020] hover:bg-[#004d1a] border-b-4 border-[#004015] text-white font-black flex items-center justify-center gap-2 sm:gap-4 shadow-lg active:scale-[0.97] transition-all relative overflow-hidden group"
                 >
-                  <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md shrink-0">
-                    <MessageCircle className="h-7 w-7 text-white" />
+                  <div className="p-2.5 bg-white/20 rounded-xl backdrop-blur-md shrink-0">
+                    <MessageCircle className="h-6 w-6 text-white" />
                   </div>
                   <div className="text-left leading-tight min-w-0">
-                    <span className="block text-[10px] sm:text-[11px] text-white/80 font-black uppercase tracking-widest mb-0.5 truncate uppercase">Pagar Presencialmente</span>
-                    <span className="text-lg sm:text-2xl uppercase tracking-tighter block whitespace-nowrap overflow-hidden text-ellipsis">Confirmar no WhatsApp</span>
+                    <span className="block text-[9px] text-white/80 font-black uppercase tracking-widest mb-0.5 truncate uppercase">Pagar Presencialmente</span>
+                    <span className="text-sm sm:text-lg uppercase tracking-tighter block whitespace-nowrap overflow-hidden text-ellipsis">Confirmar no WhatsApp</span>
                   </div>
                 </Button>
               </div>

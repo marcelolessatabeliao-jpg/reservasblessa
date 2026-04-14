@@ -2514,7 +2514,11 @@ function EditQuadDialog({ item, onClose, onUpdated, updateOrderTotal }: any) {
     setLoading(true);
     try {
       const orderId = item.order_id;
-      const discount = getQuadDiscount(parseToRODate(item.reservation_date));
+      const qDate = parseToRODate(item.reservation_date);
+      const day = qDate.getDay();
+      const qD = getQuadDiscount(qDate);
+      const discount = (day === 1 || day === 5) ? 0.2 : qD;
+      
       const unitPrice = (QUAD_PRICES[model as keyof typeof QUAD_PRICES] || 150) * (1 - discount);
       
       // 1. Update quad_reservations

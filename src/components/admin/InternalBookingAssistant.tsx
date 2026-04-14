@@ -211,10 +211,16 @@ export function InternalBookingAssistant({
       
     selected_kiosks.forEach(id => total += (id === 1 ? 100 : 75));
     
-    const qD = getQuadDiscount(parseToRODate(visit_date));
+    const qDate = parseToRODate(visit_date);
+    const day = qDate.getDay();
+    const qD = getQuadDiscount(qDate);
+    
+    // Explicit override for the 20% Monday/Friday discount to avoid any utility ambiguity
+    const finalQuadDiscount = (day === 1 || day === 5) ? 0.2 : qD;
+
     quads.forEach(q => {
       const basePrice = QUAD_PRICES[q.type as keyof typeof QUAD_PRICES] || 150;
-      total += (basePrice * (1 - qD)) * q.quantity;
+      total += (basePrice * (1 - finalQuadDiscount)) * q.quantity;
     });
 
     newBookingData.additionals.forEach(a => {
