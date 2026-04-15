@@ -277,7 +277,6 @@ export function AdminDashboardTab({
                 locale={ptBR}
                 toDate={new Date(2030, 11, 31)}
                 fromDate={new Date(2024, 0, 1)}
-                disabled={(date) => !isAllowedDay(date)}
                 classNames={{
                   months: "w-full flex flex-col",
                   month: "w-full space-y-6",
@@ -319,13 +318,19 @@ export function AdminDashboardTab({
                     const quadsFull = (quadReservations || []).filter(r => r.reservation_date === dateStr).reduce((s, r) => s + (Number(r.quantity) || 1), 0) >= (totalQuads * 4);
                     const isDayToday = isToday(date);
                     const isFull = kiosksFull && quadsFull;
+                    const isClosed = !isAllowedDay(date);
 
                     return (
-                      <div className={cn("relative flex flex-col items-center rounded-full w-full h-full justify-center transition-all", isFull && !isSelected && "bg-red-50/50 border border-red-100")}>
+                      <div className={cn(
+                        "relative flex flex-col items-center rounded-full w-full h-full justify-center transition-all", 
+                        isFull && !isSelected && "bg-red-50/50 border border-red-100",
+                        isClosed && !isSelected && "opacity-25 grayscale-[0.5]"
+                      )}>
                         <span className={cn(
                           "font-black",
                           isSelected ? "text-white" : isDayToday ? "text-emerald-950" : "",
-                          isFull && !isSelected && "text-red-600"
+                          isFull && !isSelected && "text-red-600",
+                          isClosed && !isSelected && "text-emerald-900/40"
                         )}>{date.getDate()}</span>
                         <div className="flex gap-1 mt-0.5">
                           {hasKiosk && <div className={cn("w-2 h-2 rounded-full shadow-md border border-white/40", kiosksFull ? "bg-red-600" : "bg-emerald-600")} />}
