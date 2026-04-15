@@ -277,7 +277,7 @@ export default function Admin() {
          confirmation_code: k.confirmation_code || k.orders?.confirmation_code,
          customer_phone: k.customer_phone || k.orders?.customer_phone || k.bookings?.phone,
          last_voucher_sent_at: k.last_voucher_sent_at || k.orders?.last_voucher_sent_at
-      }));
+      })).filter((k: any) => ['paid', 'confirmed', 'checked-in', 'waiting_local', 'completed'].includes((k.status || '').toLowerCase()));
       
       let parsedQuads = filteredQuads.map((q: any) => ({
          ...q,
@@ -286,7 +286,7 @@ export default function Admin() {
          confirmation_code: q.confirmation_code || q.orders?.confirmation_code,
          customer_phone: q.customer_phone || q.orders?.customer_phone || q.bookings?.phone,
          last_voucher_sent_at: q.last_voucher_sent_at || q.orders?.last_voucher_sent_at
-      }));
+      })).filter((q: any) => ['paid', 'confirmed', 'checked-in', 'waiting_local', 'completed'].includes((q.status || '').toLowerCase()));
 
       if (orderData) {
          orderData.forEach((o: any) => {
