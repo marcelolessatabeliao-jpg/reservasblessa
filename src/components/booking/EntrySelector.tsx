@@ -231,7 +231,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
 
         return (
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-3 pt-1 pb-0 overflow-hidden no-scrollbar">
-            <div className="text-center mb-5">
+            <div className="text-center mb-1">
               <h4 className="text-xl font-bold text-center text-primary font-sans">Monte seu Day Use no Balneário</h4>
             </div>
 
@@ -261,6 +261,9 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                   </span>
                 </div>
               </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 px-1">
 
               {categories.map((cat) => {
                 const isSelected = wizardData.category === cat.id;
@@ -311,7 +314,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                   setIsWizardOpen(false);
                   resetWizard();
                 }}
-                className="text-slate-800 font-black uppercase tracking-[0.2em] text-[10px] h-8 hover:bg-transparent transition-all flex items-center gap-2"
+                className="text-slate-800 font-black uppercase tracking-[0.2em] text-[10px] h-8 hover:bg-slate-100 hover:text-primary transition-all flex items-center gap-2 px-4 rounded-full"
               >
                 ← Voltar
               </Button>
@@ -354,7 +357,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
             <div className="flex gap-2 pt-2">
               <Button
                 variant="ghost"
-                className="flex-1 text-xs font-black uppercase text-muted-foreground"
+                className="flex-1 text-xs font-black uppercase text-muted-foreground hover:text-primary hover:bg-primary/5 hover:underline transition-all"
                 onClick={() => setIsWizardOpen(false)}
               >
                 ← Voltar
@@ -447,7 +450,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
               </Button>
               <Button
                 variant="ghost"
-                className="w-full text-xs font-black uppercase text-muted-foreground hover:text-primary hover:bg-transparent hover:underline transition-all"
+                className="w-full text-xs font-black uppercase text-muted-foreground hover:text-primary hover:bg-primary/5 hover:underline transition-all"
                 onClick={() => setWizardStep(3)}
               >
                 ← Voltar
@@ -527,7 +530,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
             <div className="flex gap-2 mt-6">
               <Button
                 variant="ghost"
-                className="flex-1 text-xs font-black uppercase text-muted-foreground hover:text-primary hover:bg-transparent hover:underline transition-all"
+                className="flex-1 text-xs font-black uppercase text-muted-foreground hover:text-primary hover:bg-primary/5 hover:underline transition-all"
                 onClick={() => setWizardStep(3)}
               >
                 ← Voltar
@@ -899,7 +902,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
       {/* Simplified Guided Wizard Modal */}
       <Dialog open={isWizardOpen} onOpenChange={(open) => { if (!open) resetWizard(); setIsWizardOpen(open); }}>
         <DialogContent className="w-[calc(100vw-16px)] max-w-md sm:max-w-md bg-white rounded-3xl sm:rounded-[3rem] border-white shadow-2xl p-4 sm:p-6 overflow-x-hidden overflow-y-auto max-h-[92dvh]">
-          <DialogHeader className="mb-0 sm:mb-2 top-0 bg-white z-20 py-2 border-b sm:border-none">
+          <DialogHeader className="mb-0 sm:mb-1 top-0 bg-white z-20 pt-4 pb-0 border-b sm:border-none">
             <div className="flex items-center justify-center relative">
               <DialogTitle className="text-xl sm:text-2xl font-bold text-center text-primary font-sans mt-2">
                 {wizardType === 'pcd' ? 'PCD / TEA' :

@@ -131,10 +131,10 @@ export function BookingOverview({
       currency: 'BRL' 
     });
 
-    if (method !== 'LOCAL' && (!booking.entry.cpf || !isValidCPF(booking.entry.cpf))) {
+    if (!booking.entry.cpf || !isValidCPF(booking.entry.cpf)) {
        toast({
          title: !booking.entry.cpf ? 'CPF Obrigatório' : 'CPF INVÁLIDO',
-         description: 'Um CPF válido é necessário para pagamentos PIX ou Cartão.',
+         description: 'Um CPF válido é necessário para sua reserva (inclusive pagamento no local).',
          variant: 'destructive'
        });
        return;
@@ -335,8 +335,8 @@ export function BookingOverview({
   if (!hasAnything) {
     return (
       <div className="flex flex-col items-center justify-center p-10 mt-10 text-center space-y-4 bg-white/30 backdrop-blur-md rounded-2xl border border-white/60">
-        <div className="w-16 h-16 bg-white/50 rounded-full flex items-center justify-center text-2xl shadow-sm">\uD83D\uDED2</div>
-        <p className="text-muted-foreground font-medium">Voc\u00EA ainda n\u00E3o selecionou nenhum item.<br />Comece adicionando pessoas no Day Use!</p>
+        <div className="w-16 h-16 bg-white/50 rounded-full flex items-center justify-center text-2xl shadow-sm">🛒</div>
+        <p className="text-muted-foreground font-medium">Você ainda não selecionou nenhum item.<br />Comece adicionando pessoas no Day Use!</p>
       </div>
     );
   }
@@ -371,8 +371,8 @@ export function BookingOverview({
                 if (p.isPCD) label = 'Lessa Inclusão (PCD/TEA)';
                 else if (p.isBirthday) label = 'Aniversariante da Semana';
                 else if (p.isMember) {
-                  label = 'Assinante Lessa Club \uD83D\uDC51';
-                  sublabel = 'S\u00F3cio Lessa Club Premium';
+                  label = 'Assinante Lessa Club 👑';
+                  sublabel = 'Sócio Lessa Club Premium';
                 }
 
                 return (
@@ -407,7 +407,7 @@ export function BookingOverview({
                 if (a.isTeacher) label = 'Lessa Professor Pass';
                 else if (a.isServer) label = 'Lessa Servidor Pass';
                 else if (a.isStudent) label = 'Lessa Estudante Pass';
-                else if (a.takeDonation) label = 'Adulto Solid\u00E1rio';
+                else if (a.takeDonation) label = 'Adulto Solidário';
                 else if ((a as any).isBloodDonor) label = 'Lessa Doador Pass';
                 
                 return (
@@ -579,7 +579,7 @@ export function BookingOverview({
                     </div>
                     {savings > 0 && (
                       <span className="block text-[9px] sm:text-[10px] text-whatsapp font-black uppercase tracking-widest mt-0.5">
-                        \u2728 VOC\u00CA EST\u00C1 ECONOMIZANDO {formatCurrency(savings)} NESTA RESERVA!
+                        ✨ VOCÊ ESTÁ ECONOMIZANDO {formatCurrency(savings)} NESTA RESERVA!
                       </span>
                     )}
                   </div>
@@ -617,7 +617,7 @@ export function BookingOverview({
                           </div>
                           
                           <h3 className="font-display font-black text-emerald-950 text-base sm:text-lg tracking-tighter leading-tight uppercase">
-                            {isCheaper ? 'Vale mais a pena ser S\u00F3cio!' : 'Acesso Ilimitado o m\u00EAs inteiro!'}
+                            {isCheaper ? 'Vale mais a pena ser Sócio!' : 'Acesso Ilimitado o mês inteiro!'}
                           </h3>
 
                         <div className="space-y-4 relative z-10">
@@ -629,7 +629,7 @@ export function BookingOverview({
                           </p>
                           <p className="text-emerald-950/90 text-xs sm:text-sm leading-snug font-black">
                             Sua reserva custa <span className="bg-emerald-950/20 text-emerald-950 px-1.5 py-0.5 rounded-lg">{formatCurrency(reservaHojeEntries)}</span>.
-                            No <span className="text-emerald-950 font-black">Lessa Club</span>, voc\u00EA paga <span className="bg-white/40 text-emerald-950 px-1.5 py-0.5 rounded-lg">{formatCurrency(membershipPrice)}</span>/m\u00EAs e tem 
+                            No <span className="text-emerald-950 font-black">Lessa Club</span>, você paga <span className="bg-white/40 text-emerald-950 px-1.5 py-0.5 rounded-lg">{formatCurrency(membershipPrice)}</span>/mês e tem 
                             <span className="inline-flex items-center text-white font-black mx-1 uppercase text-[9px] bg-emerald-950 px-2 py-0.5 rounded-lg shadow tracking-tighter shrink-0 overflow-hidden">ENTRADAS ILIMITADAS</span>
                           </p>
 
@@ -718,7 +718,7 @@ export function BookingOverview({
                 <div className="flex flex-col gap-3 w-full">
                   <Button 
                     onClick={() => {
-                      const msg = `${String.fromCodePoint(0x1F33F)} *BALNE\u00C1RIO FAM\u00CDLIA LESSA*\n\nOl\u00E1! Minha reserva no Balne\u00E1rio Lessa foi confirmada! ${String.fromCodePoint(0x2705)}\n\n${String.fromCodePoint(0x1F4CB)} *RESUMO DO PEDIDO*\n${String.fromCodePoint(0x1F464)} *Titular:* ${booking.entry.name}\n${String.fromCodePoint(0x1F4C5)} *Data:* ${booking.entry.visitDate ? format(new Date(booking.entry.visitDate), "dd/MM/yyyy") : '\u2014'}\n${String.fromCodePoint(0x1F522)} *Voucher:* ${persistedConfirmationCode}\n\n${String.fromCodePoint(0x1F517)} *VOUCHER DIGITAL:*\nhttps://reservas.balneariolessa.com.br/voucher/${persistedConfirmationCode}\n\n${String.fromCodePoint(0x1F4CD)} *COMO CHEGAR:*\nVia Araras, Setor 09 \u2013 Ariquemes/RO`;
+                      const msg = `🌿 *BALNEÁRIO FAMÍLIA LESSA*\n\nOlá! Minha reserva no Balneário Lessa foi confirmada! ✅\n\n📋 *RESUMO DO PEDIDO*\n👤 *Titular:* ${booking.entry.name}\n📅 *Data:* ${booking.entry.visitDate ? format(new Date(booking.entry.visitDate), "dd/MM/yyyy") : '—'}\n🔢 *Voucher:* ${persistedConfirmationCode}\n\n🔗 *VOUCHER DIGITAL:*\nhttps://reservas.balneariolessa.com.br/voucher/${persistedConfirmationCode}\n\n📍 *COMO CHEGAR:*\nVia Araras, Setor 09 – Ariquemes/RO`;
                       const phone = booking.entry.phone?.replace(/\D/g, '') || '';
                       window.open(`https://wa.me/55${phone}?text=${encodeURIComponent(msg)}`, '_blank');
                     }}
