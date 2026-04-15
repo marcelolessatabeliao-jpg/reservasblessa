@@ -322,7 +322,7 @@ export default function Admin() {
             const matchedQuadIds = new Set();
 
             // 3. Process Order Items for Kiosks and Quads
-            if (o.status !== 'awaiting_payment' && o.status !== 'cancelled' && o.status !== 'pending') {
+            if (['paid', 'confirmed', 'checked-in', 'waiting_local'].includes(o.status?.toLowerCase() || '')) {
               o.order_items.forEach((item: any) => {
                const pId = (item.product_id || '').toLowerCase();
                const pName = (item.product_name || '').toLowerCase();
