@@ -1200,6 +1200,7 @@ export function BookingTable({
                                           </div>
                                           <CalendarUI
                                             mode="single"
+                                            locale={ptBR}
                                             selected={
                                               rescheduleDate
                                                 ? parseISO(rescheduleDate)
@@ -1306,10 +1307,13 @@ export function BookingTable({
                                               (booking as any).order_items ||
                                               [];
                                             const itemsList = items
-                                              .map(
-                                                (it: any) =>
-                                                  `* ${it.quantity}x ${it.product_name || it.product_id} (${formatCurrency(it.unit_price)})`,
-                                              )
+                                              .map((it: any) => {
+                                                let disp = it.product_name || it.product_id;
+                                                const isAdult = disp?.includes('Adulto');
+                                                if (isAdult && booking.is_associado && Math.abs(it.unit_price || 0) < 0.01) disp = 'Assinante Lessa Club';
+                                                else if (isAdult && it.unit_price === 25) disp = 'Adulto Solidário';
+                                                return `* ${it.quantity}x ${disp} (${formatCurrency(it.unit_price || 0)})`;
+                                              })
                                               .join("\n");
                                             const dateStr = format(
                                               parseISO(
