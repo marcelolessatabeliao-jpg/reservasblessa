@@ -322,7 +322,8 @@ export default function Admin() {
             const matchedQuadIds = new Set();
 
             // 3. Process Order Items for Kiosks and Quads
-            o.order_items.forEach((item: any) => {
+            if (o.status !== 'awaiting_payment' && o.status !== 'cancelled') {
+              o.order_items.forEach((item: any) => {
                const pId = (item.product_id || '').toLowerCase();
                const pName = (item.product_name || '').toLowerCase();
                const searchStr = `${pName} ${pId} ${JSON.stringify(item.metadata || {})} ${o.notes || ''}`.toUpperCase();
@@ -421,6 +422,7 @@ export default function Admin() {
                   }
                }
             });
+            }
             
             // Atribuir contagens extraídas se não estiverem presentes
             o.adults = o.adults || orderAdults;
