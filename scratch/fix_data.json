@@ -1,0 +1,18 @@
+[
+  {
+    "order_id": "a0d266ce-d753-49f8-a672-91de9530068d",
+    "reservation_date": "2026-04-20",
+    "time_slot": "10:30",
+    "quad_type": "individual",
+    "quantity": 1,
+    "price": 120.00
+  },
+  {
+    "order_id": "a0d266ce-d753-49f8-a672-91de9530068d",
+    "reservation_date": "2026-04-20",
+    "time_slot": "10:30",
+    "quad_type": "dupla",
+    "quantity": 1,
+    "price": 225.00
+  }
+]

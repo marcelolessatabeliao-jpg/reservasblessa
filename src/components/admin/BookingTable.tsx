@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 
 import { createPortal } from "react-dom";
-import { format, parseISO, isToday } from "date-fns";
+import { format, parseISO, isToday, isBefore, startOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   ChevronDown,
@@ -12,6 +12,9 @@ import {
   UserCheck,
   Trash2,
   Plus,
+  Pencil,
+  Check,
+  X,
   Users,
   Calendar,
   Upload,
@@ -90,6 +93,11 @@ interface BookingTableProps {
   onGeneratePayment?: (id: string, isOrder: boolean) => void;
   onSyncPayment?: (orderId: string) => void;
   onConvertToCredit?: (booking: any) => void;
+  onUpdateCustomer?: (bookingId: string, data: { name?: string, phone?: string, cpf?: string }, isOrder?: boolean) => Promise<boolean>;
+  isAllowedDay?: (date: Date) => boolean;
+  kioskReservations?: any[];
+  quadReservations?: any[];
+  totalQuads?: number;
 }
 
 const STATUS_CONFIG: Record<
@@ -187,6 +195,11 @@ export function BookingTable({
   onGeneratePayment,
   onSyncPayment,
   onConvertToCredit,
+  onUpdateCustomer,
+  isAllowedDay,
+  kioskReservations = [],
+  quadReservations = [],
+  totalQuads = 3,
 }: BookingTableProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
@@ -194,6 +207,8 @@ export function BookingTable({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [rescheduleId, setRescheduleId] = useState<string | null>(null);
   const [rescheduleDate, setRescheduleDate] = useState("");
+  const [editingCustomerId, setEditingCustomerId] = useState<string | null>(null);
+  const [customerEditData, setCustomerEditData] = useState({ name: '', phone: '', cpf: '' });
 
   if (bookings.length === 0) {
     return (
@@ -326,24 +341,96 @@ export function BookingTable({
                         {format(bookingDate, "dd/MM/yyyy", { locale: ptBR })}
                       </span>
                     </div>
-                    <span className="text-base font-black text-emerald-950 uppercase tracking-tight leading-tight">
-                      {booking.name ||
-                        (booking as any).customer_name ||
-                        "CLIENTE GERAL"}
-                    </span>
-                    {(booking.customer_cpf || booking.customer_phone) && (
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {booking.customer_cpf && (
-                          <span className="text-[7px] font-bold px-1 bg-slate-100 rounded text-slate-500 uppercase tracking-tighter shrink-0">
-                            {booking.customer_cpf}
-                          </span>
-                        )}
-                        {booking.customer_phone && (
-                          <span className="text-[7px] font-bold px-1 bg-blue-50 rounded text-blue-500 uppercase tracking-tighter shrink-0">
-                            {booking.customer_phone}
-                          </span>
-                        )}
+                    {editingCustomerId === booking.id ? (
+                      <div className="flex flex-col gap-2 mt-2 w-full" onClick={e => e.stopPropagation()}>
+                        <input
+                          type="text"
+                          value={customerEditData.name}
+                          onChange={e => setCustomerEditData(prev => ({ ...prev, name: e.target.value }))}
+                          className="w-full text-xs font-black uppercase rounded border border-emerald-200 px-2 py-1"
+                          placeholder="Nome"
+                        />
+                        <div className="flex gap-2 w-full">
+                          <input
+                            type="text"
+                            value={customerEditData.cpf}
+                            onChange={e => {
+                              let val = e.target.value.replace(/\D/g, '');
+                              if (val.length > 11) val = val.slice(0, 11);
+                              if (val.length > 9) val = val.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+                              else if (val.length > 6) val = val.replace(/(\d{3})(\d{3})(\d{3})/, "$1.$2.$3");
+                              else if (val.length > 3) val = val.replace(/(\d{3})(\d{3})/, "$1.$2");
+                              setCustomerEditData(prev => ({ ...prev, cpf: val }));
+                            }}
+                            className="w-1/2 text-[10px] font-black uppercase rounded border border-slate-200 px-2 py-1"
+                            placeholder="CPF"
+                          />
+                          <input
+                            type="text"
+                            value={customerEditData.phone}
+                            onChange={e => {
+                              let val = e.target.value.replace(/\D/g, '');
+                              if (val.length > 11) val = val.slice(0, 11);
+                              if (val.length > 10) val = val.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
+                              else if (val.length > 6) val = val.replace(/(\d{2})(\d{4})(\d{0,4})/, "($1) $2-$3");
+                              else if (val.length > 2) val = val.replace(/(\d{2})(\d{0,5})/, "($1) $2");
+                              setCustomerEditData(prev => ({ ...prev, phone: val }));
+                            }}
+                            className="w-1/2 text-[10px] font-black uppercase rounded border border-blue-200 px-2 py-1"
+                            placeholder="WhatsApp"
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                           <button onClick={async (e) => {
+                               e.stopPropagation();
+                               if (onUpdateCustomer) {
+                                  const success = await onUpdateCustomer(booking.id, customerEditData, booking.is_order);
+                                  if (success) setEditingCustomerId(null);
+                               }
+                             }} className="flex-1 bg-emerald-500 text-white rounded text-xs font-bold py-1">Salvar</button>
+                           <button onClick={(e) => { e.stopPropagation(); setEditingCustomerId(null); }} className="flex-1 bg-slate-200 text-slate-700 rounded text-xs font-bold py-1">Cancelar</button>
+                        </div>
                       </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-2">
+                          <span className="text-base font-black text-emerald-950 uppercase tracking-tight leading-tight">
+                            {booking.name ||
+                              (booking as any).customer_name ||
+                              "CLIENTE GERAL"}
+                          </span>
+                          {onUpdateCustomer && (
+                             <button 
+                               onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingCustomerId(booking.id);
+                                  setCustomerEditData({ 
+                                    name: booking.name || (booking as any).customer_name || '', 
+                                    phone: booking.customer_phone || (booking as any).phone || '', 
+                                    cpf: booking.customer_cpf || (booking as any).cpf || '' 
+                                  });
+                               }}
+                               className="p-1 hover:bg-emerald-50 text-emerald-600 rounded"
+                             >
+                               <Pencil className="w-3 h-3" />
+                             </button>
+                          )}
+                        </div>
+                        {(booking.customer_cpf || booking.customer_phone) && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {booking.customer_cpf && (
+                              <span className="text-[7px] font-bold px-1 bg-slate-100 rounded text-slate-500 uppercase tracking-tighter shrink-0">
+                                {booking.customer_cpf}
+                              </span>
+                            )}
+                            {booking.customer_phone && (
+                              <span className="text-[7px] font-bold px-1 bg-blue-50 rounded text-blue-500 uppercase tracking-tighter shrink-0">
+                                {booking.customer_phone}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                   <div className="flex flex-col items-end gap-1.5">
@@ -749,23 +836,112 @@ export function BookingTable({
                       </td>
                       <td className="p-5">
                         <div className="flex flex-col gap-0.5">
-                          <span className="font-extrabold text-lg text-emerald-950 uppercase tracking-tight leading-tight group-hover:text-emerald-600 transition-colors">
-                            {booking.name ||
-                              (booking as any).customer_name ||
-                              "CLIENTE GERAL"}
-                          </span>
-                          {(booking.customer_cpf || booking.customer_phone) && (
+                          {editingCustomerId === booking.id ? (
+                             <div className="flex items-center gap-2 mb-1" onClick={e => e.stopPropagation()}>
+                                <input
+                                  type="text"
+                                  value={customerEditData.name}
+                                  onChange={e => setCustomerEditData(prev => ({ ...prev, name: e.target.value }))}
+                                  className="w-full h-8 text-[11px] font-black uppercase rounded-lg border-2 border-emerald-200 px-2 focus:border-emerald-500 focus:outline-none"
+                                  placeholder="Nome"
+                                />
+                             </div>
+                          ) : (
+                             <div className="flex items-center gap-2 group/edit">
+                                <span className="font-extrabold text-lg text-emerald-950 uppercase tracking-tight leading-tight group-hover:text-emerald-600 transition-colors">
+                                  {booking.name ||
+                                    (booking as any).customer_name ||
+                                    "CLIENTE GERAL"}
+                                </span>
+                                {onUpdateCustomer && (
+                                   <button 
+                                     onClick={(e) => {
+                                        e.stopPropagation();
+                                        setEditingCustomerId(booking.id);
+                                        setCustomerEditData({ 
+                                          name: booking.name || (booking as any).customer_name || '', 
+                                          phone: booking.customer_phone || (booking as any).phone || '', 
+                                          cpf: booking.customer_cpf || (booking as any).cpf || '' 
+                                        });
+                                     }}
+                                     className="opacity-0 group-hover/edit:opacity-100 p-1.5 hover:bg-emerald-50 text-emerald-600 rounded-lg transition-all"
+                                   >
+                                     <Pencil className="w-3.5 h-3.5" />
+                                   </button>
+                                )}
+                             </div>
+                          )}
+                          
+                          {(booking.customer_cpf || booking.customer_phone || editingCustomerId === booking.id) && (
                             <div className="flex flex-wrap gap-2 mt-1">
-                              {booking.customer_cpf && (
-                                <span className="text-[9px] font-black px-1.5 py-0.5 bg-slate-50 border border-slate-200 text-slate-500 rounded shadow-xs uppercase tracking-tighter">
-                                  CPF: {booking.customer_cpf}
-                                </span>
-                              )}
-                              {booking.customer_phone && (
-                                <span className="text-[9px] font-black px-1.5 py-0.5 bg-blue-50 border border-blue-100 text-blue-500 rounded shadow-xs uppercase tracking-tighter flex items-center gap-1">
-                                  <Phone className="w-2.5 h-2.5" />{" "}
-                                  {booking.customer_phone}
-                                </span>
+                              {editingCustomerId === booking.id ? (
+                                <div className="flex items-center gap-2 w-full" onClick={e => e.stopPropagation()}>
+                                  <input
+                                    type="text"
+                                    value={customerEditData.cpf}
+                                    onChange={e => {
+                                      let val = e.target.value.replace(/\D/g, '');
+                                      if (val.length > 11) val = val.slice(0, 11);
+                                      if (val.length > 9) val = val.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+                                      else if (val.length > 6) val = val.replace(/(\d{3})(\d{3})(\d{3})/, "$1.$2.$3");
+                                      else if (val.length > 3) val = val.replace(/(\d{3})(\d{3})/, "$1.$2");
+                                      setCustomerEditData(prev => ({ ...prev, cpf: val }));
+                                    }}
+                                    className="w-24 h-7 text-[9px] font-black uppercase rounded-lg border-2 border-slate-200 px-2"
+                                    placeholder="CPF"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={customerEditData.phone}
+                                    onChange={e => {
+                                      let val = e.target.value.replace(/\D/g, '');
+                                      if (val.length > 11) val = val.slice(0, 11);
+                                      if (val.length > 10) val = val.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
+                                      else if (val.length > 6) val = val.replace(/(\d{2})(\d{4})(\d{0,4})/, "($1) $2-$3");
+                                      else if (val.length > 2) val = val.replace(/(\d{2})(\d{0,5})/, "($1) $2");
+                                      setCustomerEditData(prev => ({ ...prev, phone: val }));
+                                    }}
+                                    className="w-28 h-7 text-[9px] font-black uppercase rounded-lg border-2 border-blue-200 px-2"
+                                    placeholder="WhatsApp"
+                                  />
+                                  <div className="flex ml-auto gap-1">
+                                    <button
+                                      onClick={async (e) => {
+                                        e.stopPropagation();
+                                        if (onUpdateCustomer) {
+                                           const success = await onUpdateCustomer(booking.id, customerEditData, booking.is_order);
+                                           if (success) setEditingCustomerId(null);
+                                        }
+                                      }}
+                                      className="h-7 w-7 bg-emerald-500 text-white rounded-lg flex items-center justify-center hover:bg-emerald-600"
+                                    >
+                                      <Check className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setEditingCustomerId(null);
+                                      }}
+                                      className="h-7 w-7 bg-slate-200 text-slate-600 rounded-lg flex items-center justify-center hover:bg-slate-300"
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <>
+                                  {booking.customer_cpf && (
+                                    <span className="text-[9px] font-black px-1.5 py-0.5 bg-slate-50 border border-slate-200 text-slate-500 rounded shadow-xs uppercase tracking-tighter">
+                                      CPF: {booking.customer_cpf}
+                                    </span>
+                                  )}
+                                  {booking.customer_phone && (
+                                    <span className="text-[9px] font-black px-1.5 py-0.5 bg-blue-50 border border-blue-100 text-blue-500 rounded shadow-xs uppercase tracking-tighter flex items-center gap-1">
+                                      <Phone className="w-2.5 h-2.5" />{" "}
+                                      {booking.customer_phone}
+                                    </span>
+                                  )}
+                                </>
                               )}
                             </div>
                           )}
@@ -1038,6 +1214,26 @@ export function BookingTable({
                                             }
                                             initialFocus
                                             className="p-3"
+                                            disabled={(date) => isAllowedDay ? (!isAllowedDay(date) || isBefore(date, startOfDay(new Date()))) : isBefore(date, startOfDay(new Date()))}
+                                            components={{
+                                              DayContent: ({ date }) => {
+                                                const dateStr = format(date, 'yyyy-MM-dd');
+                                                const hasKiosk = (kioskReservations || []).some(r => r.reservation_date === dateStr);
+                                                const hasQuad = (quadReservations || []).some(r => r.reservation_date === dateStr);
+                                                const kiosksFull = (kioskReservations || []).filter(r => r.reservation_date === dateStr).length >= 5;
+                                                const quadsFull = (quadReservations || []).filter(r => r.reservation_date === dateStr).reduce((s, r) => s + (Number(r.quantity) || 1), 0) >= (totalQuads * 4);
+                                                const isFull = kiosksFull && quadsFull;
+                                                return (
+                                                  <div className={cn("relative flex flex-col items-center p-0.5 rounded w-full h-full justify-center", isFull && "bg-red-50/50")}>
+                                                    <span className={cn("text-[11px]", isFull && "text-red-600 font-black")}>{date.getDate()}</span>
+                                                    <div className="flex gap-0.5 mt-0.5">
+                                                      {hasKiosk && <div className={cn("w-1.5 h-1.5 rounded-full ring-1 ring-white/50", kiosksFull ? "bg-red-600" : "bg-emerald-600")} />}
+                                                      {hasQuad && <div className={cn("w-1.5 h-1.5 rounded-full ring-1 ring-white/50", quadsFull ? "bg-red-600" : "bg-blue-600")} />}
+                                                    </div>
+                                                  </div>
+                                                );
+                                              }
+                                            }}
                                           />
                                           <div className="p-4 bg-white flex gap-2">
                                             <Button

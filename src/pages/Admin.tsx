@@ -2046,6 +2046,17 @@ export default function Admin() {
                       isUploading={isUploading}
                       onRefresh={fetchData}
                       onGeneratePayment={handleGeneratePayment}
+                      onUpdateCustomer={async (id, data, isOrder) => {
+                        const table = isOrder ? 'orders' : 'bookings';
+                        const updateData = isOrder ? { customer_name: data.name, customer_phone: data.phone, customer_cpf: data.cpf } : { name: data.name, phone: data.phone, cpf: data.cpf };
+                        const { error } = await supabase.from(table).update(updateData).eq('id', id);
+                        if (error) { toast({ title: "Erro ao atualizar cliente", variant: "destructive" }); return false; }
+                        else { toast({ title: "✓ Cliente atualizado" }); fetchData(); return true; }
+                      }}
+                      isAllowedDay={isAllowedDay}
+                      kioskReservations={kioskReservations}
+                      quadReservations={quadReservations}
+                      totalQuads={totalQuads}
                   />
                </div>
              )}

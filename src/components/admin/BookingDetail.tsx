@@ -224,8 +224,10 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
                     <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest mb-1">Itens Adicionais e Consumo</p>
                     {localItems.map((item: any, idx: number) => {
                       const isAdultoSolidario = (item.product_name === 'Adulto' || item.product_name === '1x Adulto' || item.product_id?.includes('Adulto')) && item.unit_price === 25;
-                      const dispName = isAdultoSolidario ? 'Adulto Solidário' : (item.product_name || item.product_id || 'Serviço');
                       const sum = item.unit_price * item.quantity;
+                      const isAssinanteGratis = booking.is_associado && (item.product_name === 'Adulto' || item.product_name === '1x Adulto' || item.product_id?.includes('Adulto')) && Math.abs(sum) < 0.01;
+                      const dispName = isAssinanteGratis ? 'Assinante Lessa Club' : (isAdultoSolidario ? 'Adulto Solidário' : (item.product_name || item.product_id || 'Serviço'));
+                      
                       return (
                         <div key={idx} className="flex justify-between text-[11px]">
                           <span className="text-slate-600 truncate max-w-[180px]">{item.quantity}x {dispName}</span>
@@ -368,7 +370,12 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
               >
                 <div className="flex flex-col min-w-0 flex-1 mr-3 overflow-hidden">
                   <span className={cn('font-black text-[11px] md:text-[13px] whitespace-normal transition-colors uppercase leading-tight md:leading-normal', item.is_redeemed ? 'text-emerald-900 line-through' : 'text-slate-950')}>
-                    {item.quantity}x {((item.product_name || item.product_id || '').includes('Adulto') && item.unit_price === 25) ? 'Adulto Solidário' : (item.product_name || item.product_id || 'Item')}
+                    {item.quantity}x {(() => {
+                      const isAdult = (item.product_name || item.product_id || '').includes('Adulto');
+                      if (isAdult && Math.abs(item.unit_price) < 0.01 && booking.is_associado) return 'Assinante Lessa Club';
+                      if (isAdult && item.unit_price === 25) return 'Adulto Solidário';
+                      return item.product_name || item.product_id || 'Item';
+                    })()}
                     {((item.product_name || item.product_id || '').toLowerCase().includes('quad')) && (
                       <span className="ml-1 text-blue-600 font-black lowercase text-[10px] bg-blue-50 px-1.5 py-0.5 rounded-md border border-blue-100">
                         {(() => {
