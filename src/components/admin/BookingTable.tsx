@@ -1310,7 +1310,7 @@ export function BookingTable({
                                               .map((it: any) => {
                                                 let disp = it.product_name || it.product_id;
                                                 const isAdult = disp?.includes('Adulto');
-                                                if (isAdult && booking.is_associado && Math.abs(it.unit_price || 0) < 0.01) disp = 'Assinante Lessa Club';
+                                                if (isAdult && Math.abs(it.unit_price || 0) < 0.01) disp = 'Assinante Lessa Club';
                                                 else if (isAdult && it.unit_price === 25) disp = 'Adulto Solidário';
                                                 return `* ${it.quantity}x ${disp} (${formatCurrency(it.unit_price || 0)})`;
                                               })
@@ -1328,14 +1328,14 @@ export function BookingTable({
                                               (booking as any).customer_name;
 
                                             const message = 
-                                              `🌿 *BALNEÁRIO FAMÍLIA LESSA*\n\n` +
+                                              `\uD83C\uDF3F *BALNEÁRIO FAMÍLIA LESSA*\n\n` +
                                               `Esse é seu voucher de confirmação da sua reserva e o resumo do seu pedido para apresentar caso seja solicitado.\n\n` +
-                                              `📅 *Data:* ${dateStr}\n` +
-                                              `👤 *Titular:* ${name}\n\n` +
-                                              `📝 *Resumo do Pedido:*\n${itemsList}\n\n` +
-                                              `💰 *Total:* ${formatCurrency(booking.total_amount)}\n\n` +
+                                              `\uD83D\uDCC5 *Data:* ${dateStr}\n` +
+                                              `\uD83D\uDC64 *Titular:* ${name}\n\n` +
+                                              `\uD83D\uDCDD *Resumo do Pedido:*\n${itemsList}\n\n` +
+                                              `\uD83D\uDCB0 *Total:* ${formatCurrency(booking.total_amount)}\n\n` +
                                               `Voucher: https://reservas.balneariolessa.com.br/voucher/${code}\n\n` +
-                                              `✨ *Aguardamos vocês para o lazer que a sua família merece.*`;
+                                              `\u2728 *Aguardamos vocês para o lazer que a sua família merece.*`;
                                             
                                             const text = encodeURIComponent(message);
 
