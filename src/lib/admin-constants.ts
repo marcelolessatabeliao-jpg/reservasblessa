@@ -2,7 +2,7 @@ import { format } from 'date-fns';
 import { KioskType, QuadType, QuadTime } from './booking-types';
 
 export const KIOSKS = [
-  { id: 1, name: 'QUIOSQUE - 01 (Grande)', price: 100, capacity: 'Até 30 pessoas', type: 'Maior' },
+  { id: 1, name: 'QUIOSQUE - 01', price: 100, capacity: 'Até 30 pessoas', type: 'Maior' },
   { id: 2, name: 'QUIOSQUE - 02', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' },
   { id: 3, name: 'QUIOSQUE - 03', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' },
   { id: 4, name: 'QUIOSQUE - 04', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' },
