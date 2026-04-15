@@ -277,7 +277,7 @@ export function AdminDashboardTab({
                 locale={ptBR}
                 toDate={new Date(2030, 11, 31)}
                 fromDate={new Date(2024, 0, 1)}
-                disabled={(date) => !isAllowedDay(date)}
+                disabled={false}
                 classNames={{
                   months: "w-full flex flex-col",
                   month: "w-full space-y-6",
