@@ -133,7 +133,7 @@ export function AdminQuadTab({
                   )}
                 >
                   {t.label}
-                  <span className={cn('rounded-full px-1.5 py-0.5 text-[9px] font-black', quadSubTab === t.key ? 'bg-white/30' : 'bg-slate-200')}>
+                  <span className={cn('rounded-full px-1.5 py-0.5 text-[9px] font-black', quadSubTab === t.key ? 'bg-white text-slate-800' : 'bg-slate-200 text-slate-600')}>
                     {t.count}
                   </span>
                 </button>
