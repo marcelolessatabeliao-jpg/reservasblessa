@@ -277,7 +277,7 @@ export function AdminDashboardTab({
                 locale={ptBR}
                 toDate={new Date(2030, 11, 31)}
                 fromDate={new Date(2024, 0, 1)}
-                disabled={false}
+                disabled={(date) => !isAllowedDay(date)}
                 classNames={{
                   months: "w-full flex flex-col",
                   month: "w-full space-y-6",
@@ -301,6 +301,8 @@ export function AdminDashboardTab({
                 components={{
                   DayContent: ({ date }) => {
                     const dateStr = format(date, 'yyyy-MM-dd');
+                    const selectedStr = format(targetDate, 'yyyy-MM-dd');
+                    const isSelected = dateStr === selectedStr;
                     const hasKiosk = (kioskReservations || []).some(r => r.reservation_date === dateStr);
                     const hasQuad = (quadReservations || []).some(r => r.reservation_date === dateStr);
                     const hasAnyBooking = (bookings || []).some(b => {
@@ -318,8 +320,12 @@ export function AdminDashboardTab({
                     const isFull = kiosksFull && quadsFull;
 
                     return (
-                      <div className={cn("relative flex flex-col items-center rounded-full w-full h-full justify-center transition-all", isFull && "bg-red-50/50 border border-red-100")}>
-                        <span className={cn(isDayToday ? "text-emerald-950 font-black" : "font-black", isFull && "text-red-600")}>{date.getDate()}</span>
+                      <div className={cn("relative flex flex-col items-center rounded-full w-full h-full justify-center transition-all", isFull && !isSelected && "bg-red-50/50 border border-red-100")}>
+                        <span className={cn(
+                          "font-black",
+                          isSelected ? "text-white" : isDayToday ? "text-emerald-950" : "",
+                          isFull && !isSelected && "text-red-600"
+                        )}>{date.getDate()}</span>
                         <div className="flex gap-1 mt-0.5">
                           {hasKiosk && <div className={cn("w-2 h-2 rounded-full shadow-md border border-white/40", kiosksFull ? "bg-red-600" : "bg-emerald-600")} />}
                           {hasQuad && <div className={cn("w-2 h-2 rounded-full shadow-md border border-white/40", quadsFull ? "bg-red-600" : "bg-blue-600")} />}
