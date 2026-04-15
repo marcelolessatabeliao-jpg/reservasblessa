@@ -10,7 +10,6 @@ import { SpecialPlansSection } from '@/components/SpecialPlansSection';
 import { SpecialPlansCards } from '@/components/SpecialPlansCards';
 import { ServicesSection } from '@/components/ServicesSection';
 import { TestimonialsSection } from '@/components/TestimonialsSection';
-import { InstagramGallery } from '@/components/InstagramGallery';
 import { BookingSection } from '@/components/BookingSection';
 import { FAQSection } from '@/components/FAQSection';
 import { ContactSection } from '@/components/ContactSection';
@@ -48,7 +47,6 @@ const Index = () => {
       <SpecialPlansCards />
       <ServicesSection />
       <TestimonialsSection />
-      <InstagramGallery />
       <FAQSection />
       <ContactSection />
       <LocationSection />
