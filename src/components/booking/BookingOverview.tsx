@@ -216,6 +216,7 @@ export function BookingOverview({
       
       if (!result?.orderId) throw new Error("Erro ao salvar pedido.");
       orderId = result.orderId;
+      orderIdToRollback = orderId;
       confCode = result.confirmationCode;
       
       setPersistedOrderId(orderId);

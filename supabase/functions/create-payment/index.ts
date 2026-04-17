@@ -3,9 +3,12 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
 Deno.serve(async (req) => {
+  console.log(`[create-payment] Started ${req.method}`);
+  
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -106,7 +109,6 @@ Deno.serve(async (req) => {
     }
 
     // 6. Registro no Supabase (Opcional - mas ajuda no Dashboard)
-    const supabaseAdmin = createClient(Deno.env.get('SUPABASE_URL') || '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '');
     try {
         await supabaseAdmin.from('payments').insert({
             order_id: orderId,
@@ -128,9 +130,10 @@ Deno.serve(async (req) => {
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });
 
   } catch (err: any) {
+    console.error('[create-payment] Error:', err);
     return new Response(JSON.stringify({ success: false, error: err.message }), { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }, 
-        status: 200 
+        status: 400 
     });
   }
 })
