@@ -323,23 +323,23 @@ export function SpecialPlansSection() {
             <motion.div 
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className="bg-gradient-to-br from-emerald-50 to-emerald-100 border-2 border-emerald-500/30 p-6 rounded-3xl relative overflow-hidden shadow-sm"
+              className="bg-gradient-to-br from-[#bf953f]/10 via-[#fcf6ba]/20 to-[#aa771c]/10 border-2 border-[#bf953f]/30 p-6 rounded-3xl relative overflow-hidden shadow-sm"
             >
-               <div className="absolute top-0 right-0 bg-emerald-600 text-white text-[9px] font-black px-4 py-1.5 rounded-bl-2xl uppercase tracking-widest shadow-md">
+               <div className="absolute top-0 right-0 bg-[#bf953f] text-[#332200] text-[9px] font-black px-4 py-1.5 rounded-bl-2xl uppercase tracking-widest shadow-md">
                  10% OFF
                </div>
-               <h4 className="text-emerald-900 font-black text-xs uppercase mb-3 flex items-center gap-2">
-                 💰 PLANO ANUAL COM DESCONTO
+               <h4 className="text-[#5c3c00] font-black text-xs uppercase mb-3 flex items-center gap-2">
+                 👑 PLANO ANUAL PREMIUM
                </h4>
                <div className="mb-5">
-                 <p className="text-emerald-700 font-black text-3xl mb-1">
+                 <p className="text-[#332200] font-black text-3xl mb-1">
                    12x de R$ {selectedPlanInfo?.annualInstallment?.toFixed(2).replace('.', ',')}
                  </p>
-                 <p className="text-[10px] text-emerald-600 font-bold opacity-70">
+                 <p className="text-[10px] text-[#5c3c00] font-bold opacity-70">
                    (ou R$ {selectedPlanInfo?.annualTotal?.toFixed(2).replace('.', ',')} à vista)
                  </p>
                </div>
-               <Button asChild className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-2xl h-12 shadow-lg shadow-emerald-500/20 uppercase text-xs tracking-wider">
+               <Button asChild className="w-full bg-gradient-to-r from-[#bf953f] to-[#aa771c] hover:from-[#aa771c] hover:to-[#bf953f] text-[#332200] font-black rounded-2xl h-12 shadow-lg shadow-gold/20 uppercase text-xs tracking-wider border border-white/20">
                  <a href={selectedPlanInfo?.annualLink} target="_blank" rel="noopener noreferrer">ADERIR ANUAL</a>
                </Button>
             </motion.div>
@@ -348,20 +348,20 @@ export function SpecialPlansSection() {
             <motion.div 
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className="bg-slate-50 border-2 border-slate-200 p-6 rounded-3xl shadow-sm"
+              className="bg-emerald-50/50 border-2 border-emerald-500/20 p-6 rounded-3xl shadow-sm"
             >
-               <h4 className="text-slate-900 font-black text-xs uppercase mb-3 flex items-center gap-2">
-                 💳 PLANO MENSAL SEM DESCONTO
+               <h4 className="text-emerald-900 font-black text-xs uppercase mb-3 flex items-center gap-2">
+                 📅 PLANO MENSAL
                </h4>
                <div className="mb-5">
-                 <p className="text-slate-700 font-black text-3xl mb-1">
+                 <p className="text-emerald-700 font-black text-3xl mb-1">
                    R$ {selectedPlanInfo?.monthlyPrice?.toFixed(2).replace('.', ',')} / mês
                  </p>
-                 <p className="text-[10px] text-slate-500 font-bold opacity-70">
+                 <p className="text-[10px] text-emerald-600 font-bold opacity-70">
                    Assinatura recorrente mensal
                  </p>
                </div>
-               <Button asChild variant="outline" className="w-full border-2 border-slate-300 text-slate-800 hover:bg-slate-100 font-black rounded-2xl h-12 uppercase text-xs tracking-wider">
+               <Button asChild className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-2xl h-12 uppercase text-xs tracking-wider shadow-md">
                  <a href={selectedPlanInfo?.monthlyLink} target="_blank" rel="noopener noreferrer">ADERIR MENSAL</a>
                </Button>
             </motion.div>
