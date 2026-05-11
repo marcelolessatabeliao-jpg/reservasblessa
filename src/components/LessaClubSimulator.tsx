@@ -7,7 +7,7 @@ import { QuantityStepper } from '@/components/QuantityStepper';
 
 export function LessaClubSimulator() {
   const [quantities, setQuantities] = useState({
-    adult: 1,
+    adult: 0,
     student: 0,
     teacher: 0,
     server: 0,
