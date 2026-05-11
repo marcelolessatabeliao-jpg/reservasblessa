@@ -1755,7 +1755,7 @@ export default function Admin() {
                    <tr key={order.id} className="hover:bg-muted/20 transition-colors">
                       <td className="px-6 py-4">
                          <div className="flex flex-col">
-                            <span className="font-mono text-[10px] text-muted-foreground">#{order.id.slice(0,8)}</span>
+                            <span className="font-mono text-[10px] text-muted-foreground">#{order.confirmation_code || order.id.slice(0,8)}</span>
                             <span className="text-sm font-bold">{format(parseISO(order.created_at), 'dd/MM/yyyy')}</span>
                          </div>
                       </td>

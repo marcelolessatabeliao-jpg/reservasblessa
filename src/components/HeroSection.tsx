@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Ticket, Calculator, ChevronRight } from 'lucide-react';
+import { Sparkles, Ticket, Calculator, ChevronRight, Search } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -101,7 +102,7 @@ export function HeroSection() {
 
         <motion.div
           variants={itemVariants}
-          className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center px-4 sm:px-0 relative z-10"
+          className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center px-4 sm:px-0 relative z-10 flex-wrap"
         >
           <Button asChild size="lg" className="relative group bg-sun hover:bg-sun-light text-slate-950 text-base sm:text-xl px-8 sm:px-12 py-7 sm:py-8 font-display font-black shadow-[0_20px_50px_rgba(234,179,8,0.3)] w-full sm:w-auto rounded-[2rem] transition-all duration-300 hover:-translate-y-1 active:scale-95 overflow-hidden">
             <a href="#reservas" className="flex items-center gap-3">
@@ -115,6 +116,12 @@ export function HeroSection() {
             <a href="#especiais" className="flex items-center gap-3">
               <Calculator className="h-6 w-6" /> Simular Meu Plano
             </a>
+          </Button>
+          
+          <Button asChild size="lg" className="bg-blue-600/20 hover:bg-blue-600/40 text-white border-2 border-blue-400/50 text-base sm:text-xl px-8 sm:px-10 py-7 sm:py-8 font-display font-bold backdrop-blur-md w-full sm:w-auto rounded-[2rem] shadow-xl transition-all hover:-translate-y-1 active:scale-95">
+            <Link to="/consultar" className="flex items-center gap-3">
+              <Search className="h-6 w-6" /> Consultar Reserva
+            </Link>
           </Button>
         </motion.div>
       </motion.div>

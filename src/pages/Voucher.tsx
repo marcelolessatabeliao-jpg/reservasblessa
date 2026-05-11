@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -11,6 +11,7 @@ import { parseToRODate } from '@/utils/date-utils';
 
 export default function Voucher() {
   const { code } = useParams();
+  const navigate = useNavigate();
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -58,7 +59,11 @@ export default function Voucher() {
           
           {/* Header */}
           <div className="bg-primary p-8 text-center text-white relative">
-             <div className="absolute top-4 right-4 bg-sun text-primary-dark text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-tighter shadow-lg">Entrada Confirmada</div>
+             <div className={`absolute top-4 right-4 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-tighter shadow-lg ${
+                order.status === 'paid' || order.status === 'confirmed' ? 'bg-sun text-primary-dark' : 'bg-amber-100 text-amber-900 border border-amber-300'
+             }`}>
+                {order.status === 'paid' || order.status === 'confirmed' ? 'Entrada Confirmada' : 'Aguardando Pgto'}
+             </div>
              <h1 className="text-2xl font-black uppercase tracking-tighter mb-1">Balneário Lessa</h1>
              <p className="text-primary-foreground/60 text-xs font-bold uppercase tracking-widest">Seu Voucher Digital</p>
           </div>
@@ -80,16 +85,21 @@ export default function Voucher() {
             </div>
 
             {/* Visit Details */}
-            <div className="grid grid-cols-2 gap-4">
-               <div className="bg-muted/30 p-4 rounded-2xl border border-muted-foreground/5">
-                  <Calendar className="w-4 h-4 text-sun mb-2" />
+            <div className="grid grid-cols-3 gap-2">
+               <div className="bg-muted/30 p-3 rounded-2xl border border-muted-foreground/5 text-center">
+                  <Calendar className="w-4 h-4 text-sun mx-auto mb-1.5" />
                   <p className="text-[9px] font-black text-muted-foreground uppercase">Data da Visita</p>
-                  <p className="text-sm font-bold">{visitDate ? format(visitDate, "dd 'de' MMMM", { locale: ptBR }) : '—'}</p>
+                  <p className="text-xs font-bold">{visitDate ? format(visitDate, "dd 'de' MMMM", { locale: ptBR }) : '—'}</p>
                </div>
-               <div className="bg-muted/30 p-4 rounded-2xl border border-muted-foreground/5">
-                  <Users className="w-4 h-4 text-sun mb-2" />
+               <div className="bg-muted/30 p-3 rounded-2xl border border-muted-foreground/5 text-center">
+                  <Users className="w-4 h-4 text-sun mx-auto mb-1.5" />
                   <p className="text-[9px] font-black text-muted-foreground uppercase">Titular</p>
-                  <p className="text-sm font-bold truncate">{order.customer_name?.split(' ')[0]}</p>
+                  <p className="text-xs font-bold truncate">{order.customer_name?.split(' ')[0]}</p>
+               </div>
+               <div className="bg-muted/30 p-3 rounded-2xl border border-muted-foreground/5 text-center">
+                  <span className="font-black text-sun text-sm mx-auto mb-1.5 block">R$</span>
+                  <p className="text-[9px] font-black text-muted-foreground uppercase">Valor Total</p>
+                  <p className="text-xs font-bold text-emerald-700 truncate">{formatCurrency(order.total_amount || 0)}</p>
                </div>
             </div>
 
@@ -178,9 +188,9 @@ export default function Voucher() {
         </div>
 
         <div className="text-center mt-8 space-y-4">
-           <Link to="/" className="text-xs font-bold text-muted-foreground hover:text-primary flex items-center justify-center gap-1.5 uppercase tracking-widest group">
-              <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" /> Voltar para o Site
-           </Link>
+           <button onClick={() => navigate(-1)} className="w-full text-xs font-bold text-muted-foreground hover:text-primary flex items-center justify-center gap-1.5 uppercase tracking-widest group cursor-pointer">
+              <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" /> Voltar
+           </button>
         </div>
 
       </div>

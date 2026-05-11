@@ -201,7 +201,7 @@ export default function Consultar() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="rounded-xl flex-1 border-amber-200 text-amber-700 hover:bg-amber-50"
+                        className="rounded-xl flex-1 border-amber-200 text-amber-700 hover:bg-amber-100 hover:text-amber-900"
                         disabled={syncingId === res.id}
                         onClick={(e) => handleSyncPayment(e, res.id)}
                       >
@@ -239,6 +239,7 @@ export default function Consultar() {
             cpf={paymentOrder.customer_cpf || ''}
             totalAmount={paymentOrder.total_amount || 0}
             initialMethod="PIX"
+            isClient={true}
             onSuccess={() => {
               setResults(prev => prev.map(r => r.id === paymentOrder.id ? { ...r, status: 'paid' } : r));
               setPaymentOrder(null);

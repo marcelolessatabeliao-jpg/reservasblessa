@@ -84,6 +84,14 @@ export function InternalBookingAssistant({
   const [newBookingData, setNewBookingData] = useState(initialData);
 
   useEffect(() => {
+    if (isOpen) {
+      setNewBookingData(initialData);
+      setGeneratedPix(null);
+      setBookedIds([]);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
     const fetchCustomerInfo = async () => {
       const p = newBookingData.phone.replace(/\D/g, '');
       if (p.length >= 10 && !newBookingData.name) {

@@ -10,7 +10,6 @@ const links = [
   { label: 'Sobre', href: '/#sobre' },
   { label: 'Serviços', href: '/#servicos' },
   { label: 'Reservas', href: '/#reservas' },
-  { label: 'Consultar', href: '/consultar' },
   { label: 'Contato', href: '/#contato' },
 ];
 

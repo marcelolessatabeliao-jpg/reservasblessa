@@ -18,11 +18,12 @@ interface Props {
   totalAmount: number;
   initialMethod?: PaymentMethod;
   onSuccess?: (method: string) => void;
+  isClient?: boolean;
 }
 
 type PaymentMethod = 'PIX' | 'CREDIT_CARD';
 
-export function PaymentModal({ open, onOpenChange, orderId, name, email, phone, cpf: initialCpf, totalAmount, initialMethod, onSuccess }: Props) {
+export function PaymentModal({ open, onOpenChange, orderId, name, email, phone, cpf: initialCpf, totalAmount, initialMethod, onSuccess, isClient }: Props) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [pixData, setPixData] = useState<{ encodedImage: string; payload: string } | null>(null);
@@ -362,7 +363,7 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, phone, 
               {copied ? 'Código PIX Copiado' : 'Copiar Código PIX'}
             </Button>
 
-            {phone && (
+            {phone && !isClient && (
               <Button 
                 onClick={handleSendWhatsApp}
                 className="w-full h-12 flex items-center justify-center gap-2 font-black text-xs sm:text-sm rounded-xl bg-[#25D366] hover:bg-[#128C7E] text-white shadow-lg transition-all"
@@ -382,7 +383,7 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, phone, 
                   
                   if (error) throw error;
                   
-                  if (data?.success && (data?.status === 'RECEIVED' || data?.status === 'CONFIRMED')) {
+                  if (data?.success && (data?.status === 'RECEIVED' || data?.status === 'CONFIRMED' || data?.updated)) {
                     // Refetch status to get confirmation code
                     const { data: order } = await supabase.from('orders').select('confirmation_code').eq('id', orderId).single();
                     if (order?.confirmation_code) setConfirmationCode(order.confirmation_code);
@@ -396,6 +397,7 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, phone, 
                     });
 
                     toast({ title: "Confirmado!", description: "Seu pagamento foi identificado com sucesso." });
+                    onSuccess?.('paid_auto');
                   } else {
                     toast({ 
                       title: "Ainda não identificado", 
