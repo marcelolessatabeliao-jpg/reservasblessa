@@ -256,22 +256,60 @@ export async function getQuadAvailability(date: string, timeSlot: string): Promi
 export async function getBookedKioskIds(date: string): Promise<number[]> {
   const { data, error } = await (supabase
     .from('kiosk_reservations') as any)
-    .select('kiosk_id, orders!inner(status)')
-    .eq('reservation_date', date);
+    .select('id, kiosk_id, kiosk_type, orders!inner(status)')
+    .eq('reservation_date', date)
+    .order('id', { ascending: true });
 
   if (error || !data) return [];
 
   // Definimos os status que consideram o quiosque como "Ocupado"
-  // Seguindo a solicitação de "apenas pagamento confirmado"
   const confirmedStatuses = ['paid', 'pago', 'confirmed', 'confirmado', 'checked-in', 'completed'];
 
-  const bookedIds = data
-    .filter((r: any) => {
-      const status = (r.orders?.status || '').toLowerCase();
-      return confirmedStatuses.includes(status);
-    })
-    .map((r: any) => Number(r.kiosk_id))
-    .filter((id: number) => !isNaN(id) && id > 0);
+  const confirmedReservations = data.filter((r: any) => {
+    const status = (r.orders?.status || '').toLowerCase();
+    return confirmedStatuses.includes(status);
+  });
+
+  const bookedIds: number[] = [];
+
+  // 1. First, add all specific IDs
+  confirmedReservations.forEach((r: any) => {
+    const id = Number(r.kiosk_id);
+    if (!isNaN(id) && id > 0) {
+      bookedIds.push(id);
+    }
+  });
+
+  // 2. Handle generic 'MAIOR' or 'MENOR' bookings
+  // MAIOR is always ID 1 (unless 6, 7, 8 are used, but they are also 'maior')
+  // MENOR starts from ID 2
+  const genericMaiores = confirmedReservations.filter((r: any) => r.kiosk_id === 'MAIOR' || (r.kiosk_id === null && r.kiosk_type === 'maior'));
+  const genericMenores = confirmedReservations.filter((r: any) => r.kiosk_id === 'MENOR' || (r.kiosk_id === null && r.kiosk_type === 'menor'));
+
+  // Assign Maiores to ID 1 if not already booked
+  for (const _ of genericMaiores) {
+    if (!bookedIds.includes(1)) {
+      bookedIds.push(1);
+    } else {
+      // If 1 is already booked, and we have more, we might need 6, 7, 8
+      for (const extraId of [6, 7, 8]) {
+        if (!bookedIds.includes(extraId)) {
+          bookedIds.push(extraId);
+          break;
+        }
+      }
+    }
+  }
+
+  // Assign Menores to IDs 2, 3, 4, 5
+  for (const _ of genericMenores) {
+    for (const menorId of [2, 3, 4, 5]) {
+      if (!bookedIds.includes(menorId)) {
+        bookedIds.push(menorId);
+        break; // found a spot for this generic booking
+      }
+    }
+  }
 
   // Retorna IDs únicos para evitar duplicidade visual
   return Array.from(new Set(bookedIds));
