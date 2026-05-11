@@ -1246,12 +1246,14 @@ export function BookingTable({
                                           </Button>
                                         )}
                                       {onSyncPayment &&
-                                        ![
-                                          "paid",
-                                          "pago",
-                                          "checked-in",
-                                          "cancelled",
-                                          "cancelado",
+                                        [
+                                          "pending",
+                                          "awaiting_payment",
+                                          "aguardando pgto",
+                                          "waiting_local",
+                                          "waiting_confirmation",
+                                          "waiting_local_payment",
+                                          "waiting_local_confirmation",
                                         ].includes(
                                           booking.status?.toLowerCase() || "",
                                         ) && (
@@ -1270,7 +1272,7 @@ export function BookingTable({
                                                   "animate-spin",
                                               )}
                                             />
-                                            <span>SINC</span>
+                                            <span>SINC ASAAS</span>
                                           </Button>
                                         )}
                                       <Button
@@ -1506,27 +1508,7 @@ export function BookingTable({
                                             </div>
                                           )}
                                         </Button>
-                                      {onSyncPayment &&
-                                        [
-                                          "pending",
-                                          "awaiting_payment",
-                                          "aguardando pgto",
-                                          "waiting_local",
-                                          "waiting_confirmation",
-                                        ].includes(
-                                          booking.status?.toLowerCase() || "",
-                                        ) && (
-                                          <Button
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              onSyncPayment(booking.id);
-                                            }}
-                                            className="bg-blue-100 text-blue-900 border-b-4 border-blue-300 hover:border-b-0 hover:translate-y-[2px] hover:bg-blue-600 hover:text-white shadow-md transition-all duration-300 font-black uppercase text-[9px] md:text-[10px] h-14 md:h-16 rounded-2xl flex flex-col items-center justify-center gap-1 w-full p-0"
-                                          >
-                                            <RefreshCw className="w-4 h-4 md:w-5 md:h-5" />
-                                            <span>SYNC ASAAS</span>
-                                          </Button>
-                                        )}
+
                                     </div>
                                   </div>
                                 </div>

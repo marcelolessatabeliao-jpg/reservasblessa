@@ -4,23 +4,32 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Search, Calendar, ChevronRight, User, Hash, RefreshCw, CreditCard } from 'lucide-react';
+import { Loader2, Search, Calendar, ChevronRight, User, Hash, RefreshCw, CreditCard, ChevronDown, ChevronUp, Info, Ticket } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Navbar } from '@/components/Navbar';
 import { PaymentModal } from '@/components/booking/PaymentModal';
+import { formatCurrency } from '@/lib/booking-types';
 
 export default function Consultar() {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(() => sessionStorage.getItem('last_consultar_query') || '');
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<any[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
   const [syncingId, setSyncingId] = useState<string | null>(null);
   const [paymentOrder, setPaymentOrder] = useState<any>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  // Auto search if query is retrieved from session storage
+  React.useEffect(() => {
+    if (query) {
+       handleSearch(new Event('submit') as any);
+    }
+  }, []);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,11 +37,12 @@ export default function Consultar() {
 
     setLoading(true);
     setHasSearched(true);
+    sessionStorage.setItem('last_consultar_query', query);
     try {
       const cleanQuery = query.replace(/\D/g, '');
       const isCpf = cleanQuery.length === 11;
 
-      let supabaseQuery = supabase.from('orders').select('*');
+      let supabaseQuery = supabase.from('orders').select('*, order_items(*)');
 
       if (isCpf) {
         supabaseQuery = supabaseQuery.eq('customer_cpf', cleanQuery);
@@ -40,7 +50,13 @@ export default function Consultar() {
         // It's a phone number
         supabaseQuery = supabaseQuery.eq('customer_phone', cleanQuery);
       } else {
-        supabaseQuery = supabaseQuery.eq('confirmation_code', query.toUpperCase());
+        toast({
+          title: "Formato inválido",
+          description: "Por favor, informe um CPF ou Telefone válido (apenas números).",
+          variant: "destructive"
+        });
+        setLoading(false);
+        return;
       }
 
       const { data, error } = await supabaseQuery.order('visit_date', { ascending: false });
@@ -55,9 +71,6 @@ export default function Consultar() {
           description: "Verifique os dados e tente novamente.",
           variant: "destructive"
         });
-      } else if (data.length === 1 && !isCpf) {
-        // Direct redirect for code search with 1 result
-        navigate(`/voucher/${data[0].confirmation_code}`);
       } else {
         setResults(data);
       }
@@ -115,7 +128,7 @@ export default function Consultar() {
             Consultar <span className="text-emerald-600">Minha Reserva</span>
           </h1>
           <p className="text-emerald-800/70 font-bold max-w-lg mx-auto">
-            Acesse seu voucher digital informando o CPF utilizado na compra ou o código da reserva enviado após o pagamento.
+            Acesse seu voucher digital informando o CPF ou Telefone utilizado na compra.
           </p>
         </div>
 
@@ -124,12 +137,12 @@ export default function Consultar() {
             <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4">
               <div className="relative flex-1 group">
                 <div className="absolute left-5 top-1/2 -translate-y-1/2 text-emerald-600 group-focus-within:scale-110 transition-transform">
-                  <Hash className="w-5 h-5" />
+                  <User className="w-5 h-5" />
                 </div>
                 <Input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="CPF, Código ou Telefone (Apenas números)"
+                  placeholder="Digite seu CPF ou Telefone (apenas números)"
                   className="h-16 pl-14 pr-6 rounded-2xl border-2 border-emerald-100 focus:border-emerald-500 bg-white text-lg font-bold shadow-sm transition-all"
                 />
               </div>
@@ -161,67 +174,115 @@ export default function Consultar() {
             <div className="grid grid-cols-1 gap-4">
               {results.map((res) => {
                 const isPaid = res.status === 'confirmed' || res.status === 'paid';
+                const isExpanded = expandedId === res.id;
                 return (
                 <div key={res.id} className="group bg-white/60 hover:bg-emerald-50/80 backdrop-blur-md p-6 rounded-3xl border border-white hover:border-emerald-200 shadow-lg transition-all duration-300">
-                  <Link 
-                    to={`/voucher/${res.confirmation_code}`}
-                    className="flex items-center justify-between cursor-pointer"
-                  >
-                    <div className="flex items-center gap-6">
-                      <div className="w-14 h-14 bg-emerald-100 rounded-2xl flex items-center justify-center group-hover:bg-emerald-200 transition-colors">
-                        <Calendar className="w-7 h-7 text-emerald-600" />
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">
-                          Data da Visita
-                        </p>
-                        <p className="text-xl font-black text-emerald-950">
-                          {res.visit_date ? format(parseISO(res.visit_date), "dd 'de' MMMM", { locale: ptBR }) : 'Data não definida'}
-                        </p>
-                        <div className="flex items-center gap-3 mt-1">
-                          <span className="text-[11px] font-bold text-emerald-800/60 uppercase">
-                            Cód: {res.confirmation_code}
-                          </span>
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                          <span className={`text-[11px] font-black uppercase ${
-                            isPaid ? 'text-emerald-600' : 'text-amber-600'
-                          }`}>
-                            {isPaid ? 'Confirmada' : 'Aguardando Pagamento'}
-                          </span>
+                  <div className="flex flex-col gap-4">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                      <div className="flex items-center gap-6">
+                        <div className="w-14 h-14 bg-emerald-100 rounded-2xl flex items-center justify-center shrink-0 group-hover:bg-emerald-200 transition-colors">
+                          <Calendar className="w-7 h-7 text-emerald-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">
+                            {res.visit_date ? format(parseISO(res.visit_date), "EEEE, dd 'de' MMMM", { locale: ptBR }) : 'Data indefinida'}
+                          </p>
+                          <button 
+                            onClick={() => setExpandedId(isExpanded ? null : res.id)}
+                            className="text-xl font-black text-emerald-950 truncate hover:text-emerald-600 transition-colors flex items-center gap-2 group/name"
+                          >
+                            {res.customer_name || 'Cliente'}
+                            {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5 group-hover/name:translate-y-0.5 transition-transform" />}
+                          </button>
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
+                            <span className="text-[11px] font-bold text-emerald-800/60 uppercase">
+                              Cód: {res.confirmation_code}
+                            </span>
+                            <span className="w-1 h-1 rounded-full bg-emerald-400" />
+                            <span className="text-[11px] font-bold text-emerald-800/60 uppercase">
+                              {res.customer_phone}
+                            </span>
+                            <span className="w-1 h-1 rounded-full bg-emerald-400" />
+                            <span className={`text-[11px] font-black uppercase ${
+                              isPaid ? 'text-emerald-600' : 'text-amber-600'
+                            }`}>
+                              {isPaid ? 'Confirmada' : 'Aguardando Pagamento'}
+                            </span>
+                          </div>
                         </div>
                       </div>
+
+                      <div className="flex items-center justify-between md:justify-end gap-6 w-full md:w-auto">
+                        <div className="text-left md:text-right">
+                          <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Valor Total</p>
+                          <p className="text-xl font-black text-emerald-950">
+                            {formatCurrency(res.total_amount || 0)}
+                          </p>
+                        </div>
+                        <Link 
+                          to={`/voucher/${res.confirmation_code}`}
+                          className="w-12 h-12 rounded-full border-2 border-emerald-100 flex items-center justify-center shrink-0 group-hover:border-emerald-300 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-all"
+                        >
+                          <Ticket className="w-6 h-6" />
+                        </Link>
+                      </div>
                     </div>
-                    <div className="w-12 h-12 rounded-full border-2 border-emerald-100 flex items-center justify-center group-hover:border-emerald-300 text-emerald-600 group-hover:translate-x-2 transition-all">
-                      <ChevronRight className="w-6 h-6" />
-                    </div>
-                  </Link>
-                  
-                  {!isPaid && (
-                    <div className="mt-4 pt-4 border-t border-emerald-100/50 flex flex-wrap gap-3">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="rounded-xl flex-1 border-amber-200 text-amber-700 hover:bg-amber-100 hover:text-amber-900"
-                        disabled={syncingId === res.id}
-                        onClick={(e) => handleSyncPayment(e, res.id)}
-                      >
-                        {syncingId === res.id ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
-                        Já Paguei (Sincronizar)
-                      </Button>
-                      <Button
-                        size="sm"
-                        className="rounded-xl flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setPaymentOrder(res);
-                        }}
-                      >
-                        <CreditCard className="w-4 h-4 mr-2" />
-                        Efetivar Pagamento
-                      </Button>
-                    </div>
-                  )}
+
+                    {isExpanded && (
+                      <div className="mt-4 p-5 bg-emerald-50/50 rounded-2xl border border-emerald-100/50 animate-in slide-in-from-top-2 duration-300">
+                        <div className="flex items-center gap-2 mb-4">
+                          <Info className="w-4 h-4 text-emerald-600" />
+                          <p className="text-[11px] font-black text-emerald-700 uppercase tracking-widest">Resumo da Reserva</p>
+                        </div>
+                        <div className="space-y-3">
+                          {res.order_items?.map((item: any, i: number) => (
+                            <div key={i} className="flex justify-between items-center text-sm border-b border-emerald-100/30 pb-2 last:border-0 last:pb-0">
+                              <span className="font-bold text-emerald-900">{item.quantity}x {item.product_name || item.product_id}</span>
+                              <span className="font-mono text-emerald-700">{formatCurrency(item.unit_price * item.quantity)}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="mt-4 pt-4 border-t border-emerald-200 flex justify-between items-center">
+                          <span className="text-xs font-black text-emerald-900 uppercase">Subtotal</span>
+                          <span className="text-lg font-black text-emerald-950">{formatCurrency(res.total_amount || 0)}</span>
+                        </div>
+                        <Link 
+                          to={`/voucher/${res.confirmation_code}`}
+                          className="mt-6 w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl flex items-center justify-center gap-2 transition-all"
+                        >
+                          <Ticket className="w-5 h-5" />
+                          VER VOUCHER COMPLETO
+                        </Link>
+                      </div>
+                    )}
+                    
+                    {!isPaid && (
+                      <div className="mt-2 pt-4 border-t border-emerald-100/50 flex flex-wrap gap-3">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="rounded-xl flex-1 border-amber-200 text-amber-700 hover:bg-amber-100 hover:text-amber-900 font-bold"
+                          disabled={syncingId === res.id}
+                          onClick={(e) => handleSyncPayment(e, res.id)}
+                        >
+                          {syncingId === res.id ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+                          Sincronizar Pagamento
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="rounded-xl flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setPaymentOrder(res);
+                          }}
+                        >
+                          <CreditCard className="w-4 h-4 mr-2" />
+                          Efetivar Pagamento
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )})}
             </div>
