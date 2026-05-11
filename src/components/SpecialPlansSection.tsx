@@ -4,10 +4,16 @@ import { ArrowRight, Calculator, Ticket, Star, Users, CheckCircle2 } from 'lucid
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/booking-types';
 import { QuantityStepper } from '@/components/QuantityStepper';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle 
+} from '@/components/ui/dialog';
 
 export function SpecialPlansSection() {
   const [quantities, setQuantities] = useState({
-    adult: 1,
+    adult: 0,
     student: 0,
     teacher: 0,
     server: 0,
@@ -15,6 +21,9 @@ export function SpecialPlansSection() {
     senior: 0,
     pcd: 0,
   });
+
+  const [isOptionsOpen, setIsOptionsOpen] = useState(false);
+  const [selectedPlanInfo, setSelectedPlanInfo] = useState<any>(null);
 
   const payingPeople = quantities.adult + quantities.student + quantities.teacher + quantities.server;
   const totalPeople = payingPeople + quantities.child + quantities.senior + quantities.pcd;
@@ -52,6 +61,50 @@ export function SpecialPlansSection() {
 
     const message = `Olá! Gostaria de finalizar minha adesão ao Lessa Club baseada na minha simulação:\n\n*Resumo:*\n- Total: ${totalPeople} pessoas\n- Escolhas: ${choices.join(', ')}\n- Valor Total: ${formatCurrency(totalMonthly)}`;
     return `https://wa.me/5569992626140?text=${encodeURIComponent(message)}`;
+  };
+
+  const handleJoinClick = () => {
+    if (payingPeople === 1) {
+      if (quantities.student === 1) {
+        setSelectedPlanInfo({
+          type: 'Estudante',
+          monthlyLink: 'https://cartaobl.com.br/planos/?regPlano=1211212252673382',
+          annualLink: 'https://cartaobl.com.br/planos/?regPlano=1281212252613283',
+          monthlyPrice: 25,
+          annualInstallment: 22.50,
+          annualTotal: 270
+        });
+        setIsOptionsOpen(true);
+        return;
+      }
+      if (quantities.teacher === 1) {
+        setSelectedPlanInfo({
+          type: 'Professor',
+          monthlyLink: 'https://cartaobl.com.br/planos/?regPlano=1221212252632308',
+          annualLink: 'https://cartaobl.com.br/planos/?regPlano=127121225261720',
+          monthlyPrice: 25,
+          annualInstallment: 22.50,
+          annualTotal: 270
+        });
+        setIsOptionsOpen(true);
+        return;
+      }
+      if (quantities.server === 1) {
+        setSelectedPlanInfo({
+          type: 'Servidor',
+          monthlyLink: 'https://cartaobl.com.br/planos/?regPlano=1201212252611556',
+          annualLink: 'https://cartaobl.com.br/planos/?regPlano=1261212252611074',
+          monthlyPrice: 25,
+          annualInstallment: 22.50,
+          annualTotal: 270
+        });
+        setIsOptionsOpen(true);
+        return;
+      }
+    }
+    
+    // For other cases, use the direct link
+    window.open(getPlanLink(), '_blank');
   };
 
   const totalMonthly = 
@@ -98,16 +151,16 @@ export function SpecialPlansSection() {
                   <div className="flex items-center gap-3 sm:gap-4 overflow-hidden">
                      <span className="text-2xl sm:text-3xl drop-shadow-sm shrink-0">{item.emoji}</span>
                      <div className="min-w-0">
-                       <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                         <h4 className="font-bold text-foreground text-sm sm:text-lg leading-tight italic truncate">
-                           {item.label}
-                         </h4>
-                         {item.badge && (
-                           <span className="bg-destructive/10 text-destructive text-[8px] sm:text-[9px] font-black px-2 py-0.5 rounded-full uppercase not-italic tracking-wider border border-destructive/10 whitespace-nowrap">
-                             {item.badge}
-                           </span>
-                         )}
-                       </div>
+                        <div className="flex items-center gap-2 mb-0.5 flex-nowrap">
+                          <h4 className="font-bold text-foreground text-sm sm:text-lg leading-tight italic whitespace-nowrap">
+                            {item.label}
+                          </h4>
+                          {item.badge && (
+                            <span className="bg-emerald-600 text-white text-[8px] sm:text-[9px] font-black px-2 py-0.5 rounded-full uppercase not-italic tracking-wider shadow-sm shrink-0">
+                              {item.badge}
+                            </span>
+                          )}
+                        </div>
                        <p className="text-primary font-black text-xs sm:text-sm uppercase tracking-widest">{formatCurrency(item.price)}</p>
                      </div>
                   </div>
@@ -185,10 +238,12 @@ export function SpecialPlansSection() {
                   </h3>
                 </div>
                 
-                <Button asChild size="lg" className="bg-white text-primary hover:bg-sun hover:text-foreground font-display font-black text-base sm:text-lg h-12 rounded-xl shadow-lg w-full mb-5 transition-all duration-300">
-                  <a href={getPlanLink()} target="_blank" rel="noopener noreferrer">
-                     QUERO ME ASSOCIAR <ArrowRight className="ml-2 h-4 w-4" />
-                    </a>
+                <Button 
+                  size="lg" 
+                  className="bg-white text-primary hover:bg-sun hover:text-foreground font-display font-black text-base sm:text-lg h-14 rounded-xl shadow-lg w-full mb-5 transition-all duration-300"
+                  onClick={handleJoinClick}
+                >
+                   QUERO ME ASSOCIAR <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
 
                 {/* Benefit Box */}
@@ -253,6 +308,66 @@ export function SpecialPlansSection() {
           </motion.div>
         </div>
       </div>
+
+      <Dialog open={isOptionsOpen} onOpenChange={setIsOptionsOpen}>
+        <DialogContent className="w-[calc(100vw-32px)] max-w-md rounded-[2.5rem] p-6 border-sun/20 shadow-2xl bg-white outline-none">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black text-primary text-center mb-2 uppercase tracking-tighter">
+              Escolha sua modalidade
+            </DialogTitle>
+            <p className="text-center text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-4">Plano {selectedPlanInfo?.type}</p>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {/* Anual */}
+            <motion.div 
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="bg-gradient-to-br from-emerald-50 to-emerald-100 border-2 border-emerald-500/30 p-6 rounded-3xl relative overflow-hidden shadow-sm"
+            >
+               <div className="absolute top-0 right-0 bg-emerald-600 text-white text-[9px] font-black px-4 py-1.5 rounded-bl-2xl uppercase tracking-widest shadow-md">
+                 10% OFF
+               </div>
+               <h4 className="text-emerald-900 font-black text-xs uppercase mb-3 flex items-center gap-2">
+                 💰 PLANO ANUAL COM DESCONTO
+               </h4>
+               <div className="mb-5">
+                 <p className="text-emerald-700 font-black text-3xl mb-1">
+                   12x de R$ {selectedPlanInfo?.annualInstallment?.toFixed(2).replace('.', ',')}
+                 </p>
+                 <p className="text-[10px] text-emerald-600 font-bold opacity-70">
+                   (ou R$ {selectedPlanInfo?.annualTotal?.toFixed(2).replace('.', ',')} à vista)
+                 </p>
+               </div>
+               <Button asChild className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-2xl h-12 shadow-lg shadow-emerald-500/20 uppercase text-xs tracking-wider">
+                 <a href={selectedPlanInfo?.annualLink} target="_blank" rel="noopener noreferrer">ADERIR ANUAL</a>
+               </Button>
+            </motion.div>
+
+            {/* Mensal */}
+            <motion.div 
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="bg-slate-50 border-2 border-slate-200 p-6 rounded-3xl shadow-sm"
+            >
+               <h4 className="text-slate-900 font-black text-xs uppercase mb-3 flex items-center gap-2">
+                 💳 PLANO MENSAL SEM DESCONTO
+               </h4>
+               <div className="mb-5">
+                 <p className="text-slate-700 font-black text-3xl mb-1">
+                   R$ {selectedPlanInfo?.monthlyPrice?.toFixed(2).replace('.', ',')} / mês
+                 </p>
+                 <p className="text-[10px] text-slate-500 font-bold opacity-70">
+                   Assinatura recorrente mensal
+                 </p>
+               </div>
+               <Button asChild variant="outline" className="w-full border-2 border-slate-300 text-slate-800 hover:bg-slate-100 font-black rounded-2xl h-12 uppercase text-xs tracking-wider">
+                 <a href={selectedPlanInfo?.monthlyLink} target="_blank" rel="noopener noreferrer">ADERIR MENSAL</a>
+               </Button>
+            </motion.div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
