@@ -239,11 +239,42 @@ export async function getQuadAvailability(date: string, timeSlot: string): Promi
     .from('quad_reservations') as any)
     .select('quantity, orders!inner(status)')
     .eq('reservation_date', date)
-    .eq('time_slot', timeSlot)
-    .in('orders.status', ['paid', 'confirmed', 'PAGO', 'CONFIRMADO'])
+    .eq('time_slot', timeSlot);
 
   if (error || !data) return 0;
-  return data.reduce((sum: number, r: any) => sum + (Number(r.quantity) || 0), 0);
+
+  const confirmedStatuses = ['paid', 'pago', 'confirmed', 'confirmado', 'checked-in', 'completed'];
+
+  return data
+    .filter((r: any) => {
+      const status = (r.orders?.status || '').toLowerCase();
+      return confirmedStatuses.includes(status);
+    })
+    .reduce((sum: number, r: any) => sum + (Number(r.quantity) || 0), 0);
+}
+
+export async function getBookedKioskIds(date: string): Promise<number[]> {
+  const { data, error } = await (supabase
+    .from('kiosk_reservations') as any)
+    .select('kiosk_id, orders!inner(status)')
+    .eq('reservation_date', date);
+
+  if (error || !data) return [];
+
+  // Definimos os status que consideram o quiosque como "Ocupado"
+  // Seguindo a solicitação de "apenas pagamento confirmado"
+  const confirmedStatuses = ['paid', 'pago', 'confirmed', 'confirmado', 'checked-in', 'completed'];
+
+  const bookedIds = data
+    .filter((r: any) => {
+      const status = (r.orders?.status || '').toLowerCase();
+      return confirmedStatuses.includes(status);
+    })
+    .map((r: any) => Number(r.kiosk_id))
+    .filter((id: number) => !isNaN(id) && id > 0);
+
+  // Retorna IDs únicos para evitar duplicidade visual
+  return Array.from(new Set(bookedIds));
 }
 
 export async function getKioskAvailability(date: string, type: string): Promise<number> {
@@ -251,22 +282,18 @@ export async function getKioskAvailability(date: string, type: string): Promise<
     .from('kiosk_reservations') as any)
     .select('quantity, orders!inner(status)')
     .eq('reservation_date', date)
-    .eq('kiosk_type', type)
-    .in('orders.status', ['paid', 'confirmed', 'PAGO', 'CONFIRMADO'])
+    .eq('kiosk_type', type);
 
   if (error || !data) return 0;
-  return data.reduce((sum: number, r: any) => sum + (Number(r.quantity) || 0), 0);
-}
 
-export async function getBookedKioskIds(date: string): Promise<number[]> {
-  const { data, error } = await (supabase
-    .from('kiosk_reservations') as any)
-    .select('kiosk_id, orders!inner(status)')
-    .eq('reservation_date', date)
-    .in('orders.status', ['paid', 'confirmed', 'PAGO', 'CONFIRMADO']);
+  const confirmedStatuses = ['paid', 'pago', 'confirmed', 'confirmado', 'checked-in', 'completed'];
 
-  if (error || !data) return [];
-  return data.map((r: any) => r.kiosk_id).filter((id: any) => id != null);
+  return data
+    .filter((r: any) => {
+      const status = (r.orders?.status || '').toLowerCase();
+      return confirmedStatuses.includes(status);
+    })
+    .reduce((sum: number, r: any) => sum + (Number(r.quantity) || 0), 0);
 }
 
 export async function getBookingCount(): Promise<number> {
