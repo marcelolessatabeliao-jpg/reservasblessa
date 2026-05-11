@@ -2419,7 +2419,6 @@ function EditQuadDialog({ item, onClose, onUpdated, updateOrderTotal }: any) {
       
       // 1. Prepare to find linked order item
       let oiId = null;
-      const orderId = item.order_id;
       if (orderId && !String(orderId).startsWith('order-')) {
          const { data: oItems } = await supabase.from('order_items').select('*').eq('order_id', orderId);
          const quadItem = oItems?.find(oi => 
