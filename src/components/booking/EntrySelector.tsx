@@ -260,10 +260,6 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
 
         return (
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-3 pt-1 pb-0 overflow-hidden no-scrollbar">
-            <div className="text-center mb-1">
-              <h4 className="text-xl font-bold text-center text-primary font-sans">Monte seu Day Use no Balneário</h4>
-            </div>
-
             <div className="grid grid-cols-2 gap-2 px-1">
               <button 
                 className={cn(
@@ -1062,7 +1058,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                 {wizardType === 'pcd' ? 'PCD / TEA' :
                   wizardType === 'senior' ? 'Acesso Melhor Idade' :
                     wizardType === 'child' ? 'Acesso Kids' :
-                      'Adicione os participantes'}
+                      'Já deixe suas entradas pagas'}
               </DialogTitle>
             </div>
           </DialogHeader>
