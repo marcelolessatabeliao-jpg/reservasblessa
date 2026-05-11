@@ -4,6 +4,12 @@ import { Calculator, ArrowRight, Ticket, Star, Users, CheckCircle2 } from 'lucid
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/booking-types';
 import { QuantityStepper } from '@/components/QuantityStepper';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle 
+} from '@/components/ui/dialog';
 
 export function LessaClubSimulator() {
   const [quantities, setQuantities] = useState({
@@ -16,11 +22,16 @@ export function LessaClubSimulator() {
     pcd: 0,
   });
 
+  const [isOptionsOpen, setIsOptionsOpen] = useState(false);
+  const [selectedPlanInfo, setSelectedPlanInfo] = useState<any>(null);
+
   const payingPeople = quantities.adult + quantities.student + quantities.teacher + quantities.server;
   let planName = 'Lessa Club personalizado';
   if (payingPeople === 1) planName = 'Lessa Club (individual)';
   else if (payingPeople >= 2 && payingPeople <= 5) planName = `Lessa Club (${payingPeople} pessoas)`;
   else if (payingPeople === 0) planName = 'Lessa Club';
+
+  const totalPeople = payingPeople + quantities.child + quantities.senior + quantities.pcd;
 
   const getPlanLink = () => {
     if (payingPeople === 1) {
@@ -49,6 +60,50 @@ export function LessaClubSimulator() {
 
     const message = `Olá! Gostaria de finalizar minha adesão ao Lessa Club baseada na minha simulação:\n\n*Resumo:*\n- Total: ${totalPeople} pessoas\n- Escolhas: ${choices.join(', ')}\n- Valor Total: ${formatCurrency(totalMonthly)}`;
     return `https://wa.me/5569992626140?text=${encodeURIComponent(message)}`;
+  };
+
+  const handleJoinClick = () => {
+    if (payingPeople === 1) {
+      if (quantities.student === 1) {
+        setSelectedPlanInfo({
+          type: 'Estudante',
+          monthlyLink: 'https://cartaobl.com.br/planos/?regPlano=1211212252673382',
+          annualLink: 'https://cartaobl.com.br/planos/?regPlano=1281212252613283',
+          monthlyPrice: 25,
+          annualInstallment: 22.50,
+          annualTotal: 270
+        });
+        setIsOptionsOpen(true);
+        return;
+      }
+      if (quantities.teacher === 1) {
+        setSelectedPlanInfo({
+          type: 'Professor',
+          monthlyLink: 'https://cartaobl.com.br/planos/?regPlano=1221212252632308',
+          annualLink: 'https://cartaobl.com.br/planos/?regPlano=127121225261720',
+          monthlyPrice: 25,
+          annualInstallment: 22.50,
+          annualTotal: 270
+        });
+        setIsOptionsOpen(true);
+        return;
+      }
+      if (quantities.server === 1) {
+        setSelectedPlanInfo({
+          type: 'Servidor',
+          monthlyLink: 'https://cartaobl.com.br/planos/?regPlano=1201212252611556',
+          annualLink: 'https://cartaobl.com.br/planos/?regPlano=1261212252611074',
+          monthlyPrice: 25,
+          annualInstallment: 22.50,
+          annualTotal: 270
+        });
+        setIsOptionsOpen(true);
+        return;
+      }
+    }
+    
+    // For other cases (family plans or adult), use the direct link or WhatsApp
+    window.open(getPlanLink(), '_blank');
   };
 
   const totalMonthly = 
@@ -171,15 +226,12 @@ export function LessaClubSimulator() {
                   </div>
                 </div>
                 
-                <Button asChild size="lg" className="bg-[#332200] text-[#fcf6ba] hover:bg-black hover:text-white font-display font-black text-base sm:text-lg h-14 rounded-2xl shadow-2xl w-full mb-6 transition-all duration-300 border border-white/10">
-                  <motion.a 
-                    whileTap={{ scale: 0.96 }}
-                    href={getPlanLink()} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                  >
-                     QUERO ME ASSOCIAR <ArrowRight className="ml-2 h-5 w-5" />
-                  </motion.a>
+                <Button 
+                  size="lg" 
+                  className="bg-[#332200] text-[#fcf6ba] hover:bg-black hover:text-white font-display font-black text-base sm:text-lg h-14 rounded-2xl shadow-2xl w-full mb-6 transition-all duration-300 border border-white/10"
+                  onClick={handleJoinClick}
+                >
+                   QUERO ME ASSOCIAR <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
 
                 {/* Box de Benefício Premium */}
@@ -244,6 +296,66 @@ export function LessaClubSimulator() {
           </motion.div>
         </div>
       </div>
+
+      <Dialog open={isOptionsOpen} onOpenChange={setIsOptionsOpen}>
+        <DialogContent className="w-[calc(100vw-32px)] max-w-md rounded-[2.5rem] p-6 border-sun/20 shadow-2xl bg-white outline-none">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black text-primary text-center mb-2 uppercase tracking-tighter">
+              Escolha sua modalidade
+            </DialogTitle>
+            <p className="text-center text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-4">Plano {selectedPlanInfo?.type}</p>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {/* Anual */}
+            <motion.div 
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="bg-gradient-to-br from-emerald-50 to-emerald-100 border-2 border-emerald-500/30 p-6 rounded-3xl relative overflow-hidden shadow-sm"
+            >
+               <div className="absolute top-0 right-0 bg-emerald-600 text-white text-[9px] font-black px-4 py-1.5 rounded-bl-2xl uppercase tracking-widest shadow-md">
+                 10% OFF
+               </div>
+               <h4 className="text-emerald-900 font-black text-xs uppercase mb-3 flex items-center gap-2">
+                 💰 PLANO ANUAL COM DESCONTO
+               </h4>
+               <div className="mb-5">
+                 <p className="text-emerald-700 font-black text-3xl mb-1">
+                   12x de R$ {selectedPlanInfo?.annualInstallment?.toFixed(2).replace('.', ',')}
+                 </p>
+                 <p className="text-[10px] text-emerald-600 font-bold opacity-70">
+                   (ou R$ {selectedPlanInfo?.annualTotal?.toFixed(2).replace('.', ',')} à vista)
+                 </p>
+               </div>
+               <Button asChild className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-2xl h-12 shadow-lg shadow-emerald-500/20 uppercase text-xs tracking-wider">
+                 <a href={selectedPlanInfo?.annualLink} target="_blank" rel="noopener noreferrer">ADERIR ANUAL</a>
+               </Button>
+            </motion.div>
+
+            {/* Mensal */}
+            <motion.div 
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="bg-slate-50 border-2 border-slate-200 p-6 rounded-3xl shadow-sm"
+            >
+               <h4 className="text-slate-900 font-black text-xs uppercase mb-3 flex items-center gap-2">
+                 💳 PLANO MENSAL SEM DESCONTO
+               </h4>
+               <div className="mb-5">
+                 <p className="text-slate-700 font-black text-3xl mb-1">
+                   R$ {selectedPlanInfo?.monthlyPrice?.toFixed(2).replace('.', ',')} / mês
+                 </p>
+                 <p className="text-[10px] text-slate-500 font-bold opacity-70">
+                   Assinatura recorrente mensal
+                 </p>
+               </div>
+               <Button asChild variant="outline" className="w-full border-2 border-slate-300 text-slate-800 hover:bg-slate-100 font-black rounded-2xl h-12 uppercase text-xs tracking-wider">
+                 <a href={selectedPlanInfo?.monthlyLink} target="_blank" rel="noopener noreferrer">ADERIR MENSAL</a>
+               </Button>
+            </motion.div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
