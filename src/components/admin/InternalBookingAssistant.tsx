@@ -274,12 +274,11 @@ export function InternalBookingAssistant({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => {
-        if (open) setNewBookingData(initialData); 
-        setIsOpen(open);
-        if (!open) {
-          setGeneratedPix(null);
+        if (open) {
           setNewBookingData(initialData);
+          setGeneratedPix(null);
         }
+        setIsOpen(open);
     }}>
       <DialogTrigger asChild>
         <Button className="rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black h-12 md:h-14 px-6 md:px-8 shadow-xl hover:scale-105 active:scale-95 transition-all border-0 text-xs md:text-sm uppercase tracking-wider flex items-center gap-3">

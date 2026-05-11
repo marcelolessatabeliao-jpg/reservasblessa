@@ -50,7 +50,7 @@ export function DayUsePricing() {
             <div className="bg-primary p-6 text-white">
               <div className="flex items-center gap-3 mb-2">
                 <Calendar className="h-6 w-6" />
-                <h3 className="font-display font-bold text-xl">Sexta, Sábado, Segunda e Feriados Solidários</h3>
+                <h3 className="font-display font-bold text-xl">Sexta, Sábado e Segundas Solidários</h3>
               </div>
               <p className="text-white/80 text-sm">Escolha sua forma de acesso</p>
             </div>
@@ -101,7 +101,7 @@ export function DayUsePricing() {
             <div className="bg-sun p-6 text-foreground">
               <div className="flex items-center gap-3 mb-2">
                 <Calendar className="h-6 w-6" />
-                <h3 className="font-display font-bold text-xl">Domingos</h3>
+                <h3 className="font-display font-bold text-xl">Domingos e Feriados</h3>
               </div>
               <p className="text-foreground/70 text-sm">O dia mais animado do balneário</p>
             </div>
@@ -131,7 +131,7 @@ export function DayUsePricing() {
                 </div>
                 <div className="pt-2 border-t border-primary/10">
                   <p className="text-[10px] text-destructive font-bold flex items-center gap-1">
-                    ⚠️ Atenção: Aos domingos não são aceitos donativos como meia-entrada.
+                    ⚠️ Atenção: Aos domingos e feriados não são aceitos donativos como meia-entrada.
                   </p>
                 </div>
               </div>

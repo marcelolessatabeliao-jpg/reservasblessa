@@ -1,13 +1,41 @@
 import { useState } from 'react';
-import { Ticket, Plus, X, User, UserPlus, Baby, CalendarIcon, Heart, Info, Phone, ArrowLeft, ArrowRight, CheckCircle2, Accessibility, GraduationCap, Briefcase, Gift, Loader2, Home, MapPin } from 'lucide-react';
+import { 
+  Users, 
+  MapPin, 
+  Home, 
+  X, 
+  Loader2, 
+  ChevronRight, 
+  User, 
+  Trash2, 
+  Edit2, 
+  Calendar,
+  AlertCircle,
+  ArrowRight,
+  Ticket,
+  Plus,
+  UserPlus,
+  Baby,
+  CalendarIcon,
+  Heart,
+  Info,
+  Phone,
+  ArrowLeft,
+  CheckCircle2,
+  Accessibility,
+  GraduationCap,
+  Briefcase,
+  Gift
+} from 'lucide-react';
 import { BookingState, formatCurrency, isOperatingDay, ChildInfo, AdultInfo } from '@/lib/booking-types';
 import { useServices } from '@/hooks/useServices';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Calendar } from '@/components/ui/calendar';
+import { Calendar as CalendarUI } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -247,7 +275,17 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
         const entryFullStr = formatCurrency(getPrice('entry_full', 50)).replace(',00', '');
         const entryHalfStr = formatCurrency(getPrice('entry_half', 25)).replace(',00', '');
 
-        const isSunday = entry.visitDate?.getDay() === 0;
+        const isHoliday = (date: Date) => {
+          const holidays = [
+            "2026-01-01", "2026-02-16", "2026-02-17", "2026-04-03", "2026-04-05", 
+            "2026-04-21", "2026-05-01", "2026-05-14", "2026-05-24", "2026-06-04", 
+            "2026-07-09", "2026-09-07", "2026-10-12", "2026-11-02", "2026-11-15", 
+            "2026-11-20", "2026-12-25"
+          ];
+          return holidays.includes(format(date, 'yyyy-MM-dd'));
+        };
+
+        const isSundayOrHoliday = entry.visitDate ? (entry.visitDate.getDay() === 0 || isHoliday(entry.visitDate)) : false;
 
         const categories = [
           { id: 'inteira', label: 'Inteira', sublabel: 'Acesso Normal', price: entryFullStr, emoji: '🎟️', bg: 'bg-emerald-50', border: 'border-emerald-100', selectedBg: 'bg-emerald-100', selectedBorder: 'border-emerald-500', priceColor: 'text-emerald-700', labelColor: 'text-emerald-900' },
@@ -312,7 +350,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
 
               {categories.map((cat) => {
                 const isSelected = wizardData.category === cat.id;
-                const isSundayBlocked = isSunday && cat.id === 'solidaria';
+                const isSundayBlocked = isSundayOrHoliday && cat.id === 'solidaria';
                 return (
                   <button
                     key={cat.id}
@@ -703,7 +741,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                   )}
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0 rounded-3xl border-primary/10 shadow-2xl" align="start">
-                  <Calendar
+                  <CalendarUI
                     mode="single"
                     selected={entry.visitDate || undefined}
                     onSelect={(d) => {
@@ -779,55 +817,89 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                         {isFetchingKiosks && <Loader2 className="h-4 w-4 animate-spin text-emerald-600" />}
                      </div>
 
-                     <div className="grid grid-cols-4 gap-2 mb-3">
+                     <div className="grid grid-cols-4 gap-3 mb-4">
                         {KIOSK_MAP.filter(k => k.row === 'top').map(k => {
                           const isBooked = bookedKioskIds.includes(k.id);
                           return (
                             <div key={k.id} className={cn(
-                              "aspect-square rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition-all",
+                              "aspect-square rounded-[1.75rem] border-2 flex flex-col items-center justify-center gap-1 transition-all duration-300 shadow-sm",
                               isBooked 
-                                ? "bg-slate-100 border-slate-200 text-slate-400 opacity-60" 
-                                : "bg-white border-emerald-500 shadow-sm text-emerald-700"
+                                ? "bg-rose-50 border-rose-200 text-rose-300 opacity-80" 
+                                : "bg-white border-emerald-500 hover:border-amber-500 hover:shadow-md text-emerald-700 hover:-translate-y-1"
                             )}>
-                              <span className="text-xl font-black">{String(k.id).padStart(2, '0')}</span>
-                              <span className="text-[8px] font-bold uppercase">{isBooked ? 'Ocupado' : 'Livre'}</span>
+                              <span className={cn("text-xl font-black", isBooked ? "text-rose-400/50" : "text-emerald-950")}>
+                                {String(k.id).padStart(2, '0')}
+                              </span>
+                              <span className={cn(
+                                "text-[9px] font-black uppercase tracking-tighter",
+                                isBooked ? "text-rose-400" : "text-emerald-600"
+                              )}>
+                                {isBooked ? 'Ocupado' : 'Livre'}
+                              </span>
                             </div>
                           );
                         })}
-                     </div>
-                     
-                     {KIOSK_MAP.filter(k => k.row === 'bottom').map(k => {
-                       const isBooked = bookedKioskIds.includes(k.id);
-                       return (
-                         <div key={k.id} className={cn(
-                           "w-full h-16 rounded-2xl border-2 flex items-center justify-between px-6 transition-all",
-                           isBooked 
-                             ? "bg-slate-100 border-slate-200 text-slate-400 opacity-60" 
-                             : "bg-white border-emerald-500 shadow-sm text-emerald-700"
-                         )}>
-                            <div className="flex items-center gap-3">
-                              <span className="text-2xl font-black">{String(k.id).padStart(2, '0')}</span>
-                              <span className="text-[10px] font-black uppercase tracking-widest">Quiosque Maior</span>
-                            </div>
-                            <span className="text-[10px] font-bold uppercase">{isBooked ? 'Ocupado' : 'Livre'}</span>
-                         </div>
-                       );
-                     })}
+                      </div>
+                      
+                      {KIOSK_MAP.filter(k => k.row === 'bottom').map(k => {
+                        const isBooked = bookedKioskIds.includes(k.id);
+                        return (
+                          <div key={k.id} className={cn(
+                            "w-full h-20 rounded-3xl border-2 flex items-center justify-between px-8 transition-all duration-300",
+                            isBooked 
+                              ? "bg-rose-50 border-rose-200 text-rose-300 opacity-80" 
+                              : "bg-white border-emerald-500 hover:border-amber-500 hover:shadow-md text-emerald-700 hover:-translate-y-1"
+                          )}>
+                             <div className="flex items-center gap-4">
+                               <div className={cn(
+                                 "w-12 h-12 rounded-2xl flex items-center justify-center font-black text-2xl",
+                                 isBooked ? "bg-rose-100 text-rose-400" : "bg-emerald-100 text-emerald-900"
+                               )}>
+                                 {String(k.id).padStart(2, '0')}
+                               </div>
+                               <div className="flex flex-col">
+                                 <span className={cn("text-[11px] font-black uppercase tracking-widest", isBooked ? "text-rose-400" : "text-emerald-900")}>Quiosque Maior</span>
+                                 <span className="text-[9px] font-bold text-slate-400 uppercase">Capacidade: 20-25 pessoas</span>
+                               </div>
+                             </div>
+                             <Badge variant="outline" className={cn(
+                               "font-black text-[10px] uppercase tracking-widest border-2 px-4 py-1 rounded-full",
+                               isBooked ? "bg-rose-100 border-rose-300 text-rose-700" : "bg-emerald-100 border-emerald-300 text-emerald-700"
+                             )}>
+                               {isBooked ? 'Ocupado' : 'Livre'}
+                             </Badge>
+                          </div>
+                        );
+                      })}
                   </div>
 
-                  <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-center">
-                     <p className="text-amber-900 text-xs font-bold leading-relaxed">
-                        ⚠️ <strong>Atenção:</strong> Continue com a reserva para selecionar o quiosque nas próximas etapas.
-                     </p>
+                  <div className="space-y-4">
+                    <div className="bg-white border-2 border-emerald-100 rounded-[2rem] p-6 shadow-sm">
+                       <p className="text-slate-600 text-xs font-bold leading-relaxed text-center italic">
+                         "Esta aba é apenas para consultar previamente as disponibilidades para a data desejada. 
+                         Caso não haja nenhum disponível já foram reservados. 
+                         Para continuar a reserva continue preenchendo os campos e realize o pagamento ao final para garantir."
+                       </p>
+                    </div>
+
+                    <div className="bg-gradient-to-r from-amber-500 to-orange-600 rounded-[2rem] p-5 shadow-lg shadow-amber-200/50 flex items-center gap-4 border-2 border-white/20">
+                       <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-md">
+                          <AlertCircle className="w-6 h-6 text-white" />
+                       </div>
+                       <p className="text-white text-xs font-black uppercase tracking-tight leading-tight">
+                          Atenção: <span className="opacity-90 font-bold lowercase">Continue com a reserva para selecionar o quiosque nas próximas etapas.</span>
+                       </p>
+                    </div>
                   </div>
                 </div>
 
-                <DialogFooter className="p-6 bg-white border-t border-slate-100">
+                <DialogFooter className="p-6 bg-slate-50 border-t border-slate-200">
                   <Button 
                     onClick={() => setIsAvailabilityOpen(false)}
-                    className="w-full h-12 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest shadow-lg"
+                    className="w-full h-16 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest shadow-xl shadow-emerald-200 transition-all active:scale-95 group"
                   >
-                    Entendido
+                    <span>Continuar Agendamento</span>
+                    <ArrowRight className="w-5 h-5 ml-3 group-hover:translate-x-1 transition-transform" />
                   </Button>
                 </DialogFooter>
               </DialogContent>

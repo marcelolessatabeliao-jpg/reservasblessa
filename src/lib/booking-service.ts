@@ -263,17 +263,23 @@ export async function getBookedKioskIds(date: string): Promise<number[]> {
   if (error || !data) return [];
 
   // Definimos os status que consideram o quiosque como "Ocupado"
-  const confirmedStatuses = ['paid', 'pago', 'confirmed', 'confirmado', 'checked-in', 'completed'];
+  // Incluímos 'pending' e 'awaiting_payment' para evitar que dois clientes reservem o mesmo quiosque ao mesmo tempo
+  const blockedStatuses = [
+    'paid', 'pago', 
+    'confirmed', 'confirmado', 
+    'checked-in', 'completed',
+    'pending', 'aguardando_pagamento', 'awaiting_payment'
+  ];
 
-  const confirmedReservations = data.filter((r: any) => {
+  const blockedReservations = data.filter((r: any) => {
     const status = (r.orders?.status || '').toLowerCase();
-    return confirmedStatuses.includes(status);
+    return blockedStatuses.includes(status);
   });
 
   const bookedIds: number[] = [];
 
   // 1. First, add all specific IDs
-  confirmedReservations.forEach((r: any) => {
+  blockedReservations.forEach((r: any) => {
     const id = Number(r.kiosk_id);
     if (!isNaN(id) && id > 0) {
       bookedIds.push(id);
@@ -283,8 +289,8 @@ export async function getBookedKioskIds(date: string): Promise<number[]> {
   // 2. Handle generic 'MAIOR' or 'MENOR' bookings
   // MAIOR is always ID 1 (unless 6, 7, 8 are used, but they are also 'maior')
   // MENOR starts from ID 2
-  const genericMaiores = confirmedReservations.filter((r: any) => r.kiosk_id === 'MAIOR' || (r.kiosk_id === null && r.kiosk_type === 'maior'));
-  const genericMenores = confirmedReservations.filter((r: any) => r.kiosk_id === 'MENOR' || (r.kiosk_id === null && r.kiosk_type === 'menor'));
+  const genericMaiores = blockedReservations.filter((r: any) => r.kiosk_id === 'MAIOR' || (r.kiosk_id === null && r.kiosk_type === 'maior'));
+  const genericMenores = blockedReservations.filter((r: any) => r.kiosk_id === 'MENOR' || (r.kiosk_id === null && r.kiosk_type === 'menor'));
 
   // Assign Maiores to ID 1 if not already booked
   for (const _ of genericMaiores) {
