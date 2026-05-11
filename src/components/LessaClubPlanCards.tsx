@@ -1,4 +1,5 @@
 import { Check, Star, Shield, Zap, Info, ArrowRight } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { 
@@ -244,9 +245,7 @@ export function LessaClubPlanCards() {
           
           <div className="space-y-4">
             {/* Anual */}
-            <motion.div 
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+            <div 
               className="bg-gradient-to-br from-[#bf953f]/10 via-[#fcf6ba]/20 to-[#aa771c]/10 border-2 border-[#bf953f]/30 p-6 rounded-3xl relative overflow-hidden shadow-sm"
             >
                <div className="absolute top-0 right-0 bg-[#bf953f] text-[#332200] text-[9px] font-black px-4 py-1.5 rounded-bl-2xl uppercase tracking-widest shadow-md">
@@ -266,12 +265,10 @@ export function LessaClubPlanCards() {
                <Button asChild className="w-full bg-gradient-to-r from-[#bf953f] to-[#aa771c] hover:from-[#aa771c] hover:to-[#bf953f] text-[#332200] font-black rounded-2xl h-12 shadow-lg shadow-gold/20 uppercase text-xs tracking-wider border border-white/20">
                  <a href={selectedPlanInfo?.aLink} target="_blank" rel="noopener noreferrer">ADERIR ANUAL</a>
                </Button>
-            </motion.div>
+            </div>
 
             {/* Mensal */}
-            <motion.div 
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+            <div 
               className="bg-emerald-50/50 border-2 border-emerald-500/20 p-6 rounded-3xl shadow-sm"
             >
                <h4 className="text-emerald-900 font-black text-xs uppercase mb-3 flex items-center gap-2">
@@ -288,7 +285,7 @@ export function LessaClubPlanCards() {
                <Button asChild className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-2xl h-12 uppercase text-xs tracking-wider shadow-md">
                  <a href={selectedPlanInfo?.mLink} target="_blank" rel="noopener noreferrer">ADERIR MENSAL</a>
                </Button>
-            </motion.div>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
