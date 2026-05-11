@@ -37,16 +37,56 @@ Deno.serve(async (req) => {
     // Map any incoming legacy fields to solidarity for safety
     const consolidatedSolidarity = (is_solidarity || 0) + (body.adults_half || 0) + (body.is_donor || 0)
 
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') || '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
+    )
+
+    // Handle updates for kiosks and quads (bypassing RLS)
+    if (body.action === 'update_kiosk') {
+       const { item_id, kiosk_id, kiosk_type, price, order_item_id, new_product_id } = body;
+       
+       const { error: kErr } = await supabase.from('kiosk_reservations').update({
+          kiosk_id, kiosk_type, price
+       }).eq('id', item_id);
+       if (kErr) throw kErr;
+
+       if (order_item_id) {
+          const { error: oiErr } = await supabase.from('order_items').update({
+             unit_price: price,
+             product_id: new_product_id,
+             metadata: { selectedIds: [kiosk_id] }
+          }).eq('id', order_item_id);
+          if (oiErr) throw oiErr;
+       }
+       return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });
+    }
+
+    if (body.action === 'update_quad') {
+       const { item_id, quad_type, time_slot, price, order_item_id, new_product_id } = body;
+       
+       const { error: qErr } = await supabase.from('quad_reservations').update({
+          quad_type, time_slot, price
+       }).eq('id', item_id);
+       if (qErr) throw qErr;
+
+       if (order_item_id) {
+          const { error: oiErr } = await supabase.from('order_items').update({
+             unit_price: price,
+             product_id: new_product_id,
+             metadata: { time: time_slot, time_slot }
+          }).eq('id', order_item_id);
+          if (oiErr) throw oiErr;
+       }
+       return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });
+    }
+
     if (!name || !visit_date) {
       return new Response(JSON.stringify({ success: false, error: 'Nome e data são obrigatórios.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400
       })
     }
 
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') || '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
-    )
 
     // 0. Duplicity Check: Verificar se já existe um pedido pendente para este CPF na mesma data
     if (cpf) {

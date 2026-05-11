@@ -2313,34 +2313,34 @@ function EditKioskDialog({ group, onClose, onUpdated, updateOrderTotal }: any) {
         const kioskType = newKiosk?.type === 'Maior' ? 'maior' : 'menor';
         const newPrice = newKiosk?.type === 'Maior' ? 100 : 75;
 
-        // 1. Update kiosk_reservations
-        const { error: kioskErr } = await (supabase.from('kiosk_reservations') as any).update({
-          kiosk_id: newKioskId,
-          kiosk_type: kioskType,
-          price: newPrice
-        }).eq('id', item.id);
-        
-        if (kioskErr) throw kioskErr;
-
-        // 2. Update order_items if linked
+        // Prepare to find linked order item
+        let oiId = null;
+        const orderId = group.items[0]?.order_id;
         if (orderId && !String(orderId).startsWith('order-')) {
           const { data: oItems } = await supabase.from('order_items').select('*').eq('order_id', orderId);
-          // Find the specific order item for this kiosk
           const kioskItem = oItems?.find(oi => 
             (oi.product_id?.toLowerCase().includes('quiosque') || (oi as any).product_name?.toLowerCase().includes('quiosque')) &&
-            (oi.id === item.order_item_id || group.items.length === 1) // Match by ID if possible, or if it's the only one
+            (oi.id === item.order_item_id || group.items.length === 1)
           );
-          
-          if (kioskItem) {
-             const kioskLabel = String(newKioskId).padStart(2, '0');
-             const { error: oiErr } = await supabase.from('order_items').update({ 
-               unit_price: newPrice,
-               product_id: `Quiosque ${kioskLabel}`,
-               metadata: { selectedIds: [newKioskId] } 
-             }).eq('id', kioskItem.id);
-             
-             if (oiErr) throw oiErr;
-          }
+          if (kioskItem) oiId = kioskItem.id;
+        }
+
+        // Use edge function to bypass RLS for admin modifications
+        const kioskLabel = String(newKioskId).padStart(2, '0');
+        const { data: funcData, error: funcErr } = await supabase.functions.invoke('create-internal-order', {
+           body: {
+              action: 'update_kiosk',
+              item_id: item.id,
+              kiosk_id: newKioskId,
+              kiosk_type: kioskType,
+              price: newPrice,
+              order_item_id: oiId,
+              new_product_id: `Quiosque ${kioskLabel}`
+           }
+        });
+        
+        if (funcErr || (funcData && !funcData.success)) {
+           throw funcErr || new Error(funcData?.error || 'Erro na edge function');
         }
       }
       
@@ -2417,31 +2417,37 @@ function EditQuadDialog({ item, onClose, onUpdated, updateOrderTotal }: any) {
       
       const unitPrice = (QUAD_PRICES[model as keyof typeof QUAD_PRICES] || 150) * (1 - discount);
       
-      // 1. Update quad_reservations
-      const { error: quadErr } = await (supabase.from('quad_reservations') as any).update({ 
-        quad_type: model, 
-        time_slot: time, 
-        price: unitPrice * (item.quantity || 1) 
-      }).eq('id', item.id);
-      
-      if (quadErr) throw quadErr;
-
-      // 2. Update order_items if linked
+      // 1. Prepare to find linked order item
+      let oiId = null;
+      const orderId = item.order_id;
       if (orderId && !String(orderId).startsWith('order-')) {
          const { data: oItems } = await supabase.from('order_items').select('*').eq('order_id', orderId);
          const quadItem = oItems?.find(oi => 
            (oi.product_id?.toLowerCase().includes('quad') || (oi as any).product_name?.toLowerCase().includes('quad')) &&
            (normalizeQuadType((oi as any).product_name || oi.product_id) === normalizeQuadType(item.quad_type))
          );
-         
-         if (quadItem) {
-            await supabase.from('order_items').update({ 
-               unit_price: unitPrice, 
-               product_id: `Quadriciclo ${QUAD_MODELS_LABELS[model as keyof typeof QUAD_MODELS_LABELS] || 'Individual'}`,
-               metadata: { time: time, time_slot: time } 
-            }).eq('id', quadItem.id);
-            await updateOrderTotal(orderId);
+         if (quadItem) oiId = quadItem.id;
+      }
+
+      // Use edge function to bypass RLS for admin modifications
+      const { data: funcData, error: funcErr } = await supabase.functions.invoke('create-internal-order', {
+         body: {
+            action: 'update_quad',
+            item_id: item.id,
+            quad_type: model,
+            time_slot: time,
+            price: unitPrice * (item.quantity || 1),
+            order_item_id: oiId,
+            new_product_id: `Quadriciclo ${QUAD_MODELS_LABELS[model as keyof typeof QUAD_MODELS_LABELS] || 'Individual'}`
          }
+      });
+
+      if (funcErr || (funcData && !funcData.success)) {
+         throw funcErr || new Error(funcData?.error || 'Erro na edge function');
+      }
+      
+      if (orderId && !String(orderId).startsWith('order-')) {
+         await updateOrderTotal(orderId);
       }
 
       toast({ title: "Sucesso!", description: "Reserva atualizada com sucesso." });
