@@ -67,7 +67,7 @@ export function HeroSection() {
 
         <motion.div
           variants={itemVariants}
-          className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12"
+          className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8"
         >
           <div className="flex items-center gap-2 bg-white/10 backdrop-blur-xl px-4 py-2.5 rounded-2xl border border-white/20 shadow-2xl scale-[0.9] sm:scale-100 transition-transform hover:scale-105">
             <div className="flex text-sun drop-shadow-sm">
@@ -80,10 +80,22 @@ export function HeroSection() {
             <span className="text-white font-black text-base sm:text-lg tracking-tight">Nota 4.8/5</span>
           </div>
           <div className="flex items-center gap-3 bg-white/10 backdrop-blur-xl px-4 py-2.5 rounded-2xl border border-white/20 shadow-2xl scale-[0.9] sm:scale-100 group transition-transform hover:scale-105">
-            <div className="bg-sun/20 p-1 rounded-lg">
-              <Sparkles className="h-4 w-4 sm:h-5 sm:h-5 text-sun animate-pulse shrink-0" />
+            <div className="bg-emerald-500/20 p-1 rounded-lg">
+              <Sparkles className="h-4 w-4 sm:h-5 sm:h-5 text-emerald-400 animate-pulse shrink-0" />
             </div>
-            <span className="text-white font-black text-sm sm:text-lg truncate tracking-tight">10.000+ visitantes felizes</span>
+            <span className="text-white font-black text-sm sm:text-lg truncate tracking-tight uppercase">Mais de 10.000 visitantes felizes</span>
+          </div>
+        </motion.div>
+
+        <motion.div
+          variants={itemVariants}
+          className="flex justify-center mb-12"
+        >
+          <div className="inline-flex items-center gap-3 bg-black/40 backdrop-blur-md px-6 py-3 rounded-2xl border border-white/10 shadow-2xl">
+            <span className="text-xl">📍</span>
+            <span className="text-white font-black text-[10px] sm:text-xs uppercase tracking-[0.2em] opacity-90">
+              Aberto das 9h às 17h • Sextas, Sábados, Domingos, Segundas e Feriados
+            </span>
           </div>
         </motion.div>
 

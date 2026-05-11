@@ -49,6 +49,12 @@ export function Navbar() {
           </div>
           
           <div className="flex items-center gap-3">
+            <Button asChild variant="outline" className="hidden xl:flex bg-white/5 text-primary-foreground hover:bg-white/10 border-white/20 font-bold px-4 h-10 rounded-xl transition-all">
+              <Link to="/consultar" className="flex items-center gap-2">
+                <Search className="h-4 w-4" /> Consultar Reserva
+              </Link>
+            </Button>
+
             <Button asChild size="icon" className="bg-gradient-to-br from-emerald-500 to-emerald-700 hover:from-emerald-400 hover:to-emerald-600 text-white shadow-xl shadow-emerald-500/30 shrink-0 transition-all hover:scale-110 rounded-2xl border-2 border-emerald-400/50">
               <a href="/admin" target="_blank" rel="noopener noreferrer" title="Painel de Administração">
                 <Settings className="h-5 w-5 animate-[spin_4s_linear_infinite]" />
