@@ -8,6 +8,7 @@ import {
   CalendarCheck, 
   AlertTriangle,
   HelpCircle,
+  CheckCircle2,
   Calendar as CalendarIcon
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
@@ -157,14 +158,36 @@ export function AdminDashboardTab({
                         });
                         
                         return (
-                          <div key={k.id} className="bg-white rounded-xl p-3 shadow-sm border border-emerald-200 flex items-center justify-between group hover:bg-emerald-800 transition-all cursor-default">
-                             <span className="font-black text-emerald-950 text-[12px] md:text-[13px] group-hover:text-white transition-colors">{k.name}</span>
+                          <div key={k.id} className={cn(
+                            "rounded-xl p-3 shadow-sm border transition-all cursor-default flex items-center justify-between group",
+                            booking 
+                              ? booking.status === 'checked-in'
+                                ? "bg-emerald-100 border-emerald-300 ring-2 ring-emerald-500/20"
+                                : "bg-white border-emerald-200 hover:bg-emerald-800"
+                              : "bg-white border-emerald-100/50 hover:bg-emerald-50"
+                          )}>
+                             <div className="flex items-center gap-2">
+                                <span className={cn(
+                                  "font-black text-[12px] md:text-[13px] transition-colors",
+                                  booking && booking.status !== 'checked-in' ? "group-hover:text-white" : "text-emerald-950"
+                                )}>
+                                  {k.name}
+                                </span>
+                                {booking?.status === 'checked-in' && (
+                                  <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white text-[8px] font-black px-1.5 py-0 rounded-md border-none flex items-center gap-1">
+                                    <CheckCircle2 className="w-2.5 h-2.5" /> OCUPADO
+                                  </Badge>
+                                )}
+                             </div>
                              {booking ? (
-                               <span className="text-emerald-700 font-bold italic text-[12px] md:text-[13px] text-right group-hover:text-emerald-100 transition-colors truncate max-w-[140px]">
+                               <span className={cn(
+                                 "font-bold italic text-[12px] md:text-[13px] text-right transition-colors truncate max-w-[140px]",
+                                 booking.status === 'checked-in' ? "text-emerald-800" : "text-emerald-700 group-hover:text-emerald-100"
+                               )}>
                                   {booking.customer_name}
                                </span>
                              ) : (
-                               <span className="text-emerald-800/80 italic font-bold text-[12px] md:text-[13px] group-hover:text-emerald-200/50 transition-colors">Livre</span>
+                               <span className="text-emerald-800/80 italic font-bold text-[12px] md:text-[13px] group-hover:text-emerald-600 transition-colors">Livre</span>
                              )}
                           </div>
                         );
