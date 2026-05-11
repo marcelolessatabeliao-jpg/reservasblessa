@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Ticket, Plus, X, User, UserPlus, Baby, CalendarIcon, Heart, Info, Phone, ArrowLeft, ArrowRight, CheckCircle2, Accessibility, GraduationCap, Briefcase, Gift, Loader2 } from 'lucide-react';
+import { Ticket, Plus, X, User, UserPlus, Baby, CalendarIcon, Heart, Info, Phone, ArrowLeft, ArrowRight, CheckCircle2, Accessibility, GraduationCap, Briefcase, Gift, Loader2, Home, MapPin } from 'lucide-react';
 import { BookingState, formatCurrency, isOperatingDay, ChildInfo, AdultInfo } from '@/lib/booking-types';
 import { useServices } from '@/hooks/useServices';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -14,6 +14,16 @@ import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { formatPhone } from '@/lib/utils/format';
+import { getBookedKioskIds } from '@/lib/booking-service';
+
+// Physical kiosk definitions matching the real layout
+const KIOSK_MAP = [
+  { id: 1, type: 'maior' as const, label: 'Quiosque 01', capacity: '20 a 25 pessoas', row: 'bottom', icon: '🏠' },
+  { id: 2, type: 'menor' as const, label: 'Quiosque 02', capacity: 'Até 15 pessoas', row: 'top', icon: '🏡' },
+  { id: 3, type: 'menor' as const, label: 'Quiosque 03', capacity: 'Até 15 pessoas', row: 'top', icon: '🏡' },
+  { id: 4, type: 'menor' as const, label: 'Quiosque 04', capacity: 'Até 15 pessoas', row: 'top', icon: '🏡' },
+  { id: 5, type: 'menor' as const, label: 'Quiosque 05', capacity: 'Até 15 pessoas', row: 'top', icon: '🏡' },
+];
 
 interface Props {
   entry: BookingState['entry'];
@@ -35,6 +45,9 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
   const [wizardType, setWizardType] = useState<WizardType>(null);
   const [wizardStep, setWizardStep] = useState<number>(1);
   const [wizardData, setWizardData] = useState<any>({ age: null, category: 'inteira', takeDonation: false, isPCD: false });
+  const [isAvailabilityOpen, setIsAvailabilityOpen] = useState(false);
+  const [bookedKioskIds, setBookedKioskIds] = useState<number[]>([]);
+  const [isFetchingKiosks, setIsFetchingKiosks] = useState(false);
 
   const { getPrice } = useServices();
 
@@ -83,7 +96,8 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
       isServer: category === 'servidor',
       isBloodDonor: category === 'doador',
       isBirthday: category === 'aniversariante',
-      isMember: category === 'assinante',
+      isMember: category === 'assinante' || category === 'associado',
+      isCounterPayment: category === 'balcao',
       takeDonation: !!takeDonation
     };
 
@@ -96,7 +110,8 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
       p1.isBloodDonor === p2.isBloodDonor && 
       p1.isBirthday === p2.isBirthday && 
       p1.takeDonation === p2.takeDonation &&
-      p1.isMember === p2.isMember;
+      p1.isMember === p2.isMember &&
+      p1.isCounterPayment === p2.isCounterPayment;
 
     if (wizardType === 'child' || (flags.age && flags.age <= 11)) {
       const existingIdx = entry.children.findIndex(c => isSamePerson(c, flags));
@@ -118,6 +133,20 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
     resetWizard();
   };
 
+
+  const handleOpenAvailability = async () => {
+    if (!entry.visitDate) return;
+    setIsAvailabilityOpen(true);
+    setIsFetchingKiosks(true);
+    try {
+      const ids = await getBookedKioskIds(format(entry.visitDate, 'yyyy-MM-dd'));
+      setBookedKioskIds(ids);
+    } catch (err) {
+      console.error("Error fetching kiosks:", err);
+    } finally {
+      setIsFetchingKiosks(false);
+    }
+  };
 
   const renderWizardStep = () => {
     switch (wizardStep) {
@@ -238,26 +267,46 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
             <div className="grid grid-cols-2 gap-2 px-1">
               <button 
                 className={cn(
-                  "col-span-2 h-auto py-4 px-4 flex items-center justify-center rounded-2xl border-2 transition-all duration-300 active:scale-[0.98] relative overflow-hidden bg-gold-metallic",
-                  wizardData.category === 'assinante' 
+                  "h-auto py-4 px-2 flex items-center justify-center rounded-2xl border-2 transition-all duration-300 active:scale-[0.98] relative overflow-hidden bg-gold-metallic",
+                  (wizardData.category === 'assinante' || wizardData.category === 'associado')
                     ? "border-[#8a6d3b] text-[#332200] shadow-[0_12px_30px_rgba(184,134,11,0.5)] scale-[1.01]" 
                     : "border-[#bf953f]/50 text-[#332200] shadow-md hover:border-[#bf953f] hover:shadow-lg"
                 )}
                 onClick={() => {
-                   setWizardData({ ...wizardData, category: 'assinante' });
-                   handleFinishWizard('assinante', false);
+                   setWizardData({ ...wizardData, category: 'associado' });
+                   handleFinishWizard('associado', false);
                 }}
               >
-                <div className="flex items-center gap-3 relative z-10">
+                <div className="flex flex-col items-center gap-1.5 relative z-10 text-center">
                   <motion.span 
                     animate={{ rotate: [0, 8, -8, 0] }}
                     transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
-                    className="text-2xl filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.3)]"
+                    className="text-xl filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.3)]"
                   >
                     👑
                   </motion.span>
-                  <span className="font-black text-sm sm:text-base uppercase tracking-widest leading-none">
-                    Sou Assinante Lessa Club
+                  <span className="font-black text-[10px] sm:text-xs uppercase tracking-tight leading-tight">
+                    Já sou Associado
+                  </span>
+                </div>
+              </button>
+
+              <button 
+                className={cn(
+                  "h-auto py-4 px-2 flex items-center justify-center rounded-2xl border-2 transition-all duration-300 active:scale-[0.98] relative overflow-hidden",
+                  wizardData.category === 'balcao'
+                    ? "bg-emerald-600 border-emerald-700 text-white shadow-lg scale-[1.01]" 
+                    : "bg-white border-slate-200 text-slate-600 hover:border-emerald-300 hover:bg-emerald-50/50 shadow-sm"
+                )}
+                onClick={() => {
+                   setWizardData({ ...wizardData, category: 'balcao' });
+                   handleFinishWizard('balcao', false);
+                }}
+              >
+                <div className="flex flex-col items-center gap-1.5 relative z-10 text-center">
+                  <span className="text-xl">💵</span>
+                  <span className="font-black text-[10px] sm:text-xs uppercase tracking-tight leading-tight">
+                    Pagar no Balcão
                   </span>
                 </div>
               </button>
@@ -628,63 +677,165 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
 
         {/* 1. Escolha a Data Row */}
         {!hideMainInfo && (
-          <div className="space-y-3 p-4 bg-primary/5 rounded-[2rem] border border-primary/10 shadow-[inset_0_1px_4px_rgba(0,0,0,0.02)]">
-            <label className="text-xs font-black flex items-center gap-2 text-primary uppercase tracking-widest">
-              <CalendarIcon className="h-4 w-4" /> Escolha a Data da Reserva
-            </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-primary/5 p-4 rounded-[2rem] border border-primary/10 shadow-[inset_0_1px_4px_rgba(0,0,0,0.02)]">
+            <div className="space-y-3">
+              <label className="text-xs font-black flex items-center gap-2 text-primary uppercase tracking-widest">
+                <CalendarIcon className="h-4 w-4" /> Escolha a Data da Reserva
+              </label>
 
-            <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen} modal={true}>
-              <PopoverTrigger asChild>
-                {entry.visitDate ? (
-                  <Button
-                    variant="outline"
-                    className="w-full h-12 justify-between px-4 font-sans font-bold text-sm rounded-2xl border-emerald-500/30 bg-emerald-100/50 text-emerald-900 shadow-sm hover:bg-emerald-200/80 hover:text-emerald-950 transition-all uppercase tracking-tight"
-                  >
-                    <div className="flex items-center gap-2">
-                      <CalendarIcon className="h-4 w-4 text-emerald-600" />
-                      <span>{format(entry.visitDate, "dd/MM/yyyy", { locale: ptBR })}</span>
-                      <span className="bg-emerald-700 text-white px-2 py-0.5 rounded-lg text-[10px] font-black">
-                        {format(entry.visitDate, "EEEE", { locale: ptBR })}
-                      </span>
-                    </div>
-                    <span className="text-[10px] opacity-60 underline">Mudar data</span>
-                  </Button>
-                ) : (
-                  <Button
-                    variant="outline"
-                    className="w-full h-12 justify-start px-4 font-sans font-bold text-sm rounded-2xl border-primary/20 bg-white text-muted-foreground shadow-sm hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 transition-all uppercase tracking-tight group"
-                  >
-                    <CalendarIcon className="mr-2 h-5 w-5 shrink-0 text-primary group-hover:scale-110 transition-transform" />
-                    Clique para escolher a data...
-                  </Button>
+              <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen} modal={true}>
+                <PopoverTrigger asChild>
+                  {entry.visitDate ? (
+                    <Button
+                      variant="outline"
+                      className="w-full h-11 justify-between px-4 font-sans font-bold text-xs rounded-xl border-emerald-500/30 bg-emerald-100/50 text-emerald-900 shadow-sm hover:bg-emerald-200/80 hover:text-emerald-950 transition-all uppercase tracking-tight"
+                    >
+                      <div className="flex items-center gap-2">
+                        <CalendarIcon className="h-4 w-4 text-emerald-600" />
+                        <span>{format(entry.visitDate, "dd/MM/yyyy", { locale: ptBR })}</span>
+                      </div>
+                      <span className="text-[10px] opacity-60 underline">Mudar</span>
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      className="w-full h-11 justify-start px-4 font-sans font-bold text-xs rounded-xl border-primary/20 bg-white text-muted-foreground shadow-sm hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 transition-all uppercase tracking-tight group"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4 shrink-0 text-primary group-hover:scale-110 transition-transform" />
+                      Clique para escolher a data...
+                    </Button>
+                  )}
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 rounded-3xl border-primary/10 shadow-2xl" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={entry.visitDate || undefined}
+                    onSelect={(d) => {
+                      if (d) {
+                        const dayMap: Record<number, any> = { 0: 'domingo', 1: 'segunda', 5: 'sexta', 6: 'sabado' };
+                        const dayOfWeek = dayMap[d.getDay()] || 'segunda';
+                        onUpdateEntry({ visitDate: d, dayOfWeek });
+                      }
+                      setTimeout(() => setIsCalendarOpen(false), 50);
+                    }}
+                    disabled={(d) => {
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      return d < today || !isOperatingDay(d);
+                    }}
+                    className="p-3 pointer-events-auto"
+                    locale={ptBR}
+                    classNames={{
+                      day_today: "bg-primary/10 text-primary font-bold",
+                      day_selected: "bg-primary text-white font-bold hover:bg-primary hover:text-white",
+                    }}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="space-y-3">
+              <label className="text-xs font-black flex items-center gap-2 text-primary uppercase tracking-widest">
+                <Home className="h-4 w-4" /> Disponibilidade
+              </label>
+              <Button
+                variant="outline"
+                disabled={!entry.visitDate}
+                onClick={handleOpenAvailability}
+                className={cn(
+                  "w-full h-11 rounded-xl border-2 font-black text-[10px] uppercase tracking-widest transition-all",
+                  entry.visitDate 
+                    ? "border-primary/30 text-primary hover:bg-primary hover:text-white shadow-sm" 
+                    : "border-slate-100 text-slate-400 bg-slate-50/50"
                 )}
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0 rounded-3xl border-primary/10 shadow-2xl" align="start">
-                <Calendar
-                  mode="single"
-                  selected={entry.visitDate || undefined}
-                  onSelect={(d) => {
-                    if (d) {
-                      const dayMap: Record<number, any> = { 0: 'domingo', 1: 'segunda', 5: 'sexta', 6: 'sabado' };
-                      const dayOfWeek = dayMap[d.getDay()] || 'segunda';
-                      onUpdateEntry({ visitDate: d, dayOfWeek });
-                    }
-                    setTimeout(() => setIsCalendarOpen(false), 50);
-                  }}
-                  disabled={(d) => {
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-                    return d < today || !isOperatingDay(d);
-                  }}
-                  className="p-3 pointer-events-auto"
-                  locale={ptBR}
-                  classNames={{
-                    day_today: "bg-primary/10 text-primary font-bold",
-                    day_selected: "bg-primary text-white font-bold hover:bg-primary hover:text-white",
-                  }}
-                />
-              </PopoverContent>
-            </Popover>
+              >
+                {entry.visitDate ? "Ver quiosques para a data escolhida" : "Selecione uma data primeiro"}
+              </Button>
+            </div>
+
+            {/* Kiosk Availability Dialog */}
+            <Dialog open={isAvailabilityOpen} onOpenChange={setIsAvailabilityOpen}>
+              <DialogContent className="max-w-2xl rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl">
+                <div className="bg-gradient-to-br from-emerald-600 to-teal-700 p-6 text-white relative">
+                  <DialogTitle className="text-2xl font-black uppercase tracking-tighter flex items-center gap-3">
+                    <Home className="h-6 w-6" /> Mapa de Quiosques
+                  </DialogTitle>
+                  <p className="text-emerald-50/80 text-xs font-bold mt-1">
+                    {entry.visitDate && format(entry.visitDate, "dd 'de' MMMM", { locale: ptBR })}
+                  </p>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={() => setIsAvailabilityOpen(false)}
+                    className="absolute top-4 right-4 text-white hover:bg-white/10 rounded-full"
+                  >
+                    <X className="h-5 w-5" />
+                  </Button>
+                </div>
+
+                <div className="p-6 space-y-6 bg-emerald-50/30">
+                  <div className="bg-white/80 backdrop-blur-sm rounded-3xl border border-emerald-100 p-5 shadow-inner">
+                     <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                           <MapPin className="h-4 w-4 text-emerald-600" />
+                           <span className="text-[10px] font-black text-emerald-800/70 uppercase tracking-widest">Representação do Local</span>
+                        </div>
+                        {isFetchingKiosks && <Loader2 className="h-4 w-4 animate-spin text-emerald-600" />}
+                     </div>
+
+                     <div className="grid grid-cols-4 gap-2 mb-3">
+                        {KIOSK_MAP.filter(k => k.row === 'top').map(k => {
+                          const isBooked = bookedKioskIds.includes(k.id);
+                          return (
+                            <div key={k.id} className={cn(
+                              "aspect-square rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition-all",
+                              isBooked 
+                                ? "bg-slate-100 border-slate-200 text-slate-400 opacity-60" 
+                                : "bg-white border-emerald-500 shadow-sm text-emerald-700"
+                            )}>
+                              <span className="text-xl font-black">{String(k.id).padStart(2, '0')}</span>
+                              <span className="text-[8px] font-bold uppercase">{isBooked ? 'Ocupado' : 'Livre'}</span>
+                            </div>
+                          );
+                        })}
+                     </div>
+                     
+                     {KIOSK_MAP.filter(k => k.row === 'bottom').map(k => {
+                       const isBooked = bookedKioskIds.includes(k.id);
+                       return (
+                         <div key={k.id} className={cn(
+                           "w-full h-16 rounded-2xl border-2 flex items-center justify-between px-6 transition-all",
+                           isBooked 
+                             ? "bg-slate-100 border-slate-200 text-slate-400 opacity-60" 
+                             : "bg-white border-emerald-500 shadow-sm text-emerald-700"
+                         )}>
+                            <div className="flex items-center gap-3">
+                              <span className="text-2xl font-black">{String(k.id).padStart(2, '0')}</span>
+                              <span className="text-[10px] font-black uppercase tracking-widest">Quiosque Maior</span>
+                            </div>
+                            <span className="text-[10px] font-bold uppercase">{isBooked ? 'Ocupado' : 'Livre'}</span>
+                         </div>
+                       );
+                     })}
+                  </div>
+
+                  <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-center">
+                     <p className="text-amber-900 text-xs font-bold leading-relaxed">
+                        ⚠️ <strong>Atenção:</strong> Continue com a reserva para selecionar o quiosque nas próximas etapas.
+                     </p>
+                  </div>
+                </div>
+
+                <DialogFooter className="p-6 bg-white border-t border-slate-100">
+                  <Button 
+                    onClick={() => setIsAvailabilityOpen(false)}
+                    className="w-full h-12 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest shadow-lg"
+                  >
+                    Entendido
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
         )}
 
@@ -770,30 +921,33 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                                     (adult.age >= 60 && adult.isPCD) ? 'Lessa Vitalício - PCD & TEA' :
                                       adult.isPCD ? 'Lessa Inclusão - PCD & TEA' :
                                         (adult.age >= 60) ? 'Lessa Vitalício' :
-                                          adult.isMember ? 'Assinante Lessa Club 👑' :
+                                          adult.isMember ? 'Associado Lessa Club 👑' :
+                                          adult.isCounterPayment ? 'Pagamento no Balcão' :
                                           adult.takeDonation ? 'Adulto Solidário' :
                                             'Adulto - Entrada Inteira'}
                         </span>
                         {adult.isPCD && <span className="text-[8px] sm:text-[9px] bg-whatsapp/20 text-whatsapp-dark px-2 py-0.5 rounded-full font-black uppercase">♿ PCD</span>}
                         {(adult.isTeacher || adult.isStudent || adult.isServer || (adult as any).isBloodDonor) && <span className="text-[8px] sm:text-[9px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-black uppercase">Meia-Entrada</span>}
                         {adult.takeDonation && <span className="text-[8px] sm:text-[9px] bg-sun/20 text-sun-dark px-2 py-0.5 rounded-full font-black uppercase">❤️ Solidária</span>}
-                        {adult.isMember && <span className="text-[8px] sm:text-[9px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-black uppercase">👑 Membro</span>}
+                        {adult.isMember && <span className="text-[8px] sm:text-[9px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-black uppercase">👑 Associado</span>}
+                        {adult.isCounterPayment && <span className="text-[8px] sm:text-[9px] bg-slate-100 text-slate-800 px-2 py-0.5 rounded-full font-black uppercase">💵 Balcão</span>}
                       </div>
                       {adult.isBirthday && <p className="text-[10px] text-sun-dark font-bold">🎂 Entrada grátis (mediante comprovação)</p>}
                       {adult.isPCD && <p className="text-[10px] text-whatsapp-dark font-bold">✨ entrada gratuita + 1 acompanhante gratuito</p>}
                       {adult.age >= 60 && !adult.isPCD && <p className="text-[10px] text-whatsapp-dark font-bold">✨ entrada gratuita - sócio vitalício</p>}
                       {(adult.isTeacher || adult.isStudent || adult.isServer || (adult as any).isBloodDonor) && <p className="text-[10px] text-primary font-bold">✨ benefício de meia-entrada 50% OFF</p>}
                       {adult.takeDonation && <p className="text-[10px] text-sun-dark font-bold">❤️ Levará 1kg de alimento para desconto ou outro donativo</p>}
-                      {adult.isMember && <p className="text-[10px] text-amber-700 font-bold">👑 Assinante mensal do Balneário Lessa</p>}
+                      {adult.isMember && <p className="text-[10px] text-amber-700 font-bold">👑 Associado mensal do Balneário Lessa</p>}
+                      {adult.isCounterPayment && <p className="text-[10px] text-slate-500 font-bold">💵 Entrada será paga diretamente na recepção</p>}
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
                     <span className={cn(
                       "font-black text-sm sm:text-base tabular-nums",
-                      (adult.age >= 60 || adult.isPCD || adult.isBirthday) ? "text-whatsapp-dark" : "text-primary"
+                      (adult.age >= 60 || adult.isPCD || adult.isBirthday || adult.isMember || adult.isCounterPayment) ? "text-whatsapp-dark" : "text-primary"
                     )}>
-                      {(adult.age >= 60 || adult.isPCD || adult.isBirthday || adult.isMember)
-                         ? (adult.isMember ? "ASSINANTE" : "GRÁTIS")
+                      {(adult.age >= 60 || adult.isPCD || adult.isBirthday || adult.isMember || adult.isCounterPayment)
+                         ? (adult.isMember ? "ASSOCIADO" : adult.isCounterPayment ? "NO BALCÃO" : "GRÁTIS")
                         : formatCurrency(((adult.isTeacher || adult.isStudent || adult.isServer || (adult as any).isBloodDonor || adult.takeDonation) ? 25 : 50) * (adult.quantity || 1))
                       }
                     </span>

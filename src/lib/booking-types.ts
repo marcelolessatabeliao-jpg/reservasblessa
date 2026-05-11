@@ -10,6 +10,7 @@ export interface AdultInfo {
   isTEA?: boolean;
   isBirthday?: boolean;
   isMember?: boolean;
+  isCounterPayment?: boolean;
 }
 
 export interface ChildInfo {
@@ -24,6 +25,7 @@ export interface ChildInfo {
   isTEA?: boolean;
   isBirthday?: boolean;
   isMember?: boolean;
+  isCounterPayment?: boolean;
 }
 
 export interface EntryBooking {
@@ -168,8 +170,8 @@ export function getPersonPrice(
   isSunday: boolean,
   getPrice: (type: string, fallback: number) => number
 ): number {
-  // Gratuidades: PCD/TEA, Aniversariante, Idoso (60+), Criança (0 a 11), Assinante Lessa Club
-  if (defaultGratuity || person.isPCD || person.isTEA || person.isBirthday || person.isMember) {
+  // Gratuidades: PCD/TEA, Aniversariante, Idoso (60+), Criança (0 a 11), Assinante Lessa Club, Pagamento no Balcão
+  if (defaultGratuity || person.isPCD || person.isTEA || person.isBirthday || person.isMember || person.isCounterPayment) {
     return 0;
   }
   

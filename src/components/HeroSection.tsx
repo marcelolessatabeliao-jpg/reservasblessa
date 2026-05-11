@@ -1,57 +1,75 @@
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Ticket, Calculator, ChevronRight } from 'lucide-react';
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+      delayChildren: 0.3,
+    },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { 
+    opacity: 1, 
+    y: 0,
+    transition: { type: "spring", stiffness: 100, damping: 20 }
+  },
+};
 
 export function HeroSection() {
   return (
-    <section id="inicio" className="relative min-h-[50vh] sm:min-h-[65vh] flex items-center justify-center overflow-hidden">
-      <div
-        className="absolute inset-0 bg-cover bg-[center_35%]"
+    <section id="inicio" className="relative min-h-[70vh] sm:min-h-[85vh] flex items-center justify-center overflow-hidden">
+      {/* Background Image with Parallax-like feel */}
+      <motion.div
+        initial={{ scale: 1.1 }}
+        animate={{ scale: 1 }}
+        transition={{ duration: 10, ease: "easeOut" }}
+        className="absolute inset-0 bg-cover bg-[center_35%] z-0"
         style={{ backgroundImage: `url(/images/cachoeira-nova-larga.jpg)` }}
       />
-      <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/50 to-primary/80" />
+      
+      {/* Multi-layer Gradient Overlay for Depth */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/40 to-emerald-950/90 z-[1]" />
+      <div className="absolute inset-0 bg-gradient-to-r from-emerald-950/30 via-transparent to-emerald-950/30 z-[1]" />
 
-      <div className="relative z-10 container text-center px-4 py-16 sm:py-20">
+      <motion.div 
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        className="relative z-10 container text-center px-4 py-20 sm:py-32"
+      >
         <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ 
-            opacity: 1, 
-            y: [0, -5, 0],
-          }}
-          transition={{ 
-            opacity: { duration: 0.7 },
-            y: { duration: 4, repeat: Infinity, ease: "easeInOut" }
-          }}
-          className="inline-block bg-sun text-foreground font-display font-black text-[10px] sm:text-xs px-4 sm:px-6 py-1.5 sm:py-2 rounded-full mb-4 sm:mb-6 shadow-xl uppercase tracking-widest"
+          variants={itemVariants}
+          className="inline-flex items-center gap-2 bg-sun text-slate-900 font-display font-black text-[10px] sm:text-xs px-5 sm:px-7 py-2 sm:py-2.5 rounded-full mb-6 sm:mb-8 shadow-2xl uppercase tracking-widest border border-white/20"
         >
-          🌿 O Jardim do Éden em Ariquemes
+          <Sparkles className="h-3 w-3 animate-pulse" /> 🌿 O Jardim do Éden em Ariquemes
         </motion.div>
 
         <motion.h1
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7 }}
-          className="font-display font-extrabold text-[2.5rem] leading-[1.05] sm:text-6xl md:text-7xl lg:text-8xl text-white mb-4 sm:mb-6 drop-shadow-2xl px-2 break-words"
+          variants={itemVariants}
+          className="font-display font-black text-[2.8rem] leading-[1] sm:text-6xl md:text-7xl lg:text-8xl xl:text-9xl text-white mb-6 sm:mb-8 drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)] px-2"
         >
-          Balneário Lessa
+          Balneário <span className="text-sun drop-shadow-none">Lessa</span>
         </motion.h1>
 
         <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2 }}
-          className="text-white/90 font-bold text-lg sm:text-xl md:text-2xl max-w-3xl mx-auto mb-8 sm:mb-10 font-body px-4 drop-shadow-md leading-relaxed"
+          variants={itemVariants}
+          className="text-white/90 font-bold text-lg sm:text-xl md:text-2xl max-w-3xl mx-auto mb-10 sm:mb-12 font-body px-4 drop-shadow-md leading-relaxed italic"
         >
-          Natureza, lazer, fé e aventura para toda a família
+          Natureza, lazer, fé e aventura para toda a família em um ambiente acolhedor e cristão.
         </motion.p>
 
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.25 }}
-          className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-8"
+          variants={itemVariants}
+          className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12"
         >
-          <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md px-3 sm:px-4 py-2 rounded-2xl border border-white/20 shadow-lg scale-[0.9] sm:scale-100">
+          <div className="flex items-center gap-2 bg-white/10 backdrop-blur-xl px-4 py-2.5 rounded-2xl border border-white/20 shadow-2xl scale-[0.9] sm:scale-100 transition-transform hover:scale-105">
             <div className="flex text-sun drop-shadow-sm">
               {[1, 2, 3, 4, 5].map((s) => (
                 <svg key={s} className="w-4 h-4 sm:w-5 sm:h-5 fill-current" viewBox="0 0 20 20">
@@ -59,51 +77,46 @@ export function HeroSection() {
                 </svg>
               ))}
             </div>
-            <span className="text-white font-black text-base sm:text-lg">Nota 4.8/5</span>
+            <span className="text-white font-black text-base sm:text-lg tracking-tight">Nota 4.8/5</span>
           </div>
-          <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md px-3 sm:px-4 py-2 rounded-2xl border border-white/20 shadow-lg scale-[0.9] sm:scale-100 group">
-            <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-sun animate-pulse shrink-0" />
-            <span className="text-white font-black text-sm sm:text-lg truncate">10.000+ visitantes felizes</span>
+          <div className="flex items-center gap-3 bg-white/10 backdrop-blur-xl px-4 py-2.5 rounded-2xl border border-white/20 shadow-2xl scale-[0.9] sm:scale-100 group transition-transform hover:scale-105">
+            <div className="bg-sun/20 p-1 rounded-lg">
+              <Sparkles className="h-4 w-4 sm:h-5 sm:h-5 text-sun animate-pulse shrink-0" />
+            </div>
+            <span className="text-white font-black text-sm sm:text-lg truncate tracking-tight">10.000+ visitantes felizes</span>
           </div>
         </motion.div>
-
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="text-white/90 font-bold text-xs sm:text-base mb-10 px-6 py-3 bg-black/40 backdrop-blur-md block max-w-none mx-auto rounded-2xl border border-white/20 leading-tight w-fit shadow-2xl"
-        >
-          📍 Aberto das 9h às 17h • Sextas, Sábados, Domingos, Segun. e Feriados
-        </motion.p>
 
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.4 }}
-          className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center px-4 sm:px-0 relative z-10"
+          variants={itemVariants}
+          className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center px-4 sm:px-0 relative z-10"
         >
-          <Button asChild size="lg" className="bg-sun hover:bg-sun/90 text-foreground text-base sm:text-lg px-6 sm:px-8 py-5 sm:py-6 font-display font-black shadow-lg w-full sm:w-auto rounded-xl transition-all">
-            <motion.a whileTap={{ scale: 0.96 }} href="#reservas">🎫 Fazer Reserva</motion.a>
+          <Button asChild size="lg" className="relative group bg-sun hover:bg-sun-light text-slate-950 text-base sm:text-xl px-8 sm:px-12 py-7 sm:py-8 font-display font-black shadow-[0_20px_50px_rgba(234,179,8,0.3)] w-full sm:w-auto rounded-[2rem] transition-all duration-300 hover:-translate-y-1 active:scale-95 overflow-hidden">
+            <a href="#reservas" className="flex items-center gap-3">
+              <Ticket className="h-6 w-6" /> Fazer Reserva 
+              <ChevronRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
+              <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out" />
+            </a>
           </Button>
-          <Button asChild size="lg" className="bg-emerald-600/90 hover:bg-emerald-700 text-white border border-emerald-400/40 text-base sm:text-lg px-6 sm:px-8 py-5 sm:py-6 font-display font-bold backdrop-blur-sm w-full sm:w-auto rounded-xl shadow-lg transition-all">
-            <motion.a whileTap={{ scale: 0.96 }} href="#especiais">📊 Simular Meu Plano</motion.a>
-          </Button>
-          <Button asChild size="lg" className="bg-white/20 hover:bg-white/30 text-white border border-white/40 text-base sm:text-lg px-6 sm:px-8 py-5 sm:py-6 font-display backdrop-blur-sm w-full sm:w-auto rounded-xl transition-all">
-            <motion.a whileTap={{ scale: 0.96 }} href="#servicos">Nossos Serviços</motion.a>
+
+          <Button asChild size="lg" className="bg-emerald-600/20 hover:bg-emerald-600/40 text-white border-2 border-emerald-400/50 text-base sm:text-xl px-8 sm:px-10 py-7 sm:py-8 font-display font-bold backdrop-blur-md w-full sm:w-auto rounded-[2rem] shadow-xl transition-all hover:-translate-y-1 active:scale-95">
+            <a href="#especiais" className="flex items-center gap-3">
+              <Calculator className="h-6 w-6" /> Simular Meu Plano
+            </a>
           </Button>
         </motion.div>
-      </div>
+      </motion.div>
 
-      {/* Transitional Wave */}
-      <div className="absolute bottom-0 left-0 w-full overflow-hidden leading-none transform rotate-180">
+      {/* Transitional Wave with improved color matching */}
+      <div className="absolute bottom-0 left-0 w-full overflow-hidden leading-none transform rotate-180 z-10">
         <svg 
-          className="relative block w-[calc(110%+1.3px)] h-[50px] sm:h-[80px]" 
+          className="relative block w-[calc(130%+1.3px)] h-[60px] sm:h-[100px]" 
           viewBox="0 0 1200 120" 
           preserveAspectRatio="none"
         >
           <path 
             d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V0H0V27.35A600.21,600.21,0,0,0,321.39,56.44Z" 
-            className="fill-background"
+            className="fill-emerald-50/80"
           ></path>
         </svg>
       </div>
