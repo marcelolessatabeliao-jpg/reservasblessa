@@ -2003,21 +2003,54 @@ export default function Admin() {
                       onStatusChange={updateBookingStatus}
                       onAddNote={addBookingNote}
                       onReschedule={async (id, date, isOrder) => {
-                         const table = isOrder ? 'orders' : 'bookings';
-                         const { error } = await supabase.from(table).update({ visit_date: date }).eq('id', id);
-                         if (error) toast({ title: "Erro ao reagendar", variant: "destructive" });
-                         else { toast({ title: "✓ Reagendado" }); fetchData(); }
+                         setLoading(true);
+                         try {
+                           const table = isOrder ? 'orders' : 'bookings';
+                           const idField = isOrder ? 'order_id' : 'booking_id';
+                           
+                           // 1. Update the main record
+                           const { error: mainError } = await supabase.from(table).update({ visit_date: date }).eq('id', id);
+                           if (mainError) throw mainError;
+
+                           // 2. Update related kiosks
+                           await supabase.from('kiosk_reservations').update({ reservation_date: date }).eq(idField, id);
+                           
+                           // 3. Update related quads
+                           await supabase.from('quad_reservations').update({ reservation_date: date }).eq(idField, id);
+
+                           toast({ title: "✓ Toda a reserva foi reagendada para " + format(parseISO(date), 'dd/MM/yyyy') });
+                           fetchData();
+                         } catch (err: any) {
+                           console.error('Reschedule error:', err);
+                           toast({ title: "Erro ao reagendar", description: err.message, variant: "destructive" });
+                         } finally {
+                           setLoading(false);
+                         }
                       }}
+                      onConvertToCredit={(b) => convertToCredit(b, b.is_order ? 'order' : 'reservas')}
                       onDelete={async (id, isOrder) => {
                           const table = isOrder ? 'orders' : 'bookings';
+                          const idField = isOrder ? 'order_id' : 'booking_id';
+                          if (!confirm("Deseja realmente excluir esta reserva e todos os itens vinculados?")) return;
+                          
+                          setLoading(true);
                           try {
+                            // 1. Delete related items first to avoid foreign key issues
+                            await supabase.from('kiosk_reservations').delete().eq(idField, id);
+                            await supabase.from('quad_reservations').delete().eq(idField, id);
+                            await supabase.from('order_items').delete().eq('order_id', id);
+                            
+                            // 2. Delete main record
                             const { error } = await supabase.from(table).delete().eq('id', id);
                             if (error) throw error;
+                            
                             toast({ title: "✓ Removido com sucesso" });
                             fetchData();
                           } catch (err: any) {
                             console.error('Delete error:', err);
                             toast({ title: "Erro ao remover: " + (err?.message || ''), variant: "destructive" });
+                          } finally {
+                            setLoading(false);
                           }
                       }}
                       onRemoveItem={() => {}}

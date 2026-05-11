@@ -698,23 +698,156 @@ export function BookingTable({
                               Reserva em Aberto
                             </Button>
                           )}
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                className={cn(
+                                  "h-12 rounded-xl text-[9px] font-black uppercase border-2 shadow-sm flex flex-col items-center justify-center w-full",
+                                  rescheduleId === booking.id
+                                    ? "bg-blue-600 text-white border-blue-700"
+                                    : "bg-white border-blue-200 text-blue-700",
+                                )}
+                              >
+                                <CalendarRange className="w-3.5 h-3.5 mb-0.5" />
+                                Reagendar
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent
+                              className="w-[280px] p-0 rounded-3xl border-2 border-blue-100 shadow-2xl overflow-hidden"
+                              align="center"
+                            >
+                              <div className="bg-blue-50 p-4 border-b border-blue-100">
+                                <p className="text-[10px] font-black text-blue-700 uppercase tracking-widest">
+                                  Nova Data da Visita
+                                </p>
+                              </div>
+                              <CalendarUI
+                                mode="single"
+                                locale={ptBR}
+                                selected={
+                                  rescheduleDate
+                                    ? parseISO(rescheduleDate)
+                                    : undefined
+                                }
+                                onSelect={(date) =>
+                                  setRescheduleDate(
+                                    date ? format(date, "yyyy-MM-dd") : "",
+                                  )
+                                }
+                                initialFocus
+                                className="p-3"
+                                disabled={(date) =>
+                                  isAllowedDay
+                                    ? !isAllowedDay(date) ||
+                                      isBefore(date, startOfDay(new Date()))
+                                    : isBefore(date, startOfDay(new Date()))
+                                }
+                                components={{
+                                  DayContent: ({ date }) => {
+                                    const dateStr = format(date, "yyyy-MM-dd");
+                                    const hasKiosk = (
+                                      kioskReservations || []
+                                    ).some((r) => r.reservation_date === dateStr);
+                                    const hasQuad = (
+                                      quadReservations || []
+                                    ).some((r) => r.reservation_date === dateStr);
+                                    const kiosksFull =
+                                      (kioskReservations || []).filter(
+                                        (r) => r.reservation_date === dateStr,
+                                      ).length >= 5;
+                                    const quadsFull =
+                                      (quadReservations || [])
+                                        .filter(
+                                          (r) => r.reservation_date === dateStr,
+                                        )
+                                        .reduce(
+                                          (s, r) =>
+                                            s + (Number(r.quantity) || 1),
+                                          0,
+                                        ) >=
+                                      totalQuads * 4;
+                                    const isFull = kiosksFull && quadsFull;
+                                    return (
+                                      <div
+                                        className={cn(
+                                          "relative flex flex-col items-center p-0.5 rounded w-full h-full justify-center",
+                                          isFull && "bg-red-50/50",
+                                        )}
+                                      >
+                                        <span
+                                          className={cn(
+                                            "text-[11px]",
+                                            isFull && "text-red-600 font-black",
+                                          )}
+                                        >
+                                          {date.getDate()}
+                                        </span>
+                                        <div className="flex gap-0.5 mt-0.5">
+                                          {hasKiosk && (
+                                            <div
+                                              className={cn(
+                                                "w-1.5 h-1.5 rounded-full ring-1 ring-white/50",
+                                                kiosksFull
+                                                  ? "bg-red-600"
+                                                  : "bg-emerald-600",
+                                              )}
+                                            />
+                                          )}
+                                          {hasQuad && (
+                                            <div
+                                              className={cn(
+                                                "w-1.5 h-1.5 rounded-full ring-1 ring-white/50",
+                                                quadsFull
+                                                  ? "bg-red-600"
+                                                  : "bg-blue-600",
+                                              )}
+                                            />
+                                          )}
+                                        </div>
+                                      </div>
+                                    );
+                                  },
+                                }}
+                              />
+                              <div className="p-4 bg-white flex gap-2">
+                                <Button
+                                  onClick={() => {
+                                    if (rescheduleDate) {
+                                      onReschedule(
+                                        booking.id,
+                                        rescheduleDate,
+                                        booking.is_order,
+                                      );
+                                      setRescheduleId(null);
+                                    }
+                                  }}
+                                  disabled={
+                                    !rescheduleDate || updatingId === booking.id
+                                  }
+                                  className="flex-1 bg-blue-600 text-white font-black text-[10px] h-10 rounded-xl"
+                                >
+                                  CONFIRMAR
+                                </Button>
+                              </div>
+                            </PopoverContent>
+                          </Popover>
                           <Button
                             variant="outline"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setRescheduleId(
-                                rescheduleId === booking.id ? null : booking.id,
-                              );
-                              setRescheduleDate(booking.visit_date || "");
+                              if (
+                                confirm(
+                                  "Deseja realmente excluir esta reserva permanentemente?",
+                                )
+                              ) {
+                                onDelete(booking.id, booking.is_order);
+                              }
                             }}
-                            className={cn(
-                              "h-12 rounded-xl text-[9px] font-black uppercase border-2 shadow-sm flex flex-col items-center justify-center",
-                              rescheduleId === booking.id
-                                ? "bg-blue-600 text-white border-blue-700"
-                                : "bg-white border-blue-200 text-blue-700",
-                            )}
+                            className="bg-red-50 hover:bg-red-100 border-2 border-red-200 text-red-600 h-12 rounded-xl text-[9px] font-black uppercase shadow-sm flex flex-col items-center justify-center gap-0.5 transition-all active:scale-95"
                           >
-                            Reagendar
+                            <Trash2 className="w-3.5 h-3.5" />
+                            Excluir
                           </Button>
                         </div>
                       </div>
