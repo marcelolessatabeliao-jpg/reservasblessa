@@ -333,7 +333,12 @@ export function InternalBookingAssistant({
                             mode="single"
                             selected={newBookingData.visit_date ? parseISO(newBookingData.visit_date) : undefined}
                             onSelect={(date) => {
-                               setNewBookingData({...newBookingData, visit_date: date ? format(date, 'yyyy-MM-dd') : ''});
+                               setNewBookingData({
+                                  ...newBookingData, 
+                                  visit_date: date ? format(date, 'yyyy-MM-dd') : '',
+                                  selected_kiosks: [],
+                                  quads: []
+                               });
                                setIsCalendarOpen(false);
                             }}
                             locale={ptBR}
@@ -553,7 +558,7 @@ export function InternalBookingAssistant({
                                                       setNewBookingData({...newBookingData, quads: newQuads});
                                                    }
                                                 }} 
-                                                disabled={qty === 0} 
+                                                disabled={qty === 0 || !newBookingData.visit_date} 
                                                 className="flex-1 h-6 rounded-md bg-white border border-slate-300 text-slate-800 hover:bg-rose-500 hover:text-white transition-all flex items-center justify-center text-[10px] font-black shadow-sm disabled:opacity-30">-</button>
                                               <button  
                                                 onClick={() => {
@@ -568,7 +573,7 @@ export function InternalBookingAssistant({
                                                       setNewBookingData({...newBookingData, quads: newQuads});
                                                    }
                                                 }} 
-                                                disabled={remaining <= 0} 
+                                                disabled={remaining <= 0 || !newBookingData.visit_date} 
                                                 className="flex-1 h-6 rounded-md bg-white border border-slate-300 text-slate-800 hover:bg-emerald-500 hover:text-white transition-all flex items-center justify-center text-[10px] font-black shadow-sm disabled:opacity-30">+</button>
                                            </div>
                                         </div>

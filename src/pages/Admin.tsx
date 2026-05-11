@@ -2314,11 +2314,13 @@ function EditKioskDialog({ group, onClose, onUpdated, updateOrderTotal }: any) {
         const newPrice = newKiosk?.type === 'Maior' ? 100 : 75;
 
         // 1. Update kiosk_reservations
-        await (supabase.from('kiosk_reservations') as any).update({
+        const { error: kioskErr } = await (supabase.from('kiosk_reservations') as any).update({
           kiosk_id: newKioskId,
           kiosk_type: kioskType,
           price: newPrice
         }).eq('id', item.id);
+        
+        if (kioskErr) throw kioskErr;
 
         // 2. Update order_items if linked
         if (orderId && !String(orderId).startsWith('order-')) {
@@ -2330,12 +2332,14 @@ function EditKioskDialog({ group, onClose, onUpdated, updateOrderTotal }: any) {
           );
           
           if (kioskItem) {
-             const kioskLabel = newKiosk?.type === 'Maior' ? 'Maior' : 'Menor';
-             await supabase.from('order_items').update({ 
+             const kioskLabel = String(newKioskId).padStart(2, '0');
+             const { error: oiErr } = await supabase.from('order_items').update({ 
                unit_price: newPrice,
                product_id: `Quiosque ${kioskLabel}`,
                metadata: { selectedIds: [newKioskId] } 
              }).eq('id', kioskItem.id);
+             
+             if (oiErr) throw oiErr;
           }
         }
       }
@@ -2414,11 +2418,13 @@ function EditQuadDialog({ item, onClose, onUpdated, updateOrderTotal }: any) {
       const unitPrice = (QUAD_PRICES[model as keyof typeof QUAD_PRICES] || 150) * (1 - discount);
       
       // 1. Update quad_reservations
-      await (supabase.from('quad_reservations') as any).update({ 
+      const { error: quadErr } = await (supabase.from('quad_reservations') as any).update({ 
         quad_type: model, 
         time_slot: time, 
         price: unitPrice * (item.quantity || 1) 
       }).eq('id', item.id);
+      
+      if (quadErr) throw quadErr;
 
       // 2. Update order_items if linked
       if (orderId && !String(orderId).startsWith('order-')) {
