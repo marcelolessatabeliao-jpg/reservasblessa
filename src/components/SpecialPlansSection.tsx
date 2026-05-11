@@ -101,9 +101,51 @@ export function SpecialPlansSection() {
         setIsOptionsOpen(true);
         return;
       }
+      if (quantities.adult === 1) {
+        setSelectedPlanInfo({
+          type: 'Individual',
+          monthlyLink: 'https://cartaobl.com.br/planos/?regPlano=1212252516762',
+          annualLink: 'https://cartaobl.com.br/planos/?regPlano=1291212252694389',
+          monthlyPrice: 49.90,
+          annualInstallment: 44.91,
+          annualTotal: 538.92
+        });
+        setIsOptionsOpen(true);
+        return;
+      }
+    }
+
+    // New logic: 1 Adult + 1 Special + dependents (Kids/Seniors)
+    const hasSpecial = quantities.student === 1 || quantities.teacher === 1 || quantities.server === 1;
+    const hasDependents = quantities.child > 0 || quantities.senior > 0;
+    
+    if (quantities.adult === 1 && hasSpecial && hasDependents) {
+      window.open('https://cartaobl.com.br/planos/?regPlano=1241212252690163', '_blank');
+      return;
+    }
+
+    // Modal logic for Lessa Club 2-5 adults (only adults)
+    if (quantities.adult === payingPeople && payingPeople >= 2 && payingPeople <= 5) {
+      const plans = {
+        2: { monthly: 99.80, installment: 89.82, total: 1077.84, mLink: 'https://cartaobl.com.br/planos/?regPlano=1051212252525908', aLink: 'https://cartaobl.com.br/planos/?regPlano=130121225265226' },
+        3: { monthly: 149.70, installment: 134.73, total: 1616.76, mLink: 'https://cartaobl.com.br/planos/?regPlano=1061212252544284', aLink: 'https://cartaobl.com.br/planos/?regPlano=1311212252636769' },
+        4: { monthly: 199.60, installment: 179.64, total: 2155.68, mLink: 'https://cartaobl.com.br/planos/?regPlano=1151212252593723', aLink: 'https://cartaobl.com.br/planos/?regPlano=1321212252666626' },
+        5: { monthly: 249.50, installment: 224.55, total: 2694.60, mLink: 'https://cartaobl.com.br/planos/?regPlano=1231212252657405', aLink: 'https://cartaobl.com.br/planos/?regPlano=1331212252649609' }
+      };
+      const plan = plans[payingPeople as keyof typeof plans];
+      setSelectedPlanInfo({
+        type: `${payingPeople} Pessoas`,
+        monthlyLink: plan.mLink,
+        annualLink: plan.aLink,
+        monthlyPrice: plan.monthly,
+        annualInstallment: plan.installment,
+        annualTotal: plan.total
+      });
+      setIsOptionsOpen(true);
+      return;
     }
     
-    // For other cases, use the direct link
+    // For other cases (6+ or mixed), use the direct link or WhatsApp
     window.open(getPlanLink(), '_blank');
   };
 
@@ -148,11 +190,11 @@ export function SpecialPlansSection() {
                 { key: 'server', label: 'Servidor', price: 25, emoji: '🏛️', color: 'bg-primary/5 border-primary/20', badge: '50% OFF' },
               ].map((item) => (
                 <div key={item.key} className={`flex items-center justify-between p-3 sm:p-5 rounded-2xl border shadow-sm transition-colors text-left ${item.color}`}>
-                  <div className="flex items-center gap-3 sm:gap-4 overflow-hidden">
+                  <div className="flex items-center gap-3 sm:gap-4">
                      <span className="text-2xl sm:text-3xl drop-shadow-sm shrink-0">{item.emoji}</span>
                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 mb-0.5 flex-nowrap">
-                          <h4 className="font-bold text-foreground text-sm sm:text-lg leading-tight italic whitespace-nowrap">
+                        <div className="flex items-center gap-2 mb-0.5 flex-nowrap overflow-visible">
+                          <h4 className="font-bold text-foreground text-sm sm:text-lg leading-tight italic whitespace-nowrap pr-1">
                             {item.label}
                           </h4>
                           {item.badge && (

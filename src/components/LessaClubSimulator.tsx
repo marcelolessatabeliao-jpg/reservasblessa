@@ -100,9 +100,42 @@ export function LessaClubSimulator() {
         setIsOptionsOpen(true);
         return;
       }
+      if (quantities.adult === 1) {
+        setSelectedPlanInfo({
+          type: 'Individual',
+          monthlyLink: 'https://cartaobl.com.br/planos/?regPlano=1212252516762',
+          annualLink: 'https://cartaobl.com.br/planos/?regPlano=1291212252694389',
+          monthlyPrice: 49.90,
+          annualInstallment: 44.91,
+          annualTotal: 538.92
+        });
+        setIsOptionsOpen(true);
+        return;
+      }
+    }
+
+    // Modal logic for Lessa Club 2-5 adults (only adults)
+    if (quantities.adult === payingPeople && payingPeople >= 2 && payingPeople <= 5) {
+      const plans = {
+        2: { monthly: 99.80, installment: 89.82, total: 1077.84, mLink: 'https://cartaobl.com.br/planos/?regPlano=1051212252525908', aLink: 'https://cartaobl.com.br/planos/?regPlano=130121225265226' },
+        3: { monthly: 149.70, installment: 134.73, total: 1616.76, mLink: 'https://cartaobl.com.br/planos/?regPlano=1061212252544284', aLink: 'https://cartaobl.com.br/planos/?regPlano=1311212252636769' },
+        4: { monthly: 199.60, installment: 179.64, total: 2155.68, mLink: 'https://cartaobl.com.br/planos/?regPlano=1151212252593723', aLink: 'https://cartaobl.com.br/planos/?regPlano=1321212252666626' },
+        5: { monthly: 249.50, installment: 224.55, total: 2694.60, mLink: 'https://cartaobl.com.br/planos/?regPlano=1231212252657405', aLink: 'https://cartaobl.com.br/planos/?regPlano=1331212252649609' }
+      };
+      const plan = plans[payingPeople as keyof typeof plans];
+      setSelectedPlanInfo({
+        type: `${payingPeople} Pessoas`,
+        monthlyLink: plan.mLink,
+        annualLink: plan.aLink,
+        monthlyPrice: plan.monthly,
+        annualInstallment: plan.installment,
+        annualTotal: plan.total
+      });
+      setIsOptionsOpen(true);
+      return;
     }
     
-    // For other cases (family plans or adult), use the direct link or WhatsApp
+    // For other cases, use the direct link
     window.open(getPlanLink(), '_blank');
   };
 
@@ -150,15 +183,15 @@ export function LessaClubSimulator() {
                   {/* Icon */}
                   <span className="text-xl sm:text-2xl shrink-0">{item.emoji}</span>
                   {/* Info */}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <h4 className="font-bold text-foreground text-sm italic leading-tight">{item.label}</h4>
-                      {item.badge && <span className="text-[9px] font-black bg-emerald-600 text-white px-1.5 py-0.5 rounded-full">{item.badge}</span>}
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5 flex-nowrap overflow-visible">
+                        <h4 className="font-bold text-foreground text-sm sm:text-lg leading-tight italic whitespace-nowrap pr-1">
+                          {item.label}
+                        </h4>
+                        {item.badge && <span className="text-[9px] font-black bg-emerald-600 text-white px-1.5 py-0.5 rounded-full shrink-0">{item.badge}</span>}
+                      </div>
+                      <p className="text-primary font-black text-xs sm:text-sm uppercase tracking-widest leading-none">{formatCurrency(item.price)}</p>
                     </div>
-                    <p className="text-primary font-black text-[11px] mt-0.5">
-                      {formatCurrency(item.price)} <span className="text-[9px] text-muted-foreground font-medium opacity-70">/mês</span>
-                    </p>
-                  </div>
                   {/* Stepper — always has room, no overflow */}
                   <div className="shrink-0 ml-auto">
                     <QuantityStepper
