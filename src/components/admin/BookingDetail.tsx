@@ -393,20 +393,32 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
                     {item.is_redeemed ? (<><CheckCircle2 className="w-4 h-4 text-emerald-600 shadow-sm" /> UTILIZADO</>) : (<><Circle className="w-4 h-4 text-slate-300" /> AGUARDANDO</>)}
                   </span>
                 </div>
-                <Button
-                  size="sm"
-                  variant={item.is_redeemed ? 'default' : 'outline'}
-                  className={cn(
-                    'rounded-xl font-black text-[10px] uppercase h-10 w-10 p-0 shrink-0 transition-all border-2 flex items-center justify-center',
-                    item.is_redeemed
-                      ? 'bg-emerald-800 hover:bg-emerald-950 text-white border-emerald-900 shadow-lg'
-                      : 'border-emerald-200 text-emerald-900 bg-emerald-50 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 hover:shadow-xl'
-                  )}
-                  onClick={(e) => handleToggleItemStatus(item.id, item.is_redeemed, item.product_id || item.product_name, e)}
-                  title={item.is_redeemed ? 'Estornar' : 'Marcar Uso'}
-                >
-                  {item.is_redeemed ? <RotateCcw className="w-4.5 h-4.5" /> : <Check className="w-5 h-5 shadow-sm" />}
-                </Button>
+                  <div className="flex gap-1.5 shrink-0">
+                    <Button
+                      size="sm"
+                      variant={item.is_redeemed ? 'default' : 'outline'}
+                      className={cn(
+                        'rounded-xl font-black text-[10px] uppercase h-10 w-10 p-0 shrink-0 transition-all border-2 flex items-center justify-center',
+                        item.is_redeemed
+                          ? 'bg-emerald-800 hover:bg-emerald-950 text-white border-emerald-900 shadow-lg'
+                          : 'border-emerald-200 text-emerald-900 bg-emerald-50 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 hover:shadow-xl'
+                      )}
+                      onClick={(e) => handleToggleItemStatus(item.id, item.is_redeemed, item.product_id || item.product_name, e)}
+                      title={item.is_redeemed ? 'Estornar' : 'Marcar Uso'}
+                    >
+                      {item.is_redeemed ? <RotateCcw className="w-4.5 h-4.5" /> : <Check className="w-5 h-5 shadow-sm" />}
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="rounded-xl font-black text-red-500 h-10 w-10 p-0 shrink-0 border-2 border-red-100 hover:bg-red-600 hover:text-white hover:border-red-600 transition-all"
+                      onClick={(e) => { e.stopPropagation(); onRemoveItem && onRemoveItem(booking.id, item.id, item.product_id || item.product_name); }}
+                      title="Remover Item"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
               </div>
             ))}
           </div>

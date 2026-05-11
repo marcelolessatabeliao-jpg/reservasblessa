@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Users, Calendar as CalendarIcon, CalendarPlus, User, Phone, Tag,
-  Hash, ArrowRight, Loader2, Check, Bike, Accessibility, Gift, GraduationCap, X
+  Hash, ArrowRight, Loader2, Check, Bike, Accessibility, Gift, GraduationCap, X, Upload, FileCheck, Minus, Plus, AlertCircle, Percent
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
@@ -23,7 +23,10 @@ const KIOSKS = [
   { id: 2, name: 'QUIOSQUE - 02', price: 75, type: 'Menor' },
   { id: 3, name: 'QUIOSQUE - 03', price: 75, type: 'Menor' },
   { id: 4, name: 'QUIOSQUE - 04', price: 75, type: 'Menor' },
-  { id: 5, name: 'QUIOSQUE - 05', price: 75, type: 'Menor' }
+  { id: 5, name: 'QUIOSQUE - 05', price: 75, type: 'Menor' },
+  { id: 6, name: 'QUIOSQUE - 06', price: 100, type: 'Maior' },
+  { id: 7, name: 'QUIOSQUE - 07', price: 100, type: 'Maior' },
+  { id: 8, name: 'QUIOSQUE - 08', price: 100, type: 'Maior' }
 ];
 
 export function InternalBookingAssistant({ 
@@ -72,6 +75,9 @@ export function InternalBookingAssistant({
     additionals: [] as any[],
     manual_discount: 0,
     manual_discount_type: 'unit' as 'unit' | 'percent',
+    manual_surcharge: 0,
+    no_quad_discount: false,
+    receipt_url: null as string | null,
     status: 'pending'
   };
 
@@ -107,6 +113,25 @@ export function InternalBookingAssistant({
     };
     fetchOccupied();
   }, [newBookingData.visit_date, maxQuads]);
+
+  const [isUploading, setIsUploading] = useState(false);
+  const handleFileUpload = async (file: File) => {
+    setIsUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${crypto.randomUUID()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage.from('receipts').upload(fileName, file);
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage.from('receipts').getPublicUrl(fileName);
+      setNewBookingData(prev => ({ ...prev, receipt_url: publicUrl }));
+      toast({ title: "Comprovante enviado!" });
+    } catch (err) {
+      toast({ title: "Erro no upload", variant: "destructive" });
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const handleCreateInternalBooking = async () => {
     if (!newBookingData.name || !newBookingData.visit_date) {
@@ -209,14 +234,21 @@ export function InternalBookingAssistant({
     let total = (adults_normal * 50) + 
       ((is_teacher + is_student + is_server + is_solidarity) * 25);
       
-    selected_kiosks.forEach(id => total += (id === 1 ? 100 : 75));
+    selected_kiosks.forEach(id => {
+      const kiosk = KIOSKS.find(k => k.id === id);
+      total += (kiosk?.price || 75);
+    });
     
     const qDate = parseToRODate(visit_date);
     const day = qDate.getDay();
     const qD = getQuadDiscount(qDate);
     
     // Explicit override for the 20% Monday/Friday discount to avoid any utility ambiguity
-    const finalQuadDiscount = (day === 1 || day === 5) ? 0.2 : qD;
+    let finalQuadDiscount = (day === 1 || day === 5) ? 0.2 : qD;
+    
+    if (newBookingData.no_quad_discount) {
+      finalQuadDiscount = 0;
+    }
 
     quads.forEach(q => {
       const basePrice = QUAD_PRICES[q.type as keyof typeof QUAD_PRICES] || 150;
@@ -228,8 +260,8 @@ export function InternalBookingAssistant({
       total += price * a.quantity;
     });
     
-    const disc = newBookingData.manual_discount_type === 'percent' ? (total * (manual_discount / 100)) : manual_discount;
-    return Math.max(0, total - disc);
+    const disc = newBookingData.manual_discount_type === 'percent' ? (total * (newBookingData.manual_discount / 100)) : newBookingData.manual_discount;
+    return Math.max(0, total - disc + newBookingData.manual_surcharge);
   };
 
   return (
@@ -414,9 +446,9 @@ export function InternalBookingAssistant({
                          <div className="p-2 bg-emerald-600 rounded-xl text-white shadow-lg shadow-emerald-200"><Tag className="w-4 h-4" /></div>
                          2. Quiosques
                       </h4>
-                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Unidades 1-5</span>
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Unidades 1-8</span>
                    </div>
-                   <div className="grid grid-cols-5 gap-3">
+                   <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
                       {KIOSKS.map(k => {
                          const isBooked = bookedIds.includes(k.id);
                          const isSelected = newBookingData.selected_kiosks.includes(k.id);
@@ -435,9 +467,9 @@ export function InternalBookingAssistant({
                                 "bg-emerald-50/50 border-emerald-200 text-emerald-950 hover:border-emerald-400 hover:bg-emerald-100"
                               )}
                             >
-                                <span className="text-[9px] font-black uppercase opacity-70 tracking-widest leading-none mb-0.5">Quiosque</span>
-                                <span className="text-2xl leading-none font-black">{k.id}</span>
-                                {isSelected && <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-white text-emerald-600 rounded-full flex items-center justify-center shadow-md border-2 border-emerald-600"><Check className="w-2.5 h-2.5" /></div>}
+                               <span className="text-[9px] font-black uppercase opacity-70 tracking-widest leading-none mb-0.5">Quiosque</span>
+                                <span className="text-xl leading-none font-black">{k.id}</span>
+                                {isSelected && <div className="absolute -top-1 -right-1 w-4 h-4 bg-white text-emerald-600 rounded-full flex items-center justify-center shadow-md border border-emerald-600"><Check className="w-2 h-2" /></div>}
                             </button>
                          );
                       })}
@@ -450,9 +482,21 @@ export function InternalBookingAssistant({
                          <div className="p-2 bg-emerald-600 rounded-xl text-white shadow-lg shadow-emerald-200"><Bike className="w-4 h-4" /></div>
                          3. Quadriciclos
                       </h4>
-                      <div className="flex items-center gap-1.5 bg-emerald-50 px-3 py-1 rounded-full">
-                         <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                         <span className="text-[9px] font-bold text-emerald-700 uppercase tracking-wider">Limite: {maxQuads}</span>
+                      <div className="flex items-center gap-3">
+                         <button 
+                           onClick={() => setNewBookingData(prev => ({...prev, no_quad_discount: !prev.no_quad_discount}))}
+                           className={cn(
+                             "flex items-center gap-2 px-3 py-1 rounded-full border-2 transition-all text-[9px] font-black uppercase tracking-wider",
+                             newBookingData.no_quad_discount ? "bg-amber-100 border-amber-400 text-amber-800" : "bg-emerald-50 border-emerald-200 text-emerald-700 opacity-60"
+                           )}
+                         >
+                            {newBookingData.no_quad_discount ? <Minus className="w-2.5 h-2.5" /> : <Plus className="w-2.5 h-2.5" />}
+                            Sem Desconto (Modo Balcão)
+                         </button>
+                         <div className="flex items-center gap-1.5 bg-emerald-50 px-3 py-1 rounded-full">
+                            <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                            <span className="text-[9px] font-bold text-emerald-700 uppercase tracking-wider">Limite: {maxQuads}</span>
+                         </div>
                       </div>
                    </div>
                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
@@ -620,16 +664,48 @@ export function InternalBookingAssistant({
                        </div>
 
                        <div className="space-y-2 flex flex-col">
+                          <label className="text-[10px] font-black text-emerald-200 uppercase tracking-widest border-l-2 border-emerald-400 pl-2">
+                            Acréscimo Manual (R$)
+                          </label>
+                          <Input 
+                             type="number" min="0" step="0.01"
+                             className="w-full h-14 bg-[#0a291f] border-[#185e46] text-white font-black text-xl rounded-xl focus-visible:ring-emerald-500 px-4 placeholder:text-emerald-800/80" 
+                             placeholder="0,00"
+                             value={newBookingData.manual_surcharge || ''}
+                             onChange={(e) => setNewBookingData({...newBookingData, manual_surcharge: Number(e.target.value) || 0})}
+                          />
+                       </div>
+
+                       <div className="space-y-2 flex flex-col">
                           <label className="text-[10px] font-black text-emerald-200 uppercase tracking-widest border-l-2 border-emerald-400 pl-2">Status de Pagamento</label>
-                          <Select value={newBookingData.status} onValueChange={(v:any) => setNewBookingData({...newBookingData, status: v})}>
-                             <SelectTrigger className="w-full h-14 bg-[#0a291f] border-[#185e46] text-white font-black text-sm rounded-xl focus:ring-emerald-500">
-                                <SelectValue />
-                             </SelectTrigger>
-                             <SelectContent className="bg-[#114030] text-emerald-100 border-[#185e46]">
-                                <SelectItem value="pending" className="font-bold focus:bg-emerald-800">Aguardando Pagamento</SelectItem>
-                                <SelectItem value="paid" className="font-bold focus:bg-emerald-800">Confirmado / Pago Agora</SelectItem>
-                             </SelectContent>
-                          </Select>
+                          <div className="flex gap-2">
+                            <Select value={newBookingData.status} onValueChange={(v:any) => setNewBookingData({...newBookingData, status: v})}>
+                               <SelectTrigger className="flex-1 h-14 bg-[#0a291f] border-[#185e46] text-white font-black text-sm rounded-xl focus:ring-emerald-500">
+                                  <SelectValue />
+                               </SelectTrigger>
+                               <SelectContent className="bg-[#114030] text-emerald-100 border-[#185e46]">
+                                  <SelectItem value="pending" className="font-bold focus:bg-emerald-800">Aguardando Pagamento</SelectItem>
+                                  <SelectItem value="paid" className="font-bold focus:bg-emerald-800">Confirmado / Pago Agora</SelectItem>
+                               </SelectContent>
+                            </Select>
+                            
+                            <div className="relative">
+                               <input 
+                                  type="file" id="assistant-receipt" className="hidden" 
+                                  onChange={e => e.target.files && handleFileUpload(e.target.files[0])} 
+                               />
+                               <label 
+                                  htmlFor="assistant-receipt"
+                                  className={cn(
+                                    "flex items-center justify-center w-14 h-14 rounded-xl border-2 border-dashed cursor-pointer transition-all",
+                                    newBookingData.receipt_url ? "bg-emerald-500 border-emerald-400 text-white" : "bg-[#0a291f] border-[#185e46] text-emerald-500 hover:bg-[#0d3629]"
+                                  )}
+                               >
+                                  {isUploading ? <Loader2 className="w-5 h-5 animate-spin" /> : 
+                                   newBookingData.receipt_url ? <FileCheck className="w-6 h-6" /> : <Upload className="w-6 h-6" />}
+                               </label>
+                            </div>
+                          </div>
                        </div>
                     </div>
 

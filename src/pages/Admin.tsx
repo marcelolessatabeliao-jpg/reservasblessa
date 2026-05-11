@@ -722,6 +722,49 @@ export default function Admin() {
     openPaymentModal(bookingId, isOrder);
   };
 
+  const handleRemoveItem = async (orderId: string, itemId: string, productName: string) => {
+    if (!window.confirm(`Deseja realmente remover o item "${productName}" desta reserva? O valor total será recalculado.`)) return;
+
+    setLoading(true);
+    try {
+      // 1. Delete related kiosk/quad reservations if they exist
+      await supabase.from('kiosk_reservations').delete().eq('order_item_id', itemId);
+      await supabase.from('quad_reservations').delete().eq('order_item_id', itemId);
+
+      // 2. Delete the order item
+      const { error: deleteError } = await supabase.from('order_items').delete().eq('id', itemId);
+      if (deleteError) throw deleteError;
+
+      // 3. Recalculate total amount for the order
+      const { data: remainingItems, error: itemsError } = await supabase
+        .from('order_items')
+        .select('unit_price, quantity')
+        .eq('order_id', orderId);
+
+      if (itemsError) throw itemsError;
+
+      const newTotal = (remainingItems || []).reduce((acc, item) => acc + (item.unit_price * item.quantity), 0);
+
+      // 4. Update the order total and clear any pending payments
+      await supabase.from('payments').delete().eq('order_id', orderId).eq('status', 'pending');
+      
+      const { error: updateError } = await supabase
+        .from('orders')
+        .update({ total_amount: newTotal })
+        .eq('id', orderId);
+
+      if (updateError) throw updateError;
+
+      toast({ title: "Item removido!", description: `Novo total: ${formatCurrency(newTotal)}` });
+      fetchData();
+    } catch (err: any) {
+      console.error('Error removing item:', err);
+      toast({ title: "Erro ao remover item", description: err.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
 
   const updateBookingStatus = async (bookingId: string, status: string, isOrder?: boolean) => {
     setUpdatingId(bookingId);
@@ -2053,7 +2096,7 @@ export default function Admin() {
                             setLoading(false);
                           }
                       }}
-                      onRemoveItem={() => {}}
+                      onRemoveItem={handleRemoveItem}
                       updatingId={updatingId}
                       onSyncPayment={handleSyncPayment}
 

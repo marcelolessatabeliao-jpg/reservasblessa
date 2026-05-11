@@ -29,6 +29,8 @@ Deno.serve(async (req) => {
       additionals = [],
       manual_discount = 0,
       manual_discount_type = 'unit',
+      manual_surcharge = 0,
+      receipt_url = null,
       total_amount = 0
     } = body
 
@@ -79,6 +81,7 @@ Deno.serve(async (req) => {
         visit_date,
         total_amount,
         status: orderStatus,
+        receipt_url: receipt_url || null,
         updated_at: new Date().toISOString()
       })
       .select('id, confirmation_code')
