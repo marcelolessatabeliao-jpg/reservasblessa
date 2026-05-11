@@ -70,7 +70,7 @@ export function PricingComparisonSection() {
             <div className="bg-whatsapp/5 border border-whatsapp/20 p-5 rounded-2xl">
               <p className="text-green-700 font-black text-sm uppercase tracking-tighter mb-1 select-none">💡 Economia Inteligente</p>
               <p className="text-muted-foreground text-xs leading-relaxed">
-                Nos planos Lessa Club, você paga apenas <span className="text-green-700 font-bold">R$ 49,90</span> por pessoa/mês e tem acesso <span className="text-green-700 font-bold uppercase tracking-tight">Ilimitado</span>. <br/>
+                Nos planos Lessa Club, você tem opções de planos à partir de <span className="text-green-700 font-bold">R$ 44,90</span> por pessoa/mês ou <span className="text-green-700 font-bold">R$ 22,50</span> no Lessa Pass e tem entrada <span className="text-green-700 font-bold uppercase tracking-tight">Ilimitada</span> e outros benefícios. <br/>
                 Como visitante, 1 única visita custa <span className="font-bold text-foreground">R$ 50,00</span> por pessoa.
               </p>
             </div>

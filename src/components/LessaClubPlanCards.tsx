@@ -43,7 +43,7 @@ const plans = [
 ];
 
 const extraPlans = [
-  { name: 'Lessa Duo Club', price: '74,90', desc: '1 Meia + 1 Inteira', link: 'https://cartaobl.com.br/planos/?regPlano=1212252516762', color: 'border-primary/20 bg-primary/5' },
+  { name: 'Lessa Duo Club', price: '74,90', desc: '1 Meia + 1 Inteira', link: 'https://cartaobl.com.br/planos/?regPlano=1241212252690163', color: 'border-primary/20 bg-primary/5' },
   { name: 'Lessa Club (4 pessoas)', price: '199,60', desc: 'Ideal para famílias', link: 'https://cartaobl.com.br/planos/?regPlano=1151212252593723', color: 'border-primary/20 bg-primary/5' },
   { name: 'Lessa Club (5 pessoas)', price: '249,50', desc: 'Grupo completo', link: 'https://cartaobl.com.br/planos/?regPlano=1231212252657405', color: 'border-primary/20 bg-primary/5' },
 ];
