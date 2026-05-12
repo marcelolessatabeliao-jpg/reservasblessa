@@ -32,7 +32,7 @@ import {
   Calendar as CalendarIcon,
   RotateCcw,
   Wallet,
-  RefreshCw,
+  RefreshCw, Share2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +45,7 @@ import {
 import { Calendar as CalendarUI } from "@/components/ui/calendar";
 import { formatCurrency } from "@/lib/booking-types";
 import { BookingDetail } from "./BookingDetail";
+import { VoucherShareDialog } from "./VoucherShareDialog";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
@@ -208,6 +209,8 @@ export function BookingTable({
   const [rescheduleId, setRescheduleId] = useState<string | null>(null);
   const [rescheduleDate, setRescheduleDate] = useState("");
   const [editingCustomerId, setEditingCustomerId] = useState<string | null>(null);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [shareData, setShareData] = useState<any>(null);
   const [customerEditData, setCustomerEditData] = useState({ name: '', phone: '', cpf: '' });
 
   if (bookings.length === 0) {
@@ -538,77 +541,15 @@ export function BookingTable({
                         </p>
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                           <Button
-                            onClick={(e: any) => {
-                              e.stopPropagation();
-                              const phone = (
-                                booking.customer_phone ||
-                                (booking as any).phone ||
-                                ""
-                              ).replace(/\D/g, "");
-                              
-                              if (!phone) {
-                                toast({ title: "Erro", description: "Telefone do cliente não encontrado.", variant: "destructive" });
-                                return;
-                              }
-
-                              const code = booking.confirmation_code;
-                              if (!code) {
-                                toast({ title: "Erro", description: "Código do voucher não encontrado.", variant: "destructive" });
-                                return;
-                              }
-
-                              const items = (booking as any).order_items || [];
-                              const itemsList = items
-                                .map(
-                                  (it: any) =>
-                                    `* ${it.quantity}x ${it.product_name || it.product_id} (${formatCurrency(it.unit_price)})`,
-                                )
-                                .join("\n");
-                              
-                              const dateStr = format(
-                                parseISO(
-                                  booking.visit_date ||
-                                    new Date().toISOString(),
-                                ),
-                                "dd/MM/yyyy",
-                                { locale: ptBR },
-                              );
-                              
-                                                                                                                                                                  const name = booking.name || (booking as any).customer_name;
-                                                                                                                                                                                // PLAIN TEXT ONLY - NO SYMBOLS TO AVOID CORRUPTION
-                                            const E_HERB = "---";
-                                            const E_CAL = "*";
-                                            const E_USER = "*";
-                                            const E_NOTE = "*";
-                                            const E_MONEY = "*";
-                                            const E_SPARK = "---"; // ◆
-
-
-                                            const waUrl = "https://wa.me/55" + phone + "?text=" + 
-                                              E_HERB + encodeURIComponent(" *BALNEÁRIO FAMÍLIA LESSA*\n\n") +
-                                              encodeURIComponent("Esse é seu voucher de confirmação da sua reserva e o resumo do seu pedido para apresentar caso seja solicitado.\n\n") +
-                                              E_CAL + encodeURIComponent(" *Data:* " + dateStr + "\n") +
-                                              E_USER + encodeURIComponent(" *Titular:* " + name + "\n\n") +
-                                              E_NOTE + encodeURIComponent(" *Resumo do Pedido:*\n" + itemsList + "\n\n") +
-                                              E_MONEY + encodeURIComponent(" *Total:* " + formatCurrency(booking.total_amount) + "\n\n") +
-                                              encodeURIComponent("Voucher: https://reservas.balneariolessa.com.br/voucher/" + code + "\n\n") +
-                                              E_SPARK + encodeURIComponent(" *Aguardamos vocês para o lazer que a sua família merece.*");
-
-                                            window.open(waUrl, "_blank");
-
-
-
-
-                              // Update marker in DB asynchronously
-                              if (booking.id && !booking.id.startsWith('order-')) {
-                                supabase.from('orders')
-                                  .update({ last_voucher_sent_at: new Date().toISOString() })
-                                  .eq('id', booking.id)
-                                  .then(() => {
-                                    if (onRefresh) onRefresh();
-                                  });
-                              }
-                            }}
+                                          onClick={() => {
+                                            const phone = (booking.phone || "").replace(/\D/g, "");
+                                            const code = booking.confirmation_code || booking.id?.split('-').pop() || "";
+                                            const itemsList = booking.order_items?.map((item: any) => `* ${item.quantity}x ${item.product_id}`).join('\n') || "";
+                                            const dateStr = format(parseISO(booking.visit_date || new Date().toISOString()), "dd/MM/yyyy", { locale: ptBR });
+                                            
+                                            setShareData({ booking, phone, dateStr, itemsList, code });
+                                            setShareDialogOpen(true);
+                                          }}
                             className={cn(
                               "relative border-2 font-black uppercase text-[9px] h-12 rounded-xl flex flex-col items-center justify-center gap-1 transition-all duration-300",
                               booking.last_voucher_sent_at 
@@ -1426,81 +1367,13 @@ export function BookingTable({
                                         <Button
                                           onClick={(e) => {
                                             e.stopPropagation();
-                                            const phone = (
-                                              booking.customer_phone ||
-                                              (booking as any).phone ||
-                                              ""
-                                            ).replace(/\D/g, "");
+                                            const phone = ((booking as any).customer_phone || (booking as any).phone || "").replace(/\D/g, "");
+                                            const code = booking.confirmation_code || booking.id?.split('-').pop() || "";
+                                            const itemsList = booking.order_items?.map((item: any) => `* ${item.quantity}x ${item.product_id}`).join('\n') || "";
+                                            const dateStr = format(parseISO(booking.visit_date || new Date().toISOString()), "dd/MM/yyyy", { locale: ptBR });
                                             
-                                            if (!phone) {
-                                              toast({ title: "Erro", description: "Telefone do cliente não encontrado.", variant: "destructive" });
-                                              return;
-                                            }
-
-                                            const code = booking.confirmation_code;
-                                            if (!code) {
-                                              toast({ title: "Erro", description: "Código do voucher não encontrado.", variant: "destructive" });
-                                              return;
-                                            }
-
-                                            const items =
-                                              (booking as any).order_items ||
-                                              [];
-                                            const itemsList = items
-                                              .map((it: any) => {
-                                                let disp = it.product_name || it.product_id;
-                                                const isAdult = disp?.includes('Adulto');
-                                                if (isAdult && Math.abs(it.unit_price || 0) < 0.01) disp = 'Assinante Lessa Club';
-                                                else if (isAdult && it.unit_price === 25) disp = 'Adulto Solidário';
-                                                return `* ${it.quantity}x ${disp} (${formatCurrency(it.unit_price || 0)})`;
-                                              })
-                                              .join("\n");
-                                            const dateStr = format(
-                                              parseISO(
-                                                booking.visit_date ||
-                                                  new Date().toISOString(),
-                                              ),
-                                              "dd/MM/yyyy",
-                                              { locale: ptBR },
-                                            );
-                                            const name = booking.name || (booking as any).customer_name;
-                                            const message = 
-                                              `{{HERB}} *BALNEÁRIO FAMÍLIA LESSA*\n\n` +
-                                              `Esse é seu voucher de confirmação da sua reserva e o resumo do seu pedido para apresentar caso seja solicitado.\n\n` +
-                                              `{{CAL}} *Data:* ${dateStr}\n` +
-                                              `{{USER}} *Titular:* ${name}\n\n` +
-                                              `{{NOTE}} *Resumo do Pedido:*\n${itemsList}\n\n` +
-                                              `{{MONEY}} *Total:* ${formatCurrency(booking.total_amount)}\n\n` +
-                                              `Voucher: https://reservas.balneariolessa.com.br/voucher/${code}\n\n` +
-                                              `{{SPARK}} *Aguardamos vocês para o lazer que a sua família merece.*`;
-                                            
-                                            let text = encodeURIComponent(message);
-                                            // Foolproof injection of emojis using raw percent-encoding
-                                            text = text.replace(/%7B%7BHERB%7D%7D/g, '---');
-                                            text = text.replace(/%7B%7BCAL%7D%7D/g, '*');
-                                            text = text.replace(/%7B%7BUSER%7D%7D/g, '*');
-                                            text = text.replace(/%7B%7BNOTE%7D%7D/g, '*');
-                                            text = text.replace(/%7B%7BMONEY%7D%7D/g, '*');
-                                            text = text.replace(/%7B%7BSPARK%7D%7D/g, '---');
-
-                                            // Open WhatsApp immediately
-                                            window.open(
-                                              "https://wa.me/55" +
-                                                phone +
-                                                "?text=" +
-                                                text,
-                                              "_blank",
-                                            );
-
-                                            // Update marker in DB
-                                            if (booking.id && !booking.id.startsWith('order-')) {
-                                              supabase.from('orders')
-                                                .update({ last_voucher_sent_at: new Date().toISOString() })
-                                                .eq('id', booking.id)
-                                                .then(() => {
-                                                  if (onRefresh) onRefresh();
-                                                });
-                                            }
+                                            setShareData({ booking, phone, dateStr, itemsList, code });
+                                            setShareDialogOpen(true);
                                           }}
                                           className={cn(
                                             "relative shadow-md transition-all duration-300 font-black uppercase text-[9px] md:text-[10px] h-14 md:h-16 rounded-2xl flex flex-col items-center justify-center gap-1 w-full p-0 border-b-4 hover:border-b-0 hover:translate-y-[2px]",
@@ -1603,6 +1476,18 @@ export function BookingTable({
           </table>
         </div>
       </div>
+      {shareData && (
+        <VoucherShareDialog
+          open={shareDialogOpen}
+          onOpenChange={setShareDialogOpen}
+          booking={shareData.booking}
+          phone={shareData.phone}
+          dateStr={shareData.dateStr}
+          itemsList={shareData.itemsList}
+          code={shareData.code}
+          onRefresh={onRefresh}
+        />
+      )}
     </div>
   );
 }
