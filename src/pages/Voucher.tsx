@@ -60,8 +60,8 @@ export default function Voucher() {
           
           {/* Header */}
           <div className="bg-primary p-6 md:p-8 text-center text-white relative">
-             <div className={`absolute top-4 right-4 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-tighter shadow-lg ${
-                order.status === 'paid' || order.status === 'confirmed' ? 'bg-sun text-primary-dark' : 'bg-amber-100 text-amber-900 border border-amber-300'
+             <div className={`absolute top-4 right-4 text-[11px] font-black px-3.5 py-1.5 rounded-full uppercase tracking-tight shadow-lg ${
+                order.status === 'paid' || order.status === 'confirmed' ? 'bg-sun text-emerald-950' : 'bg-amber-100 text-amber-900 border border-amber-300'
              }`}>
                 {order.status === 'paid' || order.status === 'confirmed' ? 'Entrada Confirmada' : 'Aguardando Pgto'}
              </div>
