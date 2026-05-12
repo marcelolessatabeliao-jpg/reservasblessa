@@ -176,15 +176,14 @@ export default function Admin() {
           if (typeof meta === 'string') { try { meta = JSON.parse(meta); } catch(e) {} }
           const sIds = meta?.selectedIds || [];
           
-          const pNameLower = (item.product_name || '').toLowerCase();
-          const kioskIdMatch = pNameLower.match(/quiosque\s*(\d+)/i);
-          let kId: any = kioskIdMatch ? parseInt(kioskIdMatch[1], 10) : (pNameLower.includes('maior') ? 1 : 'MENOR');
+          const pIdOrig = (item.product_id || '').toLowerCase();
+          const kioskIdMatch = pIdOrig.match(/quiosque\s*(\d+)/i);
+          let kId: any = kioskIdMatch ? parseInt(kioskIdMatch[1], 10) : (pIdOrig.includes('maior') ? 1 : 'MENOR');
           
           if (sIds.length > 0) kId = sIds[0];
 
           // 1. Sync Reservation Table
           if (!existing) {
-            console.log(`Fixing missing reservation for ${order.customer_name}`);
             await supabase.from('kiosk_reservations').insert({
               order_id: order.id,
               kiosk_id: kId,
@@ -196,7 +195,6 @@ export default function Admin() {
             });
             fixedCount++;
           } else if (String(existing.kiosk_id) !== String(kId)) {
-            console.log(`Fixing mismatched reservation ID for ${order.customer_name}: ${existing.kiosk_id} -> ${kId}`);
             await supabase.from('kiosk_reservations').update({
               kiosk_id: kId,
               kiosk_type: (kId === 1 || kId === 'MAIOR' || kId === '1') ? 'maior' : 'menor',
@@ -206,17 +204,12 @@ export default function Admin() {
             fixedCount++;
           }
 
-          // 2. Sync Order Item Name (to avoid operator confusion)
+          // 2. Sync Product ID (to avoid operator confusion)
           const correctLabel = String(kId).padStart(2, '0');
           const correctName = kId === 1 ? 'QUIOSQUE - 01 (Grande)' : `QUIOSQUE ${correctLabel}`;
-          if (kId !== 'MENOR' && (item.product_name || '').trim().toUpperCase() !== correctName.toUpperCase()) {
-             console.log(`Fixing product name for ${order.customer_name}: ${item.product_name} -> ${correctName}`);
-             const { error: updateErr } = await supabase.from('order_items').update({ product_name: correctName }).eq('id', item.id);
-             if (updateErr) {
-               console.error('Error updating product name:', updateErr);
-             } else {
-               fixedCount++;
-             }
+          if (kId !== 'MENOR' && (item.product_id || '').trim().toUpperCase() !== correctName.toUpperCase()) {
+             await supabase.from('order_items').update({ product_id: correctName }).eq('id', item.id);
+             fixedCount++;
           }
         }
 
