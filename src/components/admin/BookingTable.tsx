@@ -1458,21 +1458,25 @@ export function BookingTable({
                                               "dd/MM/yyyy",
                                               { locale: ptBR },
                                             );
-                                            const name =
-                                              booking.name ||
-                                              (booking as any).customer_name;
-
+                                            const name = booking.name || (booking as any).customer_name;
                                             const message = 
-                                              `${String.fromCodePoint(0x1F33F)} *BALNEÁRIO FAMÍLIA LESSA*\n\n` +
+                                              `{{HERB}} *BALNEÁRIO FAMÍLIA LESSA*\n\n` +
                                               `Esse é seu voucher de confirmação da sua reserva e o resumo do seu pedido para apresentar caso seja solicitado.\n\n` +
-                                              `${String.fromCodePoint(0x1F4C5)} *Data:* ${dateStr}\n` +
-                                              `${String.fromCodePoint(0x1F464)} *Titular:* ${name}\n\n` +
-                                              `${String.fromCodePoint(0x1F4DD)} *Resumo do Pedido:*\n${itemsList}\n\n` +
-                                              `${String.fromCodePoint(0x1F4B0)} *Total:* ${formatCurrency(booking.total_amount)}\n\n` +
+                                              `{{CAL}} *Data:* ${dateStr}\n` +
+                                              `{{USER}} *Titular:* ${name}\n\n` +
+                                              `{{NOTE}} *Resumo do Pedido:*\n${itemsList}\n\n` +
+                                              `{{MONEY}} *Total:* ${formatCurrency(booking.total_amount)}\n\n` +
                                               `Voucher: https://reservas.balneariolessa.com.br/voucher/${code}\n\n` +
-                                              `${String.fromCodePoint(0x2728)} *Aguardamos vocês para o lazer que a sua família merece.*`;
+                                              `{{SPARK}} *Aguardamos vocês para o lazer que a sua família merece.*`;
                                             
-                                            const text = encodeURIComponent(message);
+                                            let text = encodeURIComponent(message);
+                                            // Foolproof injection of emojis using raw percent-encoding
+                                            text = text.replace(/%7B%7BHERB%7D%7D/g, '%F0%9F%8C%BF');
+                                            text = text.replace(/%7B%7BCAL%7D%7D/g, '%F0%9F%93%85');
+                                            text = text.replace(/%7B%7BUSER%7D%7D/g, '%F0%9F%91%A4');
+                                            text = text.replace(/%7B%7BNOTE%7D%7D/g, '%F0%9F%93%9D');
+                                            text = text.replace(/%7B%7BMONEY%7D%7D/g, '%F0%9F%92%B0');
+                                            text = text.replace(/%7B%7BSPARK%7D%7D/g, '%E2%9C%A8');
 
                                             // Open WhatsApp immediately
                                             window.open(

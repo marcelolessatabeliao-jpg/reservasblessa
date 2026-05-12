@@ -2102,27 +2102,28 @@ export default function Admin() {
                  </Card>
               </div>
 
-              <div className="hidden xl:flex items-center gap-4 shrink-0">
+              {/* ACTIONS BAR - BETTER SPACING */}
+              <div className="flex flex-wrap items-center gap-3 bg-white/5 p-3 rounded-[2rem] border border-white/10 backdrop-blur-xl shadow-2xl">
                  <Button 
                    onClick={handleExportBackup}
                    variant="outline"
-                   className="h-12 px-6 rounded-2xl border-white/20 bg-white/10 text-[#FFF033] font-black text-xs hover:bg-white/20 transition-all shadow-xl backdrop-blur-md"
+                   className="h-12 px-6 rounded-2xl border-emerald-500/30 bg-emerald-500/10 text-emerald-400 font-black text-xs hover:bg-emerald-500 hover:text-white transition-all shadow-lg"
                  >
-                   <Database className="w-4 h-4 mr-2" />
-                   BACKUP
+                   <Database className="w-4 h-4 mr-2" /> BACKUP
                  </Button>
 
                  <Button 
                    onClick={() => setIsInternalBookingOpen(true)}
-                   className="h-12 px-6 rounded-2xl bg-[#FFF033] text-black font-black text-xs shadow-2xl hover:scale-105 transition-all"
+                   className="h-12 px-8 rounded-2xl bg-[#FFF033] text-black font-black text-xs shadow-[0_0_20px_rgba(255,240,51,0.3)] hover:scale-105 transition-all border-0"
                  >
-                   <Plus className="w-4 h-4 mr-2" />
-                   NOVO
+                   <Plus className="w-4 h-4 mr-2" /> NOVO AGENDAMENTO
                  </Button>
+
+                 <div className="h-8 w-px bg-white/20 mx-2 hidden sm:block" />
 
                  <Button 
                    variant="outline"
-                   className="rounded-2xl bg-white/10 border-2 border-white/20 font-black h-12 px-6 hover:bg-white/20 text-[#FFF033] flex items-center justify-center shadow-xl backdrop-blur-md transition-all active:scale-95" 
+                   className="rounded-2xl bg-white/10 border-white/20 font-black h-12 px-5 hover:bg-white/20 text-[#FFF033] shadow-xl backdrop-blur-md transition-all active:scale-95 hidden sm:flex" 
                    onClick={fetchData} 
                    disabled={loading}
                  >
@@ -2130,7 +2131,7 @@ export default function Admin() {
                  </Button>
 
                  <Button 
-                   className="rounded-2xl bg-[#FFF033] text-black font-black h-12 px-4 shadow-2xl hover:scale-105 active:scale-95 transition-all border-0 text-base flex items-center justify-center" 
+                   className="rounded-2xl bg-rose-500/20 border border-rose-500/30 text-rose-500 font-black h-12 px-5 hover:bg-rose-500 hover:text-white transition-all hidden sm:flex" 
                    onClick={handleLogout}
                  >
                     <LogOut className="w-5 h-5 mr-2" /> 
