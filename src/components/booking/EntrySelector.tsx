@@ -896,11 +896,11 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
         <div className="space-y-6 pt-2">
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between border-b-2 border-emerald-200/60 pb-4">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
+              <div className="flex flex-row items-center flex-wrap gap-x-4 gap-y-2">
                 <h4 className="font-sans font-semibold text-primary text-2xl flex items-center gap-2">
                   <User className="h-6 w-6" /> Adicionar Pessoas:
                 </h4>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">
                   aproveite para incluir as entradas na sua reserva.
                 </span>
               </div>
