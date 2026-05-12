@@ -41,6 +41,13 @@ export function SpecialPlansSection() {
       if (quantities.adult === 1) return 'https://cartaobl.com.br/planos/?regPlano=1212252516762';
     }
 
+    // Case: 1 Lessa Club + 1 Dependent (Student, Teacher or Server)
+    if (quantities.adult === 1 && payingPeople === 2) {
+      if (quantities.student === 1 || quantities.teacher === 1 || quantities.server === 1) {
+        return 'https://cartaobl.com.br/planos/?regPlano=1241212252690163';
+      }
+    }
+
     // Casos de planos por quantidade de pessoas (Adultos)
     if (quantities.adult === payingPeople) {
       if (payingPeople === 2) return 'https://cartaobl.com.br/planos/?regPlano=1051212252525908';
@@ -115,13 +122,12 @@ export function SpecialPlansSection() {
       }
     }
 
-    // New logic: 1 Adult + 1 Special + dependents (Kids/Seniors)
-    const hasSpecial = quantities.student === 1 || quantities.teacher === 1 || quantities.server === 1;
-    const hasDependents = quantities.child > 0 || quantities.senior > 0;
-    
-    if (quantities.adult === 1 && hasSpecial && hasDependents) {
-      window.open('https://cartaobl.com.br/planos/?regPlano=1241212252690163', '_blank');
-      return;
+    // Case: 1 Lessa Club + 1 Dependent (Student, Teacher or Server)
+    if (quantities.adult === 1 && payingPeople === 2) {
+      if (quantities.student === 1 || quantities.teacher === 1 || quantities.server === 1) {
+        window.open('https://cartaobl.com.br/planos/?regPlano=1241212252690163', '_blank');
+        return;
+      }
     }
 
     // Modal logic for Lessa Club 2-5 adults (only adults)
@@ -252,50 +258,46 @@ export function SpecialPlansSection() {
             viewport={{ once: true }}
             className="flex flex-col gap-3.5 h-full"
           >
-            {/* Green Total Card */}
-            <div className="bg-primary rounded-[32px] p-5 sm:p-8 border border-primary-light shadow-xl shadow-primary/20 relative overflow-visible text-white flex-1 flex flex-col justify-center items-center mt-4 lg:mt-0">
-              {/* Highlighted Simulador Badge */}
-              <motion.div 
-                animate={{ 
-                  y: [0, -8, 0],
-                  rotate: [4, 6, 4]
-                }}
-                transition={{
-                  duration: 4,
-                  repeat: Infinity,
-                  ease: "easeInOut"
-                }}
-                className="absolute -top-4 -right-1 sm:-top-5 sm:-right-4 bg-sun px-5 py-1.5 sm:py-2 rounded-[20px] shadow-xl z-20 flex items-center justify-center border border-white/30"
-              >
-                <span className="text-sm sm:text-base tracking-tight font-black text-slate-900 drop-shadow-sm">Simulador 💸</span>
-              </motion.div>
+            {/* Gold Total Card */}
+            <div className="bg-gradient-to-br from-[#bf953f] via-[#fcf6ba] to-[#aa771c] rounded-[32px] p-5 sm:p-8 border border-sun/50 shadow-2xl relative overflow-hidden flex-1 flex flex-col justify-center items-center group">
+              {/* VANTAGEM PREMIUM Badge */}
+              <div className="absolute top-0 right-0 bg-[#332200] text-[#fcf6ba] text-[11px] font-black px-5 py-2 rounded-bl-3xl shadow-xl uppercase tracking-widest z-10 border-l border-b border-white/20">
+                VANTAGEM PREMIUM
+              </div>
+
+              {/* Decorative Blur */}
+              <div className="absolute -bottom-10 -right-10 w-48 h-48 bg-white/20 rounded-full blur-3xl group-hover:scale-125 transition-transform duration-700 pointer-events-none" />
               
-              <div className="relative z-10 w-full text-center mt-2 sm:mt-4">
-                <p className="text-sun font-bold uppercase tracking-widest text-[10px] sm:text-xs mb-1 drop-shadow-sm">
+              <div className="relative z-10 w-full text-center mt-6">
+                <p className="text-[#5c3c00] font-black uppercase tracking-widest text-[11px] sm:text-xs mb-2 opacity-80">
                   Total do {planName}
                 </p>
-                <div className="flex items-center justify-center mb-6">
-                  <h3 className="font-display font-black text-5xl sm:text-6xl lg:text-7xl drop-shadow-md">
+                <div className="flex flex-col items-center justify-center mb-6">
+                  <h3 className="font-display font-black text-6xl sm:text-7xl text-black tracking-tighter drop-shadow-sm">
                     {formatCurrency(totalMonthly)}
                   </h3>
+                  <div className="inline-flex items-center gap-1.5 bg-black/10 px-4 py-1 rounded-full mt-2 border border-black/5">
+                    <CheckCircle2 className="h-4 w-4 text-[#332200]" />
+                    <span className="text-[10px] text-[#332200] font-black uppercase tracking-tight">Valor Único Mensal</span>
+                  </div>
                 </div>
                 
                 <Button 
                   size="lg" 
-                  className="bg-white text-primary hover:bg-sun hover:text-foreground font-display font-black text-base sm:text-lg h-14 rounded-xl shadow-lg w-full mb-5 transition-all duration-300"
+                  className="bg-[#332200] text-[#fcf6ba] hover:bg-black hover:text-white font-display font-black text-base sm:text-lg h-14 rounded-2xl shadow-2xl w-full mb-6 transition-all duration-300 border border-white/10"
                   onClick={handleJoinClick}
                 >
                    QUERO ME ASSOCIAR <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
 
-                {/* Benefit Box */}
-                <div className="bg-white/10 backdrop-blur-md border border-white/30 rounded-xl p-4 text-center shadow-inner group">
-                  <p className="text-[10px] sm:text-[11px] font-black leading-tight flex flex-col gap-1.5 items-center">
-                    <span className="text-sun flex items-center gap-1.5 uppercase text-[11px] tracking-tight">
-                      <Star className="h-4 w-4 fill-sun animate-spin-slow" /> O MAIOR BENEFÍCIO:
+                {/* Box de Benefício Premium */}
+                <div className="bg-black/10 backdrop-blur-sm border border-black/10 rounded-2xl p-5 text-center shadow-inner">
+                  <p className="text-[10px] sm:text-[11px] font-black leading-snug flex flex-col gap-2 items-center">
+                    <span className="text-[#332200] flex items-center gap-2 uppercase text-[12px] tracking-tight">
+                      <Star className="h-4 w-4 fill-[#332200] animate-pulse" /> O MAIOR BENEFÍCIO:
                     </span> 
-                    <span className="text-white leading-relaxed font-bold border-t border-white/10 pt-1.5 px-2">
-                       Pague apenas uma vêz e tenha entradas ilimitadas ao balneário o mês inteiro nos dias de funcionamento
+                    <span className="text-[#332200] leading-relaxed font-black border-t border-black/10 pt-2 px-3 italic opacity-90">
+                       Pague apenas uma vez e tenha entradas ilimitadas ao balneário o mês inteiro nos dias de funcionamento
                     </span>
                   </p>
                 </div>
