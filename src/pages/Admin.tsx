@@ -171,33 +171,52 @@ export default function Admin() {
             .eq('order_id', order.id)
             .maybeSingle();
 
-          // Identify Kiosk ID from product name
+          // Identify Kiosk ID (Priority: Metadata > Product Name)
+          let meta = item.metadata;
+          if (typeof meta === 'string') { try { meta = JSON.parse(meta); } catch(e) {} }
+          const sIds = meta?.selectedIds || [];
+          
           const pNameLower = (item.product_name || '').toLowerCase();
           const kioskIdMatch = pNameLower.match(/quiosque\s*(\d+)/i);
-          const kId = kioskIdMatch ? parseInt(kioskIdMatch[1], 10) : (pNameLower.includes('maior') ? 1 : 'MENOR');
+          let kId: any = kioskIdMatch ? parseInt(kioskIdMatch[1], 10) : (pNameLower.includes('maior') ? 1 : 'MENOR');
+          
+          if (sIds.length > 0) kId = sIds[0];
 
           if (!existing) {
             // Create missing reservation
             await supabase.from('kiosk_reservations').insert({
               order_id: order.id,
               kiosk_id: kId,
-              kiosk_type: (kId === 1 || kId === 'MAIOR') ? 'maior' : 'menor',
+              kiosk_type: (kId === 1 || kId === 'MAIOR' || kId === '1') ? 'maior' : 'menor',
               reservation_date: order.visit_date,
               customer_name: order.customer_name,
               price: item.unit_price,
               status: order.status
             });
             fixedCount++;
-          } else if (existing.kiosk_id !== kId && kId !== 'MENOR') {
+          } else if (existing.kiosk_id !== kId) {
             // Update mismatched kiosk ID
             await supabase.from('kiosk_reservations').update({
               kiosk_id: kId,
-              kiosk_type: (kId === 1 || kId === 'MAIOR') ? 'maior' : 'menor',
+              kiosk_type: (kId === 1 || kId === 'MAIOR' || kId === '1') ? 'maior' : 'menor',
               reservation_date: order.visit_date,
               customer_name: order.customer_name
             }).eq('id', existing.id);
             fixedCount++;
           }
+        }
+
+        // 2. Extra Cleanup: Remove reservations for PAID orders that don't have matching order items
+        // This handles "ghost" reservations from previous tests
+        const { data: allRes } = await supabase.from('kiosk_reservations').select('id, order_id, kiosk_id').not('order_id', 'is', null);
+        if (allRes) {
+           for (const res of allRes) {
+              const matchingItem = orderItems.find(oi => oi.order_id === res.order_id);
+              if (!matchingItem) {
+                 await supabase.from('kiosk_reservations').delete().eq('id', res.id);
+                 fixedCount++;
+              }
+           }
         }
       
       toast({ title: "Sincronização Concluída", description: `${fixedCount} inconsistências foram reparadas.` });
