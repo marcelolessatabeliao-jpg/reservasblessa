@@ -71,7 +71,7 @@ export function HeroSection() {
           variants={itemVariants}
           className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8"
         >
-          <div className="flex items-center gap-2 bg-white/30 px-4 py-2.5 rounded-2xl border border-white/30 shadow-2xl scale-[0.9] sm:scale-100 transition-transform hover:scale-105">
+          <div className="flex items-center gap-2 bg-white/80 px-4 py-2.5 rounded-2xl border border-white shadow-2xl scale-[0.9] sm:scale-100 transition-transform hover:scale-105">
             <div className="flex text-sun drop-shadow-sm">
               {[1, 2, 3, 4, 5].map((s) => (
                 <svg key={s} className="w-4 h-4 sm:w-5 sm:h-5 fill-current" viewBox="0 0 20 20">
@@ -79,13 +79,13 @@ export function HeroSection() {
                 </svg>
               ))}
             </div>
-            <span className="text-white font-black text-base sm:text-lg tracking-tight">Nota 4.8/5</span>
+            <span className="text-slate-900 font-black text-base sm:text-lg tracking-tight">Nota 4.9/5</span>
           </div>
-          <div className="flex items-center gap-3 bg-white/30 px-4 py-2.5 rounded-2xl border border-white/30 shadow-2xl scale-[0.9] sm:scale-100 group transition-transform hover:scale-105">
+          <div className="flex items-center gap-3 bg-white/80 px-4 py-2.5 rounded-2xl border border-white shadow-2xl scale-[0.9] sm:scale-100 group transition-transform hover:scale-105">
             <div className="bg-emerald-500/20 p-1 rounded-lg">
-              <Sparkles className="h-4 w-4 sm:h-5 sm:h-5 text-emerald-400 animate-pulse shrink-0" />
+              <Sparkles className="h-4 w-4 sm:h-5 sm:h-5 text-emerald-600 animate-pulse shrink-0" />
             </div>
-            <span className="text-white font-black text-sm sm:text-lg truncate tracking-tight uppercase">Mais de 10.000 visitantes felizes</span>
+            <span className="text-slate-900 font-black text-sm sm:text-lg truncate tracking-tight uppercase">Mais de 10.000 visitantes felizes</span>
           </div>
         </motion.div>
 
