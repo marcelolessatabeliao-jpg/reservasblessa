@@ -1476,12 +1476,12 @@ export function BookingTable({
                                             
                                             let text = encodeURIComponent(message);
                                             // Foolproof injection of emojis using raw percent-encoding
-                                            text = text.replace(/%7B%7BHERB%7D%7D/g, '%F0%9F%8C%BF');
-                                            text = text.replace(/%7B%7BCAL%7D%7D/g, '%F0%9F%93%85');
-                                            text = text.replace(/%7B%7BUSER%7D%7D/g, '%F0%9F%91%A4');
-                                            text = text.replace(/%7B%7BNOTE%7D%7D/g, '%F0%9F%93%9D');
-                                            text = text.replace(/%7B%7BMONEY%7D%7D/g, '%F0%9F%92%B0');
-                                            text = text.replace(/%7B%7BSPARK%7D%7D/g, '%E2%9C%A8');
+                                            text = text.replace(/%7B%7BHERB%7D%7D/g, '---');
+                                            text = text.replace(/%7B%7BCAL%7D%7D/g, '*');
+                                            text = text.replace(/%7B%7BUSER%7D%7D/g, '*');
+                                            text = text.replace(/%7B%7BNOTE%7D%7D/g, '*');
+                                            text = text.replace(/%7B%7BMONEY%7D%7D/g, '*');
+                                            text = text.replace(/%7B%7BSPARK%7D%7D/g, '---');
 
                                             // Open WhatsApp immediately
                                             window.open(
