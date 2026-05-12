@@ -320,7 +320,7 @@ export default function Admin() {
     setLoading(true);
     try {
       const orderData = await getAdminOrders();
-      const { data: bks } = await supabase.from('bookings').select('*').neq('status', 'awaiting_payment').order('visit_date', { ascending: false });
+      const { data: bks } = await supabase.from('bookings').select('*').order('visit_date', { ascending: false });
       const { data: kiosks } = await (supabase.from('kiosk_reservations') as any)
         .select('*, orders(customer_name, status), bookings(name)')
         .order('reservation_date', { ascending: false });
@@ -340,8 +340,8 @@ export default function Admin() {
       
       // Filter out awaiting_payment from reservations too
       // Include direct reservations (no order) AND paid orders, exclude only awaiting_payment orders
-      const filteredKiosks = (kiosks || []).filter((k: any) => !k.orders || k.orders.status !== 'awaiting_payment');
-      const filteredQuads = (quads || []).filter((q: any) => !q.orders || q.orders.status !== 'awaiting_payment');
+      const filteredKiosks = (kiosks || []);
+      const filteredQuads = (quads || []);
       
       // Enrich bookings with their order items from the orders table
       const enrichedBookings = (bks || []).map(b => {
@@ -366,7 +366,7 @@ export default function Admin() {
          confirmation_code: k.confirmation_code || k.orders?.confirmation_code,
          customer_phone: k.customer_phone || k.orders?.customer_phone || k.bookings?.phone,
          last_voucher_sent_at: k.last_voucher_sent_at || k.orders?.last_voucher_sent_at
-      })).filter((k: any) => ['paid', 'confirmed', 'checked-in', 'completed'].includes((k.status || '').toLowerCase()));
+      })).filter((k: any) => !['cancelled', 'cancelado'].includes((k.status || '').toLowerCase()));
       
       let parsedQuads = filteredQuads.map((q: any) => ({
          ...q,
@@ -375,11 +375,11 @@ export default function Admin() {
          confirmation_code: q.confirmation_code || q.orders?.confirmation_code,
          customer_phone: q.customer_phone || q.orders?.customer_phone || q.bookings?.phone,
          last_voucher_sent_at: q.last_voucher_sent_at || q.orders?.last_voucher_sent_at
-      })).filter((q: any) => ['paid', 'confirmed', 'checked-in', 'completed'].includes((q.status || '').toLowerCase()));
+      })).filter((q: any) => !['cancelled', 'cancelado'].includes((q.status || '').toLowerCase()));
 
       if (orderData) {
          orderData.forEach((o: any) => {
-            if (o.status === 'awaiting_payment') return;
+            if (['cancelled', 'cancelado'].includes(o.status?.toLowerCase())) return;
             if (!o.order_items) return;
             const resDate = o.visit_date || o.created_at.split('T')[0];
             const customerName = o.customer_name || 'Venda Loja';
