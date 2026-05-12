@@ -435,12 +435,12 @@ export default function Admin() {
                    let meta = item.metadata;
                    if (typeof meta === 'string') { try { meta = JSON.parse(meta); } catch(e) {} }
                    const sIds = meta?.selectedIds || [];
-
+                   
                    for(let i=0; i<item.quantity; i++) {
-                     let kioskIdVal: any = (pId.includes('maior') || pName.includes('maior')) ? 1 : 'MENOR';
+                     let kioskIdVal: any = (pId.includes('maior') || pName.includes('maior') || pId.includes('grande') || pName.includes('grande')) ? 1 : 'MENOR';
                      if (sIds.length > i) kioskIdVal = sIds[i];
                      else {
-                       const match = (pId + ' ' + pName).match(/quiosque\s*(\d+)/i);
+                       const match = (pId + ' ' + pName).match(/quiosque\D*(\d+)/i);
                        if (match && match[1]) kioskIdVal = parseInt(match[1], 10);
                      }
 
