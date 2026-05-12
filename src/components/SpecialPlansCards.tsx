@@ -20,7 +20,7 @@ const specialPlans = [
     benefits: ['Acesso livre em dias de funcionamento', '5% Cashback em serviços', 'Sem taxa de adesão', 'Carteira digital/física'],
     buttons: [
       { label: 'MENSAL - R$ 25,00', link: 'https://cartaobl.com.br/planos/?regPlano=1221212252632308' }, 
-      { label: 'ANUAL - R$ 22,50/mês', link: 'https://cartaobl.com.br/planos/?regPlano=127121225261720' }
+      { label: 'ANUAL - 12x 22,50/mês', link: 'https://cartaobl.com.br/planos/?regPlano=127121225261720' }
     ],
     price: "25,00",
     priceNote: 'Plano anual, mensal ou meia-entrada no Day Use',
@@ -34,7 +34,7 @@ const specialPlans = [
     benefits: ['Acesso livre em dias de funcionamento', '5% Cashback em serviços', 'Sem taxa de adesão', 'Carteira digital/física'],
     buttons: [
       { label: 'MENSAL - R$ 25,00', link: 'https://cartaobl.com.br/planos/?regPlano=1211212252673382' }, 
-      { label: 'ANUAL - R$ 22,50/mês', link: 'https://cartaobl.com.br/planos/?regPlano=1281212252613283' }
+      { label: 'ANUAL - 12x 22,50/mês', link: 'https://cartaobl.com.br/planos/?regPlano=1281212252613283' }
     ],
     price: "25,00",
     priceNote: 'Plano anual, mensal ou meia-entrada no Day Use',
@@ -48,7 +48,7 @@ const specialPlans = [
     benefits: ['Acesso livre em dias de funcionamento', '5% Cashback em serviços', 'Sem taxa de adesão', 'Carteira digital/física'],
     buttons: [
       { label: 'MENSAL - R$ 25,00', link: 'https://cartaobl.com.br/planos/?regPlano=1201212252611556' }, 
-      { label: 'ANUAL - R$ 22,50/mês', link: 'https://cartaobl.com.br/planos/?regPlano=1261212252611074' }
+      { label: 'ANUAL - 12x 22,50/mês', link: 'https://cartaobl.com.br/planos/?regPlano=1261212252611074' }
     ],
     price: "25,00",
     priceNote: 'Plano anual, mensal ou meia-entrada no Day Use',
