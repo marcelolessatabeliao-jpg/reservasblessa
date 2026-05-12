@@ -900,6 +900,9 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                 <h4 className="font-sans font-semibold text-primary text-2xl flex items-center gap-2">
                   <User className="h-6 w-6" /> Adicionar Pessoas:
                 </h4>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  aproveite para incluir as entradas na sua reserva.
+                </span>
               </div>
             </div>
 
