@@ -290,16 +290,7 @@ export function AdminDashboardTab({
 
       <div className="space-y-6">
          <Card className="bg-white border-2 border-emerald-100 shadow-sm rounded-3xl overflow-hidden">
-            <div className="p-6 border-b border-emerald-100 bg-emerald-50/50">
-               <div className="flex items-center gap-3 mb-2">
-                  <CalendarCheck className="w-5 h-5 text-emerald-800" />
-                  <h4 className="text-lg font-black text-emerald-950 tracking-tight">Resumo Geral</h4>
-               </div>
-               <p className="text-[11px] font-bold text-emerald-800/70 leading-relaxed mb-6">
-                  Selecione uma data para organizar seu dia de operações.
-               </p>
-               
-               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="p-4 md:p-6 border-b border-emerald-100 bg-emerald-50/30"><div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <div className="flex items-center justify-center gap-2 py-2 px-3 bg-emerald-800 text-white rounded-xl text-[9px] font-black uppercase tracking-wider">
                      <Tent className="w-3.5 h-3.5" /> Quiosques
                   </div>

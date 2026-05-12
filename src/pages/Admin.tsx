@@ -2089,10 +2089,10 @@ export default function Admin() {
 
              {/* INTEGRATED STATS INDICATORS */}
              <div className="flex items-center gap-2 px-2">
-                <div onClick={() => setActiveTab('vendas')} className="cursor-pointer px-3 py-2 rounded-xl bg-slate-900 border border-yellow-500/50 flex items-center gap-2 hover:bg-black transition-all">
+                <div onClick={() => setActiveTab('vendas')} className="cursor-pointer px-4 md:px-6 py-2.5 md:py-3 rounded-xl md:rounded-2xl bg-slate-900 border-2 border-yellow-500/50 flex items-center gap-3 hover:bg-black transition-all shadow-lg hover:scale-105">
                    <TrendingUp className="w-3.5 h-3.5 text-yellow-400" />
                    <div className="flex flex-col -space-y-1">
-                      <span className="text-[10px] font-black text-[#FFF033]">
+                      <span className="text-[12px] md:text-[14px] font-black text-[#FFF033]">
                          {formatCurrency(
                             (bookings.filter(b => b.visit_date === format(targetDate, 'yyyy-MM-dd')).reduce((s, b) => b.status !== 'cancelled' ? s + (b.total_amount || 0) : s, 0)) + 
                             (orders.filter(o => (o.visit_date || o.created_at.split('T')[0]) === format(targetDate, 'yyyy-MM-dd')).reduce((s, o) => o.status !== 'cancelled' ? s + (o.total_amount || 0) : s, 0))
@@ -2102,10 +2102,10 @@ export default function Admin() {
                    </div>
                 </div>
 
-                <div onClick={() => setActiveTab('reservas')} className="cursor-pointer px-3 py-2 rounded-xl bg-slate-900 border border-emerald-500/50 flex items-center gap-2 hover:bg-black transition-all">
+                <div onClick={() => setActiveTab('reservas')} className="cursor-pointer px-4 md:px-6 py-2.5 md:py-3 rounded-xl md:rounded-2xl bg-slate-900 border-2 border-emerald-500/50 flex items-center gap-3 hover:bg-black transition-all shadow-lg hover:scale-105">
                    <Users className="w-3.5 h-3.5 text-emerald-400" />
                    <div className="flex flex-col -space-y-1">
-                      <span className="text-[10px] font-black text-emerald-400">{bookings.length + orders.length}</span>
+                      <span className="text-[12px] md:text-[14px] font-black text-emerald-400">{bookings.length + orders.length}</span>
                       <span className="text-[6px] font-black uppercase text-emerald-500/70">Agenda</span>
                    </div>
                 </div>
