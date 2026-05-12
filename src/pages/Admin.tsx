@@ -1056,6 +1056,51 @@ export default function Admin() {
     }
   };
 
+  const handleExportBackup = async () => {
+    try {
+      toast({ title: "Iniciando Backup...", description: "Buscando todos os dados do banco..." });
+      const { data: ordersData } = await supabase.from('orders').select('*');
+      const { data: bksData } = await supabase.from('bookings').select('*');
+      const { data: kioskData } = await supabase.from('kiosk_reservations').select('*');
+      const { data: quadData } = await supabase.from('quad_reservations').select('*');
+      
+      const sheets = [
+        { name: 'Pedidos', data: ordersData || [] },
+        { name: 'Entradas', data: bksData || [] },
+        { name: 'Quiosques', data: kioskData || [] },
+        { name: 'Quadriciclos', data: quadData || [] }
+      ];
+      
+      exportMultiSheetExcel(sheets, `backup_reserva_lessa_${format(new Date(), 'yyyy-MM-dd_HH-mm')}`);
+      toast({ title: "✓ Backup concluído", description: "O arquivo Excel foi baixado com sucesso." });
+    } catch (err) {
+      console.error(err);
+      toast({ title: "Erro no backup", description: "Não foi possível gerar o arquivo.", variant: "destructive" });
+    }
+  };
+
+  const handleExportReport = (type: 'excel' | 'pdf', groups: any[], title: string) => {
+    const reportData = groups.map(g => {
+      const { names } = resolveGroup(g);
+      return {
+        'Data': format(parseISO(g.reservation_date), 'dd/MM/yyyy'),
+        'Cliente': g.customer_name,
+        'Reservas': names,
+        'Valor Total': formatCurrency(g.total_price),
+        'Itens': g.items.length
+      };
+    });
+
+    const fileName = `relatorio_${title.toLowerCase().replace(/\s+/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}`;
+    
+    if (type === 'excel') {
+      exportToExcel(reportData, fileName);
+    } else {
+      exportToPDF(reportData, title, fileName);
+    }
+    toast({ title: "Relatório gerado!" });
+  };
+
   // --- GROUPING & FILTERING ---
   const todayStr = format(new Date(), 'yyyy-MM-dd');
   
@@ -1292,6 +1337,14 @@ export default function Admin() {
                 <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-widest">Controle total por status e período</p>
               </div>
               <div className="flex items-center gap-3">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => handleExportReport('excel', tabGroups, `Quiosques_${kioskSubTab}`)}
+                  className="rounded-xl border-blue-200 text-blue-700 font-black text-[10px] h-9"
+                >
+                  <FileSpreadsheet className="w-4 h-4 mr-2" /> EXPORTAR EXCEL
+                </Button>
                 <Button 
                   variant="outline" 
                   size="sm" 
@@ -1799,6 +1852,23 @@ export default function Admin() {
               <h3 className="text-xs md:text-sm font-black text-amber-950 uppercase tracking-wider">Capacidade Prioritária do Sistema</h3>
               <p className="text-[10px] text-amber-800 font-bold uppercase tracking-tighter">Define o total de quadriciclos disponíveis em todos os sites</p>
             </div>
+          </div>
+          <div className="flex items-center gap-3">
+              <Button 
+                onClick={handleExportBackup}
+                variant="outline"
+                className="h-10 md:h-12 px-4 md:px-6 rounded-2xl border-emerald-500/30 bg-emerald-500/10 text-emerald-400 font-black text-[10px] md:text-xs hover:bg-emerald-500 hover:text-white transition-all shadow-lg hidden sm:flex"
+              >
+                <Database className="w-4 h-4 mr-2" />
+                BACKUP COMPLETO
+              </Button>
+              <Button 
+                onClick={() => setIsInternalBookingOpen(true)}
+                className="h-10 md:h-12 px-4 md:px-6 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-black text-[10px] md:text-xs shadow-[0_0_20px_rgba(16,185,129,0.4)] hover:shadow-[0_0_30px_rgba(16,185,129,0.6)] transition-all border-b-4 border-emerald-700 active:border-b-0 active:translate-y-[2px]"
+              >
+                <Plus className="w-4 h-4 md:w-5 md:h-5 mr-2" />
+                NOVO AGENDAMENTO
+              </Button>
           </div>
           <div className="flex items-center gap-3">
             <div className="flex flex-col relative" onClick={() => {
