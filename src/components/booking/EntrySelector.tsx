@@ -799,7 +799,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                   </p>
                 </div>
 
-                <div className="p-6 space-y-6 bg-emerald-50/30">
+                <div className="p-6 space-y-4 bg-emerald-50/30">
                   <div className="bg-white/80 backdrop-blur-sm rounded-3xl border border-emerald-100 p-5 shadow-inner">
                      <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-2">
@@ -870,7 +870,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                        <p className="text-slate-600 text-xs font-bold leading-relaxed text-center italic">
                          "Esta aba é apenas para consultar previamente as disponibilidades para a data desejada. 
                          Caso não haja nenhum disponível já foram reservados. 
-                         <strong className="font-black not-italic block mt-1">Para continuar a reserva continue preenchendo os campos e realize o pagamento ao final para garantir.</strong>"
+                         <span className="font-black text-slate-950 not-italic block mt-2">Para continuar a reserva continue preenchendo os campos e realize o pagamento ao final para garantir.</span>"
                        </p>
                     </div>
 
@@ -878,7 +878,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                   </div>
                 </div>
 
-                <DialogFooter className="p-6 bg-slate-50 border-t border-slate-200">
+                <DialogFooter className="p-4 sm:p-6 bg-slate-50 border-t border-slate-200">
                   <Button 
                     onClick={() => setIsAvailabilityOpen(false)}
                     className="w-full h-16 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest shadow-xl shadow-emerald-200 transition-all active:scale-95 group"
