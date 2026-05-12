@@ -2047,39 +2047,39 @@ export default function Admin() {
                   </div>
               </div>
           </div>
-          <div className="flex flex-nowrap items-center p-2 md:p-3 bg-emerald-950/60 backdrop-blur-xl rounded-2xl md:rounded-3xl w-full max-w-7xl mr-auto border border-white/20 shadow-premium mb-6 gap-2 overflow-x-auto scrollbar-hide">
+          <div className="flex flex-nowrap items-center p-1.5 bg-emerald-950/60 backdrop-blur-xl rounded-2xl md:rounded-3xl w-full max-w-[100%] mr-auto border border-white/20 shadow-premium mb-6 gap-1 overflow-hidden">
              <button onClick={() => setActiveTab('painel')} className={cn(
-               "px-4 py-3 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-2 transition-all whitespace-nowrap", 
+               "px-2.5 py-2 rounded-xl text-[10px] md:text-[12px] font-black flex items-center justify-center gap-2 transition-all whitespace-nowrap", 
                activeTab === 'painel' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
              )}>
                 <LayoutDashboard className="w-4 h-4" /> Visão Geral
              </button>
              <button onClick={() => setActiveTab('quiosques')} className={cn(
-               "px-4 py-3 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-2 transition-all whitespace-nowrap", 
+               "px-2.5 py-2 rounded-xl text-[10px] md:text-[12px] font-black flex items-center justify-center gap-2 transition-all whitespace-nowrap", 
                activeTab === 'quiosques' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
              )}>
                 <Tent className="w-4 h-4" /> Quiosques
              </button>
              <button onClick={() => setActiveTab('quads')} className={cn(
-               "px-4 py-3 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-2 transition-all whitespace-nowrap", 
+               "px-2.5 py-2 rounded-xl text-[10px] md:text-[12px] font-black flex items-center justify-center gap-2 transition-all whitespace-nowrap", 
                activeTab === 'quads' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
              )}>
                 <Bike className="w-4 h-4" /> Quadriciclos
              </button>
              <button onClick={() => setActiveTab('reservas')} className={cn(
-               "px-4 py-3 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-2 transition-all whitespace-nowrap", 
+               "px-2.5 py-2 rounded-xl text-[10px] md:text-[12px] font-black flex items-center justify-center gap-2 transition-all whitespace-nowrap", 
                activeTab === 'reservas' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
              )}>
                 <CalendarCheck className="w-4 h-4" /> Agenda
              </button>
              <button onClick={() => setActiveTab('vendas')} className={cn(
-               "px-4 py-3 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-2 transition-all whitespace-nowrap", 
+               "px-2.5 py-2 rounded-xl text-[10px] md:text-[12px] font-black flex items-center justify-center gap-2 transition-all whitespace-nowrap", 
                activeTab === 'vendas' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
              )}>
                 <ShoppingBag className="w-4 h-4" /> Vendas
              </button>
              <button onClick={() => setActiveTab('creditos')} className={cn(
-               "px-4 py-3 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-2 transition-all whitespace-nowrap", 
+               "px-2.5 py-2 rounded-xl text-[10px] md:text-[12px] font-black flex items-center justify-center gap-2 transition-all whitespace-nowrap", 
                activeTab === 'creditos' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
              )}>
                 <Wallet className="w-4 h-4" /> Créditos
@@ -2089,7 +2089,7 @@ export default function Admin() {
 
              {/* INTEGRATED STATS INDICATORS */}
              <div className="flex items-center gap-2 px-2">
-                <div onClick={() => setActiveTab('vendas')} className="cursor-pointer px-4 md:px-6 py-2.5 md:py-3 rounded-xl md:rounded-2xl bg-slate-900 border-2 border-yellow-500/50 flex items-center gap-3 hover:bg-black transition-all shadow-lg hover:scale-105">
+                <div onClick={() => setActiveTab('vendas')} className="cursor-pointer px-3 py-2 rounded-xl bg-slate-900 border border-yellow-500/50 flex items-center gap-2 hover:bg-black transition-all">
                    <TrendingUp className="w-3.5 h-3.5 text-yellow-400" />
                    <div className="flex flex-col -space-y-1">
                       <span className="text-[12px] md:text-[14px] font-black text-[#FFF033]">
@@ -2102,7 +2102,7 @@ export default function Admin() {
                    </div>
                 </div>
 
-                <div onClick={() => setActiveTab('reservas')} className="cursor-pointer px-4 md:px-6 py-2.5 md:py-3 rounded-xl md:rounded-2xl bg-slate-900 border-2 border-emerald-500/50 flex items-center gap-3 hover:bg-black transition-all shadow-lg hover:scale-105">
+                <div onClick={() => setActiveTab('reservas')} className="cursor-pointer px-3 py-2 rounded-xl bg-slate-900 border border-emerald-500/50 flex items-center gap-2 hover:bg-black transition-all">
                    <Users className="w-3.5 h-3.5 text-emerald-400" />
                    <div className="flex flex-col -space-y-1">
                       <span className="text-[12px] md:text-[14px] font-black text-emerald-400">{bookings.length + orders.length}</span>
