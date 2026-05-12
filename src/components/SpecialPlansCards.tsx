@@ -23,7 +23,7 @@ const specialPlans = [
       { label: 'ANUAL - R$ 22,50/mês', link: 'https://cartaobl.com.br/planos/?regPlano=127121225261720' }
     ],
     price: "25,00",
-    priceNote: '/mês ou (meia-entrada no Day Use)',
+    priceNote: 'Plano anual, mensal ou meia-entrada no Day Use',
     color: 'bg-green-600 text-white border-green-400 shadow-green-200/50',
     hideTopPrice: true
   },
@@ -37,7 +37,7 @@ const specialPlans = [
       { label: 'ANUAL - R$ 22,50/mês', link: 'https://cartaobl.com.br/planos/?regPlano=1281212252613283' }
     ],
     price: "25,00",
-    priceNote: '/mês ou (meia-entrada no Day Use)',
+    priceNote: 'Plano anual, mensal ou meia-entrada no Day Use',
     color: 'bg-sun text-foreground border-sun-dark/20 shadow-sun/30',
     hideTopPrice: true
   },
@@ -51,7 +51,7 @@ const specialPlans = [
       { label: 'ANUAL - R$ 22,50/mês', link: 'https://cartaobl.com.br/planos/?regPlano=1261212252611074' }
     ],
     price: "25,00",
-    priceNote: '/mês ou (meia-entrada no Day Use)',
+    priceNote: 'Plano anual, mensal ou meia-entrada no Day Use',
     color: 'bg-primary text-white border-primary-light shadow-primary/20',
     hideTopPrice: true
   },
@@ -108,7 +108,7 @@ export function SpecialPlansCards() {
                 <plan.icon className="h-6 w-6 text-current" />
               </div>
               
-              <h3 className="font-display font-bold text-xl mb-1 text-current">{plan.title}</h3>
+              <h3 className="font-display font-black text-2xl sm:text-3xl mb-1 text-current leading-tight">{plan.title}</h3>
               {!(plan as any).hideTopPrice && (
                 <div className="mb-4 text-left">
                   <p className="text-current font-black text-3xl">R$ {plan.price}</p>
@@ -136,8 +136,18 @@ export function SpecialPlansCards() {
               
               <div className="flex flex-col gap-2 w-full mt-auto">
                 {plan.buttons.map((btn, bidx) => (
-                  <Button key={bidx} asChild className="w-full bg-white text-foreground hover:bg-sun hover:text-foreground border-none font-black text-[10px] uppercase tracking-widest py-6 rounded-xl shadow-lg transition-all">
-                    <a href={btn.link} target="_blank" rel="noopener noreferrer">{btn.label}</a>
+                  <Button key={bidx} asChild className="w-full bg-white text-foreground hover:bg-sun hover:text-foreground border-none font-black text-[10px] uppercase tracking-widest py-6 rounded-xl shadow-lg transition-all relative">
+                    <a href={btn.link} target="_blank" rel="noopener noreferrer">
+                      {btn.label}
+                      {btn.label.includes('ANUAL') && (
+                        <>
+                          <span className="block text-[8px] opacity-60 mt-0.5">ou R$ 270,00 à vista</span>
+                          <span className="absolute -top-2 -right-2 bg-emerald-600 text-white text-[9px] px-2 py-0.5 rounded-full shadow-md border border-white">
+                            -10% OFF
+                          </span>
+                        </>
+                      )}
+                    </a>
                   </Button>
                 ))}
               </div>
