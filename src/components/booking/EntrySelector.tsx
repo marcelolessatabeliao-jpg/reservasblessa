@@ -677,11 +677,11 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
       )}>
         {/* Nome & Telefone Row */}
         {!hideMainInfo && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-emerald-50/40 p-5 rounded-[2rem] border-2 border-emerald-100/80 shadow-sm transition-all hover:shadow-md hover:border-emerald-200/50">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-white p-6 rounded-[2rem] border-2 border-emerald-500/20 shadow-xl">
             <div>
-              <label className="text-[11px] font-black text-emerald-900 uppercase tracking-widest mb-2.5 flex items-center gap-1.5 px-1">
-                <User className="h-4 w-4 text-emerald-600" /> Nome Completo
-              </label>
+              <div className="inline-flex items-center gap-2 bg-emerald-100 text-emerald-800 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-300 shadow-sm mb-3">
+                <User className="h-3 w-3 text-emerald-600" /> Nome Completo
+              </div>
               <Input
                 placeholder="Ex: João Silva"
                 value={entry.name}
@@ -691,9 +691,9 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
               />
             </div>
             <div>
-              <label className="text-[11px] font-black text-emerald-900 uppercase tracking-widest mb-2.5 flex items-center gap-1.5 px-1">
-                <Phone className="h-4 w-4 text-emerald-600" /> WhatsApp
-              </label>
+              <div className="inline-flex items-center gap-2 bg-emerald-100 text-emerald-800 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-300 shadow-sm mb-3">
+                <Phone className="h-3 w-3 text-emerald-600" /> WhatsApp
+              </div>
               <Input
                 placeholder="(00) 00000-0000"
                 value={formatPhone(entry.phone || '')}
@@ -711,11 +711,11 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
 
         {/* 1. Escolha a Data Row */}
         {!hideMainInfo && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-emerald-50/40 p-5 rounded-[2rem] border-2 border-emerald-100/80 shadow-sm transition-all hover:shadow-md hover:border-emerald-200/50">
-            <div className="space-y-3">
-              <label className="text-[11px] font-black flex items-center gap-2 text-emerald-900 uppercase tracking-widest px-1">
-                <CalendarIcon className="h-4 w-4 text-emerald-600" /> Escolha a Data da Reserva
-              </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-white p-6 rounded-[2rem] border-2 border-emerald-500/20 shadow-xl">
+            <div className="space-y-1">
+              <div className="inline-flex items-center gap-2 bg-emerald-100 text-emerald-800 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-300 shadow-sm mb-3">
+                <CalendarIcon className="h-3 w-3 text-emerald-600" /> Escolha a Data da Reserva
+              </div>
 
               <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen} modal={true}>
                 <PopoverTrigger asChild>
@@ -768,10 +768,10 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
               </Popover>
             </div>
 
-            <div className="space-y-3">
-              <label className="text-[11px] font-black flex items-center gap-2 text-emerald-900 uppercase tracking-widest px-1">
-                <Home className="h-4 w-4 text-emerald-600" /> Disponibilidade de Quiosques
-              </label>
+            <div className="space-y-1">
+              <div className="inline-flex items-center gap-2 bg-emerald-100 text-emerald-800 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-300 shadow-sm mb-3">
+                <Home className="h-3 w-3 text-emerald-600" /> Disponibilidade de Quiosques
+              </div>
               <Button
                 variant="outline"
                 disabled={!entry.visitDate}
@@ -895,16 +895,11 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
         {/* Participantes Summary Container */}
         <div className="space-y-6 pt-2">
           <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-between border-b-2 border-emerald-100 pb-3">
+            <div className="flex items-center justify-between border-b-2 border-emerald-200/60 pb-4">
               <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
-                <h4 className="font-sans font-black text-primary text-xl flex items-center gap-2">
-                  <User className="h-5 w-5" /> Adicionar Pessoas:
+                <h4 className="font-sans font-semibold text-primary text-2xl flex items-center gap-2">
+                  <User className="h-6 w-6" /> Adicionar Pessoas:
                 </h4>
-                {(entry.adults.length === 0 && entry.children.length === 0) && (
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider animate-pulse">
-                    ← Clique nos botões para começar
-                  </span>
-                )}
               </div>
             </div>
 
@@ -1093,9 +1088,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
             </AnimatePresence>
 
             {(entry.adults.length === 0 && entry.children.length === 0) && (
-              <div className="text-center py-10 border-2 border-dashed border-emerald-100 rounded-[2.5rem] bg-emerald-50/30">
-                <p className="text-sm font-bold text-emerald-900/30">Selecione os participantes acima.</p>
-              </div>
+              <div className="h-4" />
             )}
           </div>
         </div>
