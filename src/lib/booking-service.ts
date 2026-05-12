@@ -72,7 +72,7 @@ export async function saveBooking(
 
     } else {
       // INSERT new order
-      console.log('📝 Criando novo pedido');
+      console.log('* Criando novo pedido');
       const { data: orderData, error: orderError } = await (supabase as any)
         .from('orders')
         .insert(orderPayload)
