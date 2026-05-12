@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Search, Calendar, ChevronRight, User, Hash, RefreshCw, CreditCard, ChevronDown, ChevronUp, Info, Ticket } from 'lucide-react';
+import { Loader2, Search, Calendar, ChevronRight, User, Hash, RefreshCw, CreditCard, ChevronDown, ChevronUp, Info, Ticket, ArrowLeft } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -123,6 +123,17 @@ export default function Consultar() {
       <Navbar />
       
       <main className="max-w-4xl mx-auto px-4 pt-32 pb-20">
+        <div className="mb-8 flex justify-center sm:justify-start">
+          <Button 
+            variant="ghost" 
+            onClick={() => navigate('/')} 
+            className="text-emerald-800 hover:text-emerald-950 hover:bg-emerald-200/30 rounded-2xl flex items-center gap-2 font-black transition-all group"
+          >
+            <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" /> 
+            VOLTAR PARA O INÍCIO
+          </Button>
+        </div>
+
         <div className="text-center mb-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
           <h1 className="text-4xl md:text-5xl font-black text-emerald-950 uppercase tracking-tighter mb-4">
             Consultar <span className="text-emerald-600">Minha Reserva</span>
