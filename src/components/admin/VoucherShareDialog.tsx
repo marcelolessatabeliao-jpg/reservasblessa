@@ -83,8 +83,9 @@ export function VoucherShareDialog({
   };
 
   const handleSendLink = () => {
-    const message = "Olá! Segue o link do seu voucher para o Balneário Lessa:\n\n" +
-      "https://reservas.balneariolessa.com.br/voucher/" + code;
+    const message = "Olá! Segue o link do seu voucher para o Balneário Lessa. Sua reserva está confirmada!\n" +
+      "https://reservas.balneariolessa.com.br/voucher/" + code + "\n\n" +
+      "Aguardamos vocês!";
     
     const waLinkLink = "https://api.whatsapp.com/send?phone=55" + phone + "&text=" + encodeURIComponent(message);
     window.open(waLinkLink, "_blank");
@@ -131,8 +132,8 @@ export function VoucherShareDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md bg-white rounded-3xl overflow-hidden p-0 border-none">
-        <DialogHeader className="p-6 bg-emerald-900 text-white">
+      <DialogContent className="max-w-md bg-white rounded-[2.5rem] overflow-hidden p-0 border-none shadow-2xl flex flex-col max-h-[95vh]">
+        <DialogHeader className="p-6 bg-emerald-900 text-white shrink-0 sticky top-0 z-20">
           <DialogTitle className="text-xl font-black uppercase flex items-center gap-2">
             <CheckCircle2 className="w-6 h-6 text-emerald-400" />
             Enviar Voucher
@@ -142,7 +143,7 @@ export function VoucherShareDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="p-6 space-y-4">
+        <div className="p-6 space-y-4 overflow-y-auto custom-scrollbar">
           {/* OPTION 1: TEXT + EMOJIS */}
           <Button 
             onClick={handleSendText}
@@ -212,50 +213,54 @@ export function VoucherShareDialog({
 
         {/* HIDDEN VOUCHER FOR IMAGE GENERATION */}
         <div className="fixed -left-[2000px] top-0">
-           <div ref={voucherRef} className="w-[400px] bg-white p-8 rounded-none border-t-[20px] border-emerald-900">
-              <div className="text-center mb-6">
-                 <h2 className="text-2xl font-black text-emerald-950 uppercase tracking-tighter">Voucher de Reserva</h2>
-                 <p className="text-emerald-600 font-bold text-[10px] uppercase tracking-widest">Balneário Família Lessa</p>
+           <div ref={voucherRef} className="w-[400px] bg-white p-10 rounded-none border-t-[24px] border-emerald-900 flex flex-col items-center">
+              <div className="text-center mb-8 w-full">
+                 <h2 className="text-3xl font-black text-emerald-950 uppercase tracking-tighter leading-none mb-1">Voucher de Reserva</h2>
+                 <p className="text-emerald-600 font-bold text-[11px] uppercase tracking-[0.2em]">Balneário Família Lessa</p>
               </div>
               
-              <div className="space-y-4">
-                 <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 flex justify-between items-center">
+              <div className="space-y-6 w-full">
+                 <div className="bg-emerald-50 p-6 rounded-[2rem] border-2 border-emerald-100 flex justify-between items-center shadow-sm">
                     <div>
-                       <p className="text-[8px] font-black text-emerald-800/60 uppercase">Código</p>
-                       <p className="text-xl font-black text-emerald-900 font-mono tracking-widest">{code}</p>
+                       <p className="text-[9px] font-black text-emerald-800/40 uppercase tracking-widest mb-1">Código de Confirmação</p>
+                       <p className="text-2xl font-black text-emerald-900 font-mono tracking-[0.2em]">{code}</p>
                     </div>
-                    <img 
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${code}`} 
-                      alt="QR" className="w-12 h-12" 
-                    />
+                    <div className="bg-white p-2 rounded-xl shadow-sm border border-emerald-100">
+                       <img 
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${code}`} 
+                        alt="QR" className="w-16 h-16" 
+                       />
+                    </div>
                  </div>
 
                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                       <p className="text-[8px] font-black text-slate-500 uppercase">Titular</p>
-                       <p className="text-xs font-black text-slate-900 truncate">{name}</p>
+                    <div className="bg-slate-50/80 p-4 rounded-[1.5rem] border border-slate-100 shadow-sm">
+                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Titular</p>
+                       <p className="text-[13px] font-black text-slate-900 truncate leading-normal">{name}</p>
                     </div>
-                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                       <p className="text-[8px] font-black text-slate-500 uppercase">Data</p>
-                       <p className="text-xs font-black text-slate-900">{dateStr}</p>
+                    <div className="bg-slate-50/80 p-4 rounded-[1.5rem] border border-slate-100 shadow-sm">
+                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Data da Visita</p>
+                       <p className="text-[13px] font-black text-slate-900 leading-normal">{dateStr}</p>
                     </div>
                  </div>
 
-                 <div className="p-4 bg-white border-2 border-slate-100 rounded-2xl">
-                    <p className="text-[8px] font-black text-slate-500 uppercase mb-2">Resumo do Pedido</p>
-                    <div className="text-[10px] font-bold text-slate-800 whitespace-pre-wrap leading-relaxed">
+                 <div className="p-6 bg-white border-2 border-slate-100 rounded-[2rem] shadow-sm relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500/20"></div>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">Resumo do Pedido</p>
+                    <div className="text-[11px] font-bold text-slate-800 whitespace-pre-wrap leading-relaxed">
                        {itemsList}
                     </div>
                  </div>
 
-                 <div className="p-4 bg-emerald-900 rounded-2xl text-center">
-                    <p className="text-[9px] font-black text-emerald-100/60 uppercase mb-1">Total Pago</p>
-                    <p className="text-xl font-black text-white">{formatCurrency(booking.total_amount)}</p>
+                 <div className="p-6 bg-emerald-950 rounded-[2rem] text-center shadow-xl border-t-4 border-emerald-500/30">
+                    <p className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.3em] mb-2">Total Pago</p>
+                    <p className="text-3xl font-black text-white tracking-tight">{formatCurrency(booking.total_amount)}</p>
                  </div>
               </div>
 
-              <div className="mt-8 text-center pt-6 border-t border-dashed border-slate-200">
-                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Obrigado pela preferência!</p>
+              <div className="mt-10 text-center pt-8 border-t-2 border-dashed border-slate-200 w-full">
+                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] mb-1">Lazer que sua família merece</p>
+                 <p className="text-[8px] font-bold text-slate-300 uppercase">www.balneariolessa.com.br</p>
               </div>
            </div>
         </div>
