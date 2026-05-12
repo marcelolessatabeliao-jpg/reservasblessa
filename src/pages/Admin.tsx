@@ -596,11 +596,11 @@ export default function Admin() {
         }
       });
 
-    // Fallback: Refresh data every 5 minutes to ensure it's always up to date
-    // even if the realtime connection is lost
+    // Fallback: Refresh data and sync payments every 5 minutes
     const pollInterval = setInterval(() => {
       console.log("[Admin] Periodic sync...");
       fetchData();
+      syncAllPendingPayments();
     }, 300000);
 
     return () => { 
@@ -813,6 +813,32 @@ export default function Admin() {
       setUpdatingId(null);
     }
   };
+
+  const syncAllPendingPayments = useCallback(async () => {
+    try {
+      // Get orders that might need a payment status check
+      const { data: pendingOrders } = await supabase
+        .from('orders')
+        .select('id')
+        .in('status', ['pending', 'awaiting_payment', 'aguardando pgto', 'waiting_local', 'waiting_confirmation']);
+
+      if (!pendingOrders || pendingOrders.length === 0) return;
+
+      console.log(`[Admin] Auto-syncing ${pendingOrders.length} pending payments...`);
+      
+      // Process syncs
+      for (const order of pendingOrders) {
+        await supabase.functions.invoke('check-payment', {
+          body: { orderId: order.id }
+        });
+      }
+      
+      // Refresh UI with updated statuses
+      fetchData();
+    } catch (err) {
+      console.error('[Admin] Error in auto-payment sync:', err);
+    }
+  }, [fetchData]);
 
   // Original handleGeneratePayment kept for legacy references and as a fallback
   const handleGeneratePayment = async (bookingId: string, isOrder?: boolean) => {
