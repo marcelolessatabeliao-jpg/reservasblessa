@@ -789,7 +789,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
 
             {/* Kiosk Availability Dialog */}
             <Dialog open={isAvailabilityOpen} onOpenChange={setIsAvailabilityOpen}>
-              <DialogContent className="max-w-2xl rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl">
+              <DialogContent className="w-[95vw] sm:max-w-2xl rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl max-h-[95dvh] overflow-y-auto no-scrollbar">
                 <div className="bg-gradient-to-br from-emerald-600 to-teal-700 p-6 text-white relative">
                   <DialogTitle className="text-2xl font-black uppercase tracking-tighter flex items-center gap-3">
                     <Home className="h-6 w-6" /> Mapa de Quiosques
@@ -798,13 +798,6 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                     {entry.visitDate && format(entry.visitDate, "dd 'de' MMMM", { locale: ptBR })}
                   </p>
                   <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={() => setIsAvailabilityOpen(false)}
-                    className="absolute top-4 right-4 text-white hover:bg-white/10 rounded-full"
-                  >
-                    <X className="h-5 w-5" />
-                  </Button>
                 </div>
 
                 <div className="p-6 space-y-6 bg-emerald-50/30">
@@ -817,7 +810,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                         {isFetchingKiosks && <Loader2 className="h-4 w-4 animate-spin text-emerald-600" />}
                      </div>
 
-                     <div className="grid grid-cols-4 gap-3 mb-4">
+                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
                         {KIOSK_MAP.filter(k => k.row === 'top').map(k => {
                           const isBooked = bookedKioskIds.includes(k.id);
                           return (
@@ -845,7 +838,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                         const isBooked = bookedKioskIds.includes(k.id);
                         return (
                           <div key={k.id} className={cn(
-                            "w-full h-20 rounded-3xl border-2 flex items-center justify-between px-8 transition-all duration-300",
+                            "w-full h-auto sm:h-20 py-4 sm:py-0 rounded-3xl border-2 flex flex-col sm:flex-row items-center justify-between px-6 sm:px-8 gap-4 transition-all duration-300",
                             isBooked 
                               ? "bg-rose-50 border-rose-200 text-rose-300 opacity-80" 
                               : "bg-white border-emerald-500 hover:border-amber-500 hover:shadow-md text-emerald-700 hover:-translate-y-1"
@@ -878,18 +871,11 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                        <p className="text-slate-600 text-xs font-bold leading-relaxed text-center italic">
                          "Esta aba é apenas para consultar previamente as disponibilidades para a data desejada. 
                          Caso não haja nenhum disponível já foram reservados. 
-                         Para continuar a reserva continue preenchendo os campos e realize o pagamento ao final para garantir."
+                         <strong className="font-black not-italic block mt-1">Para continuar a reserva continue preenchendo os campos e realize o pagamento ao final para garantir.</strong>"
                        </p>
                     </div>
 
-                    <div className="bg-gradient-to-r from-amber-500 to-orange-600 rounded-[2rem] p-5 shadow-lg shadow-amber-200/50 flex items-center gap-4 border-2 border-white/20">
-                       <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-md">
-                          <AlertCircle className="w-6 h-6 text-white" />
-                       </div>
-                       <p className="text-white text-xs font-black uppercase tracking-tight leading-tight">
-                          Atenção: <span className="opacity-90 font-bold lowercase">Continue com a reserva para selecionar o quiosque nas próximas etapas.</span>
-                       </p>
-                    </div>
+
                   </div>
                 </div>
 
