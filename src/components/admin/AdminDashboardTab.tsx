@@ -79,16 +79,18 @@ export function AdminDashboardTab({
          const kioskIdMatch = pNameLower.match(/quiosque\s*(\d+)/i);
          const kId = kioskIdMatch ? parseInt(kioskIdMatch[1], 10) : (pNameLower.includes('maior') ? 1 : 'MENOR');
 
-         if (!dayKiosks.some(dk => dk.order_item_id === item.id || (dk.id === b.id && dk.kiosk_id === kId))) {
+          // Only add virtual item if no REAL reservation exists for this order item
+          if (!dayKiosks.some(dk => dk.order_item_id === item.id || (dk.order_id === b.id && (dk.kiosk_id === kId || dk.kiosk_id === 'MENOR')))) {
             dayKiosks.push({
                id: b.id + '-' + item.id,
                kiosk_id: kId,
                customer_name: b.customer_name || b.name || 'Cliente',
                reservation_date: b.visit_date,
                status: b.status,
-               order_item_id: item.id
+               order_item_id: item.id,
+               order_id: b.id
             });
-         }
+          }
       }
     });
     

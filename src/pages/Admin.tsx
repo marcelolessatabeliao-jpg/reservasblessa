@@ -146,6 +146,69 @@ export default function Admin() {
   const [quadSubTab, setQuadSubTab] = useState<'hoje' | 'futuras' | 'historico'>('hoje');
   const [isCapacityUnlocked, setIsCapacityUnlocked] = useState(false);
   const [agendaSubTab, setAgendaSubTab] = useState<'hoje' | 'futuras' | 'historico'>('hoje');
+  const [isSyncingData, setIsSyncingData] = useState(false);
+
+  const repairKioskAssignments = async () => {
+    setIsSyncingData(true);
+    try {
+      // 1. Get all orders for the target date or future
+      const { data: orderItems } = await supabase
+        .from('order_items')
+        .select('*, orders!inner(id, customer_name, visit_date, status)')
+        .ilike('product_id', '%quiosque%');
+      
+      if (!orderItems) return;
+
+      let fixedCount = 0;
+      for (const item of orderItems) {
+        const order = (item as any).orders;
+        if (!['paid', 'confirmed', 'checked-in', 'completed'].includes(order.status?.toLowerCase())) continue;
+
+          // Try to find matching reservation
+          const { data: existing } = await supabase
+            .from('kiosk_reservations')
+            .select('*')
+            .eq('order_id', order.id)
+            .maybeSingle();
+
+          // Identify Kiosk ID from product name
+          const pNameLower = (item.product_name || '').toLowerCase();
+          const kioskIdMatch = pNameLower.match(/quiosque\s*(\d+)/i);
+          const kId = kioskIdMatch ? parseInt(kioskIdMatch[1], 10) : (pNameLower.includes('maior') ? 1 : 'MENOR');
+
+          if (!existing) {
+            // Create missing reservation
+            await supabase.from('kiosk_reservations').insert({
+              order_id: order.id,
+              kiosk_id: kId,
+              kiosk_type: (kId === 1 || kId === 'MAIOR') ? 'maior' : 'menor',
+              reservation_date: order.visit_date,
+              customer_name: order.customer_name,
+              price: item.unit_price,
+              status: order.status
+            });
+            fixedCount++;
+          } else if (existing.kiosk_id !== kId && kId !== 'MENOR') {
+            // Update mismatched kiosk ID
+            await supabase.from('kiosk_reservations').update({
+              kiosk_id: kId,
+              kiosk_type: (kId === 1 || kId === 'MAIOR') ? 'maior' : 'menor',
+              reservation_date: order.visit_date,
+              customer_name: order.customer_name
+            }).eq('id', existing.id);
+            fixedCount++;
+          }
+        }
+      
+      toast({ title: "Sincronização Concluída", description: `${fixedCount} inconsistências foram reparadas.` });
+      fetchData();
+    } catch (err) {
+      console.error(err);
+      toast({ title: "Erro na sincronização", variant: "destructive" });
+    } finally {
+      setIsSyncingData(false);
+    }
+  };
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [kioskStatusFilter, setKioskStatusFilter] = useState<string>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -857,7 +920,6 @@ export default function Admin() {
       if (type === 'kiosk') {
         const bookedIds = await getBookedKioskIds(newDateStr);
         const currentIds = group.items.map((r: any) => r.kiosk_id).filter((id: any) => !isNaN(id)).map(Number);
-        // If we are moving to a new date, we check if ALL kiosks in the group are free on the NEW date
         const conflicts = currentIds.filter((id: number) => bookedIds.includes(id));
         if (conflicts.length > 0) {
           throw new Error(`O(s) quiosque(s) ${conflicts.join(', ')} já estão ocupados nesta data.`);
@@ -874,28 +936,39 @@ export default function Admin() {
       const orderId = group.items[0]?.order_id;
 
       // 2. Perform Updates
-      const results = await Promise.all(group.items.map(async (r: any) => {
+      await Promise.all(group.items.map(async (r: any) => {
         let updatePayload: any = { reservation_date: newDateStr };
         
-        // If it's a quad, we might need to update the price because the discount changes by day of week
         if (type === 'quad') {
           const discount = getQuadDiscount(parseToRODate(newDateStr));
           const prices: any = { individual: 150, dupla: 250, 'adulto-crianca': 200 };
           const unitPrice = (prices[r.quad_type] || 150) * (1 - discount);
           updatePayload.price = unitPrice * (r.quantity || 1);
           
-          // Also update order_items if linked
           if (orderId && !String(orderId).startsWith('order-') && r.order_item_id) {
              await supabase.from('order_items').update({ unit_price: unitPrice }).eq('id', r.order_item_id);
           }
         }
         
-        return supabase.from(table).update(updatePayload).eq('id', r.id);
+        // Use edge function for cleaner update if it's a real order
+        if (orderId && !String(orderId).startsWith('order-')) {
+          const action = type === 'kiosk' ? 'update_kiosk' : 'update_quad';
+          const { error: funcErr } = await supabase.functions.invoke('create-internal-order', {
+            body: {
+              action,
+              item_id: r.id,
+              reservation_date: newDateStr,
+              price: updatePayload.price,
+              order_id: orderId
+            }
+          });
+          if (funcErr) throw funcErr;
+        } else {
+          const { error } = await supabase.from(table).update(updatePayload).eq('id', r.id);
+          if (error) throw error;
+        }
       }));
       
-      const hasError = results.some(r => r.error);
-      if (hasError) throw new Error('Algumas atualizações falharam no banco de dados.');
-
       // 3. Update Order Level
       if (orderId && !String(orderId).startsWith('order-')) {
         await supabase.from('orders').update({ visit_date: newDateStr }).eq('id', orderId);
@@ -1152,7 +1225,18 @@ export default function Admin() {
                 <h3 className="text-lg font-black text-emerald-900 uppercase tracking-tight">Reservas de Quiosques</h3>
                 <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-widest">Controle total por status e período</p>
               </div>
-              <div className="flex flex-row overflow-x-auto gap-2 bg-slate-100 p-1 rounded-2xl w-full md:w-auto shadow-inner border border-slate-200">
+              <div className="flex items-center gap-3">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={repairKioskAssignments} 
+                  disabled={isSyncingData}
+                  className="rounded-xl border-emerald-200 text-emerald-700 font-black text-[10px] h-9"
+                >
+                  {isSyncingData ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> : <RefreshCw className="w-3.5 h-3.5 mr-2" />}
+                  SINCRONIZAR BANCO
+                </Button>
+                <div className="flex flex-row overflow-x-auto gap-2 bg-slate-100 p-1 rounded-2xl w-full md:w-auto shadow-inner border border-slate-200">
                 {subTabConfig.map(t => (
                   <button
                     key={t.key}
@@ -1168,6 +1252,7 @@ export default function Admin() {
                     </span>
                   </button>
                 ))}
+                </div>
               </div>
             </div>
 
