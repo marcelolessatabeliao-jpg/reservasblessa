@@ -677,10 +677,10 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
       )}>
         {/* Nome & Telefone Row */}
         {!hideMainInfo && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-primary/5 p-4 rounded-3xl border border-primary/10 shadow-[inset_0_1px_4px_rgba(0,0,0,0.02)]">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-emerald-50/40 p-5 rounded-[2rem] border-2 border-emerald-100/80 shadow-sm transition-all hover:shadow-md hover:border-emerald-200/50">
             <div>
-              <label className="text-xs font-black text-primary uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                <User className="h-4 w-4" /> Nome Completo
+              <label className="text-[11px] font-black text-emerald-900 uppercase tracking-widest mb-2.5 flex items-center gap-1.5 px-1">
+                <User className="h-4 w-4 text-emerald-600" /> Nome Completo
               </label>
               <Input
                 placeholder="Ex: João Silva"
@@ -691,8 +691,8 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
               />
             </div>
             <div>
-              <label className="text-xs font-black text-primary uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                <Phone className="h-4 w-4" /> WhatsApp
+              <label className="text-[11px] font-black text-emerald-900 uppercase tracking-widest mb-2.5 flex items-center gap-1.5 px-1">
+                <Phone className="h-4 w-4 text-emerald-600" /> WhatsApp
               </label>
               <Input
                 placeholder="(00) 00000-0000"
@@ -711,10 +711,10 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
 
         {/* 1. Escolha a Data Row */}
         {!hideMainInfo && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-primary/5 p-4 rounded-[2rem] border border-primary/10 shadow-[inset_0_1px_4px_rgba(0,0,0,0.02)]">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-emerald-50/40 p-5 rounded-[2rem] border-2 border-emerald-100/80 shadow-sm transition-all hover:shadow-md hover:border-emerald-200/50">
             <div className="space-y-3">
-              <label className="text-xs font-black flex items-center gap-2 text-primary uppercase tracking-widest">
-                <CalendarIcon className="h-4 w-4" /> Escolha a Data da Reserva
+              <label className="text-[11px] font-black flex items-center gap-2 text-emerald-900 uppercase tracking-widest px-1">
+                <CalendarIcon className="h-4 w-4 text-emerald-600" /> Escolha a Data da Reserva
               </label>
 
               <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen} modal={true}>
@@ -769,8 +769,8 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
             </div>
 
             <div className="space-y-3">
-              <label className="text-xs font-black flex items-center gap-2 text-primary uppercase tracking-widest">
-                <Home className="h-4 w-4" /> Disponibilidade de Quiosques
+              <label className="text-[11px] font-black flex items-center gap-2 text-emerald-900 uppercase tracking-widest px-1">
+                <Home className="h-4 w-4 text-emerald-600" /> Disponibilidade de Quiosques
               </label>
               <Button
                 variant="outline"
@@ -895,10 +895,17 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
         {/* Participantes Summary Container */}
         <div className="space-y-6 pt-2">
           <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-between border-b border-primary/10 pb-3">
-              <h4 className="font-sans font-bold text-primary text-xl flex items-center gap-2">
-                <User className="h-5 w-5" /> Adicionar Pessoas:
-              </h4>
+            <div className="flex items-center justify-between border-b-2 border-emerald-100 pb-3">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
+                <h4 className="font-sans font-black text-primary text-xl flex items-center gap-2">
+                  <User className="h-5 w-5" /> Adicionar Pessoas:
+                </h4>
+                {(entry.adults.length === 0 && entry.children.length === 0) && (
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider animate-pulse">
+                    ← Clique nos botões para começar
+                  </span>
+                )}
+              </div>
             </div>
 
             <div className="flex flex-col gap-3">
@@ -1086,8 +1093,8 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
             </AnimatePresence>
 
             {(entry.adults.length === 0 && entry.children.length === 0) && (
-              <div className="text-center py-10 border-2 border-dashed border-primary/10 rounded-[2.5rem] bg-primary/5">
-                <p className="text-sm font-bold text-primary/40">Clique nos botões acima para começar a adicionar participantes.</p>
+              <div className="text-center py-10 border-2 border-dashed border-emerald-100 rounded-[2.5rem] bg-emerald-50/30">
+                <p className="text-sm font-bold text-emerald-900/30">Selecione os participantes acima.</p>
               </div>
             )}
           </div>
@@ -1101,7 +1108,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
           <p className="text-[11px] font-bold text-emerald-800 leading-relaxed">
             {entry.dayOfWeek === 'domingo'
               ? '✅ DOMINGO: Valor único de R$ 50,00 Inteira. PCD e TEA, Crianças, Idosos e Aniversariantes mantêm gratuidade. Professores, Estudantes e Servidores têm meia-entrada mediante comprovação.'
-              : '✅ DICA POSITIVA: Traga 1kg de alimento, livro, brinquedo ou roupas em bom estado para ativar seu benefício de Meia-Entrada (R$ 25,00) e ajudar quem precisa!'}
+              : '✅ DICA POSITIVA: Traga 1kg de alimento, livro, brinquedo ou roupas em bom estado e pague apenas meia-Entrada (R$ 25,00) nas sextas, sábados e segundas e ajude quem precisa!'}
           </p>
         </div>
       </div>
