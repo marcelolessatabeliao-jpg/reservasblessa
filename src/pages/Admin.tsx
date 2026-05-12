@@ -2007,138 +2007,116 @@ export default function Admin() {
        <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-blue-500/10 blur-[120px] rounded-full" />
 
        <div className="max-w-7xl mx-auto space-y-6 md:space-y-8 relative z-10 p-3 md:p-8">
-          {/* HEADER */}
-          <div className="flex flex-col xl:flex-row xl:items-start justify-between gap-4 mb-4">
-              <div className="flex items-start justify-between w-full xl:w-auto">
-                 <div className="space-y-2 shrink-0">
-                     <h1 className="text-4xl md:text-5xl font-black tracking-tighter flex items-center gap-4">
-                          <div className="flex flex-col -space-y-1 md:-space-y-1 md:-space-y-2">
-                             <span className="text-xl md:text-xl md:text-2xl text-[#FFF033]/80 leading-none shadow-sm">Lessa</span>
-                             <span className="text-4xl md:text-4xl md:text-5xl text-[#FFF033] shadow-md">Painel</span>
-                          </div>
-                       </h1>
-                     <p className="text-[#FFF033] font-black uppercase tracking-[0.2em] md:tracking-[0.3em] text-[8px] md:text-[10px] bg-[#FFF033]/10 w-fit px-3 py-1 rounded-full border border-[#FFF033]/30 backdrop-blur-sm mb-2">Gestão Integrada de Reservas - Balneário</p>
-                      
-                      <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 backdrop-blur-md w-fit animate-pulse">
+          {/* HEADER SECTION - 3 STACKED ROWS FOR MAXIMUM SPACE */}
+          <div className="flex flex-col gap-6 md:gap-8 mb-6 md:mb-10">
+              {/* ROW 1: LOGO & BASIC CONTROLS */}
+              <div className="flex items-center justify-between w-full">
+                  <div className="space-y-1">
+                      <h1 className="text-4xl md:text-5xl font-black tracking-tighter flex items-center gap-4">
+                           <div className="flex flex-col -space-y-1 md:-space-y-2">
+                              <span className="text-xl md:text-2xl text-[#FFF033]/80 leading-none">Lessa</span>
+                              <span className="text-4xl md:text-5xl text-[#FFF033]">Painel</span>
+                           </div>
+                        </h1>
+                      <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 backdrop-blur-md w-fit">
                         <div className="w-2 h-2 rounded-full bg-emerald-500" />
                         <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">Live Sync Ativo</span>
-                        <span className="text-[8px] font-bold text-emerald-500/60 lowercase ml-1">{format(lastSync, "HH:mm:ss")}</span>
                       </div>
-                 </div>
+                  </div>
 
-                 {/* MOBILE BUTTONS (TOP RIGHT) */}
-                 <div className="flex xl:hidden items-center gap-2">
-                    <Button 
-                      variant="outline"
-                      className="w-10 h-10 rounded-xl bg-white/10 border border-white/20 p-0 hover:bg-white/20 text-[#FFF033] shadow-lg backdrop-blur-md transition-all active:scale-95 flex items-center justify-center" 
-                      onClick={fetchData} 
-                      disabled={loading}
-                    >
-                       {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
-                    </Button>
-
-                    <Button 
-                      className="w-10 h-10 rounded-xl bg-[#FFF033] text-black p-0 shadow-lg hover:scale-105 active:scale-95 transition-all border-0 flex items-center justify-center" 
-                      onClick={handleLogout}
-                    >
-                       <LogOut className="w-5 h-5" />
-                    </Button>
-                 </div>
+                  <div className="flex items-center gap-3">
+                     <Button 
+                       variant="outline"
+                       className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 p-0 text-[#FFF033] shadow-xl backdrop-blur-md hover:bg-white/20" 
+                       onClick={fetchData} 
+                       disabled={loading}
+                     >
+                        {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : <RefreshCw className="w-6 h-6" />}
+                     </Button>
+                     <Button 
+                       className="w-12 h-12 rounded-2xl bg-rose-500/20 text-rose-500 p-0 border border-rose-500/30 hover:bg-rose-500 hover:text-white transition-all shadow-xl" 
+                       onClick={handleLogout}
+                     >
+                        <LogOut className="w-6 h-6" />
+                     </Button>
+                  </div>
               </div>
 
-              {/* STATS IN HEADER */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 flex-1 px-0 md:px-4">
-                 <Card onClick={() => setActiveTab('quiosques')} className="cursor-pointer bg-emerald-900 border-2 border-emerald-500 shadow-xl rounded-2xl p-2 md:p-3 flex items-center justify-between hover:bg-bg-emerald-900 transition-all group overflow-hidden relative min-h-[60px] md:h-[65px]">
-                    <div className="flex items-center gap-2 relative z-10">
-                       <div className="p-1 px-2 rounded-lg bg-emerald-800 text-emerald-100 border border-emerald-700/50">
-                          <Tent className="w-3.5 h-3.5" />
+              {/* ROW 2: STATUS CARDS - FULL WIDTH GRID */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 w-full">
+                 <Card onClick={() => setActiveTab('quiosques')} className="cursor-pointer bg-emerald-900/60 border-2 border-emerald-500 shadow-xl rounded-[2rem] p-4 flex items-center justify-between hover:scale-[1.02] transition-all h-[90px] w-full">
+                    <div className="flex items-center gap-4">
+                       <div className="p-3 rounded-2xl bg-emerald-500 text-emerald-950 shadow-inner">
+                          <Tent className="w-5 h-5" />
                        </div>
-                       <div className="flex flex-col -space-y-0.5">
-                          <span className="text-sm md:text-base font-black tabular-nums text-[#FFF033]">{(kioskReservations || []).filter(r => r.reservation_date === format(targetDate, 'yyyy-MM-dd')).length}</span>
-                          <span className="text-[7px] font-black uppercase tracking-widest text-emerald-200">Quiosques</span>
-                       </div>
-                    </div>
-                 </Card>
-                 
-                 <Card onClick={() => setActiveTab('quads')} className="cursor-pointer bg-blue-900 border-2 border-blue-500 shadow-xl rounded-2xl p-2 md:p-3 flex items-center justify-between hover:bg-bg-blue-900 transition-all group overflow-hidden relative min-h-[60px] md:h-[65px]">
-                    <div className="flex items-center gap-2 relative z-10">
-                       <div className="p-1 px-2 rounded-lg bg-blue-800 text-blue-100 border border-blue-700/50">
-                          <Bike className="w-3.5 h-3.5" />
-                       </div>
-                       <div className="flex flex-col -space-y-0.5">
-                          <span className="text-sm md:text-base font-black tabular-nums text-[#FFF033]">{(quadReservations || []).filter(r => r.reservation_date === format(targetDate, 'yyyy-MM-dd')).length}</span>
-                          <span className="text-[7px] font-black uppercase tracking-widest text-blue-200">Quadriciclos</span>
+                       <div className="flex flex-col -space-y-1">
+                          <span className="text-2xl font-black tabular-nums text-[#FFF033]">{(kioskReservations || []).filter(r => r.reservation_date === format(targetDate, 'yyyy-MM-dd')).length}</span>
+                          <span className="text-[10px] font-black uppercase tracking-widest text-emerald-100">Quiosques</span>
                        </div>
                     </div>
                  </Card>
                  
-                 <Card onClick={() => setActiveTab('vendas')} className="cursor-pointer bg-slate-900 border-2 border-[#FFF033]/50 shadow-xl rounded-2xl p-2 flex items-center justify-between hover:bg-black transition-all group overflow-hidden relative h-[65px]">
-                    <div className="flex items-center gap-2 relative z-10">
-                       <div className="p-1 px-2 rounded-lg bg-yellow-500/10 text-[#FFF033] border border-[#FFF033]/30">
-                          <TrendingUp className="w-3.5 h-3.5" />
+                 <Card onClick={() => setActiveTab('quads')} className="cursor-pointer bg-blue-900/60 border-2 border-blue-500 shadow-xl rounded-[2rem] p-4 flex items-center justify-between hover:scale-[1.02] transition-all h-[90px] w-full">
+                    <div className="flex items-center gap-4">
+                       <div className="p-3 rounded-2xl bg-blue-500 text-blue-950 shadow-inner">
+                          <Bike className="w-5 h-5" />
                        </div>
-                       <div className="flex flex-col -space-y-0.5">
-                          <span className="text-sm md:text-base font-black tabular-nums text-[#FFF033]">
+                       <div className="flex flex-col -space-y-1">
+                          <span className="text-2xl font-black tabular-nums text-[#FFF033]">{(quadReservations || []).filter(r => r.reservation_date === format(targetDate, 'yyyy-MM-dd')).length}</span>
+                          <span className="text-[10px] font-black uppercase tracking-widest text-blue-100">Quadriciclos</span>
+                       </div>
+                    </div>
+                 </Card>
+                 
+                 <Card onClick={() => setActiveTab('vendas')} className="cursor-pointer bg-slate-900/60 border-2 border-[#FFF033]/50 shadow-xl rounded-[2rem] p-4 flex items-center justify-between hover:scale-[1.02] transition-all h-[90px] w-full">
+                    <div className="flex items-center gap-4">
+                       <div className="p-3 rounded-2xl bg-yellow-400 text-yellow-950">
+                          <TrendingUp className="w-5 h-5" />
+                       </div>
+                       <div className="flex flex-col -space-y-1">
+                          <span className="text-2xl font-black tabular-nums text-[#FFF033]">
                             {formatCurrency(
                                (bookings.filter(b => b.visit_date === format(targetDate, 'yyyy-MM-dd')).reduce((s, b) => b.status !== 'cancelled' ? s + (b.total_amount || 0) : s, 0)) + 
                                (orders.filter(o => (o.visit_date || o.created_at.split('T')[0]) === format(targetDate, 'yyyy-MM-dd')).reduce((s, o) => o.status !== 'cancelled' ? s + (o.total_amount || 0) : s, 0))
                             ).replace('R$', '').trim()}
                           </span>
-                          <span className="text-[7px] font-black uppercase tracking-widest text-[#FFF033]/70">Receita Dia</span>
+                          <span className="text-[10px] font-black uppercase tracking-widest text-yellow-100">Receita Dia</span>
                        </div>
                     </div>
                  </Card>
 
-                 <Card onClick={() => setActiveTab('reservas')} className="cursor-pointer bg-amber-900 border-2 border-amber-500 shadow-xl rounded-2xl p-2 md:p-3 flex items-center justify-between hover:bg-bg-amber-900 transition-all group overflow-hidden relative min-h-[60px] md:h-[65px]">
-                    <div className="flex items-center gap-2 relative z-10">
-                       <div className="p-1 px-2 rounded-lg bg-amber-800 text-amber-100 border border-amber-700/50">
-                          <CalendarCheck className="w-3.5 h-3.5" />
+                 <Card onClick={() => setActiveTab('reservas')} className="cursor-pointer bg-amber-900/60 border-2 border-amber-500 shadow-xl rounded-[2rem] p-4 flex items-center justify-between hover:scale-[1.02] transition-all h-[90px] w-full">
+                    <div className="flex items-center gap-4">
+                       <div className="p-3 rounded-2xl bg-amber-500 text-amber-950">
+                          <CalendarCheck className="w-5 h-5" />
                        </div>
-                       <div className="flex flex-col -space-y-0.5">
-                          <span className="text-sm md:text-base font-black tabular-nums text-[#FFF033]">{bookings.length + orders.length}</span>
-                          <span className="text-[7px] font-black uppercase tracking-widest text-amber-200">Agenda</span>
+                       <div className="flex flex-col -space-y-1">
+                          <span className="text-2xl font-black tabular-nums text-[#FFF033]">{bookings.length + orders.length}</span>
+                          <span className="text-[10px] font-black uppercase tracking-widest text-amber-100">Agenda Total</span>
                        </div>
                     </div>
                  </Card>
               </div>
 
-              {/* ACTIONS BAR - BETTER SPACING */}
-              <div className="flex flex-wrap items-center gap-3 bg-white/5 p-3 rounded-[2rem] border border-white/10 backdrop-blur-xl shadow-2xl">
+              {/* ROW 3: ACTION BUTTONS - CENTERED & SPACIOUS */}
+              <div className="flex flex-wrap items-center justify-center gap-4 bg-white/5 p-4 rounded-[3rem] border border-white/10 backdrop-blur-xl shadow-premium">
                  <Button 
                    onClick={handleExportBackup}
                    variant="outline"
-                   className="h-12 px-6 rounded-2xl border-emerald-500/30 bg-emerald-500/10 text-emerald-400 font-black text-xs hover:bg-emerald-500 hover:text-white transition-all shadow-lg"
+                   className="h-14 md:h-16 px-8 md:px-12 rounded-[2rem] border-emerald-500/30 bg-emerald-500/20 text-emerald-400 font-black text-sm md:text-base hover:bg-emerald-500 hover:text-white transition-all shadow-xl"
                  >
-                   <Database className="w-4 h-4 mr-2" /> BACKUP
+                   <Database className="w-5 h-5 mr-3" /> FAZER BACKUP COMPLETO
                  </Button>
 
                  <Button 
                    onClick={() => setIsInternalBookingOpen(true)}
-                   className="h-12 px-8 rounded-2xl bg-[#FFF033] text-black font-black text-xs shadow-[0_0_20px_rgba(255,240,51,0.3)] hover:scale-105 transition-all border-0"
+                   className="h-14 md:h-16 px-8 md:px-14 rounded-[2rem] bg-[#FFF033] text-black font-black text-sm md:text-base shadow-[0_0_40px_rgba(255,240,51,0.25)] hover:scale-105 transition-all border-0"
                  >
-                   <Plus className="w-4 h-4 mr-2" /> NOVO AGENDAMENTO
-                 </Button>
-
-                 <div className="h-8 w-px bg-white/20 mx-2 hidden sm:block" />
-
-                 <Button 
-                   variant="outline"
-                   className="rounded-2xl bg-white/10 border-white/20 font-black h-12 px-5 hover:bg-white/20 text-[#FFF033] shadow-xl backdrop-blur-md transition-all active:scale-95 hidden sm:flex" 
-                   onClick={fetchData} 
-                   disabled={loading}
-                 >
-                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5 mr-2" />}
-                 </Button>
-
-                 <Button 
-                   className="rounded-2xl bg-rose-500/20 border border-rose-500/30 text-rose-500 font-black h-12 px-5 hover:bg-rose-500 hover:text-white transition-all hidden sm:flex" 
-                   onClick={handleLogout}
-                 >
-                    <LogOut className="w-5 h-5 mr-2" /> 
+                   <Plus className="w-6 h-6 mr-3" /> NOVO AGENDAMENTO
                  </Button>
               </div>
           </div>
-          {/* TABS */}
+{/* TABS */}
           <div className="flex flex-wrap items-center p-2 md:p-3 bg-emerald-950/60 backdrop-blur-xl rounded-2xl md:rounded-3xl w-full max-w-5xl mr-auto border border-white/20 shadow-premium mb-6 gap-1.5 md:gap-2">
              <button onClick={() => setActiveTab('painel')} className={cn(
                "px-4 md:px-4 py-3 md:py-4 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-1.5 md:gap-2.5 transition-all whitespace-nowrap", 
