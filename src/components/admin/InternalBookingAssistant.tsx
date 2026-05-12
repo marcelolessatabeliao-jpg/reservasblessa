@@ -528,7 +528,7 @@ export function InternalBookingAssistant({
                                     <div className="px-2 h-6 rounded-lg bg-emerald-950 text-white flex items-center justify-center text-[10px] font-black shadow-sm tracking-tighter">{t}</div>
                                     <div className="flex flex-col">
                                     <div className="flex flex-col">
-                                       <span className="text-[9px] font-black uppercase text-slate-500 leading-none mb-1 tracking-tighter">Ocupadas ({localUsed + (dbRemaining === maxQuads ? 0 : maxQuads - dbRemaining)}/{maxQuads})</span>
+                                       <span className="text-[11px] font-black uppercase text-slate-700 leading-none mb-1 tracking-tight">Ocupadas ({localUsed + (dbRemaining === maxQuads ? 0 : maxQuads - dbRemaining)}/{maxQuads})</span>
                                        <div className="flex gap-1">
                                           {Array.from({length: maxQuads}).map((_, i) => {
                                              const used = localUsed + (maxQuads - dbRemaining);
@@ -547,12 +547,12 @@ export function InternalBookingAssistant({
                                   {['individual', 'dupla', 'adulto-crianca'].map(type => {
                                      const qItem = newBookingData.quads.find(q => q.type === type && q.time === t);
                                      const qty = qItem ? qItem.quantity : 0;
-                                     const labels: any = { individual: 'IND.', dupla: 'DUPLA', 'adulto-crianca': 'ADUL.' };
+                                     const labels: any = { individual: 'IND.', dupla: 'DUPLA', 'adulto-crianca': 'ADUL + KIDS' };
                                      
                                      return (
                                         <div key={type} className="flex flex-col gap-1">
                                            <div className={cn(
-                                             "h-7 rounded-lg border flex items-center justify-center font-black text-[8.5px] transition-all",
+                                             "h-9 rounded-lg border flex items-center justify-center font-black text-[10px] transition-all px-1 text-center leading-tight",
                                              qty > 0 ? "bg-emerald-600 border-emerald-700 text-white shadow-inner" : "bg-white border-slate-300 text-slate-600"
                                            )}>
                                               {qty > 0 ? `${qty}x` : labels[type]}
