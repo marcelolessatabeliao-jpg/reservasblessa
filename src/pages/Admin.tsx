@@ -596,12 +596,12 @@ export default function Admin() {
         }
       });
 
-    // Fallback: Refresh data every 30 seconds to ensure it's always up to date
+    // Fallback: Refresh data every 5 minutes to ensure it's always up to date
     // even if the realtime connection is lost
     const pollInterval = setInterval(() => {
       console.log("[Admin] Periodic sync...");
       fetchData();
-    }, 30000);
+    }, 300000);
 
     return () => { 
       console.log("[Admin] Cleaning up subscriptions and pollers...");
