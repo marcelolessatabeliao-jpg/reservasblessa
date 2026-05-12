@@ -8,8 +8,8 @@ const containerVariants = {
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.1,
-      delayChildren: 0.3,
+      staggerChildren: 0.05,
+      delayChildren: 0.05,
     },
   },
 };
@@ -19,7 +19,7 @@ const itemVariants = {
   visible: { 
     opacity: 1, 
     y: 0,
-    transition: { type: "spring", stiffness: 100, damping: 20 }
+    transition: { type: "spring", stiffness: 150, damping: 15 }
   },
 };
 
@@ -30,7 +30,7 @@ export function HeroSection() {
       <motion.div
         initial={{ scale: 1.1 }}
         animate={{ scale: 1 }}
-        transition={{ duration: 10, ease: "easeOut" }}
+        transition={{ duration: 5, ease: "easeOut" }}
         className="absolute inset-0 bg-cover bg-[center_35%] z-0"
         style={{ backgroundImage: `url(/images/cachoeira-nova-larga.jpg)` }}
       />
