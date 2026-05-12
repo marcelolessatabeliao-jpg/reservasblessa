@@ -2047,7 +2047,7 @@ export default function Admin() {
                   </div>
               </div>
           </div>
-          <div className="flex flex-wrap items-center p-2 md:p-3 bg-emerald-950/60 backdrop-blur-xl rounded-2xl md:rounded-3xl w-full max-w-7xl mr-auto border border-white/20 shadow-premium mb-6 gap-2">
+          <div className="flex flex-nowrap items-center p-2 md:p-3 bg-emerald-950/60 backdrop-blur-xl rounded-2xl md:rounded-3xl w-full max-w-7xl mr-auto border border-white/20 shadow-premium mb-6 gap-2 overflow-x-auto scrollbar-hide">
              <button onClick={() => setActiveTab('painel')} className={cn(
                "px-4 py-3 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-2 transition-all whitespace-nowrap", 
                activeTab === 'painel' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
