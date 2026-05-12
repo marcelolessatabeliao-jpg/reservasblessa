@@ -575,15 +575,14 @@ export function BookingTable({
                               );
                               
                                                                                                                                                                   const name = booking.name || (booking as any).customer_name;
-                                            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-                                            
-                                            // DEFINITIVE EMOJI FIX - RAW PERCENT ENCODING
-                                            const E_HERB = isMobile ? "%F0%9F%8C%BF" : ">>";
-                                            const E_CAL = isMobile ? "%F0%9F%93%85" : "•";
-                                            const E_USER = isMobile ? "%F0%9F%91%A4" : "•";
-                                            const E_NOTE = isMobile ? "%F0%9F%93%9D" : "•";
-                                            const E_MONEY = isMobile ? "%F0%9F%92%B0" : "•";
-                                            const E_SPARK = isMobile ? "%E2%9C%A8" : ">>";
+                                                                                        // SAFE UNICODE SYMBOLS (No emojis to avoid corruption)
+                                            const E_HERB = "◆";
+                                            const E_CAL = "◈";
+                                            const E_USER = "◈";
+                                            const E_NOTE = "◈";
+                                            const E_MONEY = "◈";
+                                            const E_SPARK = "◆";
+
 
                                             const waUrl = "https://wa.me/55" + phone + "?text=" + 
                                               E_HERB + encodeURIComponent(" *BALNEÁRIO FAMÍLIA LESSA*\n\n") +
