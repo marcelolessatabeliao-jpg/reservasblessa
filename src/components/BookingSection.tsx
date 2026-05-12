@@ -152,36 +152,7 @@ export function BookingSection() {
             </div>
           </div>
 
-          {/* Step Indicator - Simplificado para Mobile */}
-          <div className="mb-8 px-4">
-             <div className="flex flex-col items-center justify-center gap-1">
-                <span className="text-[10px] font-bold uppercase text-primary/60 tracking-widest">
-                   Etapa {currentStep === 'dados' ? 1 : currentStep === 'quiosques' ? 2 : currentStep === 'quads' ? 3 : currentStep === 'servicos' ? 4 : 5} de 5
-                </span>
-                <h2 className="font-sans font-semibold text-2xl text-primary text-center">
-                  {currentStep === 'dados' ? 'Quem vai e Quando?' : 
-                   currentStep === 'quiosques' ? 'Escolha seu Quiosque' :
-                   currentStep === 'quads' ? 'Aventura de Quadriciclo' :
-                   currentStep === 'servicos' ? 'Diversão e Pesca' : 
-                   'Resumo e Pagamento'}
-                </h2>
-             </div>
-             <div className="w-full bg-muted h-1.5 rounded-full mt-4 overflow-hidden max-w-[200px] mx-auto">
-                <div 
-                   className="h-full bg-primary transition-all duration-500" 
-                   style={{ width: currentStep === 'dados' ? '20%' : currentStep === 'quiosques' ? '40%' : currentStep === 'quads' ? '60%' : currentStep === 'servicos' ? '80%' : '100%' }}
-                />
-             </div>
-          </div>
 
-          <div className="w-full bg-muted h-1 rounded-full mb-12 relative overflow-hidden hidden sm:block">
-            <motion.div 
-               className="absolute top-0 left-0 h-full bg-primary"
-               initial={{ width: "0%" }}
-               animate={{ width: currentStep === 'dados' ? '10%' : currentStep === 'quiosques' ? '30%' : currentStep === 'quads' ? '50%' : currentStep === 'servicos' ? '70%' : '100%' }}
-               transition={{ duration: 0.5, ease: "easeInOut" }}
-            />
-          </div>
 
           {/* Step Content */}
           <div id="reservas-content" className="bg-transparent sm:bg-white rounded-none sm:rounded-[2.5rem] p-0 sm:p-10 min-h-[400px]">

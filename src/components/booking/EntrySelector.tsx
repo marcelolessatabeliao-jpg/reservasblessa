@@ -660,21 +660,18 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
 
   return (
     <div className="space-y-4">
-      {!hideTitle && (
-        <div className="flex items-center gap-3 mb-2">
-          <div className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-primary/10 text-primary shrink-0">
-            <Ticket className="h-4 w-4 sm:h-5 sm:w-5" />
-          </div>
-          <h3 className="font-sans font-bold text-xl sm:text-2xl md:text-3xl leading-tight text-primary drop-shadow-sm text-center w-full">
-            Selecione quem vai participar
-          </h3>
-        </div>
-      )}
-
       <div className={cn(
         "bg-white/50 backdrop-blur-md rounded-[2.5rem] border border-white/60 p-4 sm:p-6 shadow-xl space-y-6",
         hideMainInfo && "bg-transparent backdrop-blur-none border-none shadow-none p-0"
       )}>
+        {!hideTitle && (
+          <div className="flex flex-col items-center justify-center gap-1 mb-2 border-b border-emerald-100 pb-4">
+             <h2 className="font-sans font-semibold text-2xl text-primary text-center">
+               Quem vai e Quando?
+             </h2>
+          </div>
+        )}
+
         {/* Nome & Telefone Row */}
         {!hideMainInfo && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-white p-6 rounded-[2rem] border-2 border-emerald-500/20 shadow-xl">
