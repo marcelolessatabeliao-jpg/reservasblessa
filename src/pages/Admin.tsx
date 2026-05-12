@@ -2007,113 +2007,103 @@ export default function Admin() {
        <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-blue-500/10 blur-[120px] rounded-full" />
 
        <div className="max-w-7xl mx-auto space-y-6 md:space-y-8 relative z-10 p-3 md:p-8">
-          {/* HEADER SECTION - 3 STACKED ROWS FOR MAXIMUM SPACE */}
-          <div className="flex flex-col gap-6 md:gap-8 mb-6 md:mb-10">
+          {/* HEADER SECTION - COMPACT & ORGANIZED */}
+          <div className="flex flex-col gap-4 mb-6">
               {/* ROW 1: LOGO & BASIC CONTROLS */}
               <div className="flex items-center justify-between w-full">
                   <div className="space-y-1">
-                      <h1 className="text-4xl md:text-5xl font-black tracking-tighter flex items-center gap-4">
-                           <div className="flex flex-col -space-y-1 md:-space-y-2">
-                              <span className="text-xl md:text-2xl text-[#FFF033]/80 leading-none">Lessa</span>
-                              <span className="text-4xl md:text-5xl text-[#FFF033]">Painel</span>
+                      <h1 className="text-3xl md:text-4xl font-black tracking-tighter flex items-center gap-3">
+                           <div className="flex flex-col -space-y-1">
+                              <span className="text-lg md:text-xl text-[#FFF033]/80 leading-none">Lessa</span>
+                              <span className="text-3xl md:text-4xl text-[#FFF033]">Painel</span>
                            </div>
                         </h1>
-                      <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 backdrop-blur-md w-fit">
-                        <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                        <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">Live Sync Ativo</span>
+                      <div className="flex items-center gap-2 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 backdrop-blur-md w-fit">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                        <span className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">Live Sync Ativo</span>
                       </div>
                   </div>
 
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                     <Button 
+                        onClick={handleExportBackup}
+                        variant="outline"
+                        className="h-10 px-4 rounded-xl border-emerald-500/30 bg-emerald-500/10 text-emerald-400 font-black text-[10px] hover:bg-emerald-500 hover:text-white transition-all shadow-lg"
+                      >
+                        <Database className="w-3.5 h-3.5 mr-2" /> BACKUP
+                      </Button>
+
                      <Button 
                        variant="outline"
-                       className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 p-0 text-[#FFF033] shadow-xl backdrop-blur-md hover:bg-white/20" 
+                       className="w-10 h-10 rounded-xl bg-white/10 border border-white/20 p-0 text-[#FFF033] shadow-lg backdrop-blur-md hover:bg-white/20" 
                        onClick={fetchData} 
                        disabled={loading}
                      >
-                        {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : <RefreshCw className="w-6 h-6" />}
+                        {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
                      </Button>
                      <Button 
-                       className="w-12 h-12 rounded-2xl bg-rose-500/20 text-rose-500 p-0 border border-rose-500/30 hover:bg-rose-500 hover:text-white transition-all shadow-xl" 
+                       className="w-10 h-10 rounded-xl bg-rose-500/20 text-rose-500 p-0 border border-rose-500/30 hover:bg-rose-500 hover:text-white transition-all shadow-lg" 
                        onClick={handleLogout}
                      >
-                        <LogOut className="w-6 h-6" />
+                        <LogOut className="w-5 h-5" />
                      </Button>
                   </div>
               </div>
 
-              {/* ROW 2: STATUS CARDS - FULL WIDTH GRID */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 w-full">
-                 <Card onClick={() => setActiveTab('quiosques')} className="cursor-pointer bg-emerald-900/60 border-2 border-emerald-500 shadow-xl rounded-[2rem] p-4 flex items-center justify-between hover:scale-[1.02] transition-all h-[90px] w-full">
-                    <div className="flex items-center gap-4">
-                       <div className="p-3 rounded-2xl bg-emerald-500 text-emerald-950 shadow-inner">
-                          <Tent className="w-5 h-5" />
+              {/* ROW 2: STATUS CARDS - COMPACT GRID */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-3 w-full">
+                 <Card onClick={() => setActiveTab('quiosques')} className="cursor-pointer bg-emerald-900/60 border border-emerald-500/50 shadow-lg rounded-2xl p-3 flex items-center justify-between hover:bg-emerald-900 transition-all h-[65px]">
+                    <div className="flex items-center gap-3">
+                       <div className="p-2 rounded-xl bg-emerald-500 text-emerald-950">
+                          <Tent className="w-4 h-4" />
                        </div>
-                       <div className="flex flex-col -space-y-1">
-                          <span className="text-2xl font-black tabular-nums text-[#FFF033]">{(kioskReservations || []).filter(r => r.reservation_date === format(targetDate, 'yyyy-MM-dd')).length}</span>
-                          <span className="text-[10px] font-black uppercase tracking-widest text-emerald-100">Quiosques</span>
-                       </div>
-                    </div>
-                 </Card>
-                 
-                 <Card onClick={() => setActiveTab('quads')} className="cursor-pointer bg-blue-900/60 border-2 border-blue-500 shadow-xl rounded-[2rem] p-4 flex items-center justify-between hover:scale-[1.02] transition-all h-[90px] w-full">
-                    <div className="flex items-center gap-4">
-                       <div className="p-3 rounded-2xl bg-blue-500 text-blue-950 shadow-inner">
-                          <Bike className="w-5 h-5" />
-                       </div>
-                       <div className="flex flex-col -space-y-1">
-                          <span className="text-2xl font-black tabular-nums text-[#FFF033]">{(quadReservations || []).filter(r => r.reservation_date === format(targetDate, 'yyyy-MM-dd')).length}</span>
-                          <span className="text-[10px] font-black uppercase tracking-widest text-blue-100">Quadriciclos</span>
+                       <div className="flex flex-col -space-y-0.5">
+                          <span className="text-lg font-black tabular-nums text-[#FFF033]">{(kioskReservations || []).filter(r => r.reservation_date === format(targetDate, 'yyyy-MM-dd')).length}</span>
+                          <span className="text-[8px] font-black uppercase tracking-widest text-emerald-100">Quiosques</span>
                        </div>
                     </div>
                  </Card>
                  
-                 <Card onClick={() => setActiveTab('vendas')} className="cursor-pointer bg-slate-900/60 border-2 border-[#FFF033]/50 shadow-xl rounded-[2rem] p-4 flex items-center justify-between hover:scale-[1.02] transition-all h-[90px] w-full">
-                    <div className="flex items-center gap-4">
-                       <div className="p-3 rounded-2xl bg-yellow-400 text-yellow-950">
-                          <TrendingUp className="w-5 h-5" />
+                 <Card onClick={() => setActiveTab('quads')} className="cursor-pointer bg-blue-900/60 border border-blue-500/50 shadow-lg rounded-2xl p-3 flex items-center justify-between hover:bg-blue-900 transition-all h-[65px]">
+                    <div className="flex items-center gap-3">
+                       <div className="p-2 rounded-xl bg-blue-500 text-blue-950">
+                          <Bike className="w-4 h-4" />
                        </div>
-                       <div className="flex flex-col -space-y-1">
-                          <span className="text-2xl font-black tabular-nums text-[#FFF033]">
+                       <div className="flex flex-col -space-y-0.5">
+                          <span className="text-lg font-black tabular-nums text-[#FFF033]">{(quadReservations || []).filter(r => r.reservation_date === format(targetDate, 'yyyy-MM-dd')).length}</span>
+                          <span className="text-[8px] font-black uppercase tracking-widest text-blue-100">Quadriciclos</span>
+                       </div>
+                    </div>
+                 </Card>
+                 
+                 <Card onClick={() => setActiveTab('vendas')} className="cursor-pointer bg-slate-900/60 border border-[#FFF033]/30 shadow-lg rounded-2xl p-3 flex items-center justify-between hover:bg-black transition-all h-[65px]">
+                    <div className="flex items-center gap-3">
+                       <div className="p-2 rounded-xl bg-yellow-400 text-yellow-950">
+                          <TrendingUp className="w-4 h-4" />
+                       </div>
+                       <div className="flex flex-col -space-y-0.5">
+                          <span className="text-lg font-black tabular-nums text-[#FFF033]">
                             {formatCurrency(
                                (bookings.filter(b => b.visit_date === format(targetDate, 'yyyy-MM-dd')).reduce((s, b) => b.status !== 'cancelled' ? s + (b.total_amount || 0) : s, 0)) + 
                                (orders.filter(o => (o.visit_date || o.created_at.split('T')[0]) === format(targetDate, 'yyyy-MM-dd')).reduce((s, o) => o.status !== 'cancelled' ? s + (o.total_amount || 0) : s, 0))
                             ).replace('R$', '').trim()}
                           </span>
-                          <span className="text-[10px] font-black uppercase tracking-widest text-yellow-100">Receita Dia</span>
+                          <span className="text-[8px] font-black uppercase tracking-widest text-yellow-100">Receita Dia</span>
                        </div>
                     </div>
                  </Card>
 
-                 <Card onClick={() => setActiveTab('reservas')} className="cursor-pointer bg-amber-900/60 border-2 border-amber-500 shadow-xl rounded-[2rem] p-4 flex items-center justify-between hover:scale-[1.02] transition-all h-[90px] w-full">
-                    <div className="flex items-center gap-4">
-                       <div className="p-3 rounded-2xl bg-amber-500 text-amber-950">
-                          <CalendarCheck className="w-5 h-5" />
+                 <Card onClick={() => setActiveTab('reservas')} className="cursor-pointer bg-amber-900/60 border border-amber-500/50 shadow-lg rounded-2xl p-3 flex items-center justify-between hover:bg-amber-900 transition-all h-[65px]">
+                    <div className="flex items-center gap-3">
+                       <div className="p-2 rounded-xl bg-amber-500 text-amber-950">
+                          <CalendarCheck className="w-4 h-4" />
                        </div>
-                       <div className="flex flex-col -space-y-1">
-                          <span className="text-2xl font-black tabular-nums text-[#FFF033]">{bookings.length + orders.length}</span>
-                          <span className="text-[10px] font-black uppercase tracking-widest text-amber-100">Agenda Total</span>
+                       <div className="flex flex-col -space-y-0.5">
+                          <span className="text-lg font-black tabular-nums text-[#FFF033]">{bookings.length + orders.length}</span>
+                          <span className="text-[8px] font-black uppercase tracking-widest text-amber-100">Agenda Total</span>
                        </div>
                     </div>
                  </Card>
-              </div>
-
-              {/* ROW 3: ACTION BUTTONS - CENTERED & SPACIOUS */}
-              <div className="flex flex-wrap items-center justify-center gap-4 bg-white/5 p-4 rounded-[3rem] border border-white/10 backdrop-blur-xl shadow-premium">
-                 <Button 
-                   onClick={handleExportBackup}
-                   variant="outline"
-                   className="h-14 md:h-16 px-8 md:px-12 rounded-[2rem] border-emerald-500/30 bg-emerald-500/20 text-emerald-400 font-black text-sm md:text-base hover:bg-emerald-500 hover:text-white transition-all shadow-xl"
-                 >
-                   <Database className="w-5 h-5 mr-3" /> FAZER BACKUP COMPLETO
-                 </Button>
-
-                 <Button 
-                   onClick={() => setIsInternalBookingOpen(true)}
-                   className="h-14 md:h-16 px-8 md:px-14 rounded-[2rem] bg-[#FFF033] text-black font-black text-sm md:text-base shadow-[0_0_40px_rgba(255,240,51,0.25)] hover:scale-105 transition-all border-0"
-                 >
-                   <Plus className="w-6 h-6 mr-3" /> NOVO AGENDAMENTO
-                 </Button>
               </div>
           </div>
 {/* TABS */}

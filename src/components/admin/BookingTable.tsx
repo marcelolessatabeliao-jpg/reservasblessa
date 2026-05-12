@@ -574,28 +574,31 @@ export function BookingTable({
                                 { locale: ptBR },
                               );
                               
-                                                                          const name = booking.name || (booking as any).customer_name;
+                                                                                                                      const name = booking.name || (booking as any).customer_name;
                                             
-                                            // DEFINE EMOJIS DIRECTLY IN PERCENT-ENCODED FORMAT
-                                            const E_HERB = "%F0%9F%8C%BF";
-                                            const E_CAL = "%F0%9F%93%85";
-                                            const E_USER = "%F0%9F%91%A4";
-                                            const E_NOTE = "%F0%9F%93%9D";
-                                            const E_MONEY = "%F0%9F%92%B0";
-                                            const E_SPARK = "%E2%9C%A8";
+                                            // USE UNICODE ESCAPES TO AVOID SOURCE ENCODING ISSUES
+                                            const E_HERB = "\\uD83C\\uDF3F";
+                                            const E_CAL = "\\uD83D\\uDCC5";
+                                            const E_USER = "\\uD83D\\uDC64";
+                                            const E_NOTE = "\\uD83D\\uDCDD";
+                                            const E_MONEY = "\\uD83D\\uDCB0";
+                                            const E_SPARK = "\\u2728";
 
-                                            const waUrl = "https://wa.me/55" + phone + "?text=" + 
-                                              E_HERB + encodeURIComponent(" *BALNEÁRIO FAMÍLIA LESSA*\n\n") +
-                                              encodeURIComponent(`Esse é seu voucher de confirmação da sua reserva e o resumo do seu pedido para apresentar caso seja solicitado.\n\n`) +
-                                              E_CAL + encodeURIComponent(` *Data:* ${dateStr}\n`) +
-                                              E_USER + encodeURIComponent(` *Titular:* ${name}\n\n`) +
-                                              E_NOTE + encodeURIComponent(` *Resumo do Pedido:*\n${itemsList}\n\n`) +
-                                              E_MONEY + encodeURIComponent(` *Total:* ${formatCurrency(booking.total_amount)}\n\n`) +
-                                              encodeURIComponent(`Voucher: https://reservas.balneariolessa.com.br/voucher/${code}\n\n`) +
-                                              E_SPARK + encodeURIComponent(" *Aguardamos vocês para o lazer que a sua família merece.*");
+                                            const message = 
+                                              E_HERB + " *BALNEÁRIO FAMÍLIA LESSA*\\n\\n" +
+                                              "Esse é seu voucher de confirmação da sua reserva e o resumo do seu pedido para apresentar caso seja solicitado.\\n\\n" +
+                                              E_CAL + " *Data:* " + dateStr + "\\n" +
+                                              E_USER + " *Titular:* " + name + "\\n\\n" +
+                                              E_NOTE + " *Resumo do Pedido:*\\n" + itemsList + "\\n\\n" +
+                                              E_MONEY + " *Total:* " + formatCurrency(booking.total_amount) + "\\n\\n" +
+                                              "Voucher: https://reservas.balneariolessa.com.br/voucher/" + code + "\\n\\n" +
+                                              E_SPARK + " *Aguardamos vocês para o lazer que a sua família merece.*";
+
+                                            const waUrl = "https://api.whatsapp.com/send?phone=55" + phone + "&text=" + encodeURIComponent(message);
 
                                             // Open WhatsApp immediately
                                             window.open(waUrl, "_blank");
+
 
 
                               // Update marker in DB asynchronously
