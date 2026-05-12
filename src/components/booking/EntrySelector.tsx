@@ -864,11 +864,11 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
 
                   <div className="space-y-4">
                     <div className="bg-white border-2 border-emerald-100 rounded-[2rem] p-6 shadow-sm">
-                       <p className="text-slate-600 text-xs font-bold leading-relaxed text-center italic">
-                         "Esta aba é apenas para consultar previamente as disponibilidades para a data desejada. 
-                         Caso não haja nenhum disponível já foram reservados. 
-                         <span className="font-black text-slate-950 not-italic block mt-2">Para continuar a reserva continue preenchendo os campos e realize o pagamento ao final para garantir.</span>"
-                       </p>
+                        <p className="text-slate-600 text-xs font-medium leading-relaxed text-center">
+                          Este mapa mostra a ocupação em tempo real para a data selecionada. 
+                          Quiosques em <span className="text-rose-600 font-bold">vermelho</span> já estão reservados.
+                          <span className="font-black text-emerald-950 block mt-3 text-sm">Para garantir sua reserva, preencha os dados e conclua o pagamento ao final.</span>
+                        </p>
                     </div>
 
 
