@@ -579,7 +579,10 @@ export default function Admin() {
   useEffect(() => {
     if (!token) return;
 
-    console.log("[Admin] Setting up real-time subscriptions...");    const channel = supabase.channel("admin_db_changes")
+    console.log("[Admin] Setting up initial data and subscriptions...");
+    fetchData();
+
+    const channel = supabase.channel("admin_db_changes")
       .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, (payload) => {
         console.log("[Admin] Change detected in orders:", payload);
         fetchData();

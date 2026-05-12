@@ -577,14 +577,14 @@ export function BookingTable({
                               const name = booking.name || (booking as any).customer_name;
 
                               const message = 
-                                `\u{1F33F} *BALNEÁRIO FAMÍLIA LESSA*\n\n` +
+                                `\uD83C\uDF3F *BALNEÁRIO FAMÍLIA LESSA*\n\n` +
                                 `Esse é seu voucher de confirmação da sua reserva e o resumo do seu pedido para apresentar caso seja solicitado.\n\n` +
-                                `\u{1F4C5} *Data:* ${dateStr}\n` +
-                                `\u{1F464} *Titular:* ${name}\n\n` +
-                                `\u{1F4DD} *Resumo do Pedido:*\n${itemsList}\n\n` +
-                                `\u{1F4B0} *Total:* ${formatCurrency(booking.total_amount)}\n\n` +
+                                `\uD83D\uDCC5 *Data:* ${dateStr}\n` +
+                                `\uD83D\uDC64 *Titular:* ${name}\n\n` +
+                                `\uD83D\uDCDD *Resumo do Pedido:*\n${itemsList}\n\n` +
+                                `\uD83D\uDCB0 *Total:* ${formatCurrency(booking.total_amount)}\n\n` +
                                 `Voucher: https://reservas.balneariolessa.com.br/voucher/${code}\n\n` +
-                                `\u{2728} *Aguardamos vocês para o lazer que a sua família merece.*`;
+                                `\u2728 *Aguardamos vocês para o lazer que a sua família merece.*`;
                               
                               const text = encodeURIComponent(message);
 
@@ -1463,14 +1463,14 @@ export function BookingTable({
                                               (booking as any).customer_name;
 
                                             const message = 
-                                              `\u{1F33F} *BALNEÁRIO FAMÍLIA LESSA*\n\n` +
+                                              `\uD83C\uDF3F *BALNEÁRIO FAMÍLIA LESSA*\n\n` +
                                               `Esse é seu voucher de confirmação da sua reserva e o resumo do seu pedido para apresentar caso seja solicitado.\n\n` +
-                                              `\u{1F4C5} *Data:* ${dateStr}\n` +
-                                              `\u{1F464} *Titular:* ${name}\n\n` +
-                                              `\u{1F4DD} *Resumo do Pedido:*\n${itemsList}\n\n` +
-                                              `\u{1F4B0} *Total:* ${formatCurrency(booking.total_amount)}\n\n` +
+                                              `\uD83D\uDCC5 *Data:* ${dateStr}\n` +
+                                              `\uD83D\uDC64 *Titular:* ${name}\n\n` +
+                                              `\uD83D\uDCDD *Resumo do Pedido:*\n${itemsList}\n\n` +
+                                              `\uD83D\uDCB0 *Total:* ${formatCurrency(booking.total_amount)}\n\n` +
                                               `Voucher: https://reservas.balneariolessa.com.br/voucher/${code}\n\n` +
-                                              `\u{2728} *Aguardamos vocês para o lazer que a sua família merece.*`;
+                                              `\u2728 *Aguardamos vocês para o lazer que a sua família merece.*`;
                                             
                                             const text = encodeURIComponent(message);
 
