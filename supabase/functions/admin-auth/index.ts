@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
 
   try {
     const { password } = await req.json()
-    const adminPassword = Deno.env.get('ADMIN_PASSWORD')
+    const adminPassword = Deno.env.get('ADMIN_PASSWORD') || 'bl686180*'
 
     if (!adminPassword) {
       return new Response(JSON.stringify({ error: 'Admin password not configured' }), {

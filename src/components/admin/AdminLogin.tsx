@@ -20,7 +20,7 @@ export function AdminLogin({ onLogin }: AdminLoginProps) {
     setLoading(true);
 
     try {
-      if (password === 'admbalneario') {
+      if (password === 'bl686180*') {
         const fakeToken = btoa(`admin:${Date.now()}:local-dev`);
         localStorage.setItem('admin_token', fakeToken);
         onLogin(fakeToken);
