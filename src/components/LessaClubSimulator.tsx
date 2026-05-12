@@ -41,9 +41,11 @@ export function LessaClubSimulator() {
       if (quantities.adult === 1) return 'https://cartaobl.com.br/planos/?regPlano=1212252516762';
     }
 
-    // Special Combination: 1 Adult + 1 (Student OR Teacher OR Server)
-    if (quantities.adult === 1 && (quantities.student === 1 || quantities.teacher === 1 || quantities.server === 1) && payingPeople === 2) {
-      return 'https://cartaobl.com.br/planos/?regPlano=1241212252690163';
+    // Case: 1 Lessa Club + 1 Dependent (Student, Teacher or Server)
+    if (quantities.adult === 1 && payingPeople === 2) {
+      if (quantities.student === 1 || quantities.teacher === 1 || quantities.server === 1) {
+        return 'https://cartaobl.com.br/planos/?regPlano=1241212252690163';
+      }
     }
 
     if (quantities.adult === payingPeople) {
@@ -119,10 +121,12 @@ export function LessaClubSimulator() {
       }
     }
 
-    // Special Combination direct link: 1 Adult + 1 Half-Price (Student/Teacher/Server)
-    if (quantities.adult === 1 && (quantities.student === 1 || quantities.teacher === 1 || quantities.server === 1) && payingPeople === 2) {
-      window.open('https://cartaobl.com.br/planos/?regPlano=1241212252690163', '_blank');
-      return;
+    // Case: 1 Lessa Club + 1 Dependent (Student, Teacher or Server)
+    if (quantities.adult === 1 && payingPeople === 2) {
+      if (quantities.student === 1 || quantities.teacher === 1 || quantities.server === 1) {
+        window.open('https://cartaobl.com.br/planos/?regPlano=1241212252690163', '_blank');
+        return;
+      }
     }
 
     // Modal logic for Lessa Club 2-5 adults (only adults)
