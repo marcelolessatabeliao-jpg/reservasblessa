@@ -18,30 +18,42 @@ const specialPlans = [
     icon: GraduationCap,
     description: 'Valorizando quem educa! Acesso ilimitado e lazer garantido.',
     benefits: ['Acesso livre em dias de funcionamento', '5% Cashback em serviços', 'Sem taxa de adesão', 'Carteira digital/física'],
-    buttons: [{ label: 'Mensal', link: 'https://cartaobl.com.br/planos/?regPlano=1221212252632308' }, { label: 'Anual', link: 'https://cartaobl.com.br/planos/?regPlano=127121225261720' }],
+    buttons: [
+      { label: 'MENSAL - R$ 25,00', link: 'https://cartaobl.com.br/planos/?regPlano=1221212252632308' }, 
+      { label: 'ANUAL - R$ 22,50/mês', link: 'https://cartaobl.com.br/planos/?regPlano=127121225261720' }
+    ],
     price: "25,00",
     priceNote: '/mês ou (meia-entrada no Day Use)',
     color: 'bg-green-600 text-white border-green-400 shadow-green-200/50',
+    hideTopPrice: true
   },
   {
     title: 'Lessa Student Pass',
     icon: GraduationCap,
     description: 'Estudantes têm lugar garantido com o melhor custo-benefício.',
     benefits: ['Acesso livre em dias de funcionamento', '5% Cashback em serviços', 'Sem taxa de adesão', 'Carteira digital/física'],
-    buttons: [{ label: 'Mensal', link: 'https://cartaobl.com.br/planos/?regPlano=1211212252673382' }, { label: 'Anual', link: 'https://cartaobl.com.br/planos/?regPlano=1281212252613283' }],
+    buttons: [
+      { label: 'MENSAL - R$ 25,00', link: 'https://cartaobl.com.br/planos/?regPlano=1211212252673382' }, 
+      { label: 'ANUAL - R$ 22,50/mês', link: 'https://cartaobl.com.br/planos/?regPlano=1281212252613283' }
+    ],
     price: "25,00",
     priceNote: '/mês ou (meia-entrada no Day Use)',
     color: 'bg-sun text-foreground border-sun-dark/20 shadow-sun/30',
+    hideTopPrice: true
   },
   {
     title: 'Lessa Servidor Pass',
     icon: Users,
     description: 'Reconhecimento àqueles que servem à sociedade.',
     benefits: ['Acesso livre em dias de funcionamento', '5% Cashback em serviços', 'Sem taxa de adesão', 'Carteira digital/física'],
-    buttons: [{ label: 'Mensal', link: 'https://cartaobl.com.br/planos/?regPlano=1201212252611556' }, { label: 'Anual', link: 'https://cartaobl.com.br/planos/?regPlano=1261212252611074' }],
+    buttons: [
+      { label: 'MENSAL - R$ 25,00', link: 'https://cartaobl.com.br/planos/?regPlano=1201212252611556' }, 
+      { label: 'ANUAL - R$ 22,50/mês', link: 'https://cartaobl.com.br/planos/?regPlano=1261212252611074' }
+    ],
     price: "25,00",
     priceNote: '/mês ou (meia-entrada no Day Use)',
     color: 'bg-primary text-white border-primary-light shadow-primary/20',
+    hideTopPrice: true
   },
 ];
 
@@ -97,10 +109,18 @@ export function SpecialPlansCards() {
               </div>
               
               <h3 className="font-display font-bold text-xl mb-1 text-current">{plan.title}</h3>
-              <div className="mb-4 text-left">
-                <p className="text-current font-black text-3xl">R$ {plan.price}</p>
-                <p className="text-[10px] opacity-80 font-bold uppercase tracking-widest">{plan.priceNote}</p>
-              </div>
+              {!(plan as any).hideTopPrice && (
+                <div className="mb-4 text-left">
+                  <p className="text-current font-black text-3xl">R$ {plan.price}</p>
+                  <p className="text-[10px] opacity-80 font-bold uppercase tracking-widest">{plan.priceNote}</p>
+                </div>
+              )}
+              
+              {(plan as any).hideTopPrice && (
+                <div className="mb-4 text-left">
+                  <p className="text-[10px] opacity-80 font-bold uppercase tracking-widest mt-2">{plan.priceNote}</p>
+                </div>
+              )}
               
               <p className="text-sm opacity-90 mb-6 flex-1 italic leading-relaxed font-medium">
                 "{plan.description}"
@@ -114,9 +134,9 @@ export function SpecialPlansCards() {
                 ))}
               </ul>
               
-              <div className="flex gap-2 w-full mt-auto">
+              <div className="flex flex-col gap-2 w-full mt-auto">
                 {plan.buttons.map((btn, bidx) => (
-                  <Button key={bidx} asChild className="flex-1 bg-white text-foreground hover:bg-sun hover:text-foreground border-none font-black text-[10px] uppercase tracking-widest py-6 rounded-xl shadow-lg transition-all">
+                  <Button key={bidx} asChild className="w-full bg-white text-foreground hover:bg-sun hover:text-foreground border-none font-black text-[10px] uppercase tracking-widest py-6 rounded-xl shadow-lg transition-all">
                     <a href={btn.link} target="_blank" rel="noopener noreferrer">{btn.label}</a>
                   </Button>
                 ))}
