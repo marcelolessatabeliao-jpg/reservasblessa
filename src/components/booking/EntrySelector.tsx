@@ -780,7 +780,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                   "w-full h-11 rounded-xl border-2 font-black text-[10px] uppercase tracking-widest transition-all",
                   entry.visitDate 
                     ? "border-primary/30 text-primary hover:bg-primary hover:text-white shadow-sm" 
-                    : "border-slate-100 text-emerald-600 bg-emerald-50/30"
+                    : "border-slate-100 text-emerald-800 font-bold bg-emerald-50/40"
                 )}
               >
                 {entry.visitDate ? "Ver quiosques para a data escolhida" : "Selecione uma data primeiro"}
