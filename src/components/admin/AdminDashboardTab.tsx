@@ -145,53 +145,74 @@ export function AdminDashboardTab({
                      </h4>
                      
                      <div className="flex flex-col gap-2.5">
-                       {KIOSKS.map(k => {
-                        const booking = dayKiosks.find(b => {
-                          const bid = b.kiosk_id;
-                          if (bid === 1 || bid === '1' || bid === 'MAIOR') return k.id === 1;
-                          if (bid === 'MENOR') {
-                             const dayOrderMenors = dayKiosks.filter(dk => dk.kiosk_id === 'MENOR');
-                             const orderIdx = dayOrderMenors.findIndex(dk => dk.id === b.id);
-                             if (k.id === orderIdx + 2) return true;
-                          }
-                          return Number(bid) === k.id;
-                        });
-                        
-                        return (
-                          <div key={k.id} className={cn(
-                            "rounded-xl p-3 shadow-sm border transition-all cursor-default flex items-center justify-between group",
-                            booking 
-                              ? booking.status === 'checked-in'
-                                ? "bg-emerald-100 border-emerald-300 ring-2 ring-emerald-500/20"
-                                : "bg-white border-emerald-200 hover:bg-emerald-800"
-                              : "bg-white border-emerald-100/50 hover:bg-emerald-50"
-                          )}>
-                             <div className="flex items-center gap-2">
-                                <span className={cn(
-                                  "font-black text-[12px] md:text-[13px] transition-colors",
-                                  booking && booking.status !== 'checked-in' ? "group-hover:text-white" : "text-emerald-950"
-                                )}>
-                                  {k.name}
-                                </span>
-                                {booking?.status === 'checked-in' && (
-                                  <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white text-[8px] font-black px-1.5 py-0 rounded-md border-none flex items-center gap-1">
-                                    <CheckCircle2 className="w-2.5 h-2.5" /> OCUPADO
-                                  </Badge>
+                       {(() => {
+                         // Build a lookup map: kiosk slot ID -> reservation
+                         const kioskMap: Record<number, any> = {};
+                         
+                         // First pass: assign kiosks with numeric IDs
+                         dayKiosks.forEach(b => {
+                           const bid = b.kiosk_id;
+                           const numId = Number(bid);
+                           if (!isNaN(numId) && numId >= 1 && numId <= 5) {
+                             if (!kioskMap[numId]) kioskMap[numId] = b;
+                           } else if (bid === 'MAIOR' || bid === '1') {
+                             if (!kioskMap[1]) kioskMap[1] = b;
+                           }
+                         });
+                         
+                         // Second pass: assign MENOR kiosks to first available slot 2-5
+                         const menorKiosks = dayKiosks.filter(b => b.kiosk_id === 'MENOR');
+                         menorKiosks.forEach(b => {
+                           for (let slot = 2; slot <= 5; slot++) {
+                             if (!kioskMap[slot]) {
+                               kioskMap[slot] = b;
+                               break;
+                             }
+                           }
+                         });
+                         
+                         console.log('[Dashboard] dayKiosks:', dayKiosks.length, dayKiosks.map(d => ({ id: d.id, kiosk_id: d.kiosk_id, name: d.customer_name })));
+                         console.log('[Dashboard] kioskMap:', Object.entries(kioskMap).map(([k,v]) => ({ slot: k, name: (v as any)?.customer_name })));
+                         
+                         return KIOSKS.map(k => {
+                           const booking = kioskMap[k.id] || null;
+                         
+                           return (
+                             <div key={k.id} className={cn(
+                               "rounded-xl p-3 shadow-sm border transition-all cursor-default flex items-center justify-between group",
+                               booking 
+                                 ? booking.status === 'checked-in'
+                                   ? "bg-emerald-100 border-emerald-300 ring-2 ring-emerald-500/20"
+                                   : "bg-white border-emerald-200 hover:bg-emerald-800"
+                                 : "bg-white border-emerald-100/50 hover:bg-emerald-50"
+                             )}>
+                                <div className="flex items-center gap-2">
+                                   <span className={cn(
+                                     "font-black text-[12px] md:text-[13px] transition-colors",
+                                     booking && booking.status !== 'checked-in' ? "group-hover:text-white" : "text-emerald-950"
+                                   )}>
+                                     {k.name}
+                                   </span>
+                                   {booking?.status === 'checked-in' && (
+                                     <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white text-[8px] font-black px-1.5 py-0 rounded-md border-none flex items-center gap-1">
+                                       <CheckCircle2 className="w-2.5 h-2.5" /> OCUPADO
+                                     </Badge>
+                                   )}
+                                </div>
+                                {booking ? (
+                                  <span className={cn(
+                                    "font-bold italic text-[12px] md:text-[13px] text-right transition-colors truncate max-w-[140px]",
+                                    booking.status === 'checked-in' ? "text-emerald-800" : "text-emerald-700 group-hover:text-emerald-100"
+                                  )}>
+                                     {booking.customer_name}
+                                  </span>
+                                ) : (
+                                  <span className="text-emerald-800/80 italic font-bold text-[12px] md:text-[13px] group-hover:text-emerald-600 transition-colors">Livre</span>
                                 )}
                              </div>
-                             {booking ? (
-                               <span className={cn(
-                                 "font-bold italic text-[12px] md:text-[13px] text-right transition-colors truncate max-w-[140px]",
-                                 booking.status === 'checked-in' ? "text-emerald-800" : "text-emerald-700 group-hover:text-emerald-100"
-                               )}>
-                                  {booking.customer_name}
-                               </span>
-                             ) : (
-                               <span className="text-emerald-800/80 italic font-bold text-[12px] md:text-[13px] group-hover:text-emerald-600 transition-colors">Livre</span>
-                             )}
-                          </div>
-                        );
-                      })}
+                           );
+                         });
+                       })()}
                    </div>
                   </div>
 
