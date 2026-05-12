@@ -184,7 +184,7 @@ export default function Admin() {
 
           // 1. Sync Reservation Table
           if (!existing) {
-            // Create missing reservation
+            console.log(`Fixing missing reservation for ${order.customer_name}`);
             await supabase.from('kiosk_reservations').insert({
               order_id: order.id,
               kiosk_id: kId,
@@ -195,8 +195,8 @@ export default function Admin() {
               status: order.status
             });
             fixedCount++;
-          } else if (existing.kiosk_id !== kId) {
-            // Update mismatched kiosk ID
+          } else if (String(existing.kiosk_id) !== String(kId)) {
+            console.log(`Fixing mismatched reservation ID for ${order.customer_name}: ${existing.kiosk_id} -> ${kId}`);
             await supabase.from('kiosk_reservations').update({
               kiosk_id: kId,
               kiosk_type: (kId === 1 || kId === 'MAIOR' || kId === '1') ? 'maior' : 'menor',
@@ -208,10 +208,15 @@ export default function Admin() {
 
           // 2. Sync Order Item Name (to avoid operator confusion)
           const correctLabel = String(kId).padStart(2, '0');
-          const correctName = kId === 1 ? 'QUIOSQUE - 01 (Grande)' : `QUIOSQUE - ${correctLabel}`;
-          if (kId !== 'MENOR' && (item.product_name || '').toUpperCase() !== correctName.toUpperCase()) {
-             await supabase.from('order_items').update({ product_name: correctName }).eq('id', item.id);
-             fixedCount++;
+          const correctName = kId === 1 ? 'QUIOSQUE - 01 (Grande)' : `QUIOSQUE ${correctLabel}`;
+          if (kId !== 'MENOR' && (item.product_name || '').trim().toUpperCase() !== correctName.toUpperCase()) {
+             console.log(`Fixing product name for ${order.customer_name}: ${item.product_name} -> ${correctName}`);
+             const { error: updateErr } = await supabase.from('order_items').update({ product_name: correctName }).eq('id', item.id);
+             if (updateErr) {
+               console.error('Error updating product name:', updateErr);
+             } else {
+               fixedCount++;
+             }
           }
         }
 
