@@ -8,8 +8,8 @@ const containerVariants = {
   visible: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.05,
-      delayChildren: 0.05,
+      staggerChildren: 0.02,
+      delayChildren: 0.02,
     },
   },
 };
@@ -93,7 +93,7 @@ export function HeroSection() {
           variants={itemVariants}
           className="flex justify-center mb-12"
         >
-          <div className="inline-flex items-center gap-3 bg-black/60 backdrop-blur-md px-6 py-3 rounded-2xl border border-white/10 shadow-2xl">
+          <div className="inline-flex items-center gap-3 bg-black/60 backdrop-blur-md px-6 py-1.5 sm:py-2 rounded-2xl border border-white/10 shadow-2xl">
             <span className="text-xl">📍</span>
             <span className="text-white font-black text-[10px] sm:text-xs uppercase tracking-[0.2em] opacity-90">
               Aberto das 9h às 17h • Sextas, Sábados, Domingos, Segundas e Feriados
