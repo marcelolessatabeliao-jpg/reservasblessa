@@ -575,13 +575,13 @@ export function BookingTable({
                               );
                               
                                                                                                                                                                   const name = booking.name || (booking as any).customer_name;
-                                                                                        // SAFE UNICODE SYMBOLS (No emojis to avoid corruption)
-                                            const E_HERB = "◆";
-                                            const E_CAL = "◈";
-                                            const E_USER = "◈";
-                                            const E_NOTE = "◈";
-                                            const E_MONEY = "◈";
-                                            const E_SPARK = "◆";
+                                                                                                                                    // DEFINITIVE SYMBOL FIX (Using code points to avoid build corruption)
+                                            const E_HERB = String.fromCodePoint(0x25C6); // ◆
+                                            const E_CAL = String.fromCodePoint(0x25C8);  // ◈
+                                            const E_USER = String.fromCodePoint(0x25C8); // ◈
+                                            const E_NOTE = String.fromCodePoint(0x25C8); // ◈
+                                            const E_MONEY = String.fromCodePoint(0x25C8); // ◈
+                                            const E_SPARK = String.fromCodePoint(0x25C6); // ◆
 
 
                                             const waUrl = "https://wa.me/55" + phone + "?text=" + 

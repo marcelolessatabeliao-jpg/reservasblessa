@@ -2047,39 +2047,39 @@ export default function Admin() {
                   </div>
               </div>
           </div>
-          <div className="flex flex-nowrap items-center p-1.5 bg-emerald-950/60 backdrop-blur-xl rounded-2xl md:rounded-3xl w-full max-w-[100%] mr-auto border border-white/20 shadow-premium mb-6 gap-1 overflow-hidden">
+          <div className="flex flex-nowrap items-center p-2 bg-emerald-950/60 backdrop-blur-xl rounded-2xl md:rounded-3xl w-full max-w-full mr-auto border border-white/20 shadow-premium mb-6 gap-2 overflow-hidden">
              <button onClick={() => setActiveTab('painel')} className={cn(
-               "px-2.5 py-2 rounded-xl text-[10px] md:text-[12px] font-black flex items-center justify-center gap-2 transition-all whitespace-nowrap", 
+               "px-4 py-2.5 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-2 transition-all whitespace-nowrap", 
                activeTab === 'painel' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
              )}>
                 <LayoutDashboard className="w-4 h-4" /> Visão Geral
              </button>
              <button onClick={() => setActiveTab('quiosques')} className={cn(
-               "px-2.5 py-2 rounded-xl text-[10px] md:text-[12px] font-black flex items-center justify-center gap-2 transition-all whitespace-nowrap", 
+               "px-4 py-2.5 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-2 transition-all whitespace-nowrap", 
                activeTab === 'quiosques' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
              )}>
                 <Tent className="w-4 h-4" /> Quiosques
              </button>
              <button onClick={() => setActiveTab('quads')} className={cn(
-               "px-2.5 py-2 rounded-xl text-[10px] md:text-[12px] font-black flex items-center justify-center gap-2 transition-all whitespace-nowrap", 
+               "px-4 py-2.5 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-2 transition-all whitespace-nowrap", 
                activeTab === 'quads' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
              )}>
                 <Bike className="w-4 h-4" /> Quadriciclos
              </button>
              <button onClick={() => setActiveTab('reservas')} className={cn(
-               "px-2.5 py-2 rounded-xl text-[10px] md:text-[12px] font-black flex items-center justify-center gap-2 transition-all whitespace-nowrap", 
+               "px-4 py-2.5 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-2 transition-all whitespace-nowrap", 
                activeTab === 'reservas' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
              )}>
                 <CalendarCheck className="w-4 h-4" /> Agenda
              </button>
              <button onClick={() => setActiveTab('vendas')} className={cn(
-               "px-2.5 py-2 rounded-xl text-[10px] md:text-[12px] font-black flex items-center justify-center gap-2 transition-all whitespace-nowrap", 
+               "px-4 py-2.5 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-2 transition-all whitespace-nowrap", 
                activeTab === 'vendas' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
              )}>
                 <ShoppingBag className="w-4 h-4" /> Vendas
              </button>
              <button onClick={() => setActiveTab('creditos')} className={cn(
-               "px-2.5 py-2 rounded-xl text-[10px] md:text-[12px] font-black flex items-center justify-center gap-2 transition-all whitespace-nowrap", 
+               "px-4 py-2.5 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-2 transition-all whitespace-nowrap", 
                activeTab === 'creditos' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
              )}>
                 <Wallet className="w-4 h-4" /> Créditos
