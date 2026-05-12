@@ -64,7 +64,7 @@ export function AdminDashboardTab({
 
   const dayBookings = bookings.filter(b => 
     matchDate(b.visit_date, targetDate) && 
-    !['cancelled', 'cancelado'].includes((b.status || '').toLowerCase())
+    ['paid', 'pago', 'confirmed', 'checked-in', 'completed'].includes((b.status || '').toLowerCase())
   );
 
   // Add virtual items from bookings to visual map

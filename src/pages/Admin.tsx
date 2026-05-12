@@ -366,7 +366,10 @@ export default function Admin() {
          confirmation_code: k.confirmation_code || k.orders?.confirmation_code,
          customer_phone: k.customer_phone || k.orders?.customer_phone || k.bookings?.phone,
          last_voucher_sent_at: k.last_voucher_sent_at || k.orders?.last_voucher_sent_at
-      })).filter((k: any) => !['cancelled', 'cancelado'].includes((k.status || '').toLowerCase()));
+      })).filter((k: any) => {
+        const s = (k.status || '').toLowerCase();
+        return ['paid', 'pago', 'confirmed', 'checked-in', 'completed'].includes(s);
+      });
       
       let parsedQuads = filteredQuads.map((q: any) => ({
          ...q,
@@ -375,7 +378,10 @@ export default function Admin() {
          confirmation_code: q.confirmation_code || q.orders?.confirmation_code,
          customer_phone: q.customer_phone || q.orders?.customer_phone || q.bookings?.phone,
          last_voucher_sent_at: q.last_voucher_sent_at || q.orders?.last_voucher_sent_at
-      })).filter((q: any) => !['cancelled', 'cancelado'].includes((q.status || '').toLowerCase()));
+      })).filter((q: any) => {
+        const s = (q.status || '').toLowerCase();
+        return ['paid', 'pago', 'confirmed', 'checked-in', 'completed'].includes(s);
+      });
 
       if (orderData) {
          orderData.forEach((o: any) => {
@@ -411,7 +417,7 @@ export default function Admin() {
             const matchedQuadIds = new Set();
 
             // 3. Process Order Items for Kiosks and Quads
-            if (['paid', 'pago', 'confirmed', 'checked-in', 'completed', 'pending', 'aguardando pgto', 'waiting_local', 'waiting_confirmation'].includes(o.status?.toLowerCase() || '')) {
+            if (['paid', 'pago', 'confirmed', 'checked-in', 'completed'].includes(o.status?.toLowerCase() || '')) {
               o.order_items.forEach((item: any) => {
                const pId = (item.product_id || '').toLowerCase();
                const pName = (item.product_name || '').toLowerCase();
@@ -538,6 +544,7 @@ export default function Admin() {
       });
 
       setBookings(flattenedBks);
+      console.log('[Admin] parsedKiosks count:', parsedKiosks.length, parsedKiosks.map(k => ({ id: k.id, kiosk_id: k.kiosk_id, customer_name: k.customer_name, status: k.status, date: k.reservation_date })));
       setKioskReservations(parsedKiosks);
       setQuadReservations(parsedQuads);
       setOrders(orderData || []);
@@ -1153,7 +1160,7 @@ export default function Admin() {
 
     const dayBookings = bookings.filter(b => 
       matchDate(b.visit_date, targetDate) && 
-      !['cancelled', 'cancelado'].includes((b.status || '').toLowerCase())
+      ['paid', 'pago', 'confirmed', 'checked-in', 'completed'].includes((b.status || '').toLowerCase())
     );
 
     
@@ -1202,7 +1209,7 @@ export default function Admin() {
     });
     const dayOrders = orders.filter(o => 
       matchDate(o.visit_date || o.created_at, targetDate) && 
-      !['cancelled', 'cancelado'].includes((o.status || '').toLowerCase())
+      ['paid', 'pago', 'confirmed', 'checked-in', 'completed'].includes((o.status || '').toLowerCase())
     );
 
     
