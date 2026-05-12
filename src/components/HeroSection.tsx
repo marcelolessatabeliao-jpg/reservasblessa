@@ -19,9 +19,11 @@ const itemVariants = {
   visible: { 
     opacity: 1, 
     y: 0,
-    transition: { type: "spring", stiffness: 300, damping: 30 }
+    transition: { type: "spring", stiffness: 100, damping: 15 }
   },
 };
+
+const MotionButton = motion(Button);
 
 export function HeroSection() {
   return (
@@ -121,21 +123,29 @@ export function HeroSection() {
             </a>
           </Button>
 
-          <motion.div variants={itemVariants} animate={{ backdropFilter: "blur(12px)" }} className="w-full sm:w-auto rounded-[2rem] overflow-hidden shadow-xl">
-            <Button asChild size="lg" className="bg-emerald-800/60 hover:bg-emerald-700/80 text-white border-2 border-emerald-400/30 text-base sm:text-xl px-8 sm:px-10 py-7 sm:py-8 font-display font-bold w-full h-full rounded-none transition-all hover:-translate-y-1 active:scale-95">
-              <a href="#especiais" className="flex items-center gap-3">
-                <Calculator className="h-6 w-6" /> Simular Meu Plano
-              </a>
-            </Button>
-          </motion.div>
+          <MotionButton 
+            asChild 
+            size="lg" 
+            variants={itemVariants}
+            animate={{ backdropFilter: "blur(12px)" }}
+            className="bg-emerald-800/60 hover:bg-emerald-700/80 text-white border-2 border-emerald-400/30 text-base sm:text-xl px-8 sm:px-10 py-7 sm:py-8 font-display font-bold w-full sm:w-auto rounded-[2rem] shadow-xl transition-all hover:-translate-y-1 active:scale-95"
+          >
+            <a href="#especiais" className="flex items-center gap-3">
+              <Calculator className="h-6 w-6" /> Simular Meu Plano
+            </a>
+          </MotionButton>
           
-          <motion.div variants={itemVariants} animate={{ backdropFilter: "blur(12px)" }} className="w-full sm:w-auto rounded-[2rem] overflow-hidden shadow-xl">
-            <Button asChild size="lg" className="bg-blue-800/60 hover:bg-blue-700/80 text-white border-2 border-blue-400/30 text-base sm:text-xl px-8 sm:px-10 py-7 sm:py-8 font-display font-bold w-full h-full rounded-none transition-all hover:-translate-y-1 active:scale-95">
-              <Link to="/consultar" className="flex items-center gap-3">
-                <Search className="h-6 w-6" /> Consultar Reserva
-              </Link>
-            </Button>
-          </motion.div>
+          <MotionButton 
+            asChild 
+            size="lg" 
+            variants={itemVariants}
+            animate={{ backdropFilter: "blur(12px)" }}
+            className="bg-blue-800/60 hover:bg-blue-700/80 text-white border-2 border-blue-400/30 text-base sm:text-xl px-8 sm:px-10 py-7 sm:py-8 font-display font-bold w-full sm:w-auto rounded-[2rem] shadow-xl transition-all hover:-translate-y-1 active:scale-95"
+          >
+            <Link to="/consultar" className="flex items-center gap-3">
+              <Search className="h-6 w-6" /> Consultar Reserva
+            </Link>
+          </MotionButton>
         </motion.div>
       </motion.div>
 

@@ -579,10 +579,7 @@ export default function Admin() {
   useEffect(() => {
     if (!token) return;
 
-    console.log("[Admin] Setting up real-time subscriptions...");
-    fetchData();
-
-    const channel = supabase.channel("admin_changes")
+    console.log("[Admin] Setting up real-time subscriptions...");    const channel = supabase.channel("admin_db_changes")
       .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, (payload) => {
         console.log("[Admin] Change detected in orders:", payload);
         fetchData();
@@ -593,12 +590,23 @@ export default function Admin() {
       .on("postgres_changes", { event: "*", schema: "public", table: "quad_reservations" }, () => fetchData())
       .on("postgres_changes", { event: "*", schema: "public", table: "payments" }, () => fetchData())
       .subscribe((status) => {
-        console.log("[Admin] Subscription status:", status);
+        console.log("[Admin] Realtime subscription status:", status);
+        if (status === 'SUBSCRIBED') {
+          console.log("[Admin] Listening for live changes...");
+        }
       });
 
+    // Fallback: Refresh data every 30 seconds to ensure it's always up to date
+    // even if the realtime connection is lost
+    const pollInterval = setInterval(() => {
+      console.log("[Admin] Periodic sync...");
+      fetchData();
+    }, 30000);
+
     return () => { 
-      console.log("[Admin] Cleaning up subscriptions...");
-      supabase.removeChannel(channel); 
+      console.log("[Admin] Cleaning up subscriptions and pollers...");
+      supabase.removeChannel(channel);
+      clearInterval(pollInterval);
     };
   }, [token, fetchData]);
 
