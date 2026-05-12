@@ -411,7 +411,7 @@ export default function Admin() {
             const matchedQuadIds = new Set();
 
             // 3. Process Order Items for Kiosks and Quads
-            if (['paid', 'confirmed', 'checked-in', 'completed'].includes(o.status?.toLowerCase() || '')) {
+            if (['paid', 'pago', 'confirmed', 'checked-in', 'completed', 'pending', 'aguardando pgto', 'waiting_local', 'waiting_confirmation'].includes(o.status?.toLowerCase() || '')) {
               o.order_items.forEach((item: any) => {
                const pId = (item.product_id || '').toLowerCase();
                const pName = (item.product_name || '').toLowerCase();
@@ -1153,9 +1153,7 @@ export default function Admin() {
 
     const dayBookings = bookings.filter(b => 
       matchDate(b.visit_date, targetDate) && 
-      b.status !== 'awaiting_payment' && 
-      b.status !== 'pending' &&
-      b.status !== 'cancelled'
+      !['cancelled', 'cancelado'].includes((b.status || '').toLowerCase())
     );
 
     
@@ -1204,9 +1202,7 @@ export default function Admin() {
     });
     const dayOrders = orders.filter(o => 
       matchDate(o.visit_date || o.created_at, targetDate) && 
-      o.status !== 'awaiting_payment' && 
-      o.status !== 'pending' &&
-      o.status !== 'cancelled'
+      !['cancelled', 'cancelado'].includes((o.status || '').toLowerCase())
     );
 
     
