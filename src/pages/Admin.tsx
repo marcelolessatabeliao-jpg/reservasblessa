@@ -182,6 +182,7 @@ export default function Admin() {
           
           if (sIds.length > 0) kId = sIds[0];
 
+          // 1. Sync Reservation Table
           if (!existing) {
             // Create missing reservation
             await supabase.from('kiosk_reservations').insert({
@@ -203,6 +204,14 @@ export default function Admin() {
               customer_name: order.customer_name
             }).eq('id', existing.id);
             fixedCount++;
+          }
+
+          // 2. Sync Order Item Name (to avoid operator confusion)
+          const correctLabel = String(kId).padStart(2, '0');
+          const correctName = kId === 1 ? 'QUIOSQUE - 01 (Grande)' : `QUIOSQUE - ${correctLabel}`;
+          if (kId !== 'MENOR' && (item.product_name || '').toUpperCase() !== correctName.toUpperCase()) {
+             await supabase.from('order_items').update({ product_name: correctName }).eq('id', item.id);
+             fixedCount++;
           }
         }
 
