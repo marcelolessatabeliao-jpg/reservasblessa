@@ -797,7 +797,6 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                   <p className="text-emerald-50/80 text-xs font-bold mt-1">
                     {entry.visitDate && format(entry.visitDate, "dd 'de' MMMM", { locale: ptBR })}
                   </p>
-                  <Button 
                 </div>
 
                 <div className="p-6 space-y-6 bg-emerald-50/30">
