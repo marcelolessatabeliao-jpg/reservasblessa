@@ -71,7 +71,7 @@ export function HeroSection() {
           variants={itemVariants}
           className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8"
         >
-          <div className="flex items-center gap-2 bg-white/80 px-4 py-2.5 rounded-2xl border border-white shadow-2xl scale-[0.9] sm:scale-100 transition-transform hover:scale-105">
+          <div className="flex items-center gap-2 bg-black/40 px-4 py-2.5 rounded-2xl border border-white/10 shadow-2xl scale-[0.9] sm:scale-100 transition-transform hover:scale-105">
             <div className="flex text-sun drop-shadow-sm">
               {[1, 2, 3, 4, 5].map((s) => (
                 <svg key={s} className="w-4 h-4 sm:w-5 sm:h-5 fill-current" viewBox="0 0 20 20">
@@ -79,13 +79,13 @@ export function HeroSection() {
                 </svg>
               ))}
             </div>
-            <span className="text-slate-900 font-black text-base sm:text-lg tracking-tight">Nota 4.9/5</span>
+            <span className="text-white font-black text-base sm:text-lg tracking-tight">Nota 4.9/5</span>
           </div>
-          <div className="flex items-center gap-3 bg-white/80 px-4 py-2.5 rounded-2xl border border-white shadow-2xl scale-[0.9] sm:scale-100 group transition-transform hover:scale-105">
+          <div className="flex items-center gap-3 bg-black/40 px-4 py-2.5 rounded-2xl border border-white/10 shadow-2xl scale-[0.9] sm:scale-100 group transition-transform hover:scale-105">
             <div className="bg-emerald-500/20 p-1 rounded-lg">
-              <Sparkles className="h-4 w-4 sm:h-5 sm:h-5 text-emerald-600 animate-pulse shrink-0" />
+              <Sparkles className="h-4 w-4 sm:h-5 sm:h-5 text-emerald-400 animate-pulse shrink-0" />
             </div>
-            <span className="text-slate-900 font-black text-sm sm:text-lg truncate tracking-tight uppercase">Mais de 10.000 visitantes felizes</span>
+            <span className="text-white font-black text-sm sm:text-lg truncate tracking-tight uppercase">Mais de 10.000 visitantes felizes</span>
           </div>
         </motion.div>
 
@@ -93,7 +93,7 @@ export function HeroSection() {
           variants={itemVariants}
           className="flex justify-center mb-12"
         >
-          <div className="inline-flex items-center gap-3 bg-black/90 px-6 py-3 rounded-2xl border border-white/20 shadow-2xl">
+          <div className="inline-flex items-center gap-3 bg-black/60 px-6 py-3 rounded-2xl border border-white/10 shadow-2xl">
             <span className="text-xl">📍</span>
             <span className="text-white font-black text-[10px] sm:text-xs uppercase tracking-[0.2em] opacity-90">
               Aberto das 9h às 17h • Sextas, Sábados, Domingos, Segundas e Feriados
@@ -113,13 +113,13 @@ export function HeroSection() {
             </a>
           </Button>
 
-          <Button asChild size="lg" className="bg-emerald-950/95 hover:bg-emerald-900 text-white border-2 border-emerald-400/50 text-base sm:text-xl px-8 sm:px-10 py-7 sm:py-8 font-display font-bold w-full sm:w-auto rounded-[2rem] shadow-xl transition-all hover:-translate-y-1 active:scale-95">
+          <Button asChild size="lg" className="bg-emerald-800/60 hover:bg-emerald-700/80 text-white border-2 border-emerald-400/30 text-base sm:text-xl px-8 sm:px-10 py-7 sm:py-8 font-display font-bold w-full sm:w-auto rounded-[2rem] shadow-xl transition-all hover:-translate-y-1 active:scale-95">
             <a href="#especiais" className="flex items-center gap-3">
               <Calculator className="h-6 w-6" /> Simular Meu Plano
             </a>
           </Button>
           
-          <Button asChild size="lg" className="bg-blue-950/95 hover:bg-blue-900 text-white border-2 border-blue-400/50 text-base sm:text-xl px-8 sm:px-10 py-7 sm:py-8 font-display font-bold w-full sm:w-auto rounded-[2rem] shadow-xl transition-all hover:-translate-y-1 active:scale-95">
+          <Button asChild size="lg" className="bg-blue-800/60 hover:bg-blue-700/80 text-white border-2 border-blue-400/30 text-base sm:text-xl px-8 sm:px-10 py-7 sm:py-8 font-display font-bold w-full sm:w-auto rounded-[2rem] shadow-xl transition-all hover:-translate-y-1 active:scale-95">
             <Link to="/consultar" className="flex items-center gap-3">
               <Search className="h-6 w-6" /> Consultar Reserva
             </Link>
