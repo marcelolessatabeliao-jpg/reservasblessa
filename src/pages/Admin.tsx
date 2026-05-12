@@ -4,50 +4,15 @@ import { saveBooking, getBookedKioskIds, getQuadAvailability, getGlobalSetting, 
 import { format, isToday, isTomorrow, isThisWeek, parseISO, isBefore, startOfDay, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { 
-  Users, 
-  Settings, 
-  PieChart, 
-  TrendingUp, 
-  Calendar as CalendarIcon, 
-  Search, 
-  RefreshCw, 
-  LogOut, 
-  LayoutDashboard, 
-  Tent, 
-  Bike, 
-  CalendarCheck, 
-  ShoppingBag, 
-  Trash2,
-  User, 
-  Phone, 
-  CalendarPlus, 
-  Tag,
-  FileText, 
-  CalendarClock, 
-  History, 
-  ChevronDown, 
-  ChevronUp, 
-  Clock, 
-  CheckCircle,
-  AlertTriangle,
-  Loader2,
-  FileCheck,
-  StickyNote,
-  Plus,
-  CalendarRange,
-  QrCode,
-  Pencil,
-  Check,
-  X,
-  DollarSign,
-  UserCheck,
-  Hash,
-  ArrowRight,
-  MessageCircle,
-  Circle,
-  Upload,
-  HelpCircle,
-  Wallet
+  Users, Settings, PieChart, TrendingUp, Calendar as CalendarIcon, 
+  Search, RefreshCw, LogOut, LayoutDashboard, Tent, Bike, 
+  CalendarCheck, ShoppingBag, Trash2, FileText, CheckCircle2, 
+  XCircle, Loader2, Pencil, CalendarClock, Plus, Filter,
+  Download, Database, FileSpreadsheet, Wallet, Check, X,
+  User, Phone, CalendarPlus, Tag, History, ChevronDown, ChevronUp,
+  Clock, CheckCircle, AlertTriangle, FileCheck, StickyNote,
+  CalendarRange, QrCode, DollarSign, UserCheck, Hash, ArrowRight,
+  MessageCircle, Circle, Upload, HelpCircle
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -58,15 +23,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency, getQuadDiscount, QUAD_PRICES } from '@/lib/booking-types';
-import { parseToRODate } from '@/utils/date-utils';
+import { parseToRODate, getRONow, getROTodayStr } from '@/utils/date-utils';
 import { BookingTable } from '@/components/admin/BookingTable';
 import { AgendaHeader } from '@/components/admin/AgendaHeader';
 import { getAdminOrders, markOrderAsPaid } from '@/integrations/supabase/orders';
-import { parseToRODate, getRONow, getROTodayStr } from '@/utils/date-utils';
 import { PaymentModal } from '@/components/booking/PaymentModal';
 import { InternalBookingAssistant } from '@/components/admin/InternalBookingAssistant';
 import { AdminCreditsTab } from '@/components/admin/AdminCreditsTab';
-
 import { AdminDashboardTab } from '@/components/admin/AdminDashboardTab';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { cn } from "@/lib/utils";
@@ -83,6 +46,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { exportToExcel, exportToPDF, exportMultiSheetExcel } from '@/utils/export-utils';
 
 // Constants from common types
 const KIOSKS = [
@@ -1854,23 +1818,6 @@ export default function Admin() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-              <Button 
-                onClick={handleExportBackup}
-                variant="outline"
-                className="h-10 md:h-12 px-4 md:px-6 rounded-2xl border-emerald-500/30 bg-emerald-500/10 text-emerald-400 font-black text-[10px] md:text-xs hover:bg-emerald-500 hover:text-white transition-all shadow-lg hidden sm:flex"
-              >
-                <Database className="w-4 h-4 mr-2" />
-                BACKUP COMPLETO
-              </Button>
-              <Button 
-                onClick={() => setIsInternalBookingOpen(true)}
-                className="h-10 md:h-12 px-4 md:px-6 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-black text-[10px] md:text-xs shadow-[0_0_20px_rgba(16,185,129,0.4)] hover:shadow-[0_0_30px_rgba(16,185,129,0.6)] transition-all border-b-4 border-emerald-700 active:border-b-0 active:translate-y-[2px]"
-              >
-                <Plus className="w-4 h-4 md:w-5 md:h-5 mr-2" />
-                NOVO AGENDAMENTO
-              </Button>
-          </div>
-          <div className="flex items-center gap-3">
             <div className="flex flex-col relative" onClick={() => {
               if(!isCapacityUnlocked) {
                  if (window.confirm("ATENÇÃO: A alteração da capacidade mestre impactará todas as reservas futuras (site aberto ou painel). Deseja desbloquear a edição?")) {
@@ -2155,8 +2102,24 @@ export default function Admin() {
                  </Card>
               </div>
 
-              {/* DESKTOP BUTTONS (RIGHT) */}
               <div className="hidden xl:flex items-center gap-4 shrink-0">
+                 <Button 
+                   onClick={handleExportBackup}
+                   variant="outline"
+                   className="h-12 px-6 rounded-2xl border-white/20 bg-white/10 text-[#FFF033] font-black text-xs hover:bg-white/20 transition-all shadow-xl backdrop-blur-md"
+                 >
+                   <Database className="w-4 h-4 mr-2" />
+                   BACKUP
+                 </Button>
+
+                 <Button 
+                   onClick={() => setIsInternalBookingOpen(true)}
+                   className="h-12 px-6 rounded-2xl bg-[#FFF033] text-black font-black text-xs shadow-2xl hover:scale-105 transition-all"
+                 >
+                   <Plus className="w-4 h-4 mr-2" />
+                   NOVO
+                 </Button>
+
                  <Button 
                    variant="outline"
                    className="rounded-2xl bg-white/10 border-2 border-white/20 font-black h-12 px-6 hover:bg-white/20 text-[#FFF033] flex items-center justify-center shadow-xl backdrop-blur-md transition-all active:scale-95" 
@@ -2164,7 +2127,6 @@ export default function Admin() {
                    disabled={loading}
                  >
                     {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5 mr-2" />}
-                    
                  </Button>
 
                  <Button 
