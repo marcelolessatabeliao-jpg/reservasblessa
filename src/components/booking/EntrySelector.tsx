@@ -865,9 +865,9 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                       })}
                    </div>
 
-                   {/* Waterfall Area Availability */}
+                   {/* Área Privilegiada - Cachoeira do Batistério */}
                    <div className="pt-4 border-t border-emerald-100 mt-4">
-                      <span className="text-[10px] font-black text-emerald-800/60 uppercase tracking-widest mb-3 block">Área da Cachoeira</span>
+                      <span className="text-[10px] font-black text-amber-700/80 uppercase tracking-widest mb-3 block">Área Privilegiada — Cachoeira do Batistério</span>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         {KIOSK_MAP.filter(k => k.row === 'waterfall').map(k => {
                           const isBooked = bookedKioskIds.includes(k.id);
@@ -886,7 +886,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                                    {String(k.id).padStart(2, '0')}
                                  </div>
                                  <div className="flex flex-col">
-                                   <span className={cn("text-[10px] font-black uppercase tracking-tight", isBooked ? "text-rose-400" : "text-amber-900")}>Cachoeira</span>
+                                   <span className={cn("text-[10px] font-black uppercase tracking-tight", isBooked ? "text-rose-400" : "text-amber-900")}>Cachoeira do Batistério</span>
                                  </div>
                                </div>
                                <Badge variant="outline" className={cn(

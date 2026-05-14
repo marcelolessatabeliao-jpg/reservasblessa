@@ -301,11 +301,11 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
             );
           })}
 
-          {/* Waterfall Area: Kiosks 06, 07, 08 */}
+          {/* Área Privilegiada: Quiosques 06, 07, 08 */}
           <div className="pt-4 border-t border-emerald-600/20">
             <div className="flex items-center gap-2 mb-3">
-              <span className="text-[10px] font-black text-emerald-800/60 uppercase tracking-widest">
-                Área da Cachoeira (Lado do Batistério)
+              <span className="text-[10px] font-black text-amber-700/80 uppercase tracking-widest">
+                Área Privilegiada — Cachoeira do Batistério
               </span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -347,7 +347,7 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
                       "text-[9px] font-black uppercase tracking-tighter text-center mt-1",
                       isSelected ? "text-amber-100" : isBooked ? "text-gray-400" : "text-amber-600"
                     )}>
-                      Área Cachoeira
+                      Cachoeira do Batistério
                     </span>
 
                     {/* Price */}
