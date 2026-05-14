@@ -20,6 +20,9 @@ const KIOSK_MAP = [
   { id: 3, type: 'menor' as const, label: 'Quiosque 03', capacity: 'Até 15 pessoas', row: 'top', icon: '🏡' },
   { id: 4, type: 'menor' as const, label: 'Quiosque 04', capacity: 'Até 15 pessoas', row: 'top', icon: '🏡' },
   { id: 5, type: 'menor' as const, label: 'Quiosque 05', capacity: 'Até 15 pessoas', row: 'top', icon: '🏡' },
+  { id: 6, type: 'maior' as const, label: 'Quiosque 06', capacity: 'Até 15 pessoas', row: 'waterfall', icon: '🏠', observation: 'Área privilegiada ao lado da cachoeira do batistério' },
+  { id: 7, type: 'maior' as const, label: 'Quiosque 07', capacity: 'Até 15 pessoas', row: 'waterfall', icon: '🏠', observation: 'Área privilegiada ao lado da cachoeira do batistério' },
+  { id: 8, type: 'maior' as const, label: 'Quiosque 08', capacity: 'Até 15 pessoas', row: 'waterfall', icon: '🏠', observation: 'Área privilegiada ao lado da cachoeira do batistério' },
 ];
 
 export function KioskSelector({ kiosks, onUpdate }: Props) {
@@ -297,6 +300,75 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
               </button>
             );
           })}
+
+          {/* Waterfall Area: Kiosks 06, 07, 08 */}
+          <div className="pt-4 border-t border-emerald-600/20">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-[10px] font-black text-emerald-800/60 uppercase tracking-widest">
+                Área da Cachoeira (Lado do Batistério)
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {KIOSK_MAP.filter(k => k.row === 'waterfall').map(kioskDef => {
+                const isBooked = bookedIds.includes(kioskDef.id);
+                const isSelected = allSelectedIds.includes(kioskDef.id);
+                const price = maiorPrice;
+
+                return (
+                  <button
+                    key={kioskDef.id}
+                    onClick={() => handleToggleKiosk(kioskDef)}
+                    disabled={isBooked && !isSelected}
+                    className={cn(
+                      "relative flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all duration-300 cursor-pointer group",
+                      "min-h-[110px]",
+                      isBooked && !isSelected && "bg-gray-100 border-gray-400 opacity-60 cursor-not-allowed",
+                      isSelected && "bg-amber-600 border-amber-700 text-white shadow-lg shadow-amber-600/40 scale-[1.02]",
+                      !isBooked && !isSelected && "bg-amber-50/80 border-amber-500/50 hover:border-amber-600 hover:bg-amber-100 hover:shadow-md hover:scale-[1.03] active:scale-[0.98]",
+                    )}
+                  >
+                    {/* Selected check */}
+                    {isSelected && (
+                      <div className="absolute -top-1.5 -right-1.5 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-md border-2 border-amber-700 z-20">
+                        <Check className="h-3.5 w-3.5 text-amber-700 stroke-[3]" />
+                      </div>
+                    )}
+                    
+                    {/* Kiosk number */}
+                    <span className={cn(
+                      "text-3xl font-black transition-colors",
+                      isSelected ? "text-white" : isBooked ? "text-gray-400" : "text-amber-700"
+                    )}>
+                      {String(kioskDef.id).padStart(2, '0')}
+                    </span>
+
+                    {/* Label/Observation */}
+                    <span className={cn(
+                      "text-[9px] font-black uppercase tracking-tighter text-center mt-1",
+                      isSelected ? "text-amber-100" : isBooked ? "text-gray-400" : "text-amber-600"
+                    )}>
+                      Área Cachoeira
+                    </span>
+
+                    {/* Price */}
+                    <span className={cn(
+                      "text-sm font-black mt-1 transition-colors",
+                      isSelected ? "text-white" : isBooked ? "text-gray-400" : "text-amber-900"
+                    )}>
+                      {formatCurrency(price)}
+                    </span>
+
+                    {/* Hover tooltip for observation */}
+                    <div className="absolute inset-x-0 -bottom-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-30 px-2">
+                       <div className="bg-slate-900 text-white text-[8px] font-bold p-1 rounded shadow-lg text-center">
+                          {kioskDef.observation}
+                       </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
 
         {/* Selection summary */}

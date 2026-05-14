@@ -95,8 +95,12 @@ export function buildWhatsAppMessage(booking: BookingState, total: number, isPre
     activeKiosks.forEach(k => {
       const basePrice = safeGetPrice(`kiosk_${k.type}`, KIOSK_INFO[k.type].price);
       if (k.selectedIds && k.selectedIds.length > 0) {
-        const ids = k.selectedIds.sort((a,b) => a-b).map(id => `Nº ${String(id).padStart(2,'0')}`).join(', ');
-        msg += `  ${ids} - ${formatCurrency(k.quantity * basePrice)}\n`;
+        const idsWithObs = k.selectedIds.sort((a,b) => a-b).map(id => {
+          const label = `Nº ${String(id).padStart(2,'0')}`;
+          if (id >= 6 && id <= 8) return `${label} (Lado da Cachoeira)`;
+          return label;
+        }).join(', ');
+        msg += `  ${idsWithObs} - ${formatCurrency(k.quantity * basePrice)}\n`;
       } else {
         msg += `  ${k.quantity} x ${KIOSK_INFO[k.type].label} - ${formatCurrency(k.quantity * basePrice)}\n`;
       }

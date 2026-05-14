@@ -54,7 +54,10 @@ const KIOSKS = [
   { id: 2, name: 'QUIOSQUE - 02', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' },
   { id: 3, name: 'QUIOSQUE - 03', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' },
   { id: 4, name: 'QUIOSQUE - 04', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' },
-  { id: 5, name: 'QUIOSQUE - 05', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' }
+  { id: 5, name: 'QUIOSQUE - 05', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' },
+  { id: 6, name: 'QUIOSQUE - 06', price: 100, capacity: 'Até 15 pessoas', type: 'Maior', observation: 'área privilegiada ao lado da cachoeira do batistério' },
+  { id: 7, name: 'QUIOSQUE - 07', price: 100, capacity: 'Até 15 pessoas', type: 'Maior', observation: 'área privilegiada ao lado da cachoeira do batistério' },
+  { id: 8, name: 'QUIOSQUE - 08', price: 100, capacity: 'Até 15 pessoas', type: 'Maior', observation: 'área privilegiada ao lado da cachoeira do batistério' }
 ];
 
 const QUAD_TIMES = ['09:00', '10:30', '14:00', '15:30'];

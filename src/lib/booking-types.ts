@@ -77,7 +77,7 @@ export const ENTRY_HALF_PRICE = 25;
 
 export const KIOSK_INFO: Record<KioskType, { price: number; capacity: string; available: number; label: string }> = {
   menor: { price: 75, capacity: 'Até 15 pessoas', available: 4, label: 'Quiosque Menor' },
-  maior: { price: 100, capacity: '20 a 25 pessoas', available: 1, label: 'Quiosque Maior' },
+  maior: { price: 100, capacity: '20 a 25 pessoas', available: 4, label: 'Quiosque Maior' },
 };
 
 export const QUAD_PRICES: Record<QuadType, number> = {
