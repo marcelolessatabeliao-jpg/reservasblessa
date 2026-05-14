@@ -262,13 +262,12 @@ export async function getBookedKioskIds(date: string): Promise<number[]> {
 
   if (error || !data) return [];
 
-  // Definimos os status que consideram o quiosque como "Ocupado"
-  // Incluímos 'pending' e 'awaiting_payment' para evitar que dois clientes reservem o mesmo quiosque ao mesmo tempo
+  // Apenas reservas pagas e confirmadas bloqueiam o quiosque
+  // Reservas pendentes NÃO bloqueiam - apenas pagos e confirmados
   const blockedStatuses = [
     'paid', 'pago', 
     'confirmed', 'confirmado', 
-    'checked-in', 'completed',
-    'pending', 'aguardando_pagamento', 'awaiting_payment'
+    'checked-in', 'completed'
   ];
 
   const blockedReservations = data.filter((r: any) => {
