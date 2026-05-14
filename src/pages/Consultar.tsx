@@ -13,7 +13,7 @@ import { PaymentModal } from '@/components/booking/PaymentModal';
 import { formatCurrency } from '@/lib/booking-types';
 
 export default function Consultar() {
-  const [query, setQuery] = useState(() => sessionStorage.getItem('last_consultar_query') || '');
+  const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<any[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
@@ -24,12 +24,7 @@ export default function Consultar() {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Auto search if query is retrieved from session storage
-  React.useEffect(() => {
-    if (query) {
-       handleSearch(new Event('submit') as any);
-    }
-  }, []);
+
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,7 +32,7 @@ export default function Consultar() {
 
     setLoading(true);
     setHasSearched(true);
-    sessionStorage.setItem('last_consultar_query', query);
+    setQuery(''); // Limpa o campo após iniciar a busca
     try {
       const cleanQuery = query.replace(/\D/g, '');
       const isCpf = cleanQuery.length === 11;

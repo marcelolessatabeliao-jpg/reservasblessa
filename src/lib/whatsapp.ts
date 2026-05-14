@@ -11,19 +11,19 @@ export function buildWhatsAppMessage(booking: BookingState, total: number, isPre
   
   // Mensagem inicial com estilo premium usando emojis literais para garantir compatibilidade
   let msg = `--- *BALNEÁRIO FAMÍLIA LESSA*\n`;
-  msg += `Gostaria de confirmar uma reserva${isPrepay ? ' e já realizar o pagamento via Pix 💎' : ''}.\n\n`;
+  msg += `Gostaria de confirmar uma reserva${isPrepay ? ' e já realizar o pagamento via Pix \u{1F48E}' : ''}.\n\n`;
 
   if (code && isPrepay) {
-    msg += `✅ *Confirmação:* Pago\n`;
-    msg += `🎫 *Código do Voucher:* ${code}\n`;
-    msg += `🔗 *Link do Voucher:* https://reservas.balneariolessa.com.br/voucher/${code}\n`;
-    msg += `📍 *Pré-reserva:* #${code}\n\n`;
+    msg += `\u{2705} *Confirmação:* Pago\n`;
+    msg += `\u{1F3AB} *Código do Voucher:* ${code}\n`;
+    msg += `\u{1F517} *Link do Voucher:* https://reservas.balneariolessa.com.br/voucher/${code}\n`;
+    msg += `\u{1F4CD} *Pré-reserva:* #${code}\n\n`;
   }
 
   msg += `*DADOS DO CLIENTE*\n`;
   if (entry.name) msg += `* *Nome:* ${entry.name}\n`;
-  if (entry.phone) msg += `📱 *Telefone:* ${formatPhone(entry.phone)}\n`;
-  if (entry.visitDate) msg += `🗓️ *Data da Visita:* ${format(parseToRODate(entry.visitDate), "dd/MM/yyyy (EEEE)", { locale: ptBR })}\n`;
+  if (entry.phone) msg += `\u{1F4F1} *Telefone:* ${formatPhone(entry.phone)}\n`;
+  if (entry.visitDate) msg += `\u{1F5D3}\u{FE0F} *Data da Visita:* ${format(parseToRODate(entry.visitDate), "dd/MM/yyyy (EEEE)", { locale: ptBR })}\n`;
   msg += '\n';
 
   let paidAdultsStr = '';
@@ -80,18 +80,18 @@ export function buildWhatsAppMessage(booking: BookingState, total: number, isPre
   }
 
   if (paidAdultsStr) {
-    msg += `👥 *ADULTOS:*\n${paidAdultsStr}\n`;
+    msg += `\u{1F465} *ADULTOS:*\n${paidAdultsStr}\n`;
   }
   if (paidChildrenStr) {
-    msg += `🧒 *CRIANÇAS:*\n${paidChildrenStr}\n`;
+    msg += `\u{1F9D2} *CRIANÇAS:*\n${paidChildrenStr}\n`;
   }
   if (freeItemsStr) {
-    msg += `🎁 *GRATUIDADES:*\n${freeItemsStr}\n`;
+    msg += `\u{1F381} *GRATUIDADES:*\n${freeItemsStr}\n`;
   }
 
   const activeKiosks = booking.kiosks.filter(k => k.quantity > 0);
   if (activeKiosks.length) {
-    msg += `🎪 *QUIOSQUES:*\n`;
+    msg += `\u{1F3AA} *QUIOSQUES:*\n`;
     activeKiosks.forEach(k => {
       const basePrice = safeGetPrice(`kiosk_${k.type}`, KIOSK_INFO[k.type].price);
       if (k.selectedIds && k.selectedIds.length > 0) {
@@ -106,7 +106,7 @@ export function buildWhatsAppMessage(booking: BookingState, total: number, isPre
 
   const activeQuads = booking.quads.filter(q => q.quantity > 0);
   if (activeQuads.length) {
-    msg += `🚜 *QUADRICICLOS:*\n`;
+    msg += `\u{1F69C} *QUADRICICLOS:*\n`;
     activeQuads.forEach(q => {
       const fallbackMap: Record<string, number> = { individual: 150, dupla: 250, 'adulto-crianca': 200 };
       const d = q.date ? parseToRODate(q.date) : null;
@@ -115,8 +115,8 @@ export function buildWhatsAppMessage(booking: BookingState, total: number, isPre
       const finalPrice = basePrice * (1 - discount);
       msg += `  ${q.quantity} x ${QUAD_LABELS[q.type]} - ${formatCurrency(q.quantity * finalPrice)}\n`;
       if (d) msg += `  * Data: ${format(d, "dd/MM/yyyy", { locale: ptBR })}\n`;
-      if (q.time) msg += `  🕒 Horário: ${q.time}\n`;
-      if (discount > 0) msg += `  📉 Desconto: ${Math.round(discount * 100)}%\n`;
+      if (q.time) msg += `  \u{1F552} Horário: ${q.time}\n`;
+      if (discount > 0) msg += `  \u{1F4C9} Desconto: ${Math.round(discount * 100)}%\n`;
     });
     msg += '\n';
   }

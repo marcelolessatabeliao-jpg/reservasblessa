@@ -47,12 +47,12 @@ export function VoucherShareDialog({
   const voucherRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  const E_HERB = '🌿'; 
-  const E_CAL = '📅';  
-  const E_USER = '👤'; 
-  const E_NOTE = '📝'; 
-  const E_MONEY = '💰'; 
-  const E_SPARK = '✨';  
+  const E_HERB = '\u{1F33F}'; 
+  const E_CAL = '\u{1F4C5}';  
+  const E_USER = '\u{1F464}'; 
+  const E_NOTE = '\u{1F4DD}'; 
+  const E_MONEY = '\u{1F4B0}'; 
+  const E_SPARK = '\u{2728}';  
 
   const name = booking.name || booking.customer_name || 'Cliente';
 
