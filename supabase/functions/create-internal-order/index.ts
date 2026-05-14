@@ -112,12 +112,17 @@ Deno.serve(async (req) => {
 
     // 1. Criar o pedido principal
     const orderStatus = status === 'paid' ? 'paid' : 'pending'
+    
+    // Padronizar limpeza de CPF e Telefone para busca
+    const cleanCpf = cpf ? cpf.replace(/\D/g, '') : null;
+    const cleanPhone = phone ? phone.replace(/\D/g, '') : null;
+
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .insert({
         customer_name: name.trim(),
-        customer_phone: phone || null,
-        customer_cpf: cpf || null,
+        customer_phone: cleanPhone,
+        customer_cpf: cleanCpf,
         visit_date,
         total_amount,
         status: orderStatus,

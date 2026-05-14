@@ -121,12 +121,12 @@ export default function Voucher() {
                  <div className="bg-muted/30 p-3 rounded-2xl border border-muted-foreground/5 text-center flex flex-col items-center justify-center">
                     <Users className="w-4 h-4 text-sun mb-1.5" />
                     <p className="text-[9px] font-black text-muted-foreground uppercase">Titular</p>
-                    <p className="text-xs font-bold truncate w-full px-1">{order.customer_name?.split(' ')[0]}</p>
+                    <p className="text-xs font-bold w-full px-1 break-words leading-tight">{order.customer_name}</p>
                  </div>
                  <div className="bg-muted/30 p-3 rounded-2xl border border-muted-foreground/5 text-center flex flex-col items-center justify-center">
                     <span className="font-black text-sun text-sm mb-1.5 leading-none">R$</span>
                     <p className="text-[9px] font-black text-muted-foreground uppercase">Valor Total</p>
-                    <p className="text-xs font-bold text-emerald-700 truncate w-full px-1">{formatCurrency(order.total_amount || 0)}</p>
+                    <p className="text-xs font-bold text-emerald-700 w-full px-1">{formatCurrency(order.total_amount || 0)}</p>
                  </div>
               </div>
 
@@ -145,7 +145,7 @@ export default function Voucher() {
                             <CheckCircle2 className={item.is_redeemed ? "w-3 h-3 text-green-600" : "w-3 h-3 text-primary/40"} />
                          </div>
                          <div className="min-w-0">
-                           <p className={`text-xs font-bold truncate ${item.is_redeemed ? "line-through opacity-50" : "text-foreground"}`}>
+                           <p className={`text-xs font-bold break-words ${item.is_redeemed ? "line-through opacity-50" : "text-foreground"}`}>
                               {item.quantity}x {item.product_id}
                            </p>
                            {((item.product_id || '').toLowerCase().includes('quad') || (item.product_name || '').toLowerCase().includes('quad')) && (

@@ -45,10 +45,10 @@ export default function Consultar() {
       let supabaseQuery = supabase.from('orders').select('*, order_items(*)');
 
       if (isCpf) {
-        supabaseQuery = supabaseQuery.eq('customer_cpf', cleanQuery);
+        supabaseQuery = supabaseQuery.or(`customer_cpf.eq.${cleanQuery},customer_cpf.eq.${query}`);
       } else if (cleanQuery.length >= 10 && cleanQuery.length <= 11) {
         // It's a phone number
-        supabaseQuery = supabaseQuery.eq('customer_phone', cleanQuery);
+        supabaseQuery = supabaseQuery.or(`customer_phone.eq.${cleanQuery},customer_phone.eq.${query}`);
       } else {
         toast({
           title: "Formato inválido",

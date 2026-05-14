@@ -47,12 +47,12 @@ export function VoucherShareDialog({
   const voucherRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  const E_HERB = String.fromCodePoint(0x1F33F); // 🌿
-  const E_CAL = String.fromCodePoint(0x1F4C5);  // 📅
-  const E_USER = String.fromCodePoint(0x1F464); // 👤
-  const E_NOTE = String.fromCodePoint(0x1F4DD); // 📝
-  const E_MONEY = String.fromCodePoint(0x1F4B0); // 💰
-  const E_SPARK = String.fromCodePoint(0x2728);  // ✨
+  const E_HERB = '🌿'; 
+  const E_CAL = '📅';  
+  const E_USER = '👤'; 
+  const E_NOTE = '📝'; 
+  const E_MONEY = '💰'; 
+  const E_SPARK = '✨';  
 
   const name = booking.name || booking.customer_name || 'Cliente';
 
@@ -236,7 +236,7 @@ export function VoucherShareDialog({
                  <div className="grid grid-cols-2 gap-4">
                     <div className="bg-slate-50/80 p-4 rounded-[1.5rem] border border-slate-100 shadow-sm">
                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Titular</p>
-                       <p className="text-[13px] font-black text-slate-900 truncate leading-normal">{name}</p>
+                       <p className="text-[13px] font-black text-slate-900 break-words leading-normal">{name}</p>
                     </div>
                     <div className="bg-slate-50/80 p-4 rounded-[1.5rem] border border-slate-100 shadow-sm">
                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Data da Visita</p>
