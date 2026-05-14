@@ -900,7 +900,6 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                         })}
                       </div>
                    </div>
-                </div>
 
                   <div className="space-y-4">
                     <div className="bg-white border-2 border-emerald-100 rounded-[2rem] p-6 shadow-sm">
