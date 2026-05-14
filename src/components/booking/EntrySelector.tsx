@@ -51,6 +51,9 @@ const KIOSK_MAP = [
   { id: 3, type: 'menor' as const, label: 'Quiosque 03', capacity: 'Até 15 pessoas', row: 'top', icon: '🏡' },
   { id: 4, type: 'menor' as const, label: 'Quiosque 04', capacity: 'Até 15 pessoas', row: 'top', icon: '🏡' },
   { id: 5, type: 'menor' as const, label: 'Quiosque 05', capacity: 'Até 15 pessoas', row: 'top', icon: '🏡' },
+  { id: 6, type: 'maior' as const, label: 'Quiosque 06', capacity: 'Até 15 pessoas', row: 'waterfall', icon: '🏠', observation: 'Lado da Cachoeira' },
+  { id: 7, type: 'maior' as const, label: 'Quiosque 07', capacity: 'Até 15 pessoas', row: 'waterfall', icon: '🏠', observation: 'Lado da Cachoeira' },
+  { id: 8, type: 'maior' as const, label: 'Quiosque 08', capacity: 'Até 15 pessoas', row: 'waterfall', icon: '🏠', observation: 'Lado da Cachoeira' },
 ];
 
 interface Props {
@@ -860,7 +863,44 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                           </div>
                         );
                       })}
-                  </div>
+                   </div>
+
+                   {/* Waterfall Area Availability */}
+                   <div className="pt-4 border-t border-emerald-100 mt-4">
+                      <span className="text-[10px] font-black text-emerald-800/60 uppercase tracking-widest mb-3 block">Área da Cachoeira</span>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        {KIOSK_MAP.filter(k => k.row === 'waterfall').map(k => {
+                          const isBooked = bookedKioskIds.includes(k.id);
+                          return (
+                            <div key={k.id} className={cn(
+                              "relative w-full h-16 rounded-2xl border-2 flex items-center justify-between px-4 gap-2 transition-all duration-300",
+                              isBooked 
+                                ? "bg-rose-50 border-rose-200 text-rose-300 opacity-80" 
+                                : "bg-amber-50 border-amber-500 hover:border-amber-600 hover:shadow-md text-amber-700 hover:-translate-y-1"
+                            )}>
+                               <div className="flex items-center gap-2">
+                                 <div className={cn(
+                                   "w-8 h-8 rounded-xl flex items-center justify-center font-black text-sm",
+                                   isBooked ? "bg-rose-100 text-rose-400" : "bg-amber-100 text-amber-900"
+                                 )}>
+                                   {String(k.id).padStart(2, '0')}
+                                 </div>
+                                 <div className="flex flex-col">
+                                   <span className={cn("text-[10px] font-black uppercase tracking-tight", isBooked ? "text-rose-400" : "text-amber-900")}>Cachoeira</span>
+                                 </div>
+                               </div>
+                               <Badge variant="outline" className={cn(
+                                 "font-black text-[8px] uppercase tracking-tighter border-2 px-2 py-0.5 rounded-full",
+                                 isBooked ? "bg-rose-100 border-rose-300 text-rose-700" : "bg-amber-100 border-amber-300 text-amber-700"
+                               )}>
+                                 {isBooked ? 'Ocupado' : 'Livre'}
+                               </Badge>
+                            </div>
+                          );
+                        })}
+                      </div>
+                   </div>
+                </div>
 
                   <div className="space-y-4">
                     <div className="bg-white border-2 border-emerald-100 rounded-[2rem] p-6 shadow-sm">
