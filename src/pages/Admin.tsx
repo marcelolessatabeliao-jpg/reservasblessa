@@ -2596,7 +2596,7 @@ function EditKioskDialog({ group, onClose, onUpdated, updateOrderTotal }: any) {
       onClose();
     } catch(e: any) { 
       console.error(e);
-      toast({ title: 'Erro', description: 'Falha ao atualizar.', variant: 'destructive' }); 
+      toast({ title: 'Erro', description: e.message || 'Falha ao atualizar.', variant: 'destructive' }); 
     } finally { setLoading(false); }
   };
 
