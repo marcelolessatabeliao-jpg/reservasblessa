@@ -147,11 +147,17 @@ export default function Voucher() {
                        const isAdulto = rawName.toLowerCase().includes('adulto') || rawName.toLowerCase().includes('entrada');
                        const isAdultoSolidario = isAdulto && unitPrice <= 25 && unitPrice > 0;
                        const isAssinante = isAdulto && Math.abs(unitPrice) < 0.01;
-                       const displayName = isAssinante
+                       const displayNameRaw = isAssinante
                          ? 'Assinante Lessa Club'
                          : isAdultoSolidario
-                           ? 'Adulto Solidário'
+                           ? 'Entrada Adulto Solidário'
                            : rawName.replace(/^1x\s*/i, '');
+                           
+                       let displayName = displayNameRaw;
+                       const lowerName = displayName.toLowerCase();
+                       if (lowerName === 'adulto' || lowerName === 'criança' || lowerName === 'crianca' || lowerName === 'meia') {
+                          displayName = `Entrada ${displayName.charAt(0).toUpperCase() + displayName.slice(1)}`;
+                       }
 
                        return (
                          <div key={i} className="flex items-start gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100">

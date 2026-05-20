@@ -14,7 +14,10 @@ import {
   Loader2,
   CheckCircle2,
   Download,
-  Copy
+  Copy,
+  MapPin,
+  Calendar,
+  Users
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/booking-types';
 import html2canvas from 'html2canvas';
@@ -47,12 +50,12 @@ export function VoucherShareDialog({
   const voucherRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  const E_HERB = '\u{1F33F}'; 
-  const E_CAL = '\u{1F4C5}';  
-  const E_USER = '\u{1F464}'; 
-  const E_NOTE = '\u{1F4DD}'; 
-  const E_MONEY = '\u{1F4B0}'; 
-  const E_SPARK = '\u{2728}';  
+  const E_HERB = '🌿'; 
+  const E_CAL = '📅';  
+  const E_USER = '👤'; 
+  const E_NOTE = '📝'; 
+  const E_MONEY = '💰'; 
+  const E_SPARK = '✨';  
 
   const name = booking.name || booking.customer_name || 'Cliente';
 
@@ -211,56 +214,140 @@ export function VoucherShareDialog({
           )}
         </div>
 
-        {/* HIDDEN VOUCHER FOR IMAGE GENERATION */}
-        <div className="fixed -left-[2000px] top-0">
-           <div ref={voucherRef} className="w-[400px] bg-white p-10 rounded-none border-t-[24px] border-emerald-900 flex flex-col items-center">
-              <div className="text-center mb-8 w-full">
-                 <h2 className="text-3xl font-black text-emerald-950 uppercase tracking-tighter leading-none mb-1">Voucher de Reserva</h2>
-                 <p className="text-emerald-600 font-bold text-[11px] uppercase tracking-[0.2em]">Balneário Família Lessa</p>
+        {/* HIDDEN VOUCHER FOR IMAGE GENERATION (Using inline styles to guarantee perfect html2canvas render, matching Voucher.tsx layout) */}
+        <div style={{ position: 'absolute', top: 0, left: 0, zIndex: -10, opacity: 0, pointerEvents: 'none' }}>
+           <div 
+             ref={voucherRef} 
+             style={{ 
+               width: '800px', 
+               backgroundColor: '#ffffff', 
+               borderRadius: '40px',
+               fontFamily: '"Inter", system-ui, -apple-system, sans-serif',
+               display: 'flex',
+               flexDirection: 'column',
+               boxSizing: 'border-box',
+               overflow: 'hidden'
+             }}
+           >
+              {/* Header */}
+              <div style={{ backgroundColor: '#064e3b', padding: '32px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                 <div>
+                    <h1 style={{ fontSize: '28px', fontWeight: 900, color: '#ffffff', textTransform: 'uppercase', letterSpacing: '-1px', margin: '0 0 4px 0', lineHeight: 1 }}>Balneário Lessa</h1>
+                    <p style={{ color: 'rgba(255,255,255,0.6)', fontWeight: 700, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '2px', margin: 0 }}>Seu Voucher Digital</p>
+                 </div>
+                 <div style={{ backgroundColor: '#FFF033', color: '#022c22', fontSize: '12px', fontWeight: 900, padding: '8px 16px', borderRadius: '9999px', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                    {booking.status === 'paid' || booking.status === 'confirmed' ? 'Entrada Confirmada' : 'Aguardando Pgto'}
+                 </div>
               </div>
               
-              <div className="space-y-6 w-full">
-                 <div className="bg-emerald-50 p-6 rounded-[2rem] border-2 border-emerald-100 flex justify-between items-center shadow-sm">
-                    <div>
-                       <p className="text-[9px] font-black text-emerald-800/40 uppercase tracking-widest mb-1">Código de Confirmação</p>
-                       <p className="text-2xl font-black text-emerald-900 font-mono tracking-[0.2em]">{code}</p>
+              <div style={{ display: 'flex', padding: '32px 40px', gap: '32px' }}>
+                 {/* Left Column */}
+                 <div style={{ width: '35%', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                       <div style={{ padding: '12px', backgroundColor: '#ffffff', borderRadius: '32px', border: '4px solid rgba(6, 78, 59, 0.05)', marginBottom: '8px' }}>
+                          <img 
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${code}`} 
+                            alt="QR Code" 
+                            style={{ width: '140px', height: '140px', display: 'block' }} 
+                            crossOrigin="anonymous"
+                          />
+                       </div>
+                       <div style={{ textAlign: 'center' }}>
+                          <p style={{ fontSize: '10px', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', letterSpacing: '3px', margin: '0 0 4px 0' }}>Código de Acesso</p>
+                          <p style={{ fontSize: '28px', fontWeight: 900, color: '#064e3b', fontFamily: 'monospace', letterSpacing: '2px', margin: 0 }}>{code}</p>
+                       </div>
                     </div>
-                    <div className="bg-white p-2 rounded-xl shadow-sm border border-emerald-100">
-                       <img 
-                        src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${code}`} 
-                        alt="QR" className="w-16 h-16" 
-                       />
+                    
+                    <div style={{ backgroundColor: 'rgba(255, 240, 51, 0.05)', borderRadius: '16px', padding: '16px', border: '1px solid rgba(255, 240, 51, 0.2)', marginTop: 'auto' }}>
+                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#064e3b', marginBottom: '8px' }}>
+                          <MapPin size={16} />
+                          <p style={{ fontSize: '12px', fontWeight: 900, textTransform: 'uppercase', margin: 0 }}>Localização</p>
+                       </div>
+                       <p style={{ fontSize: '10px', color: 'rgba(6, 78, 59, 0.8)', fontWeight: 500, lineHeight: 1.5, margin: '0 0 12px 0' }}>
+                          Via Araras, Setor 09 – Ariquemes/RO<br />
+                          Apresente este QR Code na entrada para validação.
+                       </p>
+                       <div style={{ backgroundColor: '#FFF033', color: '#064e3b', fontWeight: 900, borderRadius: '12px', fontSize: '10px', padding: '10px', textAlign: 'center' }}>
+                         📍 VER NO GOOGLE MAPS
+                       </div>
                     </div>
                  </div>
 
-                 <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-slate-50/80 p-4 rounded-[1.5rem] border border-slate-100 shadow-sm">
-                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Titular</p>
-                       <p className="text-[13px] font-black text-slate-900 break-words leading-normal">{name}</p>
+                 {/* Right Column */}
+                 <div style={{ width: '65%', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                    {/* Top Stats */}
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                       <div style={{ flex: 1, backgroundColor: 'rgba(241, 245, 249, 0.5)', padding: '12px', borderRadius: '16px', border: '1px solid rgba(148, 163, 184, 0.1)', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                          <Calendar size={16} color="#eab308" style={{ marginBottom: '6px' }} />
+                          <p style={{ fontSize: '9px', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', margin: '0 0 4px 0' }}>Data da Visita</p>
+                          <p style={{ fontSize: '12px', fontWeight: 700, color: '#0f172a', margin: 0 }}>{dateStr}</p>
+                       </div>
+                       <div style={{ flex: 1, backgroundColor: 'rgba(241, 245, 249, 0.5)', padding: '12px', borderRadius: '16px', border: '1px solid rgba(148, 163, 184, 0.1)', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                          <Users size={16} color="#eab308" style={{ marginBottom: '6px' }} />
+                          <p style={{ fontSize: '9px', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', margin: '0 0 4px 0' }}>Titular</p>
+                          <p style={{ fontSize: '12px', fontWeight: 700, color: '#0f172a', margin: 0, wordBreak: 'break-word' }}>{name}</p>
+                       </div>
+                       <div style={{ flex: 1, backgroundColor: 'rgba(241, 245, 249, 0.5)', padding: '12px', borderRadius: '16px', border: '1px solid rgba(148, 163, 184, 0.1)', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                          <span style={{ fontSize: '14px', fontWeight: 900, color: '#eab308', lineHeight: 1, marginBottom: '6px' }}>R$</span>
+                          <p style={{ fontSize: '9px', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', margin: '0 0 4px 0' }}>Valor Total</p>
+                          <p style={{ fontSize: '12px', fontWeight: 700, color: '#047857', margin: 0 }}>{formatCurrency(booking.total_amount || 0)}</p>
+                       </div>
                     </div>
-                    <div className="bg-slate-50/80 p-4 rounded-[1.5rem] border border-slate-100 shadow-sm">
-                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Data da Visita</p>
-                       <p className="text-[13px] font-black text-slate-900 leading-normal">{dateStr}</p>
+
+                    {/* Items */}
+                    <div style={{ flex: 1 }}>
+                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                          <div style={{ flex: 1, height: '1px', background: 'linear-gradient(to right, transparent, rgba(250, 204, 21, 0.4), transparent)' }} />
+                          <span style={{ fontSize: '10px', fontWeight: 900, color: '#064e3b', textTransform: 'uppercase', letterSpacing: '1px' }}>Itens Inclusos</span>
+                          <div style={{ flex: 1, height: '1px', background: 'linear-gradient(to right, transparent, rgba(250, 204, 21, 0.4), transparent)' }} />
+                       </div>
+                       
+                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                          {booking.order_items?.map((item: any, i: number) => {
+                             const rawName = item.product_name || item.product_id || 'Serviço';
+                             const unitPrice = item.unit_price ?? (item.total_price / (item.quantity || 1));
+                             const isAdulto = rawName.toLowerCase().includes('adulto') || rawName.toLowerCase().includes('entrada');
+                             const isAdultoSolidario = isAdulto && unitPrice <= 25 && unitPrice > 0;
+                             const isAssinante = isAdulto && Math.abs(unitPrice) < 0.01;
+                             
+                             let displayName = isAssinante
+                               ? 'Assinante Lessa Club'
+                               : isAdultoSolidario
+                                 ? 'Entrada Adulto Solidário'
+                                 : rawName.replace(/^1x\s*/i, '');
+                             
+                             const lowerName = displayName.toLowerCase();
+                             if (lowerName === 'adulto' || lowerName === 'criança' || lowerName === 'crianca' || lowerName === 'meia') {
+                                displayName = `Entrada ${displayName.charAt(0).toUpperCase() + displayName.slice(1)}`;
+                             }
+
+                             return (
+                               <div key={i} style={{ width: 'calc(50% - 6px)', display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: '#f8fafc', padding: '10px', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
+                                  <div style={{ backgroundColor: item.is_redeemed ? '#dcfce7' : 'rgba(6, 78, 59, 0.05)', padding: '4px', borderRadius: '50%' }}>
+                                     <CheckCircle2 size={12} color={item.is_redeemed ? "#16a34a" : "rgba(6, 78, 59, 0.4)"} />
+                                  </div>
+                                  <div>
+                                     <p style={{ fontSize: '12px', fontWeight: 700, color: '#0f172a', margin: 0, textDecoration: item.is_redeemed ? 'line-through' : 'none', opacity: item.is_redeemed ? 0.5 : 1 }}>
+                                        {item.quantity}x {displayName}
+                                     </p>
+                                     {((item.product_id || '').toLowerCase().includes('quad') || (item.product_name || '').toLowerCase().includes('quad')) && (
+                                        <span style={{ display: 'inline-block', marginTop: '2px', color: '#064e3b', fontWeight: 900, fontSize: '9px', backgroundColor: 'rgba(250, 204, 21, 0.1)', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(250, 204, 21, 0.2)' }}>
+                                           {(item.metadata?.time_slot || 
+                                            (booking.quad_reservations?.find((q: any) => 
+                                              (q.quad_type || q.type || '').toUpperCase() === (item.product_id || '').toUpperCase() || 
+                                              (item.product_id || '').toUpperCase().includes((q.quad_type || q.type || '').toUpperCase()) ||
+                                              (item.product_name || '').toUpperCase().includes((q.quad_type || q.type || '').toUpperCase())
+                                            )?.time_slot) || 
+                                            (booking.quad_reservations?.[0]?.time_slot) || '')}
+                                        </span>
+                                     )}
+                                  </div>
+                               </div>
+                             );
+                          })}
+                       </div>
                     </div>
                  </div>
-
-                 <div className="p-6 bg-white border-2 border-slate-100 rounded-[2rem] shadow-sm relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500/20"></div>
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">Resumo do Pedido</p>
-                    <div className="text-[11px] font-bold text-slate-800 whitespace-pre-wrap leading-relaxed">
-                       {itemsList}
-                    </div>
-                 </div>
-
-                 <div className="p-6 bg-emerald-950 rounded-[2rem] text-center shadow-xl border-t-4 border-emerald-500/30">
-                    <p className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.3em] mb-2">Total Pago</p>
-                    <p className="text-3xl font-black text-white tracking-tight">{formatCurrency(booking.total_amount)}</p>
-                 </div>
-              </div>
-
-              <div className="mt-10 text-center pt-8 border-t-2 border-dashed border-slate-200 w-full">
-                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] mb-1">Lazer que sua família merece</p>
-                 <p className="text-[8px] font-bold text-slate-300 uppercase">www.balneariolessa.com.br</p>
               </div>
            </div>
         </div>
