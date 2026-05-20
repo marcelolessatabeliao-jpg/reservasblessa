@@ -9,7 +9,8 @@ import {
   Clock,
   AlertTriangle,
   Check,
-  X
+  X,
+  CheckCircle2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -185,13 +186,16 @@ export function AdminQuadTab({
                             <div className="space-y-2">
                                <span className="text-[9px] font-black text-blue-700/60 uppercase tracking-widest block mb-1">Horários Reservados</span>
                                {group.items.map((r: any, i: number) => (
-                                 <div key={i} className="flex justify-between items-center bg-white p-3 rounded-xl border border-blue-100 shadow-sm">
+                                 <div key={i} className={cn("flex justify-between items-center p-3 rounded-xl shadow-sm border", r.is_redeemed ? "bg-emerald-50/50 border-emerald-200" : "bg-white border-blue-100")}>
                                     <div className="flex items-center gap-2">
-                                       <Clock className="w-3.5 h-3.5 text-blue-500" />
-                                       <span className="text-[11px] font-black text-blue-900">{r.time_slot}</span>
-                                       <span className="text-[10px] font-bold text-blue-600/60">- {QUAD_MODELS_LABELS[normalizeQuadType(r.quad_type || 'individual')] || 'Individual'}</span>
+                                       {r.is_redeemed ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> : <Clock className="w-3.5 h-3.5 text-blue-500" />}
+                                       <span className={cn("text-[11px] font-black", r.is_redeemed ? "text-emerald-900 line-through opacity-70" : "text-blue-900")}>{r.time_slot}</span>
+                                       <span className={cn("text-[10px] font-bold", r.is_redeemed ? "text-emerald-600/60" : "text-blue-600/60")}>- {QUAD_MODELS_LABELS[normalizeQuadType(r.quad_type || 'individual')] || 'Individual'}</span>
                                     </div>
-                                    <span className="text-[10px] font-black text-blue-900">{r.quantity} un.</span>
+                                    <div className="flex items-center gap-2">
+                                      {r.is_redeemed && <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest bg-emerald-100 px-2 py-0.5 rounded-md">CHECK-IN</span>}
+                                      <span className={cn("text-[10px] font-black", r.is_redeemed ? "text-emerald-800" : "text-blue-900")}>{r.quantity} un.</span>
+                                    </div>
                                  </div>
                                ))}
                             </div>
@@ -301,7 +305,7 @@ export function AdminQuadTab({
                         {isExpanded && group.items.map((r: any, idx: number) => {
                           const isEditing = editingId === r.id;
                           return (
-                            <tr key={r.id} className={cn("bg-blue-50/30 border-b border-blue-100 transition-all", isEditing ? "bg-amber-50/40" : "")}>
+                            <tr key={r.id} className={cn("border-b transition-all", isEditing ? "bg-amber-50/40" : (r.is_redeemed ? "bg-emerald-50/30 border-emerald-100" : "bg-blue-50/30 border-blue-100"))}>
                               <td className="px-4 py-2"></td>
                               <td className="px-6 py-2">
                                 {isEditing ? (
@@ -314,25 +318,26 @@ export function AdminQuadTab({
                                 ) : (
                                   <span className={cn(
                                     'text-[10px] font-black uppercase px-2 py-0.5 rounded-md w-fit inline-block border flex items-center gap-1.5 shadow-sm',
+                                    r.is_redeemed ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
                                     (r.time_slot === 'INDIV' || r.time_slot === 'DUPLA') 
                                       ? 'bg-amber-50 text-amber-700 border-amber-200' 
                                       : 'bg-blue-50 text-blue-700 border-blue-100'
                                   )}>
-                                    {(r.time_slot === 'INDIV' || r.time_slot === 'DUPLA') ? (
-                                      <>
-                                        <AlertTriangle className="w-3 h-3" />
-                                        {r.time_slot === 'INDIV' ? 'HORÁRIO NÃO DEFINIDO' : 'DUPLA (AGUARDANDO)'}
-                                      </>
+                                    {r.is_redeemed ? <CheckCircle2 className="w-3 h-3" /> : (r.time_slot === 'INDIV' || r.time_slot === 'DUPLA') ? (
+                                      <AlertTriangle className="w-3 h-3" />
                                     ) : (
-                                      <>
-                                        <Clock className="w-3 h-3" />
-                                        {r.time_slot}
-                                      </>
+                                      <Clock className="w-3 h-3" />
                                     )}
+                                    {r.time_slot === 'INDIV' ? 'HORÁRIO NÃO DEFINIDO' : (r.time_slot === 'DUPLA' ? 'DUPLA (AGUARDANDO)' : r.time_slot)}
                                   </span>
                                 )}
                               </td>
-                              <td className="px-6 py-2 text-[11px] text-blue-700/60 font-black uppercase tracking-wider">Item #{idx + 1}</td>
+                              <td className="px-6 py-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[11px] text-blue-700/60 font-black uppercase tracking-wider">Item #{idx + 1}</span>
+                                  {r.is_redeemed && <Badge variant="outline" className="text-[8px] bg-emerald-100 text-emerald-800 border-emerald-200 h-4 px-1.5 uppercase font-bold tracking-widest">Check-in</Badge>}
+                                </div>
+                              </td>
                               <td className="px-6 py-2">
                                 {isEditing ? (
                                   <div className="flex flex-col gap-1 w-32">

@@ -5,6 +5,7 @@ import {
   Trash2, 
   Pencil, 
   CalendarClock,
+  CheckCircle2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -52,16 +53,16 @@ export function AdminKioskTab({
     const dayKiosks = (kioskReservations || []).filter(k => k.reservation_date === group.reservation_date);
     const resolved = group.items.map((r: any) => {
       const bid = r.kiosk_id;
-      if (bid === 1 || bid === '1' || bid === 'MAIOR') return KIOSKS.find(k => k.id === 1);
+      if (bid === 1 || bid === '1' || bid === 'MAIOR') return { ...r, ...(KIOSKS.find(k => k.id === 1)) };
       if (bid === 'MENOR') {
         const menors = dayKiosks.filter(dk => dk.kiosk_id === 'MENOR');
         const idx = menors.findIndex(dk => dk.id === r.id);
-        return KIOSKS.find(k => k.id === idx + 2) || { id: 99, name: 'Quiosque Extra', capacity: 'Até 15 pessoas' };
+        return { ...r, ...(KIOSKS.find(k => k.id === idx + 2) || { id: 99, name: 'Quiosque Extra', capacity: 'Até 15 pessoas' }) };
       }
-      return KIOSKS.find(k => k.id === Number(bid)) || { id: 99, name: `Q-${bid}`, capacity: 'Até 15 pessoas' };
+      return { ...r, ...(KIOSKS.find(k => k.id === Number(bid)) || { id: 99, name: `Q-${bid}`, capacity: 'Até 15 pessoas' }) };
     });
-    const names = resolved.map((k: any) => k?.name.replace('Quiosque ', 'Q-').replace('QUIOSQUE - ', 'Q-')).join(', ');
-    return { names };
+    const names = resolved.map((k: any) => k?.name?.replace('Quiosque ', 'Q-').replace('QUIOSQUE - ', 'Q-')).join(', ');
+    return { names, resolved };
   };
 
   const subTabConfig = [
@@ -107,11 +108,12 @@ export function AdminKioskTab({
               <div className="text-center py-10 text-muted-foreground/40 font-bold uppercase text-[10px] tracking-widest">Nenhuma reserva</div>
             ) : (
               tabGroups.map((group: any) => {
-                const { names } = resolveGroup(group);
+                const { resolved } = resolveGroup(group);
                 const isTodayStr = group.reservation_date === todayStr;
+                const allCheckedIn = resolved.length > 0 && resolved.every(r => r.is_redeemed);
                 return (
-                  <div key={group.group_key} className="bg-white rounded-2xl border-2 border-emerald-100 shadow-sm overflow-hidden animate-in slide-in-from-bottom-2 duration-300">
-                    <div className={cn("p-4 border-b border-emerald-100 flex justify-between items-center", isTodayStr ? "bg-emerald-50" : "bg-white")}>
+                  <div key={group.group_key} className={cn("bg-white rounded-2xl border-2 shadow-sm overflow-hidden animate-in slide-in-from-bottom-2 duration-300", allCheckedIn ? "border-emerald-300/50" : "border-emerald-100")}>
+                    <div className={cn("p-4 border-b flex justify-between items-center", isTodayStr ? "bg-emerald-50 border-emerald-100" : "bg-white border-slate-100", allCheckedIn ? "bg-emerald-50/50" : "")}>
                        <div className="flex flex-col">
                           <span className="text-[10px] font-black text-emerald-800/60 uppercase tracking-widest">Data da Visita</span>
                           <span className="font-black text-emerald-900">{format(parseISO(group.reservation_date), 'dd/MM/yyyy')}</span>
@@ -125,13 +127,19 @@ export function AdminKioskTab({
                           <span className="text-[10px] text-emerald-700 font-bold">{group.items.length} reserva(s) - {formatCurrency(group.total_price)}</span>
                        </div>
                        <div>
-                          <span className="text-[10px] font-black text-emerald-800/60 uppercase tracking-widest block mb-1">Quiosques</span>
-                          <div className="flex flex-wrap gap-1.5">
-                             {(names.split(', ') as string[]).map((n, i) => (
-                               <span key={i} className="px-2.5 py-1 bg-emerald-100 text-emerald-900 rounded-lg text-[10px] font-black border border-emerald-300 hover:bg-emerald-600 hover:text-white transition-colors">{n}</span>
-                             ))}
-                          </div>
-                       </div>
+                           <span className="text-[10px] font-black text-emerald-800/60 uppercase tracking-widest block mb-1">Quiosques</span>
+                           <div className="flex flex-wrap gap-1.5">
+                              {resolved.map((r: any, i: number) => {
+                                 const n = r.name?.replace('Quiosque ', 'Q-').replace('QUIOSQUE - ', 'Q-') || 'Q-?';
+                                 return (
+                                   <span key={i} className={cn("px-2.5 py-1 rounded-lg text-[10px] font-black border transition-colors flex items-center gap-1", r.is_redeemed ? "bg-emerald-600 text-white border-emerald-700 shadow-inner" : "bg-emerald-100 text-emerald-900 border-emerald-300 hover:bg-emerald-600 hover:text-white")}>
+                                     {r.is_redeemed && <CheckCircle2 className="w-3 h-3" />}
+                                     {n}
+                                   </span>
+                                 );
+                              })}
+                           </div>
+                        </div>
                        <div className="pt-2 flex items-center justify-end gap-2 border-t border-emerald-50">
                           {group.items.some((r: any) => r.receipt_url) && (
                              <Button size="sm" variant="outline" className="h-9 px-3 rounded-xl border-emerald-200 text-emerald-700 font-black text-[10px]" onClick={() => window.open(group.items.find((r: any) => r.receipt_url)?.receipt_url)}>
@@ -167,12 +175,14 @@ export function AdminKioskTab({
                 </thead>
                 <tbody className="divide-y-2 divide-slate-100">
                   {tabGroups.map((group: any) => {
-                    const { names } = resolveGroup(group);
+                    const { resolved } = resolveGroup(group);
                     const isTodayStr = group.reservation_date === todayStr;
+                    const allCheckedIn = resolved.length > 0 && resolved.every(r => r.is_redeemed);
                     return (
                       <tr key={group.group_key} className={cn(
-                        'border-b-2 border-slate-100 transition-all duration-300 hover:scale-[1.01] hover:shadow-lg hover:z-10 relative cursor-pointer',
-                        isTodayStr ? 'bg-emerald-50/50 hover:bg-emerald-100' : 'bg-slate-50 hover:bg-white'
+                        'border-b-2 transition-all duration-300 hover:scale-[1.01] hover:shadow-lg hover:z-10 relative cursor-pointer',
+                        isTodayStr ? 'bg-emerald-50/50 hover:bg-emerald-100 border-emerald-50' : 'bg-slate-50 hover:bg-white border-slate-100',
+                        allCheckedIn ? 'bg-emerald-50/30' : ''
                       )}>
                         <td className="px-6 py-4">
                           <div className="flex flex-col gap-1.5 w-fit">
@@ -187,8 +197,16 @@ export function AdminKioskTab({
                           <div className="text-[10px] text-slate-500 font-bold mt-0.5">{group.items.length} reserva(s)</div>
                         </td>
                         <td className="px-6 py-4">
-                          <div className="flex flex-col gap-1">
-                            <Badge className="bg-emerald-100 text-emerald-900 border-2 border-emerald-300 hover:bg-emerald-600 hover:text-white transition-colors font-bold px-3 py-1 shadow-sm">{names}</Badge>
+                          <div className="flex flex-wrap gap-1">
+                            {resolved.map((r: any, i: number) => {
+                               const n = r.name?.replace('Quiosque ', 'Q-').replace('QUIOSQUE - ', 'Q-') || 'Q-?';
+                               return (
+                                 <Badge key={i} className={cn("border-2 transition-colors font-bold px-2 py-0.5 shadow-sm flex items-center gap-1", r.is_redeemed ? "bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700" : "bg-emerald-100 text-emerald-900 border-emerald-300 hover:bg-emerald-600 hover:text-white")}>
+                                   {r.is_redeemed && <CheckCircle2 className="w-3 h-3" />}
+                                   {n}
+                                 </Badge>
+                               );
+                            })}
                           </div>
                         </td>
                         <td className="px-6 py-4 font-black text-lg text-emerald-700">{formatCurrency(group.total_price)}</td>

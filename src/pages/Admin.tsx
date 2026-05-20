@@ -396,6 +396,7 @@ export default function Admin() {
                  const realMatch = parsedKiosks.find(pk => !pk.is_from_order && pk.order_id === o.id && !matchedKioskIds.has(pk.id));
                  if (realMatch) {
                     realMatch.order_item_id = item.id;
+                    realMatch.is_redeemed = item.is_redeemed;
                     matchedKioskIds.add(realMatch.id);
                  } else {
                    // Virtual Kiosks
@@ -423,7 +424,8 @@ export default function Admin() {
                        order_id: o.id,
                        order_item_id: item.id,
                        is_from_order: true,
-                       status: o.status
+                       status: o.status,
+                       is_redeemed: item.is_redeemed
                      });
                    }
                  }
@@ -441,6 +443,7 @@ export default function Admin() {
 
                   if (realMatch) {
                     realMatch.order_item_id = item.id;
+                    realMatch.is_redeemed = item.is_redeemed;
                     matchedQuadIds.add(realMatch.id);
                   } else {
                     // Virtual Quads
@@ -479,7 +482,8 @@ export default function Admin() {
                        order_id: o.id,
                        order_item_id: item.id,
                        is_from_order: true,
-                       status: o.status
+                       status: o.status,
+                       is_redeemed: item.is_redeemed
                     });
                   }
                }
