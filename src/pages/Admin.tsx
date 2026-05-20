@@ -2284,11 +2284,13 @@ export default function Admin() {
                         const bDate = b.visit_date || (typeof b.created_at === 'string' ? b.created_at.split('T')[0] : '');
                         const today = format(new Date(), 'yyyy-MM-dd');
                         const searchLower = search.toLowerCase().replace(/^#/, '');
-                        const bCode = (b.confirmation_code || (typeof b.id === 'string' ? b.id.replace(/-/g, '').slice(0, 8) : '')).toLowerCase();
+                        const bCode = (b.confirmation_code || '').toLowerCase();
+                        const bIdShort = (typeof b.id === 'string' ? b.id.replace(/-/g, '').slice(0, 8) : '').toLowerCase();
                         const matchesSearch = !search || 
                           (b.name || b.customer_name || '').toLowerCase().includes(searchLower) ||
                           (b.phone || b.customer_phone || '').includes(searchLower) ||
-                          bCode.includes(searchLower);
+                          bCode.includes(searchLower) ||
+                          bIdShort.includes(searchLower);
                         const matchesStatus = statusFilter === 'all' || 
                           (statusFilter === 'pending' && (!b.status || b.status.toLowerCase() === 'pending' || b.status.toLowerCase() === 'awaiting_payment' || b.status.toLowerCase() === 'waiting_local')) ||
                           (b.status && b.status.toLowerCase() === statusFilter.toLowerCase());
