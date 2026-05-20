@@ -2128,39 +2128,40 @@ export default function Admin() {
           <div className="flex flex-col gap-4 mb-6">
               {/* ROW 1: FLATTENED TITLE & BASIC CONTROLS */}
               <div className="flex flex-col md:flex-row md:items-center justify-between w-full gap-4">
-                  <div className="flex flex-col md:flex-row md:items-center gap-3">
-                      <h1 className="text-xl md:text-2xl font-black tracking-tighter text-[#FFF033] whitespace-nowrap uppercase">
-                         PAINEL DE RESERVAS BALNEÁRIO LESSA
-                      </h1>
-                      <div className="flex items-center gap-2 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 backdrop-blur-md w-fit">
+                  <h1 className="text-xl md:text-2xl font-black tracking-tighter text-[#FFF033] whitespace-nowrap uppercase">
+                     PAINEL DE RESERVAS BALNEÁRIO LESSA
+                  </h1>
+
+                  <div className="flex items-center justify-between md:justify-end w-full md:w-auto gap-2">
+                     <div className="flex items-center gap-2 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 backdrop-blur-md">
                         <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                        <span className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">Live Sync Ativo</span>
-                      </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                     <Button 
-                        onClick={handleExportBackup}
-                        variant="outline"
-                        className="h-9 px-4 rounded-xl border-emerald-500/30 bg-emerald-500/10 text-emerald-400 font-black text-[10px] hover:bg-emerald-500 hover:text-white transition-all shadow-lg"
-                      >
-                        <Database className="w-3.5 h-3.5 mr-2" /> BACKUP
-                      </Button>
-
-                     <Button 
-                       variant="outline"
-                       className="w-9 h-9 rounded-xl bg-white/10 border border-white/20 p-0 text-[#FFF033] shadow-lg backdrop-blur-md hover:bg-white/20" 
-                       onClick={fetchData} 
-                       disabled={loading}
-                     >
-                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                     </Button>
-                     <Button 
-                       className="w-9 h-9 rounded-xl bg-rose-500/20 text-rose-500 p-0 border border-rose-500/30 hover:bg-rose-500 hover:text-white transition-all shadow-lg" 
-                       onClick={handleLogout}
-                     >
-                        <LogOut className="w-4 h-4" />
-                     </Button>
+                        <span className="text-[8px] font-black text-emerald-400 uppercase tracking-widest hidden sm:inline">Live Sync Ativo</span>
+                        <span className="text-[8px] font-black text-emerald-400 uppercase tracking-widest sm:hidden">Sync</span>
+                     </div>
+                     <div className="flex items-center gap-2">
+                         <Button 
+                            onClick={handleExportBackup}
+                            variant="outline"
+                            className="h-9 px-3 rounded-xl border-emerald-500/30 bg-emerald-500/10 text-emerald-400 font-black text-[10px] hover:bg-emerald-500 hover:text-white transition-all shadow-lg"
+                          >
+                            <Database className="w-3.5 h-3.5 sm:mr-1" /> <span className="hidden sm:inline">BACKUP</span>
+                          </Button>
+    
+                         <Button 
+                           variant="outline"
+                           className="w-9 h-9 rounded-xl bg-white/10 border border-white/20 p-0 text-[#FFF033] shadow-lg backdrop-blur-md hover:bg-white/20 shrink-0" 
+                           onClick={fetchData} 
+                           disabled={loading}
+                         >
+                            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                         </Button>
+                         <Button 
+                           className="w-9 h-9 rounded-xl bg-rose-500/20 text-rose-500 p-0 border border-rose-500/30 hover:bg-rose-500 hover:text-white transition-all shadow-lg shrink-0" 
+                           onClick={handleLogout}
+                         >
+                            <LogOut className="w-4 h-4" />
+                         </Button>
+                     </div>
                   </div>
               </div>
           </div>
@@ -2214,9 +2215,9 @@ export default function Admin() {
              <div className="hidden lg:block flex-1" />
 
              {/* INTEGRATED STATS INDICATORS */}
-             <div className="flex items-center justify-between lg:justify-end gap-2 px-2 w-full lg:w-auto flex-wrap sm:flex-nowrap">
-                <div className="flex items-center gap-2 w-full sm:w-auto">
-                   <div onClick={() => setActiveTab('vendas')} className="flex-1 sm:flex-initial cursor-pointer px-3 py-2 rounded-xl bg-slate-900 border border-yellow-500/50 flex items-center justify-center sm:justify-start gap-2 hover:bg-black transition-all">
+             <div className="flex items-center justify-between lg:justify-end gap-2 px-2 w-full lg:w-auto">
+                <div className="flex items-center gap-2 w-full overflow-x-auto no-scrollbar pb-1">
+                   <div onClick={() => setActiveTab('vendas')} className="flex-1 min-w-max sm:flex-initial cursor-pointer px-3 py-2 rounded-xl bg-slate-900 border border-yellow-500/50 flex items-center justify-center sm:justify-start gap-2 hover:bg-black transition-all">
                       <TrendingUp className="w-3.5 h-3.5 text-yellow-400" />
                       <div className="flex flex-col -space-y-1">
                          <span className="text-[12px] md:text-[14px] font-black text-[#FFF033] whitespace-nowrap">
@@ -2229,23 +2230,23 @@ export default function Admin() {
                       </div>
                    </div>
 
-                   <div onClick={() => setActiveTab('reservas')} className="flex-1 sm:flex-initial cursor-pointer px-3 py-2 rounded-xl bg-slate-900 border border-emerald-500/50 flex items-center justify-center sm:justify-start gap-2 hover:bg-black transition-all">
+                   <div onClick={() => setActiveTab('reservas')} className="flex-1 min-w-max sm:flex-initial cursor-pointer px-3 py-2 rounded-xl bg-slate-900 border border-emerald-500/50 flex items-center justify-center sm:justify-start gap-2 hover:bg-black transition-all">
                       <Users className="w-3.5 h-3.5 text-emerald-400" />
                       <div className="flex flex-col -space-y-1">
                          <span className="text-[12px] md:text-[14px] font-black text-emerald-400">{bookings.length + orders.length}</span>
                          <span className="text-[6px] font-black uppercase text-emerald-500/70">Agenda</span>
                       </div>
                    </div>
-                </div>
 
-                <div className="w-full sm:w-auto flex justify-center sm:justify-start">
-                   <InternalBookingAssistant 
-                      onCreated={fetchData} 
-                      isHoliday={isHoliday} 
-                      isAllowedDay={isAllowedDay} 
-                      kioskReservations={kioskReservations}
-                      quadReservations={quadReservations}
-                   />
+                   <div className="shrink-0">
+                      <InternalBookingAssistant 
+                         onCreated={fetchData} 
+                         isHoliday={isHoliday} 
+                         isAllowedDay={isAllowedDay} 
+                         kioskReservations={kioskReservations}
+                         quadReservations={quadReservations}
+                      />
+                   </div>
                 </div>
              </div>
           </div>
