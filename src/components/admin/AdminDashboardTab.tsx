@@ -346,15 +346,29 @@ export function AdminDashboardTab({
                       const rDate = typeof r.reservation_date === 'string' ? r.reservation_date.split('T')[0] : '';
                       return rDate === dateStr;
                     });
-                    const hasAnyBooking = (bookings || []).some(b => {
+                    const hasPessoas = (bookings || []).some(b => {
                       const bDate = typeof b.visit_date === 'string' ? b.visit_date.split('T')[0] : format(new Date(b.visit_date), 'yyyy-MM-dd');
-                      return bDate === dateStr && b.status !== 'cancelled' && b.status !== 'awaiting_payment';
+                      if (bDate !== dateStr || b.status === 'cancelled' || b.status === 'awaiting_payment') return false;
+
+                      const cCount = Array.isArray(b.children) ? b.children.length : (typeof b.children === 'number' ? b.children : 0);
+                      const aCount = typeof b.adults === 'number' ? b.adults : 0;
+                      if (aCount > 0 || cCount > 0) return true;
+
+                      const items = b.order_items || [];
+                      return items.some((item: any) => {
+                        const pName = (item.product_name || item.product_id || '').toLowerCase();
+                        return pName.includes('day use') || pName.includes('pessoa') || pName.includes('adulto') || pName.includes('criança') || pName.includes('crianca') || pName.includes('isento');
+                      });
                     }) || (orders || []).some(o => {
                       const oDate = typeof o.visit_date === 'string' ? o.visit_date.split('T')[0] : (o.created_at ? o.created_at.split('T')[0] : '');
-                      return oDate === dateStr && o.status !== 'cancelled' && o.status !== 'awaiting_payment';
+                      if (oDate !== dateStr || o.status === 'cancelled' || o.status === 'awaiting_payment') return false;
+
+                      const items = o.order_items || [];
+                      return items.some((item: any) => {
+                        const pName = (item.product_name || item.product_id || '').toLowerCase();
+                        return pName.includes('day use') || pName.includes('pessoa') || pName.includes('adulto') || pName.includes('criança') || pName.includes('crianca') || pName.includes('isento');
+                      });
                     });
-                    
-                    const isSimpleBooking = hasAnyBooking && !hasKiosk && !hasQuad;
                     const kiosksFull = (kioskReservations || []).filter(r => {
                       const rDate = typeof r.reservation_date === 'string' ? r.reservation_date.split('T')[0] : '';
                       return rDate === dateStr;
@@ -382,7 +396,7 @@ export function AdminDashboardTab({
                         <div className="flex gap-0.5 mt-0.5">
                           {hasKiosk && <div className={cn("w-1 h-1 sm:w-1.5 sm:h-1.5 md:w-2 md:h-2 rounded-full shadow-md border border-white/40", kiosksFull ? "bg-red-600" : "bg-emerald-600")} />}
                           {hasQuad && <div className={cn("w-1 h-1 sm:w-1.5 sm:h-1.5 md:w-2 md:h-2 rounded-full shadow-md border border-white/40", quadsFull ? "bg-red-600" : "bg-blue-600")} />}
-                          {isSimpleBooking && <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 md:w-2 md:h-2 rounded-full bg-red-500 shadow-md border border-white/40" />}
+                          {hasPessoas && <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 md:w-2 md:h-2 rounded-full bg-red-500 shadow-md border border-white/40" />}
                         </div>
                       </div>
                     );
