@@ -254,10 +254,6 @@ export default function Consultar() {
                           </button>
                           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
                             <span className="text-[11px] font-bold text-emerald-800/60 uppercase">
-                              Cód: {res.confirmation_code || (res.id ? res.id.replace(/-/g, '').slice(0, 8).toUpperCase() : '')}
-                            </span>
-                            <span className="w-1 h-1 rounded-full bg-emerald-400" />
-                            <span className="text-[11px] font-bold text-emerald-800/60 uppercase">
                               {res.customer_phone}
                             </span>
                             <span className="w-1 h-1 rounded-full bg-emerald-400" />
