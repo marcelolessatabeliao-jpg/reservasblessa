@@ -59,14 +59,16 @@ export default function Voucher() {
         <div className="bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border border-muted-foreground/10">
           
           {/* Header */}
-          <div className="bg-primary p-6 md:p-8 text-center text-white relative">
-             <div className={`absolute top-4 right-4 text-[11px] font-black px-3.5 py-1.5 rounded-full uppercase tracking-tight shadow-lg ${
+          <div className="bg-primary p-6 md:p-8 text-white flex flex-col md:flex-row md:items-center md:justify-between text-center md:text-left gap-4 relative">
+             <div>
+                <h1 className="text-2xl font-black uppercase tracking-tighter mb-1">Balneário Lessa</h1>
+                <p className="text-primary-foreground/60 text-xs font-bold uppercase tracking-widest">Seu Voucher Digital</p>
+             </div>
+             <div className={`md:self-center self-center text-[11px] font-black px-3.5 py-1.5 rounded-full uppercase tracking-tight shadow-lg ${
                 order.status === 'paid' || order.status === 'confirmed' ? 'bg-sun text-emerald-950' : 'bg-amber-100 text-amber-900 border border-amber-300'
              }`}>
                 {order.status === 'paid' || order.status === 'confirmed' ? 'Entrada Confirmada' : 'Aguardando Pgto'}
              </div>
-             <h1 className="text-2xl font-black uppercase tracking-tighter mb-1">Balneário Lessa</h1>
-             <p className="text-primary-foreground/60 text-xs font-bold uppercase tracking-widest">Seu Voucher Digital</p>
           </div>
 
           <div className="p-6 md:p-8 grid grid-cols-1 md:grid-cols-5 gap-8">
@@ -139,30 +141,43 @@ export default function Voucher() {
                  </div>
                  
                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {order.order_items?.map((item: any, i: number) => (
-                      <div key={i} className="flex items-start gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                         <div className={item.is_redeemed ? "bg-green-100 p-1 rounded-full shrink-0" : "bg-primary/5 p-1 rounded-full shrink-0"}>
-                            <CheckCircle2 className={item.is_redeemed ? "w-3 h-3 text-green-600" : "w-3 h-3 text-primary/40"} />
-                         </div>
-                         <div className="min-w-0">
-                           <p className={`text-xs font-bold break-words ${item.is_redeemed ? "line-through opacity-50" : "text-foreground"}`}>
-                              {item.quantity}x {item.product_id}
-                           </p>
-                           {((item.product_id || '').toLowerCase().includes('quad') || (item.product_name || '').toLowerCase().includes('quad')) && (
-                              <span className="inline-block mt-0.5 text-primary font-black lowercase text-[9px] bg-sun/10 px-1.5 py-0.5 rounded border border-sun/20">
-                                {(item.metadata?.time_slot || 
-                                 (order.quad_reservations?.find((q: any) => 
-                                   (q.quad_type || q.type || '').toUpperCase() === (item.product_id || '').toUpperCase() || 
-                                   (item.product_id || '').toUpperCase().includes((q.quad_type || q.type || '').toUpperCase()) ||
-                                   (item.product_name || '').toUpperCase().includes((q.quad_type || q.type || '').toUpperCase())
-                                 )?.time_slot) || 
-                                 (order.quad_reservations?.[0]?.time_slot) || '')}
-                              </span>
-                           )}
-                           {item.is_redeemed && <span className="block text-[8px] font-bold text-green-600 uppercase mt-0.5">Utilizado</span>}
-                         </div>
-                       </div>
-                    ))}
+                    {order.order_items?.map((item: any, i: number) => {
+                       const rawName = item.product_name || item.product_id || 'Serviço';
+                       const unitPrice = item.unit_price ?? (item.total_price / (item.quantity || 1));
+                       const isAdulto = rawName.toLowerCase().includes('adulto') || rawName.toLowerCase().includes('entrada');
+                       const isAdultoSolidario = isAdulto && unitPrice <= 25 && unitPrice > 0;
+                       const isAssinante = isAdulto && Math.abs(unitPrice) < 0.01;
+                       const displayName = isAssinante
+                         ? 'Assinante Lessa Club'
+                         : isAdultoSolidario
+                           ? 'Adulto Solidário'
+                           : rawName.replace(/^1x\s*/i, '');
+
+                       return (
+                         <div key={i} className="flex items-start gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                            <div className={item.is_redeemed ? "bg-green-100 p-1 rounded-full shrink-0" : "bg-primary/5 p-1 rounded-full shrink-0"}>
+                               <CheckCircle2 className={item.is_redeemed ? "w-3 h-3 text-green-600" : "w-3 h-3 text-primary/40"} />
+                            </div>
+                            <div className="min-w-0">
+                              <p className={`text-xs font-bold break-words ${item.is_redeemed ? "line-through opacity-50" : "text-foreground"}`}>
+                                 {item.quantity}x {displayName}
+                              </p>
+                              {((item.product_id || '').toLowerCase().includes('quad') || (item.product_name || '').toLowerCase().includes('quad')) && (
+                                 <span className="inline-block mt-0.5 text-primary font-black lowercase text-[9px] bg-sun/10 px-1.5 py-0.5 rounded border border-sun/20">
+                                   {(item.metadata?.time_slot || 
+                                    (order.quad_reservations?.find((q: any) => 
+                                      (q.quad_type || q.type || '').toUpperCase() === (item.product_id || '').toUpperCase() || 
+                                      (item.product_id || '').toUpperCase().includes((q.quad_type || q.type || '').toUpperCase()) ||
+                                      (item.product_name || '').toUpperCase().includes((q.quad_type || q.type || '').toUpperCase())
+                                    )?.time_slot) || 
+                                    (order.quad_reservations?.[0]?.time_slot) || '')}
+                                 </span>
+                              )}
+                              {item.is_redeemed && <span className="block text-[8px] font-bold text-green-600 uppercase mt-0.5">Utilizado</span>}
+                            </div>
+                          </div>
+                       );
+                    })}
                  </div>
               </div>
             </div>
