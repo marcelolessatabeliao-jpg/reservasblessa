@@ -33,14 +33,11 @@ export default function Consultar() {
     
     try {
       const cleanQuery = searchQuery.replace(/\D/g, '');
-      const isCpf = cleanQuery.length === 11;
 
       let supabaseQuery = supabase.from('orders').select('*, order_items(*)');
 
-      if (isCpf) {
-        supabaseQuery = supabaseQuery.or(`customer_cpf.eq.${cleanQuery},customer_cpf.eq.${searchQuery}`);
-      } else if (cleanQuery.length >= 10 && cleanQuery.length <= 11) {
-        supabaseQuery = supabaseQuery.or(`customer_phone.eq.${cleanQuery},customer_phone.eq.${searchQuery}`);
+      if (cleanQuery.length >= 10 && cleanQuery.length <= 11) {
+        supabaseQuery = supabaseQuery.or(`customer_cpf.eq.${cleanQuery},customer_cpf.eq.${searchQuery},customer_phone.eq.${cleanQuery},customer_phone.eq.${searchQuery}`);
       } else {
         if (!background) {
           toast({
