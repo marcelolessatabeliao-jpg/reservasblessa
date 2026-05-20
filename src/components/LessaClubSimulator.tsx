@@ -57,19 +57,22 @@ export function LessaClubSimulator() {
 
     // Build Detailed Message
     const choices = [];
-    if (quantities.adult > 0) choices.push(`${quantities.adult} Lessa Club`);
-    if (quantities.student > 0) choices.push(`${quantities.student} Estudante${quantities.student > 1 ? 's' : ''}`);
-    if (quantities.teacher > 0) choices.push(`${quantities.teacher} Professor${quantities.teacher > 1 ? 'es' : ''}`);
-    if (quantities.server > 0) choices.push(`${quantities.server} Servidor${quantities.server > 1 ? 'es' : ''}`);
-    if (quantities.child > 0) choices.push(`${quantities.child} Criança${quantities.child > 1 ? 's' : ''}`);
-    if (quantities.senior > 0) choices.push(`${quantities.senior} Idoso${quantities.senior > 1 ? 's' : ''}`);
-    if (quantities.pcd > 0) choices.push(`${quantities.pcd} PCD/TEA`);
+    if (quantities.adult > 0) choices.push(`- ${quantities.adult} Lessa Club`);
+    if (quantities.student > 0) choices.push(`- ${quantities.student} Estudante${quantities.student > 1 ? 's' : ''}`);
+    if (quantities.teacher > 0) choices.push(`- ${quantities.teacher} Professor${quantities.teacher > 1 ? 'es' : ''}`);
+    if (quantities.server > 0) choices.push(`- ${quantities.server} Servidor${quantities.server > 1 ? 'es' : ''}`);
+    if (quantities.child > 0) choices.push(`- ${quantities.child} Criança${quantities.child > 1 ? 's' : ''} (Acesso Livre)`);
+    if (quantities.senior > 0) choices.push(`- ${quantities.senior} Idoso${quantities.senior > 1 ? 's' : ''} (Acesso Livre)`);
+    if (quantities.pcd > 0) choices.push(`- ${quantities.pcd} PCD/TEA (Acesso Livre)`);
 
-    const message = `Olá! Gostaria de finalizar minha adesão ao Lessa Club baseada na minha simulação:\n\n*Resumo:*\n- Total: ${totalPeople} pessoas\n- Escolhas: ${choices.join(', ')}\n- Valor Total: ${formatCurrency(totalMonthly)}`;
+    const choicesText = choices.length > 0 ? choices.join('\n') : '- Nenhuma opção selecionada';
+
+    const message = `Olá! Gostaria de finalizar minha adesão ao Lessa Club baseada na minha simulação:\n\n*Resumo da Adesão:*\n- Total de Pessoas: ${totalPeople}\n- Valor Total: ${formatCurrency(totalMonthly)}\n\n*Escolhas Detalhadas:*\n${choicesText}\n\n*Plano Recomendado:* ${planName}`;
     return `https://wa.me/5569992626140?text=${encodeURIComponent(message)}`;
   };
 
   const handleJoinClick = () => {
+    if (totalPeople === 0) return;
     if (payingPeople === 1) {
       if (quantities.student === 1) {
         setSelectedPlanInfo({
@@ -276,10 +279,11 @@ export function LessaClubSimulator() {
                 
                 <Button 
                   size="lg" 
-                  className="bg-[#332200] text-[#fcf6ba] hover:bg-black hover:text-white font-display font-black text-base sm:text-lg h-14 rounded-2xl shadow-2xl w-full mb-6 transition-all duration-300 border border-white/10"
+                  className={`bg-[#332200] text-[#fcf6ba] hover:bg-black hover:text-white font-display font-black text-base sm:text-lg h-14 rounded-2xl shadow-2xl w-full mb-6 transition-all duration-300 border border-white/10 ${totalPeople === 0 ? 'opacity-50 cursor-not-allowed hover:bg-[#332200] hover:text-[#fcf6ba]' : ''}`}
                   onClick={handleJoinClick}
+                  disabled={totalPeople === 0}
                 >
-                   QUERO ME ASSOCIAR <ArrowRight className="ml-2 h-5 w-5" />
+                   {totalPeople === 0 ? 'SELECIONE OS VISITANTES' : 'QUERO ME ASSOCIAR'} <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
 
                 {/* Box de Benefício Premium */}

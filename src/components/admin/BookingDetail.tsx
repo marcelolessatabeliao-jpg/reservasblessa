@@ -149,6 +149,83 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
   
   const totalPeople = defaultAdults + defaultChildren;
 
+  const getGuestBreakdown = () => {
+    const breakdown: { label: string; quantity: number }[] = [];
+    const counts: Record<string, number> = {};
+
+    if (localItems && localItems.length > 0) {
+      localItems.forEach((item: any) => {
+        const pId = (item.product_id || '').toLowerCase();
+        const pName = (item.product_name || '').toLowerCase();
+        const qty = Number(item.quantity) || 1;
+        const price = Number(item.unit_price) || 0;
+
+        if (pName.includes('professor') || pId.includes('professor')) {
+          counts['Meia-Entrada (Professor)'] = (counts['Meia-Entrada (Professor)'] || 0) + qty;
+        } else if (pName.includes('estudante') || pId.includes('estudante')) {
+          counts['Meia-Entrada (Estudante)'] = (counts['Meia-Entrada (Estudante)'] || 0) + qty;
+        } else if (pName.includes('servidor') || pId.includes('servidor')) {
+          counts['Meia-Entrada (Servidor Público)'] = (counts['Meia-Entrada (Servidor Público)'] || 0) + qty;
+        } else if (pName.includes('doador') || pId.includes('doador')) {
+          counts['Meia-Entrada (Doador)'] = (counts['Meia-Entrada (Doador)'] || 0) + qty;
+        } else if (pName.includes('aniversariante') || pId.includes('aniversariante')) {
+          counts['Aniversariante (Cortesia)'] = (counts['Aniversariante (Cortesia)'] || 0) + qty;
+        } else if (pName.includes('pcd') || pId.includes('pcd') || pName.includes('tea') || pId.includes('tea')) {
+          counts['PCD / TEA (Cortesia)'] = (counts['PCD / TEA (Cortesia)'] || 0) + qty;
+        } else if (pName.includes('idoso') || pId.includes('idoso') || pName.includes('senior') || pId.includes('senior')) {
+          counts['Idoso 60+ (Cortesia)'] = (counts['Idoso 60+ (Cortesia)'] || 0) + qty;
+        } else if (pName.includes('criança') || pId.includes('criança') || pName.includes('crianca') || pId.includes('crianca') || pName.includes('kids') || pId.includes('kids')) {
+          counts['Criança (Cortesia)'] = (counts['Criança (Cortesia)'] || 0) + qty;
+        } else if (pName.includes('solidario') || pId.includes('solidario') || pName.includes('solidário') || pId.includes('solidário') || (pName.includes('adulto') && price === 25)) {
+          counts['Adulto Solidário'] = (counts['Adulto Solidário'] || 0) + qty;
+        } else if (pName.includes('assinante') || pId.includes('assinante') || (pName.includes('adulto') && price === 0)) {
+          counts['Assinante Lessa Club'] = (counts['Assinante Lessa Club'] || 0) + qty;
+        } else if (pName.includes('adulto') || pId.includes('adulto') || pName.includes('entrada') || pId.includes('entrada')) {
+          counts['Adulto'] = (counts['Adulto'] || 0) + qty;
+        }
+      });
+    } else {
+      const adults = typeof booking.adults === 'number' ? booking.adults : 0;
+      if (adults > 0) {
+        if (booking.is_associado) {
+          counts['Assinante Lessa Club'] = adults;
+        } else if (booking.has_donation) {
+          counts['Adulto Solidário'] = adults;
+        } else {
+          counts['Adulto'] = adults;
+        }
+      }
+
+      const children = Array.isArray(booking.children) ? booking.children : [];
+      if (children.length > 0) {
+        children.forEach((c: any) => {
+          let label = 'Criança (Cortesia)';
+          if (c.isPCD) label = 'PCD / TEA (Cortesia)';
+          else if (c.isBirthday) label = 'Aniversariante (Cortesia)';
+          else if (c.age >= 60) label = 'Idoso 60+ (Cortesia)';
+          else if (c.isTeacher) label = 'Meia-Entrada (Professor)';
+          else if (c.isStudent) label = 'Meia-Entrada (Estudante)';
+          else if (c.isServer) label = 'Meia-Entrada (Servidor Público)';
+          else if (c.isBloodDonor) label = 'Meia-Entrada (Doador)';
+          
+          counts[label] = (counts[label] || 0) + (c.quantity || 1);
+        });
+      } else if (typeof booking.children === 'number' && booking.children > 0) {
+        counts['Criança (Cortesia)'] = booking.children;
+      }
+    }
+
+    Object.entries(counts).forEach(([label, quantity]) => {
+      if (quantity > 0) {
+        breakdown.push({ label, quantity });
+      }
+    });
+
+    return breakdown;
+  };
+
+  const guestBreakdown = getGuestBreakdown();
+
   // Build financial summary
   const kioskTotal = kiosks.reduce((s: number, k: any) => s + (k.price || 75), 0);
   const quadTotal = quads.reduce((s: number, q: any) => s + (q.price || 0), 0);
@@ -193,6 +270,25 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
                   <p className="text-[7px] md:text-[9px] font-black uppercase text-slate-600 tracking-wider mt-1 leading-tight">Total Pessoas</p>
                 </div>
               </div>
+
+              {/* Guest Detailed Breakdown */}
+              {guestBreakdown.length > 0 && (
+                <div className="bg-emerald-50/50 rounded-2xl p-4 border border-emerald-100/80">
+                  <p className="text-[9px] font-black uppercase text-emerald-800 tracking-widest mb-2 flex items-center gap-1.5">
+                    👤 Detalhamento dos Visitantes
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {guestBreakdown.map((item, idx) => (
+                      <div key={idx} className="flex justify-between items-center bg-white p-2.5 rounded-xl border border-emerald-100/50 text-xs font-bold text-slate-700 shadow-sm">
+                        <span>{item.label}</span>
+                        <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md text-[10px] font-black">
+                          {item.quantity}x
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               {/* Financial breakdown */}
               <div className="bg-slate-50 rounded-2xl p-4 space-y-2">
                 <p className="text-[9px] font-black uppercase text-slate-500 tracking-widest mb-3">Detalhamento Financeiro</p>
@@ -327,6 +423,18 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
           </div>
         </div>
       </div>
+
+      {/* ROW 1.5: Detalhamento de Visitantes */}
+      {guestBreakdown.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 bg-emerald-50/20 p-2.5 rounded-xl border border-emerald-100/50">
+          <span className="text-[9px] font-black uppercase text-emerald-800 tracking-wider mr-1">Visitantes:</span>
+          {guestBreakdown.map((item, i) => (
+            <Badge key={i} variant="outline" className="bg-white border-emerald-200/80 text-slate-700 text-[10px] font-bold px-2 py-0.5 rounded-lg shadow-sm">
+              {item.quantity}x {item.label}
+            </Badge>
+          ))}
+        </div>
+      )}
 
       {/* ROW 2: Estruturas */}
       {(kiosks.length > 0 || quads.length > 0 || additionals.length > 0) && (
