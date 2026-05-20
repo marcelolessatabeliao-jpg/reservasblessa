@@ -127,7 +127,7 @@ export function AdminQuadTab({
                   key={t.key}
                   onClick={() => setQuadSubTab(t.key as any)}
                   className={cn(
-                    'flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all',
+                    'flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap shrink-0',
                     quadSubTab === t.key ? t.color + ' shadow-md' : 'text-slate-500 hover:text-slate-700',
                     t.key === 'historico' && 'col-span-2 md:col-auto'
                   )}
