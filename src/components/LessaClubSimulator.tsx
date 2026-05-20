@@ -67,7 +67,7 @@ export function LessaClubSimulator() {
 
     const choicesText = choices.length > 0 ? choices.join('\n') : '- Nenhuma opção selecionada';
 
-    const message = `Olá! Gostaria de finalizar minha adesão ao Lessa Club baseada na minha simulação:\n\n*Resumo da Adesão:*\n- Total de Pessoas: ${totalPeople}\n- Valor Total: ${formatCurrency(totalMonthly)}\n\n*Escolhas Detalhadas:*\n${choicesText}\n\n*Plano Recomendado:* ${planName}`;
+    const message = `Olá! Gostaria de finalizar minha adesão ao Lessa Club baseada na minha simulação:\n\n*Resumo da Adesão:*\n- Total de Pessoas: ${totalPeople}\n- Valor Total: ${formatCurrency(totalMonthly)}\n\n*Escolhas Detalhadas:*\n${choicesText}`;
     return `https://wa.me/5569992626140?text=${encodeURIComponent(message)}`;
   };
 
