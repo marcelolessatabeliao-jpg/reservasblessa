@@ -141,7 +141,7 @@ export function AdminDashboardTab({
                   {/* Left: Quiosques */}
                   <div className="p-4 md:p-6 border-b xl:border-b-0 xl:border-r border-amber-300 bg-emerald-100/40 space-y-4">
                      <h4 className="text-[14px] font-black text-emerald-800 flex items-center gap-3">
-                        <Users className="w-5 h-5 text-emerald-700" /> Quiosques ({dayKiosks.length}/5)
+                        <Users className="w-5 h-5 text-emerald-700" /> Quiosques ({dayKiosks.length}/8)
                      </h4>
                      
                      <div className="flex flex-col gap-2.5">
@@ -153,10 +153,12 @@ export function AdminDashboardTab({
                          dayKiosks.forEach(b => {
                            const bid = b.kiosk_id;
                            const numId = Number(bid);
-                           if (!isNaN(numId) && numId >= 1 && numId <= 5) {
+                           if (!isNaN(numId) && numId >= 1 && numId <= 8) {
                              if (!kioskMap[numId]) kioskMap[numId] = b;
                            } else if (bid === 'MAIOR' || bid === '1') {
-                             if (!kioskMap[1]) kioskMap[1] = b;
+                             for (const s of [1, 6, 7, 8]) {
+                               if (!kioskMap[s]) { kioskMap[s] = b; break; }
+                             }
                            }
                          });
                          
@@ -372,7 +374,7 @@ export function AdminDashboardTab({
                     const kiosksFull = (kioskReservations || []).filter(r => {
                       const rDate = typeof r.reservation_date === 'string' ? r.reservation_date.split('T')[0] : '';
                       return rDate === dateStr;
-                    }).length >= 5;
+                    }).length >= 8;
                     const quadsFull = (quadReservations || []).filter(r => {
                       const rDate = typeof r.reservation_date === 'string' ? r.reservation_date.split('T')[0] : '';
                       return rDate === dateStr;

@@ -134,7 +134,7 @@ export function RescheduleDialog({
                   const dateStr = format(date, 'yyyy-MM-dd');
                   const hasKiosk = (kioskReservations || []).some(r => r.reservation_date === dateStr);
                   const hasQuad = (quadReservations || []).some(r => r.reservation_date === dateStr);
-                  const kiosksFull = (kioskReservations || []).filter(r => r.reservation_date === dateStr).length >= 5;
+                  const kiosksFull = (kioskReservations || []).filter(r => r.reservation_date === dateStr).length >= 8;
                   const quadsFull = (quadReservations || []).filter(r => r.reservation_date === dateStr).reduce((s, r) => s + (Number(r.quantity) || 1), 0) >= 20;
                   const isFull = kiosksFull && quadsFull;
                   return (
@@ -236,8 +236,8 @@ export function EditKioskDialog({ group, onClose, onUpdated, updateOrderTotal }:
         </DialogHeader>
         <div className="py-4 space-y-4">
           <p className="text-xs font-bold text-muted-foreground uppercase">Selecione {group.items.length} unidades para a data {format(parseISO(group.reservation_date), 'dd/MM/yyyy')}:</p>
-          <div className="grid grid-cols-3 gap-2">
-            {[1, 2, 3, 4, 5].map(id => {
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+            {KIOSKS.map(k => k.id).map(id => {
               const kiosk = KIOSKS.find(k => k.id === id);
               const isBooked = bookedIds.includes(id);
               const isSelected = selectedKiosks.includes(id);
