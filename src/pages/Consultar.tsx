@@ -33,25 +33,46 @@ export default function Consultar() {
     
     try {
       const cleanQuery = searchQuery.replace(/\D/g, '');
+      const rawQuery = searchQuery.trim();
+      const rawQueryNoHash = rawQuery.replace(/^#/, '');
 
       let supabaseQuery = supabase.from('orders').select('*, order_items(*)');
 
-      if (cleanQuery.length >= 10 && cleanQuery.length <= 11) {
+      if (cleanQuery.length >= 10 && cleanQuery.length <= 11 && !/[a-zA-Z]/.test(rawQuery)) {
         supabaseQuery = supabaseQuery.or(`customer_cpf.eq.${cleanQuery},customer_cpf.eq.${searchQuery},customer_phone.eq.${cleanQuery},customer_phone.eq.${searchQuery}`);
+      } else if (rawQueryNoHash.length >= 5) {
+        supabaseQuery = supabaseQuery.or(`confirmation_code.ilike.%${rawQueryNoHash}%`);
       } else {
         if (!background) {
           toast({
             title: "Formato inválido",
-            description: "Por favor, informe um CPF ou Telefone válido (apenas números).",
+            description: "Por favor, informe um Código (ex: #410EF4A0), CPF ou Telefone válido.",
             variant: "destructive"
           });
         }
         return;
       }
 
-      const { data, error } = await supabaseQuery.order('visit_date', { ascending: false });
+      let { data, error } = await supabaseQuery.order('visit_date', { ascending: false });
 
       if (error) throw error;
+
+      // Se não encontrou e a pesquisa parece um código curto de UUID (geralmente 8 caracteres), tenta buscar por range de UUID
+      if ((!data || data.length === 0) && rawQueryNoHash.length >= 5 && rawQueryNoHash.length <= 8 && /^[a-zA-Z0-9]+$/.test(rawQueryNoHash)) {
+        const prefix = rawQueryNoHash.toLowerCase().padEnd(8, '0'); // Garante que tem 8 chars
+        const minUuid = `${prefix}-0000-0000-0000-000000000000`;
+        const maxUuid = `${prefix}-ffff-ffff-ffff-ffffffffffff`;
+        const { data: idData, error: idError } = await supabase
+          .from('orders')
+          .select('*, order_items(*)')
+          .gte('id', minUuid)
+          .lte('id', maxUuid)
+          .order('visit_date', { ascending: false });
+        
+        if (!idError && idData && idData.length > 0) {
+          data = idData;
+        }
+      }
 
       if (!data || data.length === 0) {
         if (!background) {
@@ -165,7 +186,7 @@ export default function Consultar() {
             Consultar <span className="text-emerald-600">Minha Reserva</span>
           </h1>
           <p className="text-emerald-800/70 font-bold max-w-lg mx-auto">
-            Acesse seu voucher digital informando o CPF ou Telefone utilizado na compra.
+            Acesse seu voucher digital informando o Código da Reserva, CPF ou Telefone utilizado na compra.
           </p>
         </div>
 
@@ -179,7 +200,7 @@ export default function Consultar() {
                 <Input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Digite seu CPF ou Telefone (apenas números)"
+                  placeholder="Digite seu Código, CPF ou Telefone"
                   className="h-16 pl-14 pr-6 rounded-2xl border-2 border-emerald-100 focus:border-emerald-500 bg-white text-lg font-bold shadow-sm transition-all"
                 />
               </div>
@@ -233,7 +254,7 @@ export default function Consultar() {
                           </button>
                           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
                             <span className="text-[11px] font-bold text-emerald-800/60 uppercase">
-                              Cód: {res.confirmation_code}
+                              Cód: {res.confirmation_code || (res.id ? res.id.replace(/-/g, '').slice(0, 8).toUpperCase() : '')}
                             </span>
                             <span className="w-1 h-1 rounded-full bg-emerald-400" />
                             <span className="text-[11px] font-bold text-emerald-800/60 uppercase">
@@ -257,7 +278,7 @@ export default function Consultar() {
                           </p>
                         </div>
                         <Link 
-                          to={`/voucher/${res.confirmation_code}`}
+                          to={`/voucher/${res.confirmation_code || (res.id ? res.id.replace(/-/g, '').slice(0, 8).toUpperCase() : '')}`}
                           className="w-12 h-12 rounded-full border-2 border-emerald-100 flex items-center justify-center shrink-0 group-hover:border-emerald-300 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-all"
                         >
                           <Ticket className="w-6 h-6" />
@@ -284,7 +305,7 @@ export default function Consultar() {
                           <span className="text-lg font-black text-emerald-950">{formatCurrency(res.total_amount || 0)}</span>
                         </div>
                         <Link 
-                          to={`/voucher/${res.confirmation_code}`}
+                          to={`/voucher/${res.confirmation_code || (res.id ? res.id.replace(/-/g, '').slice(0, 8).toUpperCase() : '')}`}
                           className="mt-6 w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl flex items-center justify-center gap-2 transition-all"
                         >
                           <Ticket className="w-5 h-5" />

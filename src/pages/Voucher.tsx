@@ -18,11 +18,27 @@ export default function Voucher() {
   useEffect(() => {
     async function fetchVoucher() {
       if (!code) return;
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('orders')
         .select(`*, order_items (*), quad_reservations (*)`)
-        .ilike('id', code.toLowerCase() + '%')
-        .single() as any;
+        .eq('confirmation_code', code)
+        .maybeSingle() as any;
+        
+      if (!data && code.length >= 5 && code.length <= 8 && /^[a-zA-Z0-9]+$/.test(code)) {
+        const prefix = code.toLowerCase().padEnd(8, '0');
+        const minUuid = `${prefix}-0000-0000-0000-000000000000`;
+        const maxUuid = `${prefix}-ffff-ffff-ffff-ffffffffffff`;
+        const { data: idData } = await supabase
+          .from('orders')
+          .select(`*, order_items (*), quad_reservations (*)`)
+          .gte('id', minUuid)
+          .lte('id', maxUuid)
+          .maybeSingle() as any;
+          
+        if (idData) {
+          data = idData;
+        }
+      }
       
       if (data) setOrder(data);
       setLoading(true);

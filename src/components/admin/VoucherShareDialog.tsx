@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   Dialog, 
   DialogContent, 
@@ -58,6 +58,10 @@ export function VoucherShareDialog({
   const E_SPARK = '✨';  
 
   const name = booking.name || booking.customer_name || 'Cliente';
+
+  useEffect(() => {
+    setImageGenerated(null);
+  }, [booking?.id, code]);
 
   const updateVoucherSent = async () => {
     if (booking.id && !booking.id.startsWith('order-')) {

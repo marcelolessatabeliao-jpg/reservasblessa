@@ -1477,7 +1477,12 @@ export function BookingTable({
       {shareData && (
         <VoucherShareDialog
           open={shareDialogOpen}
-          onOpenChange={setShareDialogOpen}
+          onOpenChange={(open) => {
+            setShareDialogOpen(open);
+            if (!open) {
+              setShareData(null);
+            }
+          }}
           booking={shareData.booking}
           phone={shareData.phone}
           dateStr={shareData.dateStr}
