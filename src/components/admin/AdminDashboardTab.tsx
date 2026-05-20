@@ -338,19 +338,31 @@ export function AdminDashboardTab({
                     const dateStr = format(date, 'yyyy-MM-dd');
                     const selectedStr = format(targetDate, 'yyyy-MM-dd');
                     const isSelected = dateStr === selectedStr;
-                    const hasKiosk = (kioskReservations || []).some(r => r.reservation_date === dateStr);
-                    const hasQuad = (quadReservations || []).some(r => r.reservation_date === dateStr);
+                    const hasKiosk = (kioskReservations || []).some(r => {
+                      const rDate = typeof r.reservation_date === 'string' ? r.reservation_date.split('T')[0] : '';
+                      return rDate === dateStr;
+                    });
+                    const hasQuad = (quadReservations || []).some(r => {
+                      const rDate = typeof r.reservation_date === 'string' ? r.reservation_date.split('T')[0] : '';
+                      return rDate === dateStr;
+                    });
                     const hasAnyBooking = (bookings || []).some(b => {
                       const bDate = typeof b.visit_date === 'string' ? b.visit_date.split('T')[0] : format(new Date(b.visit_date), 'yyyy-MM-dd');
-                      return bDate === dateStr;
+                      return bDate === dateStr && b.status !== 'cancelled' && b.status !== 'awaiting_payment';
                     }) || (orders || []).some(o => {
-                      const oDate = o.visit_date || (o.created_at ? o.created_at.split('T')[0] : '');
+                      const oDate = typeof o.visit_date === 'string' ? o.visit_date.split('T')[0] : (o.created_at ? o.created_at.split('T')[0] : '');
                       return oDate === dateStr && o.status !== 'cancelled' && o.status !== 'awaiting_payment';
                     });
                     
                     const isSimpleBooking = hasAnyBooking && !hasKiosk && !hasQuad;
-                    const kiosksFull = (kioskReservations || []).filter(r => r.reservation_date === dateStr).length >= 5;
-                    const quadsFull = (quadReservations || []).filter(r => r.reservation_date === dateStr).reduce((s, r) => s + (Number(r.quantity) || 1), 0) >= (totalQuads * 4);
+                    const kiosksFull = (kioskReservations || []).filter(r => {
+                      const rDate = typeof r.reservation_date === 'string' ? r.reservation_date.split('T')[0] : '';
+                      return rDate === dateStr;
+                    }).length >= 5;
+                    const quadsFull = (quadReservations || []).filter(r => {
+                      const rDate = typeof r.reservation_date === 'string' ? r.reservation_date.split('T')[0] : '';
+                      return rDate === dateStr;
+                    }).reduce((s, r) => s + (Number(r.quantity) || 1), 0) >= (totalQuads * 4);
                     const isDayToday = isToday(date);
                     const isFull = kiosksFull && quadsFull;
                     const isClosed = !isAllowedDay(date);
