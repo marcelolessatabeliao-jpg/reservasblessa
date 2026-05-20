@@ -997,22 +997,27 @@ export default function Admin() {
           }
         }
         
-        // Use edge function for cleaner update if it's a real order
-        if (orderId && !String(orderId).startsWith('order-')) {
-          const action = type === 'kiosk' ? 'update_kiosk' : 'update_quad';
-          const { error: funcErr } = await supabase.functions.invoke('create-internal-order', {
-            body: {
-              action,
-              item_id: r.id,
+        if (String(r.id).startsWith('order-')) {
+           const cleanPayload: any = {
+              order_id: orderId,
               reservation_date: newDateStr,
-              price: updatePayload.price,
-              order_id: orderId
-            }
-          });
-          if (funcErr) throw funcErr;
+              customer_name: r.customer_name || group.customer_name,
+              status: r.status || group.status,
+              price: updatePayload.price || r.price,
+           };
+           if (type === 'kiosk') {
+              cleanPayload.kiosk_id = r.kiosk_id;
+              cleanPayload.kiosk_type = r.kiosk_type;
+           } else {
+              cleanPayload.quad_type = r.quad_type;
+              cleanPayload.time_slot = r.time_slot;
+              cleanPayload.quantity = r.quantity;
+           }
+           const { error } = await supabase.from(table).insert(cleanPayload);
+           if (error) throw error;
         } else {
-          const { error } = await supabase.from(table).update(updatePayload).eq('id', r.id);
-          if (error) throw error;
+           const { error } = await supabase.from(table).update(updatePayload).eq('id', r.id);
+           if (error) throw error;
         }
       }));
       
@@ -2569,22 +2574,35 @@ function EditKioskDialog({ group, onClose, onUpdated, updateOrderTotal }: any) {
           if (kioskItem) oiId = kioskItem.id;
         }
 
-        // Use edge function to bypass RLS for admin modifications
         const kioskLabel = String(newKioskId).padStart(2, '0');
-        const { data: funcData, error: funcErr } = await supabase.functions.invoke('create-internal-order', {
-           body: {
-              action: 'update_kiosk',
-              item_id: item.id,
+        
+        if (String(item.id).startsWith('order-')) {
+           const { error: insErr } = await supabase.from('kiosk_reservations').insert({
+              order_id: item.order_id,
               kiosk_id: newKioskId,
               kiosk_type: kioskType,
               price: newPrice,
-              order_item_id: oiId,
-              new_product_id: `Quiosque ${kioskLabel}`
-           }
-        });
-        
-        if (funcErr || (funcData && !funcData.success)) {
-           throw funcErr || new Error(funcData?.error || 'Erro na edge function');
+              reservation_date: item.reservation_date || group.reservation_date,
+              customer_name: item.customer_name || group.customer_name,
+              status: item.status || group.status
+           });
+           if (insErr) throw insErr;
+        } else {
+           const { error: updErr } = await supabase.from('kiosk_reservations').update({
+              kiosk_id: newKioskId,
+              kiosk_type: kioskType,
+              price: newPrice
+           }).eq('id', item.id);
+           if (updErr) throw updErr;
+        }
+
+        if (oiId) {
+           const { error: oiErr } = await supabase.from('order_items').update({
+              product_id: `Quiosque ${kioskLabel}`,
+              unit_price: newPrice,
+              metadata: { selectedIds: [newKioskId] }
+           }).eq('id', oiId);
+           if (oiErr) throw oiErr;
         }
       }
       
