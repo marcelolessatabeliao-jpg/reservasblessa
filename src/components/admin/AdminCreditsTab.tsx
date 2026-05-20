@@ -10,8 +10,11 @@ import {
   History,
   Pencil,
   Loader2,
-  Upload
+  Upload,
+  CalendarCheck,
+  Calendar
 } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -66,6 +69,61 @@ export function AdminCreditsTab({
     receipt_url: ''
   });
   const [isUploading, setIsUploading] = useState(false);
+  const [reactivatingCredit, setReactivatingCredit] = useState<any>(null);
+  const [reactivateDate, setReactivateDate] = useState('');
+
+  const handleReactivateCredit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reactivateDate || !reactivatingCredit) return;
+    
+    setLoading(true);
+    try {
+      const match = reactivatingCredit.notes?.match(/pedido #([a-zA-Z0-9]{8})/);
+      let orderIdPrefix = match ? match[1] : null;
+      
+      let order: any = null;
+      if (orderIdPrefix) {
+         const { data: orders } = await supabase.from('orders').select('*').ilike('id', `${orderIdPrefix}%`);
+         if (orders && orders.length > 0) order = orders[0];
+      }
+      
+      if (!order) {
+        toast({ title: 'Erro', description: 'Não foi possível encontrar o pedido original vinculado a este crédito.', variant: 'destructive' });
+        setLoading(false);
+        return;
+      }
+      
+      // Update order
+      const newNotes = (order.notes || '').replace(' [Convertido em Crédito]', '') + ` [Reativado para ${format(parseISO(reactivateDate), 'dd/MM/yyyy')}]`;
+      await supabase.from('orders').update({ visit_date: reactivateDate, status: 'paid', notes: newNotes }).eq('id', order.id);
+      
+      // Update booking
+      if (order.booking_id) {
+         await supabase.from('bookings').update({ visit_date: reactivateDate, status: 'paid' }).eq('id', order.booking_id);
+      }
+      
+      // Update related items (kiosks and quads)
+      const { data: items } = await supabase.from('order_items').select('id').eq('order_id', order.id);
+      if (items && items.length > 0) {
+         const itemIds = items.map((i: any) => i.id);
+         await supabase.from('kiosk_reservations').update({ reservation_date: reactivateDate }).in('order_item_id', itemIds);
+         await supabase.from('quad_reservations').update({ reservation_date: reactivateDate }).in('order_item_id', itemIds);
+      }
+      
+      // Delete the credit
+      await supabase.from('internal_credits').delete().eq('id', reactivatingCredit.id);
+      
+      toast({ title: 'Reserva Reativada!', description: `Reagendada com sucesso para ${format(parseISO(reactivateDate), 'dd/MM/yyyy')}.` });
+      setReactivatingCredit(null);
+      setReactivateDate('');
+      fetchData();
+    } catch(err: any) {
+      console.error(err);
+      toast({ title: 'Erro ao reativar', description: err.message, variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const startEditing = (cred: any) => {
     setEditingCredit(cred);
@@ -208,6 +266,40 @@ export function AdminCreditsTab({
                   Histórico ({historyCredits.length})
                 </button>
              </div>
+           
+           <Dialog open={!!reactivatingCredit} onOpenChange={(open) => !open && setReactivatingCredit(null)}>
+             <DialogContent className="rounded-3xl border-4 border-amber-100 p-0 max-w-sm overflow-hidden bg-white">
+                <div className="bg-amber-500 p-6 text-white text-center">
+                   <div className="w-12 h-12 bg-white/20 rounded-2xl mx-auto flex items-center justify-center backdrop-blur-sm border border-white/30 mb-3">
+                      <CalendarCheck className="w-6 h-6" />
+                   </div>
+                   <h3 className="text-xl font-black tracking-tight">Reativar Reserva</h3>
+                   <p className="text-amber-100 text-xs font-bold uppercase tracking-wider mt-1">Escolha a nova data da visita</p>
+                </div>
+                <form onSubmit={handleReactivateCredit} className="p-6 space-y-6">
+                   <div className="space-y-2">
+                     <Label className="text-xs font-black uppercase text-amber-700/60 ml-1 flex items-center gap-1.5">
+                       <Calendar className="w-4 h-4" /> Nova Data
+                     </Label>
+                     <Input 
+                       type="date"
+                       required
+                       min={format(new Date(), 'yyyy-MM-dd')}
+                       value={reactivateDate}
+                       onChange={e => setReactivateDate(e.target.value)}
+                       className="h-14 rounded-2xl border-2 border-amber-100 focus:border-amber-300 bg-slate-50 font-bold"
+                     />
+                   </div>
+                   <div className="flex gap-3">
+                     <Button type="button" variant="outline" onClick={() => setReactivatingCredit(null)} className="flex-1 rounded-2xl font-bold h-12 border-2 text-slate-500">Cancelar</Button>
+                     <Button type="submit" disabled={loading} className="flex-1 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl font-black h-12 shadow-md">
+                       {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Confirmar'}
+                     </Button>
+                   </div>
+                </form>
+             </DialogContent>
+           </Dialog>
+           
           </div>
           
           <Dialog open={isDialogOpen} onOpenChange={(open) => {
@@ -402,6 +494,17 @@ export function AdminCreditsTab({
                                   >
                                     <CheckCircle2 className="w-4.5 h-4.5" />
                                   </Button>
+                                  {(cred.notes || '').includes('pedido #') && (
+                                    <Button 
+                                      size="icon" 
+                                      variant="ghost" 
+                                      className="h-9 w-9 text-amber-600 hover:bg-amber-50 hover:text-amber-700 rounded-xl"
+                                      onClick={() => setReactivatingCredit(cred)}
+                                      title="Reagendar e Reativar Reserva"
+                                    >
+                                      <CalendarCheck className="w-4.5 h-4.5" />
+                                    </Button>
+                                  )}
                                   <Button 
                                     size="icon" 
                                     variant="ghost" 

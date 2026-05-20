@@ -26,60 +26,94 @@ export default function Consultar() {
 
 
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!query) return;
-
-    setLoading(true);
+  const performSearch = async (searchQuery: string, background = false) => {
+    if (!searchQuery) return;
+    if (!background) setLoading(true);
     setHasSearched(true);
-    setQuery(''); // Limpa o campo após iniciar a busca
+    
     try {
-      const cleanQuery = query.replace(/\D/g, '');
+      const cleanQuery = searchQuery.replace(/\D/g, '');
       const isCpf = cleanQuery.length === 11;
 
       let supabaseQuery = supabase.from('orders').select('*, order_items(*)');
 
       if (isCpf) {
-        supabaseQuery = supabaseQuery.or(`customer_cpf.eq.${cleanQuery},customer_cpf.eq.${query}`);
+        supabaseQuery = supabaseQuery.or(`customer_cpf.eq.${cleanQuery},customer_cpf.eq.${searchQuery}`);
       } else if (cleanQuery.length >= 10 && cleanQuery.length <= 11) {
-        // It's a phone number
-        supabaseQuery = supabaseQuery.or(`customer_phone.eq.${cleanQuery},customer_phone.eq.${query}`);
+        supabaseQuery = supabaseQuery.or(`customer_phone.eq.${cleanQuery},customer_phone.eq.${searchQuery}`);
       } else {
-        toast({
-          title: "Formato inválido",
-          description: "Por favor, informe um CPF ou Telefone válido (apenas números).",
-          variant: "destructive"
-        });
-        setLoading(false);
+        if (!background) {
+          toast({
+            title: "Formato inválido",
+            description: "Por favor, informe um CPF ou Telefone válido (apenas números).",
+            variant: "destructive"
+          });
+        }
         return;
       }
 
       const { data, error } = await supabaseQuery.order('visit_date', { ascending: false });
 
-
       if (error) throw error;
 
       if (!data || data.length === 0) {
-        setResults([]);
-        toast({
-          title: "Nenhuma reserva encontrada",
-          description: "Verifique os dados e tente novamente.",
-          variant: "destructive"
-        });
+        if (!background) {
+          setResults([]);
+          toast({
+            title: "Nenhuma reserva encontrada",
+            description: "Verifique os dados e tente novamente.",
+            variant: "destructive"
+          });
+        }
       } else {
         setResults(data);
+        
+        // Auto-sync any pending payments silently
+        const pendingOrders = data.filter(r => ['pending', 'awaiting_payment', 'aguardando pgto', 'waiting_local', 'waiting_confirmation'].includes(r.status));
+        for (const order of pendingOrders) {
+          try {
+            const { data: syncData } = await supabase.functions.invoke('check-payment', { body: { orderId: order.id } });
+            if (syncData?.success && syncData?.updated) {
+              setResults(prev => prev.map(r => r.id === order.id ? { ...r, status: 'paid' } : r));
+            }
+          } catch(e) { console.error("Background sync error:", e); }
+        }
       }
     } catch (err: any) {
       console.error(err);
-      toast({
-        title: "Erro na busca",
-        description: "Não foi possível realizar a consulta agora.",
-        variant: "destructive"
-      });
+      if (!background) {
+        toast({
+          title: "Erro na busca",
+          description: "Não foi possível realizar a consulta agora.",
+          variant: "destructive"
+        });
+      }
     } finally {
-      setLoading(false);
+      if (!background) setLoading(false);
     }
   };
+
+  const [lastQuery, setLastQuery] = useState('');
+
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!query) return;
+    setLastQuery(query);
+    const currentQuery = query;
+    setQuery(''); // Limpa o campo
+    await performSearch(currentQuery);
+  };
+
+  React.useEffect(() => {
+    const handleFocus = () => {
+      if (hasSearched && lastQuery) {
+        console.log("Window focused, performing background search/sync...");
+        performSearch(lastQuery, true);
+      }
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [hasSearched, lastQuery]);
 
   const handleSyncPayment = async (e: React.MouseEvent, orderId: string) => {
     e.preventDefault();
