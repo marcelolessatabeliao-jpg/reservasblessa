@@ -544,7 +544,7 @@ export function BookingTable({
                           <Button
                                           onClick={() => {
                                             const phone = (booking.phone || "").replace(/\D/g, "");
-                                            const code = booking.confirmation_code || booking.id?.split('-').pop() || "";
+                                            const code = booking.id?.replace(/-/g, '').slice(0, 8).toUpperCase() || "";
                                             const itemsList = booking.order_items?.map((item: any) => `* ${item.quantity}x ${item.product_id}`).join('\n') || "";
                                             const dateStr = format(parseISO(booking.visit_date || new Date().toISOString()), "dd/MM/yyyy", { locale: ptBR });
                                             
@@ -1366,7 +1366,7 @@ export function BookingTable({
                                           onClick={(e) => {
                                             e.stopPropagation();
                                             const phone = ((booking as any).customer_phone || (booking as any).phone || "").replace(/\D/g, "");
-                                            const code = booking.confirmation_code || booking.id?.split('-').pop() || "";
+                                            const code = (booking as any).id?.replace(/-/g, '').slice(0, 8).toUpperCase() || "";
                                             const itemsList = booking.order_items?.map((item: any) => `* ${item.quantity}x ${item.product_id}`).join('\n') || "";
                                             const dateStr = format(parseISO(booking.visit_date || new Date().toISOString()), "dd/MM/yyyy", { locale: ptBR });
                                             

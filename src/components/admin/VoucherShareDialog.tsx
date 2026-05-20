@@ -246,7 +246,7 @@ export function VoucherShareDialog({
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                        <div style={{ padding: '12px', backgroundColor: '#ffffff', borderRadius: '32px', border: '4px solid rgba(6, 78, 59, 0.05)', marginBottom: '8px' }}>
                           <img 
-                            src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${code}`} 
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://reservas.balneariolessa.com.br/voucher/${code}`} 
                             alt="QR Code" 
                             style={{ width: '140px', height: '140px', display: 'block' }} 
                             crossOrigin="anonymous"
@@ -254,7 +254,7 @@ export function VoucherShareDialog({
                        </div>
                        <div style={{ textAlign: 'center' }}>
                           <p style={{ fontSize: '10px', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', letterSpacing: '3px', margin: '0 0 4px 0' }}>Código de Acesso</p>
-                          <p style={{ fontSize: '28px', fontWeight: 900, color: '#064e3b', fontFamily: 'monospace', letterSpacing: '2px', margin: 0 }}>{code}</p>
+                          <p style={{ fontSize: '28px', fontWeight: 900, color: '#064e3b', fontFamily: 'monospace', letterSpacing: '2px', margin: 0 }}># {code}</p>
                        </div>
                     </div>
                     

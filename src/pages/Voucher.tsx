@@ -21,7 +21,7 @@ export default function Voucher() {
       const { data, error } = await supabase
         .from('orders')
         .select(`*, order_items (*), quad_reservations (*)`)
-        .eq('confirmation_code', code.toUpperCase())
+        .ilike('id', code.toLowerCase() + '%')
         .single() as any;
       
       if (data) setOrder(data);
@@ -79,14 +79,14 @@ export default function Voucher() {
               <div className="flex flex-col items-center justify-center">
                  <div className="p-3 bg-white border-4 border-primary/5 rounded-[2rem] shadow-inner mb-2">
                     <img 
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${order.confirmation_code}`} 
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://reservas.balneariolessa.com.br/voucher/${order.id?.replace(/-/g,'').slice(0,8).toUpperCase()}`} 
                       alt="QR Code" 
                       className="w-32 h-32 md:w-40 md:h-40"
                     />
                  </div>
                  <div className="text-center">
                     <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em] mb-1">CÓDIGO DE ACESSO</p>
-                    <p className="text-2xl md:text-3xl font-mono font-black text-primary tracking-widest">{order.confirmation_code}</p>
+                    <p className="text-2xl md:text-3xl font-mono font-black text-primary tracking-widest"># {order.id?.replace(/-/g,'').slice(0,8).toUpperCase()}</p>
                  </div>
               </div>
 
