@@ -1312,31 +1312,33 @@ export default function Admin() {
         {/* TAB HEADER - CLEAN & PREMIUM PILLS */}
         <div className="bg-white rounded-3xl border-2 border-slate-300 shadow-xl overflow-hidden">
           <div className="p-6 border-b-2 border-slate-200 bg-slate-50 space-y-4">
-            <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4">
               <div>
                 <h3 className="text-lg font-black text-emerald-900 uppercase tracking-tight">Reservas de Quiosques</h3>
                 <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-widest">Controle total por status e período</p>
               </div>
-              <div className="flex items-center gap-3">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => handleExportReport('excel', tabGroups, `Quiosques_${kioskSubTab}`)}
-                  className="rounded-xl border-blue-200 text-blue-700 font-black text-[10px] h-9"
-                >
-                  <FileSpreadsheet className="w-4 h-4 mr-2" /> EXPORTAR EXCEL
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={repairKioskAssignments} 
-                  disabled={isSyncingData}
-                  className="rounded-xl border-emerald-200 text-emerald-700 font-black text-[10px] h-9"
-                >
-                  {isSyncingData ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> : <RefreshCw className="w-3.5 h-3.5 mr-2" />}
-                  SINCRONIZAR BANCO
-                </Button>
-                <div className="flex flex-row overflow-x-auto gap-2 bg-slate-100 p-1 rounded-2xl w-full md:w-auto shadow-inner border border-slate-200">
+              <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 w-full xl:w-auto overflow-hidden">
+                <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => handleExportReport('excel', tabGroups, `Quiosques_${kioskSubTab}`)}
+                    className="rounded-xl border-blue-200 text-blue-700 font-black text-[10px] h-9 shrink-0 flex-1 md:flex-none"
+                  >
+                    <FileSpreadsheet className="w-4 h-4 mr-2" /> EXPORTAR EXCEL
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={repairKioskAssignments} 
+                    disabled={isSyncingData}
+                    className="rounded-xl border-emerald-200 text-emerald-700 font-black text-[10px] h-9 shrink-0 flex-1 md:flex-none"
+                  >
+                    {isSyncingData ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> : <RefreshCw className="w-3.5 h-3.5 mr-2" />}
+                    SINCRONIZAR BANCO
+                  </Button>
+                </div>
+                <div className="flex flex-row overflow-x-auto gap-2 bg-slate-100 p-1 rounded-2xl w-full md:w-auto shadow-inner border border-slate-200 hide-scrollbar">
                 {subTabConfig.map(t => (
                   <button
                     key={t.key}
