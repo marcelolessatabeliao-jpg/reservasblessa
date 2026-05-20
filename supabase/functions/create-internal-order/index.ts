@@ -361,7 +361,7 @@ Deno.serve(async (req) => {
     console.error('create-internal-order error:', err)
     return new Response(JSON.stringify({ success: false, error: err.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 400 // Mudado para 400 para que o invoke detecte o erro corretamente
+      status: 200 // Sempre 200 para que o invoke consiga ler o body e mostrar o erro real
     })
   }
 })
