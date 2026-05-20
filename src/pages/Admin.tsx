@@ -1859,14 +1859,14 @@ export default function Admin() {
 
   const renderOrderTab = () => (
     <div className="bg-white rounded-3xl border border-border/50 shadow-card overflow-hidden animate-in fade-in duration-500">
-        <div className="p-6 border-b border-border/50 bg-amber-50/30 flex items-center justify-between flex-wrap gap-4">
+        <div className="p-4 md:p-6 border-b border-border/50 bg-amber-50/30 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
            <div>
-              <h3 className="text-lg font-bold text-amber-900">Histórico de Vendas e Pedidos</h3>
-              <p className="text-xs text-muted-foreground">Gestão financeira centralizada</p>
+              <h3 className="text-base md:text-lg font-bold text-amber-900">Histórico de Vendas e Pedidos</h3>
+              <p className="text-[10px] md:text-xs text-muted-foreground">Gestão financeira centralizada</p>
            </div>
-           <div className="flex items-center gap-3">
+           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[180px] h-10 rounded-xl border-amber-200 bg-white shadow-sm font-bold text-xs uppercase">
+                <SelectTrigger className="w-full sm:w-[180px] h-10 rounded-xl border-amber-200 bg-white shadow-sm font-bold text-xs uppercase">
                   <SelectValue placeholder="Filtrar Status" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl border-amber-100 shadow-xl">
@@ -1889,117 +1889,221 @@ export default function Admin() {
                 const totalAmount = filtered.reduce((acc, curr) => acc + (curr.total_amount || 0), 0);
                 
                 return (
-                  <div className="flex gap-2">
-                    <Badge className="bg-amber-100 text-amber-900 border-0 font-bold h-10 px-4 rounded-xl flex items-center">
+                  <div className="flex gap-2 justify-between sm:justify-start">
+                    <Badge className="bg-amber-100 text-amber-900 border-0 font-bold h-10 px-4 rounded-xl flex items-center justify-center flex-1 sm:flex-initial text-center text-[10px] md:text-xs">
                       Pedidos: {filtered.length}
                     </Badge>
-                    <Badge className="bg-emerald-600 text-white border-0 font-black h-10 px-4 rounded-xl flex items-center shadow-lg shadow-emerald-900/20">
-                      Total ({statusFilter === 'all' ? 'Geral' : statusFilter.toUpperCase()}): {formatCurrency(totalAmount)}
+                    <Badge className="bg-emerald-600 text-white border-0 font-black h-10 px-4 rounded-xl flex items-center justify-center flex-1 sm:flex-initial text-center shadow-lg shadow-emerald-900/20 text-[10px] md:text-xs">
+                      Total: {formatCurrency(totalAmount)}
                     </Badge>
                   </div>
                 );
               })()}
            </div>
         </div>
-       <div className="overflow-x-auto">
-          <table className="w-full text-left">
-             <thead className="bg-muted/50 text-[10px] font-bold uppercase text-muted-foreground tracking-widest border-b border-border/50">
-                <tr>
-                   <th className="px-6 py-4">ID / Data</th>
-                   <th className="px-6 py-4">Cliente</th>
-                   <th className="px-6 py-4">Total</th>
-                   <th className="px-6 py-4">Status</th>
-                   <th className="px-6 py-4 text-right">Ações</th>
-                </tr>
-             </thead>
-             <tbody className="divide-y divide-border/30">
-                {(orders || [])
-                   .filter(order => {
-                      if (statusFilter === 'all') return true;
-                      const s = (order.status || '').toLowerCase();
-                      if (statusFilter === 'paid') return s === 'paid' || s === 'pago';
-                      if (statusFilter === 'pending') return s === 'pending' || s === 'pendente' || s === 'awaiting_payment' || s === 'waiting_local' || s === 'waiting_confirmation';
-                      if (statusFilter === 'cancelled') return s === 'cancelled' || s === 'cancelado';
-                      return s === statusFilter;
-                   })
-                   .map(order => (
-                   <tr key={order.id} className="hover:bg-muted/20 transition-colors">
-                      <td className="px-6 py-4">
-                         <div className="flex flex-col">
-                            <span className="font-mono text-[10px] text-muted-foreground">#{order.confirmation_code || order.id.slice(0,8)}</span>
-                            <span className="text-sm font-bold">{format(parseISO(order.created_at), 'dd/MM/yyyy')}</span>
-                         </div>
-                      </td>
-                      <td className="px-6 py-4 font-bold text-foreground">
-                          <button 
-                            onClick={() => {
-                              setActiveTab('reservas');
-                              setSearch(order.customer_name || '');
-                              setFilterDate('');
-                            }}
-                            className="hover:text-amber-600 transition-colors cursor-pointer text-left font-bold"
-                          >
-                            {order.customer_name || 'Cliente Geral'}
-                          </button>
-                       </td>
-                      <td className="px-6 py-4 font-bold text-primary">
-                         {formatCurrency(order.total_amount)}
-                      </td>
-                      <td className="px-6 py-4">
-                         <Badge className={cn(
-                           "rounded-md font-bold text-[9px]",
-                           (order.status === 'paid' || order.status === 'pago') ? "bg-whatsapp/10 text-whatsapp border-whatsapp/20" : 
-                           (order.status === 'cancelled' || order.status === 'cancelado') ? "bg-red-50 text-red-500 border-red-100" :
-                           "bg-amber-50 text-amber-600 border-amber-100"
-                         )} variant="outline">
-                            {order.status === 'paid' || order.status === 'pago' ? 'PAGO' : 
-                             order.status === 'cancelled' || order.status === 'cancelado' ? 'CANCELADO' : 'PENDENTE'}
-                         </Badge>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                         <div className="flex items-center justify-end gap-2">
-                            {order.status !== 'paid' && order.status !== 'pago' && (
-                              <Button 
-                                 size="sm" 
-                                 className="h-8 bg-primary rounded-lg text-[10px] font-bold" 
+
+        {/* Mobile Cards View */}
+        <div className="md:hidden space-y-4 p-4 bg-amber-50/10">
+           {orders.filter(order => {
+              if (statusFilter === 'all') return true;
+              const s = (order.status || '').toLowerCase();
+              if (statusFilter === 'paid') return s === 'paid' || s === 'pago';
+              if (statusFilter === 'pending') return s === 'pending' || s === 'pendente' || s === 'awaiting_payment' || s === 'waiting_local' || s === 'waiting_confirmation';
+              if (statusFilter === 'cancelled') return s === 'cancelled' || s === 'cancelado';
+              return s === statusFilter;
+           }).length === 0 ? (
+              <div className="text-center py-10 text-slate-400 font-bold uppercase text-[10px] tracking-widest">Nenhum pedido encontrado</div>
+           ) : (
+             (orders || [])
+                .filter(order => {
+                   if (statusFilter === 'all') return true;
+                   const s = (order.status || '').toLowerCase();
+                   if (statusFilter === 'paid') return s === 'paid' || s === 'pago';
+                   if (statusFilter === 'pending') return s === 'pending' || s === 'pendente' || s === 'awaiting_payment' || s === 'waiting_local' || s === 'waiting_confirmation';
+                   if (statusFilter === 'cancelled') return s === 'cancelled' || s === 'cancelado';
+                   return s === statusFilter;
+                })
+                .map(order => (
+                  <div key={order.id} className="bg-white rounded-2xl border border-amber-100/60 shadow-sm p-4 space-y-3">
+                     <div className="flex justify-between items-start">
+                        <div className="flex flex-col">
+                           <span className="font-mono text-[9px] text-slate-400">#{order.confirmation_code || order.id.slice(0,8)}</span>
+                           <span className="text-[11px] font-bold text-slate-500">{format(parseISO(order.created_at), 'dd/MM/yyyy')}</span>
+                        </div>
+                        <Badge className={cn(
+                          "rounded-md font-bold text-[9px] px-2 py-0.5",
+                          (order.status === 'paid' || order.status === 'pago') ? "bg-whatsapp/10 text-whatsapp border-whatsapp/20" : 
+                          (order.status === 'cancelled' || order.status === 'cancelado') ? "bg-red-50 text-red-500 border-red-100" :
+                          "bg-amber-50 text-amber-600 border-amber-100"
+                        )} variant="outline">
+                           {order.status === 'paid' || order.status === 'pago' ? 'PAGO' : 
+                            order.status === 'cancelled' || order.status === 'cancelado' ? 'CANCELADO' : 'PENDENTE'}
+                        </Badge>
+                     </div>
+                     <div>
+                        <span className="text-[9px] font-black text-amber-800/60 uppercase tracking-widest block mb-0.5">Cliente</span>
+                        <button 
+                          onClick={() => {
+                            setActiveTab('reservas');
+                            setSearch(order.customer_name || '');
+                            setFilterDate('');
+                          }}
+                          className="font-black text-slate-900 uppercase text-xs hover:text-amber-600 transition-colors text-left"
+                        >
+                          {order.customer_name || 'Cliente Geral'}
+                        </button>
+                     </div>
+                     <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                        <div className="flex flex-col">
+                           <span className="text-[9px] font-black text-amber-800/60 uppercase tracking-widest">Total</span>
+                           <span className="font-black text-emerald-600 text-xs">{formatCurrency(order.total_amount)}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                           {order.status !== 'paid' && order.status !== 'pago' && (
+                             <button 
+                                disabled={updatingId === order.id}
+                                onClick={() => {
+                                  setUpdatingId(order.id);
+                                  markOrderAsPaid(order.id)
+                                    .then(() => {
+                                      toast({ title: "✓ Pedido Efetivado!", description: "O status foi atualizado para PAGO e o voucher gerado." });
+                                      fetchData();
+                                    })
+                                    .catch(err => {
+                                      console.error(err);
+                                      toast({ title: "Erro ao efetivar", description: err.message, variant: "destructive" });
+                                    })
+                                    .finally(() => setUpdatingId(null));
+                                }}
+                                className="h-8 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-lg text-[9px] uppercase active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+                             >
+                               {updatingId === order.id ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Efetivar'}
+                             </button>
+                           )}
+                           {order.status !== 'paid' && order.status !== 'pago' && (
+                              <button 
                                  disabled={updatingId === order.id}
-                                 onClick={() => {
-                                   setUpdatingId(order.id);
-                                   markOrderAsPaid(order.id)
-                                     .then(() => {
-                                       toast({ title: "✓ Pedido Efetivado!", description: "O status foi atualizado para PAGO e o voucher gerado." });
-                                       fetchData();
-                                     })
-                                     .catch(err => {
-                                       console.error(err);
-                                       toast({ title: "Erro ao efetivar", description: err.message, variant: "destructive" });
-                                     })
-                                     .finally(() => setUpdatingId(null));
-                                 }}
-                               >
-                                 {updatingId === order.id ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Efetivar'}
-                               </Button>
-                            )}
-                            {order.status !== 'paid' && order.status !== 'pago' && (
+                                 title="Verificar Pagamento no Asaas"
+                                 onClick={() => handleSyncPayment(order.id)}
+                                 className="h-8 w-8 text-blue-600 border border-blue-200 hover:bg-blue-50 rounded-lg flex items-center justify-center bg-white cursor-pointer active:scale-95 transition-all"
+                              >
+                                {updatingId === order.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                              </button>
+                           )}
+                           <button 
+                              onClick={() => requestDelete(order, 'order')} 
+                              title="Excluir"
+                              className="h-8 w-8 text-red-500 hover:bg-red-50 rounded-lg flex items-center justify-center bg-white border border-red-100 cursor-pointer active:scale-95 transition-all"
+                           >
+                              <Trash2 className="w-3.5 h-3.5" />
+                           </button>
+                        </div>
+                     </div>
+                  </div>
+                ))
+           )}
+        </div>
+
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto">
+           <table className="w-full text-left">
+              <thead className="bg-muted/50 text-[10px] font-bold uppercase text-muted-foreground tracking-widest border-b border-border/50">
+                 <tr>
+                    <th className="px-6 py-4">ID / Data</th>
+                    <th className="px-6 py-4">Cliente</th>
+                    <th className="px-6 py-4">Total</th>
+                    <th className="px-6 py-4">Status</th>
+                    <th className="px-6 py-4 text-right">Ações</th>
+                 </tr>
+              </thead>
+              <tbody className="divide-y divide-border/30">
+                 {(orders || [])
+                    .filter(order => {
+                       if (statusFilter === 'all') return true;
+                       const s = (order.status || '').toLowerCase();
+                       if (statusFilter === 'paid') return s === 'paid' || s === 'pago';
+                       if (statusFilter === 'pending') return s === 'pending' || s === 'pendente' || s === 'awaiting_payment' || s === 'waiting_local' || s === 'waiting_confirmation';
+                       if (statusFilter === 'cancelled') return s === 'cancelled' || s === 'cancelado';
+                       return s === statusFilter;
+                    })
+                    .map(order => (
+                    <tr key={order.id} className="hover:bg-muted/20 transition-colors">
+                       <td className="px-6 py-4">
+                          <div className="flex flex-col">
+                             <span className="font-mono text-[10px] text-muted-foreground">#{order.confirmation_code || order.id.slice(0,8)}</span>
+                             <span className="text-sm font-bold">{format(parseISO(order.created_at), 'dd/MM/yyyy')}</span>
+                          </div>
+                       </td>
+                       <td className="px-6 py-4 font-bold text-foreground">
+                           <button 
+                             onClick={() => {
+                               setActiveTab('reservas');
+                               setSearch(order.customer_name || '');
+                               setFilterDate('');
+                             }}
+                             className="hover:text-amber-600 transition-colors cursor-pointer text-left font-bold"
+                           >
+                             {order.customer_name || 'Cliente Geral'}
+                           </button>
+                        </td>
+                       <td className="px-6 py-4 font-bold text-primary">
+                          {formatCurrency(order.total_amount)}
+                       </td>
+                       <td className="px-6 py-4">
+                          <Badge className={cn(
+                            "rounded-md font-bold text-[9px]",
+                            (order.status === 'paid' || order.status === 'pago') ? "bg-whatsapp/10 text-whatsapp border-whatsapp/20" : 
+                            (order.status === 'cancelled' || order.status === 'cancelado') ? "bg-red-50 text-red-500 border-red-100" :
+                            "bg-amber-50 text-amber-600 border-amber-100"
+                          )} variant="outline">
+                             {order.status === 'paid' || order.status === 'pago' ? 'PAGO' : 
+                              order.status === 'cancelled' || order.status === 'cancelado' ? 'CANCELADO' : 'PENDENTE'}
+                          </Badge>
+                       </td>
+                       <td className="px-6 py-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                             {order.status !== 'paid' && order.status !== 'pago' && (
                                <Button 
-                                  size="icon" 
-                                  variant="outline" 
-                                  className="h-8 w-8 text-blue-600 border-blue-200 hover:bg-blue-50" 
+                                  size="sm" 
+                                  className="h-8 bg-primary rounded-lg text-[10px] font-bold" 
                                   disabled={updatingId === order.id}
-                                  title="Verificar Pagamento no Asaas"
-                                  onClick={() => handleSyncPayment(order.id)}
+                                  onClick={() => {
+                                    setUpdatingId(order.id);
+                                    markOrderAsPaid(order.id)
+                                      .then(() => {
+                                        toast({ title: "✓ Pedido Efetivado!", description: "O status foi atualizado para PAGO e o voucher gerado." });
+                                        fetchData();
+                                      })
+                                      .catch(err => {
+                                        console.error(err);
+                                        toast({ title: "Erro ao efetivar", description: err.message, variant: "destructive" });
+                                      })
+                                      .finally(() => setUpdatingId(null));
+                                  }}
                                 >
-                                  {updatingId === order.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                                  {updatingId === order.id ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Efetivar'}
                                 </Button>
-                            )}
-                             <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500" onClick={() => requestDelete(order, 'order')} title="Excluir"><Trash2 className="w-4 h-4" /></Button>
-                         </div>
-                      </td>
-                   </tr>
-                ))}
-             </tbody>
-          </table>
-       </div>
+                             )}
+                             {order.status !== 'paid' && order.status !== 'pago' && (
+                                <Button 
+                                   size="icon" 
+                                   variant="outline" 
+                                   className="h-8 w-8 text-blue-600 border-blue-200 hover:bg-blue-50" 
+                                   disabled={updatingId === order.id}
+                                   title="Verificar Pagamento no Asaas"
+                                   onClick={() => handleSyncPayment(order.id)}
+                                 >
+                                   {updatingId === order.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                                </Button>
+                             )}
+                              <Button size="icon" variant="ghost" className="h-8 w-8 text-red-500" onClick={() => requestDelete(order, 'order')} title="Excluir"><Trash2 className="w-4 h-4" /></Button>
+                          </div>
+                       </td>
+                    </tr>
+                 ))}
+              </tbody>
+           </table>
+        </div>
     </div>
   );
 
@@ -2050,76 +2154,83 @@ export default function Admin() {
                   </div>
               </div>
           </div>
-          <div className="flex flex-nowrap items-center p-2 bg-emerald-950/60 backdrop-blur-xl rounded-2xl md:rounded-3xl w-full max-w-full mr-auto border border-white/20 shadow-premium mb-6 gap-2 overflow-hidden">
-             <button onClick={() => setActiveTab('painel')} className={cn(
-               "px-4 py-2.5 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-2 transition-all whitespace-nowrap", 
-               activeTab === 'painel' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
-             )}>
-                <LayoutDashboard className="w-4 h-4" /> Visão Geral
-             </button>
-             <button onClick={() => setActiveTab('quiosques')} className={cn(
-               "px-4 py-2.5 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-2 transition-all whitespace-nowrap", 
-               activeTab === 'quiosques' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
-             )}>
-                <Tent className="w-4 h-4" /> Quiosques
-             </button>
-             <button onClick={() => setActiveTab('quads')} className={cn(
-               "px-4 py-2.5 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-2 transition-all whitespace-nowrap", 
-               activeTab === 'quads' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
-             )}>
-                <Bike className="w-4 h-4" /> Quadriciclos
-             </button>
-             <button onClick={() => setActiveTab('reservas')} className={cn(
-               "px-4 py-2.5 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-2 transition-all whitespace-nowrap", 
-               activeTab === 'reservas' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
-             )}>
-                <CalendarCheck className="w-4 h-4" /> Agenda
-             </button>
-             <button onClick={() => setActiveTab('vendas')} className={cn(
-               "px-4 py-2.5 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-2 transition-all whitespace-nowrap", 
-               activeTab === 'vendas' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
-             )}>
-                <ShoppingBag className="w-4 h-4" /> Vendas
-             </button>
-             <button onClick={() => setActiveTab('creditos')} className={cn(
-               "px-4 py-2.5 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-2 transition-all whitespace-nowrap", 
-               activeTab === 'creditos' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
-             )}>
-                <Wallet className="w-4 h-4" /> Créditos
-             </button>
+          <div className="flex flex-col lg:flex-row lg:items-center p-2 bg-emerald-950/60 backdrop-blur-xl rounded-2xl md:rounded-3xl w-full border border-white/20 shadow-premium mb-6 gap-3">
+             {/* TABS CONTAINER */}
+             <div className="flex flex-nowrap items-center gap-1.5 overflow-x-auto no-scrollbar w-full lg:w-auto p-1">
+                <button onClick={() => setActiveTab('painel')} className={cn(
+                  "px-4 py-2.5 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-2 transition-all whitespace-nowrap", 
+                  activeTab === 'painel' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
+                )}>
+                   <LayoutDashboard className="w-4 h-4" /> Visão Geral
+                </button>
+                <button onClick={() => setActiveTab('quiosques')} className={cn(
+                  "px-4 py-2.5 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-2 transition-all whitespace-nowrap", 
+                  activeTab === 'quiosques' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
+                )}>
+                   <Tent className="w-4 h-4" /> Quiosques
+                </button>
+                <button onClick={() => setActiveTab('quads')} className={cn(
+                  "px-4 py-2.5 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-2 transition-all whitespace-nowrap", 
+                  activeTab === 'quads' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
+                )}>
+                   <Bike className="w-4 h-4" /> Quadriciclos
+                </button>
+                <button onClick={() => setActiveTab('reservas')} className={cn(
+                  "px-4 py-2.5 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-2 transition-all whitespace-nowrap", 
+                  activeTab === 'reservas' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
+                )}>
+                   <CalendarCheck className="w-4 h-4" /> Agenda
+                </button>
+                <button onClick={() => setActiveTab('vendas')} className={cn(
+                  "px-4 py-2.5 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-2 transition-all whitespace-nowrap", 
+                  activeTab === 'vendas' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
+                )}>
+                   <ShoppingBag className="w-4 h-4" /> Vendas
+                </button>
+                <button onClick={() => setActiveTab('creditos')} className={cn(
+                  "px-4 py-2.5 rounded-xl md:rounded-2xl text-[11px] md:text-[13px] font-black flex items-center justify-center gap-2 transition-all whitespace-nowrap", 
+                  activeTab === 'creditos' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
+                )}>
+                   <Wallet className="w-4 h-4" /> Créditos
+                </button>
+             </div>
 
-             <div className="flex-1" />
+             <div className="hidden lg:block flex-1" />
 
              {/* INTEGRATED STATS INDICATORS */}
-             <div className="flex items-center gap-2 px-2">
-                <div onClick={() => setActiveTab('vendas')} className="cursor-pointer px-3 py-2 rounded-xl bg-slate-900 border border-yellow-500/50 flex items-center gap-2 hover:bg-black transition-all">
-                   <TrendingUp className="w-3.5 h-3.5 text-yellow-400" />
-                   <div className="flex flex-col -space-y-1">
-                      <span className="text-[12px] md:text-[14px] font-black text-[#FFF033]">
-                         {formatCurrency(
-                            (bookings.filter(b => b.visit_date === format(targetDate, 'yyyy-MM-dd')).reduce((s, b) => b.status !== 'cancelled' ? s + (b.total_amount || 0) : s, 0)) + 
-                            (orders.filter(o => (o.visit_date || o.created_at.split('T')[0]) === format(targetDate, 'yyyy-MM-dd')).reduce((s, o) => o.status !== 'cancelled' ? s + (o.total_amount || 0) : s, 0))
-                         ).replace('R$', '').trim()}
-                      </span>
-                      <span className="text-[6px] font-black uppercase text-yellow-500/70">Receita</span>
+             <div className="flex items-center justify-between lg:justify-end gap-2 px-2 w-full lg:w-auto flex-wrap sm:flex-nowrap">
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                   <div onClick={() => setActiveTab('vendas')} className="flex-1 sm:flex-initial cursor-pointer px-3 py-2 rounded-xl bg-slate-900 border border-yellow-500/50 flex items-center justify-center sm:justify-start gap-2 hover:bg-black transition-all">
+                      <TrendingUp className="w-3.5 h-3.5 text-yellow-400" />
+                      <div className="flex flex-col -space-y-1">
+                         <span className="text-[12px] md:text-[14px] font-black text-[#FFF033] whitespace-nowrap">
+                            {formatCurrency(
+                               (bookings.filter(b => b.visit_date === format(targetDate, 'yyyy-MM-dd')).reduce((s, b) => b.status !== 'cancelled' ? s + (b.total_amount || 0) : s, 0)) + 
+                               (orders.filter(o => (o.visit_date || o.created_at.split('T')[0]) === format(targetDate, 'yyyy-MM-dd')).reduce((s, o) => o.status !== 'cancelled' ? s + (o.total_amount || 0) : s, 0))
+                            ).replace('R$', '').trim()}
+                         </span>
+                         <span className="text-[6px] font-black uppercase text-yellow-500/70">Receita</span>
+                      </div>
+                   </div>
+
+                   <div onClick={() => setActiveTab('reservas')} className="flex-1 sm:flex-initial cursor-pointer px-3 py-2 rounded-xl bg-slate-900 border border-emerald-500/50 flex items-center justify-center sm:justify-start gap-2 hover:bg-black transition-all">
+                      <Users className="w-3.5 h-3.5 text-emerald-400" />
+                      <div className="flex flex-col -space-y-1">
+                         <span className="text-[12px] md:text-[14px] font-black text-emerald-400">{bookings.length + orders.length}</span>
+                         <span className="text-[6px] font-black uppercase text-emerald-500/70">Agenda</span>
+                      </div>
                    </div>
                 </div>
 
-                <div onClick={() => setActiveTab('reservas')} className="cursor-pointer px-3 py-2 rounded-xl bg-slate-900 border border-emerald-500/50 flex items-center gap-2 hover:bg-black transition-all">
-                   <Users className="w-3.5 h-3.5 text-emerald-400" />
-                   <div className="flex flex-col -space-y-1">
-                      <span className="text-[12px] md:text-[14px] font-black text-emerald-400">{bookings.length + orders.length}</span>
-                      <span className="text-[6px] font-black uppercase text-emerald-500/70">Agenda</span>
-                   </div>
+                <div className="w-full sm:w-auto flex justify-center sm:justify-start">
+                   <InternalBookingAssistant 
+                      onCreated={fetchData} 
+                      isHoliday={isHoliday} 
+                      isAllowedDay={isAllowedDay} 
+                      kioskReservations={kioskReservations}
+                      quadReservations={quadReservations}
+                   />
                 </div>
-
-                <InternalBookingAssistant 
-                   onCreated={fetchData} 
-                   isHoliday={isHoliday} 
-                   isAllowedDay={isAllowedDay} 
-                   kioskReservations={kioskReservations}
-                   quadReservations={quadReservations}
-                />
              </div>
           </div>
 {/* CONTENT AREA WITH GRADIENT BACKGROUND */}

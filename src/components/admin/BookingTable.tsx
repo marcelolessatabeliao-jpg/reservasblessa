@@ -264,45 +264,46 @@ export function BookingTable({
       {selectedIds.size > 0 &&
         typeof document !== "undefined" &&
         createPortal(
-          <div className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[100] bg-emerald-950 text-white px-8 py-4 rounded-[2rem] shadow-2xl border border-white/10 flex items-center gap-8 animate-in slide-in-from-bottom-12 duration-500 backdrop-blur-2xl">
-            <div className="flex flex-col">
-              <span className="text-[8px] font-black uppercase tracking-widest text-emerald-700 mb-0.5">
-                Selecionados
+          <div className="fixed bottom-4 sm:bottom-12 left-1/2 -translate-x-1/2 z-[100] bg-emerald-950 text-white px-4 py-3 sm:px-8 sm:py-4 rounded-2xl sm:rounded-[2rem] shadow-2xl border border-white/10 flex flex-col sm:flex-row items-center gap-3 sm:gap-6 w-[92%] sm:w-auto animate-in slide-in-from-bottom-12 duration-500 backdrop-blur-2xl">
+            <div className="flex sm:flex-col items-center sm:items-start gap-2 sm:gap-0">
+              <span className="text-[8px] font-black uppercase tracking-widest text-emerald-500 mb-0.5">
+                Selecionados:
               </span>
-              <span className="text-xl font-black tabular-nums">
+              <span className="text-sm sm:text-xl font-black tabular-nums">
                 {selectedIds.size}
               </span>
             </div>
-            <div className="h-10 w-px bg-white/10" />
-            <div className="flex gap-2">
+            <div className="hidden sm:block h-10 w-px bg-white/10" />
+            <div className="flex flex-wrap justify-center gap-1.5 sm:gap-2">
               <Button
                 onClick={() => handleBulkAction("confirm")}
-                className="bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-bold text-[10px] h-10 px-6 rounded-xl uppercase tracking-wider"
+                className="bg-emerald-500 hover:bg-emerald-400 text-emerald-950 font-bold text-[9px] sm:text-[10px] h-8 sm:h-10 px-3 sm:px-6 rounded-lg sm:rounded-xl uppercase tracking-wider"
               >
                 Confirmar
               </Button>
               <Button
                 onClick={() => handleBulkAction("cancel")}
-                className="bg-amber-500 hover:bg-amber-400 text-white font-bold text-[10px] h-10 px-6 rounded-xl uppercase tracking-wider"
+                className="bg-amber-500 hover:bg-amber-400 text-white font-bold text-[9px] sm:text-[10px] h-8 sm:h-10 px-3 sm:px-6 rounded-lg sm:rounded-xl uppercase tracking-wider"
               >
                 Cancelar
               </Button>
               <Button
                 onClick={() => handleBulkAction("delete")}
                 variant="ghost"
-                className="text-red-400 hover:text-red-100 font-bold text-[10px] h-10 px-4 rounded-xl uppercase"
+                className="text-red-400 hover:text-red-100 font-bold text-[9px] sm:text-[10px] h-8 sm:h-10 px-2 sm:px-4 rounded-lg sm:rounded-xl uppercase"
               >
                 Excluir
               </Button>
             </div>
-            <div className="h-10 w-px bg-white/10" />
+            <div className="h-px w-full sm:hidden bg-white/10" />
+            <div className="hidden sm:block h-10 w-px bg-white/10" />
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setSelectedIds(new Set())}
-              className="text-white/40 font-bold uppercase text-[9px] px-4 h-10 rounded-xl"
+              className="text-white/40 hover:text-white font-bold uppercase text-[9px] px-4 h-8 sm:h-10 rounded-lg sm:rounded-xl w-full sm:w-auto"
             >
-              Limpar
+              Limpar seleção
             </Button>
           </div>,
           document.body,

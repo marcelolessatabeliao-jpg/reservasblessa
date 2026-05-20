@@ -314,19 +314,19 @@ export function AdminDashboardTab({
                 fromDate={new Date(2024, 0, 1)}
                 classNames={{
                   months: "w-full flex flex-col",
-                  month: "w-full space-y-6",
-                  caption: "relative flex items-center justify-between w-full h-14 bg-emerald-800 rounded-2xl border-2 border-emerald-900 shadow-xl mb-4 px-3",
-                  caption_label: "text-[10px] md:text-[12px] font-black text-white uppercase tracking-[0.2em] flex-1 text-center",
+                  month: "w-full space-y-4 md:space-y-6",
+                  caption: "relative flex items-center justify-between w-full h-12 md:h-14 bg-emerald-800 rounded-2xl border-2 border-emerald-900 shadow-xl mb-4 px-2 md:px-3",
+                  caption_label: "text-[9px] sm:text-[10px] md:text-[12px] font-black text-white uppercase tracking-[0.2em] flex-1 text-center",
                   nav: "absolute inset-x-0 inset-y-0 flex items-center justify-between px-2 pointer-events-none z-30",
-                  nav_button: "h-7 w-7 md:h-9 md:w-9 bg-emerald-500 text-white border border-emerald-400 hover:bg-emerald-400 shadow-lg rounded-[0.5rem] transition-all pointer-events-auto flex items-center justify-center",
+                  nav_button: "h-6 w-6 sm:h-7 sm:w-7 md:h-9 md:w-9 bg-emerald-500 text-white border border-emerald-400 hover:bg-emerald-400 shadow-lg rounded-[0.5rem] transition-all pointer-events-auto flex items-center justify-center",
                   nav_button_previous: "relative",
                   nav_button_next: "relative",
                   table: "w-full border-collapse table-fixed",
-                  head_cell: "text-emerald-900 font-extrabold text-[10px] md:text-[11px] uppercase tracking-[0.1em] md:tracking-[0.2em] w-[14.28%] py-4 text-center",
-                  cell: "h-10 md:h-14 w-[14.28%] text-center p-0 relative focus-within:z-20",
+                  head_cell: "text-emerald-900 font-extrabold text-[8px] sm:text-[10px] md:text-[11px] uppercase tracking-[0.1em] md:tracking-[0.2em] w-[14.28%] py-2 md:py-4 text-center",
+                  cell: "h-8 sm:h-10 md:h-14 w-[14.28%] text-center p-0 relative focus-within:z-20",
                   day: cn(
-                    "h-12 w-12 p-0 font-black text-sm transition-all rounded-full border-2 border-emerald-50 bg-emerald-50/20 text-emerald-950 hover:border-emerald-300 hover:bg-emerald-100 shadow-sm mx-auto",
-                    "flex flex-col items-center justify-center gap-1"
+                    "h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 p-0 font-black text-[10px] sm:text-xs md:text-sm transition-all rounded-full border-2 border-emerald-50 bg-emerald-50/20 text-emerald-950 hover:border-emerald-300 hover:bg-emerald-100 shadow-sm mx-auto",
+                    "flex flex-col items-center justify-center gap-0.5 sm:gap-1"
                   ),
                   day_selected: "!bg-emerald-800 !text-white hover:!bg-emerald-700 !border-emerald-800 shadow-xl shadow-emerald-900/30 !opacity-100 rounded-full",
                   day_today: "bg-yellow-400 text-emerald-950 border-yellow-500 shadow-lg font-black ring-2 ring-yellow-200 ring-offset-2 rounded-full",
@@ -367,10 +367,10 @@ export function AdminDashboardTab({
                           isFull && !isSelected && "text-red-600",
                           isClosed && !isSelected && "text-emerald-900/40"
                         )}>{date.getDate()}</span>
-                        <div className="flex gap-1 mt-0.5">
-                          {hasKiosk && <div className={cn("w-2 h-2 rounded-full shadow-md border border-white/40", kiosksFull ? "bg-red-600" : "bg-emerald-600")} />}
-                          {hasQuad && <div className={cn("w-2 h-2 rounded-full shadow-md border border-white/40", quadsFull ? "bg-red-600" : "bg-blue-600")} />}
-                          {isSimpleBooking && <div className="w-2 h-2 rounded-full bg-red-500 shadow-md border border-white/40" />}
+                        <div className="flex gap-0.5 mt-0.5">
+                          {hasKiosk && <div className={cn("w-1 h-1 sm:w-1.5 sm:h-1.5 md:w-2 md:h-2 rounded-full shadow-md border border-white/40", kiosksFull ? "bg-red-600" : "bg-emerald-600")} />}
+                          {hasQuad && <div className={cn("w-1 h-1 sm:w-1.5 sm:h-1.5 md:w-2 md:h-2 rounded-full shadow-md border border-white/40", quadsFull ? "bg-red-600" : "bg-blue-600")} />}
+                          {isSimpleBooking && <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 md:w-2 md:h-2 rounded-full bg-red-500 shadow-md border border-white/40" />}
                         </div>
                       </div>
                     );
