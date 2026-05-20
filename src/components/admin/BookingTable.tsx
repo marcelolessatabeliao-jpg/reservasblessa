@@ -1026,15 +1026,12 @@ export function BookingTable({
                             </div>
                           )}
                           <div className="flex items-center gap-2 mt-1">
-                            <span className="bg-slate-100 text-slate-800 border-2 border-slate-200 px-3 py-1 rounded-lg font-black text-[10px] uppercase tracking-widest leading-none">
-                              ID: {booking.confirmation_code || booking.id.slice(0, 8)}
-                            </span>
-                            {booking.is_associado && (
-                              <Badge className="bg-amber-100 text-amber-700 border-none text-[8px] font-black uppercase px-2 h-4 rounded-full">
-                                Sócio
-                              </Badge>
-                            )}
-                          </div>
+                             {booking.is_associado && (
+                               <Badge className="bg-amber-100 text-amber-700 border-none text-[8px] font-black uppercase px-2 h-4 rounded-full">
+                                 Sócio
+                               </Badge>
+                             )}
+                           </div>
                         </div>
                       </td>
                       <td className="p-5 text-center">
