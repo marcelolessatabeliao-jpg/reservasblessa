@@ -1002,7 +1002,6 @@ export default function Admin() {
               order_id: orderId,
               reservation_date: newDateStr,
               customer_name: r.customer_name || group.customer_name,
-              status: r.status || group.status,
               price: updatePayload.price || r.price,
            };
            if (type === 'kiosk') {
@@ -2583,8 +2582,7 @@ function EditKioskDialog({ group, onClose, onUpdated, updateOrderTotal }: any) {
               kiosk_type: kioskType,
               price: newPrice,
               reservation_date: item.reservation_date || group.reservation_date,
-              customer_name: item.customer_name || group.customer_name,
-              status: item.status || group.status
+              customer_name: item.customer_name || group.customer_name
            });
            if (insErr) throw insErr;
         } else {
