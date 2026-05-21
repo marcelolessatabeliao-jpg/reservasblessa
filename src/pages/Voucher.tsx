@@ -3,8 +3,10 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CheckCircle2, MapPin, Calendar, Users, Phone, ArrowLeft, Download, Share2 } from 'lucide-react';
+import { CheckCircle2, MapPin, Calendar, Users, Phone, ArrowLeft, Download, Share2, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useToast } from "@/hooks/use-toast";
+import html2canvas from 'html2canvas';
 import { formatCurrency } from '@/lib/booking-types';
 
 import { parseToRODate } from '@/utils/date-utils';
@@ -14,6 +16,10 @@ export default function Voucher() {
   const navigate = useNavigate();
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [qrBase64, setQrBase64] = useState<string>('');
+  const [generatingImg, setGeneratingImg] = useState(false);
+  const voucherRef = React.useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     async function fetchVoucher() {
@@ -45,6 +51,17 @@ export default function Voucher() {
       
       // Verification
       setLoading(false);
+      
+      if (data?.id) {
+         fetch(`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://reservas.balneariolessa.com.br/voucher/${data.id?.replace(/-/g,'').slice(0,8).toUpperCase()}`)
+           .then(res => res.blob())
+           .then(blob => {
+              const reader = new FileReader();
+              reader.onloadend = () => setQrBase64(reader.result as string);
+              reader.readAsDataURL(blob);
+           })
+           .catch(err => console.error('Failed to load QR', err));
+      }
     }
     fetchVoucher();
   }, [code]);
@@ -62,6 +79,38 @@ export default function Voucher() {
 
   const visitDate = order.visit_date ? parseToRODate(order.visit_date) : null;
 
+  const handleSaveImage = async () => {
+    setGeneratingImg(true);
+    try {
+      if (voucherRef.current) {
+        // Hide the buttons before capturing
+        const buttonsArea = voucherRef.current.querySelector('.voucher-buttons') as HTMLElement;
+        if (buttonsArea) buttonsArea.style.display = 'none';
+        
+        const canvas = await html2canvas(voucherRef.current, {
+          backgroundColor: '#ffffff',
+          scale: 2,
+          useCORS: true,
+          logging: false,
+        });
+        
+        if (buttonsArea) buttonsArea.style.display = 'flex'; // restore
+        
+        const dataUrl = canvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.download = `Voucher_${order.id?.replace(/-/g,'').slice(0,8).toUpperCase()}.png`;
+        link.href = dataUrl;
+        link.click();
+        toast({ title: "Sucesso!", description: "Imagem do voucher baixada com sucesso." });
+      }
+    } catch (err) {
+      console.error(err);
+      toast({ title: "Erro", description: "Não foi possível gerar a imagem.", variant: "destructive" });
+    } finally {
+      setGeneratingImg(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#f8fafc] p-4 md:p-10 font-sans flex items-center justify-center">
       <div className="max-w-3xl w-full relative">
@@ -72,7 +121,7 @@ export default function Voucher() {
            {[...Array(10)].map((_, i) => <div key={i} className="w-4 h-4 bg-[#f8fafc] rounded-full block md:hidden" />)}
         </div>
 
-        <div className="bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border border-muted-foreground/10">
+        <div ref={voucherRef} className="bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border border-muted-foreground/10">
           
           {/* Header */}
           <div className="bg-primary p-6 md:p-8 text-white flex flex-col md:flex-row md:items-center md:justify-between text-center md:text-left gap-4 relative">
@@ -95,9 +144,10 @@ export default function Voucher() {
               <div className="flex flex-col items-center justify-center">
                  <div className="p-3 bg-white border-4 border-primary/5 rounded-[2rem] shadow-inner mb-2">
                     <img 
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://reservas.balneariolessa.com.br/voucher/${order.id?.replace(/-/g,'').slice(0,8).toUpperCase()}`} 
+                      src={qrBase64 || `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://reservas.balneariolessa.com.br/voucher/${order.id?.replace(/-/g,'').slice(0,8).toUpperCase()}`} 
                       alt="QR Code" 
                       className="w-32 h-32 md:w-40 md:h-40"
+                      crossOrigin={qrBase64 ? undefined : "anonymous"}
                     />
                  </div>
                  <div className="text-center">
@@ -206,27 +256,38 @@ export default function Voucher() {
           </div>
 
           {/* Footer Area with Buttons */}
-          <div className="p-8 pt-0 flex flex-col gap-3">
+          <div className="voucher-buttons p-8 pt-0 flex flex-col gap-3">
               <Button 
-                onClick={() => window.print()}
-                className="w-full h-14 rounded-2xl bg-primary hover:bg-primary-dark text-white font-black shadow-lg flex gap-2"
+                onClick={handleSaveImage}
+                disabled={generatingImg}
+                className="w-full h-14 rounded-2xl bg-sun hover:bg-sun/90 text-emerald-950 font-black shadow-lg flex gap-2"
               >
-                <Download className="w-4 h-4" /> SALVAR / IMPRIMIR
+                {generatingImg ? <Loader2 className="w-5 h-5 animate-spin" /> : <ImageIcon className="w-5 h-5" />}
+                BAIXAR VOUCHER (IMAGEM)
               </Button>
-              <Button 
-                variant="ghost" 
-                onClick={() => {
-                   if (navigator.share) {
-                      navigator.share({
-                         title: 'Meu Voucher Balneário Lessa',
-                         url: window.location.href
-                      });
-                   }
-                }}
-                className="w-full h-12 rounded-2xl font-bold flex gap-2"
-              >
-                <Share2 className="w-4 h-4" /> COMPARTILHAR
-              </Button>
+              <div className="flex gap-3">
+                 <Button 
+                   onClick={() => window.print()}
+                   variant="outline"
+                   className="flex-1 h-12 rounded-2xl font-bold flex gap-2 border-2 border-primary text-primary hover:bg-primary hover:text-white transition-all"
+                 >
+                   <Download className="w-4 h-4" /> IMPRIMIR
+                 </Button>
+                 <Button 
+                   variant="ghost" 
+                   onClick={() => {
+                      if (navigator.share) {
+                         navigator.share({
+                            title: 'Meu Voucher Balneário Lessa',
+                            url: window.location.href
+                         });
+                      }
+                   }}
+                   className="flex-1 h-12 rounded-2xl font-bold flex gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all"
+                 >
+                   <Share2 className="w-4 h-4" /> COMPARTILHAR
+                 </Button>
+              </div>
           </div>
         </div>
 
