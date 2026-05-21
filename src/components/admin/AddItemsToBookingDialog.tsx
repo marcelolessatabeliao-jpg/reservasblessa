@@ -155,8 +155,7 @@ export function AddItemsToBookingDialog({
             order_id: orderId,
             product_id: name,
             quantity: qty,
-            unit_price: price,
-            product_name: name
+            unit_price: price
           });
         }
       };
@@ -175,8 +174,7 @@ export function AddItemsToBookingDialog({
             order_id: orderId,
             product_id: `Quiosque ${kiosk.type === 'Maior' ? 'Maior' : 'Menor'}`,
             quantity: 1,
-            unit_price: kiosk.price,
-            product_name: `Quiosque ${kiosk.type === 'Maior' ? 'Maior' : 'Menor'}`
+            unit_price: kiosk.price
           });
           kioskReservations.push({
             order_id: orderId,
@@ -205,7 +203,6 @@ export function AddItemsToBookingDialog({
           product_id: `Quadriciclo ${labelMap[q.type]}`,
           quantity: q.quantity,
           unit_price: finalPrice,
-          product_name: `Quadriciclo ${labelMap[q.type]}`,
           metadata: { time: q.time }
         });
         
@@ -225,8 +222,7 @@ export function AddItemsToBookingDialog({
           order_id: orderId,
           product_id: labelMap[a.type] || a.type,
           quantity: a.quantity,
-          unit_price: priceMap[a.type] || 0,
-          product_name: labelMap[a.type] || a.type
+          unit_price: priceMap[a.type] || 0
         });
       });
 
