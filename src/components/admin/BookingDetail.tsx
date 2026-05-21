@@ -8,6 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { AddItemsToBookingDialog } from './AddItemsToBookingDialog';
+import { Plus } from 'lucide-react';
 
 interface BookingDetailProps {
   booking: {
@@ -45,6 +47,7 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
   const [localItems, setLocalItems] = useState<any[]>([]);
   const [showResumo, setShowResumo] = useState(false);
   const [loadingItems, setLoadingItems] = useState(false);
+  const [isAddItemsOpen, setIsAddItemsOpen] = useState(false);
 
   // Fetch items from DB fresh every time the booking changes, so state persists across navigations
   useEffect(() => {
@@ -460,11 +463,22 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
       )}
 
       {/* ROW 3: Produtos */}
-      {localItems.length > 0 && (
-        <div className="space-y-3 bg-slate-50 border border-slate-200 p-4 rounded-2xl">
-          <h4 className="font-black text-emerald-800 uppercase text-[10px] tracking-widest flex items-center gap-2 mb-1">
-            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.8)]" /> Checkout de Produtos Diários
+      <div className="space-y-3 bg-slate-50 border border-slate-200 p-4 rounded-2xl mt-4">
+        <div className="flex items-center justify-between mb-2">
+          <h4 className="font-black text-emerald-800 uppercase text-[10px] tracking-widest flex items-center gap-2">
+            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.8)]" /> Produtos Diários e Entradas
           </h4>
+          <Button
+            size="sm"
+            variant="outline"
+            className="rounded-xl font-black text-[9px] uppercase h-8 px-3 transition-all border-2 border-emerald-200 text-emerald-900 bg-white hover:bg-emerald-600 hover:text-white hover:border-emerald-600 shadow-sm"
+            onClick={() => setIsAddItemsOpen(true)}
+          >
+            <Plus className="w-3 h-3 mr-1" /> Adicionar
+          </Button>
+        </div>
+        
+        {localItems.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {localItems.map((item, i) => (
               <div
@@ -530,10 +544,36 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
               </div>
             ))}
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="text-center py-6 text-slate-400 text-xs font-bold uppercase tracking-widest border-2 border-dashed border-slate-200 rounded-xl">
+            Nenhum produto adicional
+          </div>
+        )}
+      </div>
       {loadingItems && (
         <div className="text-center py-4 text-emerald-600 text-xs font-bold animate-pulse">Carregando itens...</div>
+      )}
+
+      {isAddItemsOpen && (
+        <AddItemsToBookingDialog 
+          booking={booking}
+          isOpen={isAddItemsOpen}
+          setIsOpen={setIsAddItemsOpen}
+          onAdded={() => {
+            // Trigger a refresh when items are added
+            if (onRefresh) onRefresh();
+            // Force reload local items directly
+            setLoadingItems(true);
+            supabase
+              .from('order_items')
+              .select('*, products(name)')
+              .eq('order_id', booking.id)
+              .then(({ data, error }) => {
+                if (!error && data) setLocalItems(data);
+                setLoadingItems(false);
+              });
+          }}
+        />
       )}
     </div>
   );
