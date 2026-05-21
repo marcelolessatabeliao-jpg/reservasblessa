@@ -1011,6 +1011,40 @@ export default function Admin() {
     }
   };
 
+  const handleAddItem = async (orderId: string, product: { product_id: string; product_name: string; unit_price: number; quantity: number; metadata?: any }) => {
+    setLoading(true);
+    try {
+      const { error: insertError } = await supabase.from('order_items').insert({
+        order_id: orderId,
+        product_id: product.product_id,
+        product_name: product.product_name,
+        unit_price: product.unit_price,
+        quantity: product.quantity,
+        metadata: product.metadata || null,
+        is_redeemed: false,
+        created_at: new Date().toISOString(),
+      });
+      if (insertError) throw insertError;
+
+      // Recalculate total
+      const { data: allItems, error: itemsError } = await supabase
+        .from('order_items')
+        .select('unit_price, quantity')
+        .eq('order_id', orderId);
+      if (itemsError) throw itemsError;
+
+      const newTotal = (allItems || []).reduce((acc, item) => acc + (item.unit_price * item.quantity), 0);
+      await supabase.from('orders').update({ total_amount: newTotal }).eq('id', orderId);
+
+      toast({ title: '✅ Produto adicionado!', description: `${product.quantity}x ${product.product_name} — Novo total: ${formatCurrency(newTotal)}` });
+      fetchData();
+    } catch (err: any) {
+      console.error('Error adding item:', err);
+      toast({ title: 'Erro ao adicionar produto', description: err.message, variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const updateBookingStatus = async (bookingId: string, status: string, isOrder?: boolean) => {
     setUpdatingId(bookingId);
@@ -2649,7 +2683,7 @@ export default function Admin() {
            </div>
          </DialogContent>
        </Dialog>
-                  /* MODAL HIDDEN */
+
         {/* Payment Modal for Admin PIX Generation */}
         {selectedPaymentBooking && (
           <PaymentModal
