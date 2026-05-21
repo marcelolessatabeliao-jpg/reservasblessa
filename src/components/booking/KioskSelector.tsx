@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { useServices } from '@/hooks/useServices';
 import { getBookedKioskIds } from '@/lib/booking-service';
 import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Props {
   kiosks: KioskItem[];
@@ -52,6 +53,21 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
       }
     }
     fetchBooked();
+
+    if (!checkDate) return;
+    
+    const channel = supabase.channel('kiosk-map-updates')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'kiosk_reservations' }, () => {
+        fetchBooked();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+        fetchBooked();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [checkDate]);
 
   const handleToggleKiosk = (kioskDef: typeof KIOSK_MAP[0]) => {

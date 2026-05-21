@@ -1158,9 +1158,12 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
               </DialogTitle>
             </div>
             {wizardType === 'adult' && (
-              <p className="text-center text-[11px] text-muted-foreground font-medium leading-snug px-2 pt-1">
-                Se tiver mais pessoas adicione uma a uma para deixar garantido as entradas que deseja ou escolha pagar no balcão para pular essa etapa
-              </p>
+              <div className="mx-1 mt-2 mb-0 bg-blue-50 border border-blue-200 rounded-2xl px-4 py-3 flex items-start gap-2.5">
+                <span className="text-base shrink-0 mt-0.5">💡</span>
+                <p className="text-[11px] text-blue-800 font-semibold leading-relaxed">
+                  Se tiver mais pessoas, <span className="font-black">adicione uma a uma</span> para garantir todas as entradas que deseja — ou escolha <span className="font-black">Pagar no Balcão</span> para pular essa etapa.
+                </p>
+              </div>
             )}
           </DialogHeader>
 

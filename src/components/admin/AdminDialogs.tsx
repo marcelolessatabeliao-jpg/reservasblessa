@@ -199,24 +199,37 @@ export function EditKioskDialog({ group, onClose, onUpdated, updateOrderTotal }:
     try {
       const orderId = group.items[0].order_id;
       
+      let totalPrice = 0;
       for (let i = 0; i < group.items.length; i++) {
         const item = group.items[i];
         const newKioskId = selectedKiosks[i];
         const newKiosk = KIOSKS.find(k => k.id === newKioskId);
 
+        totalPrice += (newKiosk?.type === 'Maior' ? 100 : 75);
+
         await (supabase.from('kiosk_reservations') as any).update({
           kiosk_id: newKioskId,
           kiosk_type: newKiosk?.type === 'Maior' ? 'maior' : 'menor'
         }).eq('id', item.id);
+      }
 
-        if (orderId && !String(orderId).startsWith('order-')) {
-          const newPrice = newKiosk?.type === 'Maior' ? 100 : 75;
-          const { data: oItems } = await supabase.from('order_items').select('*').eq('order_id', orderId);
-          const kioskItem = oItems?.find(oi => oi.product_id?.toLowerCase().includes('quiosque') || oi.product_name?.toLowerCase().includes('quiosque'));
-          
-          if (kioskItem) {
-             await supabase.from('order_items').update({ unit_price: newPrice }).eq('id', kioskItem.id);
-          }
+      if (orderId && !String(orderId).startsWith('order-')) {
+        const { data: oItems } = await supabase.from('order_items').select('*').eq('order_id', orderId);
+        const kioskItem = oItems?.find(oi => oi.product_id?.toLowerCase().includes('quiosque') || oi.product_name?.toLowerCase().includes('quiosque'));
+        
+        if (kioskItem) {
+           const avgPrice = totalPrice / (selectedKiosks.length || 1);
+           const firstId = selectedKiosks[0];
+           const correctLabel = String(firstId).padStart(2, '0');
+           const correctName = selectedKiosks.length > 1 ? 'Quiosques Diversos' : (firstId === 1 ? 'QUIOSQUE - 01 (Grande)' : `QUIOSQUE ${correctLabel}`);
+           
+           let currentMeta = typeof kioskItem.metadata === 'string' ? JSON.parse(kioskItem.metadata) : (kioskItem.metadata || {});
+           
+           await supabase.from('order_items').update({ 
+             unit_price: avgPrice,
+             product_id: correctName,
+             metadata: { ...currentMeta, selectedIds: selectedKiosks }
+           }).eq('id', kioskItem.id);
         }
       }
       
