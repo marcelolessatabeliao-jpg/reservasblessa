@@ -1157,6 +1157,11 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                       'Já deixe suas entradas pagas'}
               </DialogTitle>
             </div>
+            {wizardType === 'adult' && (
+              <p className="text-center text-[11px] text-muted-foreground font-medium leading-snug px-2 pt-1">
+                Se tiver mais pessoas adicione uma a uma para deixar garantido as entradas que deseja ou escolha pagar no balcão para pular essa etapa
+              </p>
+            )}
           </DialogHeader>
 
           <div className="relative px-1 pb-6">

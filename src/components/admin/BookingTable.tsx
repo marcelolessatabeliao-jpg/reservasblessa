@@ -545,7 +545,18 @@ export function BookingTable({
                                           onClick={() => {
                                             const phone = (booking.phone || "").replace(/\D/g, "");
                                             const code = booking.id?.replace(/-/g, '').slice(0, 8).toUpperCase() || "";
-                                            const itemsList = booking.order_items?.map((item: any) => `* ${item.quantity}x ${item.product_id}`).join('\n') || "";
+                                            const itemsList = booking.order_items?.map((item: any) => {
+                                              const rawName = item.product_name || item.product_id || 'Servico';
+                                              const unitPrice = item.unit_price ?? (item.total_price / (item.quantity || 1));
+                                              const isAdulto = rawName.toLowerCase().includes('adulto') || rawName.toLowerCase().includes('entrada');
+                                              const isAssinante = isAdulto && Math.abs(unitPrice) < 0.01;
+                                              const isAdultoSolidario = isAdulto && unitPrice <= 25 && unitPrice > 0;
+                                              let displayName = isAssinante ? 'Adulto Associado Lessa Club' : isAdultoSolidario ? 'Adulto Entrada Solidaria' : rawName.replace(/^1x\s*/i, '');
+                                              const ln = displayName.toLowerCase();
+                                              if (ln === 'adulto') displayName = 'Adulto Entrada Inteira';
+                                              else if (ln === 'crianca' || ln === 'criança') displayName = 'Crianca (ate 11 anos - Gratis)';
+                                              return `* ${item.quantity}x ${displayName}`;
+                                            }).join('\n') || "";
                                             const dateStr = format(parseISO(booking.visit_date || new Date().toISOString()), "dd/MM/yyyy", { locale: ptBR });
                                             
                                             setShareData({ booking, phone, dateStr, itemsList, code });
@@ -1367,7 +1378,18 @@ export function BookingTable({
                                             e.stopPropagation();
                                             const phone = ((booking as any).customer_phone || (booking as any).phone || "").replace(/\D/g, "");
                                             const code = (booking as any).id?.replace(/-/g, '').slice(0, 8).toUpperCase() || "";
-                                            const itemsList = booking.order_items?.map((item: any) => `* ${item.quantity}x ${item.product_id}`).join('\n') || "";
+                                            const itemsList = booking.order_items?.map((item: any) => {
+                                              const rawName = item.product_name || item.product_id || 'Servico';
+                                              const unitPrice = item.unit_price ?? (item.total_price / (item.quantity || 1));
+                                              const isAdulto = rawName.toLowerCase().includes('adulto') || rawName.toLowerCase().includes('entrada');
+                                              const isAssinante = isAdulto && Math.abs(unitPrice) < 0.01;
+                                              const isAdultoSolidario = isAdulto && unitPrice <= 25 && unitPrice > 0;
+                                              let displayName = isAssinante ? 'Adulto Associado Lessa Club' : isAdultoSolidario ? 'Adulto Entrada Solidaria' : rawName.replace(/^1x\s*/i, '');
+                                              const ln = displayName.toLowerCase();
+                                              if (ln === 'adulto') displayName = 'Adulto Entrada Inteira';
+                                              else if (ln === 'crianca' || ln === 'criança') displayName = 'Crianca (ate 11 anos - Gratis)';
+                                              return `* ${item.quantity}x ${displayName}`;
+                                            }).join('\n') || "";
                                             const dateStr = format(parseISO(booking.visit_date || new Date().toISOString()), "dd/MM/yyyy", { locale: ptBR });
                                             
                                             setShareData({ booking, phone, dateStr, itemsList, code });

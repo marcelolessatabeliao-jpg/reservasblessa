@@ -9,7 +9,7 @@ const specialPlans = [
     description: 'Parcerias que fortalecem! Benefícios exclusivos para empresas parceiras e seus colaboradores.',
     benefits: ['Acesso com desconto especial', '5% Cashback em serviços', 'Sem taxa de adesão', 'Carteirinha digital/física'],
     buttons: [{ label: 'CONSULTAR', link: 'https://wa.me/5569999144358?text=Olá!%20Gostaria%20de%20saber%20mais%20sobre%20o%20Plano%20Lessa%20Parceiro.' }],
-    price: "39,90",
+    price: "25,00",
     priceNote: '/POR COLABORADOR',
     color: 'bg-[#1d63ed] text-white border-blue-400/30 shadow-blue-500/20',
   },

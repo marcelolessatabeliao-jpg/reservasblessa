@@ -102,6 +102,159 @@ const isAllowedDay = (date: Date) => {
   return isOperating || isHoliday(date);
 };
 
+export const syncKiosksForOrder = async (orderId: string) => {
+  if (!orderId || String(orderId).startsWith('order-')) return;
+
+  try {
+    // 1. Fetch the order details
+    const { data: order, error: orderErr } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('id', orderId)
+      .maybeSingle();
+    
+    if (orderErr || !order) {
+      console.error('[syncKiosksForOrder] Order not found:', orderId, orderErr);
+      return;
+    }
+
+    // Only sync if order status is paid/confirmed/checked-in/completed
+    const isValidStatus = ['paid', 'confirmed', 'checked-in', 'completed'].includes(order.status?.toLowerCase());
+    
+    // 2. Fetch all kiosk order items for this order
+    const { data: orderItems, error: itemsErr } = await supabase
+      .from('order_items')
+      .select('*')
+      .eq('order_id', orderId)
+      .ilike('product_id', '%quiosque%');
+
+    if (itemsErr) {
+      console.error('[syncKiosksForOrder] Error fetching order items:', itemsErr);
+      return;
+    }
+
+    // 3. Fetch all existing kiosk reservations for this order
+    const { data: existingReservations, error: resErr } = await supabase
+      .from('kiosk_reservations')
+      .select('*')
+      .eq('order_id', orderId);
+
+    if (resErr) {
+      console.error('[syncKiosksForOrder] Error fetching existing reservations:', resErr);
+      return;
+    }
+
+    if (!isValidStatus || !orderItems || orderItems.length === 0) {
+      // If order is cancelled/pending or has no kiosk items, remove any existing reservations
+      if (existingReservations && existingReservations.length > 0) {
+        for (const res of existingReservations) {
+          await supabase.from('kiosk_reservations').delete().eq('id', res.id);
+        }
+      }
+      return;
+    }
+
+    // 4. Align reservations with order items
+    const targets = orderItems.map(item => {
+      let meta = item.metadata;
+      if (typeof meta === 'string') { try { meta = JSON.parse(meta); } catch(e) {} }
+      const sIds = meta?.selectedIds || [];
+      
+      const pIdOrig = (item.product_id || '').toLowerCase();
+      const kioskIdMatch = pIdOrig.match(/quiosque\s*(\d+)/i);
+      let kId: any = kioskIdMatch ? parseInt(kioskIdMatch[1], 10) : (pIdOrig.includes('maior') ? 1 : 'MENOR');
+      
+      if (sIds.length > 0) kId = sIds[0];
+      
+      const kioskType = (kId === 1 || kId === 'MAIOR' || kId === '1') ? 'maior' : 'menor';
+      return {
+        kioskId: kId,
+        kioskType,
+        unitPrice: item.unit_price,
+        orderItem: item
+      };
+    });
+
+    const unmatchedTargets = [...targets];
+    const unmatchedReservations = [...existingReservations];
+
+    // Match by kiosk_id first
+    for (let i = unmatchedTargets.length - 1; i >= 0; i--) {
+      const target = unmatchedTargets[i];
+      const matchIndex = unmatchedReservations.findIndex(r => String(r.kiosk_id) === String(target.kioskId));
+      if (matchIndex !== -1) {
+        const matchedRes = unmatchedReservations[matchIndex];
+        unmatchedReservations.splice(matchIndex, 1);
+        unmatchedTargets.splice(i, 1);
+
+        // Update fields if they differ
+        const needsUpdate = 
+          String(matchedRes.reservation_date) !== String(order.visit_date) ||
+          String(matchedRes.customer_name) !== String(order.customer_name) ||
+          matchedRes.price !== target.unitPrice ||
+          matchedRes.status !== order.status ||
+          matchedRes.kiosk_type !== target.kioskType;
+
+        if (needsUpdate) {
+          await supabase.from('kiosk_reservations').update({
+            reservation_date: order.visit_date,
+            customer_name: order.customer_name,
+            price: target.unitPrice,
+            status: order.status,
+            kiosk_type: target.kioskType
+          }).eq('id', matchedRes.id);
+        }
+      }
+    }
+
+    // Pair up remaining targets with remaining reservations
+    while (unmatchedTargets.length > 0 && unmatchedReservations.length > 0) {
+      const target = unmatchedTargets.shift()!;
+      const resToUpdate = unmatchedReservations.shift()!;
+
+      await supabase.from('kiosk_reservations').update({
+        kiosk_id: target.kioskId,
+        kiosk_type: target.kioskType,
+        reservation_date: order.visit_date,
+        customer_name: order.customer_name,
+        price: target.unitPrice,
+        status: order.status
+      }).eq('id', resToUpdate.id);
+    }
+
+    // Insert any remaining targets
+    for (const target of unmatchedTargets) {
+      await supabase.from('kiosk_reservations').insert({
+        order_id: order.id,
+        kiosk_id: target.kioskId,
+        kiosk_type: target.kioskType,
+        reservation_date: order.visit_date,
+        customer_name: order.customer_name,
+        price: target.unitPrice,
+        status: order.status
+      });
+    }
+
+    // Delete any remaining unmatched reservations (duplicates/orphans)
+    for (const resToDelete of unmatchedReservations) {
+      await supabase.from('kiosk_reservations').delete().eq('id', resToDelete.id);
+    }
+
+    // Sync Product ID in order_items if needed
+    for (const target of targets) {
+      const item = target.orderItem;
+      const kId = target.kioskId;
+      const correctLabel = String(kId).padStart(2, '0');
+      const correctName = kId === 1 ? 'QUIOSQUE - 01 (Grande)' : `QUIOSQUE ${correctLabel}`;
+      if (kId !== 'MENOR' && (item.product_id || '').trim().toUpperCase() !== correctName.toUpperCase()) {
+         await supabase.from('order_items').update({ product_id: correctName }).eq('id', item.id);
+      }
+    }
+  } catch (err) {
+    console.error('[syncKiosksForOrder] Unexpected error:', err);
+  }
+};
+
 export default function Admin() {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('admin_token'));
   const [activeTab, setActiveTab] = useState<TabType>('painel');
@@ -118,82 +271,42 @@ export default function Admin() {
   const repairKioskAssignments = async () => {
     setIsSyncingData(true);
     try {
-      // 1. Get all orders for the target date or future
-      const { data: orderItems } = await supabase
+      // 1. Get all orders with kiosk items
+      const { data: orderItems, error: itemsErr } = await supabase
         .from('order_items')
-        .select('*, orders!inner(id, customer_name, visit_date, status)')
+        .select('*, orders!inner(id, status)')
         .ilike('product_id', '%quiosque%');
       
-      if (!orderItems) return;
+      if (itemsErr || !orderItems) return;
 
-      let fixedCount = 0;
+      // Group by order_id and filter by valid statuses
+      const orderIds = new Set<string>();
       for (const item of orderItems) {
         const order = (item as any).orders;
-        if (!['paid', 'confirmed', 'checked-in', 'completed'].includes(order.status?.toLowerCase())) continue;
+        if (order && ['paid', 'confirmed', 'checked-in', 'completed'].includes(order.status?.toLowerCase())) {
+          orderIds.add(order.id);
+        }
+      }
 
-          // Try to find matching reservation
-          const { data: existing } = await supabase
-            .from('kiosk_reservations')
-            .select('*')
-            .eq('order_id', order.id)
-            .maybeSingle();
+      let fixedCount = 0;
+      // For each order, run the sync function
+      for (const orderId of orderIds) {
+        await syncKiosksForOrder(orderId);
+        fixedCount++;
+      }
 
-          // Identify Kiosk ID (Priority: Metadata > Product Name)
-          let meta = item.metadata;
-          if (typeof meta === 'string') { try { meta = JSON.parse(meta); } catch(e) {} }
-          const sIds = meta?.selectedIds || [];
-          
-          const pIdOrig = (item.product_id || '').toLowerCase();
-          const kioskIdMatch = pIdOrig.match(/quiosque\s*(\d+)/i);
-          let kId: any = kioskIdMatch ? parseInt(kioskIdMatch[1], 10) : (pIdOrig.includes('maior') ? 1 : 'MENOR');
-          
-          if (sIds.length > 0) kId = sIds[0];
-
-          // 1. Sync Reservation Table
-          if (!existing) {
-            await supabase.from('kiosk_reservations').insert({
-              order_id: order.id,
-              kiosk_id: kId,
-              kiosk_type: (kId === 1 || kId === 'MAIOR' || kId === '1') ? 'maior' : 'menor',
-              reservation_date: order.visit_date,
-              customer_name: order.customer_name,
-              price: item.unit_price,
-              status: order.status
-            });
-            fixedCount++;
-          } else if (String(existing.kiosk_id) !== String(kId)) {
-            await supabase.from('kiosk_reservations').update({
-              kiosk_id: kId,
-              kiosk_type: (kId === 1 || kId === 'MAIOR' || kId === '1') ? 'maior' : 'menor',
-              reservation_date: order.visit_date,
-              customer_name: order.customer_name
-            }).eq('id', existing.id);
+      // Extra Cleanup: Remove reservations for orders that are NOT in orderIds or have no kiosk items
+      const { data: allRes } = await supabase.from('kiosk_reservations').select('id, order_id').not('order_id', 'is', null);
+      if (allRes) {
+        for (const res of allRes) {
+          if (!orderIds.has(res.order_id)) {
+            await supabase.from('kiosk_reservations').delete().eq('id', res.id);
             fixedCount++;
           }
-
-          // 2. Sync Product ID (to avoid operator confusion)
-          const correctLabel = String(kId).padStart(2, '0');
-          const correctName = kId === 1 ? 'QUIOSQUE - 01 (Grande)' : `QUIOSQUE ${correctLabel}`;
-          if (kId !== 'MENOR' && (item.product_id || '').trim().toUpperCase() !== correctName.toUpperCase()) {
-             await supabase.from('order_items').update({ product_id: correctName }).eq('id', item.id);
-             fixedCount++;
-          }
         }
-
-        // 2. Extra Cleanup: Remove reservations for PAID orders that don't have matching order items
-        // This handles "ghost" reservations from previous tests
-        const { data: allRes } = await supabase.from('kiosk_reservations').select('id, order_id, kiosk_id').not('order_id', 'is', null);
-        if (allRes) {
-           for (const res of allRes) {
-              const matchingItem = orderItems.find(oi => oi.order_id === res.order_id);
-              if (!matchingItem) {
-                 await supabase.from('kiosk_reservations').delete().eq('id', res.id);
-                 fixedCount++;
-              }
-           }
-        }
+      }
       
-      toast({ title: "Sincronização Concluída", description: `${fixedCount} inconsistências foram reparadas.` });
+      toast({ title: "Sincronização Concluída", description: "Reservas de quiosques sincronizadas com sucesso." });
       fetchData();
     } catch (err) {
       console.error(err);
@@ -687,6 +800,8 @@ export default function Admin() {
         if (editData[f] !== undefined) payload[f] = editData[f];
       });
 
+      let orderId = editData.order_id;
+
       if (type === 'quad') {
         const { data: dbItem } = await supabase.from('quad_reservations').select('*').eq('id', editingId).single();
         if (dbItem || editingId.toString().startsWith('order-')) {
@@ -703,7 +818,7 @@ export default function Admin() {
           payload.quantity = finalQty;
           payload.time_slot = finalTime;
           
-          const orderId = dbItem?.order_id || editData.order_id;
+          orderId = dbItem?.order_id || editData.order_id;
           const orderItemId = dbItem?.order_item_id || editData.order_item_id;
 
           if (orderId && !String(orderId).startsWith('order-')) {
@@ -736,48 +851,49 @@ export default function Admin() {
       }
 
       if (type === 'kiosk') {
-        const { data: dbItem } = await supabase.from('kiosk_reservations').select('*').eq('id', editingId).single();
-        if (dbItem || editingId.toString().startsWith('order-')) {
-          const finalKId = editData.kiosk_id || dbItem?.kiosk_id;
-          const finalDate = editData.reservation_date || dbItem?.reservation_date || todayStr;
-          const orderId = dbItem?.order_id || editData.order_id;
-          const orderItemId = dbItem?.order_item_id || editData.order_item_id;
+        const { data: dbItem } = await supabase.from('kiosk_reservations').select('*').eq('id', editingId).maybeSingle();
+        orderId = dbItem?.order_id || editData.order_id;
+        const orderItemId = dbItem?.order_item_id || editData.order_item_id;
 
-          if (orderId && !String(orderId).startsWith('order-') && orderItemId) {
-             const kioskType = (finalKId === 1 || finalKId === 'MAIOR' || finalKId === '1') ? 'Maior' : 'Menor';
-             const kioskPrice = kioskType === 'Maior' ? 100 : 75;
-             
-             await supabase.from('order_items').update({
-               product_id: `Quiosque ${kioskType}`,
-               unit_price: kioskPrice,
-               metadata: { selectedIds: [finalKId] }
-             }).eq('id', orderItemId);
+        const finalKId = editData.kiosk_id || dbItem?.kiosk_id;
+        const finalDate = editData.reservation_date || dbItem?.reservation_date || todayStr;
 
-             payload.price = kioskPrice;
-             payload.kiosk_id = finalKId;
-          }
-          editData.order_id = orderId;
+        if (orderId && !String(orderId).startsWith('order-') && orderItemId && finalKId) {
+          const kioskType = (finalKId === 1 || finalKId === 'MAIOR' || finalKId === '1') ? 'Maior' : 'Menor';
+          const kioskPrice = kioskType === 'Maior' ? 100 : 75;
+          
+          await supabase.from('order_items').update({
+            product_id: `Quiosque ${kioskType}`,
+            unit_price: kioskPrice,
+            metadata: { selectedIds: [finalKId] }
+          }).eq('id', orderItemId);
         }
+        editData.order_id = orderId;
       }
 
-      // Se for uma reserva virtual extraída de um pedido, precisa virar real no banco
-      if (typeof editingId === 'string' && editingId.startsWith('order-')) {
-        payload.order_id = editData.order_id;
-        // order_item_id is only used in-memory for logic; do NOT write to quad_reservations (column does not exist)
-        // payload.order_item_id = editData.order_item_id;
-        
-        // Strip fields that don't exist on the DB table
-        const QUAD_COLS = ['time_slot','quad_type','quantity','reservation_date','notes','price','receipt_url','customer_name','order_id','status'];
-        const KIOSK_COLS = ['kiosk_id','reservation_date','notes','price','receipt_url','customer_name','order_id','status'];
-        const allowedCols = type === 'quad' ? QUAD_COLS : KIOSK_COLS;
-        const cleanPayload: any = {};
-        allowedCols.forEach(col => { if (payload[col] !== undefined) cleanPayload[col] = payload[col]; });
+      const isRealOrder = orderId && !String(orderId).startsWith('order-');
 
-        const { error } = await supabase.from(table).insert([cleanPayload]);
-        if (error) throw error;
+      if (type === 'kiosk' && isRealOrder) {
+        // Run our robust sync helper
+        await syncKiosksForOrder(orderId);
       } else {
-        const { error } = await supabase.from(table).update(payload).eq('id', editingId);
-        if (error) throw error;
+        // Se for uma reserva virtual extraída de um pedido, precisa virar real no banco
+        if (typeof editingId === 'string' && editingId.startsWith('order-')) {
+          payload.order_id = editData.order_id;
+          
+          // Strip fields that don't exist on the DB table
+          const QUAD_COLS = ['time_slot','quad_type','quantity','reservation_date','notes','price','receipt_url','customer_name','order_id','status'];
+          const KIOSK_COLS = ['kiosk_id','reservation_date','notes','price','receipt_url','customer_name','order_id','status'];
+          const allowedCols = type === 'quad' ? QUAD_COLS : KIOSK_COLS;
+          const cleanPayload: any = {};
+          allowedCols.forEach(col => { if (payload[col] !== undefined) cleanPayload[col] = payload[col]; });
+
+          const { error } = await supabase.from(table).insert([cleanPayload]);
+          if (error) throw error;
+        } else {
+          const { error } = await supabase.from(table).update(payload).eq('id', editingId);
+          if (error) throw error;
+        }
       }
 
       if (editData.order_id && !String(editData.order_id).startsWith('order-')) {
@@ -985,48 +1101,59 @@ export default function Admin() {
 
       const table = type === 'kiosk' ? 'kiosk_reservations' : 'quad_reservations';
       const orderId = group.items[0]?.order_id;
+      const isRealOrder = orderId && !String(orderId).startsWith('order-');
 
       // 2. Perform Updates
-      await Promise.all(group.items.map(async (r: any) => {
-        let updatePayload: any = { reservation_date: newDateStr };
-        
-        if (type === 'quad') {
-          const discount = getQuadDiscount(parseToRODate(newDateStr));
-          const prices: any = { individual: 150, dupla: 250, 'adulto-crianca': 200 };
-          const unitPrice = (prices[r.quad_type] || 150) * (1 - discount);
-          updatePayload.price = unitPrice * (r.quantity || 1);
+      if (type === 'kiosk' && isRealOrder) {
+        // For kiosks with real orders, update the order visit_date and sync
+        const { error } = await supabase.from('orders').update({ visit_date: newDateStr }).eq('id', orderId);
+        if (error) throw error;
+        await syncKiosksForOrder(orderId);
+      } else {
+        // Otherwise, perform standard updates individually
+        await Promise.all(group.items.map(async (r: any) => {
+          let updatePayload: any = { reservation_date: newDateStr };
           
-          if (orderId && !String(orderId).startsWith('order-') && r.order_item_id) {
-             await supabase.from('order_items').update({ unit_price: unitPrice }).eq('id', r.order_item_id);
+          if (type === 'quad') {
+            const discount = getQuadDiscount(parseToRODate(newDateStr));
+            const prices: any = { individual: 150, dupla: 250, 'adulto-crianca': 200 };
+            const unitPrice = (prices[r.quad_type] || 150) * (1 - discount);
+            updatePayload.price = unitPrice * (r.quantity || 1);
+            
+            if (orderId && !String(orderId).startsWith('order-') && r.order_item_id) {
+               await supabase.from('order_items').update({ unit_price: unitPrice }).eq('id', r.order_item_id);
+            }
           }
-        }
-        
-        if (String(r.id).startsWith('order-')) {
-           const cleanPayload: any = {
-              order_id: orderId,
-              reservation_date: newDateStr,
-              customer_name: r.customer_name || group.customer_name,
-              price: updatePayload.price || r.price,
-           };
-           if (type === 'kiosk') {
-              cleanPayload.kiosk_id = r.kiosk_id;
-              cleanPayload.kiosk_type = r.kiosk_type;
-           } else {
-              cleanPayload.quad_type = r.quad_type;
-              cleanPayload.time_slot = r.time_slot;
-              cleanPayload.quantity = r.quantity;
-           }
-           const { error } = await supabase.from(table).insert(cleanPayload);
-           if (error) throw error;
-        } else {
-           const { error } = await supabase.from(table).update(updatePayload).eq('id', r.id);
-           if (error) throw error;
-        }
-      }));
+          
+          if (String(r.id).startsWith('order-')) {
+             const cleanPayload: any = {
+                order_id: orderId,
+                reservation_date: newDateStr,
+                customer_name: r.customer_name || group.customer_name,
+                price: updatePayload.price || r.price,
+             };
+             if (type === 'kiosk') {
+                cleanPayload.kiosk_id = r.kiosk_id;
+                cleanPayload.kiosk_type = r.kiosk_type;
+             } else {
+                cleanPayload.quad_type = r.quad_type;
+                cleanPayload.time_slot = r.time_slot;
+                cleanPayload.quantity = r.quantity;
+             }
+             const { error } = await supabase.from(table).insert(cleanPayload);
+             if (error) throw error;
+          } else {
+             const { error } = await supabase.from(table).update(updatePayload).eq('id', r.id);
+             if (error) throw error;
+          }
+        }));
+      }
       
-      // 3. Update Order Level
+      // 3. Update Order Level (if not already done via kiosk path)
       if (orderId && !String(orderId).startsWith('order-')) {
-        await supabase.from('orders').update({ visit_date: newDateStr }).eq('id', orderId);
+        if (type !== 'kiosk') {
+          await supabase.from('orders').update({ visit_date: newDateStr }).eq('id', orderId);
+        }
         await updateOrderTotal(orderId);
       }
       
