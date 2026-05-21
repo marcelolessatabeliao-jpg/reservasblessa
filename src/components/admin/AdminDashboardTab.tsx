@@ -183,7 +183,7 @@ export function AdminDashboardTab({
                              <div key={k.id} className={cn(
                                "rounded-xl p-3 shadow-sm border transition-all cursor-default flex items-center justify-between group",
                                booking 
-                                 ? booking.status === 'checked-in'
+                                 ? booking.status === 'checked-in' || booking.is_redeemed
                                    ? "bg-emerald-100 border-emerald-300 ring-2 ring-emerald-500/20"
                                    : "bg-white border-emerald-200 hover:bg-emerald-800"
                                  : "bg-white border-emerald-100/50 hover:bg-emerald-50"
@@ -191,11 +191,11 @@ export function AdminDashboardTab({
                                 <div className="flex items-center gap-2">
                                    <span className={cn(
                                      "font-black text-[12px] md:text-[13px] transition-colors",
-                                     booking && booking.status !== 'checked-in' ? "group-hover:text-white" : "text-emerald-950"
+                                     booking && !(booking.status === 'checked-in' || booking.is_redeemed) ? "group-hover:text-white" : "text-emerald-950"
                                    )}>
                                      {k.name}
                                    </span>
-                                   {booking?.status === 'checked-in' && (
+                                   {(booking?.status === 'checked-in' || booking?.is_redeemed) && (
                                      <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white text-[8px] font-black px-1.5 py-0 rounded-md border-none flex items-center gap-1">
                                        <CheckCircle2 className="w-2.5 h-2.5" /> OCUPADO
                                      </Badge>
@@ -204,7 +204,7 @@ export function AdminDashboardTab({
                                 {booking ? (
                                   <span className={cn(
                                     "font-bold italic text-[12px] md:text-[13px] text-right transition-colors truncate max-w-[140px]",
-                                    booking.status === 'checked-in' ? "text-emerald-800" : "text-emerald-700 group-hover:text-emerald-100"
+                                    booking.status === 'checked-in' || booking.is_redeemed ? "text-emerald-800" : "text-emerald-700 group-hover:text-emerald-100"
                                   )}>
                                      {booking.customer_name}
                                   </span>
@@ -252,21 +252,32 @@ export function AdminDashboardTab({
                                            const name = curr.customer_name || 'Cliente';
                                            const type = curr.quad_type || 'individual';
                                            const typeLabel = type === 'dupla' ? 'Dupla' : (type === 'adulto-crianca' ? 'Kids' : 'Indiv.');
+                                           const isRed = curr.is_redeemed || curr.status === 'checked-in';
                                            const key = `${name}_${type}`;
-                                           if (!acc[key]) acc[key] = { name, quantity: 0, typeLabel };
+                                           if (!acc[key]) acc[key] = { name, quantity: 0, typeLabel, isRedeemed: isRed };
                                            acc[key].quantity += (Number(curr.quantity) || 1);
+                                           acc[key].isRedeemed = acc[key].isRedeemed || isRed;
                                            return acc;
                                         }, {} as any)).map((b: any, bi) => (
-                                          <div key={bi} className="bg-white/80 p-2 rounded-lg border border-blue-100 flex items-center justify-between shadow-sm group hover:bg-blue-600 transition-all cursor-default">
+                                          <div key={bi} className={cn(
+                                            "p-2 rounded-lg border flex items-center justify-between shadow-sm group transition-all cursor-default",
+                                            b.isRedeemed ? "bg-emerald-100 border-emerald-300 ring-2 ring-emerald-500/20" : "bg-white/80 border-blue-100 hover:bg-blue-600"
+                                          )}>
                                              <div className="flex items-center gap-2 flex-1 min-w-0">
-                                                <span className="text-blue-900 font-extrabold text-[13px] group-hover:text-white capitalize truncate">
+                                                <span className={cn("font-extrabold text-[13px] capitalize truncate", b.isRedeemed ? "text-emerald-900" : "text-blue-900 group-hover:text-white")}>
                                                   {b.name}
                                                 </span>
-                                                <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-[9px] font-black group-hover:bg-white/20 group-hover:text-white shrink-0">
-                                                  {b.typeLabel}
-                                                </span>
+                                                {b.isRedeemed ? (
+                                                  <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white text-[8px] font-black px-1.5 py-0 rounded-md border-none flex items-center gap-1 shrink-0 h-4">
+                                                    <CheckCircle2 className="w-2.5 h-2.5" /> OCUPADO
+                                                  </Badge>
+                                                ) : (
+                                                  <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-[9px] font-black group-hover:bg-white/20 group-hover:text-white shrink-0">
+                                                    {b.typeLabel}
+                                                  </span>
+                                                )}
                                              </div>
-                                             <span className="text-blue-600 font-bold text-[11px] bg-blue-50 px-2 py-0.5 rounded-full group-hover:bg-blue-500 group-hover:text-white ml-2">({b.quantity})</span>
+                                             <span className={cn("font-bold text-[11px] px-2 py-0.5 rounded-full ml-2", b.isRedeemed ? "text-emerald-800 bg-emerald-200" : "text-blue-600 bg-blue-50 group-hover:bg-blue-500 group-hover:text-white")}>({b.quantity})</span>
                                           </div>
                                         ))}
                                     </div>

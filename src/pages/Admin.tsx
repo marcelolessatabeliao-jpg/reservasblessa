@@ -439,26 +439,47 @@ export default function Admin() {
       });
       
       // Map reservations to include customer names correctly and status
-      let parsedKiosks = filteredKiosks.map((k: any) => ({
-         ...k,
-         customer_name: k.customer_name || k.orders?.customer_name || k.bookings?.name || 'Reserva Direta',
-         status: k.orders?.status || 'confirmed',
-         confirmation_code: k.confirmation_code || k.orders?.confirmation_code,
-         customer_phone: k.customer_phone || k.orders?.customer_phone || k.bookings?.phone,
-         last_voucher_sent_at: k.last_voucher_sent_at || k.orders?.last_voucher_sent_at
-      })).filter((k: any) => {
+      let parsedKiosks = filteredKiosks.map((k: any) => {
+         let isRedeemed = false;
+         if (orderData && k.order_id) {
+            const relOrder = orderData.find((o: any) => o.id === k.order_id);
+            if (relOrder && relOrder.order_items) {
+               // Check if any kiosk item in this order is redeemed
+               isRedeemed = relOrder.order_items.some((i: any) => i.is_redeemed && (i.product_name || i.product_id || '').toLowerCase().includes('quiosque'));
+            }
+         }
+         return {
+           ...k,
+           customer_name: k.customer_name || k.orders?.customer_name || k.bookings?.name || 'Reserva Direta',
+           status: k.orders?.status || 'confirmed',
+           confirmation_code: k.confirmation_code || k.orders?.confirmation_code,
+           customer_phone: k.customer_phone || k.orders?.customer_phone || k.bookings?.phone,
+           last_voucher_sent_at: k.last_voucher_sent_at || k.orders?.last_voucher_sent_at,
+           is_redeemed: isRedeemed || k.orders?.status === 'checked-in' || k.is_redeemed
+         };
+      }).filter((k: any) => {
         const s = (k.status || '').toLowerCase();
         return ['paid', 'pago', 'confirmed', 'checked-in', 'completed'].includes(s);
       });
       
-      let parsedQuads = filteredQuads.map((q: any) => ({
-         ...q,
-         customer_name: q.customer_name || q.orders?.customer_name || q.bookings?.name || 'Reserva Direta',
-         status: q.orders?.status || 'confirmed',
-         confirmation_code: q.confirmation_code || q.orders?.confirmation_code,
-         customer_phone: q.customer_phone || q.orders?.customer_phone || q.bookings?.phone,
-         last_voucher_sent_at: q.last_voucher_sent_at || q.orders?.last_voucher_sent_at
-      })).filter((q: any) => {
+      let parsedQuads = filteredQuads.map((q: any) => {
+         let isRedeemed = false;
+         if (orderData && q.order_id) {
+            const relOrder = orderData.find((o: any) => o.id === q.order_id);
+            if (relOrder && relOrder.order_items) {
+               isRedeemed = relOrder.order_items.some((i: any) => i.is_redeemed && (i.product_name || i.product_id || '').toLowerCase().includes('quad'));
+            }
+         }
+         return {
+           ...q,
+           customer_name: q.customer_name || q.orders?.customer_name || q.bookings?.name || 'Reserva Direta',
+           status: q.orders?.status || 'confirmed',
+           confirmation_code: q.confirmation_code || q.orders?.confirmation_code,
+           customer_phone: q.customer_phone || q.orders?.customer_phone || q.bookings?.phone,
+           last_voucher_sent_at: q.last_voucher_sent_at || q.orders?.last_voucher_sent_at,
+           is_redeemed: isRedeemed || q.orders?.status === 'checked-in' || q.is_redeemed
+         };
+      }).filter((q: any) => {
         const s = (q.status || '').toLowerCase();
         return ['paid', 'pago', 'confirmed', 'checked-in', 'completed'].includes(s);
       });
