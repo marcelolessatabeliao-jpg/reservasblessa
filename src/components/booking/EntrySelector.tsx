@@ -1161,7 +1161,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
               <div className="mx-1 mt-2 mb-0 bg-blue-50 border border-blue-200 rounded-2xl px-4 py-3 flex items-start gap-2.5">
                 <span className="text-base shrink-0 mt-0.5">💡</span>
                 <p className="text-[11px] text-blue-800 font-semibold leading-relaxed">
-                  Se tiver mais pessoas, <span className="font-black">adicione uma a uma</span> para garantir todas as entradas que deseja — ou escolha <span className="font-black">Pagar no Balcão</span> para pular essa etapa.
+                  <span className="font-black">Vai com mais pessoas?</span> Adicione as entradas individualmente para já garantir o acesso de todos, ou escolha <span className="font-black">Pagar no Balcão</span> se preferir pular essa etapa.
                 </p>
               </div>
             )}

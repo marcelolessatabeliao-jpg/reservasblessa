@@ -505,19 +505,26 @@ export default function Admin() {
                
                // KIOSKS
                if (pId.includes('quiosque') || pName.includes('quiosque')) {
-                 // Try to find if this item is already in parsedKiosks (real record)
-                 const realMatch = parsedKiosks.find(pk => !pk.is_from_order && pk.order_id === o.id && !matchedKioskIds.has(pk.id));
-                 if (realMatch) {
-                    realMatch.order_item_id = item.id;
-                    realMatch.is_redeemed = item.is_redeemed;
-                    matchedKioskIds.add(realMatch.id);
-                 } else {
+                 let matchCount = 0;
+                 while (matchCount < item.quantity) {
+                   const realMatch = parsedKiosks.find(pk => !pk.is_from_order && pk.order_id === o.id && !matchedKioskIds.has(pk.id));
+                   if (realMatch) {
+                      realMatch.order_item_id = item.id;
+                      realMatch.is_redeemed = item.is_redeemed;
+                      matchedKioskIds.add(realMatch.id);
+                      matchCount++;
+                   } else {
+                      break;
+                   }
+                 }
+                 
+                 if (matchCount < item.quantity) {
                    // Virtual Kiosks
                    let meta = item.metadata;
                    if (typeof meta === 'string') { try { meta = JSON.parse(meta); } catch(e) {} }
                    const sIds = meta?.selectedIds || [];
                    
-                   for(let i=0; i<item.quantity; i++) {
+                   for(let i=matchCount; i<item.quantity; i++) {
                      let kioskIdVal: any = (pId.includes('maior') || pName.includes('maior') || pId.includes('grande') || pName.includes('grande')) ? 1 : 'MENOR';
                      if (sIds.length > i) kioskIdVal = sIds[i];
                      else {
@@ -546,19 +553,26 @@ export default function Admin() {
 
                // QUADS
                if (pId.includes('quad') || pName.includes('quad')) {
-                  // Try to find if this item is already in parsedQuads (real record)
-                  const realMatch = parsedQuads.find(pq => 
-                    !pq.is_from_order &&
-                    pq.order_id === o.id && 
-                    !matchedQuadIds.has(pq.id) && 
-                    normalizeQuadType(pq.quad_type) === normalizeQuadType(pName || pId)
-                  );
+                  let matchCount = 0;
+                  while (matchCount < item.quantity) {
+                    const realMatch = parsedQuads.find(pq => 
+                      !pq.is_from_order &&
+                      pq.order_id === o.id && 
+                      !matchedQuadIds.has(pq.id) && 
+                      normalizeQuadType(pq.quad_type) === normalizeQuadType(pName || pId)
+                    );
 
-                  if (realMatch) {
-                    realMatch.order_item_id = item.id;
-                    realMatch.is_redeemed = item.is_redeemed;
-                    matchedQuadIds.add(realMatch.id);
-                  } else {
+                    if (realMatch) {
+                      realMatch.order_item_id = item.id;
+                      realMatch.is_redeemed = item.is_redeemed;
+                      matchedQuadIds.add(realMatch.id);
+                      matchCount++;
+                    } else {
+                      break;
+                    }
+                  }
+
+                  if (matchCount < item.quantity) {
                     // Virtual Quads
                     const timeMatch = searchStr.match(/(\d{1,2}[:H]\d{2})/);
                     let finalSlot = null;
@@ -581,23 +595,25 @@ export default function Admin() {
                       finalSlot = standardSlot || (searchStr.includes('DUPLA') ? 'DUPLA' : 'INDIV');
                     }
 
-                    parsedQuads.push({
-                       id: `order-${o.id}-q-${item.id}`,
-                       time_slot: finalSlot,
-                       quad_type: normalizeQuadType(pName || pId),
-                       quantity: item.quantity,
-                       reservation_date: resDate,
-                       customer_name: customerName,
-                       customer_phone: o.customer_phone,
-                       confirmation_code: o.confirmation_code,
-                       last_voucher_sent_at: o.last_voucher_sent_at,
-                       price: item.quantity * item.unit_price,
-                       order_id: o.id,
-                       order_item_id: item.id,
-                       is_from_order: true,
-                       status: o.status,
-                       is_redeemed: item.is_redeemed
-                    });
+                    for(let i=matchCount; i<item.quantity; i++) {
+                      parsedQuads.push({
+                        id: `order-${o.id}-q-${item.id}-${i}`,
+                        time_slot: finalSlot,
+                        quad_type: normalizeQuadType(pName || pId),
+                        quantity: 1,
+                        reservation_date: resDate,
+                        customer_name: customerName,
+                        customer_phone: o.customer_phone,
+                        confirmation_code: o.confirmation_code,
+                        last_voucher_sent_at: o.last_voucher_sent_at,
+                        price: item.unit_price,
+                        order_id: o.id,
+                        order_item_id: item.id,
+                        is_from_order: true,
+                        status: o.status,
+                        is_redeemed: item.is_redeemed
+                      });
+                    }
                   }
                }
             });
