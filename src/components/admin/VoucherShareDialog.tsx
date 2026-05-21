@@ -47,6 +47,7 @@ export function VoucherShareDialog({
 }: VoucherShareDialogProps) {
   const [loading, setLoading] = useState(false);
   const [imageGenerated, setImageGenerated] = useState<string | null>(null);
+  const [qrBase64, setQrBase64] = useState<string>('');
   const voucherRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -61,6 +62,16 @@ export function VoucherShareDialog({
 
   useEffect(() => {
     setImageGenerated(null);
+    if (code) {
+      fetch(`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://reservas.balneariolessa.com.br/voucher/${code}`)
+        .then(res => res.blob())
+        .then(blob => {
+           const reader = new FileReader();
+           reader.onloadend = () => setQrBase64(reader.result as string);
+           reader.readAsDataURL(blob);
+        })
+        .catch(err => console.error('Failed to load QR', err));
+    }
   }, [booking?.id, code]);
 
   const updateVoucherSent = async () => {
@@ -250,10 +261,10 @@ export function VoucherShareDialog({
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                        <div style={{ padding: '12px', backgroundColor: '#ffffff', borderRadius: '32px', border: '4px solid rgba(6, 78, 59, 0.05)', marginBottom: '8px' }}>
                           <img 
-                            src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://reservas.balneariolessa.com.br/voucher/${code}`} 
+                            src={qrBase64 || `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://reservas.balneariolessa.com.br/voucher/${code}`} 
                             alt="QR Code" 
                             style={{ width: '140px', height: '140px', display: 'block' }} 
-                            crossOrigin="anonymous"
+                            crossOrigin={qrBase64 ? undefined : "anonymous"}
                           />
                        </div>
                        <div style={{ textAlign: 'center' }}>
