@@ -72,7 +72,7 @@ export function AboutSection() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 items-stretch">
               <div className="bg-primary/5 border border-primary/20 rounded-[28px] p-6 sm:p-7 shadow-sm flex flex-col h-full hover:shadow-md transition-all group border-b-4 border-b-primary/20">
                 <h4 className="font-black text-primary flex items-center gap-2 text-xs sm:text-sm uppercase tracking-widest mb-6 group-hover:translate-x-1 transition-transform">
-                  <span className="bg-primary text-white p-1.5 rounded-lg shadow-sm">---</span> Inclusos no Day Use
+                  <span className="bg-primary text-white p-1.5 rounded-lg shadow-sm">✨</span> Inclusos no Day Use
                 </h4>
                 <motion.ul 
                   variants={{
@@ -115,7 +115,7 @@ export function AboutSection() {
 
               <div className="bg-sun/10 border border-sun/20 rounded-[28px] p-6 sm:p-7 shadow-sm flex flex-col h-full hover:shadow-md transition-all group border-b-4 border-b-sun/20">
                 <h4 className="font-black text-sun-dark flex items-center gap-2 text-xs sm:text-sm uppercase tracking-widest mb-6 group-hover:translate-x-1 transition-transform">
-                   <span className="bg-sun text-sun-dark p-1.5 rounded-lg shadow-sm">---</span> Pagos à Parte
+                   <span className="bg-sun text-sun-dark p-1.5 rounded-lg shadow-sm">✨</span> Pagos à Parte
                 </h4>
                 <motion.ul 
                   variants={{

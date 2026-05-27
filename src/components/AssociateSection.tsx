@@ -128,7 +128,7 @@ export function AssociateSection() {
                       <span className="font-bold">{formatCurrency(totalAssociado)}</span>
                     </div>
                     <div className="flex justify-between text-sm text-whatsapp font-bold border-t pt-2">
-                      <span>* Você economiza</span>
+                      <span>💰 Você economiza</span>
                       <span>{formatCurrency(savings)}</span>
                     </div>
                   </>

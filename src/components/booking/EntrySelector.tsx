@@ -1027,9 +1027,9 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                         {adult.isCounterPayment && <span className="text-[8px] sm:text-[9px] bg-slate-100 text-slate-800 px-2 py-0.5 rounded-full font-black uppercase">💵 Balcão</span>}
                       </div>
                       {adult.isBirthday && <p className="text-[10px] text-sun-dark font-bold">🎂 Entrada grátis (mediante comprovação)</p>}
-                      {adult.isPCD && <p className="text-[10px] text-whatsapp-dark font-bold">--- entrada gratuita + 1 acompanhante gratuito</p>}
-                      {adult.age >= 60 && !adult.isPCD && <p className="text-[10px] text-whatsapp-dark font-bold">--- entrada gratuita - sócio vitalício</p>}
-                      {(adult.isTeacher || adult.isStudent || adult.isServer || (adult as any).isBloodDonor) && <p className="text-[10px] text-primary font-bold">--- benefício de meia-entrada 50% OFF</p>}
+                      {adult.isPCD && <p className="text-[10px] text-whatsapp-dark font-bold">✨ entrada gratuita + 1 acompanhante gratuito</p>}
+                      {adult.age >= 60 && !adult.isPCD && <p className="text-[10px] text-whatsapp-dark font-bold">✨ entrada gratuita - sócio vitalício</p>}
+                      {(adult.isTeacher || adult.isStudent || adult.isServer || (adult as any).isBloodDonor) && <p className="text-[10px] text-primary font-bold">✨ benefício de meia-entrada 50% OFF</p>}
                       {adult.takeDonation && <p className="text-[10px] text-sun-dark font-bold">❤️ Levará 1kg de alimento para desconto ou outro donativo</p>}
                       {adult.isMember && <p className="text-[10px] text-amber-700 font-bold">👑 Associado mensal do Balneário Lessa</p>}
                       {adult.isCounterPayment && <p className="text-[10px] text-slate-500 font-bold">💵 Entrada será paga diretamente na recepção</p>}
@@ -1091,9 +1091,9 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                         {child.isBirthday && <span className="text-[8px] sm:text-[9px] bg-sun/20 text-sun-dark px-2 py-0.5 rounded-full font-black uppercase">🎂 B-Day</span>}
                       </div>
                       {child.isPCD ? (
-                        <p className="text-[10px] text-whatsapp-dark font-bold">--- entrada gratuita + 1 acompanhante gratuito</p>
+                        <p className="text-[10px] text-whatsapp-dark font-bold">✨ entrada gratuita + 1 acompanhante gratuito</p>
                       ) : (
-                        <p className="text-[10px] text-whatsapp-dark font-bold">--- entrada gratuita até 11 anos</p>
+                        <p className="text-[10px] text-whatsapp-dark font-bold">✨ entrada gratuita até 11 anos</p>
                       )}
                     </div>
                   </div>

@@ -395,7 +395,7 @@ export function SpecialPlansSection() {
               className="bg-emerald-50/50 border-2 border-emerald-500/20 p-6 rounded-3xl shadow-sm"
             >
                <h4 className="text-emerald-900 font-black text-xs uppercase mb-3 flex items-center gap-2">
-                 * PLANO MENSAL
+                 📅 PLANO MENSAL
                </h4>
                <div className="mb-5">
                  <p className="text-emerald-700 font-black text-3xl mb-1">

@@ -52,7 +52,7 @@ export function HeroSection() {
           variants={itemVariants}
           className="inline-flex items-center gap-2 bg-sun text-slate-900 font-display font-black text-[10px] sm:text-xs px-5 sm:px-7 py-2 sm:py-2.5 rounded-full mb-6 sm:mb-8 shadow-2xl uppercase tracking-widest border border-white/20"
         >
-          <Sparkles className="h-3 w-3 animate-pulse" /> --- O Jardim do Éden em Ariquemes
+          <Sparkles className="h-3 w-3 animate-pulse" /> 🌿 O Jardim do Éden em Ariquemes
         </motion.div>
 
         <motion.h1
