@@ -142,10 +142,10 @@ export function AdminVendasTab({
                                  onClick={() => onConvertToCredit(order)}
                                  title="Converter em Crédito"
                                >
-                                 <Wallet className="w-4.5 h-4.5" />
+                                 <Wallet className="w-4 h-4" />
                                </Button>
                              )}
-                             <Button size="icon" variant="ghost" className="h-9 w-9 text-red-500 hover:bg-red-50 rounded-xl" onClick={() => requestDelete(order, 'order')}><Trash2 className="w-4.5 h-4.5" /></Button>
+                             <Button size="icon" variant="ghost" className="h-9 w-9 text-red-500 hover:bg-red-50 rounded-xl" onClick={() => requestDelete(order, 'order')}><Trash2 className="w-4 h-4" /></Button>
                          </div>
                       </td>
                    </tr>

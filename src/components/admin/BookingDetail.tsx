@@ -528,7 +528,7 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
                       onClick={(e) => handleToggleItemStatus(item.id, item.is_redeemed, item.product_id || item.product_name, e)}
                       title={item.is_redeemed ? 'Estornar' : 'Marcar Uso'}
                     >
-                      {item.is_redeemed ? <RotateCcw className="w-4.5 h-4.5" /> : <Check className="w-5 h-5 shadow-sm" />}
+                      {item.is_redeemed ? <RotateCcw className="w-4 h-4" /> : <Check className="w-5 h-5 shadow-sm" />}
                     </Button>
 
                     <Button

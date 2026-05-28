@@ -492,7 +492,7 @@ export function AdminCreditsTab({
                                     onClick={() => handleMarkUsed(cred.id, cred.amount)}
                                     title="Marcar como usado"
                                   >
-                                    <CheckCircle2 className="w-4.5 h-4.5" />
+                                    <CheckCircle2 className="w-5 h-5" />
                                   </Button>
                                   {(cred.notes || '').includes('pedido #') && (
                                     <Button 
@@ -502,7 +502,7 @@ export function AdminCreditsTab({
                                       onClick={() => setReactivatingCredit(cred)}
                                       title="Reagendar e Reativar Reserva"
                                     >
-                                      <CalendarCheck className="w-4.5 h-4.5" />
+                                      <CalendarCheck className="w-5 h-5" />
                                     </Button>
                                   )}
                                   <Button 
@@ -512,7 +512,7 @@ export function AdminCreditsTab({
                                     onClick={() => startEditing(cred)}
                                     title="Editar dados"
                                   >
-                                    <Pencil className="w-4.5 h-4.5" />
+                                    <Pencil className="w-4 h-4" />
                                   </Button>
                                 </>
                               )}
@@ -522,7 +522,7 @@ export function AdminCreditsTab({
                                 className="h-9 w-9 text-red-500 hover:bg-red-100 hover:text-red-700 rounded-xl transition-colors" 
                                 onClick={() => handleDeleteCredit(cred.id)}
                               >
-                                <Trash2 className="w-4.5 h-4.5" />
+                                <Trash2 className="w-4 h-4" />
                               </Button>
                            </div>
                         </td>

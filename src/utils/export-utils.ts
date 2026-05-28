@@ -14,6 +14,25 @@ export const exportMultiSheetExcel = (sheets: { data: any[], name: string }[], f
   const workbook = XLSX.utils.book_new();
   sheets.forEach(sheet => {
     const worksheet = XLSX.utils.json_to_sheet(sheet.data);
+    
+    // Auto-fit column widths to ensure organized, professional layout
+    if (sheet.data && sheet.data.length > 0) {
+      const keys = Object.keys(sheet.data[0]);
+      const wscols = keys.map(key => {
+        let maxLen = key.toString().length;
+        sheet.data.forEach(row => {
+          const val = row[key];
+          if (val !== undefined && val !== null) {
+            const len = val.toString().length;
+            if (len > maxLen) maxLen = len;
+          }
+        });
+        // Set optimal width with safety padding (min 10, max 50 for very long text)
+        return { wch: Math.min(Math.max(maxLen + 3, 10), 50) };
+      });
+      worksheet['!cols'] = wscols;
+    }
+    
     XLSX.utils.book_append_sheet(workbook, worksheet, sheet.name);
   });
   XLSX.writeFile(workbook, `${fileName}.xlsx`);

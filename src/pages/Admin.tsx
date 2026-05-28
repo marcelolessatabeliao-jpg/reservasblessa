@@ -2377,8 +2377,8 @@ export default function Admin() {
               </div>
           </div>
            <div className="flex flex-col lg:flex-row lg:items-center p-2 bg-emerald-950/60 backdrop-blur-xl rounded-2xl md:rounded-3xl w-full border border-white/20 shadow-premium mb-6 gap-3">
-              {/* TABS CONTAINER — grade 3x2 no mobile, linha no desktop */}
-              <div className="grid grid-cols-3 lg:flex lg:flex-nowrap items-center gap-1.5 w-full lg:w-auto p-1">
+              {/* TABS CONTAINER — grade 4x2 no mobile, linha no desktop */}
+              <div className="grid grid-cols-4 lg:flex lg:flex-nowrap items-center gap-1.5 w-full lg:w-auto p-1">
                  <button onClick={() => setActiveTab('painel')} className={cn(
                    "py-2.5 px-2 rounded-xl lg:rounded-2xl lg:px-4 text-[10px] lg:text-[13px] font-black flex flex-col lg:flex-row items-center justify-center gap-1 lg:gap-2 transition-all",
                    activeTab === 'painel' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
@@ -2425,11 +2425,11 @@ export default function Admin() {
                    onClick={() => setActiveTab('relatorios')} 
                    title="Relatórios Financeiros" 
                    className={cn(
-                     "py-2.5 px-3 rounded-xl lg:rounded-2xl lg:px-4 text-[10px] lg:text-[13px] font-black flex items-center justify-center transition-all",
+                     "py-2.5 px-3.5 rounded-xl lg:rounded-2xl lg:px-4 text-[10px] lg:text-[13px] font-black flex items-center justify-center transition-all",
                      activeTab === 'relatorios' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
                    )}
                  >
-                    <FileSpreadsheet className="w-4.5 h-4.5" />
+                    <FileSpreadsheet className="w-5 h-5" />
                  </button>
               </div>
 
