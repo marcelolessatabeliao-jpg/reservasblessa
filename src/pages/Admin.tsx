@@ -31,6 +31,7 @@ import { PaymentModal } from '@/components/booking/PaymentModal';
 import { InternalBookingAssistant } from '@/components/admin/InternalBookingAssistant';
 import { AdminCreditsTab } from '@/components/admin/AdminCreditsTab';
 import { AdminDashboardTab } from '@/components/admin/AdminDashboardTab';
+import { AdminRelatoriosTab } from '@/components/admin/AdminRelatoriosTab';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -73,7 +74,7 @@ const QUAD_MODELS_LABELS: Record<string, string> = {
   'adulto-crianca': 'Adulto + Criança'
 };
 
-type TabType = 'painel' | 'reservas' | 'quiosques' | 'quads' | 'vendas' | 'creditos';
+type TabType = 'painel' | 'reservas' | 'quiosques' | 'quads' | 'vendas' | 'creditos' | 'relatorios';
 
 const normalizeQuadType = (t: string) => {
   const slow = (t || '').toLowerCase();
@@ -2377,7 +2378,7 @@ export default function Admin() {
           </div>
           <div className="flex flex-col lg:flex-row lg:items-center p-2 bg-emerald-950/60 backdrop-blur-xl rounded-2xl md:rounded-3xl w-full border border-white/20 shadow-premium mb-6 gap-3">
              {/* TABS CONTAINER — grade 3x2 no mobile, linha no desktop */}
-             <div className="grid grid-cols-3 lg:flex lg:flex-nowrap items-center gap-1.5 w-full lg:w-auto p-1">
+             <div className="grid grid-cols-3 sm:grid-cols-4 lg:flex lg:flex-nowrap items-center gap-1.5 w-full lg:w-auto p-1">
                 <button onClick={() => setActiveTab('painel')} className={cn(
                   "py-2.5 px-2 rounded-xl lg:rounded-2xl lg:px-4 text-[10px] lg:text-[13px] font-black flex flex-col lg:flex-row items-center justify-center gap-1 lg:gap-2 transition-all",
                   activeTab === 'painel' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
@@ -2419,6 +2420,13 @@ export default function Admin() {
                 )}>
                    <Wallet className="w-4 h-4" />
                    <span>Créditos</span>
+                </button>
+                <button onClick={() => setActiveTab('relatorios')} className={cn(
+                  "py-2.5 px-2 rounded-xl lg:rounded-2xl lg:px-4 text-[10px] lg:text-[13px] font-black flex flex-col lg:flex-row items-center justify-center gap-1 lg:gap-2 transition-all",
+                  activeTab === 'relatorios' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
+                )}>
+                   <FileSpreadsheet className="w-4 h-4" />
+                   <span>Relatórios</span>
                 </button>
              </div>
 
@@ -2599,6 +2607,9 @@ export default function Admin() {
              {activeTab === 'quiosques' && renderKioskTab()}
              {activeTab === 'quads' && renderQuadTab()}
              {activeTab === 'vendas' && renderOrderTab()}
+             {activeTab === 'relatorios' && (
+                <AdminRelatoriosTab orders={orders} />
+             )}
              {activeTab === 'creditos' && (
                 <AdminCreditsTab credits={credits} fetchData={fetchData} toast={toast} />
              )}
