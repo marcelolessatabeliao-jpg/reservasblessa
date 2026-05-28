@@ -48,6 +48,7 @@ const getProductCategory = (productName: string, productId: string) => {
     name.includes('solidário') || 
     name.includes('professor') || 
     name.includes('estudante') || 
+    name.includes('meia') ||
     name.includes('servidor') || 
     name.includes('assinante') || 
     name.includes('crianca') || 
@@ -57,9 +58,82 @@ const getProductCategory = (productName: string, productId: string) => {
     name.includes('aniversariante') || 
     name.includes('entrada') || 
     name.includes('kids') || 
-    name.includes('ingresso')
+    name.includes('ingresso') ||
+    name.includes('day use') ||
+    name.includes('day-use') ||
+    name.includes('pulseira')
   ) return 'Entrada / Ingresso';
   return 'Outros';
+};
+
+// Helper to normalize product names to eliminate duplicates and merge similar items
+const normalizeProductName = (productName: string, productId: string) => {
+  const rawName = (productName || productId || '').trim();
+  const lower = rawName.toLowerCase();
+  
+  // 1. Quiosques
+  if (lower.includes('quiosque')) {
+    const match = lower.match(/quiosque\D*(\d+)/i);
+    if (match) {
+      const num = parseInt(match[1], 10);
+      if (num === 1) return 'QUIOSQUE - 01 (Grande)';
+      if (num >= 2 && num <= 8) return `QUIOSQUE - 0${num}`;
+    }
+    if (lower.includes('maior') || lower.includes('grande')) return 'QUIOSQUE - 01 (Grande)';
+    return 'Quiosque Geral';
+  }
+
+  // 2. Quadriciclos
+  if (lower.includes('quadriciclo') || lower.includes('quad')) {
+    if (lower.includes('adult') && (lower.includes('crian') || lower.includes('kids'))) {
+      return 'Quadriciclo Adulto + Criança';
+    }
+    if (lower.includes('dupla') || lower.includes('dupl')) {
+      return 'Quadriciclo Dupla';
+    }
+    if (lower.includes('indiv')) {
+      return 'Quadriciclo Individual';
+    }
+    return 'Quadriciclo Geral';
+  }
+
+  // 3. Ingressos / Entradas
+  if (
+    lower.includes('adulto') || 
+    lower.includes('solidario') || 
+    lower.includes('solidário') || 
+    lower.includes('professor') || 
+    lower.includes('estudante') || 
+    lower.includes('meia') ||
+    lower.includes('servidor') || 
+    lower.includes('assinante') || 
+    lower.includes('crianca') || 
+    lower.includes('criança') || 
+    lower.includes('idoso') || 
+    lower.includes('pcd') || 
+    lower.includes('aniversariante') || 
+    lower.includes('entrada') || 
+    lower.includes('kids') || 
+    lower.includes('ingresso') ||
+    lower.includes('day use') ||
+    lower.includes('day-use') ||
+    lower.includes('pulseira')
+  ) {
+    if (lower.includes('solidar')) return 'Ingresso Solidário';
+    if (lower.includes('crian') || lower.includes('kids')) return 'Ingresso Criança';
+    if (lower.includes('idoso')) return 'Ingresso Idoso';
+    if (lower.includes('pcd')) return 'Ingresso PCD';
+    if (lower.includes('estudant') || lower.includes('meia')) return 'Ingresso Meia / Estudante';
+    if (lower.includes('profess')) return 'Ingresso Professor';
+    if (lower.includes('servidor')) return 'Ingresso Servidor';
+    if (lower.includes('assinant')) return 'Ingresso Assinante';
+    if (lower.includes('aniversar')) return 'Ingresso Aniversariante';
+    if (lower.includes('adulto')) return 'Ingresso Adulto';
+    return 'Ingresso Geral';
+  }
+
+  // 4. Default fallback
+  return rawName;
 };
 
 const MONTHS = [
@@ -99,8 +173,9 @@ export function AdminRelatoriosTab({ orders = [] }: AdminRelatoriosTabProps) {
     const productsMap = new Map<string, { name: string; category: string }>();
     orders.forEach(order => {
       order.order_items?.forEach((item: any) => {
-        const name = item.product_name || item.product_id || 'Produto Geral';
-        const category = getProductCategory(item.product_name || '', item.product_id || '');
+        const rawName = item.product_name || item.product_id || 'Produto Geral';
+        const name = normalizeProductName(rawName, item.product_id || '');
+        const category = getProductCategory(rawName, item.product_id || '');
         productsMap.set(name, { name, category });
       });
     });
@@ -182,8 +257,9 @@ export function AdminRelatoriosTab({ orders = [] }: AdminRelatoriosTabProps) {
       if (!isWithinInterval(dateToCompare, { start: dateRange.start, end: dateRange.end })) return;
 
       order.order_items?.forEach((item: any) => {
-        const productName = item.product_name || item.product_id || 'Produto Geral';
-        const category = getProductCategory(item.product_name || '', item.product_id || '');
+        const rawProductName = item.product_name || item.product_id || 'Produto Geral';
+        const productName = normalizeProductName(rawProductName, item.product_id || '');
+        const category = getProductCategory(rawProductName, item.product_id || '');
 
         if (categoryFilter !== 'all' && category !== categoryFilter) return;
         if (productFilter !== 'all' && productName !== productFilter) return;
