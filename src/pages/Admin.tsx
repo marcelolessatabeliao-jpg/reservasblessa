@@ -1767,6 +1767,7 @@ export default function Admin() {
                                  <FileText className="w-4 h-4 mr-2" /> Recibo
                                </Button>
                             )}
+                            <Button size="icon" variant="ghost" className="h-9 w-9 text-blue-600 bg-blue-50 rounded-xl" title="Alterar Quiosque" onClick={() => setEditingKioskGroup(group)}><Pencil className="w-4 h-4" /></Button>
                             <Button size="icon" variant="ghost" className="h-9 w-9 text-blue-600 bg-blue-50 rounded-xl" onClick={() => {setRescheduleData({ type: 'kiosk', group }); setRescheduleDate(parseISO(group.reservation_date));}}><CalendarClock className="w-4 h-4" /></Button>
                             <Button size="icon" variant="ghost" className="h-9 w-9 text-red-500 bg-red-50 rounded-xl" onClick={() => requestDelete(group.items[0], 'kiosk')}><Trash2 className="w-4 h-4" /></Button>
                          </div>
@@ -1961,16 +1962,50 @@ export default function Admin() {
                               
                               <div className="space-y-2">
                                  <span className="text-[9px] font-black text-blue-700/60 uppercase tracking-widest block mb-1">Horários Reservados</span>
-                                 {group.items.map((r: any, i: number) => (
-                                   <div key={i} className="flex justify-between items-center bg-white p-3 rounded-xl border border-blue-100 shadow-sm">
-                                      <div className="flex items-center gap-2">
-                                         <Clock className="w-3.5 h-3.5 text-blue-500" />
-                                         <span className="text-[11px] font-black text-blue-900">{r.time_slot}</span>
-                                         <span className="text-[10px] font-bold text-blue-600/60">- {QUAD_MODELS_LABELS[r.quad_type] || 'Individual'}</span>
-                                      </div>
-                                      <span className="text-[10px] font-black text-blue-900">{r.quantity} un.</span>
-                                   </div>
-                                 ))}
+                                 {group.items.map((r: any, i: number) => {
+                                   const isEditing = editingId === r.id;
+                                   return isEditing ? (
+                                     <div key={r.id} className="bg-amber-50 p-3 rounded-xl border border-amber-200 shadow-sm space-y-3">
+                                        <div className="flex items-center gap-2">
+                                           <Select value={editData.time_slot} onValueChange={v => setEditData({...editData, time_slot: v})}>
+                                             <SelectTrigger className="h-8 text-[11px] font-black w-32 border-blue-200 bg-white"><SelectValue /></SelectTrigger>
+                                             <SelectContent>
+                                                {QUAD_TIMES.map(t => <SelectItem key={t} value={t} className="text-[11px] font-bold">{t}</SelectItem>)}
+                                             </SelectContent>
+                                           </Select>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                           <Select value={editData.quad_type || 'individual'} onValueChange={v => setEditData({...editData, quad_type: v})}>
+                                              <SelectTrigger className="h-8 text-[11px] font-bold w-32 bg-white border-blue-200"><SelectValue /></SelectTrigger>
+                                              <SelectContent>
+                                                 {Object.entries(QUAD_MODELS_LABELS).map(([k, v]) => <SelectItem key={k} value={k} className="text-[11px] font-bold">{v}</SelectItem>)}
+                                              </SelectContent>
+                                           </Select>
+                                           <div className="flex items-center gap-2">
+                                              <input type="number" min="1" max="20" className="w-16 h-8 text-[12px] font-black border-2 border-blue-300 rounded-lg px-2 text-center bg-white" value={editData.quantity ?? r.quantity ?? 1} onChange={e => setEditData({...editData, quantity: parseInt(e.target.value) || 1})} />
+                                           </div>
+                                        </div>
+                                        <div className="flex justify-end gap-2 pt-2 border-t border-amber-200/50">
+                                           <Button size="icon" variant="ghost" className="h-8 w-8 text-emerald-600 bg-emerald-50 hover:bg-emerald-600 hover:text-white border border-emerald-200 shadow-sm" onClick={() => saveEditing('quad')}><Check className="w-4 h-4" /></Button>
+                                           <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 bg-white hover:bg-slate-100 border border-slate-200 shadow-sm" onClick={cancelEditing}><X className="w-4 h-4" /></Button>
+                                        </div>
+                                     </div>
+                                   ) : (
+                                     <div key={i} className="flex justify-between items-center bg-white p-3 rounded-xl border border-blue-100 shadow-sm">
+                                        <div className="flex items-center gap-2">
+                                           <Clock className="w-3.5 h-3.5 text-blue-500" />
+                                           <span className="text-[11px] font-black text-blue-900">{r.time_slot}</span>
+                                           <span className="text-[10px] font-bold text-blue-600/60">- {QUAD_MODELS_LABELS[r.quad_type] || 'Individual'}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                           <span className="text-[10px] font-black text-blue-900">{r.quantity} un.</span>
+                                           <Button size="icon" variant="ghost" className="h-7 w-7 text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm rounded-lg" onClick={() => startEditing(r.id, 'quad', r)}>
+                                             <Pencil className="w-3.5 h-3.5" />
+                                           </Button>
+                                        </div>
+                                     </div>
+                                   )
+                                 })}
                               </div>
 
                               <div className="flex items-center justify-end gap-2 pt-2">
