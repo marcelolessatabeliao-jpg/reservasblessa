@@ -1000,6 +1000,7 @@ export default function Admin() {
             if (orderItemId) {
               await supabase.from('order_items').update({ 
                 unit_price: unitPrice, 
+                quantity: finalQty,
                 product_id: `Quadriciclo ${QUAD_MODELS_LABELS[finalModel as keyof typeof QUAD_MODELS_LABELS] || 'Individual'}`,
                 metadata: { time: finalTime, time_slot: finalTime } 
               }).eq('id', orderItemId);
@@ -1013,6 +1014,7 @@ export default function Admin() {
               if (quadItem) {
                 await supabase.from('order_items').update({ 
                   unit_price: unitPrice, 
+                  quantity: finalQty,
                   product_id: `Quadriciclo ${QUAD_MODELS_LABELS[finalModel as keyof typeof QUAD_MODELS_LABELS] || 'Individual'}`,
                   metadata: { time: finalTime, time_slot: finalTime } 
                 }).eq('id', quadItem.id);
@@ -1046,9 +1048,12 @@ export default function Admin() {
 
       const isRealOrder = orderId && !String(orderId).startsWith('order-');
 
-      if (type === 'kiosk' && isRealOrder) {
-        // Run our robust sync helper
-        await syncKiosksForOrder(orderId);
+      if (isRealOrder) {
+        if (type === 'kiosk') {
+          await syncKiosksForOrder(orderId);
+        } else if (type === 'quad') {
+          await syncQuadsForOrder(orderId);
+        }
       } else {
         // Se for uma reserva virtual extraída de um pedido, precisa virar real no banco
         if (typeof editingId === 'string' && editingId.startsWith('order-')) {
