@@ -183,8 +183,8 @@ export function AdminDashboardTab({
                                key={k.id} 
                                onClick={() => {
                                  if (booking && onBookingClick) {
-                                   const id = booking.order_id || booking.id.split('-')[0];
-                                   onBookingClick(id);
+                                   const searchParam = booking.customer_name || booking.name || booking.order_id || booking.id;
+                                   onBookingClick(searchParam);
                                  }
                                }}
                                className={cn(
@@ -270,8 +270,8 @@ export function AdminDashboardTab({
                                           <div 
                                             key={bi} 
                                             onClick={() => {
-                                              if (onBookingClick && b.orderId) {
-                                                onBookingClick(b.orderId);
+                                              if (onBookingClick && b.name) {
+                                                onBookingClick(b.name);
                                               }
                                             }}
                                             className={cn(
