@@ -1046,7 +1046,7 @@ export function BookingTable({
                         </div>
                       </td>
                       <td className="p-5 text-center">
-                        <div className="flex flex-col items-center justify-center gap-2">
+                        <div className="flex items-center justify-center gap-3">
                           <div className="inline-flex flex-col items-center justify-center bg-emerald-50 border-2 border-emerald-300 w-20 h-20 rounded-2xl shadow-sm group-hover:border-emerald-500 group-hover:scale-105 transition-all">
                             <Users className="w-5 h-5 text-emerald-700 mb-1" />
                             <span className="text-3xl font-black text-emerald-950 leading-none">
@@ -1057,7 +1057,7 @@ export function BookingTable({
                             </span>
                           </div>
                           
-                          <div className="flex items-center gap-1.5 justify-center flex-wrap max-w-[80px]">
+                          <div className="flex flex-col gap-1.5 justify-center max-w-[40px]">
                             {booking.order_items?.some(i => {
                                const n = ((i.product_name || '') + ' ' + (i.product_id || '')).toLowerCase();
                                return n.includes('quiosque') || n.includes('camping');
