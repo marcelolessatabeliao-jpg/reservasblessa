@@ -256,6 +256,143 @@ export const syncKiosksForOrder = async (orderId: string) => {
   }
 };
 
+export const syncQuadsForOrder = async (orderId: string) => {
+  if (!orderId || String(orderId).startsWith('order-')) return;
+
+  try {
+    const { data: order, error: orderErr } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('id', orderId)
+      .maybeSingle();
+    
+    if (orderErr || !order) {
+      console.error('[syncQuadsForOrder] Order not found:', orderId, orderErr);
+      return;
+    }
+
+    const isValidStatus = ['paid', 'confirmed', 'checked-in', 'completed'].includes(order.status?.toLowerCase());
+    
+    const { data: orderItems, error: itemsErr } = await supabase
+      .from('order_items')
+      .select('*')
+      .eq('order_id', orderId)
+      .or('product_id.ilike.%quad%,product_name.ilike.%quad%');
+
+    if (itemsErr) {
+      console.error('[syncQuadsForOrder] Error fetching order items:', itemsErr);
+      return;
+    }
+
+    const { data: existingReservations, error: resErr } = await supabase
+      .from('quad_reservations')
+      .select('*')
+      .eq('order_id', orderId);
+
+    if (resErr) {
+      console.error('[syncQuadsForOrder] Error fetching existing reservations:', resErr);
+      return;
+    }
+
+    if (!isValidStatus || !orderItems || orderItems.length === 0) {
+      if (existingReservations && existingReservations.length > 0) {
+        for (const res of existingReservations) {
+          await supabase.from('quad_reservations').delete().eq('id', res.id);
+        }
+      }
+      return;
+    }
+
+    const targets: any[] = [];
+    orderItems.forEach(item => {
+      const pName = (item.product_name || item.product_id || '').toLowerCase();
+      const quadType = normalizeQuadType(pName);
+      
+      let meta = item.metadata;
+      if (typeof meta === 'string') { try { meta = JSON.parse(meta); } catch(e) {} }
+      const timeSlot = meta?.time_slot || meta?.time || '09:00';
+      const qty = Number(item.quantity) || 1;
+
+      for (let i = 0; i < qty; i++) {
+        targets.push({
+          quadType,
+          timeSlot,
+          unitPrice: item.unit_price,
+          orderItem: item
+        });
+      }
+    });
+
+    const unmatchedTargets = [...targets];
+    const unmatchedReservations = [...existingReservations];
+
+    for (let i = unmatchedTargets.length - 1; i >= 0; i--) {
+      const target = unmatchedTargets[i];
+      const matchIndex = unmatchedReservations.findIndex(r => 
+        normalizeQuadType(r.quad_type) === target.quadType && 
+        String(r.time_slot) === String(target.timeSlot)
+      );
+      if (matchIndex !== -1) {
+        const matchedRes = unmatchedReservations[matchIndex];
+        unmatchedReservations.splice(matchIndex, 1);
+        unmatchedTargets.splice(i, 1);
+
+        const needsUpdate = 
+          String(matchedRes.reservation_date) !== String(order.visit_date) ||
+          String(matchedRes.customer_name) !== String(order.customer_name) ||
+          matchedRes.price !== target.unitPrice ||
+          matchedRes.quantity !== 1 ||
+          matchedRes.order_item_id !== target.orderItem.id;
+
+        if (needsUpdate) {
+          await supabase.from('quad_reservations').update({
+            reservation_date: order.visit_date,
+            customer_name: order.customer_name,
+            price: target.unitPrice,
+            quantity: 1,
+            order_item_id: target.orderItem.id
+          }).eq('id', matchedRes.id);
+        }
+      }
+    }
+
+    while (unmatchedTargets.length > 0 && unmatchedReservations.length > 0) {
+      const target = unmatchedTargets.shift()!;
+      const resToUpdate = unmatchedReservations.shift()!;
+
+      await supabase.from('quad_reservations').update({
+        quad_type: target.quadType,
+        time_slot: target.timeSlot,
+        reservation_date: order.visit_date,
+        customer_name: order.customer_name,
+        price: target.unitPrice,
+        quantity: 1,
+        order_item_id: target.orderItem.id
+      }).eq('id', resToUpdate.id);
+    }
+
+    for (const target of unmatchedTargets) {
+      await supabase.from('quad_reservations').insert({
+        order_id: order.id,
+        quad_type: target.quadType,
+        time_slot: target.timeSlot,
+        reservation_date: order.visit_date,
+        customer_name: order.customer_name,
+        price: target.unitPrice,
+        quantity: 1,
+        order_item_id: target.orderItem.id
+      });
+    }
+
+    for (const resToDelete of unmatchedReservations) {
+      await supabase.from('quad_reservations').delete().eq('id', resToDelete.id);
+    }
+
+  } catch (err) {
+    console.error('[syncQuadsForOrder] Unexpected error:', err);
+  }
+};
+
 export default function Admin() {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('admin_token'));
   const [activeTab, setActiveTab] = useState<TabType>('painel');
@@ -914,14 +1051,16 @@ export default function Admin() {
       if (type === 'kiosk' && isRealOrder) {
         // Run our robust sync helper
         await syncKiosksForOrder(orderId);
+      } else if (type === 'quad' && isRealOrder) {
+        await syncQuadsForOrder(orderId);
       } else {
         // Se for uma reserva virtual extraída de um pedido, precisa virar real no banco
         if (typeof editingId === 'string' && editingId.startsWith('order-')) {
           payload.order_id = editData.order_id;
           
           // Strip fields that don't exist on the DB table
-          const QUAD_COLS = ['time_slot','quad_type','quantity','reservation_date','notes','price','receipt_url','customer_name','order_id','status'];
-          const KIOSK_COLS = ['kiosk_id','reservation_date','notes','price','receipt_url','customer_name','order_id','status'];
+          const QUAD_COLS = ['time_slot','quad_type','quantity','reservation_date','notes','price','receipt_url','customer_name','order_id','status','order_item_id'];
+          const KIOSK_COLS = ['kiosk_id','reservation_date','notes','price','receipt_url','customer_name','order_id','status','order_item_id'];
           const allowedCols = type === 'quad' ? QUAD_COLS : KIOSK_COLS;
           const cleanPayload: any = {};
           allowedCols.forEach(col => { if (payload[col] !== undefined) cleanPayload[col] = payload[col]; });
@@ -1181,6 +1320,10 @@ export default function Admin() {
         const { error } = await supabase.from('orders').update({ visit_date: newDateStr }).eq('id', orderId);
         if (error) throw error;
         await syncKiosksForOrder(orderId);
+      } else if (type === 'quad' && isRealOrder) {
+        const { error } = await supabase.from('orders').update({ visit_date: newDateStr }).eq('id', orderId);
+        if (error) throw error;
+        await syncQuadsForOrder(orderId);
       } else {
         // Otherwise, perform standard updates individually
         await Promise.all(group.items.map(async (r: any) => {

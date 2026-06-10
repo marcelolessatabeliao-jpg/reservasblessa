@@ -234,17 +234,22 @@ export default function Voucher() {
                               <p className={`text-xs font-bold break-words ${item.is_redeemed ? "line-through opacity-50" : "text-foreground"}`}>
                                  {item.quantity}x {displayName}
                               </p>
-                              {((item.product_id || '').toLowerCase().includes('quad') || (item.product_name || '').toLowerCase().includes('quad')) && (
-                                 <span className="inline-block mt-0.5 text-primary font-black lowercase text-[9px] bg-sun/10 px-1.5 py-0.5 rounded border border-sun/20">
-                                   {(item.metadata?.time_slot || 
+                              {((item.product_id || '').toLowerCase().includes('quad') || (item.product_name || '').toLowerCase().includes('quad')) && (() => {
+                                 const timeSlot = item.metadata?.time_slot || 
                                     (order.quad_reservations?.find((q: any) => 
                                       (q.quad_type || q.type || '').toUpperCase() === (item.product_id || '').toUpperCase() || 
                                       (item.product_id || '').toUpperCase().includes((q.quad_type || q.type || '').toUpperCase()) ||
                                       (item.product_name || '').toUpperCase().includes((q.quad_type || q.type || '').toUpperCase())
                                     )?.time_slot) || 
-                                    (order.quad_reservations?.[0]?.time_slot) || '')}
-                                 </span>
-                              )}
+                                    (order.quad_reservations?.[0]?.time_slot);
+                                 return timeSlot ? (
+                                    <div className="mt-1">
+                                       <span className="inline-flex items-center gap-1 text-emerald-950 font-black uppercase text-[10px] bg-sun/30 border border-sun/60 px-2 py-0.5 rounded shadow-sm">
+                                          🕒 HORÁRIO: {timeSlot}
+                                       </span>
+                                    </div>
+                                 ) : null;
+                              })()}
                               {item.is_redeemed && <span className="block text-[8px] font-bold text-green-600 uppercase mt-0.5">Utilizado</span>}
                             </div>
                           </div>

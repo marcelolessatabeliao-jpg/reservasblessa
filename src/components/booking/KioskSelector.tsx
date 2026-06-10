@@ -414,13 +414,15 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
       {/* Included items info & Rules */}
       <div className="flex flex-col gap-3">
         {/* Positive Include Row */}
-        <div className="flex items-center flex-wrap gap-2 bg-emerald-50/50 border border-emerald-100 p-3 rounded-xl shadow-sm">
-          <div className="bg-emerald-100 p-1.5 rounded-lg shrink-0">
-            <Check className="h-4 w-4 text-emerald-600 stroke-[3]" />
-          </div>
-          <p className="text-xs sm:text-sm font-bold text-emerald-800">
-            Inclui: <span className="font-medium text-emerald-700">churrasqueira, pia, grelha, mesas e cadeiras</span>
-          </p>
+        <div className="flex flex-col gap-2 bg-emerald-50/50 border border-emerald-100 p-3 sm:p-4 rounded-xl shadow-sm text-emerald-800 text-xs sm:text-sm">
+          <h4 className="font-black text-emerald-900 flex items-center gap-2 mb-1">
+            <Check className="h-4 w-4 stroke-[3]" /> O que inclui?
+          </h4>
+          <ul className="list-disc pl-6 space-y-1">
+            <li><strong>Quiosques 01 ao 05:</strong> Contam com 1 tomada em cada um, pia, grelha, churrasqueira, mesas e cadeiras.</li>
+            <li><strong>Quiosques 06, 07 e 08 (Área Privilegiada):</strong> Não possuem tomada e pia. Ficam ao lado da cachoeira do Batistério. Incluem grelha, churrasqueira, mesas e cadeiras.</li>
+            <li><strong>Carvão:</strong> Por conta do cliente.</li>
+          </ul>
         </div>
 
         {/* Warning notice & Additional Info */}

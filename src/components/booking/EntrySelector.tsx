@@ -43,6 +43,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 import { formatPhone } from '@/lib/utils/format';
 import { getBookedKioskIds } from '@/lib/booking-service';
+import { QuantityStepper } from '../QuantityStepper';
 
 // Physical kiosk definitions matching the real layout
 const KIOSK_MAP = [
@@ -902,6 +903,17 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                    </div>
 
                   <div className="space-y-4">
+                    <div className="bg-emerald-50/50 border border-emerald-100 p-4 rounded-xl shadow-sm text-emerald-800 text-xs">
+                      <h4 className="font-black text-emerald-900 flex items-center gap-2 mb-2">
+                        <CheckCircle2 className="h-4 w-4 stroke-[3]" /> O que inclui nos quiosques?
+                      </h4>
+                      <ul className="list-disc pl-5 space-y-1">
+                        <li><strong>Quiosques 01 ao 05:</strong> 1 tomada em cada, pia, grelha, churrasqueira, mesas e cadeiras.</li>
+                        <li><strong>Quiosques 06, 07 e 08 (Área Privilegiada):</strong> Sem tomada e pia. Ficam ao lado da cachoeira do Batistério. Incluem grelha, churrasqueira, mesas e cadeiras.</li>
+                        <li><strong>Carvão:</strong> Por conta do cliente.</li>
+                      </ul>
+                    </div>
+
                     <div className="bg-white border-2 border-emerald-100 rounded-[2rem] p-6 shadow-sm">
                         <p className="text-slate-600 text-xs font-medium leading-relaxed text-center">
                           Este mapa mostra a ocupação em tempo real para a data selecionada. 
@@ -909,8 +921,6 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                           <span className="font-black text-emerald-950 block mt-3 text-sm">Para garantir sua reserva, preencha os dados e conclua o pagamento ao final.</span>
                         </p>
                     </div>
-
-
                   </div>
                 </div>
 
@@ -1045,20 +1055,23 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                         : formatCurrency(((adult.isTeacher || adult.isStudent || adult.isServer || (adult as any).isBloodDonor || adult.takeDonation) ? 25 : 50) * (adult.quantity || 1))
                       }
                     </span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        if (adult.quantity && adult.quantity > 1) {
-                          onUpdateAdult(i, { quantity: adult.quantity - 1 });
-                        } else {
-                          onRemoveAdult(i);
-                        }
-                      }}
-                      className="h-8 w-8 rounded-full text-destructive hover:bg-destructive/10 hover:text-destructive"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <QuantityStepper 
+                        value={adult.quantity || 1}
+                        onChange={(val) => onUpdateAdult(i, { quantity: val })}
+                        min={1}
+                        max={20}
+                        size="sm"
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onRemoveAdult(i)}
+                        className="h-8 w-8 rounded-full text-destructive hover:bg-destructive/10 hover:text-destructive shrink-0"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </motion.div>
               ))}
@@ -1107,20 +1120,23 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                         : formatCurrency(50 * (child.quantity || 1))
                       }
                     </span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        if (child.quantity && child.quantity > 1) {
-                          onUpdateChild(i, { quantity: child.quantity - 1 });
-                        } else {
-                          onRemoveChild(i);
-                        }
-                      }}
-                      className="h-8 w-8 rounded-full text-destructive hover:bg-destructive/10 hover:text-destructive"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <QuantityStepper 
+                        value={child.quantity || 1}
+                        onChange={(val) => onUpdateChild(i, { quantity: val })}
+                        min={1}
+                        max={20}
+                        size="sm"
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onRemoveChild(i)}
+                        className="h-8 w-8 rounded-full text-destructive hover:bg-destructive/10 hover:text-destructive shrink-0"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </motion.div>
               ))}

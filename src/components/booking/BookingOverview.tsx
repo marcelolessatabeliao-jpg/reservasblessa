@@ -209,10 +209,13 @@ export function BookingOverview({
       let confCode = persistedConfirmationCode;
 
       // Se não temos ordem ou os itens/valor mudaram drasticamente, o back-end cuida de atualizar se passarmos o ID
+      let methodStatus = method !== 'LOCAL' ? 'awaiting_payment' : 'pending';
+      if (totals.total === 0) methodStatus = 'confirmed';
+
       const result = await saveBooking({
         ...booking,
         entry: { ...booking.entry, name: fullName }
-      }, totals.total, null, items, method !== 'LOCAL' ? 'awaiting_payment' : 'pending', orderId);
+      }, totals.total, null, items, methodStatus, orderId);
       
       if (!result?.orderId) throw new Error("Erro ao salvar pedido.");
       orderId = result.orderId;
@@ -221,6 +224,12 @@ export function BookingOverview({
       
       setPersistedOrderId(orderId);
       setPersistedConfirmationCode(confCode);
+
+      if (totals.total === 0) {
+         setPaymentConfirmed(true);
+         toast({ title: 'Reserva Confirmada', description: 'Sua reserva gratuita foi concluída com sucesso!' });
+         return;
+      }
 
       if (method === 'PIX') {
         setPaymentData(null);
@@ -717,16 +726,22 @@ export function BookingOverview({
                 </div>
 
                 <div className="flex flex-col gap-3 w-full">
-                  <Button 
-                    onClick={() => {
-                      const msg = `🌿 *BALNEÁRIO FAMÍLIA LESSA*\n\nOlá! Minha reserva no Balneário Lessa foi confirmada! ✅\n\n📋 *RESUMO DO PEDIDO*\n👤 *Titular:* ${booking.entry.name}\n📅 *Data:* ${booking.entry.visitDate ? format(new Date(booking.entry.visitDate), "dd/MM/yyyy") : '—'}\n🔢 *Voucher:* ${persistedConfirmationCode}\n\n🔗 *VOUCHER DIGITAL:*\nhttps://reservas.balneariolessa.com.br/voucher/${persistedConfirmationCode}\n\n📍 *COMO CHEGAR:*\nVia Araras, Setor 09 – Ariquemes/RO`;
-                      const phone = booking.entry.phone?.replace(/\D/g, '') || '';
-                      window.open(`https://wa.me/55${phone}?text=${encodeURIComponent(msg)}`, '_blank');
-                    }}
-                    className="w-full h-16 rounded-2xl bg-[#25D366] hover:bg-[#128C7E] text-white font-black shadow-lg flex items-center justify-center gap-3 animate-pulse border-b-4 border-[#075E54]"
-                  >
-                     <Phone className="w-6 h-6 fill-current" /> RECEBER NO WHATSAPP
-                  </Button>
+                  {totals.total > 0 ? (
+                    <Button 
+                      onClick={() => {
+                        const msg = `🌿 *BALNEÁRIO FAMÍLIA LESSA*\n\nOlá! Minha reserva no Balneário Lessa foi confirmada! ✅\n\n📋 *RESUMO DO PEDIDO*\n👤 *Titular:* ${booking.entry.name}\n📅 *Data:* ${booking.entry.visitDate ? format(new Date(booking.entry.visitDate), "dd/MM/yyyy") : '—'}\n🔢 *Voucher:* ${persistedConfirmationCode}\n\n🔗 *VOUCHER DIGITAL:*\nhttps://reservas.balneariolessa.com.br/voucher/${persistedConfirmationCode}\n\n📍 *COMO CHEGAR:*\nVia Araras, Setor 09 – Ariquemes/RO`;
+                        const phone = booking.entry.phone?.replace(/\D/g, '') || '';
+                        window.open(`https://wa.me/55${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+                      }}
+                      className="w-full h-16 rounded-2xl bg-[#25D366] hover:bg-[#128C7E] text-white font-black shadow-lg flex items-center justify-center gap-3 animate-pulse border-b-4 border-[#075E54]"
+                    >
+                       <Phone className="w-6 h-6 fill-current" /> RECEBER NO WHATSAPP
+                    </Button>
+                  ) : (
+                    <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl p-4 text-center text-sm font-medium">
+                      Sua reserva é 100% gratuita. Não há necessidade de confirmação via WhatsApp. Apresente os comprovantes das gratuidades selecionadas diretamente no balcão da bilheteria ao chegar.
+                    </div>
+                  )}
 
                   <Link to={`/voucher/${persistedConfirmationCode}`} target="_blank" className="w-full">
                     <Button variant="outline" className="w-full h-14 rounded-2xl border-2 border-primary/10 text-primary font-black shadow-sm flex gap-2 hover:bg-primary/5">
@@ -735,9 +750,11 @@ export function BookingOverview({
                   </Link>
                   <Button onClick={() => window.location.reload()} variant="ghost" className="w-full h-10 rounded-2xl font-bold text-muted-foreground">FECHAR E VOLTAR</Button>
                 </div>
-                <p className="text-[10px] text-muted-foreground text-center px-4">
-                  Clique no botão verde acima para receber seu comprovante oficial no WhatsApp.
-                </p>
+                {totals.total > 0 && (
+                  <p className="text-[10px] text-muted-foreground text-center px-4">
+                    Clique no botão verde acima para receber seu comprovante oficial no WhatsApp.
+                  </p>
+                )}
               </motion.div>
             ) : !pixData ? (
               <div className="flex flex-col gap-4 w-full">
@@ -752,50 +769,69 @@ export function BookingOverview({
                   <div className="w-12 h-1 bg-primary/10 rounded-full mb-2"></div>
                 </div>
 
-                <Button
-                  size="lg"
-                  onClick={() => handleAction('PIX')}
-                  disabled={saving}
-                  className="w-full h-20 sm:h-24 rounded-[2rem] bg-[#00bdae] hover:bg-[#009b8f] text-white font-black text-lg sm:text-xl flex items-center justify-center gap-4 shadow-xl active:scale-[0.97] transition-all group overflow-hidden relative border-b-8 border-[#007a71]"
-                >
-                  <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md">
-                    {saving && activePaymentMethod === 'PIX' ? <Loader2 className="h-7 w-7 animate-spin" /> : <QrCode className="h-7 w-7 text-white" />}
-                  </div>
-                  <div className="text-left leading-tight">
-                    <span className="block text-[10px] text-white/80 font-bold uppercase tracking-widest mb-0.5">Pagar Agora Online</span>
-                    Gerar PIX
-                  </div>
-                </Button>
+                {totals.total === 0 ? (
+                  <Button
+                    size="lg"
+                    onClick={() => handleAction('LOCAL')}
+                    disabled={saving}
+                    className="w-full h-20 sm:h-24 rounded-[2rem] bg-[#00bdae] hover:bg-[#009b8f] text-white font-black text-lg sm:text-xl flex items-center justify-center gap-4 shadow-xl active:scale-[0.97] transition-all group overflow-hidden relative border-b-8 border-[#007a71]"
+                  >
+                    <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md">
+                      {saving ? <Loader2 className="h-7 w-7 animate-spin" /> : <CheckCircle className="h-7 w-7 text-white" />}
+                    </div>
+                    <div className="text-left leading-tight">
+                      <span className="block text-[10px] text-white/80 font-bold uppercase tracking-widest mb-0.5">Total Grátis</span>
+                      Concluir Reserva
+                    </div>
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      size="lg"
+                      onClick={() => handleAction('PIX')}
+                      disabled={saving}
+                      className="w-full h-20 sm:h-24 rounded-[2rem] bg-[#00bdae] hover:bg-[#009b8f] text-white font-black text-lg sm:text-xl flex items-center justify-center gap-4 shadow-xl active:scale-[0.97] transition-all group overflow-hidden relative border-b-8 border-[#007a71]"
+                    >
+                      <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md">
+                        {saving && activePaymentMethod === 'PIX' ? <Loader2 className="h-7 w-7 animate-spin" /> : <QrCode className="h-7 w-7 text-white" />}
+                      </div>
+                      <div className="text-left leading-tight">
+                        <span className="block text-[10px] text-white/80 font-bold uppercase tracking-widest mb-0.5">Pagar Agora Online</span>
+                        Gerar PIX
+                      </div>
+                    </Button>
 
-                <Button
-                  size="lg"
-                  onClick={() => handleAction('CREDIT_CARD')}
-                  disabled={saving}
-                  className="w-full h-20 sm:h-24 rounded-[2rem] bg-primary hover:bg-primary-dark text-white font-bold text-lg sm:text-xl flex items-center justify-center gap-4 shadow-xl active:scale-[0.97] transition-all group overflow-hidden relative border-b-8 border-primary-dark"
-                >
-                  <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md">
-                    {saving && activePaymentMethod === 'CREDIT_CARD' ? <Loader2 className="h-7 w-7 animate-spin" /> : <CreditCard className="h-7 w-7 text-white" />}
-                  </div>
-                  <div className="text-left leading-tight">
-                    <span className="block text-[10px] text-white/80 font-bold uppercase tracking-widest mb-0.5">Pagar Agora Online</span>
-                    Cartão de Crédito
-                  </div>
-                </Button>
+                    <Button
+                      size="lg"
+                      onClick={() => handleAction('CREDIT_CARD')}
+                      disabled={saving}
+                      className="w-full h-20 sm:h-24 rounded-[2rem] bg-primary hover:bg-primary-dark text-white font-bold text-lg sm:text-xl flex items-center justify-center gap-4 shadow-xl active:scale-[0.97] transition-all group overflow-hidden relative border-b-8 border-primary-dark"
+                    >
+                      <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md">
+                        {saving && activePaymentMethod === 'CREDIT_CARD' ? <Loader2 className="h-7 w-7 animate-spin" /> : <CreditCard className="h-7 w-7 text-white" />}
+                      </div>
+                      <div className="text-left leading-tight">
+                        <span className="block text-[10px] text-white/80 font-bold uppercase tracking-widest mb-0.5">Pagar Agora Online</span>
+                        Cartão de Crédito
+                      </div>
+                    </Button>
 
-                <Button
-                  size="lg"
-                  onClick={() => handleAction('LOCAL')}
-                  disabled={saving}
-                  className="w-full h-16 sm:h-20 rounded-2xl bg-[#006020] hover:bg-[#004d1a] border-b-4 border-[#004015] text-white font-black flex items-center justify-center gap-2 sm:gap-4 shadow-lg active:scale-[0.97] transition-all relative overflow-hidden group"
-                >
-                  <div className="p-2.5 bg-white/20 rounded-xl backdrop-blur-md shrink-0">
-                    <MessageCircle className="h-6 w-6 text-white" />
-                  </div>
-                  <div className="text-left leading-tight min-w-0">
-                    <span className="block text-[9px] text-white/80 font-black uppercase tracking-widest mb-0.5 truncate uppercase">Pagar Presencialmente</span>
-                    <span className="text-sm sm:text-lg uppercase tracking-tighter block whitespace-nowrap overflow-hidden text-ellipsis">Confirmar no WhatsApp</span>
-                  </div>
-                </Button>
+                    <Button
+                      size="lg"
+                      onClick={() => handleAction('LOCAL')}
+                      disabled={saving}
+                      className="w-full h-16 sm:h-20 rounded-2xl bg-[#006020] hover:bg-[#004d1a] border-b-4 border-[#004015] text-white font-black flex items-center justify-center gap-2 sm:gap-4 shadow-lg active:scale-[0.97] transition-all relative overflow-hidden group"
+                    >
+                      <div className="p-2.5 bg-white/20 rounded-xl backdrop-blur-md shrink-0">
+                        <MessageCircle className="h-6 w-6 text-white" />
+                      </div>
+                      <div className="text-left leading-tight min-w-0">
+                        <span className="block text-[9px] text-white/80 font-black uppercase tracking-widest mb-0.5 truncate uppercase">Pagar Presencialmente</span>
+                        <span className="text-sm sm:text-lg uppercase tracking-tighter block whitespace-nowrap overflow-hidden text-ellipsis">Confirmar no WhatsApp</span>
+                      </div>
+                    </Button>
+                  </>
+                )}
               </div>
             ) : (
               <motion.div 

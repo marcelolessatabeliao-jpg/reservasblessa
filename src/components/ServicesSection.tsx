@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 const services = [
   {
     title: 'Quiosques',
-    description: 'Churrasqueira, pia, grelha, mesas e cadeiras. Perfeito para confraternizações.',
+    description: 'Grelha, churrasqueira, mesas e cadeiras. Opções com tomada e pia, ou na área privilegiada da cachoeira.',
     price: 'A partir de R$ 75,00',
     image: '/images/quiosque-novo.jpg',
     badge: 'SOB RESERVA',
