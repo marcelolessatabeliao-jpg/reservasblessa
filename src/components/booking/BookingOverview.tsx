@@ -769,7 +769,26 @@ export function BookingOverview({
                   <div className="w-12 h-1 bg-primary/10 rounded-full mb-2"></div>
                 </div>
 
+                {/* ⚠️ Reservation guarantee warning */}
+                {totals.total > 0 && (() => {
+                  const hasBalcao = booking.entry.adults.some((a: any) => a.isCounterPayment);
+                  return (
+                    <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl px-4 py-3.5 flex items-start gap-3 shadow-sm">
+                      <span className="text-xl shrink-0 mt-0.5">⚠️</span>
+                      <div className="text-xs text-amber-900 font-bold leading-relaxed space-y-1">
+                        <p className="font-black text-amber-950 text-sm">Reserva só garantida após pagamento!</p>
+                        {hasBalcao ? (
+                          <p>Você escolheu <span className="font-black">Pagar no Balcão</span>: apenas a entrada é paga presencialmente. Os demais itens da reserva <span className="font-black underline">devem ser pagos agora</span> (PIX, Cartão ou WhatsApp) para a reserva ser efetivada.</p>
+                        ) : (
+                          <p>Finalize o pagamento para garantir sua reserva. Reservas não pagas podem ser liberadas para outros clientes.</p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {totals.total === 0 ? (
+
                   <Button
                     size="lg"
                     onClick={() => handleAction('LOCAL')}
