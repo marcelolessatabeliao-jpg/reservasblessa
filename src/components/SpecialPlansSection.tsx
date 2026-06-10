@@ -159,10 +159,10 @@ export function SpecialPlansSection() {
   };
 
   const totalMonthly = 
-    quantities.adult * 49.9 + 
-    quantities.student * 25 + 
-    quantities.teacher * 25 + 
-    quantities.server * 25;
+    quantities.adult * 44.91 + 
+    quantities.student * 22.50 + 
+    quantities.teacher * 22.50 + 
+    quantities.server * 22.50;
 
   return (
     <section id="especiais" className="py-12 sm:py-24 bg-transparent">
@@ -193,10 +193,10 @@ export function SpecialPlansSection() {
           >
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-2.5">
               {[
-                { key: 'adult', label: 'Lessa Club', price: 49.9, emoji: '🎟️', color: 'bg-gradient-to-br from-sun/10 to-sun/30 border-sun/40', badge: null },
-                { key: 'student', label: 'Estudante', price: 25, emoji: '🎓', color: 'bg-sun/5 border-sun/20', badge: '50% OFF' },
-                { key: 'teacher', label: 'Professor', price: 25, emoji: '📚', color: 'bg-green-600/5 border-green-600/20', badge: '50% OFF' },
-                { key: 'server', label: 'Servidor', price: 25, emoji: '🏛️', color: 'bg-primary/5 border-primary/20', badge: '50% OFF' },
+                { key: 'adult', label: 'Lessa Club', price: 44.91, prefix: 'a partir de', emoji: '🎟️', color: 'bg-gradient-to-br from-sun/10 to-sun/30 border-sun/40', badge: null },
+                { key: 'student', label: 'Estudante', price: 22.50, prefix: '', emoji: '🎓', color: 'bg-sun/5 border-sun/20', badge: '50% OFF' },
+                { key: 'teacher', label: 'Professor', price: 22.50, prefix: '', emoji: '📚', color: 'bg-green-600/5 border-green-600/20', badge: '50% OFF' },
+                { key: 'server', label: 'Servidor', price: 22.50, prefix: '', emoji: '🏛️', color: 'bg-primary/5 border-primary/20', badge: '50% OFF' },
               ].map((item) => (
                 <div key={item.key} className={`flex items-center justify-between p-3 sm:p-5 rounded-2xl border shadow-sm transition-colors text-left ${item.color}`}>
                   <div className="flex items-center gap-3 sm:gap-4">
@@ -212,7 +212,10 @@ export function SpecialPlansSection() {
                             </span>
                           )}
                         </div>
-                       <p className="text-primary font-black text-xs sm:text-sm uppercase tracking-widest">{formatCurrency(item.price)}</p>
+                       <p className="text-primary font-black text-xs sm:text-sm uppercase tracking-widest">
+                         {item.prefix && <span className="text-[10px] lowercase font-medium text-muted-foreground mr-1 tracking-normal">{item.prefix}</span>}
+                         {formatCurrency(item.price)}
+                       </p>
                      </div>
                   </div>
                   <div className="scale-90 sm:scale-100 shrink-0">
@@ -230,8 +233,8 @@ export function SpecialPlansSection() {
               <h4 className="font-black uppercase tracking-widest text-xs text-muted-foreground mb-3 px-2">Gratuidades (Acesso Livre)</h4>
               <div className="grid grid-cols-3 gap-2 sm:gap-4">
                 {[
-                  { key: 'child', label: 'Crianças', emoji: '👶', color: 'bg-blue-50/60 border-blue-200/60' },
-                  { key: 'senior', label: 'Idosos', emoji: '🧓', color: 'bg-fuchsia-50/60 border-fuchsia-200/60' },
+                  { key: 'child', label: 'Crianças (até 11 anos)', emoji: '👶', color: 'bg-blue-50/60 border-blue-200/60' },
+                  { key: 'senior', label: 'Idosos (60+ anos)', emoji: '🧓', color: 'bg-fuchsia-50/60 border-fuchsia-200/60' },
                   { key: 'pcd', label: 'PCD & TEA', emoji: '♿', color: 'bg-emerald-50/60 border-emerald-200/60' },
                 ].map((item) => (
                    <div key={item.key} className={`flex flex-col items-center justify-between p-2 sm:p-4 rounded-2xl border shadow-sm transition-all hover:shadow-md text-center ${item.color}`}>

@@ -158,10 +158,10 @@ export function LessaClubSimulator() {
   };
 
   const totalMonthly = 
-    quantities.adult * 49.9 + 
-    quantities.student * 25 + 
-    quantities.teacher * 25 + 
-    quantities.server * 25;
+    quantities.adult * 44.91 + 
+    quantities.student * 22.50 + 
+    quantities.teacher * 22.50 + 
+    quantities.server * 22.50;
 
   return (
     <section id="especiais" className="py-12 bg-muted/20">
@@ -192,10 +192,10 @@ export function LessaClubSimulator() {
           >
             <div className="grid grid-cols-1 gap-3">
               {[
-                { key: 'adult', label: 'Lessa Club', price: 49.9, emoji: '🎟️', badge: null, color: 'bg-gradient-to-br from-sun/10 to-sun/30 border-sun/40 shadow-sun/5' },
-                { key: 'student', label: 'Estudante', price: 25, emoji: '🎓', badge: '50% OFF', color: 'bg-sun/5 border-sun/10' },
-                { key: 'teacher', label: 'Professor', price: 25, emoji: '📚', badge: '50% OFF', color: 'bg-green-600/5 border-green-600/10' },
-                { key: 'server', label: 'Servidor', price: 25, emoji: '🏛️', badge: '50% OFF', color: 'bg-primary/5 border-primary/10' },
+                { key: 'adult', label: 'Lessa Club', price: 44.91, prefix: 'a partir de', emoji: '🎟️', badge: null, color: 'bg-gradient-to-br from-sun/10 to-sun/30 border-sun/40 shadow-sun/5' },
+                { key: 'student', label: 'Estudante', price: 22.50, prefix: '', emoji: '🎓', badge: '50% OFF', color: 'bg-sun/5 border-sun/10' },
+                { key: 'teacher', label: 'Professor', price: 22.50, prefix: '', emoji: '📚', badge: '50% OFF', color: 'bg-green-600/5 border-green-600/10' },
+                { key: 'server', label: 'Servidor', price: 22.50, prefix: '', emoji: '🏛️', badge: '50% OFF', color: 'bg-primary/5 border-primary/10' },
               ].map((item) => (
                 <div key={item.key} className={`flex items-center p-3 sm:p-4 rounded-2xl border shadow-sm transition-colors gap-3 ${item.color}`}>
                   {/* Icon */}
@@ -208,7 +208,10 @@ export function LessaClubSimulator() {
                         </h4>
                         {item.badge && <span className="text-[9px] font-black bg-emerald-600 text-white px-1.5 py-0.5 rounded-full shrink-0">{item.badge}</span>}
                       </div>
-                      <p className="text-primary font-black text-xs sm:text-sm uppercase tracking-widest leading-none">{formatCurrency(item.price)}</p>
+                      <p className="text-primary font-black text-xs sm:text-sm uppercase tracking-widest leading-none">
+                        {item.prefix && <span className="text-[10px] lowercase font-medium text-muted-foreground mr-1 tracking-normal">{item.prefix}</span>}
+                        {formatCurrency(item.price)}
+                      </p>
                     </div>
                   {/* Stepper — always has room, no overflow */}
                   <div className="shrink-0 ml-auto">
@@ -227,8 +230,8 @@ export function LessaClubSimulator() {
               <h4 className="font-black uppercase tracking-widest text-[10px] text-muted-foreground mb-3 px-2">Gratuidades (Acesso Livre)</h4>
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { key: 'child', label: 'Crianças', emoji: '👶', color: 'bg-blue-50/50 border-blue-100/50' },
-                  { key: 'senior', label: 'Idosos', emoji: '🧓', color: 'bg-purple-50/50 border-purple-100/50' },
+                  { key: 'child', label: 'Crianças (até 11 anos)', emoji: '👶', color: 'bg-blue-50/50 border-blue-100/50' },
+                  { key: 'senior', label: 'Idosos (60+ anos)', emoji: '🧓', color: 'bg-purple-50/50 border-purple-100/50' },
                   { key: 'pcd', label: 'PCD & TEA', emoji: '♿', color: 'bg-teal-50/50 border-teal-100/50' },
                 ].map((item) => (
                   <div key={item.key} className={`flex flex-col items-center gap-2 p-2 rounded-xl border text-center ${item.color}`}>
