@@ -194,9 +194,9 @@ export function SpecialPlansSection() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-2.5">
               {[
                 { key: 'adult', label: 'Lessa Club', price: 44.91, prefix: 'a partir de', emoji: '🎟️', color: 'bg-gradient-to-br from-sun/10 to-sun/30 border-sun/40', badge: null },
-                { key: 'student', label: 'Estudante', price: 22.50, prefix: '', emoji: '🎓', color: 'bg-sun/5 border-sun/20', badge: '50% OFF' },
-                { key: 'teacher', label: 'Professor', price: 22.50, prefix: '', emoji: '📚', color: 'bg-green-600/5 border-green-600/20', badge: '50% OFF' },
-                { key: 'server', label: 'Servidor', price: 22.50, prefix: '', emoji: '🏛️', color: 'bg-primary/5 border-primary/20', badge: '50% OFF' },
+                { key: 'student', label: 'Estudante', price: 22.50, prefix: 'a partir de', emoji: '🎓', color: 'bg-sun/5 border-sun/20', badge: '50% OFF' },
+                { key: 'teacher', label: 'Professor', price: 22.50, prefix: 'a partir de', emoji: '📚', color: 'bg-green-600/5 border-green-600/20', badge: '50% OFF' },
+                { key: 'server', label: 'Servidor', price: 22.50, prefix: 'a partir de', emoji: '🏛️', color: 'bg-primary/5 border-primary/20', badge: '50% OFF' },
               ].map((item) => (
                 <div key={item.key} className={`flex items-center justify-between p-3 sm:p-5 rounded-2xl border shadow-sm transition-colors text-left ${item.color}`}>
                   <div className="flex items-center gap-3 sm:gap-4">
@@ -233,14 +233,14 @@ export function SpecialPlansSection() {
               <h4 className="font-black uppercase tracking-widest text-xs text-muted-foreground mb-3 px-2">Gratuidades (Acesso Livre)</h4>
               <div className="grid grid-cols-3 gap-2 sm:gap-4">
                 {[
-                  { key: 'child', label: 'Crianças (até 11 anos)', emoji: '👶', color: 'bg-blue-50/60 border-blue-200/60' },
-                  { key: 'senior', label: 'Idosos (60+ anos)', emoji: '🧓', color: 'bg-fuchsia-50/60 border-fuchsia-200/60' },
+                  { key: 'child', label: 'Crianças\n(até 11 anos)', emoji: '👶', color: 'bg-blue-50/60 border-blue-200/60' },
+                  { key: 'senior', label: 'Idosos\n(60+ anos)', emoji: '🧓', color: 'bg-fuchsia-50/60 border-fuchsia-200/60' },
                   { key: 'pcd', label: 'PCD & TEA', emoji: '♿', color: 'bg-emerald-50/60 border-emerald-200/60' },
                 ].map((item) => (
                    <div key={item.key} className={`flex flex-col items-center justify-between p-2 sm:p-4 rounded-2xl border shadow-sm transition-all hover:shadow-md text-center ${item.color}`}>
                      <div className="mb-2 sm:mb-3">
                        <span className="text-xl sm:text-3xl block mb-1 drop-shadow-sm">{item.emoji}</span>
-                       <span className="font-bold text-[9px] sm:text-base text-slate-800 block leading-tight px-1 flex items-center justify-center h-6 sm:h-8">
+                       <span className="font-bold text-[9px] sm:text-base text-slate-800 block leading-tight px-1 flex items-center justify-center min-h-[32px] sm:min-h-[48px] whitespace-pre-line mt-1">
                          {item.label}
                        </span>
                      </div>

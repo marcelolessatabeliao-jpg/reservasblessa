@@ -193,9 +193,9 @@ export function LessaClubSimulator() {
             <div className="grid grid-cols-1 gap-3">
               {[
                 { key: 'adult', label: 'Lessa Club', price: 44.91, prefix: 'a partir de', emoji: '🎟️', badge: null, color: 'bg-gradient-to-br from-sun/10 to-sun/30 border-sun/40 shadow-sun/5' },
-                { key: 'student', label: 'Estudante', price: 22.50, prefix: '', emoji: '🎓', badge: '50% OFF', color: 'bg-sun/5 border-sun/10' },
-                { key: 'teacher', label: 'Professor', price: 22.50, prefix: '', emoji: '📚', badge: '50% OFF', color: 'bg-green-600/5 border-green-600/10' },
-                { key: 'server', label: 'Servidor', price: 22.50, prefix: '', emoji: '🏛️', badge: '50% OFF', color: 'bg-primary/5 border-primary/10' },
+                { key: 'student', label: 'Estudante', price: 22.50, prefix: 'a partir de', emoji: '🎓', badge: '50% OFF', color: 'bg-sun/5 border-sun/10' },
+                { key: 'teacher', label: 'Professor', price: 22.50, prefix: 'a partir de', emoji: '📚', badge: '50% OFF', color: 'bg-green-600/5 border-green-600/10' },
+                { key: 'server', label: 'Servidor', price: 22.50, prefix: 'a partir de', emoji: '🏛️', badge: '50% OFF', color: 'bg-primary/5 border-primary/10' },
               ].map((item) => (
                 <div key={item.key} className={`flex items-center p-3 sm:p-4 rounded-2xl border shadow-sm transition-colors gap-3 ${item.color}`}>
                   {/* Icon */}
@@ -230,13 +230,13 @@ export function LessaClubSimulator() {
               <h4 className="font-black uppercase tracking-widest text-[10px] text-muted-foreground mb-3 px-2">Gratuidades (Acesso Livre)</h4>
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { key: 'child', label: 'Crianças (até 11 anos)', emoji: '👶', color: 'bg-blue-50/50 border-blue-100/50' },
-                  { key: 'senior', label: 'Idosos (60+ anos)', emoji: '🧓', color: 'bg-purple-50/50 border-purple-100/50' },
+                  { key: 'child', label: 'Crianças\n(até 11 anos)', emoji: '👶', color: 'bg-blue-50/50 border-blue-100/50' },
+                  { key: 'senior', label: 'Idosos\n(60+ anos)', emoji: '🧓', color: 'bg-purple-50/50 border-purple-100/50' },
                   { key: 'pcd', label: 'PCD & TEA', emoji: '♿', color: 'bg-teal-50/50 border-teal-100/50' },
                 ].map((item) => (
                   <div key={item.key} className={`flex flex-col items-center gap-2 p-2 rounded-xl border text-center ${item.color}`}>
                     <span className="text-xl">{item.emoji}</span>
-                    <span className="font-bold text-[10px] text-foreground/80 leading-tight">{item.label}</span>
+                    <span className="font-bold text-[10px] text-foreground/80 leading-tight whitespace-pre-line mt-1">{item.label}</span>
                     <QuantityStepper
                       value={quantities[item.key as keyof typeof quantities]}
                       onChange={(val) => setQuantities(prev => ({ ...prev, [item.key]: val }))}
