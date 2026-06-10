@@ -120,7 +120,7 @@ export const syncKiosksForOrder = async (orderId: string) => {
     }
 
     // Only sync if order status is paid/confirmed/checked-in/completed
-    const isValidStatus = ['paid', 'confirmed', 'checked-in', 'completed'].includes(order.status?.toLowerCase());
+    const isValidStatus = ['paid', 'pago', 'confirmed', 'checked-in', 'completed', 'pending', 'pendente', 'awaiting_payment', 'waiting_local', 'waiting_confirmation'].includes(order.status?.toLowerCase());
     
     // 2. Fetch all kiosk order items for this order
     const { data: orderItems, error: itemsErr } = await supabase
@@ -271,7 +271,7 @@ export const syncQuadsForOrder = async (orderId: string) => {
       return;
     }
 
-    const isValidStatus = ['paid', 'confirmed', 'checked-in', 'completed'].includes(order.status?.toLowerCase());
+    const isValidStatus = ['paid', 'pago', 'confirmed', 'checked-in', 'completed', 'pending', 'pendente', 'awaiting_payment', 'waiting_local', 'waiting_confirmation'].includes(order.status?.toLowerCase());
     
     const { data: orderItems, error: itemsErr } = await supabase
       .from('order_items')
@@ -1000,7 +1000,6 @@ export default function Admin() {
             if (orderItemId) {
               await supabase.from('order_items').update({ 
                 unit_price: unitPrice, 
-                quantity: finalQty, 
                 product_id: `Quadriciclo ${QUAD_MODELS_LABELS[finalModel as keyof typeof QUAD_MODELS_LABELS] || 'Individual'}`,
                 metadata: { time: finalTime, time_slot: finalTime } 
               }).eq('id', orderItemId);
@@ -1014,7 +1013,6 @@ export default function Admin() {
               if (quadItem) {
                 await supabase.from('order_items').update({ 
                   unit_price: unitPrice, 
-                  quantity: finalQty,
                   product_id: `Quadriciclo ${QUAD_MODELS_LABELS[finalModel as keyof typeof QUAD_MODELS_LABELS] || 'Individual'}`,
                   metadata: { time: finalTime, time_slot: finalTime } 
                 }).eq('id', quadItem.id);
@@ -1051,8 +1049,6 @@ export default function Admin() {
       if (type === 'kiosk' && isRealOrder) {
         // Run our robust sync helper
         await syncKiosksForOrder(orderId);
-      } else if (type === 'quad' && isRealOrder) {
-        await syncQuadsForOrder(orderId);
       } else {
         // Se for uma reserva virtual extraída de um pedido, precisa virar real no banco
         if (typeof editingId === 'string' && editingId.startsWith('order-')) {
