@@ -348,12 +348,13 @@ export function VoucherShareDialog({
                                      {((item.product_id || '').toLowerCase().includes('quad') || (item.product_name || '').toLowerCase().includes('quad')) && (
                                         <span style={{ display: 'inline-block', marginTop: '2px', color: '#064e3b', fontWeight: 900, fontSize: '9px', backgroundColor: 'rgba(250, 204, 21, 0.1)', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(250, 204, 21, 0.2)' }}>
                                            {(item.metadata?.time_slot || 
-                                            (booking.quad_reservations?.find((q: any) => 
-                                              (q.quad_type || q.type || '').toUpperCase() === (item.product_id || '').toUpperCase() || 
-                                              (item.product_id || '').toUpperCase().includes((q.quad_type || q.type || '').toUpperCase()) ||
-                                              (item.product_name || '').toUpperCase().includes((q.quad_type || q.type || '').toUpperCase())
-                                            )?.time_slot) || 
-                                            (booking.quad_reservations?.[0]?.time_slot) || '')}
+                                          item.metadata?.time ||
+                                          (booking.quad_reservations?.find((q: any) => 
+                                            (q.quad_type || q.type || '').toUpperCase() === (item.product_id || '').toUpperCase() || 
+                                            (item.product_id || '').toUpperCase().includes((q.quad_type || q.type || '').toUpperCase()) ||
+                                            (item.product_name || '').toUpperCase().includes((q.quad_type || q.type || '').toUpperCase())
+                                          )?.time_slot) || 
+                                          (booking.quad_reservations?.[0]?.time_slot) || '')}
                                         </span>
                                      )}
                                   </div>

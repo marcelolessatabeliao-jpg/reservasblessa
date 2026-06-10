@@ -338,7 +338,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                 )}
                 onClick={() => {
                    setWizardData({ ...wizardData, category: 'balcao' });
-                   handleFinishWizard('balcao', false);
+                   setWizardStep(8);
                 }}
               >
                 <div className="flex flex-col items-center gap-1.5 relative z-10 text-center">
@@ -655,6 +655,43 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
             </div>
             <div className="bg-blue-50 border border-blue-200 rounded-2xl px-4 py-3 text-[10px] text-blue-900 font-bold leading-snug mt-2">
               ⚠️ <span className="font-black text-blue-950">Importante:</span> Por precaução, leve um documento com foto (RG ou CNH) para comprovar a idade se solicitado.
+            </div>
+          </motion.div>
+        );
+      }
+
+      case 8: {
+        return (
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-5 py-4 text-center">
+            <div className="bg-slate-50 p-6 rounded-3xl border-2 border-slate-200 flex flex-col items-center gap-4">
+              <span className="text-5xl">💵</span>
+              <div>
+                <h4 className="text-xl font-black text-slate-800">Pagamento no Balcão</h4>
+              </div>
+              <div className="bg-slate-100/80 border border-slate-300 rounded-2xl px-5 py-4 text-xs text-slate-900 font-bold leading-relaxed text-left w-full shadow-sm">
+                <div className="flex items-center gap-2 mb-2 text-slate-800">
+                  <span className="text-sm">⚠️</span>
+                  <span className="font-black uppercase tracking-tight">Atenção:</span>
+                </div>
+                <p className="ml-1">
+                  Apenas a entrada é paga no balcão ao escolher essa opção, mas os demais itens devem ser pagos ao final da reserva (neste site) para a reserva ser efetivada.
+                </p>
+              </div>
+            </div>
+            <div className="space-y-3">
+              <Button
+                className="w-full h-14 rounded-2xl bg-[#006020] text-white font-black text-base hover:bg-[#004d1a] transition-all shadow-lg"
+                onClick={() => handleFinishWizard('balcao')}
+              >
+                ✅ Entendido — Adicionar
+              </Button>
+              <Button
+                variant="ghost"
+                className="w-full text-xs font-black uppercase text-muted-foreground hover:text-primary hover:bg-primary/5 hover:underline transition-all"
+                onClick={() => setWizardStep(3)}
+              >
+                ← Voltar
+              </Button>
             </div>
           </motion.div>
         );
@@ -1173,7 +1210,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                       'Já deixe suas entradas pagas'}
               </DialogTitle>
             </div>
-            {wizardType === 'adult' && (
+            {wizardType === 'adult' && wizardStep === 3 && (
               <div className="mx-1 mt-2 mb-0 bg-blue-50 border border-blue-200 rounded-2xl px-4 py-3 flex items-start gap-2.5">
                 <span className="text-base shrink-0 mt-0.5">💡</span>
                 <p className="text-[11px] text-blue-800 font-semibold leading-relaxed">

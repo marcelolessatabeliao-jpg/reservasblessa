@@ -194,7 +194,8 @@ export async function getAdminOrders() {
       *,
       order_items (*),
       vouchers (*),
-      payments (*)
+      payments (*),
+      quad_reservations (*)
     `)
     .order('created_at', { ascending: false });
 

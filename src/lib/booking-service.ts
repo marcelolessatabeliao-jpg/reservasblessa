@@ -145,7 +145,7 @@ export async function saveBooking(
             product_id: `Quadriciclo ${labelMap[q.type]}`,
             quantity: q.quantity, 
             unit_price: baseMap[q.type] || 0,
-            metadata: { time: q.time } 
+            metadata: { time_slot: q.time, time: q.time } 
           });
         });
 

@@ -33,7 +33,7 @@ const services = [
   {
     title: 'Futebol de Sabão',
     description: 'Diversão garantida para grupos por 30 minutos! Mínimo de 6 pessoas por partida.',
-    price: 'R$ 10/pessoa (30 min)',
+    price: 'R$ 20/pessoa (30 min)',
     image: '/images/futebol-sabao-novo.jpg',
   },
   {

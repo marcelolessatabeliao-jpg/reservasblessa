@@ -63,9 +63,11 @@ export function AdditionalSelector({ additionals, onUpdate }: Props) {
               <div className="mt-4 bg-destructive/5 border border-destructive/20 p-3 rounded-xl">
                 <p className="text-[10px] sm:text-xs text-muted-foreground leading-relaxed">
                   <strong className="text-destructive">⚠️ Observação:</strong><br />
-                  Taxa por molinete do cliente.<br />
+                  Taxa por cada vara do cliente.<br />
                   Equipamentos por conta do cliente (não alugamos/vendemos).<br />
-                  Permitido linha 0.50/0.60 sem filamento e anzol sem fisga.
+                  Permitido linha 0.50/0.60 sem filamento e anzol sem fisga.<br />
+                  Proibido uso de iscas artificiais.<br />
+                  Peixes: Tambaqui, pirarara, pintado, tucunaré
                 </p>
               </div>
             )}
@@ -75,7 +77,7 @@ export function AdditionalSelector({ additionals, onUpdate }: Props) {
                 <p className="text-[10px] sm:text-xs text-muted-foreground leading-relaxed">
                   <span className="font-bold text-primary">Máximo de 4 pessoas por partida.</span><br /><br />
                   <strong className="text-primary">💡 Recomendação:</strong><br />
-                  Recomendado times de até 2 pessoas para cada time.
+                  Recomendado 2 pessoas adultas para cada time ou 3 crianças para cada time.
                 </p>
               </div>
             )}
