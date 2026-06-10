@@ -32,7 +32,7 @@ import {
   Calendar as CalendarIcon,
   RotateCcw,
   Wallet,
-  RefreshCw, Share2,
+  RefreshCw, Share2, Tent, Bike
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -1046,14 +1046,35 @@ export function BookingTable({
                         </div>
                       </td>
                       <td className="p-5 text-center">
-                        <div className="inline-flex flex-col items-center justify-center bg-emerald-50 border-2 border-emerald-300 w-20 h-20 rounded-2xl shadow-sm group-hover:border-emerald-500 group-hover:scale-105 transition-all">
-                          <Users className="w-5 h-5 text-emerald-700 mb-1" />
-                          <span className="text-3xl font-black text-emerald-950 leading-none">
-                            {totalPeople}
-                          </span>
-                          <span className="text-[8px] font-black text-emerald-700 uppercase tracking-widest mt-1">
-                            Pessoas
-                          </span>
+                        <div className="flex flex-col items-center justify-center gap-2">
+                          <div className="inline-flex flex-col items-center justify-center bg-emerald-50 border-2 border-emerald-300 w-20 h-20 rounded-2xl shadow-sm group-hover:border-emerald-500 group-hover:scale-105 transition-all">
+                            <Users className="w-5 h-5 text-emerald-700 mb-1" />
+                            <span className="text-3xl font-black text-emerald-950 leading-none">
+                              {totalPeople}
+                            </span>
+                            <span className="text-[8px] font-black text-emerald-700 uppercase tracking-widest mt-1">
+                              Pessoas
+                            </span>
+                          </div>
+                          
+                          <div className="flex items-center gap-1.5 justify-center flex-wrap max-w-[80px]">
+                            {booking.order_items?.some(i => {
+                               const n = (i.product_name || '').toLowerCase();
+                               return n.includes('quiosque') || n.includes('camping');
+                            }) && (
+                              <div className="bg-emerald-100 text-emerald-700 p-1.5 rounded-md border border-emerald-200" title="Possui Quiosque/Camping">
+                                <Tent className="w-3 h-3" />
+                              </div>
+                            )}
+                            {booking.order_items?.some(i => {
+                               const n = (i.product_name || '').toLowerCase();
+                               return n.includes('quad') || n.includes('passeio');
+                            }) && (
+                              <div className="bg-blue-100 text-blue-700 p-1.5 rounded-md border border-blue-200" title="Possui Quadriciclo">
+                                <Bike className="w-3 h-3" />
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </td>
                       <td className="p-5 text-right">

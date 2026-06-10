@@ -27,6 +27,7 @@ interface AdminDashboardTabProps {
   isAllowedDay: (date: Date) => boolean;
   isHoliday: (date: Date) => boolean;
   totalQuads?: number;
+  onBookingClick?: (id: string) => void;
 }
 
 export function AdminDashboardTab({
@@ -38,7 +39,8 @@ export function AdminDashboardTab({
   orders,
   isAllowedDay,
   isHoliday,
-  totalQuads = 3
+  totalQuads = 3,
+  onBookingClick
 }: AdminDashboardTabProps) {
   
   const matchDate = (d1: any, d2: any) => {
@@ -173,16 +175,22 @@ export function AdminDashboardTab({
                            }
                          });
                          
-                         console.log('[Dashboard] dayKiosks:', dayKiosks.length, dayKiosks.map(d => ({ id: d.id, kiosk_id: d.kiosk_id, name: d.customer_name })));
-                         console.log('[Dashboard] kioskMap:', Object.entries(kioskMap).map(([k,v]) => ({ slot: k, name: (v as any)?.customer_name })));
-                         
                          return KIOSKS.map(k => {
                            const booking = kioskMap[k.id] || null;
                          
-                           return (
-                             <div key={k.id} className={cn(
-                               "rounded-xl p-3 shadow-sm border transition-all cursor-default flex items-center justify-between group",
-                               booking 
+                            return (
+                              <div 
+                               key={k.id} 
+                               onClick={() => {
+                                 if (booking && onBookingClick) {
+                                   const id = booking.order_id || booking.id.split('-')[0];
+                                   onBookingClick(id);
+                                 }
+                               }}
+                               className={cn(
+                                "rounded-xl p-3 shadow-sm border transition-all flex items-center justify-between group",
+                                booking && onBookingClick ? "cursor-pointer" : "cursor-default",
+                                booking 
                                  ? booking.status === 'checked-in' || booking.is_redeemed
                                    ? "bg-emerald-100 border-emerald-300 ring-2 ring-emerald-500/20"
                                    : "bg-white border-emerald-200 hover:bg-emerald-800"
@@ -254,13 +262,21 @@ export function AdminDashboardTab({
                                            const typeLabel = type === 'dupla' ? 'Dupla' : (type === 'adulto-crianca' ? 'Kids' : 'Indiv.');
                                            const isRed = curr.is_redeemed || curr.status === 'checked-in';
                                            const key = `${name}_${type}`;
-                                           if (!acc[key]) acc[key] = { name, quantity: 0, typeLabel, isRedeemed: isRed };
+                                           if (!acc[key]) acc[key] = { name, quantity: 0, typeLabel, isRedeemed: isRed, orderId: curr.order_id || curr.id.split('-')[0] };
                                            acc[key].quantity += (Number(curr.quantity) || 1);
                                            acc[key].isRedeemed = acc[key].isRedeemed || isRed;
                                            return acc;
                                         }, {} as any)).map((b: any, bi) => (
-                                          <div key={bi} className={cn(
-                                            "p-2 rounded-lg border flex items-center justify-between shadow-sm group transition-all cursor-default",
+                                          <div 
+                                            key={bi} 
+                                            onClick={() => {
+                                              if (onBookingClick && b.orderId) {
+                                                onBookingClick(b.orderId);
+                                              }
+                                            }}
+                                            className={cn(
+                                            "p-2 rounded-lg border flex items-center justify-between shadow-sm group transition-all",
+                                            onBookingClick ? "cursor-pointer" : "cursor-default",
                                             b.isRedeemed ? "bg-emerald-100 border-emerald-300 ring-2 ring-emerald-500/20" : "bg-white/80 border-blue-100 hover:bg-blue-600"
                                           )}>
                                              <div className="flex items-center gap-2 flex-1 min-w-0">

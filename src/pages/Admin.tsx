@@ -1592,6 +1592,10 @@ export default function Admin() {
         isAllowedDay={isAllowedDay}
         isHoliday={isHoliday}
         totalQuads={totalQuads}
+        onBookingClick={(id) => {
+          setSearch(id);
+          setActiveTab('reservas');
+        }}
       />
     );
   };
