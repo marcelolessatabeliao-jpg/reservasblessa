@@ -674,7 +674,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                   <span className="font-black uppercase tracking-tight">Atenção:</span>
                 </div>
                 <p className="ml-1">
-                  Apenas a entrada é paga no balcão ao escolher essa opção, mas os demais itens devem ser pagos ao final da reserva (neste site) para a reserva ser efetivada.
+                  Lembre-se: esta opção permite pagar apenas o valor da entrada presencialmente. Quaisquer outros serviços adicionados (como Quiosques ou Quadriciclos) deverão ser pagos antecipadamente pelo site para que sua reserva seja efetivada.
                 </p>
               </div>
             </div>
