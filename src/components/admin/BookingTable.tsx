@@ -1059,7 +1059,7 @@ export function BookingTable({
                           
                           <div className="flex items-center gap-1.5 justify-center flex-wrap max-w-[80px]">
                             {booking.order_items?.some(i => {
-                               const n = (i.product_name || '').toLowerCase();
+                               const n = ((i.product_name || '') + ' ' + (i.product_id || '')).toLowerCase();
                                return n.includes('quiosque') || n.includes('camping');
                             }) && (
                               <div className="bg-emerald-100 text-emerald-700 p-1.5 rounded-md border border-emerald-200" title="Possui Quiosque/Camping">
@@ -1067,7 +1067,7 @@ export function BookingTable({
                               </div>
                             )}
                             {booking.order_items?.some(i => {
-                               const n = (i.product_name || '').toLowerCase();
+                               const n = ((i.product_name || '') + ' ' + (i.product_id || '')).toLowerCase();
                                return n.includes('quad') || n.includes('passeio');
                             }) && (
                               <div className="bg-blue-100 text-blue-700 p-1.5 rounded-md border border-blue-200" title="Possui Quadriciclo">
