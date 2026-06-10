@@ -452,7 +452,7 @@ export function AddItemsToBookingDialog({
              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {[
                   { id: 'pesca', label: 'Pesca Esportiva', price: 20 },
-                  { id: 'futebol-sabao', label: 'Futebol de Sabão', price: 20 }
+                  { id: 'futebol-sabao', label: 'Futebol de Sabão', price: 10 }
                 ].map(service => {
                    const item = newData.additionals.find(a => a.type === service.id);
                    const qty = item ? item.quantity : 0;
