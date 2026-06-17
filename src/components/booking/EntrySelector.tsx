@@ -794,8 +794,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                     disabled={(d) => {
                       const today = new Date();
                       today.setHours(0, 0, 0, 0);
-                      const dStr = format(d, 'yyyy-MM-dd');
-                      return d < today || !isOperatingDay(d) || blockedDates.includes(dStr);
+                      return d < today || !isOperatingDay(d);
                     }}
                     className="p-3 pointer-events-auto"
                     locale={ptBR}
