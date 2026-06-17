@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { format, isToday, parseISO, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { 
@@ -14,8 +14,10 @@ import {
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Calendar } from '@/components/ui/calendar';
+import { Button } from '@/components/ui/button';
 import { cn } from "@/lib/utils";
 import { KIOSKS } from '@/lib/admin-constants';
+import { getGlobalSetting, updateGlobalSetting } from '@/lib/booking-service';
 
 interface AdminDashboardTabProps {
   targetDate: Date;
@@ -42,6 +44,32 @@ export function AdminDashboardTab({
   totalQuads = 3,
   onBookingClick
 }: AdminDashboardTabProps) {
+  const [blockedDates, setBlockedDates] = useState<string[]>([]);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+
+  const targetDateStr = format(targetDate, 'yyyy-MM-dd');
+  const isClosed = blockedDates.includes(targetDateStr);
+
+  useEffect(() => {
+    getGlobalSetting('blocked_dates', []).then(val => {
+      if (Array.isArray(val)) setBlockedDates(val);
+    });
+  }, []);
+
+  const toggleIsClosed = async () => {
+    setIsUpdatingStatus(true);
+    let newBlockedDates = [...blockedDates];
+    
+    if (isClosed) {
+      newBlockedDates = newBlockedDates.filter(d => d !== targetDateStr);
+    } else {
+      newBlockedDates.push(targetDateStr);
+    }
+    
+    await updateGlobalSetting('blocked_dates', newBlockedDates);
+    setBlockedDates(newBlockedDates);
+    setIsUpdatingStatus(false);
+  };
   
   const matchDate = (d1: any, d2: any) => {
     if (!d1 || !d2) return false;
@@ -137,6 +165,16 @@ export function AdminDashboardTab({
                   <div className="flex items-center gap-2 md:ml-4">
                     <HelpCircle className="w-4 h-4 text-amber-800 opacity-50" />
                     <h4 className="font-black text-amber-950 text-lg md:text-xl tracking-tight">Resumo de {format(targetDate, "dd 'de' MMMM", { locale: ptBR })}</h4>
+                  </div>
+                  <div className="flex-1 flex justify-end">
+                    <Button 
+                      variant={isClosed ? "destructive" : "default"}
+                      disabled={isUpdatingStatus}
+                      onClick={toggleIsClosed}
+                      className="font-black shadow-lg"
+                    >
+                      {isClosed ? "Balneário Fechado (Reabrir)" : "Fechar Balneário (Bloquear Reservas)"}
+                    </Button>
                   </div>
                </div>
                <div className="grid grid-cols-1 xl:grid-cols-2">
@@ -408,19 +446,19 @@ export function AdminDashboardTab({
                     }).reduce((s, r) => s + (Number(r.quantity) || 1), 0) >= (totalQuads * 4);
                     const isDayToday = isToday(date);
                     const isFull = kiosksFull && quadsFull;
-                    const isClosed = !isAllowedDay(date);
+                    const isClosedDay = !isAllowedDay(date) || blockedDates.includes(dateStr);
 
                     return (
                       <div className={cn(
                         "relative flex flex-col items-center rounded-full w-full h-full justify-center transition-all", 
                         isFull && !isSelected && "bg-red-50/50 border border-red-100",
-                        isClosed && !isSelected && "opacity-25 grayscale-[0.5]"
+                        isClosedDay && !isSelected && "opacity-25 grayscale-[0.5]"
                       )}>
                         <span className={cn(
                           "font-black",
                           isSelected ? "text-white" : isDayToday ? "text-emerald-950" : "",
                           isFull && !isSelected && "text-red-600",
-                          isClosed && !isSelected && "text-emerald-900/40"
+                          isClosedDay && !isSelected && "text-emerald-900/40"
                         )}>{date.getDate()}</span>
                         <div className="flex gap-0.5 mt-0.5">
                           {hasKiosk && <div className={cn("w-1 h-1 sm:w-1.5 sm:h-1.5 md:w-2 md:h-2 rounded-full shadow-md border border-white/40", kiosksFull ? "bg-red-600" : "bg-emerald-600")} />}

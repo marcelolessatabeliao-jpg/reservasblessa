@@ -66,12 +66,13 @@ interface Props {
   onUpdateChild: (index: number, updates: Partial<ChildInfo>) => void;
   hideMainInfo?: boolean;
   hideTitle?: boolean;
+  blockedDates?: string[];
 }
 
 type WizardType = 'adult' | 'child' | 'senior' | 'pcd' | null;
 type WizardStep = 1 | 2 | 3 | 4;
 
-export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChild, onUpdateAdult, onUpdateChild, hideMainInfo, hideTitle }: Props) {
+export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChild, onUpdateAdult, onUpdateChild, hideMainInfo, hideTitle, blockedDates = [] }: Props) {
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [wizardType, setWizardType] = useState<WizardType>(null);
@@ -793,7 +794,8 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                     disabled={(d) => {
                       const today = new Date();
                       today.setHours(0, 0, 0, 0);
-                      return d < today || !isOperatingDay(d);
+                      const dStr = format(d, 'yyyy-MM-dd');
+                      return d < today || !isOperatingDay(d) || blockedDates.includes(dStr);
                     }}
                     className="p-3 pointer-events-auto"
                     locale={ptBR}

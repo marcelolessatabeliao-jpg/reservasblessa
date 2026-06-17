@@ -7,6 +7,7 @@ import { QuadSelector } from '@/components/booking/QuadSelector';
 import { AdditionalSelector } from '@/components/booking/AdditionalSelector';
 import { BookingOverview } from '@/components/booking/BookingOverview';
 import { formatCurrency, isOperatingDay } from '@/lib/booking-types';
+import { getGlobalSetting } from '@/lib/booking-service';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { 
@@ -19,7 +20,8 @@ import {
   ArrowRight, 
   CheckCircle2, 
   ArrowLeft,
-  Sparkles
+  Sparkles,
+  AlertTriangle
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -51,6 +53,7 @@ export function BookingSection() {
   const [completedSteps, setCompletedSteps] = useState<Step[]>([]);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [confirmationCode, setConfirmationCode] = useState<string | null>(null);
+  const [blockedDates, setBlockedDates] = useState<string[]>([]);
   const isFirstMount = useRef(true);
   const searchParams = new URLSearchParams(window.location.search);
 
@@ -130,7 +133,14 @@ export function BookingSection() {
     return () => window.removeEventListener('changeBookingTab', handleTabChange);
   }, []);
 
+  useEffect(() => {
+    getGlobalSetting('blocked_dates', []).then(val => {
+      if (Array.isArray(val)) setBlockedDates(val);
+    });
+  }, []);
+
   const isStepDone = (step: Step) => completedSteps.includes(step);
+  const isSelectedDateBlocked = booking.entry.visitDate && blockedDates.includes(format(booking.entry.visitDate, 'yyyy-MM-dd'));
 
   return (
     <section id="reservas" className="relative pt-6 pb-12 sm:pt-32 sm:pb-28 bg-transparent min-h-screen">
@@ -156,8 +166,31 @@ export function BookingSection() {
 
           {/* Step Content */}
           <div id="reservas-content" className="bg-transparent sm:bg-white rounded-none sm:rounded-[2.5rem] p-0 sm:p-10 min-h-[400px]">
-            <AnimatePresence mode="wait">
-              {currentStep === 'dados' && (
+            {isSelectedDateBlocked ? (
+              <div className="flex flex-col items-center justify-center p-12 text-center bg-white sm:bg-transparent rounded-[2.5rem] space-y-6">
+                <AlertTriangle className="h-20 w-20 text-red-500 opacity-80" />
+                <h3 className="text-3xl font-black text-emerald-950">Data Indisponível</h3>
+                <p className="text-lg text-emerald-800 font-medium max-w-lg">
+                  O balneário não estará recebendo novas reservas para a data selecionada ({format(booking.entry.visitDate!, 'dd/MM/yyyy')}). Por favor, escolha outra data.
+                </p>
+                <Button
+                  onClick={() => updateEntry({ visitDate: null })}
+                  className="mt-4 h-16 px-8 rounded-2xl bg-emerald-600 text-white hover:bg-emerald-700 font-bold text-lg"
+                >
+                  <CalendarIcon className="mr-2 h-5 w-5" />
+                  Escolher Outra Data
+                </Button>
+                <a
+                  href="/consultar"
+                  className="mt-2 inline-flex items-center justify-center gap-2 font-bold h-12 px-8 rounded-2xl border-2 border-primary/30 text-primary hover:bg-primary/5 transition-all text-base bg-white"
+                >
+                  <ClipboardList className="h-5 w-5" />
+                  Consultar Reserva Existente
+                </a>
+              </div>
+            ) : (
+              <AnimatePresence mode="wait">
+                {currentStep === 'dados' && (
                 <motion.div
                   key="dados"
                   initial={{ opacity: 0, y: 10 }}
@@ -174,6 +207,7 @@ export function BookingSection() {
                     onUpdateChild={updateChild}
                     hideMainInfo={false}
                     hideTitle={true}
+                    blockedDates={blockedDates}
                   />
 
                   <div className="pt-6 flex flex-col sm:flex-row justify-center items-center gap-3 px-4">
@@ -383,6 +417,7 @@ export function BookingSection() {
                 </motion.div>
               )}
             </AnimatePresence>
+            )}
           </div>
           
           <p className="text-center mt-8 text-xs text-muted-foreground font-medium flex items-center justify-center gap-2">
