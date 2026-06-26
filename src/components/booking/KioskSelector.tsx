@@ -322,7 +322,7 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
                 ⛺ Quiosques Familiares — Até 5 pessoas
               </span>
             </div>
-            <div className="grid grid-cols-4 gap-2 sm:gap-3">
+            <div className="flex overflow-x-auto gap-2 sm:gap-3 pb-3 snap-x scroll-smooth">
               {KIOSK_MAP.filter(k => k.row === 'familiar').map(kioskDef => {
                 const isBooked = bookedIds.includes(kioskDef.id);
                 const isSelected = allSelectedIds.includes(kioskDef.id);
@@ -334,8 +334,8 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
                     onClick={() => handleToggleKiosk(kioskDef)}
                     disabled={isBooked && !isSelected}
                     className={cn(
-                      "relative flex flex-col items-center justify-center p-3 sm:p-4 rounded-2xl border-2 transition-all duration-300 cursor-pointer group",
-                      "min-h-[100px] sm:min-h-[110px]",
+                      "relative flex flex-col items-center justify-center p-2 sm:p-4 rounded-2xl border-2 transition-all duration-300 cursor-pointer group shrink-0 snap-center",
+                      "min-w-[90px] sm:min-w-0 sm:flex-1 min-h-[100px] sm:min-h-[110px]",
                       isBooked && !isSelected && "bg-gray-100 border-gray-400 opacity-60 cursor-not-allowed",
                       isSelected && "bg-teal-600 border-teal-700 text-white shadow-lg shadow-teal-600/40 scale-[1.02]",
                       !isBooked && !isSelected && "bg-teal-50/80 border-teal-400/50 hover:border-teal-500 hover:bg-teal-100 hover:shadow-md hover:scale-[1.03] active:scale-[0.98]",
