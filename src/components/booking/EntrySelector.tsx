@@ -852,21 +852,21 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                         {isFetchingKiosks && <Loader2 className="h-4 w-4 animate-spin text-emerald-600" />}
                      </div>
 
-                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                     <div className="grid grid-cols-4 gap-2 mb-3">
                         {KIOSK_MAP.filter(k => k.row === 'top').map(k => {
                           const isBooked = bookedKioskIds.includes(k.id);
                           return (
                             <div key={k.id} className={cn(
-                              "aspect-square rounded-[1.75rem] border-2 flex flex-col items-center justify-center gap-1 transition-all duration-300 shadow-sm",
+                              "h-12 sm:h-14 rounded-xl border flex flex-col items-center justify-center gap-0.5 transition-all duration-300 shadow-sm",
                               isBooked 
                                 ? "bg-rose-50 border-rose-200 text-rose-300 opacity-80" 
-                                : "bg-white border-emerald-500 hover:border-amber-500 hover:shadow-md text-emerald-700 hover:-translate-y-1"
+                                : "bg-white border-emerald-500 hover:border-amber-500 hover:shadow-md text-emerald-700 hover:-translate-y-0.5"
                             )}>
-                              <span className={cn("text-xl font-black", isBooked ? "text-rose-400/50" : "text-emerald-950")}>
+                              <span className={cn("text-sm sm:text-base font-black", isBooked ? "text-rose-400/50" : "text-emerald-950")}>
                                 {String(k.id).padStart(2, '0')}
                               </span>
                               <span className={cn(
-                                "text-[9px] font-black uppercase tracking-tighter",
+                                "text-[7px] sm:text-[8px] font-black uppercase tracking-tighter",
                                 isBooked ? "text-rose-400" : "text-emerald-600"
                               )}>
                                 {isBooked ? 'Ocupado' : 'Livre'}
@@ -880,25 +880,25 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                         const isBooked = bookedKioskIds.includes(k.id);
                         return (
                           <div key={k.id} className={cn(
-                            "w-full h-auto sm:h-20 py-4 sm:py-0 rounded-3xl border-2 flex flex-col sm:flex-row items-center justify-between px-6 sm:px-8 gap-4 transition-all duration-300",
+                            "w-full py-1.5 px-3 rounded-xl border flex items-center justify-between gap-2 transition-all duration-300 mt-2",
                             isBooked 
                               ? "bg-rose-50 border-rose-200 text-rose-300 opacity-80" 
-                              : "bg-white border-emerald-500 hover:border-amber-500 hover:shadow-md text-emerald-700 hover:-translate-y-1"
+                              : "bg-white border-emerald-500 hover:border-amber-500 hover:shadow-md text-emerald-700 hover:-translate-y-0.5"
                           )}>
-                             <div className="flex items-center gap-4">
+                             <div className="flex items-center gap-2">
                                <div className={cn(
-                                 "w-12 h-12 rounded-2xl flex items-center justify-center font-black text-2xl",
+                                 "w-8 h-8 rounded-lg flex items-center justify-center font-black text-base",
                                  isBooked ? "bg-rose-100 text-rose-400" : "bg-emerald-100 text-emerald-900"
                                )}>
                                  {String(k.id).padStart(2, '0')}
-                               </div>
-                               <div className="flex flex-col">
-                                 <span className={cn("text-[11px] font-black uppercase tracking-widest", isBooked ? "text-rose-400" : "text-emerald-900")}>Quiosque Maior</span>
-                                 <span className="text-[9px] font-bold text-slate-400 uppercase">Capacidade: 20-25 pessoas</span>
-                               </div>
+                                </div>
+                                <div className="flex flex-col">
+                                  <span className={cn("text-[9px] sm:text-[10px] font-black uppercase tracking-wider", isBooked ? "text-rose-400" : "text-emerald-900")}>Quiosque Maior</span>
+                                  <span className="text-[7px] sm:text-[8px] font-bold text-slate-400 uppercase">Capacidade: 20-25 pessoas</span>
+                                </div>
                              </div>
                              <Badge variant="outline" className={cn(
-                               "font-black text-[10px] uppercase tracking-widest border-2 px-4 py-1 rounded-full",
+                               "font-black text-[7px] sm:text-[8px] uppercase tracking-wider border px-2 py-0.5 rounded-full",
                                isBooked ? "bg-rose-100 border-rose-300 text-rose-700" : "bg-emerald-100 border-emerald-300 text-emerald-700"
                              )}>
                                {isBooked ? 'Ocupado' : 'Livre'}
@@ -909,26 +909,26 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                    </div>
 
                    {/* Quiosques Familiares */}
-                   <div className="pt-4 border-t border-emerald-100 mt-4">
-                      <span className="text-[10px] font-black text-teal-700/80 uppercase tracking-widest mb-3 block">⛺ Quiosques Familiares — Até 5 pessoas</span>
-                      <div className="flex overflow-x-auto gap-2 sm:gap-3 pb-3 snap-x scroll-smooth custom-scrollbar">
+                   <div className="pt-3 border-t border-emerald-100">
+                      <span className="text-[9px] font-black text-teal-700/80 uppercase tracking-widest mb-2 block">⛺ Quiosques Familiares — Até 5 pessoas</span>
+                      <div className="flex overflow-x-auto gap-2 pb-2 snap-x scroll-smooth custom-scrollbar">
                         {KIOSK_MAP.filter(k => k.row === 'familiar').map(k => {
                           const isBooked = bookedKioskIds.includes(k.id);
                           return (
                             <div key={k.id} className={cn(
-                              "relative flex flex-col items-center justify-center p-2 sm:p-4 rounded-2xl border-2 transition-all duration-300 shrink-0 snap-center min-w-[90px] sm:min-w-[110px] min-h-[100px] sm:min-h-[110px]",
+                              "relative flex flex-col items-center justify-center p-1.5 rounded-lg border transition-all duration-300 shrink-0 snap-center min-w-[55px] sm:min-w-[70px] min-h-[60px] sm:min-h-[75px]",
                               isBooked 
                                 ? "bg-rose-50 border-rose-200 text-rose-300 opacity-80" 
-                                : "bg-teal-50/80 border-teal-400/50 hover:border-teal-500 hover:shadow-md text-teal-700 hover:-translate-y-1"
+                                : "bg-teal-50/80 border-teal-400/50 hover:border-teal-500 hover:shadow-md text-teal-700 hover:-translate-y-0.5"
                             )}>
                                  <div className={cn(
-                                   "w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center font-black text-xl sm:text-2xl mb-2",
+                                   "w-7 h-7 sm:w-8 sm:h-8 rounded flex items-center justify-center font-black text-xs sm:text-sm mb-1",
                                    isBooked ? "bg-rose-100 text-rose-400" : "bg-teal-100 text-teal-900"
                                  )}>
                                    {String(k.id).padStart(2, '0')}
                                  </div>
                                <Badge variant="outline" className={cn(
-                                 "font-black text-[8px] uppercase tracking-tighter border-2 px-2 py-0.5 rounded-full mt-auto",
+                                 "font-black text-[7px] uppercase tracking-tighter border px-1.5 py-0.2 rounded-full mt-auto",
                                  isBooked ? "bg-rose-100 border-rose-300 text-rose-700" : "bg-teal-100 border-teal-300 text-teal-700"
                                )}>
                                  {isBooked ? 'Ocupado' : 'Livre'}
