@@ -946,7 +946,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                       </h4>
                       <ul className="list-disc pl-5 space-y-1">
                         <li><strong>Quiosques 01 ao 05:</strong> 1 tomada em cada, pia, grelha, churrasqueira, mesas e cadeiras.</li>
-                        <li><strong>Quiosques Familiares (06 ao 12):</strong> Sem tomada e pia. Incluem grelha, churrasqueira, mesas e cadeiras.</li>
+                        <li><strong>Quiosques Familiares (06 ao 12):</strong> Sem tomada e sem pia individual (possuem pia de uso coletivo próxima aos quiosques). Incluem grelha, churrasqueira, mesas e cadeiras.</li>
                         <li><strong>Carvão:</strong> Por conta do cliente.</li>
                       </ul>
                     </div>
