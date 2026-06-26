@@ -51,14 +51,18 @@ import { exportToExcel, exportToPDF, exportMultiSheetExcel } from '@/utils/expor
 
 // Constants from common types
 const KIOSKS = [
-  { id: 1, name: 'QUIOSQUE - 01 (Grande)', price: 100, capacity: 'Até 30 pessoas', type: 'Maior' },
-  { id: 2, name: 'QUIOSQUE - 02', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' },
-  { id: 3, name: 'QUIOSQUE - 03', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' },
-  { id: 4, name: 'QUIOSQUE - 04', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' },
-  { id: 5, name: 'QUIOSQUE - 05', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' },
-  { id: 6, name: 'QUIOSQUE - 06', price: 100, capacity: 'Até 15 pessoas', type: 'Maior', observation: 'área privilegiada ao lado da cachoeira do batistério' },
-  { id: 7, name: 'QUIOSQUE - 07', price: 100, capacity: 'Até 15 pessoas', type: 'Maior', observation: 'área privilegiada ao lado da cachoeira do batistério' },
-  { id: 8, name: 'QUIOSQUE - 08', price: 100, capacity: 'Até 15 pessoas', type: 'Maior', observation: 'área privilegiada ao lado da cachoeira do batistério' }
+  { id: 1,  name: 'QUIOSQUE - 01 (Grande)',  price: 150, capacity: 'Até 25 pessoas', type: 'Maior'    },
+  { id: 2,  name: 'QUIOSQUE - 02',           price: 100, capacity: 'Até 15 pessoas', type: 'Médio'    },
+  { id: 3,  name: 'QUIOSQUE - 03',           price: 100, capacity: 'Até 15 pessoas', type: 'Médio'    },
+  { id: 4,  name: 'QUIOSQUE - 04',           price: 100, capacity: 'Até 15 pessoas', type: 'Médio'    },
+  { id: 5,  name: 'QUIOSQUE - 05',           price: 100, capacity: 'Até 15 pessoas', type: 'Médio'    },
+  { id: 6,  name: 'QUIOSQUE - 06',           price: 75,  capacity: 'Até 5 pessoas',  type: 'Familiar' },
+  { id: 7,  name: 'QUIOSQUE - 07',           price: 75,  capacity: 'Até 5 pessoas',  type: 'Familiar' },
+  { id: 8,  name: 'QUIOSQUE - 08',           price: 75,  capacity: 'Até 5 pessoas',  type: 'Familiar' },
+  { id: 9,  name: 'QUIOSQUE - 09',           price: 75,  capacity: 'Até 5 pessoas',  type: 'Familiar' },
+  { id: 10, name: 'QUIOSQUE - 10',           price: 75,  capacity: 'Até 5 pessoas',  type: 'Familiar' },
+  { id: 11, name: 'QUIOSQUE - 11',           price: 75,  capacity: 'Até 5 pessoas',  type: 'Familiar' },
+  { id: 12, name: 'QUIOSQUE - 12',           price: 75,  capacity: 'Até 5 pessoas',  type: 'Familiar' },
 ];
 
 const QUAD_TIMES = ['09:00', '10:30', '14:00', '15:30'];
