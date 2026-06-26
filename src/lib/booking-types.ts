@@ -40,7 +40,7 @@ export interface EntryBooking {
   dayOfWeek: 'sexta' | 'sabado' | 'domingo' | 'segunda';
 }
 
-export type KioskType = 'menor' | 'maior';
+export type KioskType = 'menor' | 'maior' | 'familiar';
 export type QuadType = 'individual' | 'dupla' | 'adulto-crianca';
 export type QuadTime = '09:00' | '10:30' | '14:00' | '15:30';
 
@@ -76,8 +76,9 @@ export const ENTRY_PRICE = 49.90;
 export const ENTRY_HALF_PRICE = 25;
 
 export const KIOSK_INFO: Record<KioskType, { price: number; capacity: string; available: number; label: string }> = {
-  menor: { price: 75, capacity: 'Até 15 pessoas', available: 4, label: 'Quiosque Menor' },
-  maior: { price: 100, capacity: '20 a 25 pessoas', available: 4, label: 'Quiosque Maior' },
+  maior:    { price: 150, capacity: 'Até 25 pessoas',  available: 1, label: 'Quiosque Grande'   },
+  menor:    { price: 100, capacity: 'Até 15 pessoas',  available: 4, label: 'Quiosque Médio'    },
+  familiar: { price: 75,  capacity: 'Até 5 pessoas',   available: 6, label: 'Quiosque Familiar' },
 };
 
 export const QUAD_PRICES: Record<QuadType, number> = {
