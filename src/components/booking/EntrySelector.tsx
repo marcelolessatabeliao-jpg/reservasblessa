@@ -47,14 +47,18 @@ import { QuantityStepper } from '../QuantityStepper';
 
 // Physical kiosk definitions matching the real layout
 const KIOSK_MAP = [
-  { id: 1, type: 'maior' as const, label: 'Quiosque 01', capacity: '20 a 25 pessoas', row: 'bottom', icon: '🏠' },
-  { id: 2, type: 'menor' as const, label: 'Quiosque 02', capacity: 'Até 15 pessoas', row: 'top', icon: '🏡' },
-  { id: 3, type: 'menor' as const, label: 'Quiosque 03', capacity: 'Até 15 pessoas', row: 'top', icon: '🏡' },
-  { id: 4, type: 'menor' as const, label: 'Quiosque 04', capacity: 'Até 15 pessoas', row: 'top', icon: '🏡' },
-  { id: 5, type: 'menor' as const, label: 'Quiosque 05', capacity: 'Até 15 pessoas', row: 'top', icon: '🏡' },
-  { id: 6, type: 'maior' as const, label: 'Quiosque 06', capacity: 'Até 15 pessoas', row: 'waterfall', icon: '🏠', observation: 'Lado da Cachoeira' },
-  { id: 7, type: 'maior' as const, label: 'Quiosque 07', capacity: 'Até 15 pessoas', row: 'waterfall', icon: '🏠', observation: 'Lado da Cachoeira' },
-  { id: 8, type: 'maior' as const, label: 'Quiosque 08', capacity: 'Até 15 pessoas', row: 'waterfall', icon: '🏠', observation: 'Lado da Cachoeira' },
+  { id: 1,  type: 'maior'    as const, label: 'Quiosque 01', capacity: 'Até 25 pessoas', row: 'bottom',   icon: '🏠' },
+  { id: 2,  type: 'menor'    as const, label: 'Quiosque 02', capacity: 'Até 15 pessoas', row: 'top',      icon: '🏡' },
+  { id: 3,  type: 'menor'    as const, label: 'Quiosque 03', capacity: 'Até 15 pessoas', row: 'top',      icon: '🏡' },
+  { id: 4,  type: 'menor'    as const, label: 'Quiosque 04', capacity: 'Até 15 pessoas', row: 'top',      icon: '🏡' },
+  { id: 5,  type: 'menor'    as const, label: 'Quiosque 05', capacity: 'Até 15 pessoas', row: 'top',      icon: '🏡' },
+  { id: 6,  type: 'familiar' as const, label: 'Quiosque 06', capacity: 'Até 5 pessoas',  row: 'familiar', icon: '⛺' },
+  { id: 7,  type: 'familiar' as const, label: 'Quiosque 07', capacity: 'Até 5 pessoas',  row: 'familiar', icon: '⛺' },
+  { id: 8,  type: 'familiar' as const, label: 'Quiosque 08', capacity: 'Até 5 pessoas',  row: 'familiar', icon: '⛺' },
+  { id: 9,  type: 'familiar' as const, label: 'Quiosque 09', capacity: 'Até 5 pessoas',  row: 'familiar', icon: '⛺' },
+  { id: 10, type: 'familiar' as const, label: 'Quiosque 10', capacity: 'Até 5 pessoas',  row: 'familiar', icon: '⛺' },
+  { id: 11, type: 'familiar' as const, label: 'Quiosque 11', capacity: 'Até 5 pessoas',  row: 'familiar', icon: '⛺' },
+  { id: 12, type: 'familiar' as const, label: 'Quiosque 12', capacity: 'Até 5 pessoas',  row: 'familiar', icon: '⛺' },
 ];
 
 interface Props {
@@ -904,33 +908,28 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                       })}
                    </div>
 
-                   {/* Área Privilegiada - Cachoeira do Batistério */}
+                   {/* Quiosques Familiares */}
                    <div className="pt-4 border-t border-emerald-100 mt-4">
-                      <span className="text-[10px] font-black text-amber-700/80 uppercase tracking-widest mb-3 block">Área Privilegiada — Cachoeira do Batistério</span>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        {KIOSK_MAP.filter(k => k.row === 'waterfall').map(k => {
+                      <span className="text-[10px] font-black text-teal-700/80 uppercase tracking-widest mb-3 block">⛺ Quiosques Familiares — Até 5 pessoas</span>
+                      <div className="flex overflow-x-auto gap-2 sm:gap-3 pb-3 snap-x scroll-smooth custom-scrollbar">
+                        {KIOSK_MAP.filter(k => k.row === 'familiar').map(k => {
                           const isBooked = bookedKioskIds.includes(k.id);
                           return (
                             <div key={k.id} className={cn(
-                              "relative w-full h-16 rounded-2xl border-2 flex items-center justify-between px-4 gap-2 transition-all duration-300",
+                              "relative flex flex-col items-center justify-center p-2 sm:p-4 rounded-2xl border-2 transition-all duration-300 shrink-0 snap-center min-w-[90px] sm:min-w-[110px] min-h-[100px] sm:min-h-[110px]",
                               isBooked 
                                 ? "bg-rose-50 border-rose-200 text-rose-300 opacity-80" 
-                                : "bg-amber-50 border-amber-500 hover:border-amber-600 hover:shadow-md text-amber-700 hover:-translate-y-1"
+                                : "bg-teal-50/80 border-teal-400/50 hover:border-teal-500 hover:shadow-md text-teal-700 hover:-translate-y-1"
                             )}>
-                               <div className="flex items-center gap-2">
                                  <div className={cn(
-                                   "w-8 h-8 rounded-xl flex items-center justify-center font-black text-sm",
-                                   isBooked ? "bg-rose-100 text-rose-400" : "bg-amber-100 text-amber-900"
+                                   "w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center font-black text-xl sm:text-2xl mb-2",
+                                   isBooked ? "bg-rose-100 text-rose-400" : "bg-teal-100 text-teal-900"
                                  )}>
                                    {String(k.id).padStart(2, '0')}
                                  </div>
-                                 <div className="flex flex-col">
-                                   <span className={cn("text-[10px] font-black uppercase tracking-tight", isBooked ? "text-rose-400" : "text-amber-900")}>Cachoeira do Batistério</span>
-                                 </div>
-                               </div>
                                <Badge variant="outline" className={cn(
-                                 "font-black text-[8px] uppercase tracking-tighter border-2 px-2 py-0.5 rounded-full",
-                                 isBooked ? "bg-rose-100 border-rose-300 text-rose-700" : "bg-amber-100 border-amber-300 text-amber-700"
+                                 "font-black text-[8px] uppercase tracking-tighter border-2 px-2 py-0.5 rounded-full mt-auto",
+                                 isBooked ? "bg-rose-100 border-rose-300 text-rose-700" : "bg-teal-100 border-teal-300 text-teal-700"
                                )}>
                                  {isBooked ? 'Ocupado' : 'Livre'}
                                </Badge>
@@ -947,7 +946,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                       </h4>
                       <ul className="list-disc pl-5 space-y-1">
                         <li><strong>Quiosques 01 ao 05:</strong> 1 tomada em cada, pia, grelha, churrasqueira, mesas e cadeiras.</li>
-                        <li><strong>Quiosques 06, 07 e 08 (Área Privilegiada):</strong> Sem tomada e pia. Ficam ao lado da cachoeira do Batistério. Incluem grelha, churrasqueira, mesas e cadeiras.</li>
+                        <li><strong>Quiosques Familiares (06 ao 12):</strong> Sem tomada e pia. Incluem grelha, churrasqueira, mesas e cadeiras.</li>
                         <li><strong>Carvão:</strong> Por conta do cliente.</li>
                       </ul>
                     </div>
