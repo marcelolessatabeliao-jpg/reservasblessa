@@ -18,20 +18,7 @@ import { getBookedKioskIds, getQuadAvailability, getGlobalSetting } from '@/lib/
 import { getQuadDiscount, QUAD_PRICES } from '@/lib/booking-types';
 import { parseToRODate } from '@/utils/date-utils';
 
-const KIOSKS = [
-  { id: 1,  name: 'QUIOSQUE - 01 (Grande)',  price: 150, type: 'Maior'    },
-  { id: 2,  name: 'QUIOSQUE - 02',           price: 100, type: 'Médio'    },
-  { id: 3,  name: 'QUIOSQUE - 03',           price: 100, type: 'Médio'    },
-  { id: 4,  name: 'QUIOSQUE - 04',           price: 100, type: 'Médio'    },
-  { id: 5,  name: 'QUIOSQUE - 05',           price: 100, type: 'Médio'    },
-  { id: 6,  name: 'QUIOSQUE - 06',           price: 75,  type: 'Familiar' },
-  { id: 7,  name: 'QUIOSQUE - 07',           price: 75,  type: 'Familiar' },
-  { id: 8,  name: 'QUIOSQUE - 08',           price: 75,  type: 'Familiar' },
-  { id: 9,  name: 'QUIOSQUE - 09',           price: 75,  type: 'Familiar' },
-  { id: 10, name: 'QUIOSQUE - 10',           price: 75,  type: 'Familiar' },
-  { id: 11, name: 'QUIOSQUE - 11',           price: 75,  type: 'Familiar' },
-  { id: 12, name: 'QUIOSQUE - 12',           price: 75,  type: 'Familiar' },
-];
+import { KIOSKS } from '@/lib/admin-constants';
 
 
 export function InternalBookingAssistant({ 
