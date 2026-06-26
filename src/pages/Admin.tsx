@@ -2954,61 +2954,67 @@ function EditKioskDialog({ group, onClose, onUpdated, updateOrderTotal }: any) {
     setLoading(true);
     try {
       const orderId = group.items[0].order_id;
-      
-      for (let i = 0; i < group.items.length; i++) {
-        const item = group.items[i];
+      const reservationDate = group.reservation_date || group.items[0].reservation_date;
+      const customerName = group.customer_name || group.items[0].customer_name;
+      const isRealOrder = orderId && !String(orderId).startsWith('order-');
+
+      // STEP 1: Delete ALL existing kiosk_reservations for this order
+      // This is the critical fix: ensures no stale entries remain after a kiosk change
+      if (isRealOrder) {
+        const { error: delErr } = await supabase
+          .from('kiosk_reservations')
+          .delete()
+          .eq('order_id', orderId);
+        if (delErr) throw delErr;
+      }
+
+      // STEP 2: Find linked order_items to update
+      let oiId: string | null = null;
+      if (isRealOrder) {
+        const { data: oItems } = await supabase.from('order_items').select('*').eq('order_id', orderId);
+        const kioskItem = oItems?.find(oi =>
+          oi.product_id?.toLowerCase().includes('quiosque') ||
+          (oi as any).product_name?.toLowerCase().includes('quiosque')
+        );
+        if (kioskItem) oiId = kioskItem.id;
+      }
+
+      // STEP 3: Insert new kiosk_reservations (one per selected kiosk)
+      for (let i = 0; i < selectedKiosks.length; i++) {
         const newKioskId = selectedKiosks[i];
         const newKiosk = KIOSKS.find(k => k.id === newKioskId);
-        const kioskType = newKiosk?.type === 'Maior' ? 'maior' : 'menor';
-        const newPrice = newKiosk?.type === 'Maior' ? 100 : 75;
-
-        // Prepare to find linked order item
-        let oiId = null;
-        const orderId = group.items[0]?.order_id;
-        if (orderId && !String(orderId).startsWith('order-')) {
-          const { data: oItems } = await supabase.from('order_items').select('*').eq('order_id', orderId);
-          const kioskItem = oItems?.find(oi => 
-            (oi.product_id?.toLowerCase().includes('quiosque') || (oi as any).product_name?.toLowerCase().includes('quiosque')) &&
-            (oi.id === item.order_item_id || group.items.length === 1)
-          );
-          if (kioskItem) oiId = kioskItem.id;
-        }
-
+        const kioskType = newKiosk?.type === 'Maior' ? 'maior' : newKiosk?.type === 'Familiar' ? 'familiar' : 'menor';
+        const newPrice = newKiosk?.type === 'Maior' ? 150 : newKiosk?.type === 'Familiar' ? 75 : 100;
         const kioskLabel = String(newKioskId).padStart(2, '0');
-        
-        if (String(item.id).startsWith('order-')) {
-           const { error: insErr } = await supabase.from('kiosk_reservations').insert({
-              order_id: item.order_id,
-              kiosk_id: newKioskId,
-              kiosk_type: kioskType,
-              price: newPrice,
-              reservation_date: item.reservation_date || group.reservation_date,
-              customer_name: item.customer_name || group.customer_name
-           });
-           if (insErr) throw insErr;
-        } else {
-           const { error: updErr } = await supabase.from('kiosk_reservations').update({
-              kiosk_id: newKioskId,
-              kiosk_type: kioskType,
-              price: newPrice
-           }).eq('id', item.id);
-           if (updErr) throw updErr;
-        }
 
-        if (oiId) {
-           const { error: oiErr } = await supabase.from('order_items').update({
+        if (isRealOrder) {
+          const { error: insErr } = await supabase.from('kiosk_reservations').insert({
+            order_id: orderId,
+            kiosk_id: newKioskId,
+            kiosk_type: kioskType,
+            price: newPrice,
+            reservation_date: reservationDate,
+            customer_name: customerName
+          });
+          if (insErr) throw insErr;
+
+          // Update the first (or only) order_item to reflect the new kiosk
+          if (oiId && i === 0) {
+            const { error: oiErr } = await supabase.from('order_items').update({
               product_id: `Quiosque ${kioskLabel}`,
               unit_price: newPrice,
-              metadata: { selectedIds: [newKioskId] }
-           }).eq('id', oiId);
-           if (oiErr) throw oiErr;
+              metadata: { selectedIds: selectedKiosks }
+            }).eq('id', oiId);
+            if (oiErr) throw oiErr;
+          }
         }
       }
-      
-      if (orderId && !String(orderId).startsWith('order-')) {
+
+      if (isRealOrder) {
         await updateOrderTotal(orderId);
       }
-      toast({ title: 'Sucesso!', description: 'Quiosques atualizados.' });
+
+      toast({ title: 'Sucesso!', description: 'Quiosques atualizados com sucesso.' });
       onUpdated();
       onClose();
     } catch(e: any) { 
