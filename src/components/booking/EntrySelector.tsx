@@ -911,12 +911,12 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                    {/* Quiosques Familiares */}
                    <div className="pt-3 border-t border-emerald-100">
                       <span className="text-[9px] font-black text-teal-700/80 uppercase tracking-widest mb-2 block">⛺ Quiosques Familiares — Até 5 pessoas</span>
-                      <div className="flex overflow-x-auto gap-2 pb-2 snap-x scroll-smooth custom-scrollbar">
+                      <div className="flex sm:grid sm:grid-cols-7 overflow-x-auto sm:overflow-x-visible gap-2 pb-2 sm:pb-0 snap-x scroll-smooth custom-scrollbar">
                         {KIOSK_MAP.filter(k => k.row === 'familiar').map(k => {
                           const isBooked = bookedKioskIds.includes(k.id);
                           return (
                             <div key={k.id} className={cn(
-                              "relative flex flex-col items-center justify-center p-1.5 rounded-lg border transition-all duration-300 shrink-0 snap-center min-w-[55px] sm:min-w-[70px] min-h-[60px] sm:min-h-[75px]",
+                              "relative flex flex-col items-center justify-center p-1.5 rounded-lg border transition-all duration-300 shrink-0 sm:shrink snap-center min-w-[60px] sm:min-w-0 h-14 sm:h-16 w-auto sm:w-full",
                               isBooked 
                                 ? "bg-rose-50 border-rose-200 text-rose-300 opacity-80" 
                                 : "bg-teal-50/80 border-teal-400/50 hover:border-teal-500 hover:shadow-md text-teal-700 hover:-translate-y-0.5"
