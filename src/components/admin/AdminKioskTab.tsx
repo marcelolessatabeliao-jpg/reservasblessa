@@ -59,6 +59,11 @@ export function AdminKioskTab({
         const idx = menors.findIndex(dk => dk.id === r.id);
         return { ...r, ...(KIOSKS.find(k => k.id === idx + 2) || { id: 99, name: 'Quiosque Extra', capacity: 'Até 15 pessoas' }) };
       }
+      if (bid === 'FAMILIAR') {
+        const familiars = dayKiosks.filter(dk => dk.kiosk_id === 'FAMILIAR');
+        const idx = familiars.findIndex(dk => dk.id === r.id);
+        return { ...r, ...(KIOSKS.find(k => k.id === idx + 6) || { id: 99, name: 'Quiosque Familiar Extra', capacity: 'Até 5 pessoas' }) };
+      }
       return { ...r, ...(KIOSKS.find(k => k.id === Number(bid)) || { id: 99, name: `Q-${bid}`, capacity: 'Até 15 pessoas' }) };
     });
     const names = resolved.map((k: any) => k?.name?.replace('Quiosque ', 'Q-').replace('QUIOSQUE - ', 'Q-')).join(', ');
