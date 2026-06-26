@@ -379,7 +379,7 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
               })}
             </div>
             <p className="mt-2 text-[9px] text-teal-700/60 font-medium italic">
-              * Pia de uso comunitário disponível próxima aos quiosques familiares.
+              * Pia de uso comunitário disponível para os quiosques familiares. (pias próximas aos quiosques do 2 ao 5)
             </p>
           </div>
         </div>
