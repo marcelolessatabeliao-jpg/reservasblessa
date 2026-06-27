@@ -19,8 +19,9 @@ const initialState: BookingState = {
     dayOfWeek: 'sabado',
   },
   kiosks: [
-    { type: 'menor', quantity: 0, date: null },
-    { type: 'maior', quantity: 0, date: null },
+    { type: 'maior',    quantity: 0, date: null },
+    { type: 'menor',    quantity: 0, date: null },
+    { type: 'familiar', quantity: 0, date: null },
   ],
   quads: [
     { type: 'individual', quantity: 0, date: null, time: null },
@@ -134,8 +135,8 @@ export function useBooking() {
     const entriesTotal = calculateEntryTotal(booking.entry, getPrice);
     
     // Kiosks fallback map
-    const kiosksFallback: Record<string, number> = { menor: 75, maior: 100 };
-    const kiosksTotal = booking.kiosks.reduce((sum, k) => sum + k.quantity * getPrice(`kiosk_${k.type}`, kiosksFallback[k.type]), 0);
+    const kiosksFallback: Record<string, number> = { maior: 150, menor: 100, familiar: 75 };
+    const kiosksTotal = booking.kiosks.reduce((sum, k) => sum + k.quantity * getPrice(`kiosk_${k.type}`, kiosksFallback[k.type] ?? 75), 0);
     
     // Quads fallback map
     const quadsFallback: Record<string, number> = { individual: 150, dupla: 250, 'adulto-crianca': 200 };
