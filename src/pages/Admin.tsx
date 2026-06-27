@@ -992,25 +992,39 @@ export default function Admin() {
 
           if (orderId && !String(orderId).startsWith('order-')) {
             if (orderItemId) {
+              const { data: currentOi } = await supabase.from('order_items').select('metadata').eq('id', orderItemId).single();
+              let currentMeta = currentOi?.metadata;
+              if (typeof currentMeta === 'string') { try { currentMeta = JSON.parse(currentMeta); } catch(e) {} }
+              currentMeta = currentMeta || {};
+
               await supabase.from('order_items').update({ 
                 unit_price: unitPrice, 
                 quantity: finalQty,
                 product_id: `Quadriciclo ${QUAD_MODELS_LABELS[finalModel as keyof typeof QUAD_MODELS_LABELS] || 'Individual'}`,
-                metadata: { time: finalTime, time_slot: finalTime } 
+                metadata: { ...currentMeta, time: finalTime, time_slot: finalTime, quad_type: finalModel } 
               }).eq('id', orderItemId);
             } else {
               // Fallback if no order_item_id: try to find the item
               const { data: oItems } = await supabase.from('order_items').select('*').eq('order_id', orderId);
+              // Match by the old quad_type instead of the new finalModel in case it changed
+              const oldModel = dbItem?.quad_type || finalModel;
               const quadItem = oItems?.find(oi => 
                 (oi.product_id?.toLowerCase().includes('quad') || (oi as any).product_name?.toLowerCase().includes('quad')) &&
-                (normalizeQuadType((oi as any).product_name || oi.product_id) === normalizeQuadType(finalModel))
+                (normalizeQuadType((oi as any).product_name || oi.product_id) === normalizeQuadType(oldModel))
               );
               if (quadItem) {
+                let currentMeta = quadItem.metadata;
+                if (typeof currentMeta === 'string') { try { currentMeta = JSON.parse(currentMeta); } catch(e) {} }
+                currentMeta = currentMeta || {};
+
+                // Use the existing quantity to prevent deleting other grouped items
+                const itemQty = quadItem.quantity || 1;
+
                 await supabase.from('order_items').update({ 
                   unit_price: unitPrice, 
-                  quantity: finalQty,
+                  quantity: itemQty,
                   product_id: `Quadriciclo ${QUAD_MODELS_LABELS[finalModel as keyof typeof QUAD_MODELS_LABELS] || 'Individual'}`,
-                  metadata: { time: finalTime, time_slot: finalTime } 
+                  metadata: { ...currentMeta, time: finalTime, time_slot: finalTime, quad_type: finalModel } 
                 }).eq('id', quadItem.id);
               }
             }
@@ -1040,32 +1054,22 @@ export default function Admin() {
         editData.order_id = orderId;
       }
 
-      const isRealOrder = orderId && !String(orderId).startsWith('order-');
+      // Always update the reservation row directly
+      if (typeof editingId === 'string' && editingId.startsWith('order-')) {
+        payload.order_id = editData.order_id;
+        
+        // Strip fields that don't exist on the DB table
+        const QUAD_COLS = ['time_slot','quad_type','quantity','reservation_date','notes','price','receipt_url','customer_name','order_id','status','order_item_id'];
+        const KIOSK_COLS = ['kiosk_id','reservation_date','notes','price','receipt_url','customer_name','order_id','status','order_item_id'];
+        const allowedCols = type === 'quad' ? QUAD_COLS : KIOSK_COLS;
+        const cleanPayload: any = {};
+        allowedCols.forEach(col => { if (payload[col] !== undefined) cleanPayload[col] = payload[col]; });
 
-      if (isRealOrder) {
-        if (type === 'kiosk') {
-          await syncKiosksForOrder(orderId);
-        } else if (type === 'quad') {
-          await syncQuadsForOrder(orderId);
-        }
+        const { error } = await supabase.from(table).insert([cleanPayload]);
+        if (error) throw error;
       } else {
-        // Se for uma reserva virtual extraída de um pedido, precisa virar real no banco
-        if (typeof editingId === 'string' && editingId.startsWith('order-')) {
-          payload.order_id = editData.order_id;
-          
-          // Strip fields that don't exist on the DB table
-          const QUAD_COLS = ['time_slot','quad_type','quantity','reservation_date','notes','price','receipt_url','customer_name','order_id','status','order_item_id'];
-          const KIOSK_COLS = ['kiosk_id','reservation_date','notes','price','receipt_url','customer_name','order_id','status','order_item_id'];
-          const allowedCols = type === 'quad' ? QUAD_COLS : KIOSK_COLS;
-          const cleanPayload: any = {};
-          allowedCols.forEach(col => { if (payload[col] !== undefined) cleanPayload[col] = payload[col]; });
-
-          const { error } = await supabase.from(table).insert([cleanPayload]);
-          if (error) throw error;
-        } else {
-          const { error } = await supabase.from(table).update(payload).eq('id', editingId);
-          if (error) throw error;
-        }
+        const { error } = await supabase.from(table).update(payload).eq('id', editingId);
+        if (error) throw error;
       }
 
       if (editData.order_id && !String(editData.order_id).startsWith('order-')) {
