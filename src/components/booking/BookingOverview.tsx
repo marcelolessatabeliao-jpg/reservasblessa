@@ -463,25 +463,23 @@ export function BookingOverview({
             </div>
           </div>
         )}
-
-        {/* Quiosques */}
+{/* Quiosques */}
         {booking.kiosks.some(k => k.quantity > 0) && (
           <div className="pb-5 border-b border-primary/10">
             <h4 className="font-bold text-primary mb-3 uppercase tracking-widest text-[10px] sm:text-xs">Quiosques</h4>
             <div className="space-y-2 text-sm sm:text-base text-muted-foreground">
               {booking.kiosks.filter(k => k.quantity > 0).map(k => {
                 const basePrice = getPrice(`kiosk_${k.type}`, KIOSK_INFO[k.type].price);
+                const kioskNames = k.selectedIds && k.selectedIds.length > 0
+                  ? k.selectedIds.sort((a,b)=>a-b).map(id => `Q${String(id).padStart(2,'0')}`).join(' · ')
+                  : `${k.quantity}x ${KIOSK_INFO[k.type].label}`;
                 return (
-                <div key={k.type} className="flex justify-between group/item items-center">
-                  <div>
-                    <span>
-                      {k.selectedIds && k.selectedIds.length > 0
-                        ? k.selectedIds.sort((a,b)=>a-b).map(id => `Quiosque ${String(id).padStart(2,'0')}`).join(', ')
-                        : `${k.quantity}x ${KIOSK_INFO[k.type].label}`}
-                    </span>
+                <div key={k.type} className="flex justify-between group/item items-center gap-2">
+                  <div className="min-w-0 flex-1">
+                    <span className="text-xs font-semibold truncate block">{kioskNames}</span>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span>{formatCurrency(k.quantity * basePrice)}</span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="whitespace-nowrap text-xs font-bold">{formatCurrency(k.quantity * basePrice)}</span>
                     {onUpdateKiosk && (
                       <button onClick={() => {
                         const idx = booking.kiosks.findIndex(x => x.type === k.type);
@@ -512,12 +510,13 @@ export function BookingOverview({
                 const basePrice = getPrice(`quad_${q.type}`, fallbackMap[q.type]);
                 const final_ = basePrice * (1 - discount);
                 return (
-                  <div key={q.type} className="flex justify-between items-center group/item">
-                    <div>
-                      <span>{q.quantity}x Quad. {QUAD_LABELS[q.type]}</span>
+                  <div key={q.type} className="flex justify-between items-center group/item gap-2">
+                    <div className="min-w-0 flex-1">
+                      <span className="text-xs font-semibold truncate block">{q.quantity}x Quad {QUAD_LABELS[q.type]}</span>
+                      {q.time && <span className="text-[9px] text-muted-foreground">{q.time}</span>}
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span>{formatCurrency(q.quantity * final_)}</span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="whitespace-nowrap text-xs font-bold">{formatCurrency(q.quantity * final_)}</span>
                       {onUpdateQuad && (
                         <button onClick={() => {
                           const idx = booking.quads.findIndex(x => x.type === q.type);
@@ -546,12 +545,12 @@ export function BookingOverview({
               {booking.additionals.filter(a => a.quantity > 0).map(a => {
                 const basePrice = getPrice(`add_${a.type}`, ADDITIONAL_INFO[a.type].price);
                 return (
-                <div key={a.type} className="flex justify-between items-center group/item">
-                  <div>
-                    <span>{a.quantity}x {ADDITIONAL_INFO[a.type].label}</span>
+                <div key={a.type} className="flex justify-between items-center group/item gap-2">
+                  <div className="min-w-0 flex-1">
+                    <span className="text-xs font-semibold truncate block">{a.quantity}x {ADDITIONAL_INFO[a.type].label}</span>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span>{formatCurrency(a.quantity * basePrice)}</span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="whitespace-nowrap text-xs font-bold">{formatCurrency(a.quantity * basePrice)}</span>
                     {onUpdateAdditional && (
                       <button onClick={() => {
                         const idx = booking.additionals.findIndex(x => x.type === a.type);
