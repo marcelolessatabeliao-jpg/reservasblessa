@@ -1038,61 +1038,49 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.9, y: -10 }}
                   key={`adult-${i}`}
-                  className="bg-white/80 border border-primary/5 rounded-[1.5rem] px-4 py-3 flex items-center justify-between shadow-sm hover:shadow-md transition-all group overflow-hidden"
+                  className="bg-white/80 border border-primary/5 rounded-2xl px-3 py-2.5 shadow-sm hover:shadow-md transition-all group overflow-hidden"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="bg-primary/5 p-2 rounded-xl text-primary group-hover:bg-primary group-hover:text-white transition-colors">
-                      {adult.isTeacher || adult.isStudent ? <GraduationCap className="h-4 w-4" /> :
-                        adult.isServer ? <Briefcase className="h-4 w-4" /> :
-                          adult.isBirthday ? <Gift className="h-4 w-4" /> :
-                            adult.isPCD ? <Accessibility className="h-4 w-4" /> :
-                              (adult as any).isBloodDonor ? <Heart className="h-4 w-4" /> :
-                                adult.age >= 60 ? <UserPlus className="h-4 w-4" /> :
-                                  <User className="h-4 w-4" />}
+                  {/* Row 1: icon + name + badges */}
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="bg-primary/5 p-1.5 rounded-lg text-primary shrink-0">
+                      {adult.isTeacher || adult.isStudent ? <GraduationCap className="h-3.5 w-3.5" /> :
+                        adult.isServer ? <Briefcase className="h-3.5 w-3.5" /> :
+                          adult.isBirthday ? <Gift className="h-3.5 w-3.5" /> :
+                            adult.isPCD ? <Accessibility className="h-3.5 w-3.5" /> :
+                              (adult as any).isBloodDonor ? <Heart className="h-3.5 w-3.5" /> :
+                                adult.age >= 60 ? <UserPlus className="h-3.5 w-3.5" /> :
+                                  <User className="h-3.5 w-3.5" />}
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-black text-sm text-foreground">
-                          {adult.quantity && adult.quantity > 1 ? `${adult.quantity}x ` : ''}
-                          {adult.isTeacher ? 'Lessa Professor Pass' :
-                            adult.isStudent ? 'Lessa Estudante Pass' :
-                              adult.isServer ? 'Lessa Servidor Pass' :
-                                (adult as any).isBloodDonor ? 'Doador de Sangue/Medula' :
-                                  adult.isBirthday ? 'Aniversariante da Semana' :
-                                    (adult.age >= 60 && adult.isPCD) ? 'Lessa Vitalício - PCD & TEA' :
-                                      adult.isPCD ? 'Lessa Inclusão - PCD & TEA' :
-                                        (adult.age >= 60) ? 'Lessa Vitalício' :
-                                          adult.isMember ? 'Associado Lessa Club 👑' :
-                                          adult.isCounterPayment ? 'Pagamento no Balcão' :
-                                          adult.takeDonation ? 'Adulto Solidário' :
-                                            'Adulto - Entrada Inteira'}
-                        </span>
-                        {adult.isPCD && <span className="text-[8px] sm:text-[9px] bg-whatsapp/20 text-whatsapp-dark px-2 py-0.5 rounded-full font-black uppercase">♿ PCD</span>}
-                        {(adult.isTeacher || adult.isStudent || adult.isServer || (adult as any).isBloodDonor) && <span className="text-[8px] sm:text-[9px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-black uppercase">Meia-Entrada</span>}
-                        {adult.takeDonation && <span className="text-[8px] sm:text-[9px] bg-sun/20 text-sun-dark px-2 py-0.5 rounded-full font-black uppercase">❤️ Solidária</span>}
-                        {adult.isMember && <span className="text-[8px] sm:text-[9px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-black uppercase">👑 Associado</span>}
-                        {adult.isCounterPayment && <span className="text-[8px] sm:text-[9px] bg-slate-100 text-slate-800 px-2 py-0.5 rounded-full font-black uppercase">💵 Balcão</span>}
-                      </div>
-                      {adult.isBirthday && <p className="text-[10px] text-sun-dark font-bold">🎂 Entrada grátis (mediante comprovação)</p>}
-                      {adult.isPCD && <p className="text-[10px] text-whatsapp-dark font-bold">✨ entrada gratuita + 1 acompanhante gratuito</p>}
-                      {adult.age >= 60 && !adult.isPCD && <p className="text-[10px] text-whatsapp-dark font-bold">✨ entrada gratuita - sócio vitalício</p>}
-                      {(adult.isTeacher || adult.isStudent || adult.isServer || (adult as any).isBloodDonor) && <p className="text-[10px] text-primary font-bold">✨ benefício de meia-entrada 50% OFF</p>}
-                      {adult.takeDonation && <p className="text-[10px] text-sun-dark font-bold">❤️ Levará 1kg de alimento para desconto ou outro donativo</p>}
-                      {adult.isMember && <p className="text-[10px] text-amber-700 font-bold">👑 Associado mensal do Balneário Lessa</p>}
-                      {adult.isCounterPayment && <p className="text-[10px] text-slate-500 font-bold">💵 Entrada será paga diretamente na recepção</p>}
-                    </div>
+                    <span className="font-bold text-xs text-foreground truncate min-w-0 flex-1">
+                      {adult.quantity && adult.quantity > 1 ? `${adult.quantity}× ` : ''}
+                      {adult.isTeacher ? 'Prof. Pass' :
+                        adult.isStudent ? 'Estudante Pass' :
+                          adult.isServer ? 'Servidor Pass' :
+                            (adult as any).isBloodDonor ? 'Doador de Sangue' :
+                              adult.isBirthday ? 'Aniversariante' :
+                                (adult.age >= 60 && adult.isPCD) ? 'Vitalício PCD' :
+                                  adult.isPCD ? 'PCD & TEA' :
+                                    adult.age >= 60 ? 'Lessa Vitalício' :
+                                      adult.isMember ? 'Associado 👑' :
+                                      adult.isCounterPayment ? 'Pagar no Balcão' :
+                                      adult.takeDonation ? 'Adulto Solidário' :
+                                        'Adulto'}
+                    </span>
+                    {adult.isPCD && <span className="text-[7px] bg-whatsapp/20 text-whatsapp-dark px-1.5 py-0.5 rounded-full font-black uppercase shrink-0">♿</span>}
+                    {(adult.isTeacher || adult.isStudent || adult.isServer || (adult as any).isBloodDonor) && <span className="text-[7px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-black shrink-0">½</span>}
                   </div>
-                  <div className="flex items-center gap-4">
+                  {/* Row 2: price + stepper + delete */}
+                  <div className="flex items-center justify-between mt-2 pl-7">
                     <span className={cn(
-                      "font-black text-sm sm:text-base tabular-nums",
+                      "font-black text-sm tabular-nums",
                       (adult.age >= 60 || adult.isPCD || adult.isBirthday || adult.isMember || adult.isCounterPayment) ? "text-whatsapp-dark" : "text-primary"
                     )}>
                       {(adult.age >= 60 || adult.isPCD || adult.isBirthday || adult.isMember || adult.isCounterPayment)
-                         ? (adult.isMember ? "ASSOCIADO" : adult.isCounterPayment ? "NO BALCÃO" : "GRÁTIS")
+                         ? (adult.isMember ? "ASSOC." : adult.isCounterPayment ? "BALCÃO" : "GRÁTIS")
                         : formatCurrency(((adult.isTeacher || adult.isStudent || adult.isServer || (adult as any).isBloodDonor || adult.takeDonation) ? 25 : 50) * (adult.quantity || 1))
                       }
                     </span>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
                       <QuantityStepper 
                         value={adult.quantity || 1}
                         onChange={(val) => onUpdateAdult(i, { quantity: val })}
@@ -1104,9 +1092,9 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                         variant="ghost"
                         size="icon"
                         onClick={() => onRemoveAdult(i)}
-                        className="h-8 w-8 rounded-full text-destructive hover:bg-destructive/10 hover:text-destructive shrink-0"
+                        className="h-7 w-7 rounded-full text-destructive hover:bg-destructive/10 hover:text-destructive shrink-0"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
                   </div>
@@ -1123,41 +1111,26 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.9, y: -10 }}
                   key={`child-${i}`}
-                  className="bg-white/80 border border-primary/5 rounded-[1.5rem] px-4 py-3 flex items-center justify-between shadow-sm hover:shadow-md transition-all group overflow-hidden"
+                  className="bg-white/80 border border-primary/5 rounded-2xl px-3 py-2.5 shadow-sm hover:shadow-md transition-all group overflow-hidden"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="bg-primary/5 p-2 rounded-xl text-primary group-hover:bg-primary group-hover:text-white transition-colors">
-                      <Baby className="h-4 w-4" />
+                  {/* Row 1: icon + name + badges */}
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="bg-primary/5 p-1.5 rounded-lg text-primary shrink-0">
+                      <Baby className="h-3.5 w-3.5" />
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-black text-sm text-foreground">
-                          {child.quantity && child.quantity > 1 ? `${child.quantity}x ` : ''}
-                          {child.isPCD && child.age <= 11 ? 'Lessa Kids - PCD & TEA' :
-                            child.isPCD ? 'Lessa Inclusão - PCD & TEA' :
-                              'Lessa Kids'}
-                        </span>
-                        {child.isPCD && <span className="text-[8px] sm:text-[9px] bg-whatsapp/20 text-whatsapp-dark px-2 py-0.5 rounded-full font-black uppercase">♿ PCD</span>}
-                        {child.isBirthday && <span className="text-[8px] sm:text-[9px] bg-sun/20 text-sun-dark px-2 py-0.5 rounded-full font-black uppercase">🎂 B-Day</span>}
-                      </div>
-                      {child.isPCD ? (
-                        <p className="text-[10px] text-whatsapp-dark font-bold">✨ entrada gratuita + 1 acompanhante gratuito</p>
-                      ) : (
-                        <p className="text-[10px] text-whatsapp-dark font-bold">✨ entrada gratuita até 11 anos</p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <span className={cn(
-                      "font-black text-sm sm:text-base tabular-nums",
-                      (child.age <= 11 || child.isPCD || child.isBirthday) ? "text-whatsapp-dark" : "text-primary"
-                    )}>
-                      {(child.age <= 11 || child.isPCD || child.isBirthday)
-                        ? "GRÁTIS"
-                        : formatCurrency(50 * (child.quantity || 1))
-                      }
+                    <span className="font-bold text-xs text-foreground truncate min-w-0 flex-1">
+                      {child.quantity && child.quantity > 1 ? `${child.quantity}× ` : ''}
+                      {child.isPCD && child.age <= 11 ? 'Kids PCD & TEA' :
+                        child.isPCD ? 'PCD & TEA' :
+                          'Lessa Kids'}
                     </span>
-                    <div className="flex items-center gap-2">
+                    {child.isPCD && <span className="text-[7px] bg-whatsapp/20 text-whatsapp-dark px-1.5 py-0.5 rounded-full font-black shrink-0">♿</span>}
+                    {child.isBirthday && <span className="text-[7px] bg-sun/20 text-sun-dark px-1.5 py-0.5 rounded-full font-black shrink-0">🎂</span>}
+                  </div>
+                  {/* Row 2: price + stepper + delete */}
+                  <div className="flex items-center justify-between mt-2 pl-7">
+                    <span className="font-black text-sm text-whatsapp-dark tabular-nums">GRÁTIS</span>
+                    <div className="flex items-center gap-1.5">
                       <QuantityStepper 
                         value={child.quantity || 1}
                         onChange={(val) => onUpdateChild(i, { quantity: val })}
@@ -1169,9 +1142,9 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                         variant="ghost"
                         size="icon"
                         onClick={() => onRemoveChild(i)}
-                        className="h-8 w-8 rounded-full text-destructive hover:bg-destructive/10 hover:text-destructive shrink-0"
+                        className="h-7 w-7 rounded-full text-destructive hover:bg-destructive/10 hover:text-destructive shrink-0"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
                   </div>
