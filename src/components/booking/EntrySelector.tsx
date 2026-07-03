@@ -842,9 +842,8 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                     {entry.visitDate && format(entry.visitDate, "dd 'de' MMMM", { locale: ptBR })}
                   </p>
                 </div>
-
-                <div className="p-3 sm:p-6 space-y-4 bg-emerald-50/30">
-                  <div className="bg-white/80 backdrop-blur-sm rounded-3xl border border-emerald-100 p-3 sm:p-5 shadow-inner">
+                <div className="p-3 sm:p-6 space-y-4 bg-emerald-50/30 w-full max-w-full min-w-0 overflow-hidden">
+                  <div className="bg-white/80 backdrop-blur-sm rounded-3xl border border-emerald-100 p-3 sm:p-5 shadow-inner w-full max-w-full min-w-0 overflow-hidden">
                      <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-2">
                            <MapPin className="h-4 w-4 text-emerald-600" />
@@ -908,15 +907,14 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                          );
                        })}
                     </div>
-
-                    <div className="pt-3 border-t border-emerald-100">
+                    <div className="pt-3 border-t border-emerald-100 w-full max-w-full min-w-0 overflow-hidden">
                        <div className="flex items-center justify-between gap-2 mb-2">
                          <span className="text-[9px] font-black text-teal-700/80 uppercase tracking-widest">⛺ Quiosques Familiares — Até 5 pessoas</span>
                          <span className="animate-pulse text-[8px] font-black text-teal-600 flex items-center gap-0.5">
                            Arraste para o lado <span className="text-xs">➡️</span>
                          </span>
                        </div>
-                       <div className="flex sm:grid sm:grid-cols-7 overflow-x-auto sm:overflow-x-visible gap-2 pb-2 sm:pb-0 snap-x scroll-smooth custom-scrollbar">
+                       <div className="w-full max-w-full flex sm:grid sm:grid-cols-7 overflow-x-auto sm:overflow-x-visible gap-2 pb-2 sm:pb-0 snap-x scroll-smooth custom-scrollbar">
                          {KIOSK_MAP.filter(k => k.row === 'familiar').map(k => {
                            const isBooked = bookedKioskIds.includes(k.id);
                            return (
