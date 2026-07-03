@@ -44,6 +44,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { formatPhone } from '@/lib/utils/format';
 import { getBookedKioskIds } from '@/lib/booking-service';
 import { QuantityStepper } from '../QuantityStepper';
+import { useToast } from '@/hooks/use-toast';
 
 // Physical kiosk definitions matching the real layout
 const KIOSK_MAP = [
@@ -77,6 +78,7 @@ type WizardType = 'adult' | 'child' | 'senior' | 'pcd' | null;
 type WizardStep = 1 | 2 | 3 | 4;
 
 export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChild, onUpdateAdult, onUpdateChild, hideMainInfo, hideTitle, blockedDates = [] }: Props) {
+  const { toast } = useToast();
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [wizardType, setWizardType] = useState<WizardType>(null);
@@ -830,7 +832,6 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
               </Button>
             </div>
 
-            {/* Kiosk Availability Dialog */}
             <Dialog open={isAvailabilityOpen} onOpenChange={setIsAvailabilityOpen}>
               <DialogContent className="w-[95vw] sm:max-w-2xl rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl max-h-[95dvh] overflow-y-auto no-scrollbar">
                 <div className="bg-gradient-to-br from-emerald-600 to-teal-700 p-6 text-white relative">
@@ -842,8 +843,8 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                   </p>
                 </div>
 
-                <div className="p-6 space-y-4 bg-emerald-50/30">
-                  <div className="bg-white/80 backdrop-blur-sm rounded-3xl border border-emerald-100 p-5 shadow-inner">
+                <div className="p-3 sm:p-6 space-y-4 bg-emerald-50/30">
+                  <div className="bg-white/80 backdrop-blur-sm rounded-3xl border border-emerald-100 p-3 sm:p-5 shadow-inner">
                      <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-2">
                            <MapPin className="h-4 w-4 text-emerald-600" />
@@ -852,118 +853,135 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                         {isFetchingKiosks && <Loader2 className="h-4 w-4 animate-spin text-emerald-600" />}
                      </div>
 
-                     <div className="grid grid-cols-4 gap-2 mb-3">
+                      <div className="grid grid-cols-4 gap-2 mb-3">
                         {KIOSK_MAP.filter(k => k.row === 'top').map(k => {
-                          const isBooked = bookedKioskIds.includes(k.id);
-                          return (
-                            <div key={k.id} className={cn(
-                              "h-12 sm:h-14 rounded-xl border flex flex-col items-center justify-center gap-0.5 transition-all duration-300 shadow-sm",
-                              isBooked 
-                                ? "bg-rose-50 border-rose-200 text-rose-300 opacity-80" 
-                                : "bg-white border-emerald-500 hover:border-amber-500 hover:shadow-md text-emerald-700 hover:-translate-y-0.5"
-                            )}>
-                              <span className={cn("text-sm sm:text-base font-black", isBooked ? "text-rose-400/50" : "text-emerald-950")}>
-                                {String(k.id).padStart(2, '0')}
-                              </span>
-                              <span className={cn(
-                                "text-[7px] sm:text-[8px] font-black uppercase tracking-tighter",
-                                isBooked ? "text-rose-400" : "text-emerald-600"
-                              )}>
-                                {isBooked ? 'Ocupado' : 'Livre'}
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                      
-                      {KIOSK_MAP.filter(k => k.row === 'bottom').map(k => {
-                        const isBooked = bookedKioskIds.includes(k.id);
-                        return (
-                          <div key={k.id} className={cn(
-                            "w-full py-1.5 px-3 rounded-xl border flex items-center justify-between gap-2 transition-all duration-300 mt-2",
-                            isBooked 
-                              ? "bg-rose-50 border-rose-200 text-rose-300 opacity-80" 
-                              : "bg-white border-emerald-500 hover:border-amber-500 hover:shadow-md text-emerald-700 hover:-translate-y-0.5"
-                          )}>
-                             <div className="flex items-center gap-2">
-                               <div className={cn(
-                                 "w-8 h-8 rounded-lg flex items-center justify-center font-black text-base",
-                                 isBooked ? "bg-rose-100 text-rose-400" : "bg-emerald-100 text-emerald-900"
-                               )}>
+                           const isBooked = bookedKioskIds.includes(k.id);
+                           return (
+                             <div key={k.id} className={cn(
+                               "h-12 sm:h-14 rounded-xl border flex flex-col items-center justify-center gap-0.5 transition-all duration-300 shadow-sm",
+                               isBooked 
+                                 ? "bg-rose-50 border-rose-200 text-rose-300 opacity-80" 
+                                 : "bg-white border-emerald-500 hover:border-amber-500 hover:shadow-md text-emerald-700 hover:-translate-y-0.5"
+                             )}>
+                               <span className={cn("text-xs sm:text-base font-black", isBooked ? "text-rose-400/50" : "text-emerald-950")}>
                                  {String(k.id).padStart(2, '0')}
+                               </span>
+                               <span className={cn(
+                                 "text-[6px] sm:text-[8px] font-black uppercase tracking-tighter",
+                                 isBooked ? "text-rose-400" : "text-emerald-600"
+                               )}>
+                                 {isBooked ? 'Ocupado' : 'Livre'}
+                               </span>
+                             </div>
+                           );
+                         })}
+                       </div>
+                       
+                       {KIOSK_MAP.filter(k => k.row === 'bottom').map(k => {
+                         const isBooked = bookedKioskIds.includes(k.id);
+                         return (
+                           <div key={k.id} className={cn(
+                             "w-full py-2 px-2.5 sm:px-4 rounded-xl border flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 transition-all duration-300 mt-2",
+                             isBooked 
+                               ? "bg-rose-50 border-rose-200 text-rose-300 opacity-80" 
+                               : "bg-white border-emerald-500 hover:border-amber-500 hover:shadow-md text-emerald-700 hover:-translate-y-0.5"
+                           )}>
+                              <div className="flex items-center gap-2">
+                                <div className={cn(
+                                  "w-8 h-8 rounded-lg flex items-center justify-center font-black text-base shrink-0",
+                                  isBooked ? "bg-rose-100 text-rose-400" : "bg-emerald-100 text-emerald-900"
+                                )}>
+                                  {String(k.id).padStart(2, '0')}
                                 </div>
                                 <div className="flex flex-col">
                                   <span className={cn("text-[9px] sm:text-[10px] font-black uppercase tracking-wider", isBooked ? "text-rose-400" : "text-emerald-900")}>Quiosque Maior</span>
                                   <span className="text-[7px] sm:text-[8px] font-bold text-slate-400 uppercase">Capacidade: 20-25 pessoas</span>
                                 </div>
-                             </div>
-                             <Badge variant="outline" className={cn(
-                               "font-black text-[7px] sm:text-[8px] uppercase tracking-wider border px-2 py-0.5 rounded-full",
-                               isBooked ? "bg-rose-100 border-rose-300 text-rose-700" : "bg-emerald-100 border-emerald-300 text-emerald-700"
+                              </div>
+                              <Badge variant="outline" className={cn(
+                                "font-black text-[7px] sm:text-[8px] uppercase tracking-wider border px-2 py-0.5 rounded-full shrink-0",
+                                isBooked ? "bg-rose-100 border-rose-300 text-rose-700" : "bg-emerald-100 border-emerald-300 text-emerald-700"
+                              )}>
+                                {isBooked ? 'Ocupado' : 'Livre'}
+                              </Badge>
+                           </div>
+                         );
+                       })}
+                    </div>
+
+                    <div className="pt-3 border-t border-emerald-100">
+                       <div className="flex items-center justify-between gap-2 mb-2">
+                         <span className="text-[9px] font-black text-teal-700/80 uppercase tracking-widest">⛺ Quiosques Familiares — Até 5 pessoas</span>
+                         <span className="animate-pulse text-[8px] font-black text-teal-600 flex items-center gap-0.5">
+                           Arraste para o lado <span className="text-xs">➡️</span>
+                         </span>
+                       </div>
+                       <div className="flex sm:grid sm:grid-cols-7 overflow-x-auto sm:overflow-x-visible gap-2 pb-2 sm:pb-0 snap-x scroll-smooth custom-scrollbar">
+                         {KIOSK_MAP.filter(k => k.row === 'familiar').map(k => {
+                           const isBooked = bookedKioskIds.includes(k.id);
+                           return (
+                             <div key={k.id} className={cn(
+                               "relative flex flex-col items-center justify-center p-1.5 rounded-lg border transition-all duration-300 shrink-0 sm:shrink snap-center min-w-[60px] sm:min-w-0 h-14 sm:h-16 w-auto sm:w-full",
+                               isBooked 
+                                 ? "bg-rose-50 border-rose-200 text-rose-300 opacity-80" 
+                                 : "bg-teal-50/80 border-teal-400/50 hover:border-teal-500 hover:shadow-md text-teal-700 hover:-translate-y-0.5"
                              )}>
-                               {isBooked ? 'Ocupado' : 'Livre'}
-                             </Badge>
-                          </div>
-                        );
-                      })}
-                   </div>
-
-                   {/* Quiosques Familiares */}
-                   <div className="pt-3 border-t border-emerald-100">
-                      <span className="text-[9px] font-black text-teal-700/80 uppercase tracking-widest mb-2 block">⛺ Quiosques Familiares — Até 5 pessoas</span>
-                      <div className="flex sm:grid sm:grid-cols-7 overflow-x-auto sm:overflow-x-visible gap-2 pb-2 sm:pb-0 snap-x scroll-smooth custom-scrollbar">
-                        {KIOSK_MAP.filter(k => k.row === 'familiar').map(k => {
-                          const isBooked = bookedKioskIds.includes(k.id);
-                          return (
-                            <div key={k.id} className={cn(
-                              "relative flex flex-col items-center justify-center p-1.5 rounded-lg border transition-all duration-300 shrink-0 sm:shrink snap-center min-w-[60px] sm:min-w-0 h-14 sm:h-16 w-auto sm:w-full",
-                              isBooked 
-                                ? "bg-rose-50 border-rose-200 text-rose-300 opacity-80" 
-                                : "bg-teal-50/80 border-teal-400/50 hover:border-teal-500 hover:shadow-md text-teal-700 hover:-translate-y-0.5"
-                            )}>
-                                 <div className={cn(
-                                   "w-7 h-7 sm:w-8 sm:h-8 rounded flex items-center justify-center font-black text-xs sm:text-sm mb-1",
-                                   isBooked ? "bg-rose-100 text-rose-400" : "bg-teal-100 text-teal-900"
-                                 )}>
-                                   {String(k.id).padStart(2, '0')}
-                                 </div>
-                               <Badge variant="outline" className={cn(
-                                 "font-black text-[7px] uppercase tracking-tighter border px-1.5 py-0.2 rounded-full mt-auto",
-                                 isBooked ? "bg-rose-100 border-rose-300 text-rose-700" : "bg-teal-100 border-teal-300 text-teal-700"
-                               )}>
-                                 {isBooked ? 'Ocupado' : 'Livre'}
-                               </Badge>
-                            </div>
-                          );
-                        })}
-                      </div>
-                   </div>
-
-                  <div className="space-y-4">
-                    <div className="bg-emerald-50/50 border border-emerald-100 p-4 rounded-xl shadow-sm text-emerald-800 text-xs">
-                      <h4 className="font-black text-emerald-900 flex items-center gap-2 mb-2">
-                        <CheckCircle2 className="h-4 w-4 stroke-[3]" /> O que inclui nos quiosques?
-                      </h4>
-                      <ul className="list-disc pl-5 space-y-1">
-                        <li><strong>Quiosques 01 ao 05:</strong> 1 tomada em cada, pia, grelha, churrasqueira, mesas e cadeiras.</li>
-                        <li><strong>Quiosques Familiares (06 ao 12):</strong> Sem tomada e sem pia individual (possuem pia de uso coletivo comunitário próxima aos quiosques do 02 ao 05). Incluem grelha, churrasqueira, mesas e cadeiras.</li>
-                        <li><strong>Carvão:</strong> Por conta do cliente.</li>
-                      </ul>
+                                  <div className={cn(
+                                    "w-7 h-7 sm:w-8 sm:h-8 rounded flex items-center justify-center font-black text-xs sm:text-sm mb-1",
+                                    isBooked ? "bg-rose-100 text-rose-400" : "bg-teal-100 text-teal-900"
+                                  )}>
+                                    {String(k.id).padStart(2, '0')}
+                                  </div>
+                                <Badge variant="outline" className={cn(
+                                  "font-black text-[7px] uppercase tracking-tighter border px-1.5 py-0.2 rounded-full mt-auto",
+                                  isBooked ? "bg-rose-100 border-rose-300 text-rose-700" : "bg-teal-100 border-teal-300 text-teal-700"
+                                )}>
+                                  {isBooked ? 'Ocupado' : 'Livre'}
+                                </Badge>
+                             </div>
+                           );
+                         })}
+                       </div>
                     </div>
 
-                    <div className="bg-white border-2 border-emerald-100 rounded-[2rem] p-6 shadow-sm">
-                        <p className="text-slate-600 text-xs font-medium leading-relaxed text-center">
-                          Este mapa mostra a ocupação em tempo real para a data selecionada. 
-                          Quiosques em <span className="text-rose-600 font-bold">vermelho</span> já estão reservados.
-                          <span className="font-black text-emerald-950 block mt-3 text-sm">Para garantir sua reserva, preencha os dados e conclua o pagamento ao final.</span>
-                        </p>
-                    </div>
-                  </div>
+                   <div className="space-y-4">
+                     <div className="bg-emerald-50/50 border border-emerald-100 p-4 rounded-xl shadow-sm text-emerald-800 text-xs">
+                       <h4 className="font-black text-emerald-900 flex items-center gap-2 mb-2">
+                         <CheckCircle2 className="h-4 w-4 stroke-[3]" /> O que inclui nos quiosques?
+                       </h4>
+                       <ul className="list-disc pl-5 space-y-1">
+                         <li><strong>Quiosques 01 ao 05:</strong> 1 tomada em cada, pia, grelha, churrasqueira, mesas e cadeiras.</li>
+                         <li><strong>Quiosques Familiares (06 ao 12):</strong> Sem tomada e sem pia individual (possuem pia de uso coletivo comunitário próxima aos quiosques do 02 ao 05). Incluem grelha, churrasqueira, mesas e cadeiras.</li>
+                         <li><strong>Carvão:</strong> Por conta do cliente.</li>
+                       </ul>
+                     </div>
+
+                     <div className="bg-white border-2 border-emerald-100 rounded-[2rem] p-6 shadow-sm">
+                         <p className="text-slate-600 text-xs font-medium leading-relaxed text-center">
+                           Este mapa mostra a ocupação em tempo real para a data selecionada. 
+                           Quiosques em <span className="text-rose-600 font-bold">vermelho</span> já estão reservados.
+                           <span className="font-black text-emerald-950 block mt-3 text-sm">Para garantir sua reserva, preencha os dados e conclua o pagamento ao final.</span>
+                         </p>
+                     </div>
+                   </div>
                 </div>
 
                 <DialogFooter className="p-4 sm:p-6 bg-slate-50 border-t border-slate-200">
                   <Button 
-                    onClick={() => setIsAvailabilityOpen(false)}
+                    onClick={() => {
+                      setIsAvailabilityOpen(false);
+                      setTimeout(() => {
+                        const el = document.getElementById("adicionar-pessoas-secao");
+                        if (el) {
+                          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+                        toast({
+                          title: "Próximo Passo",
+                          description: "Adicione as Entradas (Adulto / Criança) abaixo para continuar o agendamento.",
+                          className: "bg-emerald-600 border-emerald-700 text-white font-bold"
+                        });
+                      }, 400);
+                    }}
                     className="w-full h-16 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest shadow-xl shadow-emerald-200 transition-all active:scale-95 group"
                   >
                     <span>Continuar Agendamento</span>
@@ -975,10 +993,9 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
           </div>
         )}
 
-        {/* Participantes Summary Container */}
         <div className="space-y-6 pt-2">
           <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-between border-b-2 border-emerald-200/60 pb-4">
+            <div id="adicionar-pessoas-secao" className="flex items-center justify-between border-b-2 border-emerald-200/60 pb-4">
               <div className="flex flex-row items-center flex-wrap gap-x-4 gap-y-2">
                 <h4 className="font-sans font-semibold text-primary text-2xl flex items-center gap-2">
                   <User className="h-6 w-6" /> Adicionar Pessoas:
