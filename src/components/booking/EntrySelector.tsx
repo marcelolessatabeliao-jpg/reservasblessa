@@ -814,9 +814,6 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
             </div>
 
             <div className="space-y-1">
-              <div className="inline-flex items-center gap-2 bg-emerald-100 text-emerald-800 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-300 shadow-sm mb-3">
-                <Home className="h-3 w-3 text-emerald-600" /> Disponibilidade de Quiosques
-              </div>
               <Button
                 variant="outline"
                 disabled={!entry.visitDate}
@@ -828,7 +825,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                     : "border-slate-100 text-emerald-800 font-bold bg-emerald-50/40"
                 )}
               >
-                {entry.visitDate ? "Ver quiosques para a data escolhida" : "Selecione uma data primeiro"}
+                {entry.visitDate ? "Consultar Quiosques Disponíveis (Apenas Visualização)" : "Selecione uma data primeiro"}
               </Button>
             </div>
 
@@ -836,7 +833,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
               <DialogContent className="w-[95vw] sm:max-w-2xl rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl max-h-[95dvh] overflow-y-auto no-scrollbar">
                 <div className="bg-gradient-to-br from-emerald-600 to-teal-700 p-6 text-white relative">
                   <DialogTitle className="text-2xl font-black uppercase tracking-tighter flex items-center gap-3">
-                    <Home className="h-6 w-6" /> Mapa de Quiosques
+                    <Home className="h-6 w-6" /> Consulta de Quiosques
                   </DialogTitle>
                   <p className="text-emerald-50/80 text-xs font-bold mt-1">
                     {entry.visitDate && format(entry.visitDate, "dd 'de' MMMM", { locale: ptBR })}
@@ -855,9 +852,10 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                       <div className="grid grid-cols-4 gap-2 mb-3">
                         {KIOSK_MAP.filter(k => k.row === 'top').map(k => {
                            const isBooked = bookedKioskIds.includes(k.id);
+                           const price = getPrice('kiosk_menor', 100);
                            return (
                              <div key={k.id} className={cn(
-                               "h-12 sm:h-14 rounded-xl border flex flex-col items-center justify-center gap-0.5 transition-all duration-300 shadow-sm",
+                               "h-14 rounded-xl border flex flex-col items-center justify-center gap-0.5 transition-all duration-300 shadow-sm",
                                isBooked 
                                  ? "bg-rose-50 border-rose-200 text-rose-300 opacity-80" 
                                  : "bg-white border-emerald-500 hover:border-amber-500 hover:shadow-md text-emerald-700 hover:-translate-y-0.5"
@@ -871,6 +869,12 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                                )}>
                                  {isBooked ? 'Ocupado' : 'Livre'}
                                </span>
+                               <span className={cn(
+                                 "text-[8px] font-black tracking-tight",
+                                 isBooked ? "text-rose-400/50" : "text-emerald-800"
+                               )}>
+                                 {formatCurrency(price).replace(',00', '')}
+                               </span>
                              </div>
                            );
                          })}
@@ -878,6 +882,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                        
                        {KIOSK_MAP.filter(k => k.row === 'bottom').map(k => {
                          const isBooked = bookedKioskIds.includes(k.id);
+                         const price = getPrice('kiosk_maior', 150);
                          return (
                            <div key={k.id} className={cn(
                              "w-full py-2 px-2.5 sm:px-4 rounded-xl border flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 transition-all duration-300 mt-2",
@@ -893,20 +898,26 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                                   {String(k.id).padStart(2, '0')}
                                 </div>
                                 <div className="flex flex-col">
-                                  <span className={cn("text-[9px] sm:text-[10px] font-black uppercase tracking-wider", isBooked ? "text-rose-400" : "text-emerald-900")}>Quiosque Maior</span>
+                                  <span className={cn("text-[9px] sm:text-[10px] font-black uppercase tracking-wider", isBooked ? "text-rose-400" : "text-emerald-900")}>Quiosque Grande</span>
                                   <span className="text-[7px] sm:text-[8px] font-bold text-slate-400 uppercase">Capacidade: 20-25 pessoas</span>
                                 </div>
                               </div>
-                              <Badge variant="outline" className={cn(
-                                "font-black text-[7px] sm:text-[8px] uppercase tracking-wider border px-2 py-0.5 rounded-full shrink-0",
-                                isBooked ? "bg-rose-100 border-rose-300 text-rose-700" : "bg-emerald-100 border-emerald-300 text-emerald-700"
-                              )}>
-                                {isBooked ? 'Ocupado' : 'Livre'}
-                              </Badge>
+                              <div className="flex flex-col items-end shrink-0 gap-0.5">
+                                <Badge variant="outline" className={cn(
+                                  "font-black text-[7px] sm:text-[8px] uppercase tracking-wider border px-2 py-0.5 rounded-full shrink-0",
+                                  isBooked ? "bg-rose-100 border-rose-300 text-rose-700" : "bg-emerald-100 border-emerald-300 text-emerald-700"
+                                )}>
+                                  {isBooked ? 'Ocupado' : 'Livre'}
+                                </Badge>
+                                <span className={cn("text-[10px] font-black", isBooked ? "text-rose-400/50" : "text-emerald-800")}>
+                                  {formatCurrency(price).replace(',00', '')}
+                                </span>
+                              </div>
                            </div>
                          );
                        })}
                     </div>
+
                     <div className="pt-3 border-t border-emerald-100 w-full max-w-full min-w-0 overflow-hidden">
                        <div className="flex items-center justify-between gap-2 mb-2">
                          <span className="text-[9px] font-black text-teal-700/80 uppercase tracking-widest">⛺ Quiosques Familiares — Até 5 pessoas</span>
@@ -917,51 +928,34 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                        <div className="w-full max-w-full flex sm:grid sm:grid-cols-7 overflow-x-auto sm:overflow-x-visible gap-2 pb-2 sm:pb-0 snap-x scroll-smooth custom-scrollbar">
                          {KIOSK_MAP.filter(k => k.row === 'familiar').map(k => {
                            const isBooked = bookedKioskIds.includes(k.id);
+                           const price = getPrice('kiosk_familiar', 75);
                            return (
                              <div key={k.id} className={cn(
-                               "relative flex flex-col items-center justify-center p-1.5 rounded-lg border transition-all duration-300 shrink-0 sm:shrink snap-center min-w-[60px] sm:min-w-0 h-14 sm:h-16 w-auto sm:w-full",
+                               "relative flex flex-col items-center justify-center p-1.5 rounded-lg border transition-all duration-300 shrink-0 sm:shrink snap-center min-w-[65px] sm:min-w-0 h-16 sm:h-18 w-auto sm:w-full",
                                isBooked 
                                  ? "bg-rose-50 border-rose-200 text-rose-300 opacity-80" 
                                  : "bg-teal-50/80 border-teal-400/50 hover:border-teal-500 hover:shadow-md text-teal-700 hover:-translate-y-0.5"
                              )}>
                                   <div className={cn(
-                                    "w-7 h-7 sm:w-8 sm:h-8 rounded flex items-center justify-center font-black text-xs sm:text-sm mb-1",
+                                    "w-7 h-7 sm:w-8 sm:h-8 rounded flex items-center justify-center font-black text-xs sm:text-sm mb-0.5",
                                     isBooked ? "bg-rose-100 text-rose-400" : "bg-teal-100 text-teal-900"
                                   )}>
                                     {String(k.id).padStart(2, '0')}
                                   </div>
                                 <Badge variant="outline" className={cn(
-                                  "font-black text-[7px] uppercase tracking-tighter border px-1.5 py-0.2 rounded-full mt-auto",
+                                  "font-black text-[6px] uppercase tracking-tighter border px-1.5 py-0.2 rounded-full",
                                   isBooked ? "bg-rose-100 border-rose-300 text-rose-700" : "bg-teal-100 border-teal-300 text-teal-700"
                                 )}>
                                   {isBooked ? 'Ocupado' : 'Livre'}
                                 </Badge>
+                                <span className={cn("text-[8px] font-black mt-1", isBooked ? "text-rose-400/50" : "text-teal-800")}>
+                                  {formatCurrency(price).replace(',00', '')}
+                                </span>
                              </div>
                            );
                          })}
                        </div>
                     </div>
-
-                   <div className="space-y-4">
-                     <div className="bg-emerald-50/50 border border-emerald-100 p-4 rounded-xl shadow-sm text-emerald-800 text-xs">
-                       <h4 className="font-black text-emerald-900 flex items-center gap-2 mb-2">
-                         <CheckCircle2 className="h-4 w-4 stroke-[3]" /> O que inclui nos quiosques?
-                       </h4>
-                       <ul className="list-disc pl-5 space-y-1">
-                         <li><strong>Quiosques 01 ao 05:</strong> 1 tomada em cada, pia, grelha, churrasqueira, mesas e cadeiras.</li>
-                         <li><strong>Quiosques Familiares (06 ao 12):</strong> Sem tomada e sem pia individual (possuem pia de uso coletivo comunitário próxima aos quiosques do 02 ao 05). Incluem grelha, churrasqueira, mesas e cadeiras.</li>
-                         <li><strong>Carvão:</strong> Por conta do cliente.</li>
-                       </ul>
-                     </div>
-
-                     <div className="bg-white border-2 border-emerald-100 rounded-[2rem] p-6 shadow-sm">
-                         <p className="text-slate-600 text-xs font-medium leading-relaxed text-center">
-                           Este mapa mostra a ocupação em tempo real para a data selecionada. 
-                           Quiosques em <span className="text-rose-600 font-bold">vermelho</span> já estão reservados.
-                           <span className="font-black text-emerald-950 block mt-3 text-sm">Para garantir sua reserva, preencha os dados e conclua o pagamento ao final.</span>
-                         </p>
-                     </div>
-                   </div>
                 </div>
 
                 <DialogFooter className="p-4 sm:p-6 bg-slate-50 border-t border-slate-200">
