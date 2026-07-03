@@ -819,7 +819,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                 disabled={!entry.visitDate}
                 onClick={handleOpenAvailability}
                 className={cn(
-                  "w-full h-11 rounded-xl border-2 font-black text-[10px] uppercase tracking-widest transition-all",
+                  "w-full min-h-10 h-auto py-2 px-3 rounded-xl border-2 font-black text-[10px] uppercase tracking-widest transition-all whitespace-normal leading-tight text-center",
                   entry.visitDate 
                     ? "border-primary/30 text-primary hover:bg-primary hover:text-white shadow-sm" 
                     : "border-slate-100 text-emerald-800 font-bold bg-emerald-50/40"
