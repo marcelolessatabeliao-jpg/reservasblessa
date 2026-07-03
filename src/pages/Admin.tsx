@@ -504,30 +504,40 @@ export default function Admin() {
     return s1 === s2;
   };
   const nameMatch = (n1: string, n2: string) => (n1 || '').toLowerCase().trim() === (n2 || '').toLowerCase().trim();
-
   const updateOrderTotal = async (orderId: string) => {
     if (!orderId || orderId.startsWith('order-')) return;
+    const isOrder = orderId.length < 36;
+    const table = isOrder ? 'orders' : 'bookings';
     try {
-      const { data: order } = await supabase.from('orders').select('manual_discount, manual_discount_type').eq('id', orderId).single();
+      let manualDiscount = 0;
+      let manualDiscountType = 'fixed';
+      
+      if (isOrder) {
+        const { data: order } = await supabase.from('orders').select('manual_discount, manual_discount_type').eq('id', orderId).maybeSingle();
+        if (order) {
+          manualDiscount = order.manual_discount || 0;
+          manualDiscountType = order.manual_discount_type || 'fixed';
+        }
+      }
+      
       const { data: items } = await supabase.from('order_items').select('unit_price, quantity').eq('order_id', orderId);
       
       if (items) {
         let subtotal = items.reduce((acc, it) => acc + (Number(it.unit_price) * (Number(it.quantity) || 1)), 0);
         let finalTotal = subtotal;
         
-        if (order?.manual_discount) {
-          const disc = order.manual_discount_type === 'percent' ? (subtotal * (order.manual_discount / 100)) : order.manual_discount;
+        if (manualDiscount > 0) {
+          const disc = manualDiscountType === 'percent' ? (subtotal * (manualDiscount / 100)) : manualDiscount;
           finalTotal = Math.max(0, subtotal - disc);
         }
         
-        await supabase.from('orders').update({ 
+        await supabase.from(table).update({ 
           total_amount: finalTotal, 
           updated_at: new Date().toISOString() 
         }).eq('id', orderId);
       }
     } catch(e) { console.error("Error syncing total:", e); }
   };
-
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -1258,7 +1268,6 @@ export default function Admin() {
     setItemToDelete({ item, type });
     setDeleteDialogOpen(true);
   };
-
   const confirmDelete = async () => {
     if (!itemToDelete) return;
     const { item, type } = itemToDelete;
@@ -1271,8 +1280,73 @@ export default function Admin() {
       else if (type === 'order') table = 'orders';
       else if (type === 'reservas') table = 'bookings';
 
+      // 1. Delete the reservation row
       const { error } = await supabase.from(table).delete().eq('id', item.id);
       if (error) throw error;
+
+      // 2. If it's a kiosk or quad reservation linked to a real order/booking, update order items and total amount
+      const orderId = item.order_id;
+      if ((type === 'kiosk' || type === 'quad') && orderId && !String(orderId).startsWith('order-')) {
+        const orderItemId = item.order_item_id;
+        
+        if (orderItemId) {
+          // Fetch current order item
+          const { data: orderItem } = await supabase
+            .from('order_items')
+            .select('id, quantity, unit_price')
+            .eq('id', orderItemId)
+            .maybeSingle();
+            
+          if (orderItem) {
+            const currentQty = Number(orderItem.quantity) || 1;
+            if (currentQty > 1) {
+              // Decrement quantity
+              await supabase
+                .from('order_items')
+                .update({ quantity: currentQty - 1 })
+                .eq('id', orderItemId);
+            } else {
+              // Delete the order item
+              await supabase
+                .from('order_items')
+                .delete()
+                .eq('id', orderItemId);
+            }
+          }
+        } else {
+          // Fallback: search by product keywords
+          const { data: oItems } = await supabase
+            .from('order_items')
+            .select('*')
+            .eq('order_id', orderId);
+            
+          if (oItems) {
+            const keyword = type === 'kiosk' ? 'quiosque' : 'quad';
+            const matchedItem = oItems.find(oi => 
+              (oi.product_id || '').toLowerCase().includes(keyword) || 
+              (oi.product_name || '').toLowerCase().includes(keyword)
+            );
+            
+            if (matchedItem) {
+              const currentQty = Number(matchedItem.quantity) || 1;
+              if (currentQty > 1) {
+                await supabase
+                  .from('order_items')
+                  .update({ quantity: currentQty - 1 })
+                  .eq('id', matchedItem.id);
+              } else {
+                await supabase
+                  .from('order_items')
+                  .delete()
+                  .eq('id', matchedItem.id);
+              }
+            }
+          }
+        }
+        
+        // Recalculate order/booking total amount
+        await updateOrderTotal(orderId);
+      }
       
       toast({ title: "Removido com sucesso" });
       fetchData();
