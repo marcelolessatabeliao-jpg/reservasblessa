@@ -308,11 +308,11 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
         ];
 
         return (
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-3 pt-1 pb-0 overflow-hidden no-scrollbar">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-2 pt-1 pb-0 overflow-hidden no-scrollbar">
             <div className="grid grid-cols-2 gap-2 px-1">
               <button 
                 className={cn(
-                  "h-auto py-4 px-2 flex items-center justify-center rounded-2xl border-2 transition-all duration-300 active:scale-[0.98] relative overflow-hidden bg-gold-metallic",
+                  "h-auto py-2.5 px-2 flex items-center justify-center rounded-xl border-2 transition-all duration-300 active:scale-[0.98] relative overflow-hidden bg-gold-metallic",
                   (wizardData.category === 'assinante' || wizardData.category === 'associado')
                     ? "border-[#8a6d3b] text-[#332200] shadow-[0_12px_30px_rgba(184,134,11,0.5)] scale-[1.01]" 
                     : "border-[#bf953f]/50 text-[#332200] shadow-md hover:border-[#bf953f] hover:shadow-lg"
@@ -338,7 +338,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
 
               <button 
                 className={cn(
-                  "h-auto py-4 px-2 flex items-center justify-center rounded-2xl border-2 transition-all duration-300 active:scale-[0.98] relative overflow-hidden",
+                  "h-auto py-2.5 px-2 flex items-center justify-center rounded-xl border-2 transition-all duration-300 active:scale-[0.98] relative overflow-hidden",
                   wizardData.category === 'balcao'
                     ? "bg-emerald-600 border-emerald-700 text-white shadow-lg scale-[1.01]" 
                     : "bg-white border-slate-200 text-slate-600 hover:border-emerald-300 hover:bg-emerald-50/50 shadow-sm"
@@ -367,7 +367,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                     key={cat.id}
                     disabled={isSundayBlocked}
                     className={cn(
-                      "h-auto flex flex-col items-center justify-center py-3 px-1 gap-1.5 rounded-xl border-2 transition-all text-center select-none relative overflow-hidden active:scale-[0.98]",
+                      "h-auto flex flex-col items-center justify-center py-2 px-1 gap-1 rounded-xl border-2 transition-all text-center select-none relative overflow-hidden active:scale-[0.98]",
                       isSundayBlocked 
                         ? "opacity-50 grayscale cursor-not-allowed bg-slate-50 border-slate-100" 
                         : (isSelected 
@@ -389,12 +389,12 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                     {isSundayBlocked && (
                       <span className="absolute top-0 left-0 w-full text-[8px] bg-orange-500 text-white font-black py-0.5 uppercase">Indisponível</span>
                     )}
-                    <span className="text-2xl sm:text-3xl leading-none">{cat.emoji}</span>
+                    <span className="text-xl sm:text-2xl leading-none">{cat.emoji}</span>
                     <div className="flex flex-col items-center">
-                      <span className={cn("text-xs sm:text-sm font-black leading-tight", cat.labelColor)}>{cat.label}</span>
-                      <span className="text-[9px] sm:text-[10px] font-bold text-muted-foreground leading-tight hidden sm:block whitespace-normal px-2 line-clamp-2">{cat.sublabel}</span>
+                      <span className={cn("text-[11px] sm:text-xs font-black leading-tight", cat.labelColor)}>{cat.label}</span>
+                      <span className="text-[9px] sm:text-[10px] font-bold text-muted-foreground leading-tight hidden sm:block whitespace-normal px-1 sm:px-2 line-clamp-2">{cat.sublabel}</span>
                     </div>
-                    <span className={cn("mt-1 text-[10px] sm:text-xs px-3 py-1 rounded-full font-black", cat.priceColor, "bg-white/90 shadow-sm")}>
+                    <span className={cn("mt-0.5 text-[9px] sm:text-[10px] px-2 py-0.5 rounded-full font-black", cat.priceColor, "bg-white/90 shadow-sm")}>
                       {cat.price === 'GRÁTIS' ? cat.price : (cat.price.startsWith('R$') ? cat.price : `R$ ${cat.price}`)}
                     </span>
                   </button>
@@ -1182,10 +1182,10 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
 
       {/* Simplified Guided Wizard Modal */}
       <Dialog open={isWizardOpen} onOpenChange={(open) => { if (!open) resetWizard(); setIsWizardOpen(open); }}>
-        <DialogContent className="w-[calc(100vw-16px)] max-w-md sm:max-w-md bg-white rounded-3xl sm:rounded-[3rem] border-white shadow-2xl p-4 sm:p-6 overflow-x-hidden overflow-y-auto max-h-[92dvh]">
-          <DialogHeader className="mb-0 sm:mb-1 top-0 bg-white z-20 pt-4 pb-0 border-b sm:border-none">
+        <DialogContent className="w-[calc(100vw-16px)] max-w-md sm:max-w-md bg-white rounded-3xl sm:rounded-[2.5rem] border-white shadow-2xl p-4 sm:p-5 overflow-x-hidden overflow-y-auto max-h-[92dvh]">
+          <DialogHeader className="mb-0 sm:mb-0 top-0 bg-white z-20 pt-2 sm:pt-3 pb-0 border-b sm:border-none">
             <div className="flex items-center justify-center relative">
-              <DialogTitle className="text-xl sm:text-2xl font-bold text-center text-primary font-sans mt-2">
+              <DialogTitle className="text-lg sm:text-xl font-bold text-center text-primary font-sans mt-0">
                 {wizardType === 'pcd' ? 'PCD / TEA' :
                   wizardType === 'senior' ? 'Acesso Melhor Idade' :
                     wizardType === 'child' ? 'Acesso Kids' :
@@ -1193,7 +1193,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
               </DialogTitle>
             </div>
             {wizardType === 'adult' && wizardStep === 3 && (
-              <div className="mx-1 mt-2 mb-0 bg-blue-50 border border-blue-200 rounded-2xl px-4 py-3 flex items-start gap-2.5">
+              <div className="mx-1 mt-1 mb-0 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 flex items-start gap-2">
                 <span className="text-base shrink-0 mt-0.5">💡</span>
                 <p className="text-[11px] text-blue-800 font-semibold leading-relaxed">
                   <span className="font-black">Vai com mais pessoas?</span> Adicione as entradas individualmente para já garantir o acesso de todos, ou escolha <span className="font-black">Pagar no Balcão</span> se preferir pular essa etapa.
