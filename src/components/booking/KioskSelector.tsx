@@ -317,9 +317,12 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
 
           {/* Quiosques Familiares: 06-12 */}
           <div className="pt-4 border-t border-emerald-600/20">
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center justify-between gap-2 mb-3">
               <span className="text-[10px] font-black text-teal-700/80 uppercase tracking-widest">
                 ⛺ Quiosques Familiares — Até 5 pessoas
+              </span>
+              <span className="animate-pulse text-[9px] font-black text-teal-600 flex items-center gap-1">
+                Deslize para ver mais <span className="text-xs">➡️</span>
               </span>
             </div>
             <div className="flex overflow-x-auto gap-2 sm:gap-3 pb-3 snap-x scroll-smooth">
