@@ -50,16 +50,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { exportToExcel, exportToPDF, exportMultiSheetExcel } from '@/utils/export-utils';
 
 // Constants from common types
-const KIOSKS = [
-  { id: 1, name: 'QUIOSQUE - 01 (Grande)', price: 100, capacity: 'Até 30 pessoas', type: 'Maior' },
-  { id: 2, name: 'QUIOSQUE - 02', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' },
-  { id: 3, name: 'QUIOSQUE - 03', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' },
-  { id: 4, name: 'QUIOSQUE - 04', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' },
-  { id: 5, name: 'QUIOSQUE - 05', price: 75, capacity: 'Até 15 pessoas', type: 'Menor' },
-  { id: 6, name: 'QUIOSQUE - 06', price: 100, capacity: 'Até 15 pessoas', type: 'Maior', observation: 'área privilegiada ao lado da cachoeira do batistério' },
-  { id: 7, name: 'QUIOSQUE - 07', price: 100, capacity: 'Até 15 pessoas', type: 'Maior', observation: 'área privilegiada ao lado da cachoeira do batistério' },
-  { id: 8, name: 'QUIOSQUE - 08', price: 100, capacity: 'Até 15 pessoas', type: 'Maior', observation: 'área privilegiada ao lado da cachoeira do batistério' }
-];
+import { KIOSKS } from '@/lib/admin-constants';
 
 const QUAD_TIMES = ['09:00', '10:30', '14:00', '15:30'];
 const PAYMENT_METHODS = [
@@ -163,11 +154,14 @@ export const syncKiosksForOrder = async (orderId: string) => {
       
       const pIdOrig = (item.product_id || '').toLowerCase();
       const kioskIdMatch = pIdOrig.match(/quiosque\s*(\d+)/i);
-      let kId: any = kioskIdMatch ? parseInt(kioskIdMatch[1], 10) : (pIdOrig.includes('maior') ? 1 : 'MENOR');
+      let kId: any = kioskIdMatch ? parseInt(kioskIdMatch[1], 10) : (pIdOrig.includes('maior') ? 1 : (pIdOrig.includes('familiar') ? 'FAMILIAR' : 'MENOR'));
       
       if (sIds.length > 0) kId = sIds[0];
       
-      const kioskType = (kId === 1 || kId === 'MAIOR' || kId === '1') ? 'maior' : 'menor';
+      let kioskType = 'menor';
+      if (kId === 1 || kId === 'MAIOR' || kId === '1') kioskType = 'maior';
+      else if ((typeof kId === 'number' && kId >= 6 && kId <= 12) || kId === 'FAMILIAR') kioskType = 'familiar';
+      
       return {
         kioskId: kId,
         kioskType,
@@ -510,30 +504,40 @@ export default function Admin() {
     return s1 === s2;
   };
   const nameMatch = (n1: string, n2: string) => (n1 || '').toLowerCase().trim() === (n2 || '').toLowerCase().trim();
-
   const updateOrderTotal = async (orderId: string) => {
     if (!orderId || orderId.startsWith('order-')) return;
+    const isOrder = orderId.length < 36;
+    const table = isOrder ? 'orders' : 'bookings';
     try {
-      const { data: order } = await supabase.from('orders').select('manual_discount, manual_discount_type').eq('id', orderId).single();
+      let manualDiscount = 0;
+      let manualDiscountType = 'fixed';
+      
+      if (isOrder) {
+        const { data: order } = await supabase.from('orders').select('manual_discount, manual_discount_type').eq('id', orderId).maybeSingle();
+        if (order) {
+          manualDiscount = order.manual_discount || 0;
+          manualDiscountType = order.manual_discount_type || 'fixed';
+        }
+      }
+      
       const { data: items } = await supabase.from('order_items').select('unit_price, quantity').eq('order_id', orderId);
       
       if (items) {
         let subtotal = items.reduce((acc, it) => acc + (Number(it.unit_price) * (Number(it.quantity) || 1)), 0);
         let finalTotal = subtotal;
         
-        if (order?.manual_discount) {
-          const disc = order.manual_discount_type === 'percent' ? (subtotal * (order.manual_discount / 100)) : order.manual_discount;
+        if (manualDiscount > 0) {
+          const disc = manualDiscountType === 'percent' ? (subtotal * (manualDiscount / 100)) : manualDiscount;
           finalTotal = Math.max(0, subtotal - disc);
         }
         
-        await supabase.from('orders').update({ 
+        await supabase.from(table).update({ 
           total_amount: finalTotal, 
           updated_at: new Date().toISOString() 
         }).eq('id', orderId);
       }
     } catch(e) { console.error("Error syncing total:", e); }
   };
-
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -1003,25 +1007,39 @@ export default function Admin() {
 
           if (orderId && !String(orderId).startsWith('order-')) {
             if (orderItemId) {
+              const { data: currentOi } = await supabase.from('order_items').select('metadata').eq('id', orderItemId).single();
+              let currentMeta = currentOi?.metadata;
+              if (typeof currentMeta === 'string') { try { currentMeta = JSON.parse(currentMeta); } catch(e) {} }
+              currentMeta = currentMeta || {};
+
               await supabase.from('order_items').update({ 
                 unit_price: unitPrice, 
                 quantity: finalQty,
                 product_id: `Quadriciclo ${QUAD_MODELS_LABELS[finalModel as keyof typeof QUAD_MODELS_LABELS] || 'Individual'}`,
-                metadata: { time: finalTime, time_slot: finalTime } 
+                metadata: { ...currentMeta, time: finalTime, time_slot: finalTime, quad_type: finalModel } 
               }).eq('id', orderItemId);
             } else {
               // Fallback if no order_item_id: try to find the item
               const { data: oItems } = await supabase.from('order_items').select('*').eq('order_id', orderId);
+              // Match by the old quad_type instead of the new finalModel in case it changed
+              const oldModel = dbItem?.quad_type || finalModel;
               const quadItem = oItems?.find(oi => 
                 (oi.product_id?.toLowerCase().includes('quad') || (oi as any).product_name?.toLowerCase().includes('quad')) &&
-                (normalizeQuadType((oi as any).product_name || oi.product_id) === normalizeQuadType(finalModel))
+                (normalizeQuadType((oi as any).product_name || oi.product_id) === normalizeQuadType(oldModel))
               );
               if (quadItem) {
+                let currentMeta = quadItem.metadata;
+                if (typeof currentMeta === 'string') { try { currentMeta = JSON.parse(currentMeta); } catch(e) {} }
+                currentMeta = currentMeta || {};
+
+                // Use the existing quantity to prevent deleting other grouped items
+                const itemQty = quadItem.quantity || 1;
+
                 await supabase.from('order_items').update({ 
                   unit_price: unitPrice, 
-                  quantity: finalQty,
+                  quantity: itemQty,
                   product_id: `Quadriciclo ${QUAD_MODELS_LABELS[finalModel as keyof typeof QUAD_MODELS_LABELS] || 'Individual'}`,
-                  metadata: { time: finalTime, time_slot: finalTime } 
+                  metadata: { ...currentMeta, time: finalTime, time_slot: finalTime, quad_type: finalModel } 
                 }).eq('id', quadItem.id);
               }
             }
@@ -1051,32 +1069,22 @@ export default function Admin() {
         editData.order_id = orderId;
       }
 
-      const isRealOrder = orderId && !String(orderId).startsWith('order-');
+      // Always update the reservation row directly
+      if (typeof editingId === 'string' && editingId.startsWith('order-')) {
+        payload.order_id = editData.order_id;
+        
+        // Strip fields that don't exist on the DB table
+        const QUAD_COLS = ['time_slot','quad_type','quantity','reservation_date','notes','price','receipt_url','customer_name','order_id','status','order_item_id'];
+        const KIOSK_COLS = ['kiosk_id','reservation_date','notes','price','receipt_url','customer_name','order_id','status','order_item_id'];
+        const allowedCols = type === 'quad' ? QUAD_COLS : KIOSK_COLS;
+        const cleanPayload: any = {};
+        allowedCols.forEach(col => { if (payload[col] !== undefined) cleanPayload[col] = payload[col]; });
 
-      if (isRealOrder) {
-        if (type === 'kiosk') {
-          await syncKiosksForOrder(orderId);
-        } else if (type === 'quad') {
-          await syncQuadsForOrder(orderId);
-        }
+        const { error } = await supabase.from(table).insert([cleanPayload]);
+        if (error) throw error;
       } else {
-        // Se for uma reserva virtual extraída de um pedido, precisa virar real no banco
-        if (typeof editingId === 'string' && editingId.startsWith('order-')) {
-          payload.order_id = editData.order_id;
-          
-          // Strip fields that don't exist on the DB table
-          const QUAD_COLS = ['time_slot','quad_type','quantity','reservation_date','notes','price','receipt_url','customer_name','order_id','status','order_item_id'];
-          const KIOSK_COLS = ['kiosk_id','reservation_date','notes','price','receipt_url','customer_name','order_id','status','order_item_id'];
-          const allowedCols = type === 'quad' ? QUAD_COLS : KIOSK_COLS;
-          const cleanPayload: any = {};
-          allowedCols.forEach(col => { if (payload[col] !== undefined) cleanPayload[col] = payload[col]; });
-
-          const { error } = await supabase.from(table).insert([cleanPayload]);
-          if (error) throw error;
-        } else {
-          const { error } = await supabase.from(table).update(payload).eq('id', editingId);
-          if (error) throw error;
-        }
+        const { error } = await supabase.from(table).update(payload).eq('id', editingId);
+        if (error) throw error;
       }
 
       if (editData.order_id && !String(editData.order_id).startsWith('order-')) {
@@ -1265,7 +1273,6 @@ export default function Admin() {
     setItemToDelete({ item, type });
     setDeleteDialogOpen(true);
   };
-
   const confirmDelete = async () => {
     if (!itemToDelete) return;
     const { item, type } = itemToDelete;
@@ -1278,8 +1285,73 @@ export default function Admin() {
       else if (type === 'order') table = 'orders';
       else if (type === 'reservas') table = 'bookings';
 
+      // 1. Delete the reservation row
       const { error } = await supabase.from(table).delete().eq('id', item.id);
       if (error) throw error;
+
+      // 2. If it's a kiosk or quad reservation linked to a real order/booking, update order items and total amount
+      const orderId = item.order_id;
+      if ((type === 'kiosk' || type === 'quad') && orderId && !String(orderId).startsWith('order-')) {
+        const orderItemId = item.order_item_id;
+        
+        if (orderItemId) {
+          // Fetch current order item
+          const { data: orderItem } = await supabase
+            .from('order_items')
+            .select('id, quantity, unit_price')
+            .eq('id', orderItemId)
+            .maybeSingle();
+            
+          if (orderItem) {
+            const currentQty = Number(orderItem.quantity) || 1;
+            if (currentQty > 1) {
+              // Decrement quantity
+              await supabase
+                .from('order_items')
+                .update({ quantity: currentQty - 1 })
+                .eq('id', orderItemId);
+            } else {
+              // Delete the order item
+              await supabase
+                .from('order_items')
+                .delete()
+                .eq('id', orderItemId);
+            }
+          }
+        } else {
+          // Fallback: search by product keywords
+          const { data: oItems } = await supabase
+            .from('order_items')
+            .select('*')
+            .eq('order_id', orderId);
+            
+          if (oItems) {
+            const keyword = type === 'kiosk' ? 'quiosque' : 'quad';
+            const matchedItem = oItems.find(oi => 
+              (oi.product_id || '').toLowerCase().includes(keyword) || 
+              (oi.product_name || '').toLowerCase().includes(keyword)
+            );
+            
+            if (matchedItem) {
+              const currentQty = Number(matchedItem.quantity) || 1;
+              if (currentQty > 1) {
+                await supabase
+                  .from('order_items')
+                  .update({ quantity: currentQty - 1 })
+                  .eq('id', matchedItem.id);
+              } else {
+                await supabase
+                  .from('order_items')
+                  .delete()
+                  .eq('id', matchedItem.id);
+              }
+            }
+          }
+        }
+        
+        // Recalculate order/booking total amount
+        await updateOrderTotal(orderId);
+      }
       
       toast({ title: "Removido com sucesso" });
       fetchData();
@@ -2965,61 +3037,67 @@ function EditKioskDialog({ group, onClose, onUpdated, updateOrderTotal }: any) {
     setLoading(true);
     try {
       const orderId = group.items[0].order_id;
-      
-      for (let i = 0; i < group.items.length; i++) {
-        const item = group.items[i];
+      const reservationDate = group.reservation_date || group.items[0].reservation_date;
+      const customerName = group.customer_name || group.items[0].customer_name;
+      const isRealOrder = orderId && !String(orderId).startsWith('order-');
+
+      // STEP 1: Delete ALL existing kiosk_reservations for this order
+      // This is the critical fix: ensures no stale entries remain after a kiosk change
+      if (isRealOrder) {
+        const { error: delErr } = await supabase
+          .from('kiosk_reservations')
+          .delete()
+          .eq('order_id', orderId);
+        if (delErr) throw delErr;
+      }
+
+      // STEP 2: Find linked order_items to update
+      let oiId: string | null = null;
+      if (isRealOrder) {
+        const { data: oItems } = await supabase.from('order_items').select('*').eq('order_id', orderId);
+        const kioskItem = oItems?.find(oi =>
+          oi.product_id?.toLowerCase().includes('quiosque') ||
+          (oi as any).product_name?.toLowerCase().includes('quiosque')
+        );
+        if (kioskItem) oiId = kioskItem.id;
+      }
+
+      // STEP 3: Insert new kiosk_reservations (one per selected kiosk)
+      for (let i = 0; i < selectedKiosks.length; i++) {
         const newKioskId = selectedKiosks[i];
         const newKiosk = KIOSKS.find(k => k.id === newKioskId);
-        const kioskType = newKiosk?.type === 'Maior' ? 'maior' : 'menor';
-        const newPrice = newKiosk?.type === 'Maior' ? 100 : 75;
-
-        // Prepare to find linked order item
-        let oiId = null;
-        const orderId = group.items[0]?.order_id;
-        if (orderId && !String(orderId).startsWith('order-')) {
-          const { data: oItems } = await supabase.from('order_items').select('*').eq('order_id', orderId);
-          const kioskItem = oItems?.find(oi => 
-            (oi.product_id?.toLowerCase().includes('quiosque') || (oi as any).product_name?.toLowerCase().includes('quiosque')) &&
-            (oi.id === item.order_item_id || group.items.length === 1)
-          );
-          if (kioskItem) oiId = kioskItem.id;
-        }
-
+        const kioskType = newKiosk?.type === 'Maior' ? 'maior' : newKiosk?.type === 'Familiar' ? 'familiar' : 'menor';
+        const newPrice = newKiosk?.type === 'Maior' ? 150 : newKiosk?.type === 'Familiar' ? 75 : 100;
         const kioskLabel = String(newKioskId).padStart(2, '0');
-        
-        if (String(item.id).startsWith('order-')) {
-           const { error: insErr } = await supabase.from('kiosk_reservations').insert({
-              order_id: item.order_id,
-              kiosk_id: newKioskId,
-              kiosk_type: kioskType,
-              price: newPrice,
-              reservation_date: item.reservation_date || group.reservation_date,
-              customer_name: item.customer_name || group.customer_name
-           });
-           if (insErr) throw insErr;
-        } else {
-           const { error: updErr } = await supabase.from('kiosk_reservations').update({
-              kiosk_id: newKioskId,
-              kiosk_type: kioskType,
-              price: newPrice
-           }).eq('id', item.id);
-           if (updErr) throw updErr;
-        }
 
-        if (oiId) {
-           const { error: oiErr } = await supabase.from('order_items').update({
+        if (isRealOrder) {
+          const { error: insErr } = await supabase.from('kiosk_reservations').insert({
+            order_id: orderId,
+            kiosk_id: newKioskId,
+            kiosk_type: kioskType,
+            price: newPrice,
+            reservation_date: reservationDate,
+            customer_name: customerName
+          });
+          if (insErr) throw insErr;
+
+          // Update the first (or only) order_item to reflect the new kiosk
+          if (oiId && i === 0) {
+            const { error: oiErr } = await supabase.from('order_items').update({
               product_id: `Quiosque ${kioskLabel}`,
               unit_price: newPrice,
-              metadata: { selectedIds: [newKioskId] }
-           }).eq('id', oiId);
-           if (oiErr) throw oiErr;
+              metadata: { selectedIds: selectedKiosks }
+            }).eq('id', oiId);
+            if (oiErr) throw oiErr;
+          }
         }
       }
-      
-      if (orderId && !String(orderId).startsWith('order-')) {
+
+      if (isRealOrder) {
         await updateOrderTotal(orderId);
       }
-      toast({ title: 'Sucesso!', description: 'Quiosques atualizados.' });
+
+      toast({ title: 'Sucesso!', description: 'Quiosques atualizados com sucesso.' });
       onUpdated();
       onClose();
     } catch(e: any) { 

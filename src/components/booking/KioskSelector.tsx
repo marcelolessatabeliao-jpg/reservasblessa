@@ -16,14 +16,18 @@ interface Props {
 
 // Physical kiosk definitions matching the real layout
 const KIOSK_MAP = [
-  { id: 1, type: 'maior' as const, label: 'Quiosque 01', capacity: '20 a 25 pessoas', row: 'bottom', icon: '🏠' },
-  { id: 2, type: 'menor' as const, label: 'Quiosque 02', capacity: 'Até 15 pessoas', row: 'top', icon: '🏡' },
-  { id: 3, type: 'menor' as const, label: 'Quiosque 03', capacity: 'Até 15 pessoas', row: 'top', icon: '🏡' },
-  { id: 4, type: 'menor' as const, label: 'Quiosque 04', capacity: 'Até 15 pessoas', row: 'top', icon: '🏡' },
-  { id: 5, type: 'menor' as const, label: 'Quiosque 05', capacity: 'Até 15 pessoas', row: 'top', icon: '🏡' },
-  { id: 6, type: 'maior' as const, label: 'Quiosque 06', capacity: 'Até 15 pessoas', row: 'waterfall', icon: '🏠', observation: 'Área privilegiada ao lado da cachoeira do batistério' },
-  { id: 7, type: 'maior' as const, label: 'Quiosque 07', capacity: 'Até 15 pessoas', row: 'waterfall', icon: '🏠', observation: 'Área privilegiada ao lado da cachoeira do batistério' },
-  { id: 8, type: 'maior' as const, label: 'Quiosque 08', capacity: 'Até 15 pessoas', row: 'waterfall', icon: '🏠', observation: 'Área privilegiada ao lado da cachoeira do batistério' },
+  { id: 1,  type: 'maior'    as const, label: 'Quiosque 01', capacity: 'Até 25 pessoas', row: 'bottom',   icon: '🏠' },
+  { id: 2,  type: 'menor'    as const, label: 'Quiosque 02', capacity: 'Até 15 pessoas', row: 'top',      icon: '🏡' },
+  { id: 3,  type: 'menor'    as const, label: 'Quiosque 03', capacity: 'Até 15 pessoas', row: 'top',      icon: '🏡' },
+  { id: 4,  type: 'menor'    as const, label: 'Quiosque 04', capacity: 'Até 15 pessoas', row: 'top',      icon: '🏡' },
+  { id: 5,  type: 'menor'    as const, label: 'Quiosque 05', capacity: 'Até 15 pessoas', row: 'top',      icon: '🏡' },
+  { id: 6,  type: 'familiar' as const, label: 'Quiosque 06', capacity: 'Até 5 pessoas',  row: 'familiar', icon: '⛺' },
+  { id: 7,  type: 'familiar' as const, label: 'Quiosque 07', capacity: 'Até 5 pessoas',  row: 'familiar', icon: '⛺' },
+  { id: 8,  type: 'familiar' as const, label: 'Quiosque 08', capacity: 'Até 5 pessoas',  row: 'familiar', icon: '⛺' },
+  { id: 9,  type: 'familiar' as const, label: 'Quiosque 09', capacity: 'Até 5 pessoas',  row: 'familiar', icon: '⛺' },
+  { id: 10, type: 'familiar' as const, label: 'Quiosque 10', capacity: 'Até 5 pessoas',  row: 'familiar', icon: '⛺' },
+  { id: 11, type: 'familiar' as const, label: 'Quiosque 11', capacity: 'Até 5 pessoas',  row: 'familiar', icon: '⛺' },
+  { id: 12, type: 'familiar' as const, label: 'Quiosque 12', capacity: 'Até 5 pessoas',  row: 'familiar', icon: '⛺' },
 ];
 
 export function KioskSelector({ kiosks, onUpdate }: Props) {
@@ -33,10 +37,11 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
 
   const checkDate = kiosks[0]?.date;
 
-  // Collect all currently selected IDs from both kiosk items
+  // Collect all currently selected IDs from all kiosk items (maior=0, menor=1, familiar=2)
   const allSelectedIds: number[] = [
     ...(kiosks[0]?.selectedIds || []),
     ...(kiosks[1]?.selectedIds || []),
+    ...(kiosks[2]?.selectedIds || []),
   ];
 
   useEffect(() => {
@@ -55,7 +60,7 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
     fetchBooked();
 
     if (!checkDate) return;
-    
+
     const channel = supabase.channel('kiosk-map-updates')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'kiosk_reservations' }, () => {
         fetchBooked();
@@ -75,29 +80,27 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
       toast({ title: 'Selecione a data primeiro', description: 'Escolha a data de visita na seção acima antes de selecionar os quiosques.', variant: 'destructive' });
       return;
     }
-    
+
     if (bookedIds.includes(kioskDef.id)) {
       toast({ title: 'Quiosque Indisponível', description: `${kioskDef.label} já está reservado para esta data.`, variant: 'destructive' });
       return;
     }
 
-    // Find the kiosk array index: 0=menor, 1=maior
-    const kioskIndex = kioskDef.type === 'menor' ? 0 : 1;
+    // kiosk index: 0=maior, 1=menor, 2=familiar
+    const kioskIndex = kioskDef.type === 'maior' ? 0 : kioskDef.type === 'menor' ? 1 : 2;
     const currentItem = kiosks[kioskIndex];
-    const currentSelected = currentItem.selectedIds || [];
+    const currentSelected = currentItem?.selectedIds || [];
 
     let newSelected: number[];
     if (currentSelected.includes(kioskDef.id)) {
-      // Deselect
       newSelected = currentSelected.filter(id => id !== kioskDef.id);
     } else {
-      // Select
       newSelected = [...currentSelected, kioskDef.id];
     }
 
-    onUpdate(kioskIndex, { 
-      quantity: newSelected.length, 
-      selectedIds: newSelected 
+    onUpdate(kioskIndex, {
+      quantity: newSelected.length,
+      selectedIds: newSelected
     });
   };
 
@@ -105,13 +108,17 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
     return <div className="flex items-center justify-center p-6"><Loader2 className="animate-spin text-primary h-6 w-6" /></div>;
   }
 
-  const menorPrice = getPrice('kiosk_menor', KIOSK_INFO.menor.price);
-  const maiorPrice = getPrice('kiosk_maior', KIOSK_INFO.maior.price);
+  const maiorPrice    = getPrice('kiosk_maior',    KIOSK_INFO.maior.price);
+  const menorPrice    = getPrice('kiosk_menor',    KIOSK_INFO.menor.price);
+  const familiarPrice = getPrice('kiosk_familiar', KIOSK_INFO.familiar.price);
 
   const totalSelected = allSelectedIds.length;
   const totalPrice = allSelectedIds.reduce((sum, id) => {
     const def = KIOSK_MAP.find(k => k.id === id);
-    return sum + (def?.type === 'maior' ? maiorPrice : menorPrice);
+    if (!def) return sum;
+    if (def.type === 'maior')    return sum + maiorPrice;
+    if (def.type === 'menor')    return sum + menorPrice;
+    return sum + familiarPrice;
   }, 0);
 
   return (
@@ -126,7 +133,7 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
 
       {/* Map Container */}
       <div className="relative bg-gradient-to-b from-emerald-100/90 via-green-100/50 to-emerald-100/70 backdrop-blur-md rounded-3xl border-2 border-emerald-600/40 p-4 sm:p-6 shadow-lg overflow-hidden">
-        
+
         {/* Map Header */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
@@ -174,8 +181,8 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
 
         {/* ═══ KIOSK MAP LAYOUT ═══ */}
         <div className="space-y-3">
-          
-          {/* Top row: Kiosks 02-05 (menor) */}
+
+          {/* Top row: Quiosques 02-05 (médios) */}
           <div className="grid grid-cols-4 gap-2 sm:gap-3">
             {KIOSK_MAP.filter(k => k.row === 'top').map(kioskDef => {
               const isBooked = bookedIds.includes(kioskDef.id);
@@ -205,21 +212,18 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
                     </div>
                   )}
 
-                  {/* Selected check */}
                   {isSelected && (
                     <div className="absolute -top-1.5 -right-1.5 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-md border-2 border-emerald-700 z-20">
                       <Check className="h-3.5 w-3.5 text-emerald-700 stroke-[3]" />
                     </div>
                   )}
-                  
-                  {/* Booked badge */}
+
                   {isBooked && !isSelected && (
                     <div className="absolute top-1 right-1 px-1.5 py-0.5 bg-red-100 rounded-full">
                       <span className="text-[8px] font-black text-red-500 uppercase">Reservado</span>
                     </div>
                   )}
 
-                  {/* Kiosk number */}
                   <span className={cn(
                     "text-2xl sm:text-3xl font-black transition-colors",
                     isSelected ? "text-white" : isBooked ? "text-gray-400" : "text-emerald-700"
@@ -227,7 +231,6 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
                     {String(kioskDef.id).padStart(2, '0')}
                   </span>
 
-                  {/* Capacity */}
                   <div className={cn(
                     "flex items-center gap-1 mt-1",
                     isSelected ? "text-emerald-50" : isBooked ? "text-gray-400" : "text-emerald-600/70"
@@ -236,7 +239,6 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
                     <span className="text-[8px] sm:text-[9px] font-bold">{kioskDef.capacity}</span>
                   </div>
 
-                  {/* Price */}
                   <span className={cn(
                     "text-xs sm:text-sm font-black mt-1 transition-colors",
                     isSelected ? "text-white" : isBooked ? "text-gray-400" : "text-emerald-800"
@@ -248,7 +250,7 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
             })}
           </div>
 
-          {/* Bottom: Kiosk 01 (maior) */}
+          {/* Quiosque 01 (grande, separado) */}
           {KIOSK_MAP.filter(k => k.row === 'bottom').map(kioskDef => {
             const isBooked = bookedIds.includes(kioskDef.id);
             const isSelected = allSelectedIds.includes(kioskDef.id);
@@ -267,21 +269,18 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
                   !isBooked && !isSelected && "bg-white/90 border-emerald-500/50 hover:border-emerald-600 hover:bg-emerald-50 hover:shadow-md hover:scale-[1.01] active:scale-[0.99]",
                 )}
               >
-                {/* Selected check */}
                 {isSelected && (
                   <div className="absolute -top-1.5 -right-1.5 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-md border-2 border-emerald-700">
                     <Check className="h-3.5 w-3.5 text-emerald-700 stroke-[3]" />
                   </div>
                 )}
 
-                {/* Booked badge */}
                 {isBooked && !isSelected && (
                   <div className="absolute top-2 right-2 px-1.5 py-0.5 bg-red-100 rounded-full">
                     <span className="text-[8px] font-black text-red-500 uppercase">Reservado</span>
                   </div>
                 )}
 
-                {/* Left side: number + label */}
                 <div className="flex items-center gap-3 sm:gap-4">
                   <span className={cn(
                     "text-3xl sm:text-4xl font-black transition-colors",
@@ -294,7 +293,7 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
                       "text-[10px] sm:text-xs font-black uppercase tracking-wider",
                       isSelected ? "text-emerald-100" : isBooked ? "text-gray-400" : "text-emerald-500"
                     )}>
-                      Quiosque Maior
+                      Quiosque Grande — Separado
                     </span>
                     <div className={cn(
                       "flex items-center gap-1",
@@ -306,7 +305,6 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
                   </div>
                 </div>
 
-                {/* Right side: price */}
                 <span className={cn(
                   "text-lg sm:text-xl font-black transition-colors",
                   isSelected ? "text-white" : isBooked ? "text-gray-400" : "text-emerald-800"
@@ -317,18 +315,21 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
             );
           })}
 
-          {/* Área Privilegiada: Quiosques 06, 07, 08 */}
+          {/* Quiosques Familiares: 06-12 */}
           <div className="pt-4 border-t border-emerald-600/20">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-[10px] font-black text-amber-700/80 uppercase tracking-widest">
-                Área Privilegiada — Cachoeira do Batistério
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <span className="text-[10px] font-black text-teal-700/80 uppercase tracking-widest">
+                ⛺ Quiosques Familiares — Até 5 pessoas
+              </span>
+              <span className="animate-pulse text-[9px] font-black text-teal-600 flex items-center gap-1">
+                Deslize para ver mais <span className="text-xs">➡️</span>
               </span>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {KIOSK_MAP.filter(k => k.row === 'waterfall').map(kioskDef => {
+            <div className="flex overflow-x-auto gap-2 sm:gap-3 pb-3 snap-x scroll-smooth">
+              {KIOSK_MAP.filter(k => k.row === 'familiar').map(kioskDef => {
                 const isBooked = bookedIds.includes(kioskDef.id);
                 const isSelected = allSelectedIds.includes(kioskDef.id);
-                const price = maiorPrice;
+                const price = familiarPrice;
 
                 return (
                   <button
@@ -336,54 +337,53 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
                     onClick={() => handleToggleKiosk(kioskDef)}
                     disabled={isBooked && !isSelected}
                     className={cn(
-                      "relative flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all duration-300 cursor-pointer group",
-                      "min-h-[110px]",
+                      "relative flex flex-col items-center justify-center p-2 sm:p-4 rounded-2xl border-2 transition-all duration-300 cursor-pointer group shrink-0 snap-center",
+                      "min-w-[90px] sm:min-w-0 sm:flex-1 min-h-[100px] sm:min-h-[110px]",
                       isBooked && !isSelected && "bg-gray-100 border-gray-400 opacity-60 cursor-not-allowed",
-                      isSelected && "bg-amber-600 border-amber-700 text-white shadow-lg shadow-amber-600/40 scale-[1.02]",
-                      !isBooked && !isSelected && "bg-amber-50/80 border-amber-500/50 hover:border-amber-600 hover:bg-amber-100 hover:shadow-md hover:scale-[1.03] active:scale-[0.98]",
+                      isSelected && "bg-teal-600 border-teal-700 text-white shadow-lg shadow-teal-600/40 scale-[1.02]",
+                      !isBooked && !isSelected && "bg-teal-50/80 border-teal-400/50 hover:border-teal-500 hover:bg-teal-100 hover:shadow-md hover:scale-[1.03] active:scale-[0.98]",
                     )}
                   >
-                    {/* Selected check */}
                     {isSelected && (
-                      <div className="absolute -top-1.5 -right-1.5 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-md border-2 border-amber-700 z-20">
-                        <Check className="h-3.5 w-3.5 text-amber-700 stroke-[3]" />
+                      <div className="absolute -top-1.5 -right-1.5 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-md border-2 border-teal-700 z-20">
+                        <Check className="h-3.5 w-3.5 text-teal-700 stroke-[3]" />
                       </div>
                     )}
-                    
-                    {/* Kiosk number */}
+
+                    {isBooked && !isSelected && (
+                      <div className="absolute top-1 right-1 px-1.5 py-0.5 bg-red-100 rounded-full">
+                        <span className="text-[8px] font-black text-red-500 uppercase">Reservado</span>
+                      </div>
+                    )}
+
                     <span className={cn(
-                      "text-3xl font-black transition-colors",
-                      isSelected ? "text-white" : isBooked ? "text-gray-400" : "text-amber-700"
+                      "text-2xl sm:text-3xl font-black transition-colors",
+                      isSelected ? "text-white" : isBooked ? "text-gray-400" : "text-teal-700"
                     )}>
                       {String(kioskDef.id).padStart(2, '0')}
                     </span>
 
-                    {/* Label/Observation */}
-                    <span className={cn(
-                      "text-[9px] font-black uppercase tracking-tighter text-center mt-1",
-                      isSelected ? "text-amber-100" : isBooked ? "text-gray-400" : "text-amber-600"
+                    <div className={cn(
+                      "flex items-center gap-1 mt-1",
+                      isSelected ? "text-teal-50" : isBooked ? "text-gray-400" : "text-teal-600/70"
                     )}>
-                      Cachoeira do Batistério
-                    </span>
+                      <Users className="h-2.5 w-2.5" />
+                      <span className="text-[8px] sm:text-[9px] font-bold">{kioskDef.capacity}</span>
+                    </div>
 
-                    {/* Price */}
                     <span className={cn(
-                      "text-sm font-black mt-1 transition-colors",
-                      isSelected ? "text-white" : isBooked ? "text-gray-400" : "text-amber-900"
+                      "text-xs sm:text-sm font-black mt-1 transition-colors",
+                      isSelected ? "text-white" : isBooked ? "text-gray-400" : "text-teal-800"
                     )}>
                       {formatCurrency(price)}
                     </span>
-
-                    {/* Hover tooltip for observation */}
-                    <div className="absolute inset-x-0 -bottom-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-30 px-2">
-                       <div className="bg-slate-900 text-white text-[8px] font-bold p-1 rounded shadow-lg text-center">
-                          {kioskDef.observation}
-                       </div>
-                    </div>
                   </button>
                 );
               })}
             </div>
+            <p className="mt-2 text-[9px] text-teal-700/60 font-medium italic">
+              * Pia de uso comunitário disponível para os quiosques familiares. (pias próximas aos quiosques do 2 ao 5)
+            </p>
           </div>
         </div>
 
@@ -396,7 +396,7 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
                 {totalSelected} quiosque{totalSelected > 1 ? 's' : ''} selecionado{totalSelected > 1 ? 's' : ''}:
               </span>
               <span className="text-xs sm:text-sm font-black text-emerald-900">
-                {allSelectedIds.sort((a,b) => a-b).map(id => `Nº ${String(id).padStart(2,'0')}`).join(', ')}
+                {allSelectedIds.sort((a, b) => a - b).map(id => `Nº ${String(id).padStart(2, '0')}`).join(', ')}
               </span>
             </div>
             <span className="text-sm sm:text-base font-black text-emerald-900">
@@ -405,27 +405,25 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
           </div>
         )}
 
-        {/* Small disclaimer text for map representation */}
         <p className="mt-3 text-[9px] text-emerald-800/50 font-medium italic text-center w-full">
-           * O mapa dos quiosques representa fielmente o posicionamento físico dos mesmos no Balneário.
+          * O mapa dos quiosques representa fielmente o posicionamento físico dos mesmos no Balneário.
         </p>
       </div>
 
       {/* Included items info & Rules */}
       <div className="flex flex-col gap-3">
-        {/* Positive Include Row */}
         <div className="flex flex-col gap-2 bg-emerald-50/50 border border-emerald-100 p-3 sm:p-4 rounded-xl shadow-sm text-emerald-800 text-xs sm:text-sm">
           <h4 className="font-black text-emerald-900 flex items-center gap-2 mb-1">
             <Check className="h-4 w-4 stroke-[3]" /> O que inclui?
           </h4>
           <ul className="list-disc pl-6 space-y-1">
-            <li><strong>Quiosques 01 ao 05:</strong> Contam com 1 tomada em cada um, pia, grelha, churrasqueira, mesas e cadeiras.</li>
-            <li><strong>Quiosques 06, 07 e 08 (Área Privilegiada):</strong> Não possuem tomada e pia. Ficam ao lado da cachoeira do Batistério. Incluem grelha, churrasqueira, mesas e cadeiras.</li>
+            <li><strong>Quiosque 01 (Grande):</strong> Capacidade para 25 pessoas, separado dos demais. Churrasqueira, pia, grelha, mesas e cadeiras, 1 tomada.</li>
+            <li><strong>Quiosques 02 ao 05 (Médios):</strong> Capacidade para até 15 pessoas, um ao lado do outro. Churrasqueira, pia, grelha, mesas e cadeiras, 1 tomada.</li>
+            <li><strong>Quiosques 06 ao 12 (Familiares):</strong> Tamanho familiar para até 5 pessoas. Churrasqueira, grelha, 1 mesa e bancos. Pia comunitária próxima aos quiosques.</li>
             <li><strong>Carvão:</strong> Por conta do cliente.</li>
           </ul>
         </div>
 
-        {/* Warning notice & Additional Info */}
         <div className="flex flex-col gap-2 bg-destructive/5 border border-destructive/20 rounded-xl p-3 sm:p-4">
           <div className="flex items-start gap-2">
             <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-destructive shrink-0 mt-0.5" />

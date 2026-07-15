@@ -105,10 +105,10 @@ export function AdminDashboardTab({
       const pNameLower = (item.product_name || '').toLowerCase();
       if (pNameLower.includes('quiosque') || pNameLower.includes('camping')) {
          const kioskIdMatch = pNameLower.match(/quiosque\s*(\d+)/i);
-         const kId = kioskIdMatch ? parseInt(kioskIdMatch[1], 10) : (pNameLower.includes('maior') ? 1 : 'MENOR');
+         const kId = kioskIdMatch ? parseInt(kioskIdMatch[1], 10) : (pNameLower.includes('maior') ? 1 : (pNameLower.includes('familiar') ? 'FAMILIAR' : 'MENOR'));
 
           // Only add virtual item if no REAL reservation exists for this order item
-          if (!dayKiosks.some(dk => dk.order_item_id === item.id || (dk.order_id === b.id && (dk.kiosk_id === kId || dk.kiosk_id === 'MENOR')))) {
+          if (!dayKiosks.some(dk => dk.order_item_id === item.id || (dk.order_id === b.id && (dk.kiosk_id === kId || dk.kiosk_id === 'MENOR' || dk.kiosk_id === 'FAMILIAR')))) {
             dayKiosks.push({
                id: b.id + '-' + item.id,
                kiosk_id: kId,
@@ -181,7 +181,7 @@ export function AdminDashboardTab({
                   {/* Left: Quiosques */}
                   <div className="p-4 md:p-6 border-b xl:border-b-0 xl:border-r border-amber-300 bg-emerald-100/40 space-y-4">
                      <h4 className="text-[14px] font-black text-emerald-800 flex items-center gap-3">
-                        <Users className="w-5 h-5 text-emerald-700" /> Quiosques ({dayKiosks.length}/8)
+                        <Users className="w-5 h-5 text-emerald-700" /> Quiosques ({dayKiosks.length}/12)
                      </h4>
                      
                      <div className="flex flex-col gap-2.5">
@@ -193,10 +193,10 @@ export function AdminDashboardTab({
                          dayKiosks.forEach(b => {
                            const bid = b.kiosk_id;
                            const numId = Number(bid);
-                           if (!isNaN(numId) && numId >= 1 && numId <= 8) {
+                           if (!isNaN(numId) && numId >= 1 && numId <= 12) {
                              if (!kioskMap[numId]) kioskMap[numId] = b;
                            } else if (bid === 'MAIOR' || bid === '1') {
-                             for (const s of [1, 6, 7, 8]) {
+                             for (const s of [1]) {
                                if (!kioskMap[s]) { kioskMap[s] = b; break; }
                              }
                            }
@@ -206,6 +206,17 @@ export function AdminDashboardTab({
                          const menorKiosks = dayKiosks.filter(b => b.kiosk_id === 'MENOR');
                          menorKiosks.forEach(b => {
                            for (let slot = 2; slot <= 5; slot++) {
+                             if (!kioskMap[slot]) {
+                               kioskMap[slot] = b;
+                               break;
+                             }
+                           }
+                         });
+                         
+                         // Third pass: assign FAMILIAR kiosks to first available slot 6-12
+                         const familiarKiosks = dayKiosks.filter(b => b.kiosk_id === 'FAMILIAR');
+                         familiarKiosks.forEach(b => {
+                           for (let slot = 6; slot <= 12; slot++) {
                              if (!kioskMap[slot]) {
                                kioskMap[slot] = b;
                                break;
@@ -439,7 +450,7 @@ export function AdminDashboardTab({
                     const kiosksFull = (kioskReservations || []).filter(r => {
                       const rDate = typeof r.reservation_date === 'string' ? r.reservation_date.split('T')[0] : '';
                       return rDate === dateStr;
-                    }).length >= 8;
+                    }).length >= 12;
                     const quadsFull = (quadReservations || []).filter(r => {
                       const rDate = typeof r.reservation_date === 'string' ? r.reservation_date.split('T')[0] : '';
                       return rDate === dateStr;

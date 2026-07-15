@@ -44,17 +44,22 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { formatPhone } from '@/lib/utils/format';
 import { getBookedKioskIds } from '@/lib/booking-service';
 import { QuantityStepper } from '../QuantityStepper';
+import { useToast } from '@/hooks/use-toast';
 
 // Physical kiosk definitions matching the real layout
 const KIOSK_MAP = [
-  { id: 1, type: 'maior' as const, label: 'Quiosque 01', capacity: '20 a 25 pessoas', row: 'bottom', icon: '🏠' },
-  { id: 2, type: 'menor' as const, label: 'Quiosque 02', capacity: 'Até 15 pessoas', row: 'top', icon: '🏡' },
-  { id: 3, type: 'menor' as const, label: 'Quiosque 03', capacity: 'Até 15 pessoas', row: 'top', icon: '🏡' },
-  { id: 4, type: 'menor' as const, label: 'Quiosque 04', capacity: 'Até 15 pessoas', row: 'top', icon: '🏡' },
-  { id: 5, type: 'menor' as const, label: 'Quiosque 05', capacity: 'Até 15 pessoas', row: 'top', icon: '🏡' },
-  { id: 6, type: 'maior' as const, label: 'Quiosque 06', capacity: 'Até 15 pessoas', row: 'waterfall', icon: '🏠', observation: 'Lado da Cachoeira' },
-  { id: 7, type: 'maior' as const, label: 'Quiosque 07', capacity: 'Até 15 pessoas', row: 'waterfall', icon: '🏠', observation: 'Lado da Cachoeira' },
-  { id: 8, type: 'maior' as const, label: 'Quiosque 08', capacity: 'Até 15 pessoas', row: 'waterfall', icon: '🏠', observation: 'Lado da Cachoeira' },
+  { id: 1,  type: 'maior'    as const, label: 'Quiosque 01', capacity: 'Até 25 pessoas', row: 'bottom',   icon: '🏠' },
+  { id: 2,  type: 'menor'    as const, label: 'Quiosque 02', capacity: 'Até 15 pessoas', row: 'top',      icon: '🏡' },
+  { id: 3,  type: 'menor'    as const, label: 'Quiosque 03', capacity: 'Até 15 pessoas', row: 'top',      icon: '🏡' },
+  { id: 4,  type: 'menor'    as const, label: 'Quiosque 04', capacity: 'Até 15 pessoas', row: 'top',      icon: '🏡' },
+  { id: 5,  type: 'menor'    as const, label: 'Quiosque 05', capacity: 'Até 15 pessoas', row: 'top',      icon: '🏡' },
+  { id: 6,  type: 'familiar' as const, label: 'Quiosque 06', capacity: 'Até 5 pessoas',  row: 'familiar', icon: '⛺' },
+  { id: 7,  type: 'familiar' as const, label: 'Quiosque 07', capacity: 'Até 5 pessoas',  row: 'familiar', icon: '⛺' },
+  { id: 8,  type: 'familiar' as const, label: 'Quiosque 08', capacity: 'Até 5 pessoas',  row: 'familiar', icon: '⛺' },
+  { id: 9,  type: 'familiar' as const, label: 'Quiosque 09', capacity: 'Até 5 pessoas',  row: 'familiar', icon: '⛺' },
+  { id: 10, type: 'familiar' as const, label: 'Quiosque 10', capacity: 'Até 5 pessoas',  row: 'familiar', icon: '⛺' },
+  { id: 11, type: 'familiar' as const, label: 'Quiosque 11', capacity: 'Até 5 pessoas',  row: 'familiar', icon: '⛺' },
+  { id: 12, type: 'familiar' as const, label: 'Quiosque 12', capacity: 'Até 5 pessoas',  row: 'familiar', icon: '⛺' },
 ];
 
 interface Props {
@@ -73,6 +78,7 @@ type WizardType = 'adult' | 'child' | 'senior' | 'pcd' | null;
 type WizardStep = 1 | 2 | 3 | 4;
 
 export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChild, onUpdateAdult, onUpdateChild, hideMainInfo, hideTitle, blockedDates = [] }: Props) {
+  const { toast } = useToast();
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [wizardType, setWizardType] = useState<WizardType>(null);
@@ -302,11 +308,11 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
         ];
 
         return (
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-3 pt-1 pb-0 overflow-hidden no-scrollbar">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-2 pt-1 pb-0 overflow-hidden no-scrollbar">
             <div className="grid grid-cols-2 gap-2 px-1">
               <button 
                 className={cn(
-                  "h-auto py-4 px-2 flex items-center justify-center rounded-2xl border-2 transition-all duration-300 active:scale-[0.98] relative overflow-hidden bg-gold-metallic",
+                  "h-auto py-2.5 px-2 flex items-center justify-center rounded-xl border-2 transition-all duration-300 active:scale-[0.98] relative overflow-hidden bg-gold-metallic",
                   (wizardData.category === 'assinante' || wizardData.category === 'associado')
                     ? "border-[#8a6d3b] text-[#332200] shadow-[0_12px_30px_rgba(184,134,11,0.5)] scale-[1.01]" 
                     : "border-[#bf953f]/50 text-[#332200] shadow-md hover:border-[#bf953f] hover:shadow-lg"
@@ -332,7 +338,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
 
               <button 
                 className={cn(
-                  "h-auto py-4 px-2 flex items-center justify-center rounded-2xl border-2 transition-all duration-300 active:scale-[0.98] relative overflow-hidden",
+                  "h-auto py-2.5 px-2 flex items-center justify-center rounded-xl border-2 transition-all duration-300 active:scale-[0.98] relative overflow-hidden",
                   wizardData.category === 'balcao'
                     ? "bg-emerald-600 border-emerald-700 text-white shadow-lg scale-[1.01]" 
                     : "bg-white border-slate-200 text-slate-600 hover:border-emerald-300 hover:bg-emerald-50/50 shadow-sm"
@@ -361,7 +367,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                     key={cat.id}
                     disabled={isSundayBlocked}
                     className={cn(
-                      "h-auto flex flex-col items-center justify-center py-3 px-1 gap-1.5 rounded-xl border-2 transition-all text-center select-none relative overflow-hidden active:scale-[0.98]",
+                      "h-auto flex flex-col items-center justify-center py-2 px-1 gap-1 rounded-xl border-2 transition-all text-center select-none relative overflow-hidden active:scale-[0.98]",
                       isSundayBlocked 
                         ? "opacity-50 grayscale cursor-not-allowed bg-slate-50 border-slate-100" 
                         : (isSelected 
@@ -383,12 +389,12 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                     {isSundayBlocked && (
                       <span className="absolute top-0 left-0 w-full text-[8px] bg-orange-500 text-white font-black py-0.5 uppercase">Indisponível</span>
                     )}
-                    <span className="text-2xl sm:text-3xl leading-none">{cat.emoji}</span>
+                    <span className="text-xl sm:text-2xl leading-none">{cat.emoji}</span>
                     <div className="flex flex-col items-center">
-                      <span className={cn("text-xs sm:text-sm font-black leading-tight", cat.labelColor)}>{cat.label}</span>
-                      <span className="text-[9px] sm:text-[10px] font-bold text-muted-foreground leading-tight hidden sm:block whitespace-normal px-2 line-clamp-2">{cat.sublabel}</span>
+                      <span className={cn("text-[11px] sm:text-xs font-black leading-tight", cat.labelColor)}>{cat.label}</span>
+                      <span className="text-[9px] sm:text-[10px] font-bold text-muted-foreground leading-tight hidden sm:block whitespace-normal px-1 sm:px-2 line-clamp-2">{cat.sublabel}</span>
                     </div>
-                    <span className={cn("mt-1 text-[10px] sm:text-xs px-3 py-1 rounded-full font-black", cat.priceColor, "bg-white/90 shadow-sm")}>
+                    <span className={cn("mt-0.5 text-[9px] sm:text-[10px] px-2 py-0.5 rounded-full font-black", cat.priceColor, "bg-white/90 shadow-sm")}>
                       {cat.price === 'GRÁTIS' ? cat.price : (cat.price.startsWith('R$') ? cat.price : `R$ ${cat.price}`)}
                     </span>
                   </button>
@@ -808,38 +814,33 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
             </div>
 
             <div className="space-y-1">
-              <div className="inline-flex items-center gap-2 bg-emerald-100 text-emerald-800 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-300 shadow-sm mb-3">
-                <Home className="h-3 w-3 text-emerald-600" /> Disponibilidade de Quiosques
-              </div>
               <Button
                 variant="outline"
                 disabled={!entry.visitDate}
                 onClick={handleOpenAvailability}
                 className={cn(
-                  "w-full h-11 rounded-xl border-2 font-black text-[10px] uppercase tracking-widest transition-all",
+                  "w-full min-h-10 h-auto py-2 px-3 rounded-xl border-2 font-black text-[10px] uppercase tracking-widest transition-all whitespace-normal leading-tight text-center",
                   entry.visitDate 
                     ? "border-primary/30 text-primary hover:bg-primary hover:text-white shadow-sm" 
                     : "border-slate-100 text-emerald-800 font-bold bg-emerald-50/40"
                 )}
               >
-                {entry.visitDate ? "Ver quiosques para a data escolhida" : "Selecione uma data primeiro"}
+                {entry.visitDate ? "Consultar Quiosques Disponíveis (Apenas Visualização)" : "Selecione uma data primeiro"}
               </Button>
             </div>
 
-            {/* Kiosk Availability Dialog */}
             <Dialog open={isAvailabilityOpen} onOpenChange={setIsAvailabilityOpen}>
               <DialogContent className="w-[95vw] sm:max-w-2xl rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl max-h-[95dvh] overflow-y-auto no-scrollbar">
                 <div className="bg-gradient-to-br from-emerald-600 to-teal-700 p-6 text-white relative">
                   <DialogTitle className="text-2xl font-black uppercase tracking-tighter flex items-center gap-3">
-                    <Home className="h-6 w-6" /> Mapa de Quiosques
+                    <Home className="h-6 w-6" /> Consulta de Quiosques
                   </DialogTitle>
                   <p className="text-emerald-50/80 text-xs font-bold mt-1">
                     {entry.visitDate && format(entry.visitDate, "dd 'de' MMMM", { locale: ptBR })}
                   </p>
                 </div>
-
-                <div className="p-6 space-y-4 bg-emerald-50/30">
-                  <div className="bg-white/80 backdrop-blur-sm rounded-3xl border border-emerald-100 p-5 shadow-inner">
+                <div className="p-3 sm:p-6 space-y-4 bg-emerald-50/30 w-full max-w-full min-w-0 overflow-hidden">
+                  <div className="bg-white/80 backdrop-blur-sm rounded-3xl border border-emerald-100 p-3 sm:p-5 shadow-inner w-full max-w-full min-w-0 overflow-hidden">
                      <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-2">
                            <MapPin className="h-4 w-4 text-emerald-600" />
@@ -848,123 +849,131 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                         {isFetchingKiosks && <Loader2 className="h-4 w-4 animate-spin text-emerald-600" />}
                      </div>
 
-                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                      <div className="grid grid-cols-4 gap-2 mb-3">
                         {KIOSK_MAP.filter(k => k.row === 'top').map(k => {
-                          const isBooked = bookedKioskIds.includes(k.id);
-                          return (
-                            <div key={k.id} className={cn(
-                              "aspect-square rounded-[1.75rem] border-2 flex flex-col items-center justify-center gap-1 transition-all duration-300 shadow-sm",
-                              isBooked 
-                                ? "bg-rose-50 border-rose-200 text-rose-300 opacity-80" 
-                                : "bg-white border-emerald-500 hover:border-amber-500 hover:shadow-md text-emerald-700 hover:-translate-y-1"
-                            )}>
-                              <span className={cn("text-xl font-black", isBooked ? "text-rose-400/50" : "text-emerald-950")}>
-                                {String(k.id).padStart(2, '0')}
-                              </span>
-                              <span className={cn(
-                                "text-[9px] font-black uppercase tracking-tighter",
-                                isBooked ? "text-rose-400" : "text-emerald-600"
-                              )}>
-                                {isBooked ? 'Ocupado' : 'Livre'}
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                      
-                      {KIOSK_MAP.filter(k => k.row === 'bottom').map(k => {
-                        const isBooked = bookedKioskIds.includes(k.id);
-                        return (
-                          <div key={k.id} className={cn(
-                            "w-full h-auto sm:h-20 py-4 sm:py-0 rounded-3xl border-2 flex flex-col sm:flex-row items-center justify-between px-6 sm:px-8 gap-4 transition-all duration-300",
-                            isBooked 
-                              ? "bg-rose-50 border-rose-200 text-rose-300 opacity-80" 
-                              : "bg-white border-emerald-500 hover:border-amber-500 hover:shadow-md text-emerald-700 hover:-translate-y-1"
-                          )}>
-                             <div className="flex items-center gap-4">
-                               <div className={cn(
-                                 "w-12 h-12 rounded-2xl flex items-center justify-center font-black text-2xl",
-                                 isBooked ? "bg-rose-100 text-rose-400" : "bg-emerald-100 text-emerald-900"
-                               )}>
-                                 {String(k.id).padStart(2, '0')}
-                               </div>
-                               <div className="flex flex-col">
-                                 <span className={cn("text-[11px] font-black uppercase tracking-widest", isBooked ? "text-rose-400" : "text-emerald-900")}>Quiosque Maior</span>
-                                 <span className="text-[9px] font-bold text-slate-400 uppercase">Capacidade: 20-25 pessoas</span>
-                               </div>
-                             </div>
-                             <Badge variant="outline" className={cn(
-                               "font-black text-[10px] uppercase tracking-widest border-2 px-4 py-1 rounded-full",
-                               isBooked ? "bg-rose-100 border-rose-300 text-rose-700" : "bg-emerald-100 border-emerald-300 text-emerald-700"
+                           const isBooked = bookedKioskIds.includes(k.id);
+                           const price = getPrice('kiosk_menor', 100);
+                           return (
+                             <div key={k.id} className={cn(
+                               "h-14 rounded-xl border flex flex-col items-center justify-center gap-0.5 transition-all duration-300 shadow-sm",
+                               isBooked 
+                                 ? "bg-rose-50 border-rose-200 text-rose-300 opacity-80" 
+                                 : "bg-white border-emerald-500 hover:border-amber-500 hover:shadow-md text-emerald-700 hover:-translate-y-0.5"
                              )}>
-                               {isBooked ? 'Ocupado' : 'Livre'}
-                             </Badge>
-                          </div>
-                        );
-                      })}
-                   </div>
-
-                   {/* Área Privilegiada - Cachoeira do Batistério */}
-                   <div className="pt-4 border-t border-emerald-100 mt-4">
-                      <span className="text-[10px] font-black text-amber-700/80 uppercase tracking-widest mb-3 block">Área Privilegiada — Cachoeira do Batistério</span>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        {KIOSK_MAP.filter(k => k.row === 'waterfall').map(k => {
-                          const isBooked = bookedKioskIds.includes(k.id);
-                          return (
-                            <div key={k.id} className={cn(
-                              "relative w-full h-16 rounded-2xl border-2 flex items-center justify-between px-4 gap-2 transition-all duration-300",
-                              isBooked 
-                                ? "bg-rose-50 border-rose-200 text-rose-300 opacity-80" 
-                                : "bg-amber-50 border-amber-500 hover:border-amber-600 hover:shadow-md text-amber-700 hover:-translate-y-1"
-                            )}>
-                               <div className="flex items-center gap-2">
-                                 <div className={cn(
-                                   "w-8 h-8 rounded-xl flex items-center justify-center font-black text-sm",
-                                   isBooked ? "bg-rose-100 text-rose-400" : "bg-amber-100 text-amber-900"
-                                 )}>
-                                   {String(k.id).padStart(2, '0')}
-                                 </div>
-                                 <div className="flex flex-col">
-                                   <span className={cn("text-[10px] font-black uppercase tracking-tight", isBooked ? "text-rose-400" : "text-amber-900")}>Cachoeira do Batistério</span>
-                                 </div>
-                               </div>
-                               <Badge variant="outline" className={cn(
-                                 "font-black text-[8px] uppercase tracking-tighter border-2 px-2 py-0.5 rounded-full",
-                                 isBooked ? "bg-rose-100 border-rose-300 text-rose-700" : "bg-amber-100 border-amber-300 text-amber-700"
+                               <span className={cn("text-xs sm:text-base font-black", isBooked ? "text-rose-400/50" : "text-emerald-950")}>
+                                 {String(k.id).padStart(2, '0')}
+                               </span>
+                               <span className={cn(
+                                 "text-[6px] sm:text-[8px] font-black uppercase tracking-tighter",
+                                 isBooked ? "text-rose-400" : "text-emerald-600"
                                )}>
                                  {isBooked ? 'Ocupado' : 'Livre'}
-                               </Badge>
-                            </div>
-                          );
-                        })}
-                      </div>
-                   </div>
-
-                  <div className="space-y-4">
-                    <div className="bg-emerald-50/50 border border-emerald-100 p-4 rounded-xl shadow-sm text-emerald-800 text-xs">
-                      <h4 className="font-black text-emerald-900 flex items-center gap-2 mb-2">
-                        <CheckCircle2 className="h-4 w-4 stroke-[3]" /> O que inclui nos quiosques?
-                      </h4>
-                      <ul className="list-disc pl-5 space-y-1">
-                        <li><strong>Quiosques 01 ao 05:</strong> 1 tomada em cada, pia, grelha, churrasqueira, mesas e cadeiras.</li>
-                        <li><strong>Quiosques 06, 07 e 08 (Área Privilegiada):</strong> Sem tomada e pia. Ficam ao lado da cachoeira do Batistério. Incluem grelha, churrasqueira, mesas e cadeiras.</li>
-                        <li><strong>Carvão:</strong> Por conta do cliente.</li>
-                      </ul>
+                               </span>
+                               <span className={cn(
+                                 "text-[8px] font-black tracking-tight",
+                                 isBooked ? "text-rose-400/50" : "text-emerald-800"
+                               )}>
+                                 {formatCurrency(price).replace(',00', '')}
+                               </span>
+                             </div>
+                           );
+                         })}
+                       </div>
+                       
+                       {KIOSK_MAP.filter(k => k.row === 'bottom').map(k => {
+                         const isBooked = bookedKioskIds.includes(k.id);
+                         const price = getPrice('kiosk_maior', 150);
+                         return (
+                           <div key={k.id} className={cn(
+                             "w-full py-2 px-2.5 sm:px-4 rounded-xl border flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 transition-all duration-300 mt-2",
+                             isBooked 
+                               ? "bg-rose-50 border-rose-200 text-rose-300 opacity-80" 
+                               : "bg-white border-emerald-500 hover:border-amber-500 hover:shadow-md text-emerald-700 hover:-translate-y-0.5"
+                           )}>
+                              <div className="flex items-center gap-2">
+                                <div className={cn(
+                                  "w-8 h-8 rounded-lg flex items-center justify-center font-black text-base shrink-0",
+                                  isBooked ? "bg-rose-100 text-rose-400" : "bg-emerald-100 text-emerald-900"
+                                )}>
+                                  {String(k.id).padStart(2, '0')}
+                                </div>
+                                <div className="flex flex-col">
+                                  <span className={cn("text-[9px] sm:text-[10px] font-black uppercase tracking-wider", isBooked ? "text-rose-400" : "text-emerald-900")}>Quiosque Grande</span>
+                                  <span className="text-[7px] sm:text-[8px] font-bold text-slate-400 uppercase">Capacidade: 20-25 pessoas</span>
+                                </div>
+                              </div>
+                              <div className="flex flex-col items-end shrink-0 gap-0.5">
+                                <Badge variant="outline" className={cn(
+                                  "font-black text-[7px] sm:text-[8px] uppercase tracking-wider border px-2 py-0.5 rounded-full shrink-0",
+                                  isBooked ? "bg-rose-100 border-rose-300 text-rose-700" : "bg-emerald-100 border-emerald-300 text-emerald-700"
+                                )}>
+                                  {isBooked ? 'Ocupado' : 'Livre'}
+                                </Badge>
+                                <span className={cn("text-[10px] font-black", isBooked ? "text-rose-400/50" : "text-emerald-800")}>
+                                  {formatCurrency(price).replace(',00', '')}
+                                </span>
+                              </div>
+                           </div>
+                         );
+                       })}
                     </div>
 
-                    <div className="bg-white border-2 border-emerald-100 rounded-[2rem] p-6 shadow-sm">
-                        <p className="text-slate-600 text-xs font-medium leading-relaxed text-center">
-                          Este mapa mostra a ocupação em tempo real para a data selecionada. 
-                          Quiosques em <span className="text-rose-600 font-bold">vermelho</span> já estão reservados.
-                          <span className="font-black text-emerald-950 block mt-3 text-sm">Para garantir sua reserva, preencha os dados e conclua o pagamento ao final.</span>
-                        </p>
+                    <div className="pt-3 border-t border-emerald-100 w-full max-w-full min-w-0 overflow-hidden">
+                       <div className="flex items-center justify-between gap-2 mb-2">
+                         <span className="text-[9px] font-black text-teal-700/80 uppercase tracking-widest">⛺ Quiosques Familiares — Até 5 pessoas</span>
+                         <span className="animate-pulse text-[8px] font-black text-teal-600 flex items-center gap-0.5">
+                           Arraste para o lado <span className="text-xs">➡️</span>
+                         </span>
+                       </div>
+                       <div className="w-full max-w-full flex sm:grid sm:grid-cols-7 overflow-x-auto sm:overflow-x-visible gap-2 pb-2 sm:pb-0 snap-x scroll-smooth custom-scrollbar">
+                         {KIOSK_MAP.filter(k => k.row === 'familiar').map(k => {
+                           const isBooked = bookedKioskIds.includes(k.id);
+                           const price = getPrice('kiosk_familiar', 75);
+                           return (
+                             <div key={k.id} className={cn(
+                               "relative flex flex-col items-center justify-center p-1.5 rounded-lg border transition-all duration-300 shrink-0 sm:shrink snap-center min-w-[65px] sm:min-w-0 h-16 sm:h-18 w-auto sm:w-full",
+                               isBooked 
+                                 ? "bg-rose-50 border-rose-200 text-rose-300 opacity-80" 
+                                 : "bg-teal-50/80 border-teal-400/50 hover:border-teal-500 hover:shadow-md text-teal-700 hover:-translate-y-0.5"
+                             )}>
+                                  <div className={cn(
+                                    "w-7 h-7 sm:w-8 sm:h-8 rounded flex items-center justify-center font-black text-xs sm:text-sm mb-0.5",
+                                    isBooked ? "bg-rose-100 text-rose-400" : "bg-teal-100 text-teal-900"
+                                  )}>
+                                    {String(k.id).padStart(2, '0')}
+                                  </div>
+                                <Badge variant="outline" className={cn(
+                                  "font-black text-[6px] uppercase tracking-tighter border px-1.5 py-0.2 rounded-full",
+                                  isBooked ? "bg-rose-100 border-rose-300 text-rose-700" : "bg-teal-100 border-teal-300 text-teal-700"
+                                )}>
+                                  {isBooked ? 'Ocupado' : 'Livre'}
+                                </Badge>
+                                <span className={cn("text-[8px] font-black mt-1", isBooked ? "text-rose-400/50" : "text-teal-800")}>
+                                  {formatCurrency(price).replace(',00', '')}
+                                </span>
+                             </div>
+                           );
+                         })}
+                       </div>
                     </div>
-                  </div>
                 </div>
 
                 <DialogFooter className="p-4 sm:p-6 bg-slate-50 border-t border-slate-200">
                   <Button 
-                    onClick={() => setIsAvailabilityOpen(false)}
+                    onClick={() => {
+                      setIsAvailabilityOpen(false);
+                      setTimeout(() => {
+                        const el = document.getElementById("adicionar-pessoas-secao");
+                        if (el) {
+                          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+                        toast({
+                          title: "Próximo Passo",
+                          description: "Adicione as Entradas (Adulto / Criança) abaixo para continuar o agendamento.",
+                          className: "bg-emerald-600 border-emerald-700 text-white font-bold"
+                        });
+                      }, 400);
+                    }}
                     className="w-full h-16 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest shadow-xl shadow-emerald-200 transition-all active:scale-95 group"
                   >
                     <span>Continuar Agendamento</span>
@@ -976,10 +985,9 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
           </div>
         )}
 
-        {/* Participantes Summary Container */}
         <div className="space-y-6 pt-2">
           <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-between border-b-2 border-emerald-200/60 pb-4">
+            <div id="adicionar-pessoas-secao" className="flex items-center justify-between border-b-2 border-emerald-200/60 pb-4">
               <div className="flex flex-row items-center flex-wrap gap-x-4 gap-y-2">
                 <h4 className="font-sans font-semibold text-primary text-2xl flex items-center gap-2">
                   <User className="h-6 w-6" /> Adicionar Pessoas:
@@ -1039,61 +1047,49 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.9, y: -10 }}
                   key={`adult-${i}`}
-                  className="bg-white/80 border border-primary/5 rounded-[1.5rem] px-4 py-3 flex items-center justify-between shadow-sm hover:shadow-md transition-all group overflow-hidden"
+                  className="bg-white/80 border border-primary/5 rounded-2xl px-3 py-2.5 shadow-sm hover:shadow-md transition-all group overflow-hidden"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="bg-primary/5 p-2 rounded-xl text-primary group-hover:bg-primary group-hover:text-white transition-colors">
-                      {adult.isTeacher || adult.isStudent ? <GraduationCap className="h-4 w-4" /> :
-                        adult.isServer ? <Briefcase className="h-4 w-4" /> :
-                          adult.isBirthday ? <Gift className="h-4 w-4" /> :
-                            adult.isPCD ? <Accessibility className="h-4 w-4" /> :
-                              (adult as any).isBloodDonor ? <Heart className="h-4 w-4" /> :
-                                adult.age >= 60 ? <UserPlus className="h-4 w-4" /> :
-                                  <User className="h-4 w-4" />}
+                  {/* Row 1: icon + name + badges */}
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="bg-primary/5 p-1.5 rounded-lg text-primary shrink-0">
+                      {adult.isTeacher || adult.isStudent ? <GraduationCap className="h-3.5 w-3.5" /> :
+                        adult.isServer ? <Briefcase className="h-3.5 w-3.5" /> :
+                          adult.isBirthday ? <Gift className="h-3.5 w-3.5" /> :
+                            adult.isPCD ? <Accessibility className="h-3.5 w-3.5" /> :
+                              (adult as any).isBloodDonor ? <Heart className="h-3.5 w-3.5" /> :
+                                adult.age >= 60 ? <UserPlus className="h-3.5 w-3.5" /> :
+                                  <User className="h-3.5 w-3.5" />}
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-black text-sm text-foreground">
-                          {adult.quantity && adult.quantity > 1 ? `${adult.quantity}x ` : ''}
-                          {adult.isTeacher ? 'Lessa Professor Pass' :
-                            adult.isStudent ? 'Lessa Estudante Pass' :
-                              adult.isServer ? 'Lessa Servidor Pass' :
-                                (adult as any).isBloodDonor ? 'Doador de Sangue/Medula' :
-                                  adult.isBirthday ? 'Aniversariante da Semana' :
-                                    (adult.age >= 60 && adult.isPCD) ? 'Lessa Vitalício - PCD & TEA' :
-                                      adult.isPCD ? 'Lessa Inclusão - PCD & TEA' :
-                                        (adult.age >= 60) ? 'Lessa Vitalício' :
-                                          adult.isMember ? 'Associado Lessa Club 👑' :
-                                          adult.isCounterPayment ? 'Pagamento no Balcão' :
-                                          adult.takeDonation ? 'Adulto Solidário' :
-                                            'Adulto - Entrada Inteira'}
-                        </span>
-                        {adult.isPCD && <span className="text-[8px] sm:text-[9px] bg-whatsapp/20 text-whatsapp-dark px-2 py-0.5 rounded-full font-black uppercase">♿ PCD</span>}
-                        {(adult.isTeacher || adult.isStudent || adult.isServer || (adult as any).isBloodDonor) && <span className="text-[8px] sm:text-[9px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-black uppercase">Meia-Entrada</span>}
-                        {adult.takeDonation && <span className="text-[8px] sm:text-[9px] bg-sun/20 text-sun-dark px-2 py-0.5 rounded-full font-black uppercase">❤️ Solidária</span>}
-                        {adult.isMember && <span className="text-[8px] sm:text-[9px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-black uppercase">👑 Associado</span>}
-                        {adult.isCounterPayment && <span className="text-[8px] sm:text-[9px] bg-slate-100 text-slate-800 px-2 py-0.5 rounded-full font-black uppercase">💵 Balcão</span>}
-                      </div>
-                      {adult.isBirthday && <p className="text-[10px] text-sun-dark font-bold">🎂 Entrada grátis (mediante comprovação)</p>}
-                      {adult.isPCD && <p className="text-[10px] text-whatsapp-dark font-bold">✨ entrada gratuita + 1 acompanhante gratuito</p>}
-                      {adult.age >= 60 && !adult.isPCD && <p className="text-[10px] text-whatsapp-dark font-bold">✨ entrada gratuita - sócio vitalício</p>}
-                      {(adult.isTeacher || adult.isStudent || adult.isServer || (adult as any).isBloodDonor) && <p className="text-[10px] text-primary font-bold">✨ benefício de meia-entrada 50% OFF</p>}
-                      {adult.takeDonation && <p className="text-[10px] text-sun-dark font-bold">❤️ Levará 1kg de alimento para desconto ou outro donativo</p>}
-                      {adult.isMember && <p className="text-[10px] text-amber-700 font-bold">👑 Associado mensal do Balneário Lessa</p>}
-                      {adult.isCounterPayment && <p className="text-[10px] text-slate-500 font-bold">💵 Entrada será paga diretamente na recepção</p>}
-                    </div>
+                    <span className="font-bold text-xs text-foreground truncate min-w-0 flex-1">
+                      {adult.quantity && adult.quantity > 1 ? `${adult.quantity}× ` : ''}
+                      {adult.isTeacher ? 'Prof. Pass' :
+                        adult.isStudent ? 'Estudante Pass' :
+                          adult.isServer ? 'Servidor Pass' :
+                            (adult as any).isBloodDonor ? 'Doador de Sangue' :
+                              adult.isBirthday ? 'Aniversariante' :
+                                (adult.age >= 60 && adult.isPCD) ? 'Vitalício PCD' :
+                                  adult.isPCD ? 'PCD & TEA' :
+                                    adult.age >= 60 ? 'Lessa Vitalício' :
+                                      adult.isMember ? 'Associado 👑' :
+                                      adult.isCounterPayment ? 'Pagar no Balcão' :
+                                      adult.takeDonation ? 'Adulto Solidário' :
+                                        'Adulto'}
+                    </span>
+                    {adult.isPCD && <span className="text-[7px] bg-whatsapp/20 text-whatsapp-dark px-1.5 py-0.5 rounded-full font-black uppercase shrink-0">♿</span>}
+                    {(adult.isTeacher || adult.isStudent || adult.isServer || (adult as any).isBloodDonor) && <span className="text-[7px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-black shrink-0">½</span>}
                   </div>
-                  <div className="flex items-center gap-4">
+                  {/* Row 2: price + stepper + delete */}
+                  <div className="flex items-center justify-between mt-2 pl-7">
                     <span className={cn(
-                      "font-black text-sm sm:text-base tabular-nums",
+                      "font-black text-sm tabular-nums",
                       (adult.age >= 60 || adult.isPCD || adult.isBirthday || adult.isMember || adult.isCounterPayment) ? "text-whatsapp-dark" : "text-primary"
                     )}>
                       {(adult.age >= 60 || adult.isPCD || adult.isBirthday || adult.isMember || adult.isCounterPayment)
-                         ? (adult.isMember ? "ASSOCIADO" : adult.isCounterPayment ? "NO BALCÃO" : "GRÁTIS")
+                         ? (adult.isMember ? "ASSOC." : adult.isCounterPayment ? "BALCÃO" : "GRÁTIS")
                         : formatCurrency(((adult.isTeacher || adult.isStudent || adult.isServer || (adult as any).isBloodDonor || adult.takeDonation) ? 25 : 50) * (adult.quantity || 1))
                       }
                     </span>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
                       <QuantityStepper 
                         value={adult.quantity || 1}
                         onChange={(val) => onUpdateAdult(i, { quantity: val })}
@@ -1105,9 +1101,9 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                         variant="ghost"
                         size="icon"
                         onClick={() => onRemoveAdult(i)}
-                        className="h-8 w-8 rounded-full text-destructive hover:bg-destructive/10 hover:text-destructive shrink-0"
+                        className="h-7 w-7 rounded-full text-destructive hover:bg-destructive/10 hover:text-destructive shrink-0"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
                   </div>
@@ -1124,41 +1120,26 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.9, y: -10 }}
                   key={`child-${i}`}
-                  className="bg-white/80 border border-primary/5 rounded-[1.5rem] px-4 py-3 flex items-center justify-between shadow-sm hover:shadow-md transition-all group overflow-hidden"
+                  className="bg-white/80 border border-primary/5 rounded-2xl px-3 py-2.5 shadow-sm hover:shadow-md transition-all group overflow-hidden"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="bg-primary/5 p-2 rounded-xl text-primary group-hover:bg-primary group-hover:text-white transition-colors">
-                      <Baby className="h-4 w-4" />
+                  {/* Row 1: icon + name + badges */}
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="bg-primary/5 p-1.5 rounded-lg text-primary shrink-0">
+                      <Baby className="h-3.5 w-3.5" />
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-black text-sm text-foreground">
-                          {child.quantity && child.quantity > 1 ? `${child.quantity}x ` : ''}
-                          {child.isPCD && child.age <= 11 ? 'Lessa Kids - PCD & TEA' :
-                            child.isPCD ? 'Lessa Inclusão - PCD & TEA' :
-                              'Lessa Kids'}
-                        </span>
-                        {child.isPCD && <span className="text-[8px] sm:text-[9px] bg-whatsapp/20 text-whatsapp-dark px-2 py-0.5 rounded-full font-black uppercase">♿ PCD</span>}
-                        {child.isBirthday && <span className="text-[8px] sm:text-[9px] bg-sun/20 text-sun-dark px-2 py-0.5 rounded-full font-black uppercase">🎂 B-Day</span>}
-                      </div>
-                      {child.isPCD ? (
-                        <p className="text-[10px] text-whatsapp-dark font-bold">✨ entrada gratuita + 1 acompanhante gratuito</p>
-                      ) : (
-                        <p className="text-[10px] text-whatsapp-dark font-bold">✨ entrada gratuita até 11 anos</p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <span className={cn(
-                      "font-black text-sm sm:text-base tabular-nums",
-                      (child.age <= 11 || child.isPCD || child.isBirthday) ? "text-whatsapp-dark" : "text-primary"
-                    )}>
-                      {(child.age <= 11 || child.isPCD || child.isBirthday)
-                        ? "GRÁTIS"
-                        : formatCurrency(50 * (child.quantity || 1))
-                      }
+                    <span className="font-bold text-xs text-foreground truncate min-w-0 flex-1">
+                      {child.quantity && child.quantity > 1 ? `${child.quantity}× ` : ''}
+                      {child.isPCD && child.age <= 11 ? 'Kids PCD & TEA' :
+                        child.isPCD ? 'PCD & TEA' :
+                          'Lessa Kids'}
                     </span>
-                    <div className="flex items-center gap-2">
+                    {child.isPCD && <span className="text-[7px] bg-whatsapp/20 text-whatsapp-dark px-1.5 py-0.5 rounded-full font-black shrink-0">♿</span>}
+                    {child.isBirthday && <span className="text-[7px] bg-sun/20 text-sun-dark px-1.5 py-0.5 rounded-full font-black shrink-0">🎂</span>}
+                  </div>
+                  {/* Row 2: price + stepper + delete */}
+                  <div className="flex items-center justify-between mt-2 pl-7">
+                    <span className="font-black text-sm text-whatsapp-dark tabular-nums">GRÁTIS</span>
+                    <div className="flex items-center gap-1.5">
                       <QuantityStepper 
                         value={child.quantity || 1}
                         onChange={(val) => onUpdateChild(i, { quantity: val })}
@@ -1170,9 +1151,9 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                         variant="ghost"
                         size="icon"
                         onClick={() => onRemoveChild(i)}
-                        className="h-8 w-8 rounded-full text-destructive hover:bg-destructive/10 hover:text-destructive shrink-0"
+                        className="h-7 w-7 rounded-full text-destructive hover:bg-destructive/10 hover:text-destructive shrink-0"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
                   </div>
@@ -1201,10 +1182,10 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
 
       {/* Simplified Guided Wizard Modal */}
       <Dialog open={isWizardOpen} onOpenChange={(open) => { if (!open) resetWizard(); setIsWizardOpen(open); }}>
-        <DialogContent className="w-[calc(100vw-16px)] max-w-md sm:max-w-md bg-white rounded-3xl sm:rounded-[3rem] border-white shadow-2xl p-4 sm:p-6 overflow-x-hidden overflow-y-auto max-h-[92dvh]">
-          <DialogHeader className="mb-0 sm:mb-1 top-0 bg-white z-20 pt-4 pb-0 border-b sm:border-none">
+        <DialogContent className="w-[calc(100vw-16px)] max-w-md sm:max-w-md bg-white rounded-3xl sm:rounded-[2.5rem] border-white shadow-2xl p-4 sm:p-5 overflow-x-hidden overflow-y-auto max-h-[92dvh]">
+          <DialogHeader className="mb-0 sm:mb-0 top-0 bg-white z-20 pt-2 sm:pt-3 pb-0 border-b sm:border-none">
             <div className="flex items-center justify-center relative">
-              <DialogTitle className="text-xl sm:text-2xl font-bold text-center text-primary font-sans mt-2">
+              <DialogTitle className="text-lg sm:text-xl font-bold text-center text-primary font-sans mt-0">
                 {wizardType === 'pcd' ? 'PCD / TEA' :
                   wizardType === 'senior' ? 'Acesso Melhor Idade' :
                     wizardType === 'child' ? 'Acesso Kids' :
@@ -1212,7 +1193,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
               </DialogTitle>
             </div>
             {wizardType === 'adult' && wizardStep === 3 && (
-              <div className="mx-1 mt-2 mb-0 bg-blue-50 border border-blue-200 rounded-2xl px-4 py-3 flex items-start gap-2.5">
+              <div className="mx-1 mt-1 mb-0 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 flex items-start gap-2">
                 <span className="text-base shrink-0 mt-0.5">💡</span>
                 <p className="text-[11px] text-blue-800 font-semibold leading-relaxed">
                   <span className="font-black">Vai com mais pessoas?</span> Adicione as entradas individualmente para já garantir o acesso de todos, ou escolha <span className="font-black">Pagar no Balcão</span> se preferir pular essa etapa.

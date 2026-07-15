@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/dialog';
 import { formatCurrency } from '@/lib/booking-types';
 import { supabase } from '@/integrations/supabase/client';
+import { CreditVoucherShareDialog } from './CreditVoucherShareDialog';
 
 interface AdminCreditsTabProps {
   credits: any[];
@@ -61,6 +62,7 @@ export function AdminCreditsTab({
   const [loading, setLoading] = useState(false);
   const [currentTab, setCurrentTab] = useState<'ativos' | 'historico'>('ativos');
   const [editingCredit, setEditingCredit] = useState<any>(null);
+  const [voucherCredit, setVoucherCredit] = useState<any>(null);
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -302,6 +304,11 @@ export function AdminCreditsTab({
 
   return (
     <div className="bg-white/95 backdrop-blur-md rounded-[2.5rem] p-8 md:p-10 shadow-2xl border-2 border-amber-100/50 animate-in fade-in duration-500">
+       <CreditVoucherShareDialog 
+         open={!!voucherCredit} 
+         onOpenChange={(open) => !open && setVoucherCredit(null)} 
+         credit={voucherCredit} 
+       />
        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
           <div>
              <h2 className="text-3xl font-black text-amber-950 tracking-tight">Créditos Internos</h2>
@@ -550,9 +557,25 @@ export function AdminCreditsTab({
                                     variant="ghost" 
                                     className="h-9 w-9 text-blue-600 hover:bg-blue-50 hover:text-blue-700 rounded-xl"
                                     onClick={() => handleSendVoucher(cred)}
-                                    title="Enviar Voucher"
+                                    title="Enviar Link WhatsApp"
                                   >
                                     <Share2 className="w-4 h-4" />
+                                  </Button>
+                                  <Button 
+                                    size="icon" 
+                                    variant="ghost" 
+                                    className="h-9 w-9 text-amber-500 hover:bg-amber-50 hover:text-amber-600 rounded-xl"
+                                    onClick={() => {
+                                      if (typeof (window as any).setVoucherCredit === 'function') {
+                                         (window as any).setVoucherCredit(cred);
+                                      } else if (typeof setVoucherCredit === 'function') {
+                                         // @ts-ignore
+                                         setVoucherCredit(cred);
+                                      }
+                                    }}
+                                    title="Gerar Voucher de Crédito"
+                                  >
+                                    <FileText className="w-4 h-4" />
                                   </Button>
                                   <Button 
                                     size="icon" 
@@ -568,7 +591,7 @@ export function AdminCreditsTab({
                                       size="icon" 
                                       variant="ghost" 
                                       className="h-9 w-9 text-amber-600 hover:bg-amber-50 hover:text-amber-700 rounded-xl"
-                                      onClick={() => setReactivatingCredit(cred)}
+                                      onClick={() => handleOpenReactivate(cred)}
                                       title="Reagendar e Reativar Reserva"
                                     >
                                       <CalendarCheck className="w-5 h-5" />
@@ -648,6 +671,14 @@ export function AdminCreditsTab({
                       <div className="flex items-center gap-2">
                          {currentTab === 'ativos' ? (
                             <>
+                               <Button size="icon" variant="ghost" className="h-10 w-10 text-amber-500 bg-white shadow-sm rounded-xl" onClick={() => {
+                                    if (typeof (window as any).setVoucherCredit === 'function') {
+                                       (window as any).setVoucherCredit(cred);
+                                    } else if (typeof setVoucherCredit === 'function') {
+                                       // @ts-ignore
+                                       setVoucherCredit(cred);
+                                    }
+                               }}><FileText className="w-4 h-4" /></Button>
                                <Button size="icon" variant="ghost" className="h-10 w-10 text-amber-600 bg-white shadow-sm rounded-xl" onClick={() => handleOpenReactivate(cred)}><CalendarCheck className="w-4 h-4" /></Button>
                                <Button size="icon" variant="ghost" className="h-10 w-10 text-blue-600 bg-white shadow-sm rounded-xl" onClick={() => startEditing(cred)}><Pencil className="w-4 h-4" /></Button>
                                <Button 

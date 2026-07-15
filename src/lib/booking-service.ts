@@ -128,11 +128,13 @@ export async function saveBooking(
 
         // 3. Kiosks
         booking.kiosks.filter(k => k.quantity > 0).forEach(k => {
+          const label = k.type === 'maior' ? 'Grande' : k.type === 'menor' ? 'Médio' : 'Familiar';
+          const priceMap: Record<string, number> = { maior: 150, menor: 100, familiar: 75 };
           orderItems.push({ 
             order_id: finalOrderId, 
-            product_id: `Quiosque ${k.type === 'maior' ? 'Maior' : 'Menor'}`,
+            product_id: `Quiosque ${label}`,
             quantity: k.quantity, 
-            unit_price: k.type === 'maior' ? 100 : 75
+            unit_price: priceMap[k.type] ?? 75
           });
         });
 
@@ -291,18 +293,10 @@ export async function getBookedKioskIds(date: string): Promise<number[]> {
   const genericMaiores = blockedReservations.filter((r: any) => r.kiosk_id === 'MAIOR' || (r.kiosk_id === null && r.kiosk_type === 'maior'));
   const genericMenores = blockedReservations.filter((r: any) => r.kiosk_id === 'MENOR' || (r.kiosk_id === null && r.kiosk_type === 'menor'));
 
-  // Assign Maiores to ID 1 if not already booked
+  // Assign Maiores to ID 1
   for (const _ of genericMaiores) {
     if (!bookedIds.includes(1)) {
       bookedIds.push(1);
-    } else {
-      // If 1 is already booked, and we have more, we might need 6, 7, 8
-      for (const extraId of [6, 7, 8]) {
-        if (!bookedIds.includes(extraId)) {
-          bookedIds.push(extraId);
-          break;
-        }
-      }
     }
   }
 
@@ -311,7 +305,18 @@ export async function getBookedKioskIds(date: string): Promise<number[]> {
     for (const menorId of [2, 3, 4, 5]) {
       if (!bookedIds.includes(menorId)) {
         bookedIds.push(menorId);
-        break; // found a spot for this generic booking
+        break;
+      }
+    }
+  }
+
+  // Handle generic 'FAMILIAR' bookings -> IDs 6-12
+  const genericFamiliares = blockedReservations.filter((r: any) => r.kiosk_id === 'FAMILIAR' || (r.kiosk_id === null && r.kiosk_type === 'familiar'));
+  for (const _ of genericFamiliares) {
+    for (const familiarId of [6, 7, 8, 9, 10, 11, 12]) {
+      if (!bookedIds.includes(familiarId)) {
+        bookedIds.push(familiarId);
+        break;
       }
     }
   }
