@@ -941,12 +941,17 @@ export default function Admin() {
     if (window.confirm(`Deseja cancelar esta reserva e gerar um crédito de R$ ${amount.toFixed(2)} para ${name}?`)) {
       setLoading(true);
       try {
+        let itemsList = '';
+        if (type === 'order' && item.order_items && item.order_items.length > 0) {
+          itemsList = '\\nItens: ' + item.order_items.map((i: any) => `${i.quantity}x ${i.product_name || i.product_id}`).join(', ');
+        }
+        
         await supabase.from('internal_credits').insert({
           customer_name: name,
           customer_phone: phone,
           customer_cpf: cpf,
           amount: amount,
-          notes: `Gerado a partir do pedido #${item.id.slice(0,8)}`
+          notes: `Gerado a partir do pedido #${item.id.slice(0,8)}${itemsList}\\n[REF:${item.id}]`
         });
         const table = type === 'order' ? 'orders' : 'bookings';
         await supabase.from(table).update({ status: 'cancelled', notes: (item.notes || '') + ' [Convertido em Crédito]' }).eq('id', item.id);

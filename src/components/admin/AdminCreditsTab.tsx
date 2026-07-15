@@ -12,7 +12,8 @@ import {
   Loader2,
   Upload,
   CalendarCheck,
-  Calendar
+  Calendar,
+  Share2
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -72,18 +73,45 @@ export function AdminCreditsTab({
   const [reactivatingCredit, setReactivatingCredit] = useState<any>(null);
   const [reactivateDate, setReactivateDate] = useState('');
 
+  const handleOpenReactivate = async (cred: any) => {
+    setReactivatingCredit(cred);
+    try {
+      const refMatch = cred.notes?.match(/\\[REF:(.+?)\\]/);
+      let orderId = refMatch ? refMatch[1] : null;
+      
+      if (!orderId) {
+         const oldMatch = cred.notes?.match(/pedido #([a-zA-Z0-9]{8})/);
+         orderId = oldMatch ? oldMatch[1] : null;
+      }
+      
+      if (orderId) {
+         const { data: orders } = await supabase.from('orders').select('visit_date').ilike('id', `${orderId}%`);
+         if (orders && orders.length > 0 && orders[0].visit_date) {
+            setReactivateDate(orders[0].visit_date);
+         }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const handleReactivateCredit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!reactivateDate || !reactivatingCredit) return;
     
     setLoading(true);
     try {
-      const match = reactivatingCredit.notes?.match(/pedido #([a-zA-Z0-9]{8})/);
-      let orderIdPrefix = match ? match[1] : null;
+      const refMatch = reactivatingCredit.notes?.match(/\\[REF:(.+?)\\]/);
+      let orderIdStr = refMatch ? refMatch[1] : null;
+      
+      if (!orderIdStr) {
+         const oldMatch = reactivatingCredit.notes?.match(/pedido #([a-zA-Z0-9]{8})/);
+         orderIdStr = oldMatch ? oldMatch[1] : null;
+      }
       
       let order: any = null;
-      if (orderIdPrefix) {
-         const { data: orders } = await supabase.from('orders').select('*').ilike('id', `${orderIdPrefix}%`);
+      if (orderIdStr) {
+         const { data: orders } = await supabase.from('orders').select('*').ilike('id', `${orderIdStr}%`);
          if (orders && orders.length > 0) order = orders[0];
       }
       
@@ -113,7 +141,7 @@ export function AdminCreditsTab({
       // Delete the credit
       await supabase.from('internal_credits').delete().eq('id', reactivatingCredit.id);
       
-      toast({ title: 'Reserva Reativada!', description: `Reagendada com sucesso para ${format(parseISO(reactivateDate), 'dd/MM/yyyy')}.` });
+      toast({ title: 'Reserva Reativada!', description: `Reagendada com sucesso para ${format(parseISO(reactivateDate), 'dd/MM/yyyy')}. Para alterar os itens, use a aba de Vendas.` });
       setReactivatingCredit(null);
       setReactivateDate('');
       fetchData();
@@ -240,6 +268,31 @@ export function AdminCreditsTab({
         toast({ title: "Crédito excluído" });
         fetchData();
       }
+    }
+  };
+
+  const handleSendVoucher = async (cred: any) => {
+    const text = `Olá ${cred.customer_name}!\\n\\nSeu voucher de crédito no valor de R$ ${cred.amount.toFixed(2)} foi gerado com sucesso no Balneário Lessa.\\n\\nEste crédito pode ser utilizado em sua próxima reserva!`;
+    
+    // Attempt to copy to clipboard
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({ title: "Texto copiado!", description: "O texto do voucher foi copiado para a área de transferência." });
+    } catch (e) {
+      // Ignore if clipboard fails
+    }
+    
+    // Append [ENVIADO] to notes if not already there
+    if (!cred.notes?.includes('[ENVIADO]')) {
+      const newNotes = (cred.notes || '') + ' [ENVIADO]';
+      await supabase.from('internal_credits').update({ notes: newNotes }).eq('id', cred.id);
+      fetchData();
+    }
+    
+    // Open WhatsApp
+    const phone = cred.customer_phone?.replace(/\\D/g, '');
+    if (phone && phone.length >= 10) {
+      window.open(`https://wa.me/55${phone}?text=${encodeURIComponent(text)}`, '_blank');
     }
   };
 
@@ -453,7 +506,14 @@ export function AdminCreditsTab({
                      <tr key={cred.id} className="hover:bg-amber-50/30 transition-colors">
                         <td className="px-6 py-5">
                            <div className="font-bold text-slate-900">{cred.customer_name}</div>
-                           {cred.notes && <div className="text-[10px] text-amber-600 font-bold italic mt-1 break-words max-w-sm">{cred.notes}</div>}
+                           {cred.notes && (
+                             <div className="text-[10px] text-amber-600 font-bold italic mt-1 break-words max-w-sm">
+                               {cred.notes.replace('[ENVIADO]', '')}
+                               {cred.notes.includes('[ENVIADO]') && (
+                                 <Badge variant="outline" className="ml-2 text-[8px] bg-green-50 text-green-600 border-green-200 uppercase">Enviado</Badge>
+                               )}
+                             </div>
+                           )}
                         </td>
                         <td className="px-6 py-5">
                            <div className="flex flex-col text-xs font-bold text-slate-500">
@@ -485,6 +545,15 @@ export function AdminCreditsTab({
                               )}
                               {currentTab === 'ativos' && (
                                 <>
+                                  <Button 
+                                    size="icon" 
+                                    variant="ghost" 
+                                    className="h-9 w-9 text-blue-600 hover:bg-blue-50 hover:text-blue-700 rounded-xl"
+                                    onClick={() => handleSendVoucher(cred)}
+                                    title="Enviar Voucher"
+                                  >
+                                    <Share2 className="w-4 h-4" />
+                                  </Button>
                                   <Button 
                                     size="icon" 
                                     variant="ghost" 
@@ -555,8 +624,13 @@ export function AdminCreditsTab({
 
                    {cred.notes && (
                       <div className="bg-white/60 p-3 rounded-xl border border-amber-100">
-                         <div className="text-[9px] font-black text-amber-800/50 uppercase tracking-widest mb-1">Observação</div>
-                         <div className="text-[10px] text-amber-900 font-bold italic break-words">{cred.notes}</div>
+                         <div className="text-[9px] font-black text-amber-800/50 uppercase tracking-widest mb-1 flex justify-between items-center">
+                            Observação
+                            {cred.notes.includes('[ENVIADO]') && (
+                               <Badge variant="outline" className="text-[8px] bg-green-50 text-green-600 border-green-200">Enviado</Badge>
+                            )}
+                         </div>
+                         <div className="text-[10px] text-amber-900 font-bold italic break-words">{cred.notes.replace('[ENVIADO]', '')}</div>
                       </div>
                    )}
 
@@ -566,11 +640,15 @@ export function AdminCreditsTab({
                             <Button size="icon" variant="ghost" className="h-10 w-10 text-blue-600 bg-white shadow-sm rounded-xl" onClick={() => window.open(cred.receipt_url, '_blank')}><FileText className="w-4 h-4" /></Button>
                          )}
                          <Button size="icon" variant="ghost" className="h-10 w-10 text-red-500 bg-white shadow-sm rounded-xl" onClick={() => handleDeleteCredit(cred.id)}><Trash2 className="w-4 h-4" /></Button>
+                         {currentTab === 'ativos' && (
+                            <Button size="icon" variant="ghost" className="h-10 w-10 text-blue-600 bg-white shadow-sm rounded-xl" onClick={() => handleSendVoucher(cred)}><Share2 className="w-4 h-4" /></Button>
+                         )}
                       </div>
                       
                       <div className="flex items-center gap-2">
                          {currentTab === 'ativos' ? (
                             <>
+                               <Button size="icon" variant="ghost" className="h-10 w-10 text-amber-600 bg-white shadow-sm rounded-xl" onClick={() => handleOpenReactivate(cred)}><CalendarCheck className="w-4 h-4" /></Button>
                                <Button size="icon" variant="ghost" className="h-10 w-10 text-blue-600 bg-white shadow-sm rounded-xl" onClick={() => startEditing(cred)}><Pencil className="w-4 h-4" /></Button>
                                <Button 
                                  className="h-10 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl text-[10px] uppercase shadow-md shadow-emerald-900/10"
