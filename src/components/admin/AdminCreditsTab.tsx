@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { getBookedKioskIds } from '@/lib/booking-service';
 import { 
   Plus, 
   Trash2,
@@ -122,6 +123,38 @@ export function AdminCreditsTab({
         setLoading(false);
         return;
       }
+
+      // ── VERIFICAÇÃO DE DISPONIBILIDADE DE QUIOSQUE ────────────────────────────
+      // Busca as reservas de quiosque do pedido original
+      const { data: kioskReservations } = await supabase
+        .from('kiosk_reservations')
+        .select('kiosk_id, kiosk_type')
+        .eq('order_id', order.id);
+
+      if (kioskReservations && kioskReservations.length > 0) {
+        // IDs numéricos dos quiosques deste pedido
+        const requestedKioskIds = kioskReservations
+          .map((r: any) => Number(r.kiosk_id))
+          .filter((id: number) => !isNaN(id) && id > 0);
+
+        if (requestedKioskIds.length > 0) {
+          // IDs já ocupados na nova data (por outros pedidos)
+          const alreadyBookedIds = await getBookedKioskIds(reactivateDate);
+          const conflicts = requestedKioskIds.filter((id: number) => alreadyBookedIds.includes(id));
+
+          if (conflicts.length > 0) {
+            const conflictNames = conflicts.map((id: number) => `Quiosque ${String(id).padStart(2, '0')}`).join(', ');
+            toast({
+              title: '⚠️ Conflito de Quiosque!',
+              description: `${conflictNames} já está(ão) reservado(s) e pago(s) para ${format(parseISO(reactivateDate), 'dd/MM/yyyy')}. Escolha outra data ou altere o quiosque do pedido antes de reagendar.`,
+              variant: 'destructive',
+            });
+            setLoading(false);
+            return;
+          }
+        }
+      }
+      // ─────────────────────────────────────────────────────────────────────────
       
       // Update order
       const newNotes = (order.notes || '').replace(' [Convertido em Crédito]', '') + ` [Reativado para ${format(parseISO(reactivateDate), 'dd/MM/yyyy')}]`;
