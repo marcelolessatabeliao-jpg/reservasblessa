@@ -37,6 +37,10 @@ export function CreditVoucherShareDialog({
   const voucherRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
+  React.useEffect(() => {
+    setImageGenerated(null);
+  }, [credit?.id]);
+
   if (!credit) return null;
 
   const name = credit.customer_name || 'Cliente';
