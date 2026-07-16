@@ -45,6 +45,7 @@ import { formatPhone } from '@/lib/utils/format';
 import { getBookedKioskIds } from '@/lib/booking-service';
 import { QuantityStepper } from '../QuantityStepper';
 import { useToast } from '@/hooks/use-toast';
+import { KioskPhotoButton } from './KioskPhotoPopup';
 
 // Physical kiosk definitions matching the real layout
 const KIOSK_MAP = [
