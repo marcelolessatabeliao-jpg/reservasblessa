@@ -80,7 +80,17 @@ export function VoucherShareDialog({
       // As we might not know for sure if it's an order or a booking here depending on the tab,
       // we update both tables for this ID. It's safe and guarantees the status is marked.
       await supabase.from('bookings').update({ last_voucher_sent_at: new Date().toISOString() }).eq('id', id);
-      await supabase.from('orders').update({ last_voucher_sent_at: new Date().toISOString() }).eq('id', id);
+      
+      // For orders, since last_voucher_sent_at column doesn't exist, we append [VOUCHER ENVIADO] to notes
+      const currentNotes = booking.notes || '';
+      if (!currentNotes.includes('[VOUCHER ENVIADO]')) {
+         const newNotes = currentNotes + ' [VOUCHER ENVIADO]';
+         await supabase.from('orders').update({ notes: newNotes }).eq('id', id);
+      } else {
+         // Just trigger an update to touch updated_at
+         await supabase.from('orders').update({ updated_at: new Date().toISOString() }).eq('id', id);
+      }
+      
       if (onRefresh) onRefresh();
     }
   };

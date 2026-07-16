@@ -576,7 +576,7 @@ export default function Admin() {
           order_items: relatedOrder?.order_items || [],
           confirmation_code: b.confirmation_code || relatedOrder?.confirmation_code,
           customer_phone: b.phone || relatedOrder?.customer_phone,
-          last_voucher_sent_at: relatedOrder?.last_voucher_sent_at
+          last_voucher_sent_at: relatedOrder?.last_voucher_sent_at || (relatedOrder?.notes?.includes('[VOUCHER ENVIADO]') ? new Date().toISOString() : null)
         };
       });
       
@@ -596,7 +596,7 @@ export default function Admin() {
            status: k.orders?.status || 'confirmed',
            confirmation_code: k.confirmation_code || k.orders?.confirmation_code,
            customer_phone: k.customer_phone || k.orders?.customer_phone || k.bookings?.phone,
-           last_voucher_sent_at: k.last_voucher_sent_at || k.orders?.last_voucher_sent_at,
+           last_voucher_sent_at: k.last_voucher_sent_at || k.orders?.last_voucher_sent_at || (k.orders?.notes?.includes('[VOUCHER ENVIADO]') ? new Date().toISOString() : null),
            is_redeemed: isRedeemed || k.orders?.status === 'checked-in' || k.is_redeemed
          };
       }).filter((k: any) => {
@@ -618,7 +618,7 @@ export default function Admin() {
            status: q.orders?.status || 'confirmed',
            confirmation_code: q.confirmation_code || q.orders?.confirmation_code,
            customer_phone: q.customer_phone || q.orders?.customer_phone || q.bookings?.phone,
-           last_voucher_sent_at: q.last_voucher_sent_at || q.orders?.last_voucher_sent_at,
+           last_voucher_sent_at: q.last_voucher_sent_at || q.orders?.last_voucher_sent_at || (q.orders?.notes?.includes('[VOUCHER ENVIADO]') ? new Date().toISOString() : null),
            is_redeemed: isRedeemed || q.orders?.status === 'checked-in' || q.is_redeemed
          };
       }).filter((q: any) => {
@@ -702,7 +702,7 @@ export default function Admin() {
                        customer_name: customerName,
                        customer_phone: o.customer_phone,
                        confirmation_code: o.confirmation_code,
-                       last_voucher_sent_at: o.last_voucher_sent_at,
+                       last_voucher_sent_at: o.last_voucher_sent_at || (o.notes?.includes('[VOUCHER ENVIADO]') ? new Date().toISOString() : null),
                        price: item.unit_price,
                        order_id: o.id,
                        order_item_id: item.id,
@@ -768,7 +768,7 @@ export default function Admin() {
                         customer_name: customerName,
                         customer_phone: o.customer_phone,
                         confirmation_code: o.confirmation_code,
-                        last_voucher_sent_at: o.last_voucher_sent_at,
+                        last_voucher_sent_at: o.last_voucher_sent_at || (o.notes?.includes('[VOUCHER ENVIADO]') ? new Date().toISOString() : null),
                         price: item.unit_price,
                         order_id: o.id,
                         order_item_id: item.id,
