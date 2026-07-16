@@ -832,8 +832,11 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
             <Dialog open={isAvailabilityOpen} onOpenChange={setIsAvailabilityOpen}>
               <DialogContent className="w-[95vw] sm:max-w-2xl rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl max-h-[95dvh] overflow-y-auto no-scrollbar">
                 <div className="bg-gradient-to-br from-emerald-600 to-teal-700 p-6 text-white relative">
-                  <DialogTitle className="text-2xl font-black uppercase tracking-tighter flex items-center gap-3">
-                    <Home className="h-6 w-6" /> Consulta de Quiosques
+                  <DialogTitle className="text-2xl font-black uppercase tracking-tighter flex items-center justify-between w-full">
+                    <div className="flex items-center gap-3">
+                       <Home className="h-6 w-6" /> Consulta de Quiosques
+                    </div>
+                    <KioskPhotoButton className="shrink-0 scale-90 origin-right" />
                   </DialogTitle>
                   <p className="text-emerald-50/80 text-xs font-bold mt-1">
                     {entry.visitDate && format(entry.visitDate, "dd 'de' MMMM", { locale: ptBR })}

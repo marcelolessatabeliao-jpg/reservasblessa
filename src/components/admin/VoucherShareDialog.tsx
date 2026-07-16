@@ -76,10 +76,11 @@ export function VoucherShareDialog({
 
   const updateVoucherSent = async () => {
     if (booking.id) {
-      const table = booking.is_order ? 'orders' : 'bookings';
-      await supabase.from(table)
-        .update({ last_voucher_sent_at: new Date().toISOString() })
-        .eq('id', booking.id);
+      const id = String(booking.id).replace('order-', '').replace('booking-', '');
+      // As we might not know for sure if it's an order or a booking here depending on the tab,
+      // we update both tables for this ID. It's safe and guarantees the status is marked.
+      await supabase.from('bookings').update({ last_voucher_sent_at: new Date().toISOString() }).eq('id', id);
+      await supabase.from('orders').update({ last_voucher_sent_at: new Date().toISOString() }).eq('id', id);
       if (onRefresh) onRefresh();
     }
   };

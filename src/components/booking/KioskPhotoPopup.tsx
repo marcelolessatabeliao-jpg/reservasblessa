@@ -80,6 +80,9 @@ export function KioskPhotoPopup({ open, onClose, initialIndex = 0 }: KioskPhotoP
             alt={photo.caption}
             className="w-full h-auto block"
             style={{ maxHeight: '75vh', objectFit: 'contain', background: '#000' }}
+            loading="eager"
+            fetchPriority="high"
+            decoding="sync"
           />
         </div>
 
