@@ -36,7 +36,7 @@ if ($LASTEXITCODE -ne 0) {
 
 # 4. Sincronizar Banco de Dados (Supabase)
 Write-Host "`n[4/5] Atualizando regras e tabelas do banco de dados (Supabase)..." -ForegroundColor Yellow
-npx supabase db push
+npx supabase db push --yes
 if ($LASTEXITCODE -ne 0) {
     Write-Host "⚠️ Não foi possível sincronizar o banco. Se você não estiver autenticado, rode: npx supabase login" -ForegroundColor Red
 } else {

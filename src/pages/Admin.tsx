@@ -628,6 +628,7 @@ export default function Admin() {
 
       if (orderData) {
          orderData.forEach((o: any) => {
+            o.last_voucher_sent_at = o.last_voucher_sent_at || (o.notes?.includes('[VOUCHER ENVIADO]') ? o.updated_at || new Date().toISOString() : null);
             if (['cancelled', 'cancelado'].includes(o.status?.toLowerCase())) return;
             if (!o.order_items) return;
             const resDate = o.visit_date || o.created_at.split('T')[0];
