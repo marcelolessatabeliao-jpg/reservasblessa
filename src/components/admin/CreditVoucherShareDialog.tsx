@@ -76,7 +76,8 @@ export function CreditVoucherShareDialog({
   };
 
   const handleSendText = () => {
-    const message = `✨ *VALE CRÉDITO - BALNEÁRIO LESSA* ✨\n\nOlá ${name}!\nVocê possui um crédito ativo em nosso sistema.\n\n💰 *Valor Disponível:* ${formatCurrency(availableBalance)}\n📝 *Código:* #${creditCode}\n\nApresente esta mensagem na sua próxima visita para utilizar seu saldo!\n\nAguardamos você!`;
+    const notesText = credit.notes ? `\n🏷️ *Motivo/Obs:* ${credit.notes}` : '';
+    const message = `✨ *VALE CRÉDITO - BALNEÁRIO LESSA* ✨\n\nOlá ${name}!\nVocê possui um crédito ativo em nosso sistema.\n\n💰 *Valor Disponível:* ${formatCurrency(availableBalance)}\n📝 *Código:* #${creditCode}${notesText}\n\nApresente esta mensagem na sua próxima visita para utilizar seu saldo!\n\nAguardamos você!`;
     const phone = credit.customer_phone?.replace(/\D/g, '') || '';
     if (phone) {
       const waLink = `https://api.whatsapp.com/send?phone=55${phone}&text=${encodeURIComponent(message)}`;
@@ -199,6 +200,13 @@ export function CreditVoucherShareDialog({
                        <p style={{ fontSize: '10px', color: '#64748b', fontWeight: 700, margin: 0 }}>para utilizar o seu saldo.</p>
                     </div>
                  </div>
+
+                 {credit.notes && (
+                    <div style={{ marginTop: '16px', padding: '16px', backgroundColor: '#f1f5f9', borderRadius: '16px', border: '1px dashed #cbd5e1' }}>
+                       <p style={{ fontSize: '10px', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px', margin: '0 0 4px 0' }}>Motivo / Observação</p>
+                       <p style={{ fontSize: '12px', fontWeight: 700, color: '#334155', margin: 0 }}>{credit.notes}</p>
+                    </div>
+                 )}
               </div>
            </div>
         </div>

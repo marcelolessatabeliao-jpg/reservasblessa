@@ -75,8 +75,9 @@ export function VoucherShareDialog({
   }, [booking?.id, code]);
 
   const updateVoucherSent = async () => {
-    if (booking.id && !booking.id.startsWith('order-')) {
-      await supabase.from('orders')
+    if (booking.id) {
+      const table = booking.is_order ? 'orders' : 'bookings';
+      await supabase.from(table)
         .update({ last_voucher_sent_at: new Date().toISOString() })
         .eq('id', booking.id);
       if (onRefresh) onRefresh();

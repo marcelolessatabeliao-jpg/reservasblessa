@@ -274,7 +274,8 @@ export function AdminCreditsTab({
   };
 
   const handleSendVoucher = async (cred: any) => {
-    const text = `Olá ${cred.customer_name}!\\n\\nSeu voucher de crédito no valor de R$ ${cred.amount.toFixed(2)} foi gerado com sucesso no Balneário Lessa.\\n\\nEste crédito pode ser utilizado em sua próxima reserva!`;
+    const notesText = cred.notes ? `\\n\\nMotivo/Obs: ${cred.notes}` : '';
+    const text = `Olá ${cred.customer_name}!\\n\\nSeu voucher de crédito no valor de R$ ${cred.amount.toFixed(2)} foi gerado com sucesso no Balneário Lessa.\\n\\nEste crédito pode ser utilizado em sua próxima reserva!${notesText}`;
     
     // Attempt to copy to clipboard
     try {
