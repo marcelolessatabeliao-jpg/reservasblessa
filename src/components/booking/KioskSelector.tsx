@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Home, AlertTriangle, CalendarIcon, Loader2, Check, Users, MapPin, X, ChevronLeft, ChevronRight, Camera } from 'lucide-react';
+import { Home, AlertTriangle, CalendarIcon, Loader2, Check, Users, MapPin, X } from 'lucide-react';
 import { KioskItem, KIOSK_INFO, formatCurrency, isOperatingDay } from '@/lib/booking-types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -8,103 +8,8 @@ import { useServices } from '@/hooks/useServices';
 import { getBookedKioskIds } from '@/lib/booking-service';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { KioskPhotoButton } from './KioskPhotoPopup';
 
-// Kiosk photo gallery data
-const KIOSK_PHOTOS = [
-  {
-    src: '/images/quiosque-novo.jpg',
-    caption: 'Quiosque Grande (01) — Capacidade 25 pessoas',
-    type: 'maior' as const,
-  },
-  {
-    src: '/images/quiosque.jpg',
-    caption: 'Quiosques Médios (02-05) — Capacidade 15 pessoas',
-    type: 'menor' as const,
-  },
-  {
-    src: '/images/quiosque-familiar.jpg',
-    caption: 'Quiosques Familiares (06-12) — Até 5 pessoas, beira d\'água',
-    type: 'familiar' as const,
-  },
-];
-
-function KioskPhotoGallery() {
-  const [activeIdx, setActiveIdx] = useState(0);
-  const [fading, setFading] = useState(false);
-
-  const goTo = (idx: number) => {
-    setFading(true);
-    setTimeout(() => {
-      setActiveIdx(idx);
-      setFading(false);
-    }, 200);
-  };
-
-  const prev = () => goTo((activeIdx - 1 + KIOSK_PHOTOS.length) % KIOSK_PHOTOS.length);
-  const next = () => goTo((activeIdx + 1) % KIOSK_PHOTOS.length);
-
-  const photo = KIOSK_PHOTOS[activeIdx];
-
-  return (
-    <div className="relative rounded-2xl overflow-hidden border-2 border-emerald-500/30 shadow-lg mb-5 bg-black group">
-      {/* Photo */}
-      <div
-        style={{
-          opacity: fading ? 0 : 1,
-          transition: 'opacity 0.2s ease',
-        }}
-      >
-        <img
-          src={photo.src}
-          alt={photo.caption}
-          className="w-full object-cover"
-          style={{ height: '200px', objectPosition: 'center 40%' }}
-        />
-      </div>
-
-      {/* Gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent pointer-events-none" />
-
-      {/* Caption */}
-      <div className="absolute bottom-0 left-0 right-0 px-4 py-3 flex items-end justify-between">
-        <div>
-          <div className="flex items-center gap-1.5 mb-0.5">
-            <Camera className="h-3 w-3 text-white/70" />
-            <span className="text-[9px] font-bold text-white/60 uppercase tracking-widest">Foto Real</span>
-          </div>
-          <p className="text-xs sm:text-sm font-bold text-white drop-shadow">{photo.caption}</p>
-        </div>
-        {/* Dots */}
-        <div className="flex gap-1.5">
-          {KIOSK_PHOTOS.map((_, i) => (
-            <button
-              key={i}
-              onClick={() => goTo(i)}
-              className={cn(
-                'w-2 h-2 rounded-full transition-all',
-                i === activeIdx ? 'bg-white scale-125' : 'bg-white/40 hover:bg-white/70'
-              )}
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* Arrows */}
-      <button
-        onClick={prev}
-        className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 hover:bg-black/70 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-      >
-        <ChevronLeft className="h-4 w-4" />
-      </button>
-      <button
-        onClick={next}
-        className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 hover:bg-black/70 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-      >
-        <ChevronRight className="h-4 w-4" />
-      </button>
-    </div>
-  );
-}
 
 interface Props {
   kiosks: KioskItem[];
@@ -221,15 +126,16 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-2">
-        <div className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-secondary/10 text-secondary shrink-0">
-          <Home className="h-4 w-4 sm:h-5 sm:w-5" />
+      <div className="flex items-center justify-between gap-3 mb-2">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-secondary/10 text-secondary shrink-0">
+            <Home className="h-4 w-4 sm:h-5 sm:w-5" />
+          </div>
+          <h3 className="font-sans font-bold text-lg sm:text-xl">2. Quiosques</h3>
         </div>
-        <h3 className="font-sans font-bold text-lg sm:text-xl">2. Quiosques</h3>
+        {/* Botão popup de fotos */}
+        <KioskPhotoButton />
       </div>
-
-      {/* Photo Gallery */}
-      <KioskPhotoGallery />
 
       {/* Map Container */}
       <div className="relative bg-gradient-to-b from-emerald-100/90 via-green-100/50 to-emerald-100/70 backdrop-blur-md rounded-3xl border-2 border-emerald-600/40 p-4 sm:p-6 shadow-lg overflow-hidden">

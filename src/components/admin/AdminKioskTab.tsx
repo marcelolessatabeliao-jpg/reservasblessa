@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from "@/lib/utils";
 import { formatCurrency } from '@/lib/booking-types';
 import { KIOSKS } from '@/lib/admin-constants';
+import { KioskPhotoButton } from '@/components/booking/KioskPhotoPopup';
 
 interface AdminKioskTabProps {
   kioskReservations: any[];
@@ -85,6 +86,7 @@ export function AdminKioskTab({
               <h3 className="text-lg font-bold text-primary">Reservas de Quiosques</h3>
               <p className="text-xs text-muted-foreground">Gerencie todas as reservas por status</p>
             </div>
+            <KioskPhotoButton className="shrink-0" />
             <div className="flex flex-row overflow-x-auto gap-2 bg-slate-100 p-1 rounded-2xl w-full md:w-auto">
               {subTabConfig.map(t => (
                 <button
