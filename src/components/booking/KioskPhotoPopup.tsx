@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Camera, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -53,10 +54,10 @@ export function KioskPhotoPopup({ open, onClose, initialIndex = 0 }: KioskPhotoP
 
   const photo = KIOSK_PHOTOS[idx];
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
-      style={{ backgroundColor: 'rgba(0,0,0,0.88)' }}
+      className="fixed inset-0 z-[99999] flex items-center justify-center p-4"
+      style={{ backgroundColor: 'rgba(0,0,0,0.92)' }}
       onClick={onClose}
     >
       {/* Modal container */}
@@ -67,9 +68,9 @@ export function KioskPhotoPopup({ open, onClose, initialIndex = 0 }: KioskPhotoP
         {/* Fechar */}
         <button
           onClick={onClose}
-          className="absolute -top-10 right-0 text-white/70 hover:text-white transition-colors flex items-center gap-1.5 text-sm font-bold"
+          className="absolute -top-10 right-2 sm:right-0 text-white/80 hover:text-white transition-colors flex items-center gap-1.5 text-sm font-bold bg-black/40 px-3 py-1.5 rounded-full border border-white/10 backdrop-blur-sm"
         >
-          <X className="h-5 w-5" /> Fechar
+          <X className="h-4 w-4" /> Fechar
         </button>
 
         {/* Imagem INTEIRA sem corte */}
@@ -78,61 +79,66 @@ export function KioskPhotoPopup({ open, onClose, initialIndex = 0 }: KioskPhotoP
             key={photo.src}
             src={photo.src}
             alt={photo.caption}
-            className="w-full h-auto block"
-            style={{ maxHeight: '75vh', objectFit: 'contain', background: '#000' }}
+            className="w-full h-auto block max-h-[50dvh] sm:max-h-[60dvh]"
+            style={{ objectFit: 'contain', background: '#000' }}
             loading="eager"
             fetchPriority="high"
             decoding="sync"
           />
         </div>
 
-        {/* Caption */}
-        <div className="mt-4 text-center px-4">
-          <div className="flex items-center justify-center gap-1.5 mb-1">
-            <Camera className="h-3 w-3 text-white/50" />
-            <span className="text-[10px] font-bold text-white/50 uppercase tracking-widest">Foto Real</span>
+        {/* Info Card - Glassmorphism */}
+        <div className="w-full mt-4 bg-black/60 backdrop-blur-md border border-white/15 rounded-2xl p-4 text-center flex flex-col items-center">
+          {/* Caption */}
+          <div className="flex items-center justify-center gap-1.5 mb-1.5">
+            <Camera className="h-3.5 w-3.5 text-emerald-400" />
+            <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest leading-none">Foto Real</span>
           </div>
-          <p className="text-white font-black text-base">{photo.caption}</p>
-          <p className="text-white/60 text-xs font-medium mt-0.5">{photo.sub}</p>
-        </div>
+          <h4 className="text-white font-black text-base sm:text-lg leading-snug">{photo.caption}</h4>
+          <p className="text-white/70 text-xs font-semibold mt-1 leading-normal">{photo.sub}</p>
 
-        {/* Navegação */}
-        <div className="flex items-center gap-6 mt-5">
-          <button
-            onClick={prev}
-            className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/25 text-white flex items-center justify-center transition-all border border-white/20"
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </button>
+          {/* Navegação */}
+          <div className="flex items-center gap-5 mt-4">
+            <button
+              onClick={prev}
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all border border-white/20 active:scale-90"
+              aria-label="Foto anterior"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
 
-          {/* Dots */}
-          <div className="flex gap-2">
-            {KIOSK_PHOTOS.map((_, i) => (
-              <button
-                key={i}
-                onClick={() => setIdx(i)}
-                className={cn(
-                  'rounded-full transition-all',
-                  i === idx ? 'w-6 h-2.5 bg-white' : 'w-2.5 h-2.5 bg-white/30 hover:bg-white/60'
-                )}
-              />
-            ))}
+            {/* Dots */}
+            <div className="flex gap-2">
+              {KIOSK_PHOTOS.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setIdx(i)}
+                  className={cn(
+                    'rounded-full transition-all duration-300',
+                    i === idx ? 'w-6 h-2 bg-emerald-400' : 'w-2 h-2 bg-white/30 hover:bg-white/60'
+                  )}
+                  aria-label={`Ir para foto ${i + 1}`}
+                />
+              ))}
+            </div>
+
+            <button
+              onClick={next}
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all border border-white/20 active:scale-90"
+              aria-label="Próxima foto"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
           </div>
 
-          <button
-            onClick={next}
-            className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/25 text-white flex items-center justify-center transition-all border border-white/20"
-          >
-            <ChevronRight className="h-5 w-5" />
-          </button>
+          {/* Contador */}
+          <p className="mt-3 text-white/40 text-[10px] font-black tracking-widest uppercase">
+            {idx + 1} / {KIOSK_PHOTOS.length}
+          </p>
         </div>
-
-        {/* Contador */}
-        <p className="mt-3 text-white/40 text-xs font-bold">
-          {idx + 1} / {KIOSK_PHOTOS.length}
-        </p>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
