@@ -831,15 +831,23 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
             </div>
 
             <Dialog open={isAvailabilityOpen} onOpenChange={setIsAvailabilityOpen}>
-              <DialogContent className="w-[95vw] sm:max-w-2xl rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl max-h-[95dvh] overflow-y-auto no-scrollbar">
-                <div className="bg-gradient-to-br from-emerald-600 to-teal-700 p-6 text-white relative">
-                  <DialogTitle className="text-2xl font-black uppercase tracking-tighter flex items-center justify-between w-full">
-                    <div className="flex items-center gap-3">
-                       <Home className="h-6 w-6" /> Consulta de Quiosques
-                    </div>
-                    <KioskPhotoButton className="shrink-0 scale-90 origin-right" />
-                  </DialogTitle>
-                  <p className="text-emerald-50/80 text-xs font-bold mt-1">
+              <DialogContent 
+                onPointerDownOutside={(e) => {
+                  if (e.target instanceof HTMLElement && e.target.closest('[data-kiosk-portal="true"]')) {
+                    e.preventDefault();
+                  }
+                }}
+                className="w-[95vw] sm:max-w-2xl rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl max-h-[95dvh] overflow-y-auto no-scrollbar"
+              >
+                <div className="bg-gradient-to-br from-emerald-600 to-teal-700 p-5 sm:p-6 text-white relative">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 w-full">
+                    <DialogTitle className="text-xl sm:text-2xl font-black uppercase tracking-tight flex items-center gap-2.5">
+                      <Home className="h-5 w-5 sm:h-6 sm:w-6 shrink-0" />
+                      <span className="whitespace-nowrap">Consulta de Quiosques</span>
+                    </DialogTitle>
+                    <KioskPhotoButton className="w-full sm:w-auto shrink-0 justify-center scale-95 sm:scale-100" />
+                  </div>
+                  <p className="text-emerald-50/80 text-[10px] sm:text-xs font-bold mt-2 sm:mt-1.5">
                     {entry.visitDate && format(entry.visitDate, "dd 'de' MMMM", { locale: ptBR })}
                   </p>
                 </div>

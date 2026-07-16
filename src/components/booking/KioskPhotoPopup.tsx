@@ -56,6 +56,7 @@ export function KioskPhotoPopup({ open, onClose, initialIndex = 0 }: KioskPhotoP
 
   return createPortal(
     <div
+      data-kiosk-portal="true"
       className="fixed inset-0 z-[99999] flex items-center justify-center p-4"
       style={{ backgroundColor: 'rgba(0,0,0,0.92)' }}
       onClick={onClose}
