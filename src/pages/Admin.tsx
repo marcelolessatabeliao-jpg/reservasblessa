@@ -447,6 +447,52 @@ export default function Admin() {
       setIsSyncingData(false);
     }
   };
+
+  const repairQuadAssignments = async () => {
+    setIsSyncingData(true);
+    try {
+      // 1. Get all orders with quad items
+      const { data: orderItems, error: itemsErr } = await supabase
+        .from('order_items')
+        .select('*, orders!inner(id, status)')
+        .or('product_id.ilike.%quad%,product_name.ilike.%quad%');
+      
+      if (itemsErr || !orderItems) return;
+
+      const orderIds = new Set<string>();
+      for (const item of orderItems) {
+        const order = (item as any).orders;
+        if (order && ['paid', 'confirmed', 'checked-in', 'completed'].includes(order.status?.toLowerCase())) {
+          orderIds.add(order.id);
+        }
+      }
+
+      let fixedCount = 0;
+      for (const orderId of orderIds) {
+        await syncQuadsForOrder(orderId);
+        fixedCount++;
+      }
+
+      const { data: allRes } = await supabase.from('quad_reservations').select('id, order_id').not('order_id', 'is', null);
+      if (allRes) {
+        for (const res of allRes) {
+          if (!orderIds.has(res.order_id)) {
+            await supabase.from('quad_reservations').delete().eq('id', res.id);
+            fixedCount++;
+          }
+        }
+      }
+      
+      toast({ title: "Sincronização Concluída", description: "Reservas de quadriciclos sincronizadas com sucesso." });
+      fetchData();
+    } catch (err) {
+      console.error(err);
+      toast({ title: "Erro na sincronização", variant: "destructive" });
+    } finally {
+      setIsSyncingData(false);
+    }
+  };
+
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [kioskStatusFilter, setKioskStatusFilter] = useState<string>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -1008,14 +1054,16 @@ export default function Admin() {
 
           if (orderId && !String(orderId).startsWith('order-')) {
             if (orderItemId) {
-              const { data: currentOi } = await supabase.from('order_items').select('metadata').eq('id', orderItemId).single();
+              const { data: currentOi } = await supabase.from('order_items').select('metadata, quantity').eq('id', orderItemId).single();
               let currentMeta = currentOi?.metadata;
               if (typeof currentMeta === 'string') { try { currentMeta = JSON.parse(currentMeta); } catch(e) {} }
               currentMeta = currentMeta || {};
 
+              const itemQty = currentOi?.quantity || finalQty;
+
               await supabase.from('order_items').update({ 
                 unit_price: unitPrice, 
-                quantity: finalQty,
+                quantity: itemQty,
                 product_id: `Quadriciclo ${QUAD_MODELS_LABELS[finalModel as keyof typeof QUAD_MODELS_LABELS] || 'Individual'}`,
                 metadata: { ...currentMeta, time: finalTime, time_slot: finalTime, quad_type: finalModel } 
               }).eq('id', orderItemId);
@@ -1090,6 +1138,9 @@ export default function Admin() {
 
       if (editData.order_id && !String(editData.order_id).startsWith('order-')) {
         await updateOrderTotal(editData.order_id);
+        if (type === 'quad') {
+          await syncQuadsForOrder(editData.order_id);
+        }
       }
       
       toast({ title: "✓ Alterações salvas" });
@@ -1994,6 +2045,16 @@ export default function Admin() {
                     </button>
                   ))}
                 </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={repairQuadAssignments} 
+                  disabled={isSyncingData}
+                  className="rounded-xl border-blue-200 text-blue-700 font-black text-[10px] h-9 shrink-0 flex-1 md:flex-none"
+                >
+                  {isSyncingData ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> : <RefreshCw className="w-3.5 h-3.5 mr-2" />}
+                  SINCRONIZAR BANCO
+                </Button>
               </div>
             </div>
           </div>
