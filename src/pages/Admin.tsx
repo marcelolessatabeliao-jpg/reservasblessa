@@ -508,6 +508,13 @@ export default function Admin() {
   const [credits, setCredits] = useState<any[]>([]);
   const [targetDate, setTargetDate] = useState<Date>(new Date());
   const [totalQuads, setTotalQuads] = useState<number>(3);
+  const [disableFutebolSabao, setDisableFutebolSabao] = useState(false);
+  const [disablePesca, setDisablePesca] = useState(false);
+  const [disableQuads, setDisableQuads] = useState(false);
+  const [disabledQuadSlots, setDisabledQuadSlots] = useState<string[]>([]);
+  const [disableKiosks, setDisableKiosks] = useState(false);
+  const [disabledKioskTypes, setDisabledKioskTypes] = useState<string[]>([]);
+  const [disabledKioskIds, setDisabledKioskIds] = useState<number[]>([]);
 
   // Editing States
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -604,6 +611,28 @@ export default function Admin() {
       
       const tQuads = await getGlobalSetting('total_quads', 3);
       setTotalQuads(Number(tQuads));
+
+      const fsBlocked = await getGlobalSetting('disable_futebol_sabao', false);
+      setDisableFutebolSabao(!!fsBlocked);
+      
+      const pescaBlocked = await getGlobalSetting('disable_pesca', false);
+      setDisablePesca(!!pescaBlocked);
+      
+      const quadsBlocked = await getGlobalSetting('disable_quads', false);
+      setDisableQuads(!!quadsBlocked);
+      
+      const blockedQuadSlots = await getGlobalSetting('disabled_quad_slots', []);
+      if (Array.isArray(blockedQuadSlots)) setDisabledQuadSlots(blockedQuadSlots);
+      
+      const kiosksBlocked = await getGlobalSetting('disable_kiosks', false);
+      setDisableKiosks(!!kiosksBlocked);
+      
+      const blockedKioskTypes = await getGlobalSetting('disabled_kiosk_types', []);
+      if (Array.isArray(blockedKioskTypes)) setDisabledKioskTypes(blockedKioskTypes);
+      
+      const blockedKioskIds = await getGlobalSetting('disabled_kiosk_ids', []);
+      if (Array.isArray(blockedKioskIds)) setDisabledKioskIds(blockedKioskIds.map(Number));
+
       setCredits(creds || []);
       
       // Filter out awaiting_payment from reservations too
@@ -1734,6 +1763,237 @@ export default function Admin() {
     );
   };
 
+  const handleToggleSetting = async (key: string, value: any, setter: Function) => {
+    const ok = await updateGlobalSetting(key, value);
+    if (ok) {
+      setter(value);
+      toast({ title: "✓ Configuração salva!" });
+    } else {
+      toast({ title: "Erro ao salvar", variant: "destructive" });
+    }
+  };
+
+  const renderDisponibilidadeTab = () => {
+    return (
+      <div className="space-y-6 animate-in fade-in duration-500">
+        <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 bg-white/70 p-6 rounded-3xl border border-slate-200 shadow-md">
+          <div>
+            <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Controle de Bloqueios e Disponibilidade</h3>
+            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Ative ou desative serviços e recursos do sistema em tempo real</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Futebol de Sabão */}
+          <div className="bg-white rounded-3xl border-2 border-slate-300 p-6 shadow-lg flex flex-col justify-between">
+            <div>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-blue-100 rounded-2xl flex items-center justify-center text-blue-600 border border-blue-200">
+                  <CheckCircle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="font-black text-slate-800 text-sm uppercase">Futebol de Sabão</h4>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase">Serviço adicional por pessoa</p>
+                </div>
+              </div>
+              <p className="text-xs text-slate-600 mb-6 font-medium leading-relaxed">
+                Ao desativar este serviço, os clientes verão a mensagem <strong className="text-red-600">"indisponível no momento"</strong> e não conseguirão adicioná-lo na reserva.
+              </p>
+            </div>
+            <button
+              onClick={() => handleToggleSetting('disable_futebol_sabao', !disableFutebolSabao, setDisableFutebolSabao)}
+              className={cn(
+                "w-full h-12 rounded-xl text-xs font-black uppercase tracking-wider shadow-md transition-all active:scale-95 cursor-pointer",
+                disableFutebolSabao
+                  ? "bg-red-600 hover:bg-red-700 text-white"
+                  : "bg-emerald-600 hover:bg-emerald-700 text-white"
+              )}
+            >
+              {disableFutebolSabao ? "🔴 Indisponível (Bloqueado)" : "🟢 Disponível (Ativo)"}
+            </button>
+          </div>
+
+          {/* Pesca Esportiva */}
+          <div className="bg-white rounded-3xl border-2 border-slate-300 p-6 shadow-lg flex flex-col justify-between">
+            <div>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-blue-100 rounded-2xl flex items-center justify-center text-blue-600 border border-blue-200">
+                  <CheckCircle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="font-black text-slate-800 text-sm uppercase">Pesca Esportiva</h4>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase">Taxa por vara de pesca</p>
+                </div>
+              </div>
+              <p className="text-xs text-slate-600 mb-6 font-medium leading-relaxed">
+                Ao desativar este serviço, os clientes verão a mensagem <strong className="text-red-600">"indisponível no momento"</strong> e não conseguirão adicioná-lo na reserva.
+              </p>
+            </div>
+            <button
+              onClick={() => handleToggleSetting('disable_pesca', !disablePesca, setDisablePesca)}
+              className={cn(
+                "w-full h-12 rounded-xl text-xs font-black uppercase tracking-wider shadow-md transition-all active:scale-95 cursor-pointer",
+                disablePesca
+                  ? "bg-red-600 hover:bg-red-700 text-white"
+                  : "bg-emerald-600 hover:bg-emerald-700 text-white"
+              )}
+            >
+              {disablePesca ? "🔴 Indisponível (Bloqueado)" : "🟢 Disponível (Ativo)"}
+            </button>
+          </div>
+
+          {/* Quadriciclos */}
+          <div className="bg-white rounded-3xl border-2 border-slate-300 p-6 shadow-lg space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-blue-100 rounded-2xl flex items-center justify-center text-blue-600 border border-blue-200">
+                <Bike className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="font-black text-slate-800 text-sm uppercase">Quadriciclos</h4>
+                <p className="text-[10px] text-slate-400 font-bold uppercase">Frota de passeios de aventura</p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-600 font-medium leading-relaxed">
+              Desative o serviço por completo ou selecione horários específicos para bloquear.
+            </p>
+            <button
+              onClick={() => handleToggleSetting('disable_quads', !disableQuads, setDisableQuads)}
+              className={cn(
+                "w-full h-12 rounded-xl text-xs font-black uppercase tracking-wider shadow-md transition-all active:scale-95 cursor-pointer",
+                disableQuads
+                  ? "bg-red-600 hover:bg-red-700 text-white"
+                  : "bg-emerald-600 hover:bg-emerald-700 text-white"
+              )}
+            >
+              {disableQuads ? "🔴 Frota Total Indisponível" : "🟢 Frota Total Disponível"}
+            </button>
+
+            {!disableQuads && (
+              <div className="pt-4 border-t border-slate-200 space-y-2">
+                <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">Bloquear Horários Específicos:</span>
+                <div className="grid grid-cols-2 gap-2">
+                  {['09:00', '10:30', '14:00', '15:30'].map(t => {
+                    const isBlocked = disabledQuadSlots.includes(t);
+                    return (
+                      <button
+                        key={t}
+                        onClick={() => {
+                          const newSlots = isBlocked
+                            ? disabledQuadSlots.filter(s => s !== t)
+                            : [...disabledQuadSlots, t];
+                          handleToggleSetting('disabled_quad_slots', newSlots, setDisabledQuadSlots);
+                        }}
+                        className={cn(
+                          "h-10 rounded-lg text-xs font-bold transition-all border cursor-pointer",
+                          isBlocked
+                            ? "bg-red-50 border-red-200 text-red-700"
+                            : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
+                        )}
+                      >
+                        {t} {isBlocked ? '❌ Bloqueado' : '✅ Ativo'}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Quiosques */}
+          <div className="bg-white rounded-3xl border-2 border-slate-300 p-6 shadow-lg space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-blue-100 rounded-2xl flex items-center justify-center text-blue-600 border border-blue-200">
+                <Tent className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="font-black text-slate-800 text-sm uppercase">Quiosques</h4>
+                <p className="text-[10px] text-slate-400 font-bold uppercase">Locação de quiosques de lazer</p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-600 font-medium leading-relaxed">
+              Desative todos os quiosques ou escolha quiosques/categorias para bloquear.
+            </p>
+            <button
+              onClick={() => handleToggleSetting('disable_kiosks', !disableKiosks, setDisableKiosks)}
+              className={cn(
+                "w-full h-12 rounded-xl text-xs font-black uppercase tracking-wider shadow-md transition-all active:scale-95 cursor-pointer",
+                disableKiosks
+                  ? "bg-red-600 hover:bg-red-700 text-white"
+                  : "bg-emerald-600 hover:bg-emerald-700 text-white"
+              )}
+            >
+              {disableKiosks ? "🔴 Todos os Quiosques Indisponíveis" : "🟢 Todos os Quiosques Disponíveis"}
+            </button>
+
+            {!disableKiosks && (
+              <>
+                <div className="pt-4 border-t border-slate-200 space-y-2">
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">Bloquear por Categoria:</span>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { key: 'maior', label: 'Grande' },
+                      { key: 'menor', label: 'Médio' },
+                      { key: 'familiar', label: 'Familiar' }
+                    ].map(cat => {
+                      const isBlocked = disabledKioskTypes.includes(cat.key);
+                      return (
+                        <button
+                          key={cat.key}
+                          onClick={() => {
+                            const newTypes = isBlocked
+                              ? disabledKioskTypes.filter(t => t !== cat.key)
+                              : [...disabledKioskTypes, cat.key];
+                            handleToggleSetting('disabled_kiosk_types', newTypes, setDisabledKioskTypes);
+                          }}
+                          className={cn(
+                            "h-10 rounded-lg text-[10px] font-bold transition-all border cursor-pointer",
+                            isBlocked
+                              ? "bg-red-50 border-red-200 text-red-700"
+                              : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
+                          )}
+                        >
+                          {cat.label} {isBlocked ? '❌' : '✅'}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-slate-200 space-y-2">
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">Bloquear Quiosques Específicos:</span>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {Array.from({ length: 12 }, (_, idx) => idx + 1).map(id => {
+                      const isBlocked = disabledKioskIds.includes(id);
+                      return (
+                        <button
+                          key={id}
+                          onClick={() => {
+                            const newIds = isBlocked
+                              ? disabledKioskIds.filter(x => x !== id)
+                              : [...disabledKioskIds, id];
+                            handleToggleSetting('disabled_kiosk_ids', newIds, setDisabledKioskIds);
+                          }}
+                          className={cn(
+                            "h-9 rounded-lg text-[10px] font-black transition-all border cursor-pointer",
+                            isBlocked
+                              ? "bg-red-600 border-red-700 text-white"
+                              : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
+                          )}
+                        >
+                          Nº {String(id).padStart(2, '0')}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderKioskTab = () => {
     const todayStr = format(new Date(), 'yyyy-MM-dd');
     const allGroups = Object.values((kioskReservations || []).reduce((acc, curr) => {
@@ -2753,6 +3013,13 @@ export default function Admin() {
                  >
                     <FileSpreadsheet className="w-5 h-5" />
                  </button>
+                 <button onClick={() => setActiveTab('disponibilidade')} className={cn(
+                   "py-2.5 px-2 rounded-xl lg:rounded-2xl lg:px-4 text-[10px] lg:text-[13px] font-black flex flex-col lg:flex-row items-center justify-center gap-1 lg:gap-2 transition-all",
+                   activeTab === 'disponibilidade' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
+                 )}>
+                    <Settings className="w-4 h-4" />
+                    <span>Bloqueios</span>
+                 </button>
               </div>
 
              <div className="hidden lg:block flex-1" />
@@ -2938,6 +3205,7 @@ export default function Admin() {
              {activeTab === 'creditos' && (
                 <AdminCreditsTab credits={credits} fetchData={fetchData} toast={toast} />
              )}
+             {activeTab === 'disponibilidade' && renderDisponibilidadeTab()}
           </div>
        </div>
 

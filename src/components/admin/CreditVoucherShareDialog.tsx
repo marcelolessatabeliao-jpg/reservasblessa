@@ -47,29 +47,51 @@ export function CreditVoucherShareDialog({
   const availableBalance = (credit.amount || 0) - (credit.used_amount || 0);
   const creditCode = credit.id.split('-')[0].toUpperCase();
 
+  const handleCopyExistingImage = async () => {
+    if (!imageGenerated) return;
+    try {
+      const blob = await (await fetch(imageGenerated)).blob();
+      await navigator.clipboard.write([
+         new ClipboardItem({ 'image/png': blob })
+      ]);
+      toast({ title: "Imagem Copiada!", description: "A imagem do voucher foi copiada. Agora basta colar no WhatsApp do cliente." });
+    } catch (err) {
+      console.error("Clipboard copy failed", err);
+      toast({ 
+        title: "Erro ao copiar", 
+        description: "Não foi possível copiar automaticamente. Use o botão de baixar.", 
+        variant: "destructive" 
+      });
+    }
+  };
+
   const handleGenerateImage = async () => {
     setLoading(true);
     try {
-      await new Promise(r => setTimeout(r, 100));
+      if (!voucherRef.current) return;
       
-      if (voucherRef.current) {
-        const canvas = await html2canvas(voucherRef.current, {
+      const imagePromise = (async () => {
+        await new Promise(r => setTimeout(r, 100));
+        const canvas = await html2canvas(voucherRef.current!, {
           backgroundColor: '#ffffff',
           scale: 2,
           logging: false,
         });
         const dataUrl = canvas.toDataURL('image/png');
         setImageGenerated(dataUrl);
-        
-        try {
-           const blob = await (await fetch(dataUrl)).blob();
-           await navigator.clipboard.write([
-              new ClipboardItem({ 'image/png': blob })
-           ]);
-           toast({ title: "Imagem Copiada!", description: "A imagem do voucher foi copiada. Agora basta colar no WhatsApp do cliente." });
-        } catch (err) {
-           toast({ title: "Imagem Gerada!", description: "A imagem está pronta abaixo. Você pode baixar ou colar manualmente." });
-        }
+        const res = await fetch(dataUrl);
+        return await res.blob();
+      })();
+
+      try {
+         await navigator.clipboard.write([
+            new ClipboardItem({ 'image/png': imagePromise })
+         ]);
+         toast({ title: "Imagem Copiada!", description: "A imagem do voucher foi copiada. Agora basta colar no WhatsApp do cliente." });
+      } catch (err) {
+         console.log("Clipboard API failed directly, showing generated image instead", err);
+         await imagePromise;
+         toast({ title: "Imagem Gerada!", description: "A imagem está pronta abaixo. Você pode baixar ou colar manualmente." });
       }
     } catch (err) {
       console.error(err);
@@ -139,14 +161,14 @@ export function CreditVoucherShareDialog({
               <img src={imageGenerated} alt="Vale Crédito" className="w-full rounded-lg shadow-md border border-slate-200" />
               <div className="flex gap-2">
                  <Button asChild variant="outline" className="flex-1 h-10 rounded-xl text-[10px] font-black">
-                   <a href={imageGenerated} download={`Vale_Credito_${creditCode}.png`}>
-                     <Download className="w-3.5 h-3.5 mr-2" /> BAIXAR
-                   </a>
+                    <a href={imageGenerated} download={`Vale_Credito_${creditCode}.png`}>
+                      <Download className="w-3.5 h-3.5 mr-2" /> BAIXAR
+                    </a>
                  </Button>
                  <Button 
                     variant="outline" 
                     className="flex-1 h-10 rounded-xl text-[10px] font-black"
-                    onClick={handleGenerateImage}
+                    onClick={handleCopyExistingImage}
                  >
                     <Copy className="w-3.5 h-3.5 mr-2" /> COPIAR
                  </Button>

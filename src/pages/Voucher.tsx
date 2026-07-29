@@ -210,14 +210,18 @@ export default function Voucher() {
                     {order.order_items?.map((item: any, i: number) => {
                        const rawName = item.product_name || item.product_id || 'Serviço';
                        const unitPrice = item.unit_price ?? (item.total_price / (item.quantity || 1));
-                       const isAdulto = rawName.toLowerCase().includes('adulto') || rawName.toLowerCase().includes('entrada');
-                       const isAdultoSolidario = isAdulto && unitPrice <= 25 && unitPrice > 0;
-                       const isAssinante = isAdulto && Math.abs(unitPrice) < 0.01;
-                       const displayNameRaw = isAssinante
-                         ? 'Assinante Lessa Club'
-                         : isAdultoSolidario
-                           ? 'Entrada Adulto Solidário'
-                           : rawName.replace(/^1x\s*/i, '');
+                       
+                       let displayNameRaw = rawName.replace(/^1x\s*/i, '');
+                       const isGenericAdult = rawName.toLowerCase() === 'adulto' || rawName.toLowerCase() === 'entrada';
+                       if (isGenericAdult) {
+                         if (Math.abs(unitPrice) < 0.01) {
+                           displayNameRaw = 'Assinante Lessa Club';
+                         } else if (unitPrice <= 25 && unitPrice > 0) {
+                           displayNameRaw = 'Entrada Adulto Solidário';
+                         } else {
+                           displayNameRaw = 'Entrada Adulto Inteira';
+                         }
+                       }
                            
                        let displayName = displayNameRaw;
                        const lowerName = displayName.toLowerCase();

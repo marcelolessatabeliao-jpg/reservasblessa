@@ -1,7 +1,9 @@
+import { useState, useEffect } from 'react';
 import { QuantityStepper } from '@/components/QuantityStepper';
 import { AdditionalItem, ADDITIONAL_INFO, formatCurrency } from '@/lib/booking-types';
 import { Fish, CircleDot, Loader2 } from 'lucide-react';
 import { useServices } from '@/hooks/useServices';
+import { getGlobalSetting } from '@/lib/booking-service';
 
 const ICONS: Record<string, typeof Fish> = {
   'pesca': Fish,
@@ -15,6 +17,30 @@ interface Props {
 
 export function AdditionalSelector({ additionals, onUpdate }: Props) {
   const { getPrice, isLoading } = useServices();
+  const [disabledServices, setDisabledServices] = useState<Record<string, boolean>>({
+    'futebol-sabao': false,
+    'pesca': false
+  });
+
+  useEffect(() => {
+    async function loadSettings() {
+      const fsBlocked = await getGlobalSetting('disable_futebol_sabao', false);
+      const pescaBlocked = await getGlobalSetting('disable_pesca', false);
+      setDisabledServices({
+        'futebol-sabao': !!fsBlocked,
+        'pesca': !!pescaBlocked
+      });
+    }
+    loadSettings();
+  }, []);
+
+  useEffect(() => {
+    additionals.forEach((item, i) => {
+      if (disabledServices[item.type] && item.quantity > 0) {
+        onUpdate(i, { quantity: 0 });
+      }
+    });
+  }, [disabledServices, additionals, onUpdate]);
 
   if (isLoading) {
     return <div className="flex items-center justify-center p-6"><Loader2 className="animate-spin text-primary h-6 w-6" /></div>;
@@ -33,6 +59,7 @@ export function AdditionalSelector({ additionals, onUpdate }: Props) {
         const info = ADDITIONAL_INFO[item.type];
         const basePrice = getPrice(`add_${item.type}`, info.price);
         const Icon = ICONS[item.type] || Fish;
+        const isDisabled = disabledServices[item.type];
         return (
           <div key={item.type} className="bg-white/95 backdrop-blur-md rounded-2xl border-2 border-slate-200 p-4 sm:p-5 shadow-lg transition-colors hover:border-slate-300">
             <div className="flex items-center justify-between gap-1.5 min-w-0">
@@ -55,7 +82,13 @@ export function AdditionalSelector({ additionals, onUpdate }: Props) {
                 </div>
               </div>
               <div className="shrink-0 ml-2">
-                <QuantityStepper value={item.quantity} onChange={(q) => onUpdate(i, { quantity: q })} />
+                {isDisabled ? (
+                  <span className="text-[10px] sm:text-xs font-black text-red-500 bg-red-50 border border-red-200 px-2.5 py-1 rounded-md uppercase tracking-wider">
+                    indisponível no momento
+                  </span>
+                ) : (
+                  <QuantityStepper value={item.quantity} onChange={(q) => onUpdate(i, { quantity: q })} />
+                )}
               </div>
             </div>
             

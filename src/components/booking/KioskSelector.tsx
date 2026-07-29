@@ -5,7 +5,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useServices } from '@/hooks/useServices';
-import { getBookedKioskIds } from '@/lib/booking-service';
+import { getBookedKioskIds, getGlobalSetting } from '@/lib/booking-service';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { KioskPhotoButton } from './KioskPhotoPopup';
@@ -36,6 +36,22 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
   const { getPrice, isLoading } = useServices();
   const [bookedIds, setBookedIds] = useState<number[]>([]);
   const [isFetching, setIsFetching] = useState(false);
+  const [disableKiosks, setDisableKiosks] = useState(false);
+  const [disabledKioskTypes, setDisabledKioskTypes] = useState<string[]>([]);
+  const [disabledKioskIds, setDisabledKioskIds] = useState<number[]>([]);
+
+  useEffect(() => {
+    async function loadSettings() {
+      const allKiosksBlocked = await getGlobalSetting('disable_kiosks', false);
+      const blockedKioskTypes = await getGlobalSetting('disabled_kiosk_types', []);
+      const blockedKioskIds = await getGlobalSetting('disabled_kiosk_ids', []);
+      
+      setDisableKiosks(!!allKiosksBlocked);
+      if (Array.isArray(blockedKioskTypes)) setDisabledKioskTypes(blockedKioskTypes);
+      if (Array.isArray(blockedKioskIds)) setDisabledKioskIds(blockedKioskIds.map(Number));
+    }
+    loadSettings();
+  }, []);
 
   const checkDate = kiosks[0]?.date;
 
@@ -83,8 +99,9 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
       return;
     }
 
-    if (bookedIds.includes(kioskDef.id)) {
-      toast({ title: 'Quiosque Indisponível', description: `${kioskDef.label} já está reservado para esta data.`, variant: 'destructive' });
+    const isDisabledByAdmin = disableKiosks || disabledKioskIds.includes(kioskDef.id) || disabledKioskTypes.includes(kioskDef.type);
+    if (bookedIds.includes(kioskDef.id) || isDisabledByAdmin) {
+      toast({ title: 'Quiosque Indisponível', description: `${kioskDef.label} está indisponível no momento.`, variant: 'destructive' });
       return;
     }
 
@@ -187,11 +204,19 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
 
         {/* ═══ KIOSK MAP LAYOUT ═══ */}
         <div className="space-y-3">
+          {disableKiosks && (
+            <div className="mb-4 bg-red-50 border-2 border-red-200 p-4 rounded-2xl text-center">
+              <span className="text-sm font-black text-red-700 uppercase">
+                Todos os quiosques estão indisponíveis no momento para novas reservas
+              </span>
+            </div>
+          )}
 
           {/* Top row: Quiosques 02-05 (médios) */}
           <div className="grid grid-cols-4 gap-2 sm:gap-3">
             {KIOSK_MAP.filter(k => k.row === 'top').map(kioskDef => {
-              const isBooked = bookedIds.includes(kioskDef.id);
+              const isDisabledByAdmin = disableKiosks || disabledKioskIds.includes(kioskDef.id) || disabledKioskTypes.includes(kioskDef.type);
+              const isBooked = bookedIds.includes(kioskDef.id) || isDisabledByAdmin;
               const isSelected = allSelectedIds.includes(kioskDef.id);
               const price = menorPrice;
 
@@ -226,7 +251,9 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
 
                   {isBooked && !isSelected && (
                     <div className="absolute top-1 right-1 px-1.5 py-0.5 bg-red-100 rounded-full">
-                      <span className="text-[8px] font-black text-red-500 uppercase">Reservado</span>
+                      <span className="text-[8px] font-black text-red-500 uppercase">
+                        {isDisabledByAdmin ? 'Indisponível' : 'Reservado'}
+                      </span>
                     </div>
                   )}
 
@@ -258,7 +285,8 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
 
           {/* Quiosque 01 (grande, separado) */}
           {KIOSK_MAP.filter(k => k.row === 'bottom').map(kioskDef => {
-            const isBooked = bookedIds.includes(kioskDef.id);
+            const isDisabledByAdmin = disableKiosks || disabledKioskIds.includes(kioskDef.id) || disabledKioskTypes.includes(kioskDef.type);
+            const isBooked = bookedIds.includes(kioskDef.id) || isDisabledByAdmin;
             const isSelected = allSelectedIds.includes(kioskDef.id);
             const price = maiorPrice;
 
@@ -283,7 +311,9 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
 
                 {isBooked && !isSelected && (
                   <div className="absolute top-2 right-2 px-1.5 py-0.5 bg-red-100 rounded-full">
-                    <span className="text-[8px] font-black text-red-500 uppercase">Reservado</span>
+                    <span className="text-[8px] font-black text-red-500 uppercase">
+                      {isDisabledByAdmin ? 'Indisponível' : 'Reservado'}
+                    </span>
                   </div>
                 )}
 
@@ -333,7 +363,8 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
             </div>
             <div className="flex overflow-x-auto gap-2 sm:gap-3 pb-3 snap-x scroll-smooth">
               {KIOSK_MAP.filter(k => k.row === 'familiar').map(kioskDef => {
-                const isBooked = bookedIds.includes(kioskDef.id);
+                const isDisabledByAdmin = disableKiosks || disabledKioskIds.includes(kioskDef.id) || disabledKioskTypes.includes(kioskDef.type);
+                const isBooked = bookedIds.includes(kioskDef.id) || isDisabledByAdmin;
                 const isSelected = allSelectedIds.includes(kioskDef.id);
                 const price = familiarPrice;
 
@@ -358,7 +389,9 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
 
                     {isBooked && !isSelected && (
                       <div className="absolute top-1 right-1 px-1.5 py-0.5 bg-red-100 rounded-full">
-                        <span className="text-[8px] font-black text-red-500 uppercase">Reservado</span>
+                        <span className="text-[8px] font-black text-red-500 uppercase">
+                          {isDisabledByAdmin ? 'Indisponível' : 'Reservado'}
+                        </span>
                       </div>
                     )}
 

@@ -50,6 +50,8 @@ export function QuadSelector({ quads, onUpdate }: Props) {
   const [maxQuads, setMaxQuads] = useState<number>(DEFAULT_MAX_QUADS);
   const [slotAvailabilities, setSlotAvailabilities] = useState<Record<string, number>>({});
   const [isFetchingAvailability, setIsFetchingAvailability] = useState(false);
+  const [disableQuads, setDisableQuads] = useState(false);
+  const [disabledQuadSlots, setDisabledQuadSlots] = useState<string[]>([]);
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
 
   const checkDate = quads[0]?.date;
@@ -58,6 +60,10 @@ export function QuadSelector({ quads, onUpdate }: Props) {
     async function fetchConfig() {
       const total = await getGlobalSetting('total_quads', DEFAULT_MAX_QUADS);
       setMaxQuads(Number(total));
+      const blockedQuads = await getGlobalSetting('disable_quads', false);
+      const blockedSlots = await getGlobalSetting('disabled_quad_slots', []);
+      setDisableQuads(!!blockedQuads);
+      if (Array.isArray(blockedSlots)) setDisabledQuadSlots(blockedSlots);
     }
     fetchConfig();
   }, []);
@@ -88,6 +94,22 @@ export function QuadSelector({ quads, onUpdate }: Props) {
       setExpandedCard(activeQuad.type);
     }
   }, [quads]);
+
+  useEffect(() => {
+    if (disableQuads || maxQuads === 0) {
+      quads.forEach((q, idx) => {
+        if (q.quantity > 0) {
+          onUpdate(idx, { quantity: 0, time: undefined });
+        }
+      });
+    } else {
+      quads.forEach((q, idx) => {
+        if (q.quantity > 0 && q.time && disabledQuadSlots.includes(q.time)) {
+          onUpdate(idx, { quantity: 0, time: undefined });
+        }
+      });
+    }
+  }, [disableQuads, maxQuads, disabledQuadSlots, quads, onUpdate]);
 
   if (isLoading) {
     return <div className="flex items-center justify-center p-6"><Loader2 className="animate-spin text-primary h-6 w-6" /></div>;
@@ -139,48 +161,59 @@ export function QuadSelector({ quads, onUpdate }: Props) {
             </span>
             {isFetchingAvailability && <Loader2 className="h-3 w-3 animate-spin text-slate-400" />}
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {QUAD_TIMES.map(t => {
-              const totalUsed = getSlotUsage(t);
-              const remaining = Math.max(0, maxQuads - totalUsed);
-              const pct = (totalUsed / maxQuads) * 100;
-              const isFull = remaining <= 0;
+          {(disableQuads || maxQuads === 0) ? (
+            <div className="bg-red-50 border-2 border-red-200 p-4 rounded-2xl text-center">
+              <span className="text-sm font-black text-red-700 uppercase">
+                Quadriciclos indisponíveis no momento
+              </span>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {QUAD_TIMES.map(t => {
+                const totalUsed = getSlotUsage(t);
+                const isSlotDisabled = disabledQuadSlots.includes(t);
+                const remaining = isSlotDisabled ? 0 : Math.max(0, maxQuads - totalUsed);
+                const pct = isSlotDisabled ? 100 : (totalUsed / maxQuads) * 100;
+                const isFull = isSlotDisabled || remaining <= 0;
 
-              return (
-                <div key={t} className={cn(
-                  "flex flex-col items-center p-2 rounded-xl border transition-all",
-                  isFull 
-                    ? "bg-red-50 border-red-200" 
-                    : remaining <= 2 
-                      ? "bg-amber-50 border-amber-200"
-                      : "bg-emerald-50 border-emerald-200"
-                )}>
-                  <span className={cn(
-                    "text-sm sm:text-base font-black",
-                    isFull ? "text-red-500" : remaining <= 2 ? "text-amber-600" : "text-emerald-700"
+                return (
+                  <div key={t} className={cn(
+                    "flex flex-col items-center p-2 rounded-xl border transition-all",
+                    isFull 
+                      ? "bg-red-50 border-red-200" 
+                      : remaining <= 2 
+                        ? "bg-amber-50 border-amber-200"
+                        : "bg-emerald-50 border-emerald-200"
                   )}>
-                    {t}
-                  </span>
-                  {/* Progress bar */}
-                  <div className="w-full h-1.5 bg-gray-200 rounded-full mt-1.5 overflow-hidden">
-                    <div 
-                      className={cn(
-                        "h-full rounded-full transition-all duration-500",
-                        isFull ? "bg-red-400" : remaining <= 2 ? "bg-amber-400" : "bg-emerald-400"
-                      )}
-                      style={{ width: `${Math.min(pct, 100)}%` }}
-                    />
+                    <span className={cn(
+                      "text-sm sm:text-base font-black",
+                      isFull ? "text-red-500" : remaining <= 2 ? "text-amber-600" : "text-emerald-700"
+                    )}>
+                      {t}
+                    </span>
+                    {/* Progress bar */}
+                    {!isSlotDisabled && (
+                      <div className="w-full h-1.5 bg-gray-200 rounded-full mt-1.5 overflow-hidden">
+                        <div 
+                          className={cn(
+                            "h-full rounded-full transition-all duration-500",
+                            isFull ? "bg-red-400" : remaining <= 2 ? "bg-amber-400" : "bg-emerald-400"
+                          )}
+                          style={{ width: `${Math.min(pct, 100)}%` }}
+                        />
+                      </div>
+                    )}
+                    <span className={cn(
+                      "text-[9px] sm:text-[10px] font-bold mt-1 text-center leading-none",
+                      isFull ? "text-red-500" : remaining <= 2 ? "text-amber-600" : "text-emerald-600"
+                    )}>
+                      {isSlotDisabled ? 'Indisponível no momento' : isFull ? 'LOTADO' : `${totalUsed}/${maxQuads} ocupadas`}
+                    </span>
                   </div>
-                  <span className={cn(
-                    "text-[9px] sm:text-[10px] font-bold mt-1",
-                    isFull ? "text-red-500" : remaining <= 2 ? "text-amber-600" : "text-emerald-600"
-                  )}>
-                    {isFull ? 'LOTADO' : `${totalUsed}/${maxQuads} ocupadas`}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -220,6 +253,7 @@ export function QuadSelector({ quads, onUpdate }: Props) {
               key={card.type}
               className={cn(
                 "relative flex flex-col rounded-2xl border-2 transition-all duration-300 overflow-hidden cursor-pointer",
+                (disableQuads || maxQuads === 0) && "opacity-50 cursor-not-allowed pointer-events-none",
                 isActive 
                   ? `${colors.activeBg} ${colors.activeBorder} text-white shadow-lg` 
                   : isExpanded
@@ -232,6 +266,10 @@ export function QuadSelector({ quads, onUpdate }: Props) {
                 onClick={() => {
                   if (!checkDate) {
                     toast({ title: 'Selecione a data primeiro', description: 'Escolha a data de visita antes de selecionar os quadriciclos.', variant: 'destructive' });
+                    return;
+                  }
+                  if (disableQuads || maxQuads === 0) {
+                    toast({ title: 'Quadriciclos Indisponíveis', description: 'O serviço de quadriciclos está indisponível no momento.', variant: 'destructive' });
                     return;
                   }
                   setExpandedCard(isExpanded ? null : card.type);
@@ -356,8 +394,9 @@ export function QuadSelector({ quads, onUpdate }: Props) {
                       <SelectContent className="rounded-2xl">
                         {QUAD_TIMES.map(t => {
                           const totalUsed = getSlotUsage(t, cardIndex);
-                          const remaining = Math.max(0, maxQuads - totalUsed);
-                          const isFull = remaining <= 0;
+                          const isSlotDisabled = disabledQuadSlots.includes(t);
+                          const remaining = isSlotDisabled ? 0 : Math.max(0, maxQuads - totalUsed);
+                          const isFull = isSlotDisabled || remaining <= 0;
                           return (
                             <SelectItem 
                               key={t} 
@@ -365,7 +404,7 @@ export function QuadSelector({ quads, onUpdate }: Props) {
                               className={cn("font-bold py-3", isFull ? "text-destructive" : "text-foreground")}
                               disabled={isFull && quad.time !== t}
                             >
-                              {t}
+                              {t} {isSlotDisabled ? ' (Indisponível)' : ''}
                             </SelectItem>
                           );
                         })}

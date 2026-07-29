@@ -548,10 +548,19 @@ export function BookingTable({
                                             const itemsList = booking.order_items?.map((item: any) => {
                                               const rawName = item.product_name || item.product_id || 'Servico';
                                               const unitPrice = item.unit_price ?? (item.total_price / (item.quantity || 1));
-                                              const isAdulto = rawName.toLowerCase().includes('adulto') || rawName.toLowerCase().includes('entrada');
-                                              const isAssinante = isAdulto && Math.abs(unitPrice) < 0.01;
-                                              const isAdultoSolidario = isAdulto && unitPrice <= 25 && unitPrice > 0;
-                                              let displayName = isAssinante ? 'Adulto Associado Lessa Club' : isAdultoSolidario ? 'Adulto Entrada Solidaria' : rawName.replace(/^1x\s*/i, '');
+                                              
+                                              let displayNameRaw = rawName.replace(/^1x\s*/i, '');
+                                              const isGenericAdult = rawName.toLowerCase() === 'adulto' || rawName.toLowerCase() === 'entrada';
+                                              if (isGenericAdult) {
+                                                if (Math.abs(unitPrice) < 0.01) {
+                                                  displayNameRaw = 'Adulto Associado Lessa Club';
+                                                } else if (unitPrice <= 25 && unitPrice > 0) {
+                                                  displayNameRaw = 'Adulto Entrada Solidaria';
+                                                } else {
+                                                  displayNameRaw = 'Adulto Entrada Inteira';
+                                                }
+                                              }
+                                              let displayName = displayNameRaw;
                                               const ln = displayName.toLowerCase();
                                               if (ln === 'adulto') displayName = 'Adulto Entrada Inteira';
                                               else if (ln === 'crianca' || ln === 'criança') displayName = 'Crianca (ate 11 anos - Gratis)';

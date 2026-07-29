@@ -181,6 +181,8 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
           counts['Criança (Cortesia)'] = (counts['Criança (Cortesia)'] || 0) + qty;
         } else if (pName.includes('solidario') || pId.includes('solidario') || pName.includes('solidário') || pId.includes('solidário') || (pName.includes('adulto') && price === 25)) {
           counts['Adulto Solidário'] = (counts['Adulto Solidário'] || 0) + qty;
+        } else if (pName.includes('balcão') || pId.includes('balcão') || pName.includes('balcao') || pId.includes('balcao')) {
+          counts['Entrada no Balcão'] = (counts['Entrada no Balcão'] || 0) + qty;
         } else if (pName.includes('assinante') || pId.includes('assinante') || (pName.includes('adulto') && price === 0)) {
           counts['Assinante Lessa Club'] = (counts['Assinante Lessa Club'] || 0) + qty;
         } else if (pName.includes('adulto') || pId.includes('adulto') || pName.includes('entrada') || pId.includes('entrada')) {
@@ -493,10 +495,14 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
                 <div className="flex flex-col min-w-0 flex-1 mr-3 overflow-hidden">
                   <span className={cn('font-black text-[11px] md:text-[13px] whitespace-normal transition-colors uppercase leading-tight md:leading-normal', item.is_redeemed ? 'text-emerald-900 line-through' : 'text-slate-950')}>
                     {item.quantity}x {(() => {
-                      const isAdult = (item.product_name || item.product_id || '').includes('Adulto');
-                      if (isAdult && Math.abs(item.unit_price) < 0.01) return 'Assinante Lessa Club';
-                      if (isAdult && item.unit_price === 25) return 'Adulto Solidário';
-                      return item.product_name || item.product_id || 'Item';
+                      const rawName = item.product_name || item.product_id || '';
+                      const isGenericAdult = rawName.toLowerCase() === 'adulto' || rawName.toLowerCase() === 'entrada';
+                      if (isGenericAdult) {
+                        if (Math.abs(item.unit_price) < 0.01) return 'Assinante Lessa Club';
+                        if (item.unit_price === 25) return 'Adulto Solidário';
+                        return 'Adulto Inteira';
+                      }
+                      return rawName || 'Item';
                     })()}
                     {((item.product_name || item.product_id || '').toLowerCase().includes('quad')) && (
                       <span className="ml-1 text-blue-600 font-black lowercase text-[10px] bg-blue-50 px-1.5 py-0.5 rounded-md border border-blue-100">

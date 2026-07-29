@@ -121,14 +121,33 @@ export function VoucherShareDialog({
     onOpenChange(false);
   };
 
+  const handleCopyExistingImage = async () => {
+    if (!imageGenerated) return;
+    try {
+      const blob = await (await fetch(imageGenerated)).blob();
+      await navigator.clipboard.write([
+         new ClipboardItem({ 'image/png': blob })
+      ]);
+      toast({ title: "Imagem Copiada!", description: "A imagem do voucher foi copiada. Agora basta colar no WhatsApp do cliente." });
+    } catch (err) {
+      console.error("Clipboard copy failed", err);
+      toast({ 
+        title: "Erro ao copiar", 
+        description: "Não foi possível copiar automaticamente. Use o botão de baixar.", 
+        variant: "destructive" 
+      });
+    }
+  };
+
   const handleGenerateImage = async () => {
     setLoading(true);
     try {
-      // Small delay to ensure render
-      await new Promise(r => setTimeout(r, 100));
+      if (!voucherRef.current) return;
       
-      if (voucherRef.current) {
-        const canvas = await html2canvas(voucherRef.current, {
+      const imagePromise = (async () => {
+        // Small delay to ensure render
+        await new Promise(r => setTimeout(r, 100));
+        const canvas = await html2canvas(voucherRef.current!, {
           backgroundColor: '#ffffff',
           scale: 2,
           useCORS: true,
@@ -136,19 +155,20 @@ export function VoucherShareDialog({
         });
         const dataUrl = canvas.toDataURL('image/png');
         setImageGenerated(dataUrl);
-        
-        // Try to copy to clipboard if supported
-        try {
-           const blob = await (await fetch(dataUrl)).blob();
-           await navigator.clipboard.write([
-              new ClipboardItem({ 'image/png': blob })
-           ]);
-           toast({ title: "Imagem Copiada!", description: "A imagem do voucher foi copiada. Agora basta colar no WhatsApp do cliente." });
-        } catch (err) {
-           console.log("Clipboard API failed, showing image instead", err);
-           toast({ title: "Imagem Gerada!", description: "A imagem está pronta abaixo. Você pode baixar ou copiar." });
-        }
         updateVoucherSent();
+        const res = await fetch(dataUrl);
+        return await res.blob();
+      })();
+
+      try {
+         await navigator.clipboard.write([
+            new ClipboardItem({ 'image/png': imagePromise })
+         ]);
+         toast({ title: "Imagem Copiada!", description: "A imagem do voucher foi copiada. Agora basta colar no WhatsApp do cliente." });
+      } catch (err) {
+         console.log("Clipboard API failed directly, showing generated image instead", err);
+         await imagePromise;
+         toast({ title: "Imagem Gerada!", description: "A imagem está pronta abaixo. Você pode baixar ou colar manualmente." });
       }
     } catch (err) {
       console.error(err);
@@ -228,9 +248,7 @@ export function VoucherShareDialog({
                  <Button 
                     variant="outline" 
                     className="flex-1 h-10 rounded-xl text-[10px] font-black"
-                    onClick={() => {
-                       handleGenerateImage(); // Retry copy
-                    }}
+                    onClick={handleCopyExistingImage}
                  >
                     <Copy className="w-3.5 h-3.5 mr-2" /> COPIAR NOVAMENTE
                  </Button>
@@ -331,15 +349,20 @@ export function VoucherShareDialog({
                           {booking.order_items?.map((item: any, i: number) => {
                              const rawName = item.product_name || item.product_id || 'Serviço';
                              const unitPrice = item.unit_price ?? (item.total_price / (item.quantity || 1));
-                             const isAdulto = rawName.toLowerCase().includes('adulto') || rawName.toLowerCase().includes('entrada');
-                             const isAdultoSolidario = isAdulto && unitPrice <= 25 && unitPrice > 0;
-                             const isAssinante = isAdulto && Math.abs(unitPrice) < 0.01;
                              
-                             let displayName = isAssinante
-                               ? 'Assinante Lessa Club'
-                               : isAdultoSolidario
-                                 ? 'Entrada Adulto Solidário'
-                                 : rawName.replace(/^1x\s*/i, '');
+                             let displayNameRaw = rawName.replace(/^1x\s*/i, '');
+                             const isGenericAdult = rawName.toLowerCase() === 'adulto' || rawName.toLowerCase() === 'entrada';
+                             if (isGenericAdult) {
+                               if (Math.abs(unitPrice) < 0.01) {
+                                 displayNameRaw = 'Assinante Lessa Club';
+                               } else if (unitPrice <= 25 && unitPrice > 0) {
+                                 displayNameRaw = 'Entrada Adulto Solidário';
+                               } else {
+                                 displayNameRaw = 'Entrada Adulto Inteira';
+                               }
+                             }
+                             
+                             let displayName = displayNameRaw;
                              
                              const lowerName = displayName.toLowerCase();
                              if (lowerName === 'adulto' || lowerName === 'criança' || lowerName === 'crianca' || lowerName === 'meia') {

@@ -155,6 +155,8 @@ export function BookingOverview({
     booking.entry.adults.forEach(a => {
       const price = getPersonPrice(a, a.age >= 60, isSunday, getPrice);
       const label = a.isPCD ? 'Lessa Inclusão' : 
+                   a.isMember ? 'Associado Lessa Club' :
+                   a.isCounterPayment ? 'Entrada no Balcão' :
                    a.age >= 60 ? 'Lessa Vitalício' : 
                    a.isTeacher ? 'Lessa Professor Pass' :
                    a.isStudent ? 'Lessa Estudante Pass' :
@@ -167,7 +169,8 @@ export function BookingOverview({
 
     booking.entry.children.forEach(c => {
       const price = getPersonPrice(c, c.age <= 11, isSunday, getPrice);
-      items.push({ product_id: 'Criança', quantity: c.quantity || 1, unit_price: price });
+      const label = c.isPCD ? 'Lessa Kids PCD' : 'Lessa Kids';
+      items.push({ product_id: label, quantity: c.quantity || 1, unit_price: price });
     });
 
     booking.kiosks.filter(k => k.quantity > 0).forEach(k => {
@@ -743,7 +746,7 @@ export function BookingOverview({
                   )}
 
                   <Link to={`/voucher/${persistedConfirmationCode}`} target="_blank" className="w-full">
-                    <Button variant="outline" className="w-full h-14 rounded-2xl border-2 border-primary/10 text-primary font-black shadow-sm flex gap-2 hover:bg-primary/5">
+                    <Button variant="ghost" className="w-full h-14 rounded-2xl border-2 border-primary text-primary font-black shadow-sm flex items-center justify-center gap-2 hover:bg-primary hover:text-white transition-all">
                        VER MEU VOUCHER DIGITAL <QrCode className="w-5 h-5" />
                     </Button>
                   </Link>
