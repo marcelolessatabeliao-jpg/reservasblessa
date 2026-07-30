@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { AddItemsToBookingDialog } from './AddItemsToBookingDialog';
 import { Plus } from 'lucide-react';
+import { formatProductDisplayName } from '@/utils/product-utils';
 
 interface BookingDetailProps {
   booking: {
@@ -324,10 +325,8 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
                   <div className="pt-2 border-t border-slate-200 mt-2 space-y-1.5">
                     <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest mb-1">Itens Adicionais e Consumo</p>
                     {localItems.map((item: any, idx: number) => {
-                      const isAdultoSolidario = (item.product_name === 'Adulto' || item.product_name === '1x Adulto' || item.product_id?.includes('Adulto')) && item.unit_price === 25;
                       const sum = item.unit_price * item.quantity;
-                      const isAssinanteGratis = (item.product_name === 'Adulto' || item.product_name === '1x Adulto' || item.product_id?.includes('Adulto')) && Math.abs(sum) < 0.01;
-                      const dispName = isAssinanteGratis ? 'Assinante Lessa Club' : (isAdultoSolidario ? 'Adulto Solidário' : (item.product_name || item.product_id || 'Serviço'));
+                      const dispName = formatProductDisplayName(item.product_id, item.unit_price, item.product_name);
                       
                       return (
                         <div key={idx} className="flex justify-between text-[11px]">
@@ -494,16 +493,7 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
               >
                 <div className="flex flex-col min-w-0 flex-1 mr-3 overflow-hidden">
                   <span className={cn('font-black text-[11px] md:text-[13px] whitespace-normal transition-colors uppercase leading-tight md:leading-normal', item.is_redeemed ? 'text-emerald-900 line-through' : 'text-slate-950')}>
-                    {item.quantity}x {(() => {
-                      const rawName = item.product_name || item.product_id || '';
-                      const isGenericAdult = rawName.toLowerCase() === 'adulto' || rawName.toLowerCase() === 'entrada';
-                      if (isGenericAdult) {
-                        if (Math.abs(item.unit_price) < 0.01) return 'Assinante Lessa Club';
-                        if (item.unit_price === 25) return 'Adulto Solidário';
-                        return 'Adulto Inteira';
-                      }
-                      return rawName || 'Item';
-                    })()}
+                    {item.quantity}x {formatProductDisplayName(item.product_id, item.unit_price, item.product_name)}
                     {((item.product_name || item.product_id || '').toLowerCase().includes('quad')) && (
                       <span className="ml-1 text-blue-600 font-black lowercase text-[10px] bg-blue-50 px-1.5 py-0.5 rounded-md border border-blue-100">
                         {(() => {

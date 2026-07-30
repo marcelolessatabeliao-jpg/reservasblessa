@@ -48,6 +48,7 @@ import { BookingDetail } from "./BookingDetail";
 import { VoucherShareDialog } from "./VoucherShareDialog";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { formatProductDisplayName } from "@/utils/product-utils";
 
 interface Booking {
   id: string;
@@ -546,25 +547,13 @@ export function BookingTable({
                                             const phone = (booking.phone || "").replace(/\D/g, "");
                                             const code = booking.id?.replace(/-/g, '').slice(0, 8).toUpperCase() || "";
                                             const itemsList = booking.order_items?.map((item: any) => {
-                                              const rawName = item.product_name || item.product_id || 'Servico';
                                               const unitPrice = item.unit_price ?? (item.total_price / (item.quantity || 1));
-                                              
-                                              let displayNameRaw = rawName.replace(/^1x\s*/i, '');
-                                              const isGenericAdult = rawName.toLowerCase() === 'adulto' || rawName.toLowerCase() === 'entrada';
-                                              if (isGenericAdult) {
-                                                if (Math.abs(unitPrice) < 0.01) {
-                                                  displayNameRaw = 'Adulto Associado Lessa Club';
-                                                } else if (unitPrice <= 25 && unitPrice > 0) {
-                                                  displayNameRaw = 'Adulto Entrada Solidaria';
-                                                } else {
-                                                  displayNameRaw = 'Adulto Entrada Inteira';
-                                                }
+                                              const displayName = formatProductDisplayName(item.product_id, unitPrice, item.product_name);
+                                              let displayForMsg = displayName;
+                                              if (displayName.toLowerCase().includes('criança') || displayName.toLowerCase().includes('crianca')) {
+                                                displayForMsg = 'Crianca (ate 11 anos - Gratis)';
                                               }
-                                              let displayName = displayNameRaw;
-                                              const ln = displayName.toLowerCase();
-                                              if (ln === 'adulto') displayName = 'Adulto Entrada Inteira';
-                                              else if (ln === 'crianca' || ln === 'criança') displayName = 'Crianca (ate 11 anos - Gratis)';
-                                              return `* ${item.quantity}x ${displayName}`;
+                                              return `* ${item.quantity}x ${displayForMsg}`;
                                             }).join('\n') || "";
                                             const dateStr = format(parseISO(booking.visit_date || new Date().toISOString()), "dd/MM/yyyy", { locale: ptBR });
                                             
@@ -1409,17 +1398,14 @@ export function BookingTable({
                                             const phone = ((booking as any).customer_phone || (booking as any).phone || "").replace(/\D/g, "");
                                             const code = (booking as any).id?.replace(/-/g, '').slice(0, 8).toUpperCase() || "";
                                             const itemsList = booking.order_items?.map((item: any) => {
-                                              const rawName = item.product_name || item.product_id || 'Servico';
-                                              const unitPrice = item.unit_price ?? (item.total_price / (item.quantity || 1));
-                                              const isAdulto = rawName.toLowerCase().includes('adulto') || rawName.toLowerCase().includes('entrada');
-                                              const isAssinante = isAdulto && Math.abs(unitPrice) < 0.01;
-                                              const isAdultoSolidario = isAdulto && unitPrice <= 25 && unitPrice > 0;
-                                              let displayName = isAssinante ? 'Adulto Associado Lessa Club' : isAdultoSolidario ? 'Adulto Entrada Solidaria' : rawName.replace(/^1x\s*/i, '');
-                                              const ln = displayName.toLowerCase();
-                                              if (ln === 'adulto') displayName = 'Adulto Entrada Inteira';
-                                              else if (ln === 'crianca' || ln === 'criança') displayName = 'Crianca (ate 11 anos - Gratis)';
-                                              return `* ${item.quantity}x ${displayName}`;
-                                            }).join('\n') || "";
+                                               const unitPrice = item.unit_price ?? (item.total_price / (item.quantity || 1));
+                                               const displayName = formatProductDisplayName(item.product_id, unitPrice, item.product_name);
+                                               let displayForMsg = displayName;
+                                               if (displayName.toLowerCase().includes('criança') || displayName.toLowerCase().includes('crianca')) {
+                                                 displayForMsg = 'Crianca (ate 11 anos - Gratis)';
+                                               }
+                                               return `* ${item.quantity}x ${displayForMsg}`;
+                                             }).join('\n') || "";
                                             const dateStr = format(parseISO(booking.visit_date || new Date().toISOString()), "dd/MM/yyyy", { locale: ptBR });
                                             
                                             setShareData({ booking, phone, dateStr, itemsList, code });

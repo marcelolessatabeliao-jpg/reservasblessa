@@ -11,6 +11,7 @@ import { ptBR } from 'date-fns/locale';
 import { Navbar } from '@/components/Navbar';
 import { PaymentModal } from '@/components/booking/PaymentModal';
 import { formatCurrency } from '@/lib/booking-types';
+import { formatProductDisplayName } from '@/utils/product-utils';
 
 export default function Consultar() {
   const [query, setQuery] = useState('');
@@ -291,7 +292,7 @@ export default function Consultar() {
                         <div className="space-y-3">
                           {res.order_items?.map((item: any, i: number) => (
                             <div key={i} className="flex justify-between items-center text-sm border-b border-emerald-100/30 pb-2 last:border-0 last:pb-0">
-                              <span className="font-bold text-emerald-900">{item.quantity}x {item.product_name || item.product_id}</span>
+                              <span className="font-bold text-emerald-900">{item.quantity}x {formatProductDisplayName(item.product_id, item.unit_price, item.product_name)}</span>
                               <span className="font-mono text-emerald-700">{formatCurrency(item.unit_price * item.quantity)}</span>
                             </div>
                           ))}

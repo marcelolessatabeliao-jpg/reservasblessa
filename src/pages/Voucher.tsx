@@ -8,8 +8,8 @@ import { Button } from '@/components/ui/button';
 import { useToast } from "@/hooks/use-toast";
 import html2canvas from 'html2canvas';
 import { formatCurrency } from '@/lib/booking-types';
-
 import { parseToRODate } from '@/utils/date-utils';
+import { formatProductDisplayName } from '@/utils/product-utils';
 
 export default function Voucher() {
   const { code } = useParams();
@@ -210,24 +210,7 @@ export default function Voucher() {
                     {order.order_items?.map((item: any, i: number) => {
                        const rawName = item.product_name || item.product_id || 'Serviço';
                        const unitPrice = item.unit_price ?? (item.total_price / (item.quantity || 1));
-                       
-                       let displayNameRaw = rawName.replace(/^1x\s*/i, '');
-                       const isGenericAdult = rawName.toLowerCase() === 'adulto' || rawName.toLowerCase() === 'entrada';
-                       if (isGenericAdult) {
-                         if (Math.abs(unitPrice) < 0.01) {
-                           displayNameRaw = 'Assinante Lessa Club';
-                         } else if (unitPrice <= 25 && unitPrice > 0) {
-                           displayNameRaw = 'Entrada Adulto Solidário';
-                         } else {
-                           displayNameRaw = 'Entrada Adulto Inteira';
-                         }
-                       }
-                           
-                       let displayName = displayNameRaw;
-                       const lowerName = displayName.toLowerCase();
-                       if (lowerName === 'adulto' || lowerName === 'criança' || lowerName === 'crianca' || lowerName === 'meia') {
-                          displayName = `Entrada ${displayName.charAt(0).toUpperCase() + displayName.slice(1)}`;
-                       }
+                       const displayName = formatProductDisplayName(item.product_id, unitPrice, item.product_name);
 
                        return (
                          <div key={i} className="flex items-start gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100">

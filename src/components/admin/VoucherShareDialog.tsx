@@ -23,6 +23,7 @@ import { formatCurrency } from '@/lib/booking-types';
 import html2canvas from 'html2canvas';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from "@/hooks/use-toast";
+import { formatProductDisplayName } from '@/utils/product-utils';
 
 interface VoucherShareDialogProps {
   open: boolean;
@@ -349,25 +350,7 @@ export function VoucherShareDialog({
                           {booking.order_items?.map((item: any, i: number) => {
                              const rawName = item.product_name || item.product_id || 'Serviço';
                              const unitPrice = item.unit_price ?? (item.total_price / (item.quantity || 1));
-                             
-                             let displayNameRaw = rawName.replace(/^1x\s*/i, '');
-                             const isGenericAdult = rawName.toLowerCase() === 'adulto' || rawName.toLowerCase() === 'entrada';
-                             if (isGenericAdult) {
-                               if (Math.abs(unitPrice) < 0.01) {
-                                 displayNameRaw = 'Assinante Lessa Club';
-                               } else if (unitPrice <= 25 && unitPrice > 0) {
-                                 displayNameRaw = 'Entrada Adulto Solidário';
-                               } else {
-                                 displayNameRaw = 'Entrada Adulto Inteira';
-                               }
-                             }
-                             
-                             let displayName = displayNameRaw;
-                             
-                             const lowerName = displayName.toLowerCase();
-                             if (lowerName === 'adulto' || lowerName === 'criança' || lowerName === 'crianca' || lowerName === 'meia') {
-                                displayName = `Entrada ${displayName.charAt(0).toUpperCase() + displayName.slice(1)}`;
-                             }
+                             const displayName = formatProductDisplayName(item.product_id, unitPrice, item.product_name);
 
                              return (
                                <div key={i} style={{ width: 'calc(50% - 6px)', display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: '#f8fafc', padding: '10px', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
