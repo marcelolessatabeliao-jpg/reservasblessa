@@ -253,15 +253,26 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, phone, 
                </div>
             </div>
 
-            <Button 
-               onClick={() => {
-                 onOpenChange(false);
-                 window.location.href = '/'; // Redirecionar para o início para atualizar estado se necessário
-               }}
-               className="w-full h-16 bg-primary hover:bg-primary-dark text-white font-black rounded-2xl shadow-xl shadow-primary/20 transition-all active:scale-95"
-            >
-              CONCLUÍDO - VOLTAR AO INÍCIO
-            </Button>
+            <div className="flex flex-col gap-3 w-full">
+              <Button 
+                 onClick={() => {
+                   window.location.href = '/consultar';
+                 }}
+                 className="w-full h-14 bg-emerald-500 hover:bg-emerald-600 text-white font-black rounded-2xl shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2"
+              >
+                ACESSAR MEU VOUCHER / CONSULTAR
+              </Button>
+
+              <Button 
+                 onClick={() => {
+                   onOpenChange(false);
+                   window.location.href = '/'; // Redirecionar para o início para atualizar estado se necessário
+                 }}
+                 className="w-full h-14 bg-primary hover:bg-primary-dark text-white font-black rounded-2xl shadow-lg shadow-primary/20 transition-all active:scale-95"
+              >
+                CONCLUÍDO - VOLTAR AO INÍCIO
+              </Button>
+            </div>
             
             <p className="text-[10px] text-muted-foreground text-center px-4 font-medium italic">
               Enviamos um e-mail com os detalhes. Dica: Tire um print desta tela agora para levar com você!
@@ -288,15 +299,6 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, phone, 
               />
             </div>
 
-            <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-4 space-y-1 my-2">
-              <div className="flex items-center gap-2 text-red-700 font-black text-[10px] uppercase">
-                <AlertTriangle className="w-3.5 h-3.5 fill-red-100" /> Aviso de Segurança
-              </div>
-              <p className="text-[10px] font-bold text-red-900 leading-tight">
-                O Balneário Lessa <span className="underline italic">NÃO se responsabiliza</span> por pagamentos via PIX realizados para CPFs de terceiros. 
-                Utilize <span className="underline italic">APENAS</span> o QR Code ou o Código Copia e Cola gerado abaixo.
-              </p>
-            </div>
 
             <Button 
               size="lg" 
