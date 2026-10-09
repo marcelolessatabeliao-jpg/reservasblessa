@@ -25,8 +25,8 @@ const testimonials = [
   },
   {
     name: 'Ricardo Oliveira',
-    role: 'Aventura de Quadriciclo',
-    content: 'O passeio de quadriciclo foi incrível! A trilha é emocionante e as paisagens são de tirar o fôlego. Valeu cada centavo!',
+    role: 'Day Use em Família',
+    content: 'O balneário superou nossas expectativas! A natureza é exuberante, as piscinas são ótimas e o espaço acolhe muito bem toda a família. Valeu cada centavo!',
     rating: 5,
     avatar: <img src="/images/ricardo-oliveira.jpg" alt="Ricardo Oliveira" className="w-full h-full object-cover rounded-full" />,
   },

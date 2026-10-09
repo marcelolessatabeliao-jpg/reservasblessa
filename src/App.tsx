@@ -9,9 +9,16 @@ import NotFound from "./pages/NotFound";
 import Admin from "./pages/Admin";
 import Voucher from "./pages/Voucher";
 import Consultar from "./pages/Consultar";
+import Assinatura from "./pages/Assinatura";
 import { MetaPixel } from "@/components/MetaPixel";
 
 const queryClient = new QueryClient();
+
+// Detectar se o acesso está vindo de um subdomínio de assinatura (ex: assinatura.balneario.com.br ou assinatura.balneariolessa.com.br)
+const isAssinaturaSubdomain = typeof window !== 'undefined' && (
+  window.location.hostname.toLowerCase().startsWith('assinatura.') ||
+  window.location.hostname.toLowerCase().startsWith('clube.')
+);
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -21,7 +28,9 @@ const App = () => (
       <BrowserRouter>
         <MetaPixel />
         <Routes>
-          <Route path="/" element={<Index />} />
+          <Route path="/" element={isAssinaturaSubdomain ? <Assinatura /> : <Index />} />
+          <Route path="/assinatura" element={<Assinatura />} />
+          <Route path="/clube" element={<Assinatura />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/voucher/:code" element={<Voucher />} />
           <Route path="/consultar" element={<Consultar />} />

@@ -4,7 +4,15 @@ import { ptBR } from 'date-fns/locale';
 import { parseToRODate } from '@/utils/date-utils';
 import { formatPhone } from '@/lib/utils/format';
 
-export function buildWhatsAppMessage(booking: BookingState, total: number, isPrepay: boolean = false, code?: string, getPrice?: (type: string, fb: number) => number): string {
+export function buildWhatsAppMessage(
+  booking: BookingState, 
+  total: number, 
+  isPrepay: boolean = false, 
+  code?: string, 
+  getPrice?: (type: string, fb: number) => number,
+  subtotal?: number,
+  discount?: number
+): string {
   const { entry } = booking;
   const safeGetPrice = getPrice || ((t: string, fb: number) => fb);
   const isSunday = entry.dayOfWeek === 'domingo';
@@ -135,6 +143,14 @@ export function buildWhatsAppMessage(booking: BookingState, total: number, isPre
     msg += '\n';
   }
 
-  msg += `💰 *TOTAL DA RESERVA: ${formatCurrency(total)}*\n\nAguardo instruções para pagamento.`;
+  if (discount && discount > 0) {
+    const rawSubtotal = subtotal || (total + discount);
+    msg += `📋 *Subtotal:* ${formatCurrency(rawSubtotal)}\n`;
+    msg += `🏷️ *Desconto Reserva Online (10% OFF):* -${formatCurrency(discount)}\n`;
+    msg += `💰 *TOTAL DA RESERVA (COM 10% OFF): ${formatCurrency(total)}*\n\n`;
+  } else {
+    msg += `💰 *TOTAL DA RESERVA: ${formatCurrency(total)}*\n\n`;
+  }
+  msg += `Aguardo instruções para pagamento.`;
   return msg;
 }

@@ -133,7 +133,6 @@ export function AboutSection() {
                   className="space-y-3.5 flex-1"
                 >
                   {[
-                    { emoji: '🚜', text: 'Quadriciclo (1h30)' },
                     { emoji: '🛖', text: 'Reserva de Quiosques' },
                     { emoji: '🍽️', text: 'Restaurante Completo' },
                     { emoji: '🫧', text: 'Futebol de Sabão' },

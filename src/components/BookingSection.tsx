@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useBooking } from '@/hooks/useBooking';
 import { EntrySelector } from '@/components/booking/EntrySelector';
 import { KioskSelector } from '@/components/booking/KioskSelector';
-import { QuadSelector } from '@/components/booking/QuadSelector';
 import { AdditionalSelector } from '@/components/booking/AdditionalSelector';
 import { BookingOverview } from '@/components/booking/BookingOverview';
 import { formatCurrency, isOperatingDay } from '@/lib/booking-types';
@@ -14,7 +13,6 @@ import {
   User, 
   Ticket, 
   Home, 
-  Bike, 
   Fish, 
   ClipboardList, 
   ArrowRight, 
@@ -33,7 +31,7 @@ import { CalendarIcon } from 'lucide-react';
 
 import { formatPhone, unformatPhone } from '@/lib/utils/format';
 
-type Step = 'dados' | 'quiosques' | 'quads' | 'servicos' | 'pagamento';
+type Step = 'dados' | 'quiosques' | 'servicos' | 'pagamento';
 
 export function BookingSection() {
   const { 
@@ -97,13 +95,6 @@ export function BookingSection() {
       }
     });
 
-    let needsQuadUpdate = false;
-    booking.quads.forEach((q) => {
-      if (q.quantity > 0 && (!q.date || q.date.getTime() !== mainDate)) {
-        needsQuadUpdate = true;
-      }
-    });
-
     if (needsKioskUpdate) {
       booking.kiosks.forEach((k, i) => {
         if (k.quantity > 0 && (!k.date || k.date.getTime() !== mainDate)) {
@@ -111,15 +102,7 @@ export function BookingSection() {
         }
       });
     }
-
-    if (needsQuadUpdate) {
-      booking.quads.forEach((q, i) => {
-        if (q.quantity > 0 && (!q.date || q.date.getTime() !== mainDate)) {
-          updateQuad(i, { date: booking.entry.visitDate });
-        }
-      });
-    }
-  }, [booking.entry.visitDate, updateKiosk, updateQuad]); // Removed booking.kiosks/quads from deps to prevent loop
+  }, [booking.entry.visitDate, updateKiosk]);
 
   // Handle external "Reservar" button clicks
   useEffect(() => {
@@ -157,8 +140,13 @@ export function BookingSection() {
             <h2 className="font-sans font-black text-3xl sm:text-5xl md:text-6xl mb-4 text-emerald-950 drop-shadow-xl leading-tight text-balance italic">
               Agende sua Experiência
             </h2>
-            <div className="inline-flex items-center gap-2 bg-emerald-100 text-emerald-800 px-4 py-1.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest border border-emerald-200/50 shadow-md">
-              <Sparkles className="h-3 w-3 animate-pulse text-sun" /> Reservas em menos de 1 minuto
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <div className="inline-flex items-center gap-2 bg-emerald-100 text-emerald-800 px-4 py-1.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest border border-emerald-200/50 shadow-md">
+                <Sparkles className="h-3 w-3 animate-pulse text-sun" /> Reservas em menos de 1 minuto
+              </div>
+              <div className="inline-flex items-center gap-1.5 bg-amber-100 text-amber-900 px-4 py-1.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest border border-amber-300 shadow-md">
+                🏷️ 10% de Desconto Online
+              </div>
             </div>
           </div>
 
@@ -261,58 +249,14 @@ export function BookingSection() {
                   <div className="pt-8 flex flex-col gap-4 items-center px-4">
                     <Button 
                       size="lg"
-                      onClick={() => nextStep('quads')}
-                      className="w-full sm:w-auto bg-primary hover:bg-primary-dark text-white font-black h-16 px-10 rounded-2xl shadow-lg order-1"
-                    >
-                      Continuar Agendamento <ArrowRight className="ml-2 h-5 w-5" />
-                    </Button>
-                    <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto order-2">
-                        <Button variant="outline" onClick={() => nextStep('quads')} className="w-full sm:w-auto font-bold h-12 px-8 rounded-2xl border-2">Pular Quiosques</Button>
-                        <Button variant="ghost" onClick={() => prevStep('dados')} className="w-full sm:w-auto font-bold text-muted-foreground h-12"> <ArrowLeft className="mr-2 h-4 w-4" /> Voltar</Button>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-
-              {currentStep === 'quads' && (
-                <motion.div
-                  key="quads"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  className="space-y-10"
-                >
-                  <div className="space-y-8">
-                     <div className="space-y-4">
-                        <div className="flex items-center gap-3 mb-6">
-                           <button
-                             onClick={() => prevStep('quiosques')}
-                             className="p-2 rounded-xl border border-primary/20 bg-primary/5 text-primary hover:bg-primary hover:text-white transition-all shrink-0"
-                             title="Voltar"
-                           >
-                             <ArrowLeft className="h-4 w-4" />
-                           </button>
-                           <div className="p-3 bg-primary/10 rounded-2xl text-primary shadow-sm shadow-primary/10"><Bike className="h-6 w-6" /></div>
-                           <div>
-                              <h3 className="font-gliker text-2xl text-emerald-950">Aventura e Diversão</h3>
-                              <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Passeios incríveis com quadriciclo</p>
-                           </div>
-                        </div>
-                        <QuadSelector quads={booking.quads} onUpdate={updateQuad} />
-                     </div>
-                  </div>
-
-                  <div className="pt-8 flex flex-col gap-4 items-center px-4">
-                    <Button 
-                      size="lg"
                       onClick={() => nextStep('servicos')}
                       className="w-full sm:w-auto bg-primary hover:bg-primary-dark text-white font-black h-16 px-10 rounded-2xl shadow-lg order-1"
                     >
                       Continuar Agendamento <ArrowRight className="ml-2 h-5 w-5" />
                     </Button>
                     <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto order-2">
-                        <Button variant="outline" onClick={() => nextStep('servicos')} className="w-full sm:w-auto font-bold h-12 px-8 rounded-2xl border-2">Pular Quadriciclo</Button>
-                        <Button variant="ghost" onClick={() => prevStep('quiosques')} className="w-full sm:w-auto font-bold text-muted-foreground h-12"> <ArrowLeft className="mr-2 h-4 w-4" /> Voltar</Button>
+                        <Button variant="outline" onClick={() => nextStep('servicos')} className="w-full sm:w-auto font-bold h-12 px-8 rounded-2xl border-2">Pular Quiosques</Button>
+                        <Button variant="ghost" onClick={() => prevStep('dados')} className="w-full sm:w-auto font-bold text-muted-foreground h-12"> <ArrowLeft className="mr-2 h-4 w-4" /> Voltar</Button>
                     </div>
                   </div>
                 </motion.div>
@@ -330,7 +274,7 @@ export function BookingSection() {
                      <div className="space-y-4">
                         <div className="flex items-center gap-3 mb-6">
                            <button
-                             onClick={() => prevStep('quads')}
+                             onClick={() => prevStep('quiosques')}
                              className="p-2 rounded-xl border border-primary/20 bg-primary/5 text-primary hover:bg-primary hover:text-white transition-all shrink-0"
                              title="Voltar"
                            >
@@ -371,7 +315,7 @@ export function BookingSection() {
                     </Button>
                     <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto order-2">
                         <Button variant="outline" onClick={() => nextStep('pagamento')} className="w-full sm:w-auto font-bold h-12 px-8 rounded-2xl border-2">Pular Extras</Button>
-                        <Button variant="ghost" onClick={() => prevStep('quads')} className="w-full sm:w-auto font-bold text-muted-foreground h-12"> <ArrowLeft className="mr-2 h-4 w-4" /> Voltar</Button>
+                        <Button variant="ghost" onClick={() => prevStep('quiosques')} className="w-full sm:w-auto font-bold text-muted-foreground h-12"> <ArrowLeft className="mr-2 h-4 w-4" /> Voltar</Button>
                     </div>
                   </div>
                 </motion.div>

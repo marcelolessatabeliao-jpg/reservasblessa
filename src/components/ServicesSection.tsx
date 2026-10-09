@@ -10,13 +10,6 @@ const services = [
     badge: 'SOB RESERVA',
   },
   {
-    title: 'Quadriciclo',
-    description: 'Passeios de 1h30 por trilhas na natureza. Individual, dupla ou adulto + criança.',
-    price: 'A partir de R$ 150,00',
-    image: '/images/quadriciclo.jpg',
-    badge: 'GANHE DESCONTO',
-  },
-  {
     title: 'Piscinas',
     description: 'Piscinas para adultos e crianças em ambiente seguro e refrescante.',
     price: 'Incluso no Day Use',
@@ -154,7 +147,6 @@ export function ServicesSection() {
                         if (!(service as any).link) {
                           let tab = 'entrada';
                           if (service.title === 'Quiosques') tab = 'quiosques';
-                          if (service.title === 'Quadriciclo') tab = 'quads';
                           if (service.title === 'Futebol de Sabão') tab = 'futebol';
                           if (service.title === 'Pesca Esportiva') tab = 'pesca';
                           

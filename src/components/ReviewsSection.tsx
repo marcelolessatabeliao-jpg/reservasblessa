@@ -11,7 +11,7 @@ const reviews = [
   {
     name: 'Carlos Oliveira',
     rating: 5,
-    text: 'Melhor balneário da região! Estrutura excelente, cachoeiras lindas e o passeio de quadriciclo é imperdível.',
+    text: 'Melhor balneário da região! Estrutura excelente, cachoeiras lindas e o atendimento é impecável.',
     date: 'Fevereiro 2026',
   },
   {

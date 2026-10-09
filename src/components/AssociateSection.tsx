@@ -16,7 +16,7 @@ const plans = [
   {
     name: 'Student Pass',
     icon: GraduationCap,
-    benefits: ['Day Use por R$ 25,00', 'Meia-entrada com carteira de estudante', 'Desconto em quadriciclo'],
+    benefits: ['Day Use por R$ 25,00', 'Meia-entrada com carteira de estudante', 'Benefícios exclusivos'],
     color: 'bg-blue-500/10 text-blue-600 border-blue-500/30',
   },
   {

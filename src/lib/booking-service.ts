@@ -47,6 +47,7 @@ export async function saveBooking(
       visit_date: visitDateStr,
       total_amount: totalAmount,
       status: initialStatus,
+      notes: totalAmount > 0 ? 'Reserva online - 10% de desconto aplicado' : null,
       updated_at: new Date().toISOString()
     };
 

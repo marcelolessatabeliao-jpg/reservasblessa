@@ -138,19 +138,26 @@ export function useBooking() {
     const kiosksFallback: Record<string, number> = { maior: 150, menor: 100, familiar: 75 };
     const kiosksTotal = booking.kiosks.reduce((sum, k) => sum + k.quantity * getPrice(`kiosk_${k.type}`, kiosksFallback[k.type] ?? 75), 0);
     
-    // Quads fallback map
-    const quadsFallback: Record<string, number> = { individual: 150, dupla: 250, 'adulto-crianca': 200 };
-    const quadsTotal = booking.quads.reduce((sum, q) => {
-      const base = q.quantity * getPrice(`quad_${q.type}`, quadsFallback[q.type]);
-      const discount = getQuadDiscount(q.date);
-      return sum + base * (1 - discount);
-    }, 0);
+    const quadsTotal = 0;
     
     // Additionals fallback map
     const addsFallback: Record<string, number> = { pesca: 20, 'futebol-sabao': 10 };
     const additionalsTotal = booking.additionals.reduce((sum, a) => sum + a.quantity * getPrice(`add_${a.type}`, addsFallback[a.type]), 0);
     
-    return { entriesTotal, kiosksTotal, quadsTotal, additionalsTotal, total: entriesTotal + kiosksTotal + quadsTotal + additionalsTotal };
+    const subtotal = Math.round((entriesTotal + kiosksTotal + quadsTotal + additionalsTotal) * 100) / 100;
+    // 10% de desconto sobre o valor total da compra para reservas online
+    const onlineDiscount = subtotal > 0 ? Math.round(subtotal * 0.10 * 100) / 100 : 0;
+    const total = Math.max(0, Math.round((subtotal - onlineDiscount) * 100) / 100);
+
+    return { 
+      entriesTotal, 
+      kiosksTotal, 
+      quadsTotal, 
+      additionalsTotal, 
+      subtotal, 
+      onlineDiscount, 
+      total 
+    };
   }, [booking, getPrice, isLoading]);
 
   const hasItems = useMemo(() => {

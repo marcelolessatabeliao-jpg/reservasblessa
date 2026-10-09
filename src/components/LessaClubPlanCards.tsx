@@ -254,13 +254,16 @@ export function LessaClubPlanCards() {
                <h4 className="text-[#5c3c00] font-black text-xs uppercase mb-3 flex items-center gap-2">
                  👑 PLANO ANUAL PREMIUM
                </h4>
-               <div className="mb-5">
+               <div className="mb-4">
                  <p className="text-[#332200] font-black text-3xl mb-1">
                    12x de R$ {selectedPlanInfo?.aInstal?.toFixed(2).replace('.', ',')}
                  </p>
                  <p className="text-[10px] text-[#5c3c00] font-bold opacity-70">
-                   (ou R$ {selectedPlanInfo?.aTotal?.toFixed(2).replace('.', ',')} à vista)
+                   (ou R$ {selectedPlanInfo?.aTotal?.toFixed(2).replace('.', ',')} no cartão)
                  </p>
+               </div>
+               <div className="bg-amber-100/90 border border-amber-300/80 rounded-xl p-2.5 mb-4 text-[10px] font-bold text-amber-950 leading-relaxed">
+                 🔒 <strong>Garanta o preço atual:</strong> Assinando o Plano Anual parcelado em até 12x no cartão, você assegura a tarifa de 2026. Novos valores entrarão em vigência a partir de 2027!
                </div>
                <Button asChild className="w-full bg-gradient-to-r from-[#bf953f] to-[#aa771c] hover:from-[#aa771c] hover:to-[#bf953f] text-[#332200] font-black rounded-2xl h-12 shadow-lg shadow-gold/20 uppercase text-xs tracking-wider border border-white/20">
                  <a href={selectedPlanInfo?.aLink} target="_blank" rel="noopener noreferrer">ADERIR ANUAL</a>

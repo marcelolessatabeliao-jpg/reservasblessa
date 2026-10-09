@@ -30,10 +30,6 @@ const faqs = [
     question: 'O balneário aceita animais de estimação?',
     answer: 'Não, Ainda não temos estruturas para pets e por questões de segurança e limpeza do espaço não é permitido.',
   },
-  {
-    question: 'Como funcionam os passeios de quadriciclo?',
-    answer: 'Os passeios são agendados por horários (09:00, 10:30, 14:00 e 15:30). O valor é cobrado à parte e você pode reservar o seu horário aqui mesmo no site com descontos!',
-  },
 ];
 
 export function FAQSection() {

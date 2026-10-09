@@ -25,6 +25,8 @@ interface Props {
     kiosksTotal: number;
     quadsTotal: number;
     additionalsTotal: number;
+    subtotal?: number;
+    onlineDiscount?: number;
     total: number;
   };
   updateEntry?: (updates: Partial<BookingState['entry']>) => void;
@@ -307,7 +309,7 @@ export function BookingOverview({
           updated_at: new Date().toISOString()
         }).eq('id', orderId);
         
-        const msg = buildWhatsAppMessage(booking, totals.total, false, confCode || undefined, getPrice);
+        const msg = buildWhatsAppMessage(booking, totals.total, false, confCode || undefined, getPrice, totals.subtotal, totals.onlineDiscount);
         window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`, '_blank');
         toast({ title: 'Enviado ao WhatsApp', description: 'Finalize o pagamento no local.' });
       }
@@ -331,7 +333,7 @@ export function BookingOverview({
   const handlePaymentSuccess = (method: string) => {
     console.log("[Booking] handlePaymentSuccess. Method:", method);
     if (method === 'local' || method === 'manual') {
-      const msg = buildWhatsAppMessage(booking, totals.total, false, paymentData?.confirmationCode, getPrice);
+      const msg = buildWhatsAppMessage(booking, totals.total, false, paymentData?.confirmationCode, getPrice, totals.subtotal, totals.onlineDiscount);
       const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
       window.open(whatsappUrl, '_blank');
     } else {
@@ -502,44 +504,6 @@ export function BookingOverview({
           </div>
         )}
 
-        {/* Quadriciclos */}
-        {booking.quads.some(q => q.quantity > 0) && (
-          <div className="pb-5 border-b border-primary/10">
-            <h4 className="font-bold text-primary mb-3 uppercase tracking-widest text-[10px] sm:text-xs">Quadriciclos</h4>
-            <div className="space-y-2 text-sm sm:text-base text-muted-foreground">
-              {booking.quads.filter(q => q.quantity > 0).map(q => {
-                const fallbackMap: Record<string, number> = { individual: 150, dupla: 250, 'adulto-crianca': 200 };
-                const discount = getQuadDiscount(q.date);
-                const basePrice = getPrice(`quad_${q.type}`, fallbackMap[q.type]);
-                const final_ = basePrice * (1 - discount);
-                return (
-                  <div key={q.type} className="flex justify-between items-center group/item gap-2">
-                    <div className="min-w-0 flex-1">
-                      <span className="text-xs font-semibold truncate block">{q.quantity}x Quad {QUAD_LABELS[q.type]}</span>
-                      {q.time && <span className="text-[9px] text-muted-foreground">{q.time}</span>}
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="whitespace-nowrap text-xs font-bold">{formatCurrency(q.quantity * final_)}</span>
-                      {onUpdateQuad && (
-                        <button onClick={() => {
-                          const idx = booking.quads.findIndex(x => x.type === q.type);
-                          onUpdateQuad(idx, { quantity: 0 });
-                        }} className="p-1 hover:bg-primary/10 rounded-full transition-colors text-primary/40 hover:text-primary">
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-              <div className="flex justify-between font-bold text-foreground pt-1">
-                <span>Subtotal Quadriciclos</span>
-                <span>{formatCurrency(totals.quadsTotal)}</span>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Adicionais */}
         {booking.additionals.some(a => a.quantity > 0) && (
           <div className="pb-5 border-b border-primary/10">
@@ -576,22 +540,55 @@ export function BookingOverview({
 
         {/* Total Bruto e Descontos */}
         {(() => {
-           // Calculate potential "savings"
-           // For simplicity, let's just show a row summarizing the total and maybe the "Economia"
             const fullPriceBase = 50;
             const totalFullPrice = [...booking.entry.adults, ...booking.entry.children].reduce((acc, p) => acc + ((p.quantity || 1) * fullPriceBase), 0);
-            const savings = totalFullPrice - totals.entriesTotal;
+            const entrySavings = Math.max(0, totalFullPrice - totals.entriesTotal);
+            const subtotal = totals.subtotal ?? (totals.entriesTotal + totals.kiosksTotal + totals.quadsTotal + totals.additionalsTotal);
+            const discount = totals.onlineDiscount ?? (subtotal > 0 ? Math.round(subtotal * 0.10 * 100) / 100 : 0);
+            const totalSavings = entrySavings + discount;
             
             return (
               <div className="pt-4 space-y-2">
-                <div className="flex justify-between items-center bg-primary/5 rounded-2xl p-4 border border-primary/10 mb-4">
-                  <div>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-xl sm:text-2xl font-black text-primary">Total: {formatCurrency(totals.total)}</span>
+                <div className="bg-primary/5 rounded-2xl p-4 sm:p-5 border border-primary/10 mb-4 space-y-3">
+                  {discount > 0 && (
+                    <div className="space-y-1.5 pb-3 border-b border-primary/10 text-xs sm:text-sm">
+                      <div className="flex justify-between items-center text-muted-foreground font-semibold">
+                        <span>Subtotal da Compra</span>
+                        <span className="font-bold">{formatCurrency(subtotal)}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-emerald-700 font-bold">
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className="bg-emerald-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider shadow-sm">
+                            10% OFF
+                          </span>
+                          Desconto Reserva Online
+                        </span>
+                        <span>- {formatCurrency(discount)}</span>
+                      </div>
                     </div>
-                    {savings > 0 && (
-                      <span className="block text-[9px] sm:text-[10px] text-whatsapp font-black uppercase tracking-widest mt-0.5">
-                        ✨ VOCÊ ESTÁ ECONOMIZANDO {formatCurrency(savings)} NESTA RESERVA!
+                  )}
+
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+                    <div>
+                      <div className="flex items-baseline gap-2.5 flex-wrap">
+                        <span className="text-xl sm:text-2xl font-black text-primary">
+                          Total: {formatCurrency(totals.total)}
+                        </span>
+                        {discount > 0 && (
+                          <span className="text-sm text-muted-foreground/70 line-through font-bold">
+                            {formatCurrency(subtotal)}
+                          </span>
+                        )}
+                      </div>
+                      {totalSavings > 0 && (
+                        <span className="block text-[9px] sm:text-[10px] text-whatsapp font-black uppercase tracking-widest mt-1">
+                          ✨ VOCÊ ESTÁ ECONOMIZANDO {formatCurrency(totalSavings)} NESTA RESERVA!
+                        </span>
+                      )}
+                    </div>
+                    {discount > 0 && (
+                      <span className="inline-flex self-start sm:self-center text-[10px] sm:text-xs font-black text-emerald-800 bg-emerald-100 border border-emerald-300 px-3 py-1 rounded-full uppercase tracking-wider shadow-sm">
+                        Economia de {formatCurrency(discount)}
                       </span>
                     )}
                   </div>
