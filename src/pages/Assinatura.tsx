@@ -67,15 +67,15 @@ export default function Assinatura() {
       </div>
 
       {/* 2. NAVBAR */}
-      <header className="bg-white/95 backdrop-blur-md border-b border-emerald-900/10 sticky top-[33px] sm:top-[33px] z-40">
+      <header className="bg-primary/95 backdrop-blur-md border-b border-primary-foreground/10 sticky top-[33px] sm:top-[33px] z-40 shadow-md">
         <div className="container mx-auto px-4 h-16 sm:h-20 flex items-center justify-between">
-          <a href="/" className="flex items-center gap-2.5">
-            <img src={logo} alt="Balneário Lessa" className="h-9 sm:h-12 w-auto" />
+          <a href="/" className="flex items-center gap-3">
+            <img src={logo} alt="Balneário Lessa" className="h-9 sm:h-12 w-auto drop-shadow-sm" />
             <div>
-              <span className="font-display font-black text-lg sm:text-2xl text-emerald-950 block leading-none">
+              <span className="font-display font-black text-xl sm:text-2xl text-white block leading-none tracking-wide">
                 Lessa Club
               </span>
-              <span className="text-[9px] sm:text-[10px] uppercase font-black tracking-widest text-emerald-700 block mt-0.5">
+              <span className="text-[9px] sm:text-[10px] uppercase font-black tracking-widest text-amber-300 block mt-1">
                 Clube de Vantagens & Sócios
               </span>
             </div>
