@@ -377,34 +377,51 @@ export function BookingOverview({
           <div className="pb-5 border-b border-primary/10">
             <h4 className="font-bold text-primary mb-3 uppercase tracking-widest text-[10px] sm:text-xs">Day Use (Entradas)</h4>
             <div className="space-y-3 text-sm sm:text-base text-muted-foreground">
-              {/* Gratuidades Primeiro */}
+              {/* Gratuidades e Balcão Primeiro */}
               {[...booking.entry.adults, ...booking.entry.children].filter(p => getPersonPrice(p, (p as any).age >= 60 || (p as any).age <= 11, booking.entry.dayOfWeek === 'domingo', getPrice) === 0).map((p, i) => {
                 const qty = p.quantity || 1;
+                const isBalcao = !!(p as any).isCounterPayment;
+
                 let label = (p as any).age >= 60 ? 'Lessa Vitalício (Idoso)' : (p as any).age <= 11 ? 'Lessa Kids (Criança)' : 'Acesso';
                 let sublabel = 'Acesso Gratuito';
 
-                if (p.isPCD) label = 'Lessa Inclusão (PCD/TEA)';
-                else if (p.isBirthday) label = 'Aniversariante da Semana';
-                else if (p.isMember) {
+                if (isBalcao) {
+                  label = qty > 1 ? 'Entradas no Balcão' : 'Entrada no Balcão';
+                  sublabel = 'Pagamento presencial no balcão (sem desconto — valor normal)';
+                } else if (p.isPCD) {
+                  label = 'Lessa Inclusão (PCD/TEA)';
+                } else if (p.isBirthday) {
+                  label = 'Aniversariante da Semana';
+                } else if (p.isMember) {
                   label = 'Assinante Lessa Club 👑';
                   sublabel = 'Sócio Lessa Club Premium';
                 }
 
+                const itemBg = isBalcao 
+                  ? 'text-amber-950 font-bold bg-amber-50/70 border-amber-200' 
+                  : 'text-emerald-700 font-bold bg-emerald-50/50 border-emerald-100/50';
+
+                const badgeClass = isBalcao
+                  ? 'bg-amber-100 text-amber-950 border border-amber-300 font-black'
+                  : 'bg-emerald-100 text-emerald-800 font-bold';
+
+                const badgeText = isBalcao ? 'Balcão' : 'Grátis';
+
                 return (
-                  <div key={`free-${i}`} className="relative flex justify-between items-start text-emerald-700 font-bold bg-emerald-50/50 p-2.5 rounded-xl border border-emerald-100/50 group/item">
+                  <div key={`free-${i}`} className={`relative flex justify-between items-start p-2.5 rounded-xl border group/item ${itemBg}`}>
                     <div>
                       <span className="text-sm">{qty}x {label}</span>
-                      <span className="block text-[10px] uppercase tracking-wider opacity-60">{sublabel}</span>
+                      <span className="block text-[10px] uppercase tracking-wider opacity-75">{sublabel}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                       <span className="whitespace-nowrap uppercase text-[10px] bg-emerald-100 px-2 py-0.5 rounded-full">Grátis</span>
+                       <span className={`whitespace-nowrap uppercase text-[10px] px-2 py-0.5 rounded-full ${badgeClass}`}>{badgeText}</span>
                        {onRemoveAdult && !((p as any).age <= 11) && (
-                         <button onClick={() => i < booking.entry.adults.length ? onRemoveAdult(i) : null} className="p-1 hover:bg-emerald-200 rounded-full transition-colors">
+                         <button onClick={() => i < booking.entry.adults.length ? onRemoveAdult(i) : null} className="p-1 hover:bg-black/10 rounded-full transition-colors">
                            <X className="h-3 w-3" />
                          </button>
                        )}
                        {onRemoveChild && (p as any).age <= 11 && (
-                         <button onClick={() => onRemoveChild(i - booking.entry.adults.length)} className="p-1 hover:bg-emerald-200 rounded-full transition-colors">
+                         <button onClick={() => onRemoveChild(i - booking.entry.adults.length)} className="p-1 hover:bg-black/10 rounded-full transition-colors">
                            <X className="h-3 w-3" />
                          </button>
                        )}
@@ -412,6 +429,19 @@ export function BookingOverview({
                   </div>
                 );
               })}
+
+              {/* Alerta destacado para pagamento no balcão */}
+              {booking.entry.adults.some((a: any) => a.isCounterPayment) && (
+                <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-3 text-xs text-amber-950 font-bold flex items-start gap-2 shadow-sm">
+                  <span className="text-base shrink-0 mt-0.5">⚠️</span>
+                  <div className="space-y-0.5">
+                    <p className="font-black text-amber-900 uppercase tracking-tight text-[11px]">Aviso sobre entradas no balcão:</p>
+                    <p className="leading-relaxed">
+                      Não há desconto na entrada se preferir pagar no balcão (será cobrado o <strong>valor normal de R$ 50,00 cada</strong>). O desconto de 10% da reserva online aplica-se apenas aos itens pagos agora pelo site.
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* Pagantes */}
               {booking.entry.adults.filter(a => getPersonPrice(a, a.age >= 60, booking.entry.dayOfWeek === 'domingo', getPrice) > 0).map((a, i) => {
@@ -541,7 +571,9 @@ export function BookingOverview({
         {/* Total Bruto e Descontos */}
         {(() => {
             const fullPriceBase = 50;
-            const totalFullPrice = [...booking.entry.adults, ...booking.entry.children].reduce((acc, p) => acc + ((p.quantity || 1) * fullPriceBase), 0);
+            // Entradas pagas no balcão não têm desconto online e não entram no cálculo de economia estimada
+            const onlineEntries = [...booking.entry.adults, ...booking.entry.children].filter(p => !(p as any).isCounterPayment);
+            const totalFullPrice = onlineEntries.reduce((acc, p) => acc + ((p.quantity || 1) * fullPriceBase), 0);
             const entrySavings = Math.max(0, totalFullPrice - totals.entriesTotal);
             const subtotal = totals.subtotal ?? (totals.entriesTotal + totals.kiosksTotal + totals.quadsTotal + totals.additionalsTotal);
             const discount = totals.onlineDiscount ?? (subtotal > 0 ? Math.round(subtotal * 0.10 * 100) / 100 : 0);
@@ -737,8 +769,21 @@ export function BookingOverview({
                        <Phone className="w-6 h-6 fill-current" /> RECEBER NO WHATSAPP
                     </Button>
                   ) : (
-                    <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl p-4 text-center text-sm font-medium">
-                      Sua reserva é 100% gratuita. Não há necessidade de confirmação via WhatsApp. Apresente os comprovantes das gratuidades selecionadas diretamente no balcão da bilheteria ao chegar.
+                    <div className="rounded-2xl p-1 text-center text-sm font-medium">
+                      {booking.entry.adults.some((a: any) => a.isCounterPayment) ? (
+                        <div className="bg-amber-50 border-2 border-amber-300 text-amber-950 p-4 rounded-2xl text-left">
+                          <p className="font-black text-amber-900 mb-1 flex items-center gap-1.5 text-sm uppercase tracking-tight">
+                            <span>⚠️</span> Reserva Registrada com Sucesso!
+                          </p>
+                          <p className="text-xs leading-relaxed text-amber-900/90 font-bold">
+                            Suas entradas foram selecionadas para <strong>pagamento presencial no balcão da bilheteria</strong> pelo valor normal de <strong>R$ 50,00 cada (sem desconto)</strong>. Apresente seu voucher digital ao chegar.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-4 rounded-2xl">
+                          Sua reserva é 100% gratuita. Não há necessidade de confirmação via WhatsApp. Apresente os comprovantes das gratuidades selecionadas diretamente no balcão da bilheteria ao chegar.
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -777,7 +822,7 @@ export function BookingOverview({
                       <div className="text-xs text-amber-900 font-bold leading-relaxed space-y-1">
                         <p className="font-black text-amber-950 text-sm">Sua reserva só será garantida após o pagamento!</p>
                         {hasBalcao ? (
-                          <p className="text-amber-900/90 leading-relaxed">Você selecionou a opção de <span className="font-black underline">Pagar no Balcão</span>, que é válida <strong>exclusivamente para o valor da entrada</strong>. Se houver outros itens na sua reserva (como Quiosques ou Quadriciclos), eles <strong>devem ser pagos agora mesmo</strong> (via PIX, Cartão ou WhatsApp) para garantir sua vaga.</p>
+                          <p className="text-amber-900/90 leading-relaxed">Você selecionou a opção de <span className="font-black underline">Pagar no Balcão</span>, que é válida <strong>exclusivamente para a entrada (valor normal de R$ 50,00 cada, sem desconto)</strong>. Os demais itens reservados pelo site (como Quiosques) <strong>devem ser pagos agora mesmo</strong> (via PIX, Cartão ou WhatsApp) com o desconto online de 10% aplicado para garantir seu espaço.</p>
                         ) : (
                           <p className="text-amber-900/90 leading-relaxed">Efetue o pagamento agora para confirmar a sua reserva. Vagas não pagas não são reservadas e podem ser preenchidas por outros clientes.</p>
                         )}
@@ -787,21 +832,32 @@ export function BookingOverview({
                 })()}
 
                 {totals.total === 0 ? (
-
-                  <Button
-                    size="lg"
-                    onClick={() => handleAction('LOCAL')}
-                    disabled={saving}
-                    className="w-full h-20 sm:h-24 rounded-[2rem] bg-[#00bdae] hover:bg-[#009b8f] text-white font-black text-lg sm:text-xl flex items-center justify-center gap-4 shadow-xl active:scale-[0.97] transition-all group overflow-hidden relative border-b-8 border-[#007a71]"
-                  >
-                    <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md">
-                      {saving ? <Loader2 className="h-7 w-7 animate-spin" /> : <CheckCircle className="h-7 w-7 text-white" />}
-                    </div>
-                    <div className="text-left leading-tight">
-                      <span className="block text-[10px] text-white/80 font-bold uppercase tracking-widest mb-0.5">Total Grátis</span>
-                      Concluir Reserva
-                    </div>
-                  </Button>
+                  (() => {
+                    const hasBalcao = booking.entry.adults.some((a: any) => a.isCounterPayment);
+                    return (
+                      <Button
+                        size="lg"
+                        onClick={() => handleAction('LOCAL')}
+                        disabled={saving}
+                        className={cn(
+                          "w-full h-20 sm:h-24 rounded-[2rem] text-white font-black text-lg sm:text-xl flex items-center justify-center gap-4 shadow-xl active:scale-[0.97] transition-all group overflow-hidden relative border-b-8",
+                          hasBalcao 
+                            ? "bg-amber-600 hover:bg-amber-700 border-amber-800" 
+                            : "bg-[#00bdae] hover:bg-[#009b8f] border-[#007a71]"
+                        )}
+                      >
+                        <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md">
+                          {saving ? <Loader2 className="h-7 w-7 animate-spin" /> : <CheckCircle className="h-7 w-7 text-white" />}
+                        </div>
+                        <div className="text-left leading-tight">
+                          <span className="block text-[10px] text-white/80 font-bold uppercase tracking-widest mb-0.5">
+                            {hasBalcao ? "Pagamento no Balcão" : "Total Grátis"}
+                          </span>
+                          {hasBalcao ? "Confirmar Reserva" : "Concluir Reserva"}
+                        </div>
+                      </Button>
+                    );
+                  })()
                 ) : (
                   <>
                     <Button

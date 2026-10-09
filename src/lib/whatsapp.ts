@@ -37,6 +37,7 @@ export function buildWhatsAppMessage(
   let paidAdultsStr = '';
   let paidChildrenStr = '';
   let freeItemsStr = '';
+  let counterItemsStr = '';
 
   if (entry.adults.length > 0) {
     entry.adults.forEach((a, i) => {
@@ -57,7 +58,9 @@ export function buildWhatsAppMessage(
       else if (a.takeDonation && !isSunday) details = ' (Ação Solidária)';
       else if (a.age >= 60) details = ' (Idoso)';
 
-      if (price === 0) {
+      if ((a as any).isCounterPayment) {
+        counterItemsStr += `  ${amountPrefix}Entradas no Balcão - R$ 50,00 cada (a pagar na bilheteria)\n`;
+      } else if (price === 0) {
         freeItemsStr += `  ${amountPrefix}${label}${details} - Grátis\n`;
       } else {
         paidAdultsStr += `  ${amountPrefix}${label}${details} - ${formatCurrency(totalItemPrice)}\n`;
@@ -88,10 +91,13 @@ export function buildWhatsAppMessage(
   }
 
   if (paidAdultsStr) {
-    msg += `\u{1F465} *ADULTOS:*\n${paidAdultsStr}\n`;
+    msg += `\u{1F465} *ADULTOS (PAGAMENTO ONLINE):*\n${paidAdultsStr}\n`;
   }
   if (paidChildrenStr) {
     msg += `\u{1F9D2} *CRIANÇAS:*\n${paidChildrenStr}\n`;
+  }
+  if (counterItemsStr) {
+    msg += `💵 *ENTRADAS NO BALCÃO (PAGAR NA BILHETERIA):*\n${counterItemsStr}  ⚠️ *Aviso:* Sem desconto online. Cobrado o valor normal de R$ 50,00 por entrada no balcão.\n\n`;
   }
   if (freeItemsStr) {
     msg += `\u{1F381} *GRATUIDADES:*\n${freeItemsStr}\n`;
@@ -145,11 +151,14 @@ export function buildWhatsAppMessage(
 
   if (discount && discount > 0) {
     const rawSubtotal = subtotal || (total + discount);
-    msg += `📋 *Subtotal:* ${formatCurrency(rawSubtotal)}\n`;
-    msg += `🏷️ *Desconto Reserva Online (10% OFF):* -${formatCurrency(discount)}\n`;
-    msg += `💰 *TOTAL DA RESERVA (COM 10% OFF): ${formatCurrency(total)}*\n\n`;
+    msg += `📋 *Subtotal itens do site:* ${formatCurrency(rawSubtotal)}\n`;
+    msg += `🏷️ *Desconto Reserva Online (10% OFF nos itens do site):* -${formatCurrency(discount)}\n`;
+    msg += `💰 *TOTAL A PAGAR PELO SITE: ${formatCurrency(total)}*\n\n`;
   } else {
-    msg += `💰 *TOTAL DA RESERVA: ${formatCurrency(total)}*\n\n`;
+    msg += `💰 *TOTAL A PAGAR PELO SITE: ${formatCurrency(total)}*\n\n`;
+  }
+  if (counterItemsStr) {
+    msg += `📌 *Lembrete:* As entradas no balcão serão pagas diretamente na bilheteria física pelo valor normal (sem desconto).\n\n`;
   }
   msg += `Aguardo instruções para pagamento.`;
   return msg;

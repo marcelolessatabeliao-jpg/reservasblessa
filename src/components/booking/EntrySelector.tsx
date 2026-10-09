@@ -671,19 +671,29 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
       case 8: {
         return (
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-5 py-4 text-center">
-            <div className="bg-slate-50 p-6 rounded-3xl border-2 border-slate-200 flex flex-col items-center gap-4">
+            <div className="bg-amber-50/60 p-6 rounded-3xl border-2 border-amber-200 flex flex-col items-center gap-4">
               <span className="text-5xl">💵</span>
               <div>
-                <h4 className="text-xl font-black text-slate-800">Pagamento no Balcão</h4>
-              </div>
-              <div className="bg-slate-100/80 border border-slate-300 rounded-2xl px-5 py-4 text-xs text-slate-900 font-bold leading-relaxed text-left w-full shadow-sm">
-                <div className="flex items-center gap-2 mb-2 text-slate-800">
-                  <span className="text-sm">⚠️</span>
-                  <span className="font-black uppercase tracking-tight">Atenção:</span>
-                </div>
-                <p className="ml-1">
-                  Lembre-se: esta opção permite pagar apenas o valor da entrada presencialmente. Quaisquer outros serviços adicionados (como Quiosques ou Quadriciclos) deverão ser pagos antecipadamente pelo site para que sua reserva seja efetivada.
+                <h4 className="text-xl font-black text-amber-950">Pagamento no Balcão</h4>
+                <p className="text-xs text-amber-900 font-bold mt-1 bg-amber-100/90 px-3 py-1 rounded-full border border-amber-300 inline-block">
+                  Sem desconto online — Valor normal de R$ 50,00 por entrada
                 </p>
+              </div>
+              <div className="bg-white border border-amber-300 rounded-2xl px-5 py-4 text-xs text-amber-950 font-bold leading-relaxed text-left w-full shadow-sm">
+                <div className="flex items-center gap-2 mb-2 text-amber-900">
+                  <span className="text-sm">⚠️</span>
+                  <span className="font-black uppercase tracking-tight">Regras do pagamento presencial:</span>
+                </div>
+                <ul className="space-y-2 ml-1 text-amber-950">
+                  <li className="flex items-start gap-1.5">
+                    <span className="font-bold">•</span>
+                    <span><strong>Sem desconto na entrada:</strong> O desconto de 10% da reserva antecipada só é válido para o que for pago pelo site. Entradas no balcão serão cobradas pelo valor normal (R$ 50,00 cada).</span>
+                  </li>
+                  <li className="flex items-start gap-1.5">
+                    <span className="font-bold">•</span>
+                    <span><strong>Outros serviços:</strong> Se adicionar Quiosques, eles deverão ser pagos antecipadamente pelo site para que sua reserva do espaço seja garantida.</span>
+                  </li>
+                </ul>
               </div>
             </div>
             <div className="space-y-3">
@@ -691,7 +701,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                 className="w-full h-14 rounded-2xl bg-[#006020] text-white font-black text-base hover:bg-[#004d1a] transition-all shadow-lg"
                 onClick={() => handleFinishWizard('balcao')}
               >
-                ✅ Entendido — Adicionar
+                ✅ Entendido — Adicionar Entrada no Balcão
               </Button>
               <Button
                 variant="ghost"
@@ -1083,7 +1093,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                                   adult.isPCD ? 'PCD & TEA' :
                                     adult.age >= 60 ? 'Lessa Vitalício' :
                                       adult.isMember ? 'Associado 👑' :
-                                      adult.isCounterPayment ? 'Pagar no Balcão' :
+                                      adult.isCounterPayment ? (adult.quantity && adult.quantity > 1 ? 'Entradas no Balcão' : 'Entrada no Balcão') :
                                       adult.takeDonation ? 'Adulto Solidário' :
                                         'Adulto'}
                     </span>
@@ -1094,10 +1104,17 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                   <div className="flex items-center justify-between mt-2 pl-7">
                     <span className={cn(
                       "font-black text-sm tabular-nums",
-                      (adult.age >= 60 || adult.isPCD || adult.isBirthday || adult.isMember || adult.isCounterPayment) ? "text-whatsapp-dark" : "text-primary"
+                      (adult.age >= 60 || adult.isPCD || adult.isBirthday || adult.isMember) ? "text-whatsapp-dark" : adult.isCounterPayment ? "text-amber-900" : "text-primary"
                     )}>
-                      {(adult.age >= 60 || adult.isPCD || adult.isBirthday || adult.isMember || adult.isCounterPayment)
-                         ? (adult.isMember ? "ASSOC." : adult.isCounterPayment ? "BALCÃO" : "GRÁTIS")
+                      {(adult.age >= 60 || adult.isPCD || adult.isBirthday || adult.isMember)
+                         ? (adult.isMember ? "ASSOC." : "GRÁTIS")
+                         : adult.isCounterPayment
+                         ? (
+                            <span className="inline-flex items-center gap-1.5">
+                              <span className="bg-amber-100 text-amber-950 border border-amber-300 px-2 py-0.5 rounded-full text-[10px] font-black uppercase">BALCÃO</span>
+                              <span className="text-[10px] text-amber-900/80 font-bold hidden sm:inline">(R$ 50 cada - sem desconto)</span>
+                            </span>
+                          )
                         : formatCurrency(((adult.isTeacher || adult.isStudent || adult.isServer || (adult as any).isBloodDonor || adult.takeDonation) ? 25 : 50) * (adult.quantity || 1))
                       }
                     </span>
@@ -1208,7 +1225,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
               <div className="mx-1 mt-1 mb-0 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 flex items-start gap-2">
                 <span className="text-base shrink-0 mt-0.5">💡</span>
                 <p className="text-[11px] text-blue-800 font-semibold leading-relaxed">
-                  <span className="font-black">Vai com mais pessoas?</span> Adicione as entradas individualmente para já garantir o acesso de todos, ou escolha <span className="font-black">Pagar no Balcão</span> se preferir pular essa etapa.
+                  <span className="font-black">Vai com mais pessoas?</span> Adicione as entradas online para garantir o desconto de 10% pelo site, ou escolha <span className="font-black">Pagar no Balcão</span> (sem desconto — valor normal de R$ 50,00 na bilheteria).
                 </p>
               </div>
             )}
