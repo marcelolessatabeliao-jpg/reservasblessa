@@ -61,6 +61,30 @@ export function VoucherShareDialog({
 
   const name = booking.name || booking.customer_name || 'Cliente';
 
+  const isPaid = booking.status === 'paid' || booking.status === 'confirmed' || booking.status === 'pago';
+  const counterItems = (booking.order_items || []).filter((i: any) => 
+    (i.product_id || i.product_name || '').toLowerCase().includes('balcão') || 
+    (i.product_id || i.product_name || '').toLowerCase().includes('balcao')
+  );
+  const counterQty = counterItems.reduce((acc: number, i: any) => acc + (i.quantity || 1), 0);
+  const counterTotal = counterQty * 50;
+
+  const paidOnlineItems = (booking.order_items || []).filter((i: any) => (i.unit_price || 0) > 0);
+  const itemsGrossSum = paidOnlineItems.reduce((acc: number, i: any) => acc + ((i.unit_price || 0) * (i.quantity || 1)), 0);
+
+  let subtotalOnlineSemDesconto = itemsGrossSum;
+  let onlineDiscountAmount = 0;
+
+  if (itemsGrossSum > (booking.total_amount || 0) && (booking.total_amount || 0) > 0) {
+    subtotalOnlineSemDesconto = itemsGrossSum;
+    onlineDiscountAmount = Math.round((itemsGrossSum - (booking.total_amount || 0)) * 100) / 100;
+  } else if ((booking.total_amount || 0) > 0 && (booking.notes || '').includes('10%')) {
+    subtotalOnlineSemDesconto = Math.round(((booking.total_amount || 0) / 0.90) * 100) / 100;
+    onlineDiscountAmount = Math.round((subtotalOnlineSemDesconto - (booking.total_amount || 0)) * 100) / 100;
+  }
+
+  const valorTotalBalcao = (!isPaid ? subtotalOnlineSemDesconto : 0) + counterTotal;
+
   useEffect(() => {
     setImageGenerated(null);
     if (code) {
@@ -101,7 +125,13 @@ export function VoucherShareDialog({
       E_CAL + " *Data:* " + dateStr + "\n" +
       E_USER + " *Titular:* " + name + "\n\n" +
       E_NOTE + " *Resumo do Pedido:*\n" + itemsList + "\n\n" +
-      E_MONEY + " *Total:* " + formatCurrency(booking.total_amount) + "\n\n" +
+      (!isPaid 
+        ? E_MONEY + " *Valor no Balcão (Sem Desconto):* " + formatCurrency(valorTotalBalcao) + "\n" +
+          "🏷️ *Valor Online (10% OFF):* " + formatCurrency(booking.total_amount) + " (se pago no site)\n" +
+          "⚠️ *Aviso:* No balcão da bilheteria o valor é normal (" + formatCurrency(valorTotalBalcao) + "), sem desconto.\n\n"
+        : E_MONEY + " *Total Pago Online (10% OFF):* " + formatCurrency(booking.total_amount) + "\n" +
+          (counterQty > 0 ? "💵 *Entradas no Balcão:* " + counterQty + "x R$ 50 = " + formatCurrency(counterTotal) + " (a pagar na bilheteria)\n\n" : "\n")
+      ) +
       "Voucher: https://reservas.balneariolessa.com.br/voucher/" + code + "\n\n" +
       E_SPARK + " *Aguardamos vocês para o lazer que a sua família merece.*";
 
@@ -321,22 +351,32 @@ export function VoucherShareDialog({
                  <div style={{ width: '65%', display: 'flex', flexDirection: 'column', gap: '24px' }}>
                     {/* Top Stats */}
                     <div style={{ display: 'flex', gap: '8px' }}>
-                       <div style={{ flex: 1, backgroundColor: 'rgba(241, 245, 249, 0.5)', padding: '12px', borderRadius: '16px', border: '1px solid rgba(148, 163, 184, 0.1)', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                          <Calendar size={16} color="#eab308" style={{ marginBottom: '6px' }} />
-                          <p style={{ fontSize: '9px', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', margin: '0 0 4px 0' }}>Data da Visita</p>
-                          <p style={{ fontSize: '12px', fontWeight: 700, color: '#0f172a', margin: 0 }}>{dateStr}</p>
+                       <div style={{ flex: 1, backgroundColor: 'rgba(241, 245, 249, 0.5)', padding: '10px', borderRadius: '14px', border: '1px solid rgba(148, 163, 184, 0.1)', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                          <Calendar size={14} color="#eab308" style={{ marginBottom: '4px' }} />
+                          <p style={{ fontSize: '8px', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', margin: '0 0 2px 0' }}>Data Visita</p>
+                          <p style={{ fontSize: '11px', fontWeight: 700, color: '#0f172a', margin: 0 }}>{dateStr}</p>
                        </div>
-                       <div style={{ flex: 1, backgroundColor: 'rgba(241, 245, 249, 0.5)', padding: '12px', borderRadius: '16px', border: '1px solid rgba(148, 163, 184, 0.1)', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                          <Users size={16} color="#eab308" style={{ marginBottom: '6px' }} />
-                          <p style={{ fontSize: '9px', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', margin: '0 0 4px 0' }}>Titular</p>
-                          <p style={{ fontSize: '12px', fontWeight: 700, color: '#0f172a', margin: 0, wordBreak: 'break-word' }}>{name}</p>
+                       <div style={{ flex: 1, backgroundColor: 'rgba(241, 245, 249, 0.5)', padding: '10px', borderRadius: '14px', border: '1px solid rgba(148, 163, 184, 0.1)', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                          <Users size={14} color="#eab308" style={{ marginBottom: '4px' }} />
+                          <p style={{ fontSize: '8px', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', margin: '0 0 2px 0' }}>Titular</p>
+                          <p style={{ fontSize: '11px', fontWeight: 700, color: '#0f172a', margin: 0, wordBreak: 'break-word' }}>{name}</p>
                        </div>
-                       <div style={{ flex: 1, backgroundColor: 'rgba(241, 245, 249, 0.5)', padding: '12px', borderRadius: '16px', border: '1px solid rgba(148, 163, 184, 0.1)', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                          <span style={{ fontSize: '14px', fontWeight: 900, color: '#eab308', lineHeight: 1, marginBottom: '6px' }}>R$</span>
-                          <p style={{ fontSize: '9px', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', margin: '0 0 4px 0' }}>Valor Total</p>
-                          <p style={{ fontSize: '12px', fontWeight: 700, color: '#047857', margin: 0 }}>{formatCurrency(booking.total_amount || 0)}</p>
+                       <div style={{ flex: 1, backgroundColor: isPaid ? 'rgba(220, 252, 231, 0.5)' : 'rgba(254, 243, 199, 0.7)', padding: '10px', borderRadius: '14px', border: isPaid ? '1px solid rgba(134, 239, 172, 0.5)' : '1px solid rgba(252, 211, 77, 0.8)', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                          <p style={{ fontSize: '8px', fontWeight: 900, color: '#78350f', textTransform: 'uppercase', margin: '0 0 2px 0' }}>{isPaid ? 'Total Pago' : 'No Balcão'}</p>
+                          <p style={{ fontSize: '12px', fontWeight: 900, color: '#78350f', margin: 0 }}>{formatCurrency(isPaid ? (booking.total_amount || 0) : valorTotalBalcao)}</p>
+                          <span style={{ fontSize: '7px', fontWeight: 700, color: '#92400e', textTransform: 'uppercase' }}>{isPaid ? 'Confirmado' : 'Sem Desconto'}</span>
+                       </div>
+                       <div style={{ flex: 1, backgroundColor: 'rgba(240, 253, 244, 0.6)', padding: '10px', borderRadius: '14px', border: '1px solid rgba(187, 247, 208, 0.6)', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                          <p style={{ fontSize: '8px', fontWeight: 900, color: '#166534', textTransform: 'uppercase', margin: '0 0 2px 0' }}>{isPaid ? 'Desconto' : 'Online Antecip.'}</p>
+                          <p style={{ fontSize: '12px', fontWeight: 900, color: '#15803d', margin: 0 }}>{isPaid ? formatCurrency(onlineDiscountAmount) : formatCurrency(booking.total_amount || 0)}</p>
+                          <span style={{ fontSize: '7px', fontWeight: 900, color: '#166534', textTransform: 'uppercase' }}>10% OFF</span>
                        </div>
                     </div>
+                    {!isPaid && (
+                       <div style={{ backgroundColor: '#fffbeb', border: '1px solid #fde68a', borderRadius: '12px', padding: '10px 14px', fontSize: '9px', fontWeight: 700, color: '#92400e', lineHeight: 1.4 }}>
+                          ⚠️ <strong>Atenção Bilheteria:</strong> O desconto de 10% é exclusivo para pagamento antecipado no site. Se pagar no balcão, o valor é normal: <strong>{formatCurrency(valorTotalBalcao)}</strong>.
+                       </div>
+                    )}
 
                     {/* Items */}
                     <div style={{ flex: 1 }}>

@@ -50,7 +50,7 @@ export function DayUsePricing() {
             <div className="bg-primary p-6 text-white">
               <div className="flex items-center gap-3 mb-2">
                 <Calendar className="h-6 w-6" />
-                <h3 className="font-display font-bold text-xl">Sexta, Sábado e Segundas Solidários</h3>
+                <h3 className="font-display font-bold text-xl">Sexta e Sábado Solidários</h3>
               </div>
               <p className="text-white/80 text-sm">Escolha sua forma de acesso</p>
             </div>

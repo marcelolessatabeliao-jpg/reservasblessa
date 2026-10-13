@@ -79,6 +79,33 @@ export default function Voucher() {
 
   const visitDate = order.visit_date ? parseToRODate(order.visit_date) : null;
 
+  const isPaid = order.status === 'paid' || order.status === 'confirmed' || order.status === 'pago';
+
+  // Análise dos itens para identificar balcão e valores
+  const counterItems = (order.order_items || []).filter((i: any) => 
+    (i.product_id || i.product_name || '').toLowerCase().includes('balcão') || 
+    (i.product_id || i.product_name || '').toLowerCase().includes('balcao')
+  );
+  const counterQty = counterItems.reduce((acc: number, i: any) => acc + (i.quantity || 1), 0);
+  const counterTotal = counterQty * 50;
+
+  // Itens cobrados online pelo valor cheio
+  const paidOnlineItems = (order.order_items || []).filter((i: any) => (i.unit_price || 0) > 0);
+  const itemsGrossSum = paidOnlineItems.reduce((acc: number, i: any) => acc + ((i.unit_price || 0) * (i.quantity || 1)), 0);
+
+  let subtotalOnlineSemDesconto = itemsGrossSum;
+  let onlineDiscountAmount = 0;
+
+  if (itemsGrossSum > (order.total_amount || 0) && (order.total_amount || 0) > 0) {
+    subtotalOnlineSemDesconto = itemsGrossSum;
+    onlineDiscountAmount = Math.round((itemsGrossSum - (order.total_amount || 0)) * 100) / 100;
+  } else if ((order.total_amount || 0) > 0 && (order.notes || '').includes('10%')) {
+    subtotalOnlineSemDesconto = Math.round(((order.total_amount || 0) / 0.90) * 100) / 100;
+    onlineDiscountAmount = Math.round((subtotalOnlineSemDesconto - (order.total_amount || 0)) * 100) / 100;
+  }
+
+  const valorTotalBalcao = (!isPaid ? subtotalOnlineSemDesconto : 0) + counterTotal;
+
   const handleSaveImage = async () => {
     setGeneratingImg(true);
     try {
@@ -179,23 +206,71 @@ export default function Voucher() {
 
             {/* Right Column: Details & Items */}
             <div className="md:col-span-3 space-y-6">
-              {/* Visit Details */}
-              <div className="grid grid-cols-3 gap-2">
-                 <div className="bg-muted/30 p-3 rounded-2xl border border-muted-foreground/5 text-center flex flex-col items-center justify-center">
-                    <Calendar className="w-4 h-4 text-sun mb-1.5" />
-                    <p className="text-[9px] font-black text-muted-foreground uppercase">Data da Visita</p>
+              {/* Visit Details & Financial Overview */}
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div className="bg-muted/30 p-2.5 rounded-2xl border border-muted-foreground/5 text-center flex flex-col items-center justify-center">
+                    <Calendar className="w-4 h-4 text-sun mb-1" />
+                    <p className="text-[9px] font-black text-muted-foreground uppercase">Data Visita</p>
                     <p className="text-xs font-bold leading-tight">{visitDate ? format(visitDate, "dd 'de' MMMM", { locale: ptBR }) : '—'}</p>
-                 </div>
-                 <div className="bg-muted/30 p-3 rounded-2xl border border-muted-foreground/5 text-center flex flex-col items-center justify-center">
-                    <Users className="w-4 h-4 text-sun mb-1.5" />
+                  </div>
+                  <div className="bg-muted/30 p-2.5 rounded-2xl border border-muted-foreground/5 text-center flex flex-col items-center justify-center">
+                    <Users className="w-4 h-4 text-sun mb-1" />
                     <p className="text-[9px] font-black text-muted-foreground uppercase">Titular</p>
                     <p className="text-xs font-bold w-full px-1 break-words leading-tight">{order.customer_name}</p>
-                 </div>
-                 <div className="bg-muted/30 p-3 rounded-2xl border border-muted-foreground/5 text-center flex flex-col items-center justify-center">
-                    <span className="font-black text-sun text-sm mb-1.5 leading-none">R$</span>
-                    <p className="text-[9px] font-black text-muted-foreground uppercase">Valor Total</p>
-                    <p className="text-xs font-bold text-emerald-700 w-full px-1">{formatCurrency(order.total_amount || 0)}</p>
-                 </div>
+                  </div>
+                  <div className={cn(
+                    "p-2.5 rounded-2xl border text-center flex flex-col items-center justify-center shadow-sm",
+                    isPaid ? "bg-emerald-50 border-emerald-200" : "bg-amber-50 border-amber-300"
+                  )}>
+                    <p className="text-[9px] font-black text-amber-950 uppercase tracking-tight">
+                      {isPaid ? "Total Pago" : "Total no Balcão"}
+                    </p>
+                    <p className="text-xs sm:text-sm font-black text-amber-950 leading-tight">
+                      {formatCurrency(isPaid ? (order.total_amount || 0) : valorTotalBalcao)}
+                    </p>
+                    <span className="text-[8px] font-bold opacity-75 uppercase mt-0.5">
+                      {isPaid ? "Confirmado" : "Sem Desconto"}
+                    </span>
+                  </div>
+                  <div className="bg-emerald-50/50 p-2.5 rounded-2xl border border-emerald-200 text-center flex flex-col items-center justify-center shadow-sm">
+                    <p className="text-[9px] font-black text-emerald-900 uppercase tracking-tight">
+                      {isPaid ? "Desconto Ganho" : "Online Antecipado"}
+                    </p>
+                    <p className="text-xs sm:text-sm font-black text-emerald-700 leading-tight">
+                      {isPaid ? formatCurrency(onlineDiscountAmount) : formatCurrency(order.total_amount || 0)}
+                    </p>
+                    <span className="text-[8px] font-black text-emerald-800 uppercase bg-emerald-100 px-1.5 py-0.5 rounded-full mt-0.5">
+                      10% OFF
+                    </span>
+                  </div>
+                </div>
+
+                {/* Banner de Aviso de Regra de Pagamento / Balcão */}
+                {!isPaid ? (
+                  <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-3.5 text-xs text-amber-950 font-bold leading-relaxed space-y-1 shadow-sm">
+                    <div className="flex items-center gap-1.5 text-amber-900 font-black uppercase tracking-tight text-[11px]">
+                      <span>⚠️</span>
+                      <span>Atenção: Regra de Desconto e Pagamento na Bilheteria:</span>
+                    </div>
+                    <p className="leading-snug">
+                      O valor com 10% de desconto (<strong>{formatCurrency(order.total_amount || 0)}</strong>) é exclusivo para <u>pagamento antecipado no site</u>.
+                    </p>
+                    <p className="leading-snug text-amber-900">
+                      💵 Se optar por pagar no balcão da bilheteria ao chegar, não há desconto: será cobrado o <strong>valor normal de {formatCurrency(valorTotalBalcao)}</strong>.
+                    </p>
+                  </div>
+                ) : counterQty > 0 ? (
+                  <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-3 text-xs text-amber-950 font-bold leading-relaxed flex items-start gap-2 shadow-sm">
+                    <span className="text-base shrink-0 mt-0.5">💵</span>
+                    <div>
+                      <p className="font-black text-amber-900 uppercase text-[11px]">Entradas a Pagar no Balcão:</p>
+                      <p className="leading-snug">
+                        Sua reserva possui <strong>{counterQty}x Entrada(s) no Balcão</strong> a pagar na bilheteria pelo valor normal de <strong>{formatCurrency(counterTotal)}</strong> (R$ 50,00 cada, sem desconto).
+                      </p>
+                    </div>
+                  </div>
+                ) : null}
               </div>
 
               {/* Items Included */}

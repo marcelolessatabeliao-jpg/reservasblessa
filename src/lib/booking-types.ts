@@ -134,8 +134,8 @@ export function isOperatingDay(date: Date | string): boolean {
   const month = d.getMonth();
   const dateNum = d.getDate();
 
-  // Dias normais de funcionamento: Sexta (5), Sábado (6), Domingo (0), Segunda (1)
-  const isNormalDay = day === 0 || day === 1 || day === 5 || day === 6;
+  // Dias normais de funcionamento: Sexta (5), Sábado (6), Domingo (0)
+  const isNormalDay = day === 0 || day === 5 || day === 6;
   if (isNormalDay) return true;
 
   // Feriados 2026
@@ -208,4 +208,4 @@ export function formatCurrency(value: number): string {
 export const WHATSAPP_NUMBER = '556992626140';
 
 export const OPERATING_HOURS = 'Aberto das 9h às 17h';
-export const OPERATING_DAYS = 'Sextas, Sábados, Domingos, Segundas e Feriados';
+export const OPERATING_DAYS = 'Sextas, Sábados, Domingos e Feriados';

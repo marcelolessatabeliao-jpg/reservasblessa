@@ -106,7 +106,7 @@ export function HeroSection() {
           <div className="inline-flex items-center gap-3 bg-black/60 backdrop-blur-md px-6 py-2 rounded-2xl border border-white/10 shadow-2xl">
             <span className="text-xl">📍</span>
             <span className="text-white font-black text-[10px] sm:text-xs uppercase tracking-[0.2em] opacity-90">
-              Aberto das 9h às 17h • Sextas, Sábados, Domingos, Segundas e Feriados
+              Aberto das 9h às 17h • Sextas, Sábados, Domingos e Feriados
             </span>
           </div>
         </motion.div>

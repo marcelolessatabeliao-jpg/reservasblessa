@@ -467,9 +467,31 @@ export function BookingTable({
                         {totalPeople} Pessoas
                       </span>
                     </div>
-                    <span className="text-sm font-black text-emerald-600">
-                      {formatCurrency(booking.total_amount)}
-                    </span>
+                    {(() => {
+                      const isPaid = ['paid', 'pago', 'confirmed', 'checked-in'].includes((booking.status || '').toLowerCase());
+                      const counterItems = (booking.order_items || []).filter((i: any) => 
+                        (i.product_id || i.product_name || '').toLowerCase().includes('balcão') || 
+                        (i.product_id || i.product_name || '').toLowerCase().includes('balcao')
+                      );
+                      const counterQty = counterItems.reduce((acc: number, i: any) => acc + (i.quantity || 1), 0);
+                      const counterTotal = counterQty * 50;
+                      const paidItemsGross = (booking.order_items || []).filter((i: any) => (i.unit_price || 0) > 0).reduce((acc: number, i: any) => acc + ((i.unit_price || 0) * (i.quantity || 1)), 0);
+                      const gross = paidItemsGross || (booking.total_amount ? booking.total_amount / 0.90 : 0);
+                      const balcaoTotal = (!isPaid ? gross : 0) + counterTotal;
+
+                      return (
+                        <div className="flex flex-col items-end">
+                          {!isPaid && (
+                            <span className="text-[9px] font-black text-amber-900 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300 uppercase">
+                              Balcão: {formatCurrency(balcaoTotal)}
+                            </span>
+                          )}
+                          <span className="text-sm font-black text-emerald-700">
+                            {formatCurrency(booking.total_amount)}
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
 
@@ -1076,14 +1098,34 @@ export function BookingTable({
                         </div>
                       </td>
                       <td className="p-5 text-right">
-                        <div className="flex flex-col items-end">
-                          <span className="text-2xl font-extrabold text-emerald-600 tracking-tighter">
-                            {formatCurrency(booking.total_amount)}
-                          </span>
-                          <span className="text-[9px] font-bold text-emerald-700 uppercase tracking-widest mt-0.5">
-                            Auditado OK
-                          </span>
-                        </div>
+                        {(() => {
+                          const isPaid = ['paid', 'pago', 'confirmed', 'checked-in'].includes((booking.status || '').toLowerCase());
+                          const counterItems = (booking.order_items || []).filter((i: any) => 
+                            (i.product_id || i.product_name || '').toLowerCase().includes('balcão') || 
+                            (i.product_id || i.product_name || '').toLowerCase().includes('balcao')
+                          );
+                          const counterQty = counterItems.reduce((acc: number, i: any) => acc + (i.quantity || 1), 0);
+                          const counterTotal = counterQty * 50;
+                          const paidItemsGross = (booking.order_items || []).filter((i: any) => (i.unit_price || 0) > 0).reduce((acc: number, i: any) => acc + ((i.unit_price || 0) * (i.quantity || 1)), 0);
+                          const gross = paidItemsGross || (booking.total_amount ? booking.total_amount / 0.90 : 0);
+                          const balcaoTotal = (!isPaid ? gross : 0) + counterTotal;
+
+                          return (
+                            <div className="flex flex-col items-end gap-0.5">
+                              {!isPaid && balcaoTotal > 0 && (
+                                <span className="text-[10px] font-black text-amber-900 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-md uppercase tracking-tight">
+                                  Balcão: {formatCurrency(balcaoTotal)}
+                                </span>
+                              )}
+                              <span className="text-xl font-extrabold text-emerald-700 tracking-tighter">
+                                {formatCurrency(booking.total_amount)}
+                              </span>
+                              <span className="text-[8px] font-black uppercase tracking-widest text-emerald-600">
+                                {isPaid ? "Pago (10% OFF)" : "Online (10% OFF)"}
+                              </span>
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td className="p-5 text-center">
                         <Button

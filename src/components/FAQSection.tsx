@@ -12,7 +12,7 @@ import { WHATSAPP_NUMBER } from '@/lib/booking-types';
 const faqs = [
   {
     question: 'Qual o horário de funcionamento?',
-    answer: 'Funcionamos das 09h às 17h, todas as sextas, sábados, domingos, segundas e feriados. Terças, quartas e quintas o balneário fica fechado para manutenção.',
+    answer: 'Funcionamos das 09h às 17h, todas as sextas, sábados, domingos e feriados. De segunda a quinta o balneário fica fechado para manutenção.',
   },
   {
     question: 'É necessário reservar para o Day Use?',

@@ -17,6 +17,22 @@ const services = [
     noButton: true,
   },
   {
+    title: 'Novo Toboágua',
+    description: 'Muita adrenalina e diversão com o nosso novo toboágua em espiral para toda a família!',
+    price: 'Incluso no Day Use',
+    image: '/images/toboagua-novo.jpg',
+    badge: 'NOVIDADE',
+    noButton: true,
+  },
+  {
+    title: 'Balde Maluco',
+    description: 'Ducha gigante e refrescante para a criançada e adultos se divertirem na piscina infantil.',
+    price: 'Incluso no Day Use',
+    image: '/images/balde-maluco.png',
+    badge: 'NOVIDADE',
+    noButton: true,
+  },
+  {
     title: 'Cachoeiras',
     description: 'Cachoeiras com bio-piscinas naturais para um contato direto com a natureza.',
     price: 'Incluso no Day Use',

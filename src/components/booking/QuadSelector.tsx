@@ -477,7 +477,7 @@ export function QuadSelector({ quads, onUpdate }: Props) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 text-xs sm:text-sm space-y-1">
           <p className="font-medium text-primary">🏷️ Descontos:</p>
-          <p className="text-muted-foreground">• Segundas e Sextas: <strong>20% de desconto</strong></p>
+          <p className="text-muted-foreground">• Sextas: <strong>20% de desconto</strong></p>
           <p className="text-muted-foreground">• Sábado e Domingo: <strong>10% de desconto</strong></p>
         </div>
 

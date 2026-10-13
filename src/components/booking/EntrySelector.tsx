@@ -803,7 +803,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                     onSelect={(d) => {
                       if (d) {
                         const dayMap: Record<number, any> = { 0: 'domingo', 1: 'segunda', 5: 'sexta', 6: 'sabado' };
-                        const dayOfWeek = dayMap[d.getDay()] || 'segunda';
+                        const dayOfWeek = dayMap[d.getDay()] || 'sexta';
                         onUpdateEntry({ visitDate: d, dayOfWeek });
                       }
                       setTimeout(() => setIsCalendarOpen(false), 50);
@@ -1204,7 +1204,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
           <p className="text-[11px] font-bold text-emerald-800 leading-relaxed">
             {entry.dayOfWeek === 'domingo'
               ? '✅ DOMINGO: Valor único de R$ 50,00 Inteira. PCD e TEA, Crianças, Idosos e Aniversariantes mantêm gratuidade. Professores, Estudantes e Servidores têm meia-entrada mediante comprovação.'
-              : '✅ DICA POSITIVA: Traga 1kg de alimento, livro, brinquedo ou roupas em bom estado e pague apenas meia-Entrada (R$ 25,00) nas sextas, sábados e segundas e ajude quem precisa!'}
+              : '✅ DICA POSITIVA: Traga 1kg de alimento, livro, brinquedo ou roupas em bom estado e pague apenas meia-Entrada (R$ 25,00) nas sextas e sábados e ajude quem precisa!'}
           </p>
         </div>
       </div>

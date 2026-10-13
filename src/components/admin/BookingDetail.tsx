@@ -337,18 +337,58 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
                     })}
                   </div>
                 )}
-                {Math.abs(discount) > 0.01 && (
-                  <div className="flex justify-between text-xs pt-2 border-t border-slate-100 italic">
-                    <span className="text-slate-500">{discount > 0 ? 'Desconto Aplicado' : 'Ajuste de Valor'}</span>
-                    <span className={cn("font-bold", discount > 0 ? "text-emerald-600" : "text-amber-600")}>
-                      {discount > 0 ? '-' : '+'}{formatCurrency(Math.abs(discount))}
-                    </span>
-                  </div>
-                )}
-                <div className="flex justify-between items-center pt-3 border-t-2 border-emerald-300 mt-2">
-                  <span className="text-sm font-black text-emerald-900 uppercase">Total Final Pago</span>
-                  <span className="text-xl font-black text-emerald-600">{formatCurrency(booking.total_amount)}</span>
-                </div>
+                {/* Cálculos de Desconto e Balcão */}
+                {(() => {
+                  const isPaid = ['paid', 'pago', 'confirmed', 'checked-in'].includes((booking.status || (booking as any).status || '').toLowerCase());
+                  const counterItems = localItems.filter((i: any) => 
+                    (i.product_id || i.product_name || '').toLowerCase().includes('balcão') || 
+                    (i.product_id || i.product_name || '').toLowerCase().includes('balcao')
+                  );
+                  const counterQty = counterItems.reduce((acc: number, i: any) => acc + (i.quantity || 1), 0);
+                  const counterTotal = counterQty * 50;
+                  
+                  const onlineGross = kioskTotal + quadTotal + additionalsTotal + itemsTotal;
+                  let onlineDiscount = 0;
+                  if (onlineGross > booking.total_amount && booking.total_amount > 0) {
+                    onlineDiscount = Math.round((onlineGross - booking.total_amount) * 100) / 100;
+                  } else if (booking.total_amount > 0) {
+                    onlineDiscount = Math.round(((onlineGross || (booking.total_amount / 0.90)) * 0.10) * 100) / 100;
+                  }
+                  const totalBalcao = (!isPaid ? (onlineGross || (booking.total_amount / 0.90)) : 0) + counterTotal;
+
+                  return (
+                    <div className="space-y-2 pt-2 border-t border-slate-200">
+                      {counterQty > 0 && (
+                        <div className="flex justify-between text-xs bg-amber-50 p-2 rounded-xl border border-amber-200 font-bold text-amber-950">
+                          <span>💵 Entradas no Balcão ({counterQty}x R$ 50)</span>
+                          <span className="font-black">{formatCurrency(counterTotal)}</span>
+                        </div>
+                      )}
+                      {onlineDiscount > 0 && (
+                        <div className="flex justify-between text-xs text-emerald-700 font-bold">
+                          <span>🏷️ Desconto Online (10% OFF no site):</span>
+                          <span>-{formatCurrency(onlineDiscount)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between items-center p-3 rounded-2xl bg-amber-500/10 border-2 border-amber-400 mt-2">
+                        <div className="flex flex-col">
+                          <span className="text-[10px] font-black uppercase text-amber-900 tracking-wider">A Cobrar se Pagar no Balcão</span>
+                          <span className="text-[9px] font-bold text-amber-800">Sem desconto online na bilheteria</span>
+                        </div>
+                        <span className="text-lg font-black text-amber-950">{formatCurrency(totalBalcao)}</span>
+                      </div>
+                      <div className="flex justify-between items-center p-3 rounded-2xl bg-emerald-600 text-white mt-1">
+                        <div className="flex flex-col">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-emerald-100">
+                            {isPaid ? "Total Pago Online" : "Total Online Antecipado"}
+                          </span>
+                          <span className="text-[9px] font-bold text-emerald-200">Com 10% OFF aplicado</span>
+                        </div>
+                        <span className="text-xl font-black">{formatCurrency(booking.total_amount)}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
               {/* Status info */}
               <div className="flex flex-wrap gap-2">
@@ -421,10 +461,34 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
           >
             <Eye className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Ver Resumo Completo</span><span className="inline sm:hidden">Resumo</span>
           </button>
-          <div className="flex items-center gap-2 md:gap-3 bg-[#006020] text-white px-3 md:px-5 py-2 rounded-xl shadow-md border border-[#004d1a] shrink-0">
-            <span className="text-[9px] md:text-[10px] font-black uppercase tracking-wider text-emerald-100">Total</span>
-            <span className="font-black text-base md:text-lg whitespace-nowrap">{formatCurrency(booking.total_amount)}</span>
-          </div>
+          {(() => {
+            const isPaid = ['paid', 'pago', 'confirmed', 'checked-in'].includes((booking.status || (booking as any).status || '').toLowerCase());
+            const counterItems = localItems.filter((i: any) => 
+              (i.product_id || i.product_name || '').toLowerCase().includes('balcão') || 
+              (i.product_id || i.product_name || '').toLowerCase().includes('balcao')
+            );
+            const counterQty = counterItems.reduce((acc: number, i: any) => acc + (i.quantity || 1), 0);
+            const counterTotal = counterQty * 50;
+            const grossSum = kioskTotal + quadTotal + additionalsTotal + itemsTotal;
+            const totalBalcao = (!isPaid ? (grossSum || (booking.total_amount / 0.90)) : 0) + counterTotal;
+
+            return (
+              <div className="flex flex-col sm:flex-row items-end sm:items-center gap-1.5 shrink-0">
+                {!isPaid && (
+                  <div className="flex items-center gap-1.5 bg-amber-500 text-amber-950 px-3 py-1.5 rounded-xl border border-amber-600 shadow-sm font-black text-xs">
+                    <span className="text-[8px] uppercase tracking-wider opacity-80">Balcão:</span>
+                    <span>{formatCurrency(totalBalcao)}</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-2 bg-[#006020] text-white px-3 md:px-4 py-1.5 rounded-xl shadow-md border border-[#004d1a]">
+                  <span className="text-[8px] md:text-[9px] font-black uppercase tracking-wider text-emerald-100">
+                    {isPaid ? "Pago" : "Online"}
+                  </span>
+                  <span className="font-black text-sm md:text-base whitespace-nowrap">{formatCurrency(booking.total_amount)}</span>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </div>
 
