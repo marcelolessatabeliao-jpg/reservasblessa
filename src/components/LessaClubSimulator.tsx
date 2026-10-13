@@ -179,6 +179,12 @@ export function LessaClubSimulator() {
           <p className="text-muted-foreground text-sm sm:text-base max-w-2xl mx-auto leading-relaxed font-medium">
             Adicione as pessoas abaixo e descubra quanto custa ter acesso ilimitado ao Balneário Lessa durante todo o mês.
           </p>
+          <div className="mt-4 inline-flex items-center gap-2.5 bg-amber-500/10 border-2 border-amber-300 text-amber-950 rounded-2xl px-5 py-3 max-w-2xl mx-auto text-xs sm:text-sm font-bold shadow-sm">
+            <span className="text-base shrink-0">⚠️</span>
+            <span className="leading-snug text-left sm:text-center">
+              Garanta o preço atual assinando o valor referente ao Plano Anual parcelado em até 12x no cartão por mais um ano. Novos valores entrarão em vigência a partir de 2027.
+            </span>
+          </div>
         </motion.div>
 
         {/* 2-Column Grid */}

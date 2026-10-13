@@ -387,11 +387,11 @@ export function BookingOverview({
 
                 if (isBalcao) {
                   label = qty > 1 ? 'Entradas no Balcão' : 'Entrada no Balcão';
-                  sublabel = 'Pagamento presencial no balcão (sem desconto — valor normal)';
+                  sublabel = 'Pagamento presencial no balcão (sem desconto — valor normal na bilheteria)';
                 } else if (p.isPCD) {
                   label = 'Lessa Inclusão (PCD/TEA)';
                 } else if (p.isBirthday) {
-                  label = 'Aniversariante da Semana';
+                  label = 'Aniversariante do Dia';
                 } else if (p.isMember) {
                   label = 'Assinante Lessa Club 👑';
                   sublabel = 'Sócio Lessa Club Premium';

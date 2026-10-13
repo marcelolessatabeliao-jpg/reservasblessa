@@ -305,7 +305,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
           { id: 'professor', label: 'Professor', sublabel: 'Lessa Professor Pass', price: entryHalfStr, emoji: '📚', bg: 'bg-blue-50', border: 'border-blue-100', selectedBg: 'bg-blue-100', selectedBorder: 'border-blue-500', priceColor: 'text-blue-700', labelColor: 'text-blue-900' },
           { id: 'estudante', label: 'Estudante', sublabel: 'Lessa Estudante Pass', price: entryHalfStr, emoji: '🎓', bg: 'bg-violet-50', border: 'border-violet-100', selectedBg: 'bg-violet-100', selectedBorder: 'border-violet-500', priceColor: 'text-violet-700', labelColor: 'text-violet-900' },
           { id: 'servidor', label: 'Servidor Público', sublabel: 'Lessa Servidor Pass', price: entryHalfStr, emoji: '🏛️', bg: 'bg-indigo-50', border: 'border-indigo-100', selectedBg: 'bg-indigo-100', selectedBorder: 'border-indigo-500', priceColor: 'text-indigo-700', labelColor: 'text-indigo-900' },
-          { id: 'aniversariante', label: 'Aniversariante', sublabel: 'Da semana · com comprovação', price: 'GRÁTIS', emoji: '🎂', bg: 'bg-amber-50', border: 'border-amber-100', selectedBg: 'bg-amber-100', selectedBorder: 'border-amber-500', priceColor: 'text-amber-700', labelColor: 'text-amber-900' },
+          { id: 'aniversariante', label: 'Aniversariante', sublabel: 'Do dia · com comprovação', price: 'GRÁTIS', emoji: '🎂', bg: 'bg-amber-50', border: 'border-amber-100', selectedBg: 'bg-amber-100', selectedBorder: 'border-amber-500', priceColor: 'text-amber-700', labelColor: 'text-amber-900' },
         ];
 
         return (
@@ -501,7 +501,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
             ]
           },
           doador: { label: 'Doador de Sangue/Medula', emoji: '🩸', color: 'text-red-800', docs: 'foto do comprovante de doação ou carteirinha de doador' },
-          aniversariante: { label: 'Aniversariante da Semana', emoji: '🎂', color: 'text-amber-800', docs: 'RG ou documento com foto que comprove a data de nascimento' },
+          aniversariante: { label: 'Aniversariante do Dia', emoji: '🎂', color: 'text-amber-800', docs: 'RG ou documento com foto comprovando nascimento no dia da visita' },
         };
         const info = proofLabels[wizardData.category] || { label: 'Categoria', emoji: '📄', color: 'text-primary', docs: 'documento comprobatório' };
         return (
@@ -513,7 +513,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                   {wizardData.category === 'aniversariante' ? 'Benefício de gratuidade' : 'Benefício de Meia-Entrada'}
                 </h4>
                 <p className="text-sm text-muted-foreground font-bold mt-1">
-                  {wizardData.category === 'aniversariante' ? 'Aniversariante da Semana — Grátis' : `${info.label} — R$ 25,00`}
+                  {wizardData.category === 'aniversariante' ? 'Aniversariante do Dia — Grátis' : `${info.label} — R$ 25,00`}
                 </p>
               </div>
               <div className="bg-amber-100/80 border border-amber-300 rounded-2xl px-5 py-4 text-xs text-amber-950 font-bold leading-relaxed text-left w-full shadow-sm">
@@ -676,7 +676,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
               <div>
                 <h4 className="text-xl font-black text-amber-950">Pagamento no Balcão</h4>
                 <p className="text-xs text-amber-900 font-bold mt-1 bg-amber-100/90 px-3 py-1 rounded-full border border-amber-300 inline-block">
-                  Sem desconto online — Valor normal de R$ 50,00 por entrada
+                  Sem desconto online — Valor normal na bilheteria (R$ 50 Inteira / R$ 25 Solidária ou Meia)
                 </p>
               </div>
               <div className="bg-white border border-amber-300 rounded-2xl px-5 py-4 text-xs text-amber-950 font-bold leading-relaxed text-left w-full shadow-sm">
@@ -687,7 +687,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                 <ul className="space-y-2 ml-1 text-amber-950">
                   <li className="flex items-start gap-1.5">
                     <span className="font-bold">•</span>
-                    <span><strong>Sem desconto na entrada:</strong> O desconto de 10% da reserva antecipada só é válido para o que for pago pelo site. Entradas no balcão serão cobradas pelo valor normal (R$ 50,00 cada).</span>
+                    <span><strong>Sem desconto na bilheteria:</strong> O desconto de 10% da reserva antecipada só é válido para o que for pago pelo site (aplicável a ambas as opções: Inteira R$ 50 e Solidária/Meia R$ 25). Entradas pagas no balcão serão cobradas pelo valor normal correspondente, sem o desconto de 10%.</span>
                   </li>
                   <li className="flex items-start gap-1.5">
                     <span className="font-bold">•</span>
@@ -1112,7 +1112,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                          ? (
                             <span className="inline-flex items-center gap-1.5">
                               <span className="bg-amber-100 text-amber-950 border border-amber-300 px-2 py-0.5 rounded-full text-[10px] font-black uppercase">BALCÃO</span>
-                              <span className="text-[10px] text-amber-900/80 font-bold hidden sm:inline">(R$ 50 cada - sem desconto)</span>
+                              <span className="text-[10px] text-amber-900/80 font-bold hidden sm:inline">(valor normal na bilheteria - sem desconto)</span>
                             </span>
                           )
                         : formatCurrency(((adult.isTeacher || adult.isStudent || adult.isServer || (adult as any).isBloodDonor || adult.takeDonation) ? 25 : 50) * (adult.quantity || 1))
@@ -1225,7 +1225,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
               <div className="mx-1 mt-1 mb-0 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 flex items-start gap-2">
                 <span className="text-base shrink-0 mt-0.5">💡</span>
                 <p className="text-[11px] text-blue-800 font-semibold leading-relaxed">
-                  <span className="font-black">Vai com mais pessoas?</span> Adicione as entradas online para garantir o desconto de 10% pelo site, ou escolha <span className="font-black">Pagar no Balcão</span> (sem desconto — valor normal de R$ 50,00 na bilheteria).
+                  <span className="font-black">Vai com mais pessoas?</span> Adicione as entradas online para garantir o desconto de 10% pelo site (válido tanto para Inteira R$ 50 quanto Solidária/Meia R$ 25), ou escolha <span className="font-black">Pagar no Balcão</span> (sem desconto — será cobrado o valor normal na bilheteria).
                 </p>
               </div>
             )}

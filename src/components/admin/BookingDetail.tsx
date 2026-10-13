@@ -360,7 +360,7 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
                     <div className="space-y-2 pt-2 border-t border-slate-200">
                       {counterQty > 0 && (
                         <div className="flex justify-between text-xs bg-amber-50 p-2 rounded-xl border border-amber-200 font-bold text-amber-950">
-                          <span>💵 Entradas no Balcão ({counterQty}x R$ 50)</span>
+                          <span>💵 Entradas no Balcão ({counterQty}x — valor normal na bilheteria)</span>
                           <span className="font-black">{formatCurrency(counterTotal)}</span>
                         </div>
                       )}

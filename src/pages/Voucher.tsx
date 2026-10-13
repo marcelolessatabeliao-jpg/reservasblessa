@@ -254,10 +254,10 @@ export default function Voucher() {
                       <span>Atenção: Regra de Desconto e Pagamento na Bilheteria:</span>
                     </div>
                     <p className="leading-snug">
-                      O valor com 10% de desconto (<strong>{formatCurrency(order.total_amount || 0)}</strong>) é exclusivo para <u>pagamento antecipado no site</u>.
+                      O desconto de 10% é exclusivo para <u>pagamento antecipado no site</u> (válido tanto para a Inteira de R$ 50 quanto para a Solidária / Meia de R$ 25).
                     </p>
                     <p className="leading-snug text-amber-900">
-                      💵 Se optar por pagar no balcão da bilheteria ao chegar, não há desconto: será cobrado o <strong>valor normal de {formatCurrency(valorTotalBalcao)}</strong>.
+                      💵 Se optar por pagar no balcão da bilheteria ao chegar, não há desconto: será cobrado o <strong>valor normal correspondente</strong> da sua entrada (sem o desconto de 10% do site).
                     </p>
                   </div>
                 ) : counterQty > 0 ? (
@@ -266,7 +266,7 @@ export default function Voucher() {
                     <div>
                       <p className="font-black text-amber-900 uppercase text-[11px]">Entradas a Pagar no Balcão:</p>
                       <p className="leading-snug">
-                        Sua reserva possui <strong>{counterQty}x Entrada(s) no Balcão</strong> a pagar na bilheteria pelo valor normal de <strong>{formatCurrency(counterTotal)}</strong> (R$ 50,00 cada, sem desconto).
+                        Sua reserva possui <strong>{counterQty}x Entrada(s) no Balcão</strong> a pagar na bilheteria pelo valor normal da modalidade escolhida (sem o desconto online de 10%).
                       </p>
                     </div>
                   </div>

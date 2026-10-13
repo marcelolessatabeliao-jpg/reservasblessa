@@ -170,7 +170,7 @@ export function DayUseRules() {
                     { icon: '♿', icon2: '🧩', title: 'PCD & TEA', desc: 'Acesso livre com direito a 1 acompanhante grátis', link: 'https://cartaobl.com.br/planos/?regPlano=1081212252542802' },
                     { icon: '👶', title: 'Crianças até 11 anos', desc: 'Acesso livre e gratuito', link: 'https://cartaobl.com.br/planos/?regPlano=1101212252572821' },
                     { icon: '👵', title: 'Idosos (60+)', desc: 'Gratuidade melhor idade', link: 'https://cartaobl.com.br/planos/?regPlano=1071212252592719' },
-                    { icon: '🎂', title: 'Aniversariante', desc: 'Da semana (Apenas RG)', noButton: true },
+                    { icon: '🎂', title: 'Aniversariante', desc: 'Do dia (Apenas RG)', noButton: true },
                   ].map((item, idx) => (
                     <div key={idx} className="bg-card shadow-sm p-4 rounded-xl border border-border hover:border-primary/30 hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       <div className="flex items-center gap-4 min-w-0">

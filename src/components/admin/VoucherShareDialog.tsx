@@ -128,9 +128,9 @@ export function VoucherShareDialog({
       (!isPaid 
         ? E_MONEY + " *Valor no Balcão (Sem Desconto):* " + formatCurrency(valorTotalBalcao) + "\n" +
           "🏷️ *Valor Online (10% OFF):* " + formatCurrency(booking.total_amount) + " (se pago no site)\n" +
-          "⚠️ *Aviso:* No balcão da bilheteria o valor é normal (" + formatCurrency(valorTotalBalcao) + "), sem desconto.\n\n"
+          "⚠️ *Aviso:* O desconto de 10% é exclusivo do site para ambas opções (Inteira R$ 50 ou Meia/Solidária R$ 25). No balcão da bilheteria o valor cobrado é normal, sem desconto.\n\n"
         : E_MONEY + " *Total Pago Online (10% OFF):* " + formatCurrency(booking.total_amount) + "\n" +
-          (counterQty > 0 ? "💵 *Entradas no Balcão:* " + counterQty + "x R$ 50 = " + formatCurrency(counterTotal) + " (a pagar na bilheteria)\n\n" : "\n")
+          (counterQty > 0 ? "💵 *Entradas no Balcão:* " + counterQty + "x entradas a pagar na bilheteria pelo valor normal (" + formatCurrency(counterTotal) + ")\n\n" : "\n")
       ) +
       "Voucher: https://reservas.balneariolessa.com.br/voucher/" + code + "\n\n" +
       E_SPARK + " *Aguardamos vocês para o lazer que a sua família merece.*";
@@ -374,7 +374,7 @@ export function VoucherShareDialog({
                     </div>
                     {!isPaid && (
                        <div style={{ backgroundColor: '#fffbeb', border: '1px solid #fde68a', borderRadius: '12px', padding: '10px 14px', fontSize: '9px', fontWeight: 700, color: '#92400e', lineHeight: 1.4 }}>
-                          ⚠️ <strong>Atenção Bilheteria:</strong> O desconto de 10% é exclusivo para pagamento antecipado no site. Se pagar no balcão, o valor é normal: <strong>{formatCurrency(valorTotalBalcao)}</strong>.
+                          ⚠️ <strong>Atenção Bilheteria:</strong> O desconto de 10% é exclusivo do site para ambas as opções (Inteira R$ 50 ou Solidária/Meia R$ 25). Se pagar no balcão, o valor é normal sem desconto: <strong>{formatCurrency(valorTotalBalcao)}</strong>.
                        </div>
                     )}
 
