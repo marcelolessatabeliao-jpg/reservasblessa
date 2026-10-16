@@ -843,7 +843,27 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
             <Dialog open={isAvailabilityOpen} onOpenChange={setIsAvailabilityOpen}>
               <DialogContent 
                 onPointerDownOutside={(e) => {
-                  if (e.target instanceof HTMLElement && e.target.closest('[data-kiosk-portal="true"]')) {
+                  const originalTarget = (e as any).detail?.originalEvent?.target as HTMLElement | undefined;
+                  if (
+                    document.querySelector('[data-kiosk-portal="true"]') ||
+                    (e.target instanceof HTMLElement && e.target.closest('[data-kiosk-portal="true"]')) ||
+                    (originalTarget instanceof HTMLElement && originalTarget.closest('[data-kiosk-portal="true"]'))
+                  ) {
+                    e.preventDefault();
+                  }
+                }}
+                onInteractOutside={(e) => {
+                  if (document.querySelector('[data-kiosk-portal="true"]')) {
+                    e.preventDefault();
+                  }
+                }}
+                onFocusOutside={(e) => {
+                  if (document.querySelector('[data-kiosk-portal="true"]')) {
+                    e.preventDefault();
+                  }
+                }}
+                onEscapeKeyDown={(e) => {
+                  if (document.querySelector('[data-kiosk-portal="true"]')) {
                     e.preventDefault();
                   }
                 }}
