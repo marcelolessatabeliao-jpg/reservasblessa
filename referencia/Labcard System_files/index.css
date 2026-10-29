@@ -1,0 +1,134 @@
+.copy{
+	margin-top: 60px;
+	position:fixed;
+	bottom: 0;
+	width:100%;
+	height:30px;
+	line-height: 30px;
+	background: var(--corPrincipal);
+	color: #fff;
+	text-align: center;
+	font-size: 10px;
+}
+.copy a{
+	color:#F9A915;
+	text-decoration: none;
+}
+
+span.ex{
+	font-size: 10px;
+	color:#f00;
+	font-style: italic;
+}
+	
+a{
+	color:#333;
+}
+a:hover{
+    transition-property: all;
+    transition-duration: 0.5s;
+    transition-timing-function: ease-in-out;
+    transition-delay: 0s; 
+    color:#333;
+    opacity:0.7;
+    text-decoration: none;
+}
+
+a.lnk_nav{
+	font-size: 12px;
+	color: #fff;
+	text-decoration: none;
+}
+.box_navegar{
+	width: auto;
+	position: absolute;
+	right: 0;
+	display: block;
+}
+
+a.navegar{
+	display: inline-block;
+	color:#333;
+}
+a.navegar:hover{
+	transition-property: all;
+    transition-duration: 0.5s;
+    transition-timing-function: ease-in-out;
+    transition-delay: 0s; 
+    color:#333;
+    opacity:0.7;
+    text-decoration: none;
+}
+#conteudo{
+	margin: 0 auto;
+	margin-top:2%;
+	margin-bottom: 60px;
+	padding:2%;
+	background:rgba(255,255,255,0.7); 
+	border-radius:30px;
+	}
+.barra_direitos{
+		display: inline-block;
+		width: 93%;
+	}
+.box_btn_tuto{
+	width: 5%;
+	text-align: right;
+	display: inline-block;
+	height: 150px;
+	vertical-align: top;
+	margin-top: -110px;
+}
+.btn_tuto{
+	border-radius: 150px;
+	width: 100% !important;
+	width: 30%;
+	height: 50px;
+	background-color: var(--corPrincipal);
+	color: #fff;
+	margin-right: 5px;
+}
+
+@media screen and ( max-width: 1025px ) {
+
+	.barra_direitos{ width: 90%; }
+	.box_btn_tuto{ width: 7%; }
+
+}
+
+@media screen and ( max-width: 768px ) {
+
+	#conteudo{
+		margin: 0 auto;
+		margin-top:8%;
+		padding:2%;
+		width:85%;
+		background:rgba(255,255,255,0.7);
+		border-radius:30px;
+	}
+	.barra_direitos{ width: 87%; }
+	.box_btn_tuto{ width: 9%; }
+}
+
+@media screen and ( max-width: 475px ) { 
+
+	.box_navegar{
+		margin:0 auto;
+		margin-bottom: 40px;
+		position: relative;
+		text-align: center;		
+	}
+	.box_btn_tuto{ 
+		width: 13%;
+		margin-top: -71px;
+		display: block;
+	}
+}
+
+@media screen and ( max-width: 375px ) { 
+
+	.box_btn_tuto{ 
+		margin-top: -99px;
+		width: 16%;
+	}
+}

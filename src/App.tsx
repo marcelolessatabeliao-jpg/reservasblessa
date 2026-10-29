@@ -10,6 +10,10 @@ import Admin from "./pages/Admin";
 import Voucher from "./pages/Voucher";
 import Consultar from "./pages/Consultar";
 import Assinatura from "./pages/Assinatura";
+import SocioPortal from "./pages/SocioPortal";
+import VerificarCarteirinha from "./pages/VerificarCarteirinha";
+import PlanosAdesaoPage from "./pages/PlanosAdesao";
+import { AdminClubEcosystem } from "@/components/club/AdminClubEcosystem";
 import { MetaPixel } from "@/components/MetaPixel";
 
 const queryClient = new QueryClient();
@@ -31,6 +35,12 @@ const App = () => (
           <Route path="/" element={isAssinaturaSubdomain ? <Assinatura /> : <Index />} />
           <Route path="/assinatura" element={<Assinatura />} />
           <Route path="/clube" element={<Assinatura />} />
+          <Route path="/planos" element={<PlanosAdesaoPage />} />
+          <Route path="/aderir" element={<PlanosAdesaoPage />} />
+          <Route path="/socio" element={<SocioPortal />} />
+          <Route path="/verificar" element={<VerificarCarteirinha />} />
+          <Route path="/verificar/:codigo" element={<VerificarCarteirinha />} />
+          <Route path="/clube-admin" element={<AdminClubEcosystem standalone />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/voucher/:code" element={<Voucher />} />
           <Route path="/consultar" element={<Consultar />} />

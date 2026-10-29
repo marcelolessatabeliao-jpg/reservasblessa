@@ -12,7 +12,7 @@ import {
   User, Phone, CalendarPlus, Tag, History, ChevronDown, ChevronUp,
   Clock, CheckCircle, AlertTriangle, FileCheck, StickyNote,
   CalendarRange, QrCode, DollarSign, UserCheck, Hash, ArrowRight,
-  MessageCircle, Circle, Upload, HelpCircle
+  MessageCircle, Circle, Upload, HelpCircle, CreditCard
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -32,6 +32,7 @@ import { InternalBookingAssistant } from '@/components/admin/InternalBookingAssi
 import { AdminCreditsTab } from '@/components/admin/AdminCreditsTab';
 import { AdminDashboardTab } from '@/components/admin/AdminDashboardTab';
 import { AdminRelatoriosTab } from '@/components/admin/AdminRelatoriosTab';
+import { AdminClubEcosystem } from '@/components/club/AdminClubEcosystem';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -65,7 +66,7 @@ const QUAD_MODELS_LABELS: Record<string, string> = {
   'adulto-crianca': 'Adulto + Criança'
 };
 
-type TabType = 'painel' | 'reservas' | 'quiosques' | 'quads' | 'vendas' | 'creditos' | 'relatorios';
+type TabType = 'painel' | 'reservas' | 'quiosques' | 'quads' | 'vendas' | 'creditos' | 'relatorios' | 'disponibilidade' | 'clube';
 
 const normalizeQuadType = (t: string) => {
   const slow = (t || '').toLowerCase();
@@ -3020,6 +3021,13 @@ export default function Admin() {
                     <Settings className="w-4 h-4" />
                     <span>Bloqueios</span>
                  </button>
+                 <button onClick={() => setActiveTab('clube')} className={cn(
+                   "py-2.5 px-2 rounded-xl lg:rounded-2xl lg:px-4 text-[10px] lg:text-[13px] font-black flex flex-col lg:flex-row items-center justify-center gap-1 lg:gap-2 transition-all",
+                   activeTab === 'clube' ? "bg-amber-500 text-amber-950 shadow-md" : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30"
+                 )}>
+                    <CreditCard className="w-4 h-4" />
+                    <span>Lessa Club</span>
+                 </button>
               </div>
 
              <div className="hidden lg:block flex-1" />
@@ -3206,6 +3214,7 @@ export default function Admin() {
                 <AdminCreditsTab credits={credits} fetchData={fetchData} toast={toast} />
              )}
              {activeTab === 'disponibilidade' && renderDisponibilidadeTab()}
+             {activeTab === 'clube' && <AdminClubEcosystem />}
           </div>
        </div>
 

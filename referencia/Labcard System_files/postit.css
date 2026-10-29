@@ -1,0 +1,18 @@
+.minicolors{
+	width: unset !important;
+	height: unset !important;
+}
+label.minicolors_label input{
+	width: unset !important;
+	height: unset !important;
+}
+div.PIAconfigBox select{
+	width: unset !important;
+	height: unset !important;
+}
+.PIAinfoBox{
+	margin: 25px 0 !important;
+	display: unset !important;
+	width: 147px !important;
+    height: 151px !important;
+}

@@ -1,14 +1,18 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
   Sparkles, 
   Phone, 
   HelpCircle,
-  ChevronDown
+  ChevronDown,
+  CreditCard,
+  QrCode
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SpecialPlansSection } from '@/components/SpecialPlansSection';
 import { PricingComparisonSection } from '@/components/PricingComparisonSection';
+import { PlanosAdesaoSection } from '@/pages/PlanosAdesao';
 import logo from '@/assets/logo.png';
 import { WHATSAPP_NUMBER } from '@/lib/booking-types';
 
@@ -68,7 +72,7 @@ export default function Assinatura() {
 
       {/* 2. NAVBAR */}
       <header className="bg-primary/95 backdrop-blur-md border-b border-primary-foreground/10 sticky top-[33px] sm:top-[33px] z-40 shadow-md">
-        <div className="container mx-auto px-4 h-16 sm:h-20 flex items-center justify-between">
+        <div className="container mx-auto px-4 h-16 sm:h-20 flex items-center justify-between gap-2">
           <a href="/" className="flex items-center gap-3">
             <img src={logo} alt="Balneário Lessa" className="h-9 sm:h-12 w-auto drop-shadow-sm" />
             <div>
@@ -80,6 +84,35 @@ export default function Assinatura() {
               </span>
             </div>
           </a>
+
+          <div className="flex items-center gap-2">
+            <Link to="/planos">
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-amber-300/60 bg-amber-400/15 text-amber-200 hover:bg-amber-400 hover:text-emerald-950 font-black text-xs rounded-xl"
+              >
+                Ver Planos / Aderir
+              </Button>
+            </Link>
+            <Link to="/verificar">
+              <Button
+                variant="outline"
+                size="sm"
+                className="hidden sm:inline-flex border-white/25 bg-white/10 text-white hover:bg-white/20 font-bold text-xs rounded-xl"
+              >
+                <QrCode className="w-3.5 h-3.5 mr-1.5" /> Validar Cartão
+              </Button>
+            </Link>
+            <Link to="/socio">
+              <Button
+                size="sm"
+                className="bg-amber-400 hover:bg-amber-300 text-emerald-950 font-black text-xs sm:text-sm rounded-xl shadow"
+              >
+                <CreditCard className="w-4 h-4 mr-1.5" /> Área do Sócio / Carteirinha
+              </Button>
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -120,8 +153,12 @@ export default function Assinatura() {
         </div>
       </section>
 
-      {/* 4. SIMULADOR DE MENSALIDADE DA FAMÍLIA (EXATAMENTE COMO NO SITE DE RESERVAS) */}
-      {/* 4. SIMULADOR DE MENSALIDADE DA FAMÍLIA (EXATAMENTE COMO NO SITE DE RESERVAS) */}
+      {/* 4. VITRINE DE CARDS DE PLANOS COM FLUXO (PLANO -> CADASTRO -> TERMOS -> PAGAMENTO) */}
+      <div id="vitrine-planos">
+        <PlanosAdesaoSection embedded />
+      </div>
+
+      {/* 4B. SIMULADOR DE MENSALIDADE DA FAMÍLIA (EXATAMENTE COMO NO SITE DE RESERVAS) */}
       <div id="simulador">
         <div id="planos">
           <SpecialPlansSection />

@@ -1,0 +1,2086 @@
+
+<!-- saved from url=(0052)https://app.cartaobl.com.br/index.php?page=dashboard -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><script src="./Labcard System_files/twk-main.js.download" charset="UTF-8" type="module" crossorigin="anonymous"></script><script async="" src="./Labcard System_files/default" charset="UTF-8" crossorigin="*"></script><script src="./Labcard System_files/jscolor.js.download"></script>
+
+<!-- Bootstrap tutorial -->
+<script src="./Labcard System_files/jquery-ui.js.download"></script>
+
+<link href="./Labcard System_files/postit.css" rel="stylesheet">
+<link href="./Labcard System_files/hover_informativo.css" rel="stylesheet">
+
+
+
+
+
+
+<!-- Bootstrap tutorial -->
+<script>
+	function startTour() {
+		var tour = introJs()
+		tour.setOption('tooltipPosition', 'auto');
+		tour.setOption('positionPrecedence', ['left', 'right', 'bottom', 'top'])
+		tour.start()
+	}
+</script>
+
+
+
+<script src="./Labcard System_files/jquery.min.js.download"></script>
+
+<style>
+/* Overlay */
+.custom-mdl-overlay {
+  display: none; /* começa escondido */
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.5);
+  z-index: 1000;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Caixa do mdl */
+.custom-mdl-dialog {
+  margin: 0 auto;
+  margin-top: 15%;
+  background: #fff;
+  border-radius: 0.3rem;
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.3);
+  animation: fadeIn 0.3s ease;
+}
+
+/* Conteúdo do mdl */
+.custom-mdl-content {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Cabeçalho */
+.custom-mdl-header {
+  padding: 1rem;
+  border-bottom: 1px solid #dee2e6;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.custom-mdl-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.custom-btn-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+/* Corpo do mdl */
+.custom-mdl-body {
+  padding: 1rem;
+}
+
+/* Rodapé */
+.custom-mdl-footer {
+  padding: 1rem;
+  border-top: 1px solid #dee2e6;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Botões */
+.custom-btn {
+  display: inline-block;
+  font-weight: 400;
+  text-align: center;
+  border: 1px solid transparent;
+  padding: 0.375rem 0.75rem;
+  font-size: 14px;
+  line-height: 14px;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.custom-btn-primary {
+  color: #fff;
+  background-color: #0d6efd;
+  border-color: #0d6efd;
+  padding: 10px;
+  border-radius: 5px;
+}
+
+.custom-btn-primary:hover {
+  background-color: #0b5ed7;
+  border-color: #0a58ca;
+}
+
+/* Animação de fade in */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10%); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+</style>
+
+
+<!-- Overlay do mdl -->
+<link rel="preconnect" href="https://fonts.googleapis.com/" crossorigin="anonymous" data-tawk-font-preconnect=""><link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin="anonymous" data-tawk-font-preconnect=""><style type="text/css">#tldeFGO3ow2zBSwRiNsUZB {outline:none !important;
+visibility:visible !important;
+resize:none !important;
+box-shadow:none !important;
+overflow:visible !important;
+background:none !important;
+opacity:1 !important;
+filter:alpha(opacity=100) !important;
+-ms-filter:progid:DXImageTransform.Microsoft.Alpha(Opacity 1}) !important;
+-mz-opacity:1 !important;
+-khtml-opacity:1 !important;
+top:auto !important;
+right:0px !important;
+bottom:0px !important;
+left:auto !important;
+position:fixed !important;
+border:0 !important;
+min-height:0px  !important;
+min-width:0px  !important;
+max-height:none  !important;
+max-width:none  !important;
+padding:0px !important;
+margin:0px !important;
+-moz-transition-property:none !important;
+-webkit-transition-property:none !important;
+-o-transition-property:none !important;
+transition-property:none !important;
+transform:none !important;
+-webkit-transform:none !important;
+-ms-transform:none !important;
+width:auto !important;
+height:auto  !important;
+display:none !important;
+z-index:2000000000 !important;
+background-color:transparent !important;
+cursor:none !important;
+float:none !important;
+border-radius:unset !important;
+pointer-events:auto !important;
+clip:auto !important;
+color-scheme:light !important;}</style></head><body><div the_imports="" style="display:none;"><input id="idImportFile" type="file" name="files"><button id="idImportUpload" type="file" name="files"></button></div><div id="mdlPermissaoBootstrap" class="custom-mdl-overlay" style="display: none;">
+  <div class="custom-mdl-dialog">
+    <div class="custom-mdl-content">
+      <div class="custom-mdl-header">
+        <h1 class="custom-mdl-title">Atenção!</h1>
+      </div>
+      <div class="custom-mdl-body">
+        Clique no botão abaixo para abrir a nova aba.
+      </div>
+      <div class="custom-mdl-footer">
+        <button type="button" id="abrirNovaAbaCustom" class="custom-btn custom-btn-primary">CONFIRMAR</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+$(document).ready(function() {
+
+    $('#mdlPermissaoBootstrap').hide(); // Começa escondido
+
+    // Chama a verificação assim que a página carregar
+    verificarTempoModal();
+
+
+
+
+    // Botão que confirma e abre a nova aba
+    $('#abrirNovaAbaCustom').on('click', function() {
+
+        // Abre a nova aba
+        var novaAba = window.open('sms/cron/faturasVencimento.php', '_blank');
+
+        // Fecha o modal
+        $('#mdlPermissaoBootstrap').fadeOut();
+
+        // Salva o horário atual no localStorage
+        localStorage.setItem('ultimaAberturaAba', new Date().getTime());
+    });
+
+});
+
+
+
+// Função para verificar o tempo antes de exibir o modal
+function verificarTempoModal() {
+    agora = new Date().getTime();
+    tempoSalvo = localStorage.getItem('ultimaAberturaAba');
+    minutos = '';
+    cincoMinutos = minutos * 60 * 1000; // minutos em milissegundos
+
+    // Se nunca clicou no botão, mostra o modal após 1 segundo
+  /*  if (!tempoSalvo) {
+        setTimeout(function() {
+            $('#mdlPermissaoBootstrap').fadeIn();
+        }, 1000);
+        return;
+    }
+
+    // Se já passou X minutos desde a última vez, mostra o modal novamente
+    if (agora - tempoSalvo >= cincoMinutos) {
+        setTimeout(function() {
+            $('#mdlPermissaoBootstrap').fadeIn();
+        }, 1000);
+    }*/
+
+    // Se ainda não passou 5 minutos, não mostra o modal
+}
+</script>
+ 
+
+<script>
+     $(document).ready(function() {
+        $('#mdlPermissaoBootstrap').hide();
+     })
+    </script>
+<script>
+	function exibirAlerta($msg, $cor) {
+		$('.box_alertas').append("<div style='background: #fff; max-width:300px; text-align: justify; border: 1px solid #818181fc !important; color:" + $cor + "; ' class='alert alert-default alert-dismissible show' role='alert'> <strong>" + $msg + "</strong> <button type='button' class='close' data-dismiss='alert' aria-label='Close'> <span aria-hidden='true'>&times;</span> </button> </div>");
+	}
+</script>
+
+<!-- ---------------- ALERTAS --------------------- -->
+<div class="box_alertas" style="position: fixed; width: 100%; z-index: 999; bottom: 30px;"></div>
+<!-- ---------------- ALERTAS --------------------- -->
+
+<style type="text/css">
+
+.alertaSms{
+    text-align: center;
+    width: 100%;
+    background: #f00;
+    color:#fff;
+}
+
+	.nav {
+		background: #005200 !important;
+	}
+
+	.nav ul {
+		background: #005200 !important;
+	}
+
+	.nav ul ul {
+		background: #005200 !important;
+	}
+
+	.nav ul ul ul {
+		background: #005200 !important;
+	}
+
+	.nav ul ul ul ul {
+		background: #005200 !important;
+	}
+
+	.nav ul ul ul ul ul {
+		background: #005200 !important;
+	}
+	
+	
+@media screen and ( max-width: 767px ) {
+.divIncorporarChat{
+	display: none !important;
+	}
+
+    .lupa-fixa-btn {
+        top: 1% !important;
+        z-index: 99999999999 !important;
+        padding: 0px 5px !important;
+    }	
+	
+}	
+	
+	
+</style>
+
+
+
+
+
+	
+	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+	<title>Labcard System</title>
+	<!-- Five Icon do site -->
+	<!-- <link id="favicon" rel="shortcut icon" href="img/favicon.png"> -->
+	<link rel="icon" href="https://app.cartaobl.com.br/img/favicon.png">
+	<link href="./Labcard System_files/css" rel="stylesheet" type="text/css">
+	<script src="./Labcard System_files/jquery.min(1).js.download"></script>
+	<script src="./Labcard System_files/bootstrap3-typeahead.min.js.download"></script>
+	<link rel="stylesheet" href="./Labcard System_files/bootstrap.min.css">
+   <link rel="stylesheet" href="./Labcard System_files/all.min.css">
+	<!--BOOTSTRAP-->
+
+	<!-- Post IT -->
+	<script src="./Labcard System_files/jquery.min.js.download"></script>
+	<link href="./Labcard System_files/jquery-ui.css" rel="stylesheet">
+	<link rel="stylesheet" href="./Labcard System_files/jquery.postitall.css">
+	<script src="./Labcard System_files/jquery.postitall.js.download"></script>
+
+	<!-- JS : Função que cria um novo postit -->
+	<script>
+		$(document).ready(function() {
+			$('#novoPostIt').click(function(e) {
+				e.preventDefault();
+				$.PostItAll.new("<p style='text-align:justify;'>Esse é o seu novo Post it, escreva observações ou lembretes aqui! ;)</p>");
+			});
+		});
+	</script>
+	<!-- JS : Função que cria um novo postit -->
+
+
+
+	<!--MENU-->
+	<link rel="stylesheet" href="./Labcard System_files/normalize.min.css">
+	<link rel="stylesheet" href="./Labcard System_files/defaults.min.css">
+	<link rel="stylesheet" href="./Labcard System_files/nav-core.min.css">
+	<link rel="stylesheet" href="./Labcard System_files/nav-layout.min.css">
+
+
+	<script src="./Labcard System_files/rem.min.js.download"></script>
+	<!--MENU-->
+
+
+	<script type="text/javascript">
+		$(document).ready(function() {
+			$(document).on('focus', ':input', function() {
+				$(this).attr('autocomplete', 'off');
+			});
+		});
+	</script>
+
+	
+	<style>
+		:root {
+			/*Cria uma variável CSS com a cor principal (para poder ser usada dentro do arquivo .css ) */
+			--corPrincipal: #005200;
+		}
+	</style>
+	<link rel="stylesheet" href="./Labcard System_files/index.css">
+
+	<script>
+		$(function() {
+			$('#odd tr:odd').css('background', '#F4F4F4');
+			$('#odd tr:odd td').css('color', '#333');
+			$('.sts').css('color', '#333');
+		})
+	</script>
+
+
+
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+                    <div class="alertaSms semSaldo"> 
+                            <span>Saldo insuficiente para enviar SMS. Recarregue seu saldo. <a style="color:#fff" href="https://app.cartaobl.com.br/index.php?page=adquirirSms">[<b> Clique aqui </b>]</a></span>
+                    </div>
+                <style>
+
+.icon_logo{
+ margin: 0 auto;
+ width: 100px;
+ height:70px;
+ vertical-align:top;
+ text-align: center;
+ background-image: url('img/logo_branco.png');
+ background-size:70px;
+ background-repeat: no-repeat;
+ background-position:top;
+ display: block;
+ margin-bottom: 10px;
+}
+ul.relEmpresa{
+    margin-top:72px !important; margin-left: 0px !important;
+}
+
+/*Start select para checar se tem ticket novo (que foi respondido)*/
+
+
+
+nav.nav ul {
+  list-style: none;
+}
+
+
+
+
+nav.nav ul li a.icon_home,
+nav.nav ul li a.icon_clientes,
+nav.nav ul li a.icon_empresas,
+nav.nav ul li a.icon_consultores,
+nav.nav ul li a.icon_influencer,
+nav.nav ul li a.icon_financas,
+nav.nav ul li a.icon_relatorios,
+nav.nav ul li a.icon_perfil,
+nav.nav ul li a.icon_faq,
+nav.nav ul li a.icon_ticket,
+nav.nav ul li a.icon_funcoes,
+nav.nav ul li a.icon_postit,
+nav.nav ul li a.icon_config{
+ margin: 0 auto; 
+ width: 100%;
+ height:100%;
+ text-align: center;
+ background-size:40px;
+ background-repeat: no-repeat;
+ background-position:center top;
+ display: block;
+ color:#ccc;
+ float: left;
+}
+
+
+/* Start mudar duração do hover */
+nav.nav ul li.menu_sag1 ul,
+nav.nav ul li.menu_sag1 ul li,
+nav.nav ul li.menu_sag1 ul li ul,
+nav.nav ul li.menu_sag1 ul li ul li{
+  -webkit-transition-duration: 10s !important;
+  transition-duration: 10s !important;
+  /* background-color: #f00 !important; */
+  /* color: #f00 !important; */
+}
+/* End mudar duração do hover */
+
+nav.nav ul li.nav-submenu a{
+  background-color: #005200;
+  text-align: center;
+}
+
+nav.nav ul li.nav-submenu a:hover{
+  opacity: 0.7;
+}
+
+
+nav.nav ul li.nav-submenu ul li a{
+ width: 100%;
+ height: 40px;
+ opacity: 1;
+ display: block;
+ z-index: 9999999999;
+ text-align: left;
+ float: left;
+ background-color: #005200;
+}
+
+nav.nav ul li.nav-submenu ul li.nav-submenu ul li {
+ width: 100%;
+ opacity: 1;
+ display: block;
+ z-index: 9999999999;
+ text-align: left;
+ float: left;
+ background-color: #005200;
+}
+
+nav.nav ul li.nav-submenu ul li.nav-submenu > ul {
+  background-color: #333;
+  margin-left: 8px;
+  height: 80px;
+}
+
+nav.nav ul li.nav-submenu ul li.nav-submenu > ul.configContratos{
+    margin-top: 150px !important;
+    margin-left: -427px !important;
+    margin-right: 219px;
+}
+
+nav.nav ul li.nav-submenu ul li.nav-submenu > ul.configOutros{
+    margin-top: 110px !important;
+    margin-left: -427px !important;
+    margin-right: 219px;
+}
+
+
+nav.nav ul li.nav-submenu ul.navInfluencer a:hover{
+    height:40px;
+}
+nav.nav ul li.nav-submenu ul.navInfluencer{
+    height: 40px !important;
+    margin-left: 10px !important;
+    margin-top: 74px !important;
+}
+
+
+nav.nav ul li.nav-submenu ul li a:hover{
+  background-color: #424242;
+  opacity: 0.8;
+}
+
+
+ul.configSms{
+    margin-top:-46px !important;
+}
+
+.item_novo {
+  border-radius: 3px;
+  background-color: #FFFFFF;
+  color: #000000;
+  padding: 5px;
+  font-size: 9px;
+} 
+
+.nav label.menu_sag{
+display: inline-block;
+margin:0 auto;
+margin-top:40px;
+text-align: left;
+}
+
+li.nav-submenu label.menu_sag{
+  margin-left: 10px;
+}
+nav.nav ul li a.icon_home{
+ background-image: url('img/icon_home.png');
+}
+nav.nav ul li a.icon_clientes{
+ background-image: url('img/icon_clientes.png');
+}
+nav.nav ul li a.icon_empresas{
+ background-image: url('img/icon_empresa.png');
+}
+nav.nav ul li a.icon_consultores{
+ background-image: url('img/icon_consultores.png');
+}
+nav.nav ul li a.icon_influencer{
+ background-image: url('img/icon_influencer.png');
+}
+nav.nav ul li a.icon_financas{
+ background-image: url('img/icon_financas.png');
+}
+nav.nav ul li a.icon_relatorios{
+ background-image: url('img/icon_relatorios.png');
+}
+nav.nav ul li a.icon_perfil{
+ background-image: url('img/icon_perfil.png');
+}
+nav.nav ul li a.icon_config{
+ background-image: url('img/icon_config.png');
+}
+
+nav.nav ul li a.icon_faq{
+ background-image: url('img/icon_faq.png');
+}
+
+nav.nav ul li a.icon_ticket{
+ background-image: url('img/icon_ticket.png');
+}
+
+/*Start If para dar aviso de quando um ticket for respondido*/
+/*End If para dar aviso de quando um ticket for respondido*/
+
+
+
+.menu_sag{
+  color: #fff !important;
+}
+
+
+
+nav.nav ul li a.icon_funcoes{
+ background-image: url('img/icon_funcoes.png');
+}
+
+nav.nav ul li a.icon_postit{
+ background-image: url('img/icon_postit.png');
+}
+
+nav.nav ul li a.icon_home:hover,
+nav.nav ul li a.icon_clientes:hover,
+nav.nav ul li a.icon_empresas:hover,
+nav.nav ul li a.icon_consultores:hover,
+nav.nav ul li a.icon_influencer:hover,
+nav.nav ul li a.icon_financas:hover,
+nav.nav ul li a.icon_relatorios:hover,
+nav.nav ul li a.icon_perfil:hover,
+nav.nav ul li a.icon_faq:hover,
+nav.nav ul li a.icon_ticket:hover,
+nav.nav ul li a.icon_funcoes:hover,
+nav.nav ul li a.icon_postit:hover,
+nav.nav ul li a.icon_config:hover{
+ display: block;
+ background-color:#333; 
+ opacity:0.7;
+ color:#fff;
+
+}
+
+
+nav.nav ul li a{
+ opacity: 1;
+
+}
+
+nav.nav ul li>a:hover{
+ background-color: #cecece;
+ opacity: 1;
+
+}
+
+.nav .nav-submenu>ul{
+  margin-left:0;
+}
+.nav-active{
+  margin-top: 0px;
+}
+
+.nav-active ul:hover{
+  margin-top: 0px;
+}
+
+
+ul.navOutros{
+    margin-top:110px !important; margin-left: 0px !important;
+}
+
+ul.navContratos{
+    margin-top:150px !important; margin-left: 0px !important;
+}
+
+ul.navCliente{
+    margin-left: 0px !important;
+}
+
+ul.navConsultores, ul.navInfluencer{
+   margin-top:35px !important; margin-left: 0px !important;
+}
+
+ul.navConsultores{
+   margin-top:35px !important; margin-left: 0px !important;
+}
+
+@media only screen and (max-width:1024px){
+ .icon_blank{
+   display: none;
+ }
+.icon_logo{
+   width:60px;
+   height:60px;
+   background-size:contain;
+   background-repeat: no-repeat;
+   background-position: top;
+ }
+
+nav.nav ul li a.icon_home,
+nav.nav ul li a.icon_clientes,
+nav.nav ul li a.icon_empresas,
+nav.nav ul li a.icon_consultores,
+nav.nav ul li a.icon_influencer,
+nav.nav ul li a.icon_financas,
+nav.nav ul li a.icon_relatorios,
+nav.nav ul li a.icon_perfil,
+nav.nav ul li a.icon_faq,
+nav.nav ul li a.icon_ticket,
+nav.nav ul li a.icon_funcoes,
+nav.nav ul li a.icon_postit,
+nav.nav ul li a.icon_config{
+ background-size:20px;
+ background-position: left;
+ z-index: 999999999999999;
+ }
+
+
+ .nav ul li{
+   height:40px;
+ }
+
+ .nav label.menu_sag{
+   margin:0;
+   display: inline-block;
+   margin-left: 20px;
+   float: left;  
+ }
+
+
+ li.li_blank{
+   display: none;
+ }
+
+
+}
+
+
+
+@media only screen and (max-width:960px){
+
+.nav label.menu_sag{
+  display: block;
+  z-index: 999999999;
+}
+.icon_logo{
+ display: none;
+
+}
+
+ a.nav-button{
+   margin-bottom: 80px;
+   width: 100%;
+   height:60px;
+   display: block;
+   border-bottom:solid #fff 2px;
+   box-shadow:2px 2px 2px #333;
+   background: #005200; /* antes estava cor01, foi posta essa porque o menu no mobile estava cinza*/
+   position: fixed;
+   right:0;
+   top:0;
+   background-image:url('img/logo_branco.png');  
+   background-repeat: no-repeat;
+   background-size: contain;
+   background-position: center;
+   color:#fff;
+ }
+ nav.nav{
+   margin-top: 20px;
+ }
+
+nav.nav ul li a{
+background: #005200;
+ opacity: 0.9;
+
+}
+
+nav.nav ul li.rec>a.recomendado{
+ background: #005200;
+ opacity: 0.9;
+ color: #2730A1;
+
+}
+
+nav.nav ul li.rec>a.recomendado:hover{
+ background-color: #2730A1;
+ color:#F6CB03;
+ opacity: 1;
+
+}
+
+nav.nav ul li>a.icon_clientes{
+ background-color: #005200;
+}
+
+nav.nav ul li>a.icon_clientes:hover{
+ background-color: #424242;
+ color:#fff;
+ opacity: 1;
+}
+
+nav.nav ul li>a.icon_faq{
+ background-color: #005200;
+}
+
+nav.nav ul li>a.icon_faq:hover{
+ background-color: #424242;
+ color:#fff;
+ opacity: 1;
+}
+nav.nav ul li>a.icon_ticket{
+ background-color: #005200;
+}
+
+nav.nav ul li>a.icon_ticket:hover{
+ background-color: #424242 color:#fff;
+ opacity: 1;
+}
+nav.nav ul li>a.icon_funcoes{
+ background-color: #005200;
+}
+
+nav.nav ul li>a.icon_funcoes:hover{
+ background-color: #424242;
+ color:#fff;
+ opacity: 1;
+}
+
+nav.nav ul li>a.icon_postit{
+ background-color: #005200;
+}
+
+nav.nav ul li>a.icon_postit:hover{
+ background-color: #424242;
+ color:#fff;
+ opacity: 1;
+}
+nav.nav ul li.nav-submenu ul li a{
+text-align: left;
+margin-top:0px;
+height:40px;
+display: block;
+}
+
+nav.nav ul li.nav-submenu ul li{
+ margin:0;
+ padding:0;
+}
+
+.entire-menu {
+ position: absolute;
+ padding: 0;
+ z-index: 999999999;
+ display: block;
+ top:0;
+
+}
+
+.hamburguer {
+ width: 50px;
+ height: 50px;
+ font-size: 30px;
+ display: block;
+ position: relative;
+ background: none;
+ margin: 0 0 10px 0;
+
+}
+
+.hamburguer:after, .hamburguer:before {
+ content: '';
+ display: block;
+ width: 50px;
+ color:#fff;
+ left: 0;
+ position: absolute;
+ -webkit-transition: all 300ms ease-in-out;
+ transition: all 300ms ease-in-out;
+
+}
+
+.hamburguer:before {
+ top: 0;
+  content: '\E003';
+
+}
+
+.hamburguer:after {
+ bottom: 0;
+
+}
+
+.hamburguer:focus {
+ outline: none;
+
+}
+
+
+</style>
+
+
+
+
+<style>
+/* Botão flutuante */
+.lupa-fixa-btn {
+  position: fixed;
+  right: 10px;
+  top: 10%;
+  z-index: 9998;
+  cursor: pointer;
+  padding:10px 15px;
+  border-radius:50px;
+  background-color: #fff;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+}
+
+.lupa-icon {
+  width: 40px;
+}
+ 
+/* Modal overlay */
+.lupa-modal-overlay {
+  display: none;
+  position: fixed;
+  z-index: 9999;
+  left: 0; top: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0,0,0,0.5);
+  justify-content: center;
+  align-items: center;
+}
+
+/* Modal box */
+.lupa-modal-dialog {
+  background: #fff;
+  border-radius: 5px;
+  width: 90vw;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Header */
+.lupa-modal-header {
+  padding: 10px 15px;
+  border-bottom: 1px solid #ccc;
+  background: #f5f5f5;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.lupa-modal-title{
+    text-align: left;
+    
+}
+/* Body */
+.lupa-modal-body {
+  padding: 20px 10%;
+  overflow-y: auto;
+  flex-grow: 1;
+  max-height: 60vh; /* ajuste conforme necessário */
+}
+
+/* Footer */
+.lupa-modal-footer {
+  padding: 10px 15px;
+  border-top: 1px solid #ccc;
+  text-align: right;
+  background: #f9f9f9;
+}
+
+/* Fechar */
+.lupa-close-btn {
+  font-size: 20px;
+  font-weight: bold;
+  cursor: pointer;
+}
+</style>
+
+<script>
+// Abrir modal
+function abrirModalLupa() {
+    document.getElementById('lupaModalOverlay').style.display = 'flex';
+}
+
+// Fechar modal
+function fecharModalLupa() {
+    document.getElementById('lupaModalOverlay').style.display = 'none';
+}
+
+
+
+
+
+
+function pesquisaRapidaFixed(){
+    acao = 'pesquisaRapida';
+    pesquisaRapida = $('#pesquisaRapida').val();
+    
+    dados = {
+        acao : acao,
+        pesquisaRapida : pesquisaRapida
+    }
+    
+    console.log(dados);
+    
+    
+    $.post('cmd/cmdPesquisaRapida.php', dados, function(retorno){
+        $('.retornoPesquisaRapida').html(retorno);
+    })
+    
+}
+</script>
+
+
+
+<!-- Botão flutuante da lupa -->
+<div class="lupa-fixa-btn" onclick="abrirModalLupa()">
+    <img src="./Labcard System_files/icon_lupaResp.png" class="lupa-icon">
+</div>
+
+<!-- Modal personalizado -->
+<div id="lupaModalOverlay" class="lupa-modal-overlay">
+  <div class="lupa-modal-dialog">
+    <div class="lupa-modal-content">
+      
+      <div class="lupa-modal-header">
+          <h4 class="lupa-modal-title">Pesquisa Rápida</h4>
+        <span class="lupa-close-btn" onclick="fecharModalLupa()">×</span>
+        
+      </div>
+
+      <div class="lupa-modal-body">
+        <label style="font-size:12px">Nº Card, CPF ou Nome:</label>
+        <input type="text" class="form-control lupa-input" id="pesquisaRapida" placeholder="Digite sua pesquisa...">
+        <div class="lupa-retorno"></div>
+        
+        <div class="lupa-modal-footer">
+            <button class="btn btn-primary" id="lupaBotaoLocalizar" onclick="pesquisaRapidaFixed()">Localizar</button>
+        </div>
+        
+        <div class="retornoPesquisaRapida mt-3"></div>
+      </div>
+
+      
+      
+      
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<script>
+// Função separada para simular o clique no botão
+/*function acionarClickBotaoLupa() {
+  $('#lupaBotaoLocalizar').trigger('click');
+}*/
+
+// Quando o DOM estiver pronto
+$(document).ready(function () {
+
+  // Captura ENTER no campo de pesquisa
+  $(document).on('keydown', '.lupa-input', function (e) {
+      
+    if (e.key === 'Enter') {
+        
+      e.preventDefault(); // Impede comportamento padrão (como submit)
+      pesquisaRapidaFixed();
+      //acionarClickBotaoLupa(); // Simula clique no botão
+    }
+  });
+
+  // Evento do clique no botão
+ /* $(document).on('click', '#lupaBotaoLocalizar', function () {
+    pesquisaRapida();
+  });*/
+});
+
+
+
+$(document).ready(function(){
+    
+    
+    
+     function isMobile(){
+        return window.innerWidth <= 768; // ajusta o breakpoint conforme seu layout
+    }
+
+    // Clique no Planos (dentro de .segundoNivel)
+    $(".nav-submenu.segundoNivel > a").on("click", function(e){
+        if (!isMobile()) return; // só roda no mobile
+        e.preventDefault();
+        $(".relAgenda").css("transition", "none").css("margin-top", "90px");
+    });
+
+    // Clique em qualquer outro link que não seja filho de .segundoNivel
+    $("a").not(".nav-submenu.segundoNivel > a").on("click", function(){
+        if (!isMobile()) return; // só roda no mobile
+        $(".relAgenda").css("transition", "none").css("margin-top", "");
+    });
+    
+   
+   
+   /*
+    
+     // Clique no Planos (dentro de .menuContratos)
+    $(".menuContratos > a").on("click", function(e){
+        if (!isMobile()) return; // só roda no mobile
+        e.preventDefault();
+        $(".menuContratos").css("margin-bottom", "128px");
+    });
+
+    // Clique em qualquer outro link que não seja filho de .segundoNivel
+    $("a").not(".segundoNivel > a").on("click", function(){
+        if (!isMobile()) return; // só roda no mobile
+        $(".menuContratos").css("margin-bottom", "");
+    });
+    */
+  
+  
+  
+    // Clique no menuContratos
+    $(".menuContratos > a").on("click", function(e){
+        if (!isMobile()) return;
+        e.preventDefault();
+
+        // Verifica se o pai já tem nav-active
+        let $menu = $(this).parent(".menuContratos");
+        if ($menu.hasClass("nav-active")) {
+            // Se já está ativo, remove o margin-bottom
+            $menu.css("margin-bottom", "");
+        } else {
+            // Adiciona margin-bottom e remove de outros menus
+            $(".menuContratos").css("margin-bottom", "");
+            $menu.css("margin-bottom", "128px");
+        }
+    });
+
+    // Clique em qualquer outro link que não seja menuContratos
+    $("a").not(".menuContratos > a").on("click", function(){
+        if (!isMobile()) return;
+        $(".menuContratos").css("margin-bottom", "");
+    });
+  
+  
+  
+  
+  
+  
+ // Clique dentro do .configOutros → estado aberto
+    $(".configOutros").on("click", function(e){
+        if (!isMobile()) return;
+        e.stopPropagation(); // evita que o clique suba para o document
+        $("body").addClass("outros-ativo");
+    });
+
+    // Clique fora do .configOutros → estado fechado
+    $(document).on("click", function(){
+        if (!isMobile()) return;
+        $("body").removeClass("outros-ativo");
+    });
+  
+    
+    
+    
+    
+    
+    
+$(".menuSms > a").on("click", function(e){
+        if (!isMobile()) return;
+        e.preventDefault();
+
+        let $submenu = $(this).siblings(".configSms");
+
+        // Alterna visibilidade
+        if ($submenu.is(":visible")) {
+            $submenu.slideUp(); // fecha
+        } else {
+            $(".configSms").slideUp(); // fecha outros, se houver
+            $submenu.slideDown(); // abre o clicado
+        }
+    });
+
+    
+    
+
+
+    
+    
+
+    
+    
+    
+});
+
+
+
+
+
+
+
+function verStatus(numCard, numCardTitular, tipo, id){
+    
+    dados = {
+        numCard : numCard,
+        tipo : tipo,
+        numCardTitular : numCardTitular,
+        id : id
+    }
+        
+    
+    $.post('cmd/cmdPesquisaRapidaVerStatus.php', dados, function(retorno){
+        $('.retornoVerStatus'+id).html(retorno);
+    })
+}
+
+</script>
+
+
+
+<div class="entire-menu"> 
+ <a class="hamburguer nav-button" href="https://app.cartaobl.com.br/index.php?page=dashboard#"></a>
+
+</div>
+
+
+
+
+
+<a href="https://app.cartaobl.com.br/index.php?page=dashboard#" class="nav-button"> </a>
+
+<nav class="nav">
+   <ul>
+     <li class="li_blank">
+       <div class="icon_logo"></div>
+     </li>
+
+
+     <li data-intro="Volte para a Dashboard (página inicial da plataforma).">
+       <a class="icon_home" href="https://app.cartaobl.com.br/index.php?page=dashboard"><label class="menu_sag">Dashboard</label></a>
+     </li>
+
+
+     <li class="nav-submenu">
+       <a class="icon_clientes" href="https://app.cartaobl.com.br/index.php?page=dashboard" data-intro="Gerencie os clientes."><label class="menu_sag">Clientes</label></a>
+
+          <ul style="display: none;">
+              <li class="nav-submenu">
+                <a href="https://app.cartaobl.com.br/index.php?page=relatorio_consultores">&nbsp;&nbsp;►&nbsp;&nbsp;Cadastrar</a>
+                  <ul style="display: none;">
+                    <li><a href="https://app.cartaobl.com.br/index.php?page=cadastrar_clientes">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;PF</a></li>
+                    <li><a href="https://app.cartaobl.com.br/index.php?page=cadastrar_clientes_empresa">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;PJ</a></li>
+                  </ul>           
+              </li>
+
+
+              <li class="nav-submenu">
+                <a href="https://app.cartaobl.com.br/index.php?page=relatorio_consultores">&nbsp;&nbsp;►&nbsp;&nbsp;Cadastrados</a>
+                  <ul style="display: none;">
+                    <li><a href="https://app.cartaobl.com.br/index.php?page=clientes_cadastrados">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;PF</a></li>
+                    <li><a href="https://app.cartaobl.com.br/index.php?page=clientes_cadastrados_empresa">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;PJ</a></li>
+                  </ul>           
+              </li>
+
+              <li><a href="https://app.cartaobl.com.br/index.php?page=clientes_excluidos">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Inativos</a></li>
+              <li><a href="https://app.cartaobl.com.br/index.php?page=clientes_pendentes">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Pendentes</a></li>
+              <li><a href="https://app.cartaobl.com.br/index.php?page=clientes_prospect">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Prospect</a></li> 
+              <li><a href="https://app.cartaobl.com.br/index.php?page=clientes_prospectArquivados">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Prospect Arquivados</a></li> 
+              <!--<li><a href="index.php?page=clientes_inadimplentes">&nbsp;&nbsp;&nbsp;&nbsp;&bull;&nbsp;&nbsp;Inadimplentes</a></li> -->
+              <li><a href="https://app.cartaobl.com.br/index.php?page=clientes_cancelados">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Cancelados</a></li> 
+              <li><a href="https://app.cartaobl.com.br/index.php?page=clientes_via_site">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Via site</a></li>   
+          </ul>
+     </li>
+
+      <li class="nav-submenu">
+       <a class="icon_empresas" href="https://app.cartaobl.com.br/index.php?page=dashboard" data-intro="Gerencie as empresas."><label class="menu_sag">Empresas</label></a>
+
+          <ul style="display: none;">
+              <li><a href="https://app.cartaobl.com.br/index.php?page=cadastrar_empresas">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Cadastrar</a></li> 
+              <li><a href="https://app.cartaobl.com.br/index.php?page=empresas_cadastradas">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Cadastradas</a></li> 
+              <li><a href="https://app.cartaobl.com.br/index.php?page=empresas_excluidas">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Inativas</a></li>
+              <li><a href="https://app.cartaobl.com.br/index.php?page=empresas_pendentes">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Pendentes</a></li> 
+          </ul>
+     </li>
+
+<!--? if($edit_arr['titular'] == 's') { ?-->
+     <li class="nav-submenu">
+       <a class="icon_consultores" href="https://app.cartaobl.com.br/index.php?page=dashboard" data-intro="Gerencie os consultores."><label class="menu_sag">Consultores</label></a>
+
+          <ul style="display: none;">
+              <li><a href="https://app.cartaobl.com.br/index.php?page=cadastrar_consultores">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Cadastrar</a></li> 
+              <li><a href="https://app.cartaobl.com.br/index.php?page=consultores_cadastrados">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Cadastrados</a></li> 
+              <li><a href="https://app.cartaobl.com.br/index.php?page=consultores_excluidos">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Inativos</a></li>    
+              <li><a href="https://app.cartaobl.com.br/index.php?page=consultores_pendentes">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Pendentes</a></li>   
+              <li><a href="https://app.cartaobl.com.br/index.php?page=excluir_consultores">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Excluir Consultores</a></li>   
+          </ul>
+     </li>
+
+       <li class="nav-submenu">
+       <a class="icon_influencer" href="https://app.cartaobl.com.br/index.php?page=dashboard" data-intro="Gerencie os influencer."><label class="menu_sag">Influencer</label></a>
+
+          <ul style="display: none;">
+              <li><a href="https://app.cartaobl.com.br/index.php?page=cadastrar_influencer">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Cadastrar</a></li> 
+              <li><a href="https://app.cartaobl.com.br/index.php?page=influencer_ativos">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Ativos</a></li> 
+              <li><a href="https://app.cartaobl.com.br/index.php?page=influencer_pendentes">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Pendentes</a></li> 
+              <li><a href="https://app.cartaobl.com.br/index.php?page=influencer_inativos">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Inativos</a></li>    
+          </ul>
+     </li>
+     
+
+       <li class="nav-submenu">
+       <a class="icon_financas" href="https://app.cartaobl.com.br/index.php?page=financas" data-intro="Visualize relatórios financeiros."><label class="menu_sag">Finanças</label></a>
+
+          <ul style="display: none;">
+              <li><a href="https://app.cartaobl.com.br/index.php?page=fluxo_caixa">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Fluxo Caixa</a></li> 
+              <li><a href="https://app.cartaobl.com.br/index.php?page=fluxo_entrada">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Entrada de Caixa</a></li> 
+              <li><a href="https://app.cartaobl.com.br/index.php?page=fluxo_saida">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Saída Caixa</a></li> 
+              <li><a href="https://app.cartaobl.com.br/index.php?page=relatorio_faturamento_previsto">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Faturamento Mensal Previsto</a></li> 
+              <li><a href="https://app.cartaobl.com.br/index.php?page=mensalidades">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Mensalidades</a></li> 
+              <li><a href="https://app.cartaobl.com.br/index.php?page=relatorio_clientes_em_atraso">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Cobranças Vencidas Por Mês</a></li> 
+              <li><a href="https://app.cartaobl.com.br/index.php?page=assinaturasAtivas">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Assinaturas Ativas</a></li> 
+              <li><a href="https://app.cartaobl.com.br/index.php?page=relatorioAssinaturasVencidas">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Assinaturas Vencidas</a></li> 
+
+               <li><a href="https://app.cartaobl.com.br/index.php?page=baixasEmLote">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Baixas em Lote</a></li>
+              <!--<li><a href="index.php?page=inadimplencia">Inadimplência</a></li> -->
+          </ul>
+     </li>
+<!--? } ?-->
+
+      <li class="nav-submenu menu_sag1">
+       <a class="icon_relatorios" href="https://app.cartaobl.com.br/index.php?page=financas_planos" data-intro="Visualize diversos tipos de relatórios."><label class="menu_sag">Relatórios</label></a>
+
+          <ul style="display: none;">
+                <li class="nav-submenu">
+                    <a href="https://app.cartaobl.com.br/index.php?page=relatorio_clientes">&nbsp;&nbsp;►&nbsp;&nbsp;Clientes</a>
+                        <ul class="navCliente" style="display: none;">
+                            <!--<li><a href="index.php?page=relatorio_clientes">Numérico</a></li>-->
+                            <li><a href="https://app.cartaobl.com.br/index.php?page=gerenciar_clientes">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Listagem</a></li>
+                             
+                            <li><a href="https://app.cartaobl.com.br/index.php?page=relatorio_planos_clientes">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Relatório de Clientes por Período Ativos</a></li>
+                            <li><a href="https://app.cartaobl.com.br/index.php?page=relatorio_clientes_por_cidade">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Relatório de Clientes por Cidades</a></li>
+                            <li><a href="https://app.cartaobl.com.br/index.php?page=contratos_relatorio">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Contrato Recebido</a></li>
+                            <li><a href="https://app.cartaobl.com.br/index.php?page=contratos_gerados">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Contratos Gerados</a></li>
+                            <li><a href="https://app.cartaobl.com.br/index.php?page=clientesFaixaEtaria">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Por Faixa Etária</a></li>
+                            <li><a href="https://app.cartaobl.com.br/index.php?page=relatorio_adicionais">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Adicionais</a></li>
+                            <li><a href="https://app.cartaobl.com.br/index.php?page=relatorio_adimplentes&amp;carregando=true" onclick="atualizarClientesAdimplentes()">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Adimplentes</a></li>
+                            <!--<li><a href="index.php?page=relatorio_adimplentes_planos">&nbsp;&nbsp;&nbsp;&nbsp;&bull;&nbsp;&nbsp;Adimplentes por Plano</a></li>-->
+                            <li><a href="https://app.cartaobl.com.br/index.php?page=relatorio_inadimplentes&amp;carregando=true" onclick="atualizarBoletosVencidos()">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Inadimplentes</a></li>
+                            <li><a href="https://app.cartaobl.com.br/index.php?page=relatorio_renovacao&amp;carregando=true" onclick="atualizarClientesRenovacao()">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;A Renovar</a></li>
+                        </ul>
+                </li>
+
+                <li class="nav-submenu">
+                    <a href="https://app.cartaobl.com.br/index.php?page=relatorio_consultores">&nbsp;&nbsp;►&nbsp;&nbsp;Consultores</a>
+                        <ul class="navConsultores" style="display: none;">
+                            <li><a href="https://app.cartaobl.com.br/index.php?page=comissaoConsultor">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Comissão</a></li>
+                            <li><a href="https://app.cartaobl.com.br/index.php?page=consultorListaCadastro">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Lista de Cadastro</a></li>
+                           <!-- <li><a href="index.php?page=comissao_recorrente">Comissão</a></li>
+                            <li><a href="index.php?page=comissao_vida">Comissão (Simulação)</a></li>-->
+                        </ul>
+                </li>
+
+                 
+                <li class="nav-submenu">
+                    <a href="https://app.cartaobl.com.br/index.php?page=relatorio_influencer">&nbsp;&nbsp;►&nbsp;&nbsp;Influencer</a>
+                        <ul class="navInfluencer" style="display: none;">
+                            <a href="https://app.cartaobl.com.br/index.php?page=influencerListaCadastro"><label style="font-weight:200">Lista de Cadastro</label></a>
+                        </ul>
+                </li>
+ 
+
+                <li class="nav-submenu">
+                    <a href="https://app.cartaobl.com.br/index.php?page=dashboard#">&nbsp;&nbsp;►&nbsp;&nbsp;Empresas</a>
+                    <ul class="relEmpresa" style="display: none;">                        
+                        <!--<li><a href="index.php?page=relatorio_empresas">Numérico</a></li> -->
+                        <li><a href="https://app.cartaobl.com.br/index.php?page=relatorio_consultas">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Atendimentos - Geral</a></li> 
+                        <li><a href="https://app.cartaobl.com.br/index.php?page=consultas_por_empresa">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Atendimentos - Por Empresa</a></li> 
+                        <li><a href="https://app.cartaobl.com.br/index.php?page=consultas_por_cliente_na_empresa">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Atendimentos - Por Cliente</a></li> 
+                    </ul>
+                </li>
+                
+                <li class="nav-submenu">
+                    <a href="https://app.cartaobl.com.br/index.php?page=dashboard#">&nbsp;&nbsp;►&nbsp;&nbsp;Agenda</a>
+                    <ul class="relEmpresa" style="display: none;">                        
+                        <li><a href="https://app.cartaobl.com.br/index.php?page=relatorio_agenda">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Agenda Geral</a></li>
+                        <li><a href="https://app.cartaobl.com.br/index.php?page=agenda_usuario">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Agenda por Usuário</a></li>
+                    </ul>
+                </li>
+                
+                <li class="nav-submenu">
+                    <a href="https://app.cartaobl.com.br/index.php?page=dashboard#">&nbsp;&nbsp;►&nbsp;&nbsp;SMS's</a>
+                    <ul class="relEmpresa" style="display: none;">                        
+                        <li><a href="https://app.cartaobl.com.br/index.php?page=faturasEnviadasSms">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Faturas Enviadas</a></li>
+                        <li><a href="https://app.cartaobl.com.br/index.php?page=historicoEnvioSms">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Histórico de Envios</a></li>
+                    </ul>
+                </li>
+
+                <li class="nav-submenu">
+                    <a href="https://app.cartaobl.com.br/index.php?page=dashboard#">&nbsp;&nbsp;►&nbsp;&nbsp;Outros</a>
+                    <ul class="navOutros" style="display: none;">
+                        
+                      
+                        <li class="nav-submenu segundoNivel">
+                            <a href="https://app.cartaobl.com.br/index.php?page=dashboard#">&nbsp;&nbsp;►&nbsp;&nbsp;Planos</a>
+                              <ul class="planosCortesia" style="display: none;">
+                                <li style="margin-top: -5px;"><a href="https://app.cartaobl.com.br/index.php?page=relatorio_planos">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Todos</a></li>
+                                <li><a href="https://app.cartaobl.com.br/index.php?page=relatorioPlanoCortesia">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Cortesia</a></li>
+                              </ul>           
+                        </li>           
+                                                
+                        <li><a href="https://app.cartaobl.com.br/index.php?page=relatorio_carnesAcabando">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Carnês Acabando</a></li>
+                        <li><a href="https://app.cartaobl.com.br/index.php?page=relatorio_clienteSemFinanceiro">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Clientes Sem Financeiro</a></li>
+                        <li><a href="https://app.cartaobl.com.br/index.php?page=relatorio_cartao_emissao">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Cartão - (emissão)</a></li>
+                        <li><a href="https://app.cartaobl.com.br/index.php?page=relatorio_cartao_vencimento">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Cartão - (vencimento)</a></li>
+                        <li><a href="https://app.cartaobl.com.br/index.php?page=logs">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Log's</a></li>
+                        <!--<li><a href="index.php?page=relatorio_geral">Numérico - Geral</a></li>-->
+                    </ul>
+                </li>     
+
+              
+          </ul>
+     </li>    
+
+
+ <li class="nav-submenu">
+       <a class="icon_config" href="https://app.cartaobl.com.br/index.php?page=dashboard" data-intro="Altere as configurações gerais da plataforma."><label class="menu_sag">Config.</label></a>
+        <ul style="display: none;">
+            <li><a href="https://app.cartaobl.com.br/index.php?page=config_cartao">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Config. Cartão</a></li>
+            <li><a href="https://app.cartaobl.com.br/index.php?page=multiplos_cartoes">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Impressões - Multi-Cartão</a></li>
+            <!-- <li><a href="index.php?page=sms_envio_massa">Envio SMS</a></li> -->
+            <li><a href="https://app.cartaobl.com.br/index.php?page=cadastrar_plano">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Planos</a></li>
+            <li><a href="https://app.cartaobl.com.br/index.php?page=cadastrar_adicional">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Adicionais</a></li>
+            
+             
+            
+               <li class="nav-submenu">
+                    <a href="https://app.cartaobl.com.br/index.php?page=dashboard">&nbsp;&nbsp;►&nbsp;&nbsp;Contratos</a>
+                    <ul class="configContratos" style="display: none;">
+                       <li><a href="https://app.cartaobl.com.br/index.php?page=termoUso">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Termo de Uso - Site</a></li>
+                       <li><a href="https://app.cartaobl.com.br/index.php?page=addContratoPf">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Contratos</a></li>
+                    </ul>
+                </li>
+
+                    
+
+                    <li class="nav-submenu">
+                        <a href="https://app.cartaobl.com.br/index.php?page=dashboard">&nbsp;&nbsp;►&nbsp;&nbsp;OUTROS...</a>
+                            <ul class="configOutros" style="display: none;">
+                                <li><a href="https://app.cartaobl.com.br/index.php?page=cadastrar_forma_pg">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Formas PG</a></li>
+                                <li><a href="https://app.cartaobl.com.br/index.php?page=cadastrar_categorias">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Categorias</a></li>     
+                                <li><a href="https://app.cartaobl.com.br/index.php?page=cadastrar_especialidades">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Especialidades</a></li>     
+                                <li><a href="https://app.cartaobl.com.br/index.php?page=cadastrar_servicos">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Serviços</a></li>     
+                                <li><a href="https://app.cartaobl.com.br/index.php?page=cadastrar_medicos">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Profissionais</a></li> 
+            
+                              
+                               
+                                <li class="nav-submenu menuSms">
+                                        <a href="https://app.cartaobl.com.br/index.php?page=dashboard">&nbsp;&nbsp;►&nbsp;&nbsp;SMS's</a>
+                                        <ul class="configSms" style="display: none;">
+                                           <li><a href="https://app.cartaobl.com.br/index.php?page=adquirirSms">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Adquirir mais créditos</a></li>
+                                           <li><a href="https://app.cartaobl.com.br/index.php?page=adquiridoSms">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Pagamentos</a></li>
+                                           
+                                           <li><a href="https://app.cartaobl.com.br/index.php?page=meusCreditosSms">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Meus Créditos</a></li>
+                                           <li><a href="https://app.cartaobl.com.br/index.php?page=configSms">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Configurações</a></li>
+                                        </ul>
+                                </li>
+                                <li><a href="https://app.cartaobl.com.br/index.php?page=excluir_clientes">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Excluir Clientes</a></li> 
+                            </ul>
+                </li>
+            
+                           
+         </ul>
+     </li>
+
+
+
+      <li class="nav-submenu" data-intro="Altere informações do Perfil.">
+       <a class="icon_perfil" href="https://app.cartaobl.com.br/index.php?page=dashboard"><label class="menu_sag">Perfil</label></a>
+        <ul style="display: none;">
+            <li><a href="https://app.cartaobl.com.br/index.php?page=dados">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Meus Dados</a></li> 
+            <!--? if($edit_arr['titular'] == 's') { ?--><li><a href="https://app.cartaobl.com.br/index.php?page=add_admin">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Acessos</a></li> <!--? } ?-->
+            <!--? if($edit_arr['titular'] == 's') { ?--><li><a href="https://app.cartaobl.com.br/index.php?page=meu_plano">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Meu Plano</a></li> <!--? } ?-->
+            <!--? if($edit_arr['titular'] == 's') { ?--><li><a href="https://app.cartaobl.com.br/index.php?page=minhasFaturas">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Minhas Faturas</a></li> <!--? } ?-->
+            
+            
+            <li><a href="https://app.cartaobl.com.br/index.php?page=alterar_cor">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Alterar Cor</a></li> 
+           
+            
+            <li><a href="https://app.cartaobl.com.br/logout.php">&nbsp;&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;Sair</a></li>       
+         </ul>
+     </li>
+
+
+    <!--  <li data-intro="Crie um novo postit flutuante para escrever observações" id="novoPostIt">
+       <a class="icon_home" href='index.php?page=dashboard'><label class="menu_sag">Post IT</label></a>
+     </li> -->
+
+ 
+   
+
+   </ul>
+
+</nav>
+
+
+
+
+<a href="https://app.cartaobl.com.br/index.php?page=dashboard#" class="nav-close">Fechar Menu</a>
+
+<div class="retornoGerenciarClientesStatus"></div>
+
+<script>
+
+
+
+function reset(tabela){
+    acao = 'reset';
+    
+    dados = {
+        acao : acao,
+        tabela : tabela
+    }
+    
+    
+    
+    $.post('cmd/gerenciarClientesStatus.php', dados, function(retorno){
+        $('.retornoGerenciarClientesStatus').html(retorno);
+    })
+    
+}
+
+function atualizarBoletosVencidos(){
+    acao = 'atualizarBoletosVencidos';
+    
+    dados = {
+        acao : acao
+    }
+    
+    
+    $.post('cmd/gerenciarClientesStatus.php', dados, function(retorno){
+        $('.retornoGerenciarClientesStatus').html(retorno);
+    })
+    
+}
+
+function atualizarClientesAdimplentes(){
+    acao = 'atualizarClientesAdimplentes';
+    
+    dados = {
+        acao : acao
+    }
+    
+    
+    
+    $.post('cmd/gerenciarClientesStatus.php', dados, function(retorno){
+        $('.retornoGerenciarClientesStatus').html(retorno);
+    })
+    
+}
+
+
+
+function atualizarClientesRenovacao(){
+    acao = 'atualizarClientesRenovacao';
+    
+    dados = {
+        acao : acao
+    }
+    
+    
+    
+    $.post('cmd/gerenciarClientesStatus.php', dados, function(retorno){
+        $('.retornoGerenciarClientesStatus').html(retorno);
+    })
+    
+}
+
+</script>
+	<div id="conteudo">
+		<script type="text/javascript">
+	function limpar(){
+		document.getElementById("resultado").style.display = "none";
+	}
+</script>
+
+
+
+
+<style type="text/css">
+#fx{
+	 width: 100%;
+}
+.box{
+	 margin: 5px 5px 0 0;
+	 padding: 5px 0 5px 20px;
+	 width: 48%;
+	 min-height:365px;
+	 display: inline-block;
+	 border: 2px solid #fff;
+	 background-color:#005200;
+	 box-shadow: 2px 2px 2px #555;
+	 position: relative;
+	vertical-align: top;
+}
+.box_atalhos{
+	 margin: 5px 5px 0 0;
+	 padding: 5px 0 5px 20px;
+	 width: 48%;
+	 display: inline-block;
+	 border: 2px solid #fff;
+	 background-color:#005200;
+	 box-shadow: 2px 2px 2px #555;
+	 position: relative;
+	vertical-align: top;
+	min-height:365px;
+}
+.box_cli{
+	margin-top: 20px;
+	margin-bottom:20px;
+	width:32%;
+	height:140px;
+	display: inline-block;
+	background:#fff;
+	text-align: center;
+	font-size: 16px;
+}
+.box_cli_47{
+	width: 47%;
+	display: inline-block;
+}
+.box_individual{
+	width: 45%;
+	display:inline-block;
+}
+#box_clientes{
+	width: 100%;
+}
+.txt_cli{
+	margin-top: 5% !important;
+}
+
+.box_emp{
+	margin-top: 20px;
+	margin-bottom:20px;
+	width:48%;
+	height:140px;
+	display: inline-block;
+	background:#fff;
+	text-align: center;
+	font-size: 16px;
+}
+.one{
+	margin: 0 auto;
+	width:100%;
+	display: inline-block;
+}
+
+.duo{
+	margin: 0 auto;
+	width: 49%;
+	display: inline-block;
+}
+.box_cli_busca label{
+	color: #fff;
+}
+.box_cli label{
+	width:100%;
+	margin-top: 14%;
+	font-size: 20px;
+}
+.box_emp label{
+	width:100%;
+	margin-top: 9%;
+	font-size: 20px;
+
+}
+
+.box_vl{
+	margin:0 auto;
+	width:90%;
+	height:60px;
+	line-height: 60px;
+	background-color:#005200;
+	border: 2px solid #fff;
+	box-shadow: 2px 2px 2px #555;
+	color:#fff;
+}
+
+
+.box_vl_cli{
+	margin:0 auto;
+	width:95%;
+	height:50px;
+	line-height: 60px;
+	background-color:#005200;
+	border: 2px solid #fff;
+	box-shadow: 2px 2px 2px #555;
+	color:#fff;
+}
+
+
+.titulo{
+	margin-left: -20px;
+	color:#fff;
+	text-align: center;
+	font-size: 24px;
+	object-position: center;
+	width: 103%;
+	background-color: rgba(0, 0, 0, .5);
+}
+#resultado a{
+	color: #fff;
+	text-decoration: none;
+}
+#resultado_1 a{
+	color: #333;
+	text-decoration: none;
+}
+#resultado{
+	height: 35px;
+}
+span.titular{
+	color:#390 !important;
+}
+span.dependente{
+	color: #333 !important;
+}
+
+a.bt_pagar{
+	color: #005200;
+	text-decoration: none;
+}
+
+.campo{
+	width:100%;
+	text-align: center;
+	background: #005200}
+
+.filtro_right{
+	display: inline-block;
+	margin-bottom: 40px;
+}
+
+
+.filtro_right label{
+	color:#fff;
+}
+
+.box_ico{
+	margin: 0 auto;
+	width:140px;
+	height:140px;
+	display: inline-block;
+	text-align: center;
+	object-position: center;
+	color: #fff;
+}
+
+.box_ico a{
+	text-decoration: none;
+	color: #fff;
+}
+
+@media screen and ( max-width: 1024px ) {
+.box_ico{
+	margin: 0 auto;
+	width:140px;
+	height:120px;
+	display: inline-block;
+	text-align: center;
+	object-position: center;
+	color: #fff;
+}
+
+}
+
+@media screen and ( max-width: 768px ) {
+	.box{
+		padding-top:0; 
+		 width: 90%;
+		 display: block;
+		}
+	.box_atalhos{
+		width:90%;
+	}
+	.box_cli{
+		padding-top:0; 
+		width:94%;
+		display: block;
+	}
+	.box_cli label{
+		margin:0 auto;
+		margin-top: 10px;
+	}
+
+	.box_vl{
+		height:60px;
+	}
+
+}
+
+@media screen and ( max-width: 425px ) {
+.one{
+	margin: 0 auto;
+	width:90%;
+	display: inline-block;
+}
+.duo{
+	width: 95%;
+}
+.btn_pesquisa{
+	width: 49%;
+	margin-top: 4px;
+}
+
+.box_ico{
+	width:120px;
+	height:120px;
+}
+.box_emp{
+	width:90%;	
+}
+.box_atalhos{
+		height: 450px;
+	}
+
+
+}
+@media screen and ( max-width: 320px ) {
+
+
+.box_ico{
+	width:90%;
+}
+
+.box_atalhos{
+		height: 800px;
+	}
+
+
+}
+.box_cli_txt{
+	font-size: 10px !important;
+}
+</style>
+
+
+
+
+
+
+
+<div id="fx">
+	<div class="box" data-step="1" data-intro="Use as setas do teclado &lt;b&gt;&lt;-&lt;/b&gt; e &lt;b&gt;-&gt;&lt;/b&gt; ou os botões abaixo para navegar através das opções. &lt;hr&gt; Caixa 'Clientes', Aqui você poderá acompanhar os clientes ativos/inativos, além de realizar buscas">
+		<div class="titulo">CLIENTES</div>
+			<div id="box_clientes">
+
+				<div class="box_cli box_cli_47" data-step="2" data-intro="Veja a quantidade de TITULARES ativos e inativos">
+					<label class="txt_cli">TITULARES</label>
+					<div class="box_individual">
+						<div class="box_vl_cli">963</div>
+						<label class="box_cli_txt">ATIVOS</label>
+					</div>
+
+					<div class="box_individual">
+						<div class="box_vl_cli">283</div>
+						<label class="box_cli_txt">INATIVOS</label>
+					</div>					
+				</div>
+
+				<div class="box_cli box_cli_47" data-step="2" data-intro="Veja a quantidade de dependentes ativos e inativos">
+					<label class="txt_cli">DEPENDENTES</label>
+					<div class="box_individual">
+						<div class="box_vl_cli">1189</div>
+						<label class="box_cli_txt">ATIVOS</label>
+					</div>
+
+					<div class="box_individual">
+						<div class="box_vl_cli">188</div>
+						<label class="box_cli_txt">INATIVOS</label>
+					</div>					
+				</div>
+
+			</div>
+		<div class="box_cli_busca">	
+
+			<div id="box_buscar" data-step="5" data-intro="Procure por um cliente específico">
+					<form action="https://app.cartaobl.com.br/index.php?page=dashboard" method="POST">
+						<label>Busca rápida, Digite o nome, Nº. do CPF ou Nº. do Cartão do cliente</label><br>
+						<div class="duo" data-step="6" data-intro="Digite o Número do CPF/Cartão do cliente titular que deseja procurar">
+							<input type="text" name="buscar" placeholder="BUSCAR TITULAR/DEPENDENTE" class="busca form-control">
+						</div>
+						
+						<div class="duo">
+							<input type="submit" name="localizar" value="LOCALIZAR" class=" btn_pesquisa btn btn-default" data-step="8" data-intro="Clique neste botão para realizar a busca">
+
+							<input type="reset" name="localizar" value="LIMPAR" class=" btn_pesquisa btn btn-default" onclick="limpar();" data-step="9" data-intro="Ou aqui para apagar o número que foi digitado">
+						</div>
+					</form>
+			
+			</div>
+
+			<br>
+							
+			
+		</div>
+	</div><!--.box-->
+
+	<div class="box" id="bloco_empresas" data-step="10" data-intro="Acompanhe um breve relatório quantitativo das empresas">
+		<div class="titulo">EMPRESAS</div>
+			<div id="box_empresas">
+				<div class="box_emp" data-step="11" data-intro="Veja a quantidade de empresas ativas">
+					<label>ATIVAS</label>
+					<div class="box_vl">1</div>
+				</div>
+				<div class="box_emp" data-step="12" data-intro="E a quantidade de empresas inativas">
+					<label>INATIVAS</label>
+					<div class="box_vl">0</div>
+				</div>
+			</div>
+
+			<div id="box_ultimas_empresas" data-step="13" data-intro="Acompanhe ainda, as últimas 5 empresas cadastradas (Você será redirecionado para o cadastro da empresa, caso dê um clique na logo)">
+					<style type="text/css">
+			a.box_logo49{
+				width:90px;
+				height:90px;
+				text-decoration: none;
+				display: inline-block;
+				background-repeat: no-repeat;
+	background-image: url('logo_empresas/74150286778BL_Horizontal03_4x.png');
+				background-size: 80px;
+				background-position: center;
+				background-color: #fff;
+			}	
+
+		@media screen and ( max-width: 425px ) {
+			a.box_logo49{
+				width:90%;
+				background-size: contain;
+			}	
+		}
+			</style>
+
+
+		<a title="BALNEARIO FAMILIA LESSA LTDA" alt="BALNEARIO FAMILIA LESSA LTDA" class="box_logo49" href="https://app.cartaobl.com.br/index.php?page=editar_empresas_cadastradas&amp;r=1"></a>		
+					</div>
+			<br>
+	</div><!--.box-->
+</div><!--#fx-->
+
+
+
+<div id="fx">
+	<div class="box" id="bloco_faturas" data-step="14" data-intro="Relatório mensal das mensalidades (Apenas faturas do mês atual)"> 
+		<div class="titulo">FATURAS</div><br>
+		
+		<div class="box_cli" data-step="15" data-intro="Mensalidades Pagas">
+			<label>PAGAS</label>
+			<div class="box_vl">R$3.333,30</div>
+		</div>
+		<div class="box_cli" data-step="16" data-intro="Mensalidades Pendentes">
+			<label>PENDENTES</label>
+			<div class="box_vl">R$8.582,70</div>
+		</div>
+		<div class="box_cli" data-step="17" data-intro="Mensalidades Vencidas">
+			<label>VENCIDAS</label>
+			<div class="box_vl">R$6.980,60</div>
+		</div>
+	</div><!--.box-->
+
+	<div class="box_atalhos" id="bloco_atalhos" data-step="18" data-intro="Navegue pelas opções mais utilizadas usando os atalhos">
+		<div class="titulo">ATALHOS</div><br>
+		
+		<div class="box_ico" data-step="19" data-intro="Este atalho leva até a página de clientes cadastrados">
+			<a class="box_ico_desc" href="https://app.cartaobl.com.br/index.php?page=clientes_cadastrados">
+				<label>Clientes</label><br>
+				<img src="./Labcard System_files/icon_clientes.png">
+			</a>
+		</div>
+		<div class="box_ico" data-step="20" data-intro="Navegue até a página de empresas cadastradas">
+			<a class="box_ico_desc" href="https://app.cartaobl.com.br/index.php?page=empresas_cadastradas">
+				<label>Empresas</label><br>
+				<img src="./Labcard System_files/icon_empresa.png">
+			</a>
+		</div>
+		<div class="box_ico" data-step="21" data-intro="Ou ainda, até a página de consultores cadastrados">
+			<a class="box_ico_desc" href="https://app.cartaobl.com.br/index.php?page=consultores_cadastrados">
+				<label>Consultores</label><br>
+				<img src="./Labcard System_files/icon_consultores.png">
+			</a>
+		</div>
+		<div class="box_ico" data-step="22" data-intro="Fluxo caixa (Financeiro)">
+			<a class="box_ico_desc" href="https://app.cartaobl.com.br/index.php?page=fluxo_caixa">
+				<label>Fluxo de Caixa</label><br>
+				<img src="./Labcard System_files/icon_financas.png">
+			</a>
+		</div>
+		<div class="box_ico">
+			<a class="box_ico_desc" href="https://app.cartaobl.com.br/index.php?page=mensalidades" data-step="23" data-intro="Relatório de mensalidades">
+				<label>Mensalidades</label><br>
+				<img src="./Labcard System_files/icon_mensalidades.png">
+			</a>
+		</div>
+		<div class="box_ico">
+			<a class="box_ico_desc" href="https://app.cartaobl.com.br/index.php?page=gerenciar_clientes" data-step="24" data-intro="Relatório geral clientes">
+				<label>Relatório Clientes</label><br>
+				<img src="./Labcard System_files/icon_relatorios.png">
+			</a>
+		</div>
+		<div class="box_ico">
+			<a class="box_ico_desc" href="https://app.cartaobl.com.br/index.php?page=logs" data-step="25" data-intro="Relatório de Log's">
+				<label>Log's</label><br>
+				<img src="./Labcard System_files/icon_log.png">
+			</a>
+		</div>		
+		<div class="box_ico">
+			<a class="box_ico_desc" href="https://app.cartaobl.com.br/index.php?page=adquirirSms" data-step="25" data-intro="Adquirir Sms">
+				<label>Sms</label><br>
+				<img src="./Labcard System_files/icon_sms.png">
+			</a>
+		</div>	
+		
+	</div><!--.box-->
+</div><!--#fx-->
+
+	</div>
+
+
+	<div class="copy">
+		<div class="barra_direitos">
+			Todos os Direitos Reservados à <a href="https://labcard.com.br/" target="_blank">Sagach</a> - CNPJ: 38.113.739/0001-82
+		</div>
+		
+		<div class="box_btn_tuto">
+			<input type="button" name="tutorial" class="btn_tuto" onclick="openNewTab();" value="Tutorial">
+		</div>
+		
+        <script>
+            function openNewTab() {
+                window.open("https://labcardsystem.com/tutorial/treinamento/", "_blank");
+            }
+        </script>
+
+	<!--	<div class="box_btn_tuto">
+			<input type="button" name="tutorial" class="btn_tuto" onclick="javascript:startTour();" value="Tutorial">
+		</div>
+    -->
+
+	</div>
+
+
+
+
+
+<script src="./Labcard System_files/nav.jquery.min.js.download"></script>
+<script>
+	$('.nav').nav();
+</script>
+<!--MENU-->
+<script src="./Labcard System_files/bootstrap.min.js.download"></script>
+<script type="text/javascript">
+	$('[data-toggle="tooltip"]').tooltip();
+</script>
+
+<!-- START Código de incorporação do CHAT -->
+<div class="divIncorporarChat" style="width: 100%; text-align: right; vertical-align: bottom; display: inline-block; height: 100px;">
+	<div style="width: 85%; display: inline-block;"></div>
+	<div style="width: 9%; display: inline-block; height: 95px;" data-intro="Use o chat para entrar em contato com nossa equipe. Tire dúvidas e resolva problemas sem sair da plataforma!"></div>
+</div>
+
+<!--Start of Tawk.to Script-->
+
+  
+<!--CODIGO PARA BLOQUEAR O CHAT BASTA COMENTAR O CÓDIGO ABAIXO PARA SER BLOQUEADO O CHAT-->
+<script src="./Labcard System_files/chat.js.download"></script>
+    
+<!--End of Tawk.to Script-->
+
+<!-- END Código de incorporação do CHAT -->
+
+
+<!-- START Código para verificar se tem novas ofertas -->
+<!-- END Código para verificar se tem novas ofertas -->
+
+<div id="the_notes"></div><div id="the_lights"><div id="the_lights_close"></div></div><div id="tldeFGO3ow2zBSwRiNsUZB" style="display: block !important;"><div id="min-widget" data-v-app=""><iframe id="tiJ0uH7bG1fdFSouqXOs4v" src="./Labcard System_files/saved_resource.html" title="Widget de chat" frameborder="0" scrolling="no" width="64px" height="60px" class="" referrerpolicy="no-referrer-when-downgrade" style="outline: none !important; visibility: visible !important; resize: none !important; box-shadow: none !important; overflow: visible !important; background: none transparent !important; opacity: 1 !important; inset: auto 20px 20px auto !important; position: fixed !important; border: 0px !important; min-height: 60px !important; min-width: 64px !important; max-height: 60px !important; max-width: 64px !important; padding: 0px !important; margin: 0px !important; transition-property: none !important; transform: none !important; width: 64px !important; height: 60px !important; display: block !important; z-index: 1000003 !important; cursor: none !important; float: none !important; border-radius: unset !important; pointer-events: auto !important; clip: auto !important; color-scheme: light !important;"></iframe></div><div id="max-widget"></div><div id="branding-widget" data-v-app=""><iframe id="tAy-CGk1lPQLDylz4nUgrQ" src="./Labcard System_files/saved_resource(1).html" title="Visitar tawk.to" frameborder="0" scrolling="no" height="30px" class="" referrerpolicy="no-referrer-when-downgrade" style="outline: none !important; visibility: visible !important; resize: none !important; box-shadow: none !important; overflow: visible !important; background: none transparent !important; opacity: 1 !important; inset: auto 20px 30px auto !important; position: fixed !important; border: 0px !important; min-height: 45px !important; min-width: 350px !important; max-height: 45px !important; max-width: 350px !important; padding: 0px !important; margin: 0px !important; transition-property: none !important; transform: none !important; width: 350px !important; height: 45px !important; display: none !important; z-index: 1000002 !important; cursor: none !important; float: none !important; border-radius: unset !important; pointer-events: auto !important; clip: auto !important; color-scheme: light !important;"></iframe></div><div id="message-preview" data-v-app=""><iframe id="tyTlFYYngTzXOt0Q-WAwVX" src="./Labcard System_files/saved_resource(2).html" title="Widget de chat" frameborder="0" scrolling="no" width="360px" height="545px" class="" referrerpolicy="no-referrer-when-downgrade" style="bottom: 90px; outline: none !important; visibility: hidden !important; resize: none !important; box-shadow: none !important; overflow: visible !important; background: none transparent !important; opacity: 1 !important; top: auto !important; right: 20px !important; left: auto !important; position: fixed !important; border: 0px !important; min-height: 545px !important; min-width: 360px !important; max-height: 545px !important; max-width: 360px !important; padding: 0px !important; margin: 0px !important; transition-property: none !important; transform: none !important; width: 360px !important; height: 545px !important; display: none !important; z-index: auto !important; cursor: none !important; float: none !important; border-radius: unset !important; pointer-events: auto !important; clip: auto !important; color-scheme: light !important;"></iframe></div><div id="chat-bubble"></div></div></body></html>

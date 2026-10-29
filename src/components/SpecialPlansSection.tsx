@@ -11,6 +11,9 @@ import {
   DialogTitle 
 } from '@/components/ui/dialog';
 
+import { CustomFamilyCheckoutModal } from '@/components/club/CustomFamilyCheckoutModal';
+import type { BillingCycle } from '@/lib/club-types';
+
 export function SpecialPlansSection() {
   const [quantities, setQuantities] = useState({
     adult: 0,
@@ -23,146 +26,38 @@ export function SpecialPlansSection() {
   });
 
   const [isOptionsOpen, setIsOptionsOpen] = useState(false);
-  const [selectedPlanInfo, setSelectedPlanInfo] = useState<any>(null);
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [selectedCycle, setSelectedCycle] = useState<BillingCycle>('ANNUAL');
 
   const payingPeople = quantities.adult + quantities.student + quantities.teacher + quantities.server;
   const totalPeople = payingPeople + quantities.child + quantities.senior + quantities.pcd;
   let planName = 'Lessa Club personalizado';
-  if (payingPeople === 1) planName = 'Lessa Club (individual)';
-  else if (payingPeople >= 2 && payingPeople <= 5) planName = `Lessa Club (${payingPeople} pessoas)`;
+  if (payingPeople === 1 && totalPeople === 1) planName = 'Lessa Club (individual)';
+  else if (totalPeople >= 2) planName = `Lessa Club Familiar (${totalPeople} pessoas)`;
   else if (payingPeople === 0) planName = 'Lessa Club';
-
-  const getPlanLink = () => {
-    // Casos especiais (1 única pessoa de categoria com desconto)
-    if (payingPeople === 1) {
-      if (quantities.student === 1) return 'https://cartaobl.com.br/planos/?regPlano=1211212252673382';
-      if (quantities.teacher === 1) return 'https://cartaobl.com.br/planos/?regPlano=1221212252632308';
-      if (quantities.server === 1) return 'https://cartaobl.com.br/planos/?regPlano=1201212252611556';
-      if (quantities.adult === 1) return 'https://cartaobl.com.br/planos/?regPlano=1212252516762';
-    }
-
-    // Case: 1 Lessa Club + 1 Dependent (Student, Teacher or Server)
-    if (quantities.adult === 1 && payingPeople === 2) {
-      if (quantities.student === 1 || quantities.teacher === 1 || quantities.server === 1) {
-        return 'https://cartaobl.com.br/planos/?regPlano=1241212252690163';
-      }
-    }
-
-    // Casos de planos por quantidade de pessoas (Adultos)
-    if (quantities.adult === payingPeople) {
-      if (payingPeople === 2) return 'https://cartaobl.com.br/planos/?regPlano=1051212252525908';
-      if (payingPeople === 3) return 'https://cartaobl.com.br/planos/?regPlano=1061212252544284';
-      if (payingPeople === 4) return 'https://cartaobl.com.br/planos/?regPlano=1151212252593723';
-      if (payingPeople === 5) return 'https://cartaobl.com.br/planos/?regPlano=1231212252657405';
-    }
-
-    // Build Detailed Message
-    const choices = [];
-    if (quantities.adult > 0) choices.push(`- ${quantities.adult} Lessa Club`);
-    if (quantities.student > 0) choices.push(`- ${quantities.student} Estudante${quantities.student > 1 ? 's' : ''}`);
-    if (quantities.teacher > 0) choices.push(`- ${quantities.teacher} Professor${quantities.teacher > 1 ? 'es' : ''}`);
-    if (quantities.server > 0) choices.push(`- ${quantities.server} Servidor${quantities.server > 1 ? 'es' : ''}`);
-    if (quantities.child > 0) choices.push(`- ${quantities.child} Criança${quantities.child > 1 ? 's' : ''} (Acesso Livre)`);
-    if (quantities.senior > 0) choices.push(`- ${quantities.senior} Idoso${quantities.senior > 1 ? 's' : ''} (Acesso Livre)`);
-    if (quantities.pcd > 0) choices.push(`- ${quantities.pcd} PCD/TEA (Acesso Livre)`);
-
-    const choicesText = choices.length > 0 ? choices.join('\n') : '- Nenhuma opção selecionada';
-
-    const message = `Olá! Gostaria de finalizar minha adesão ao Lessa Club baseada na minha simulação:\n\n*Resumo da Adesão:*\n- Total de Pessoas: ${totalPeople}\n- Valor Total: ${formatCurrency(totalMonthly)}\n\n*Escolhas Detalhadas:*\n${choicesText}`;
-    return `https://wa.me/5569992626140?text=${encodeURIComponent(message)}`;
-  };
-
-  const handleJoinClick = () => {
-    if (totalPeople === 0) return;
-    if (payingPeople === 1) {
-      if (quantities.student === 1) {
-        setSelectedPlanInfo({
-          type: 'Estudante',
-          monthlyLink: 'https://cartaobl.com.br/planos/?regPlano=1211212252673382',
-          annualLink: 'https://cartaobl.com.br/planos/?regPlano=1281212252613283',
-          monthlyPrice: 25,
-          annualInstallment: 22.50,
-          annualTotal: 270
-        });
-        setIsOptionsOpen(true);
-        return;
-      }
-      if (quantities.teacher === 1) {
-        setSelectedPlanInfo({
-          type: 'Professor',
-          monthlyLink: 'https://cartaobl.com.br/planos/?regPlano=1221212252632308',
-          annualLink: 'https://cartaobl.com.br/planos/?regPlano=127121225261720',
-          monthlyPrice: 25,
-          annualInstallment: 22.50,
-          annualTotal: 270
-        });
-        setIsOptionsOpen(true);
-        return;
-      }
-      if (quantities.server === 1) {
-        setSelectedPlanInfo({
-          type: 'Servidor',
-          monthlyLink: 'https://cartaobl.com.br/planos/?regPlano=1201212252611556',
-          annualLink: 'https://cartaobl.com.br/planos/?regPlano=1261212252611074',
-          monthlyPrice: 25,
-          annualInstallment: 22.50,
-          annualTotal: 270
-        });
-        setIsOptionsOpen(true);
-        return;
-      }
-      if (quantities.adult === 1) {
-        setSelectedPlanInfo({
-          type: 'Individual',
-          monthlyLink: 'https://cartaobl.com.br/planos/?regPlano=1212252516762',
-          annualLink: 'https://cartaobl.com.br/planos/?regPlano=1291212252694389',
-          monthlyPrice: 49.90,
-          annualInstallment: 44.91,
-          annualTotal: 538.92
-        });
-        setIsOptionsOpen(true);
-        return;
-      }
-    }
-
-    // Case: 1 Lessa Club + 1 Dependent (Student, Teacher or Server)
-    if (quantities.adult === 1 && payingPeople === 2) {
-      if (quantities.student === 1 || quantities.teacher === 1 || quantities.server === 1) {
-        window.open('https://cartaobl.com.br/planos/?regPlano=1241212252690163', '_blank');
-        return;
-      }
-    }
-
-    // Modal logic for Lessa Club 2-5 adults (only adults)
-    if (quantities.adult === payingPeople && payingPeople >= 2 && payingPeople <= 5) {
-      const plans = {
-        2: { monthly: 99.80, installment: 89.82, total: 1077.84, mLink: 'https://cartaobl.com.br/planos/?regPlano=1051212252525908', aLink: 'https://cartaobl.com.br/planos/?regPlano=130121225265226' },
-        3: { monthly: 149.70, installment: 134.73, total: 1616.76, mLink: 'https://cartaobl.com.br/planos/?regPlano=1061212252544284', aLink: 'https://cartaobl.com.br/planos/?regPlano=1311212252636769' },
-        4: { monthly: 199.60, installment: 179.64, total: 2155.68, mLink: 'https://cartaobl.com.br/planos/?regPlano=1151212252593723', aLink: 'https://cartaobl.com.br/planos/?regPlano=1321212252666626' },
-        5: { monthly: 249.50, installment: 224.55, total: 2694.60, mLink: 'https://cartaobl.com.br/planos/?regPlano=1231212252657405', aLink: 'https://cartaobl.com.br/planos/?regPlano=1331212252649609' }
-      };
-      const plan = plans[payingPeople as keyof typeof plans];
-      setSelectedPlanInfo({
-        type: `${payingPeople} Pessoas`,
-        monthlyLink: plan.mLink,
-        annualLink: plan.aLink,
-        monthlyPrice: plan.monthly,
-        annualInstallment: plan.installment,
-        annualTotal: plan.total
-      });
-      setIsOptionsOpen(true);
-      return;
-    }
-    
-    // For other cases (6+ or mixed), use the direct link or WhatsApp
-    window.open(getPlanLink(), '_blank');
-  };
 
   const totalMonthly = 
     quantities.adult * 44.91 + 
     quantities.student * 22.50 + 
     quantities.teacher * 22.50 + 
     quantities.server * 22.50;
+
+  const totalRegularMonthly =
+    quantities.adult * 49.90 +
+    quantities.student * 25.00 +
+    quantities.teacher * 25.00 +
+    quantities.server * 25.00;
+
+  const handleJoinClick = () => {
+    if (totalPeople === 0) return;
+    setIsOptionsOpen(true);
+  };
+
+  const openUnifiedCheckout = (cycle: BillingCycle) => {
+    setSelectedCycle(cycle);
+    setIsOptionsOpen(false);
+    setIsCheckoutOpen(true);
+  };
 
   return (
     <section id="especiais" className="py-12 sm:py-24 bg-transparent">
@@ -372,7 +267,9 @@ export function SpecialPlansSection() {
             <DialogTitle className="text-2xl font-black text-primary text-center mb-2 uppercase tracking-tighter">
               Escolha sua modalidade
             </DialogTitle>
-            <p className="text-center text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-4">Plano {selectedPlanInfo?.type}</p>
+            <p className="text-center text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-4">
+              {planName} ({totalPeople} {totalPeople === 1 ? 'integrante' : 'integrantes'})
+            </p>
           </DialogHeader>
           
           <div className="space-y-4">
@@ -388,14 +285,18 @@ export function SpecialPlansSection() {
                </h4>
                <div className="mb-5">
                  <p className="text-[#332200] font-black text-3xl mb-1">
-                   12x de R$ {selectedPlanInfo?.annualInstallment?.toFixed(2).replace('.', ',')}
+                   12x de R$ {totalMonthly.toFixed(2).replace('.', ',')}
                  </p>
                  <p className="text-[10px] text-[#5c3c00] font-bold opacity-70">
-                   (ou R$ {selectedPlanInfo?.annualTotal?.toFixed(2).replace('.', ',')} à vista)
+                   (ou R$ {(totalMonthly * 12).toFixed(2).replace('.', ',')} à vista • Preço Congelado até 2027)
                  </p>
                </div>
-               <Button asChild className="w-full bg-gradient-to-r from-[#bf953f] to-[#aa771c] hover:from-[#aa771c] hover:to-[#bf953f] text-[#332200] font-black rounded-2xl h-12 shadow-lg shadow-gold/20 uppercase text-xs tracking-wider border border-white/20">
-                 <a href={selectedPlanInfo?.annualLink} target="_blank" rel="noopener noreferrer">ADERIR ANUAL</a>
+               <Button
+                 type="button"
+                 onClick={() => openUnifiedCheckout('ANNUAL')}
+                 className="w-full bg-gradient-to-r from-[#bf953f] to-[#aa771c] hover:from-[#aa771c] hover:to-[#bf953f] text-[#332200] font-black rounded-2xl h-12 shadow-lg shadow-gold/20 uppercase text-xs tracking-wider border border-white/20"
+               >
+                 ADERIR ANUAL (EMITIR CARTEIRINHAS)
                </Button>
             </div>
 
@@ -408,19 +309,31 @@ export function SpecialPlansSection() {
                </h4>
                <div className="mb-5">
                  <p className="text-emerald-700 font-black text-3xl mb-1">
-                   R$ {selectedPlanInfo?.monthlyPrice?.toFixed(2).replace('.', ',')} / mês
+                   R$ {totalRegularMonthly.toFixed(2).replace('.', ',')} / mês
                  </p>
                  <p className="text-[10px] text-emerald-600 font-bold opacity-70">
-                   Assinatura recorrente mensal
+                   Assinatura recorrente mensal sem fidelidade
                  </p>
                </div>
-               <Button asChild className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-2xl h-12 uppercase text-xs tracking-wider shadow-md">
-                 <a href={selectedPlanInfo?.monthlyLink} target="_blank" rel="noopener noreferrer">ADERIR MENSAL</a>
+               <Button
+                 type="button"
+                 onClick={() => openUnifiedCheckout('MONTHLY')}
+                 className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-2xl h-12 uppercase text-xs tracking-wider shadow-md"
+               >
+                 ADERIR MENSAL (EMITIR CARTEIRINHAS)
                </Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
+
+      <CustomFamilyCheckoutModal
+        open={isCheckoutOpen}
+        onOpenChange={setIsCheckoutOpen}
+        initialQuantities={quantities}
+        initialCycle={selectedCycle}
+      />
     </section>
   );
 }
+
