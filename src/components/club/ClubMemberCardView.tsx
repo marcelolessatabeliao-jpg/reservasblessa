@@ -227,6 +227,9 @@ export const ClubMemberCardView: React.FC<ClubMemberCardViewProps> = ({
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
+        logging: false,
+        scrollX: 0,
+        scrollY: 0,
       });
       const link = document.createElement('a');
       link.download = `Carteirinha_${member.fullName.replace(/\s+/g, '_')}_${member.cardNumber}.png`;
@@ -238,6 +241,10 @@ export const ClubMemberCardView: React.FC<ClubMemberCardViewProps> = ({
       setIsExporting(false);
     }
   };
+
+  const cleanPlanName = (member.modalityName || member.planCycleLabel || 'Lessa Club')
+    .replace(/\s*\(.*?\)/g, '')
+    .trim();
 
   return (
     <div className="space-y-3">
@@ -273,7 +280,7 @@ export const ClubMemberCardView: React.FC<ClubMemberCardViewProps> = ({
               {member.fullName}
             </span>
             <span className="text-xs text-slate-300">
-              • {member.planCycleLabel} • Nº Cartão: <strong>{member.cardNumber}</strong>
+              • {cleanPlanName} • Nº Cartão: <strong>{member.cardNumber}</strong>
             </span>
           </div>
 
@@ -555,7 +562,7 @@ export const ClubMemberCardView: React.FC<ClubMemberCardViewProps> = ({
             ref={frontOnlyRef}
             className="relative w-full overflow-hidden select-none shadow-md"
             style={{
-              aspectRatio: '1600 / 1000',
+              aspectRatio: '3240 / 2045',
               backgroundColor: '#006818',
               borderRadius: sideBySidePrintMode ? '0px' : '14px',
             }}
@@ -568,7 +575,7 @@ export const ClubMemberCardView: React.FC<ClubMemberCardViewProps> = ({
               className="absolute inset-0 w-full h-full object-fill pointer-events-none"
             />
 
-            {/* Moldura da Foto 3x4 do Associado (Cobre também a foto modelo do 18.png) */}
+            {/* Moldura da Foto 3x4 do Associado */}
             <div
               onClick={() =>
                 onUpdatePhoto &&
@@ -610,7 +617,7 @@ export const ClubMemberCardView: React.FC<ClubMemberCardViewProps> = ({
               )}
             </div>
 
-            {/* QR Code Dinâmico de Verificação Cadastral — Posicionado no canto superior direito livre, sem cobrir a logo nem o nome do plano */}
+            {/* QR Code Dinâmico de Verificação Cadastral */}
             <div
               style={{
                 position: 'absolute',
@@ -633,32 +640,33 @@ export const ClubMemberCardView: React.FC<ClubMemberCardViewProps> = ({
               />
             </div>
 
-            {/* CAMPOS DINÂMICOS INFERIORES (NOME, CPF, Nº CARTÃO, VALIDADE, MODALIDADE) */}
-            {/* NOME */}
+            {/* CAMPOS DINÂMICOS INFERIORES ORGANIZADOS EM GRADE 2x3 (NOME, CPF, Nº CARTÃO, VALIDADE, PLANO) */}
+            {/* LINHA 1: NOME DO ASSOCIADO (ESQUERDA) */}
             <div
               style={{
                 position: 'absolute',
-                left: '6.2%',
-                top: '71.5%',
-                width: '50%',
+                left: '4.8%',
+                top: '67.5%',
+                width: '54%',
                 zIndex: 10,
               }}
             >
               <div
                 style={{
-                  fontSize: 'clamp(7px, 1.3vw, 10px)',
-                  color: 'rgba(255,255,255,0.88)',
+                  fontSize: 'clamp(7px, 1.1vw, 10px)',
+                  color: 'rgba(255,255,255,0.85)',
                   fontWeight: 700,
-                  lineHeight: 1,
+                  lineHeight: 1.1,
                   letterSpacing: '0.04em',
                   textTransform: 'uppercase',
+                  marginBottom: '2px',
                 }}
               >
                 NOME
               </div>
               <div
                 style={{
-                  fontSize: 'clamp(11px, 2.2vw, 18px)',
+                  fontSize: 'clamp(11px, 2.1vw, 18px)',
                   color: '#ffffff',
                   fontWeight: 900,
                   lineHeight: 1.15,
@@ -666,138 +674,163 @@ export const ClubMemberCardView: React.FC<ClubMemberCardViewProps> = ({
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
-                  textShadow: '0 1px 2px rgba(0,0,0,0.35)',
+                  textShadow: '0 2px 4px rgba(0,0,0,0.5)',
                 }}
               >
                 {member.fullName}
               </div>
             </div>
 
-            {/* CPF */}
+            {/* LINHA 1: CPF (DIREITA) */}
             <div
               style={{
                 position: 'absolute',
-                left: '58.2%',
-                top: '72.5%',
-                width: '39%',
+                left: '61.5%',
+                top: '67.5%',
+                width: '35%',
                 zIndex: 10,
               }}
             >
               <div
                 style={{
-                  fontSize: 'clamp(7px, 1.2vw, 10px)',
-                  color: 'rgba(255,255,255,0.88)',
+                  fontSize: 'clamp(7px, 1.1vw, 10px)',
+                  color: 'rgba(255,255,255,0.85)',
                   fontWeight: 700,
-                  lineHeight: 1,
+                  lineHeight: 1.1,
+                  letterSpacing: '0.04em',
                   textTransform: 'uppercase',
+                  marginBottom: '2px',
                 }}
               >
                 CPF
               </div>
               <div
                 style={{
-                  fontSize: 'clamp(11px, 2.1vw, 17px)',
+                  fontSize: 'clamp(11px, 1.9vw, 17px)',
                   color: '#ffffff',
                   fontWeight: 900,
                   lineHeight: 1.15,
-                  textShadow: '0 1px 2px rgba(0,0,0,0.35)',
+                  letterSpacing: '0.03em',
+                  whiteSpace: 'nowrap',
+                  textShadow: '0 2px 4px rgba(0,0,0,0.5)',
                 }}
               >
                 {member.cpf || 'ISENTO / DEP.'}
               </div>
             </div>
 
-            {/* Nº CARTÃO */}
+            {/* LINHA 2: Nº CARTÃO (ESQUERDA) */}
             <div
               style={{
                 position: 'absolute',
-                left: '6.2%',
-                top: '85.2%',
-                width: '28%',
+                left: '4.8%',
+                top: '81.5%',
+                width: '26%',
                 zIndex: 10,
               }}
             >
               <div
                 style={{
-                  fontSize: 'clamp(6.5px, 1.15vw, 9.5px)',
-                  color: 'rgba(255,255,255,0.88)',
+                  fontSize: 'clamp(6.5px, 1.0vw, 9.5px)',
+                  color: 'rgba(255,255,255,0.85)',
                   fontWeight: 700,
-                  lineHeight: 1,
+                  lineHeight: 1.1,
+                  letterSpacing: '0.04em',
                   textTransform: 'uppercase',
+                  marginBottom: '2px',
                 }}
               >
                 Nº CARTÃO
               </div>
               <div
                 style={{
-                  fontSize: 'clamp(11px, 2.1vw, 17px)',
+                  fontSize: 'clamp(10.5px, 1.7vw, 16px)',
                   color: '#ffffff',
                   fontWeight: 900,
                   lineHeight: 1.15,
-                  textShadow: '0 1px 2px rgba(0,0,0,0.35)',
+                  letterSpacing: '0.03em',
+                  textShadow: '0 2px 4px rgba(0,0,0,0.5)',
                 }}
               >
                 {member.cardNumber}
               </div>
             </div>
 
-            {/* VALIDADE */}
+            {/* LINHA 2: VALIDADE (MEIO) */}
             <div
               style={{
                 position: 'absolute',
-                left: '36.2%',
-                top: '85.2%',
-                width: '20%',
+                left: '33%',
+                top: '81.5%',
+                width: '26%',
                 zIndex: 10,
               }}
             >
               <div
                 style={{
-                  fontSize: 'clamp(6.5px, 1.15vw, 9.5px)',
-                  color: 'rgba(255,255,255,0.88)',
+                  fontSize: 'clamp(6.5px, 1.0vw, 9.5px)',
+                  color: 'rgba(255,255,255,0.85)',
                   fontWeight: 700,
-                  lineHeight: 1,
+                  lineHeight: 1.1,
+                  letterSpacing: '0.04em',
                   textTransform: 'uppercase',
+                  marginBottom: '2px',
                 }}
               >
                 VALIDADE
               </div>
               <div
                 style={{
-                  fontSize: 'clamp(11px, 2.1vw, 17px)',
+                  fontSize: 'clamp(10.5px, 1.7vw, 16px)',
                   color: '#ffffff',
                   fontWeight: 900,
                   lineHeight: 1.15,
-                  textShadow: '0 1px 2px rgba(0,0,0,0.35)',
+                  letterSpacing: '0.03em',
+                  textShadow: '0 2px 4px rgba(0,0,0,0.5)',
                 }}
               >
                 {member.validityLabel}
               </div>
             </div>
 
-            {/* NOME DO PLANO + RECORRÊNCIA (Canto Inferior Direito) */}
+            {/* LINHA 2: PLANO (DIREITA COM DESTAQUE EM AMARELO) */}
             <div
               style={{
                 position: 'absolute',
-                left: '55.5%',
-                top: '89.5%',
-                width: '42%',
+                left: '61.5%',
+                top: '81.5%',
+                width: '35%',
                 zIndex: 10,
               }}
             >
               <div
                 style={{
-                  fontSize: 'clamp(8px, 1.4vw, 12px)',
-                  color: '#ffffff',
+                  fontSize: 'clamp(6.5px, 1.0vw, 9.5px)',
+                  color: '#fde047',
                   fontWeight: 800,
                   lineHeight: 1.1,
+                  letterSpacing: '0.04em',
+                  textTransform: 'uppercase',
+                  marginBottom: '2px',
+                }}
+              >
+                PLANO
+              </div>
+              <div
+                style={{
+                  fontSize: 'clamp(10.5px, 1.7vw, 16px)',
+                  color: '#facc15',
+                  fontWeight: 900,
+                  lineHeight: 1.15,
+                  textTransform: 'uppercase',
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
-                  textShadow: '0 1px 2px rgba(0,0,0,0.35)',
+                  textShadow: '0 2px 4px rgba(0,0,0,0.6)',
                 }}
+                title={cleanPlanName}
               >
-                {member.planCycleLabel}
+                {cleanPlanName}
               </div>
             </div>
           </div>
@@ -808,7 +841,7 @@ export const ClubMemberCardView: React.FC<ClubMemberCardViewProps> = ({
           <div
             className="relative w-full overflow-hidden select-none shadow-md"
             style={{
-              aspectRatio: '1600 / 1000',
+              aspectRatio: '3240 / 2045',
               backgroundColor: '#006818',
               borderRadius: sideBySidePrintMode ? '0px' : '14px',
             }}

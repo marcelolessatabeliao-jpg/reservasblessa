@@ -12,6 +12,7 @@ export interface ClubModality {
   monthlyPrice: number;
   annualPrice: number; // valor anual integral (12x annualInstallment)
   annualInstallment: number; // parcela mensal no plano anual
+  maxInstallments?: number; // parcelamento máximo no cartão (padrão 12x)
   adhesionFee: number;
   maxDependents: number;
   gracePeriodDays: number;
@@ -32,6 +33,15 @@ export interface ClubModality {
   active: boolean;
   emoji?: string;
   badgeText?: string;
+  benefits?: string[];
+  visibleOnTotem?: boolean;
+  addExistingConsultants?: boolean;
+  addExistingInfluencers?: boolean;
+  telemedicina?: boolean;
+  planType?: 'NORMAL' | 'EMPRESARIAL' | 'CONVENIO' | 'PUBLICIDADE';
+  recurrenceType?: 'MENSAL' | 'TRIMESTRAL' | 'SEMESTRAL' | 'ANUAL' | 'VITALICIO';
+  sortOrder?: number;
+  deleted?: boolean;
 }
 
 export interface ClubMember {
@@ -58,6 +68,9 @@ export interface ClubMember {
   validityLabel: string; // Ex: 10/2027
   monthlyValue: number;
   status: SubscriptionStatus;
+  expirationDate?: string; // YYYY-MM-DD - Vencimento individual do cadastro/benefício do dependente (ex: quando a criança completa idade pagante ou expira comprovação)
+  expirationNotes?: string; // Motivo do vencimento (ex: "Completa idade em 2 meses - passa a ser pagante")
+  attachments?: ClubAttachment[]; // Anexos e documentos individuais do dependente
   createdAt: string;
 }
 
@@ -82,6 +95,44 @@ export interface ClubInvoice {
   pixQrCode?: string;
   description?: string;
   createdAt: string;
+}
+
+export interface ClubAttachment {
+  id: string;
+  name: string;
+  mimeType: string;
+  dataUrl: string;
+  createdAt: string;
+}
+
+export interface ClubVisitRecord {
+  id: string;
+  date: string; // YYYY-MM-DD
+  time?: string; // HH:mm
+  memberName: string;
+  cardNumber: string;
+  source: 'QR_SCAN' | 'ADMIN_AGENDA';
+  notes?: string;
+}
+
+export interface ClubAdditionalService {
+  id: string;
+  name: string;
+  category?: string;
+  price: number;
+  addedAt: string;
+  notes?: string;
+}
+
+export interface ClubRegisteredCard {
+  brand?: string;
+  holderName: string;
+  last4Digits: string;
+  expiry: string;
+  cardType: 'CREDIT' | 'DEBIT';
+  installments: number;
+  installmentValue: number;
+  registeredAt: string;
 }
 
 export interface ClubSubscription {
@@ -113,6 +164,8 @@ export interface ClubSubscription {
   origin: 'SITE' | 'ADMIN' | 'IMPORT_LABCARD';
   consultantName?: string;
   influencerName?: string;
+  consultantCode?: string;
+  consultantId?: string;
   planSummaryLabel: string; // Ex: "Família Personalizado (1 Integral + 1 Estudante + 1 Kids)"
   vehicleModel?: string;
   vehiclePlate?: string;
@@ -130,6 +183,10 @@ export interface ClubSubscription {
   endDate: string; // YYYY-MM-DD
   members: ClubMember[];
   invoices: ClubInvoice[];
+  attachments?: ClubAttachment[];
+  visits?: ClubVisitRecord[];
+  additionalServices?: ClubAdditionalService[];
+  registeredCard?: ClubRegisteredCard;
   createdAt: string;
   updatedAt: string;
 }
@@ -142,6 +199,16 @@ export interface ClubConsultant {
   email?: string;
   role: 'CONSULTOR' | 'INFLUENCER';
   commissionPercent: number;
+  commissionType?: 'PERCENT' | 'FIXED';
+  commissionValue?: number;
+  commissionRecurring?: boolean;
+  commissionFirstOnly?: boolean;
+  paymentMethodsAllowed?: {
+    boleto: boolean;
+    pix: boolean;
+    creditCard: boolean;
+    recurrence: boolean;
+  };
   referralCode: string;
   status: 'ACTIVE' | 'PENDING' | 'INACTIVE';
   createdAt: string;
@@ -178,14 +245,15 @@ export const DEFAULT_CLUB_MODALITIES: ClubModality[] = [
     verse: '“O Senhor prosperará o trabalho das tuas mãos.” – Deuteronômio 28:12',
     monthlyPrice: 49.90,
     annualInstallment: 44.91,
-    annualPrice: 538.92,
+    annualPrice: 538.91,
+    maxInstallments: 12,
     adhesionFee: 0,
     maxDependents: 99,
     gracePeriodDays: 0,
-    frontCardUrl: '/cards/18.png',
-    dependentFrontCardUrl: '/cards/18.png',
+    frontCardUrl: '/cards/44.png',
+    dependentFrontCardUrl: '/cards/44.png',
     backCardUrl: '/cards/24.png',
-    dependentBackCardUrl: '/cards/15.png',
+    dependentBackCardUrl: '/cards/24.png',
     requiresDocument: false,
     documentLabel: 'Documento Oficial com Foto (RG ou CNH)',
     isFreeTier: false,
@@ -207,13 +275,14 @@ export const DEFAULT_CLUB_MODALITIES: ClubModality[] = [
     monthlyPrice: 25.00,
     annualInstallment: 22.50,
     annualPrice: 270.00,
+    maxInstallments: 12,
     adhesionFee: 0,
     maxDependents: 99,
     gracePeriodDays: 0,
-    frontCardUrl: '/cards/6.png',
-    dependentFrontCardUrl: '/cards/6.png',
-    backCardUrl: '/cards/16.png',
-    dependentBackCardUrl: '/cards/4.png',
+    frontCardUrl: '/cards/7.png',
+    dependentFrontCardUrl: '/cards/7.png',
+    backCardUrl: '/cards/24.png',
+    dependentBackCardUrl: '/cards/24.png',
     requiresDocument: true,
     documentLabel: 'Carteirinha de Estudante ou Declaração Escolar/Faculdade',
     isFreeTier: false,
@@ -235,13 +304,14 @@ export const DEFAULT_CLUB_MODALITIES: ClubModality[] = [
     monthlyPrice: 25.00,
     annualInstallment: 22.50,
     annualPrice: 270.00,
+    maxInstallments: 12,
     adhesionFee: 0,
     maxDependents: 99,
     gracePeriodDays: 0,
-    frontCardUrl: '/cards/3.png',
-    dependentFrontCardUrl: '/cards/3.png',
-    backCardUrl: '/cards/4.png',
-    dependentBackCardUrl: '/cards/16.png',
+    frontCardUrl: '/cards/2.png',
+    dependentFrontCardUrl: '/cards/2.png',
+    backCardUrl: '/cards/24.png',
+    dependentBackCardUrl: '/cards/24.png',
     requiresDocument: true,
     documentLabel: 'Holerite, Crachá ou Comprovante de Docência',
     isFreeTier: false,
@@ -263,13 +333,14 @@ export const DEFAULT_CLUB_MODALITIES: ClubModality[] = [
     monthlyPrice: 25.00,
     annualInstallment: 22.50,
     annualPrice: 270.00,
+    maxInstallments: 12,
     adhesionFee: 0,
     maxDependents: 99,
     gracePeriodDays: 0,
-    frontCardUrl: '/cards/10.png',
-    dependentFrontCardUrl: '/cards/10.png',
-    backCardUrl: '/cards/4.png',
-    dependentBackCardUrl: '/cards/16.png',
+    frontCardUrl: '/cards/9.png',
+    dependentFrontCardUrl: '/cards/9.png',
+    backCardUrl: '/cards/24.png',
+    dependentBackCardUrl: '/cards/24.png',
     requiresDocument: true,
     documentLabel: 'Holerite, Portaria ou Funcional de Servidor Público',
     isFreeTier: false,
@@ -294,8 +365,8 @@ export const DEFAULT_CLUB_MODALITIES: ClubModality[] = [
     adhesionFee: 0,
     maxDependents: 99,
     gracePeriodDays: 0,
-    frontCardUrl: '/cards/38.png',
-    dependentFrontCardUrl: '/cards/38.png',
+    frontCardUrl: '/cards/37.png',
+    dependentFrontCardUrl: '/cards/37.png',
     backCardUrl: '/cards/39.png',
     dependentBackCardUrl: '/cards/39.png',
     requiresDocument: true,
@@ -322,10 +393,10 @@ export const DEFAULT_CLUB_MODALITIES: ClubModality[] = [
     adhesionFee: 0,
     maxDependents: 99,
     gracePeriodDays: 0,
-    frontCardUrl: '/cards/26.png',
-    dependentFrontCardUrl: '/cards/26.png',
-    backCardUrl: '/cards/27.png',
-    dependentBackCardUrl: '/cards/27.png',
+    frontCardUrl: '/cards/25.png',
+    dependentFrontCardUrl: '/cards/25.png',
+    backCardUrl: '/cards/39.png',
+    dependentBackCardUrl: '/cards/39.png',
     requiresDocument: true,
     documentLabel: 'RG ou CNH comprovando 60 anos ou mais',
     isFreeTier: true,
@@ -350,10 +421,10 @@ export const DEFAULT_CLUB_MODALITIES: ClubModality[] = [
     adhesionFee: 0,
     maxDependents: 99,
     gracePeriodDays: 0,
-    frontCardUrl: '/cards/35.png',
-    dependentFrontCardUrl: '/cards/35.png',
-    backCardUrl: '/cards/36.png',
-    dependentBackCardUrl: '/cards/36.png',
+    frontCardUrl: '/cards/34.png',
+    dependentFrontCardUrl: '/cards/34.png',
+    backCardUrl: '/cards/24.png',
+    dependentBackCardUrl: '/cards/24.png',
     requiresDocument: true,
     documentLabel: 'Laudo Médico ou Carteirinha CIPTEA / PCD',
     isFreeTier: true,
@@ -381,7 +452,7 @@ export const DEFAULT_CLUB_MODALITIES: ClubModality[] = [
     frontCardUrl: '/cards/21.png',
     dependentFrontCardUrl: '/cards/21.png',
     backCardUrl: '/cards/24.png',
-    dependentBackCardUrl: '/cards/15.png',
+    dependentBackCardUrl: '/cards/24.png',
     requiresDocument: false,
     isFreeTier: false,
     visibleOnSite: false,
@@ -660,9 +731,7 @@ export const DEFAULT_CONTRACT_TEMPLATES: ClubContractTemplate[] = [
     <table style="width: 100%; border-collapse: collapse; margin-top: 28px; text-align: center;">
       <tr>
         <td style="width: 48%; padding: 10px 14px; vertical-align: bottom;">
-          <div style="font-family: 'Georgia', 'Times New Roman', serif; font-style: italic; font-size: 16px; color: #0f172a; margin-bottom: 4px;">
-            [/nome-pf]
-          </div>
+          <div style="height: 52px;"></div>
           <div style="border-top: 1.5px solid #0f172a; padding-top: 6px; font-weight: bold; font-size: 12px; color: #0f172a;">
             [/nome-pf]
           </div>
@@ -673,9 +742,7 @@ export const DEFAULT_CONTRACT_TEMPLATES: ClubContractTemplate[] = [
         </td>
         <td style="width: 4%;"></td>
         <td style="width: 48%; padding: 10px 14px; vertical-align: bottom;">
-          <div style="font-family: 'Georgia', 'Times New Roman', serif; font-style: italic; font-size: 16px; color: #005200; margin-bottom: 4px;">
-            Balneário Família Lessa Ltda
-          </div>
+          <div style="height: 52px;"></div>
           <div style="border-top: 1.5px solid #0f172a; padding-top: 6px; font-weight: bold; font-size: 12px; color: #0f172a;">
             BALNEÁRIO FAMÍLIA LESSA LTDA
           </div>
@@ -815,9 +882,7 @@ export const DEFAULT_CONTRACT_TEMPLATES: ClubContractTemplate[] = [
     <table style="width: 100%; border-collapse: collapse; margin-top: 28px; text-align: center;">
       <tr>
         <td style="width: 48%; padding: 10px 14px; vertical-align: bottom;">
-          <div style="font-family: 'Georgia', 'Times New Roman', serif; font-style: italic; font-size: 16px; color: #0f172a; margin-bottom: 4px;">
-            [/nome-pf]
-          </div>
+          <div style="height: 52px;"></div>
           <div style="border-top: 1.5px solid #0f172a; padding-top: 6px; font-weight: bold; font-size: 12px; color: #0f172a;">
             [/nome-pf]
           </div>
@@ -828,9 +893,7 @@ export const DEFAULT_CONTRACT_TEMPLATES: ClubContractTemplate[] = [
         </td>
         <td style="width: 4%;"></td>
         <td style="width: 48%; padding: 10px 14px; vertical-align: bottom;">
-          <div style="font-family: 'Georgia', 'Times New Roman', serif; font-style: italic; font-size: 16px; color: #005200; margin-bottom: 4px;">
-            Balneário Família Lessa Ltda
-          </div>
+          <div style="height: 52px;"></div>
           <div style="border-top: 1.5px solid #0f172a; padding-top: 6px; font-weight: bold; font-size: 12px; color: #0f172a;">
             BALNEÁRIO FAMÍLIA LESSA LTDA
           </div>
@@ -871,13 +934,71 @@ export const DEFAULT_CONTRACT_TEMPLATES: ClubContractTemplate[] = [
   },
   {
     id: 'TERMOS_SITE',
-    title: 'Termos e Condições Gerais de Uso, Adesão e Acesso (Site)',
-    description: 'Termos públicos de uso exibidos no ato da adesão online (termos.pdf).',
+    title: 'Termos e Condições Gerais de Uso, Adesão e Acesso (Site & Portal)',
+    description: 'Regulamento interno oficial completo para leitura de associados e consulta presencial/online.',
     updatedAt: new Date().toISOString(),
     contentHtml: `
-<div style="font-family: Arial, sans-serif; color: #1e293b; line-height: 1.75; font-size: 13.5px;">
-  <h2 style="color: #005200; margin-bottom: 12px;">BALNEÁRIO FAMÍLIA LESSA — Termos e Condições Gerais de Uso, Adesão e Acesso</h2>
-  <div>Declaro que li, compreendi e aceito integralmente os Termos e Condições Gerais de Uso do Balneário Família Lessa, incluindo a ausência de fidelidade contratual (Cláusula 8.3) e a garantia de manutenção da tabela 2026 para adesões na modalidade anual realizadas até 31 de dezembro de 2026 (Cláusula 4.7.1).</div>
+<div style="font-family: Arial, sans-serif; color: #1e293b; line-height: 1.8; font-size: 13.5px;">
+  <div style="border-bottom: 2px solid #005200; padding-bottom: 12px; margin-bottom: 20px;">
+    <h2 style="color: #005200; margin: 0 0 6px 0; font-size: 20px; font-weight: 900;">BALNEÁRIO FAMÍLIA LESSA LTDA</h2>
+    <h3 style="color: #334155; margin: 0; font-size: 15px; font-weight: bold;">REGULAMENTO INTERNO, TERMOS E CONDIÇÕES GERAIS DE USO E ADESÃO</h3>
+    <div style="font-size: 11px; color: #64748b; margin-top: 4px;">CNPJ: 46.891.134/0001-40 • Via Araras, Setor 09, Ariquemes/RO • WhatsApp: (69) 99262-6140</div>
+  </div>
+
+  <div style="margin-bottom: 18px;">
+    <strong style="color: #005200; font-size: 14px; display: block; margin-bottom: 4px;">1. DO OBJETO E ACEITAÇÃO INTEGRAL</strong>
+    <div>1.1. Os presentes Termos e Condições Gerais de Uso regulam o acesso, a permanência e a utilização das dependências, atrações, estruturas naturais e serviços do Balneário Família Lessa, bem como a adesão aos planos de associados (Lessa Club), modalidades de meia-entrada e gratuidades.</div>
+    <div>1.2. O ato de adesão, seja presencial ou através do portal online, bem como a simples entrada no parque, implica na aceitação irrestrita e automática de todas as normas deste regulamento.</div>
+  </div>
+
+  <div style="margin-bottom: 18px;">
+    <strong style="color: #005200; font-size: 14px; display: block; margin-bottom: 4px;">2. HORÁRIOS, DIAS DE FUNCIONAMENTO E ACESSO</strong>
+    <div>2.1. O Balneário Família Lessa funciona regularmente às <strong>sextas-feiras, sábados, domingos e feriados, das 9h às 17h</strong>.</div>
+    <div>2.2. A administração reserva-se o direito de fechar ou alterar os horários por motivo de força maior, condições climáticas adversas, manutenções emergenciais ou eventos previamente agendados, sem que isso gere direito a restituição ou indenização financeira.</div>
+  </div>
+
+  <div style="margin-bottom: 18px;">
+    <strong style="color: #005200; font-size: 14px; display: block; margin-bottom: 4px;">3. CARTEIRINHA, QR CODE E USO PESSOAL E INTRANSFERÍVEL</strong>
+    <div>3.1. A carteirinha de associado (seja em cartão PVC, cartão digital no smartphone ou QR Code) é de uso <strong>estritamente pessoal e intransferível</strong>. É expressamente proibido emprestar, ceder ou repassar o cartão ou QR Code para terceiros.</div>
+    <div>3.2. Na portaria de acesso, a apresentação de documento de identificação com foto poderá ser solicitada a qualquer momento para conferência facial e validação do titular ou dependente. O uso indevido por terceiros enseja o cancelamento imediato do plano por fraude.</div>
+  </div>
+
+  <div style="margin-bottom: 18px;">
+    <strong style="color: #005200; font-size: 14px; display: block; margin-bottom: 4px;">4. CATEGORIAS DE BENEFÍCIOS, GRATUIDADES E TRANSIÇÃO DE IDADE</strong>
+    <div>4.1. <strong>Lessa Kids (Gratuidade por Faixa Etária):</strong> Concedido a crianças conforme a faixa etária vigente do balneário. Fica estabelecido que, ao completar a idade limite (aniversário que encerra o período de isenção), o dependente perde automaticamente a condição de gratuidade, passando à condição de pagante na categoria compatível (Estudante ou Integral).</div>
+    <div>4.2. <strong>Lessa Estudante e Lessa Professor:</strong> Destinados exclusivamente a estudantes e professores comprovadamente matriculados ou em exercício, mediante apresentação periódica de declaração/comprovante escolar ou carteira estudantil oficial.</div>
+    <div>4.3. <strong>Lessa 60+ (Melhor Idade):</strong> Destinado a idosos com 60 anos completos ou mais, comprovados mediante documento de identidade oficial.</div>
+    <div>4.4. <strong>Lessa Inclusão PCD e TEA:</strong> Concede gratuidade à pessoa com deficiência e/ou Transtorno do Espectro Autista com direito a 1 (um) acompanhante, mediante apresentação de laudo médico ou carteirinha CIPTEA/PCD.</div>
+    <div>4.5. <strong>Controle e Renovação de Documentos:</strong> O Balneário mantém cadastro individualizado de cada dependente com controle de expiração de laudos, documentos e idades, devendo o titular manter as comprovações sempre atualizadas.</div>
+  </div>
+
+  <div style="margin-bottom: 18px;">
+    <strong style="color: #005200; font-size: 14px; display: block; margin-bottom: 4px;">5. SERVIÇOS INCLUSOS E SERVIÇOS COBRADOS À PARTE</strong>
+    <div>5.1. A assinatura do plano garante a entrada livre e o uso das piscinas naturais, cachoeiras, áreas verdes, campos de esporte e espaços comuns de descanso.</div>
+    <div>5.2. <strong>NÃO estão inclusos no plano</strong> e serão cobrados à parte conforme tabela vigente: restaurante, lanchonetes, porções e bebidas, passeios e trilhas de quadriciclo, pesque-e-solte (pesca esportiva) e locações exclusivas de quiosques reservados com antecedência.</div>
+  </div>
+
+  <div style="margin-bottom: 18px;">
+    <strong style="color: #005200; font-size: 14px; display: block; margin-bottom: 4px;">6. REGRAS DE SEGURANÇA, CONVIVÊNCIA E MEIO AMBIENTE</strong>
+    <div>6.1. O Balneário Família Lessa preza por um ambiente familiar, tranquilo e respeitoso. Não é permitido som automotivo ou caixas de som em volume que perturbe os demais visitantes.</div>
+    <div>6.2. É expressamente proibido o uso de recipientes, copos e garrafas de vidro nas bordas e interiores das águas e piscinas naturais para evitar acidentes.</div>
+    <div>6.3. Crianças menores de 12 anos devem obrigatoriamente estar acompanhadas e sob a supervisão visual direta de seus pais ou responsáveis durante todo o período de permanência nas águas.</div>
+    <div>6.4. Preservação da fauna e flora: recolha sempre o lixo produzido e descarte nas lixeiras seletivas distribuídas pelo parque.</div>
+  </div>
+
+  <div style="margin-bottom: 18px;">
+    <strong style="color: #005200; font-size: 14px; display: block; margin-bottom: 4px;">7. MODALIDADES DE COBRANÇA, PAGAMENTO E AUSÊNCIA DE FIDELIDADE</strong>
+    <div>7.1. <strong>Plano Anual:</strong> Pagamento integral à vista via PIX ou valor integral parcelado em até 12x no Cartão de Crédito. Garante a manutenção dos valores vigentes até o término do período de 12 meses.</div>
+    <div>7.2. <strong>Plano Mensal Recorrente:</strong> 12 mensalidades sucessivas cobradas via cartão de crédito, débito ou PIX mensal.</div>
+    <div>7.3. <strong>Cancelamento sem Fidelidade:</strong> O associado pode solicitar o cancelamento a qualquer momento, sem multa rescisória, desde que esteja em dia com as mensalidades vencidas até a data da solicitação.</div>
+    <div>7.4. Em caso de atraso superior a 5 dias, o acesso na portaria ficará temporariamente bloqueado até a quitação da pendência.</div>
+  </div>
+
+  <div style="margin-bottom: 18px;">
+    <strong style="color: #005200; font-size: 14px; display: block; margin-bottom: 4px;">8. USO DE IMAGEM E DISPOSIÇÕES FINAIS</strong>
+    <div>8.1. Ao frequentar o balneário, o associado autoriza o uso institucional de eventuais fotos ou gravações coletivas de lazer nas redes sociais e materiais informativos do Balneário Lessa.</div>
+    <div>8.2. Fica eleito o Foro da Comarca de Ariquemes/RO para dirimir quaisquer controvérsias oriundas do presente regulamento.</div>
+  </div>
 </div>
 `
   }

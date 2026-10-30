@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   Check,
   CreditCard,
@@ -16,6 +16,10 @@ import {
   Sparkles,
   Crown,
   HeartHandshake,
+  Camera,
+  Upload,
+  FileCheck,
+  AlertTriangle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,6 +33,7 @@ import {
   ClubModality,
   ClubPaymentMethod,
   ClubSubscription,
+  ClubAttachment,
   DEFAULT_CLUB_MODALITIES,
 } from '@/lib/club-types';
 import {
@@ -44,8 +49,20 @@ import {
   formatCurrency,
   formatCpf,
   formatPhone,
+  formatBirthDate,
+  getMemberAccessMessage,
+  isValidCpf,
+  cleanDigits,
 } from '@/lib/club-service';
 import { ClubMemberCardView } from '@/components/club/ClubMemberCardView';
+
+const fileToDataUrl = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 
 interface CatalogPlanCard {
   id: string;
@@ -69,7 +86,7 @@ const CATALOG_PLANS: CatalogPlanCard[] = [
     title: 'Lessa Club',
     subtitle: 'Plano Individual ou Familiar (Escolha a quantidade de pessoas)',
     modalityCode: 'ADULTO',
-    cardImage: '/cards/24.png',
+    cardImage: '/cards/17.png',
     monthlyPrice: 49.9,
     annualPrice: 538.92,
     annualInstallment: 44.91,
@@ -91,7 +108,7 @@ const CATALOG_PLANS: CatalogPlanCard[] = [
     title: 'Lessa Student Pass',
     subtitle: 'Meia-Assinatura para Estudantes (50% OFF)',
     modalityCode: 'ESTUDANTE',
-    cardImage: '/cards/16.png',
+    cardImage: '/cards/7.png',
     monthlyPrice: 25.0,
     annualPrice: 270.0,
     annualInstallment: 22.5,
@@ -111,7 +128,7 @@ const CATALOG_PLANS: CatalogPlanCard[] = [
     title: 'Lessa Professor Pass',
     subtitle: 'Meia-Assinatura para Professores (50% OFF)',
     modalityCode: 'PROFESSOR',
-    cardImage: '/cards/3.png',
+    cardImage: '/cards/2.png',
     monthlyPrice: 25.0,
     annualPrice: 270.0,
     annualInstallment: 22.5,
@@ -131,7 +148,7 @@ const CATALOG_PLANS: CatalogPlanCard[] = [
     title: 'Lessa Servidor Pass',
     subtitle: 'Meia-Assinatura para Servidores Públicos (50% OFF)',
     modalityCode: 'SERVIDOR',
-    cardImage: '/cards/10.png',
+    cardImage: '/cards/9.png',
     monthlyPrice: 25.0,
     annualPrice: 270.0,
     annualInstallment: 22.5,
@@ -151,7 +168,7 @@ const CATALOG_PLANS: CatalogPlanCard[] = [
     title: 'Lessa Inclusão - PCD e TEA',
     subtitle: 'Gratuidade Oficial para Pessoas com Deficiência e Autismo (TEA)',
     modalityCode: 'PCD_TEA',
-    cardImage: '/cards/36.png',
+    cardImage: '/cards/34.png',
     monthlyPrice: 0.0,
     annualPrice: 0.0,
     annualInstallment: 0.0,
@@ -170,7 +187,7 @@ const CATALOG_PLANS: CatalogPlanCard[] = [
     title: 'Lessa Vitalício 60+',
     subtitle: 'Gratuidade Oficial para Idosos a partir de 60 anos',
     modalityCode: 'IDOSO_60',
-    cardImage: '/cards/27.png',
+    cardImage: '/cards/25.png',
     monthlyPrice: 0.0,
     annualPrice: 0.0,
     annualInstallment: 0.0,
@@ -189,7 +206,7 @@ const CATALOG_PLANS: CatalogPlanCard[] = [
     title: 'Lessa Kids',
     subtitle: 'Gratuidade Oficial para Crianças de 0 a 11 anos',
     modalityCode: 'KIDS',
-    cardImage: '/cards/39.png',
+    cardImage: '/cards/37.png',
     monthlyPrice: 0.0,
     annualPrice: 0.0,
     annualInstallment: 0.0,
@@ -218,15 +235,29 @@ interface DependentDraft {
   birthDate: string;
   sex: string;
   kinship: string;
+  docAttachment?: ClubAttachment | null;
 }
 
 export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
   embedded = false,
 }) => {
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+  const urlRef = searchParams.get('ref');
+  const urlPlan = searchParams.get('plano');
 
   const [state, setState] = useState<ClubDatabaseState | null>(null);
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+
+  // Consultor identificado pela URL de indicação (Screenshot 4)
+  const matchedConsultant = useMemo(() => {
+    if (!urlRef || !state?.consultants) return null;
+    return (
+      state.consultants.find(
+        (c) => c.referralCode.toLowerCase() === urlRef.trim().toLowerCase()
+      ) || null
+    );
+  }, [urlRef, state]);
 
   // Ciclo geral e por card
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('ANNUAL');
@@ -268,6 +299,9 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
   const [addressCity, setAddressCity] = useState('Ariquemes');
   const [addressState, setAddressState] = useState('RO');
 
+  // Documento Comprobatório do Titular (Obrigatório para Kids, Vitalício 60+ e PCD/TEA)
+  const [holderDocAttachment, setHolderDocAttachment] = useState<ClubAttachment | null>(null);
+
   // Lista de Dependentes adicionados à assinatura
   const [dependentsDraft, setDependentsDraft] = useState<DependentDraft[]>([]);
 
@@ -294,8 +328,21 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
   const [checkingPayment, setCheckingPayment] = useState(false);
 
   useEffect(() => {
-    fetchClubState().then(setState);
-  }, []);
+    fetchClubState().then((loaded) => {
+      setState(loaded);
+      if (urlPlan && loaded?.modalities) {
+        const mod = loaded.modalities.find(
+          (m) =>
+            m.code.toLowerCase() === urlPlan.trim().toLowerCase() ||
+            m.id.toLowerCase() === urlPlan.trim().toLowerCase()
+        );
+        if (mod) {
+          setHolderModalityCode(mod.code);
+          setSelectedPlanTitle(mod.name);
+        }
+      }
+    });
+  }, [urlPlan]);
 
   // Sempre garante lista de modalidades (mesmo antes do fetch terminar)
   const activeModalities: ClubModality[] = useMemo(() => {
@@ -496,6 +543,26 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
       });
       return;
     }
+
+    if (!isValidCpf(holderCpf)) {
+      toast({
+        title: 'CPF do Titular Inválido',
+        description: 'Por favor, informe um CPF válido com 11 dígitos para o titular.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const invalidDepCpf = dependentsDraft.find((d) => d.cpf && !isValidCpf(d.cpf));
+    if (invalidDepCpf) {
+      toast({
+        title: 'CPF do Dependente Inválido',
+        description: `O CPF informado para o dependente ${invalidDepCpf.fullName || ''} não é válido. Verifique os números digitados.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const missingDep = dependentsDraft.some((d) => !d.fullName.trim());
     if (missingDep) {
       toast({
@@ -505,6 +572,40 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
       });
       return;
     }
+
+    // Validação de Documento Obrigatório para o Titular (PCD/TEA, Kids ou Vitalício 60+)
+    const isHolderFreeOrDoc =
+      holderModality.isFreeTier ||
+      ['PCD_TEA', 'KIDS', 'IDOSO_60'].includes(holderModality.code);
+    if (isHolderFreeOrDoc && !holderDocAttachment) {
+      toast({
+        title: 'Comprovante obrigatório pendente',
+        description: `Por favor, tire uma foto ou anexe o documento comprobatório para o plano ${holderModality.name} antes de prosseguir e ativar o plano.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validação de Documento Obrigatório para Dependentes (PCD/TEA, Kids ou Vitalício 60+)
+    const depMissingDoc = dependentsDraft.find(
+      (d) =>
+        ['PCD_TEA', 'KIDS', 'IDOSO_60'].includes(d.modalityCode) &&
+        !d.docAttachment
+    );
+    if (depMissingDoc) {
+      const depMod = findModality(depMissingDoc.modalityCode);
+      toast({
+        title: `Comprovante obrigatório pendente (${
+          depMissingDoc.fullName || 'Dependente'
+        })`,
+        description: `Por favor, tire uma foto ou anexe o documento comprobatório de ${
+          depMissingDoc.fullName || 'dependente'
+        } (${depMod.name}) para ativar a gratuidade.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setStep(3);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -560,9 +661,7 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
           role: 'TITULAR',
           modalityCode: holderModality.code,
           modalityName: holderModality.name,
-          planCycleLabel: holderModality.isFreeTier
-            ? holderModality.name
-            : `${holderModality.name} ${cycleSuffix}`,
+          planCycleLabel: holderModality.name,
           fullName: holderName || 'TITULAR',
           cpf: holderCpf,
           cardNumber: '1212253001',
@@ -585,9 +684,7 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
             role: 'DEPENDENTE' as const,
             modalityCode: mod.code,
             modalityName: mod.name,
-            planCycleLabel: mod.isFreeTier
-              ? mod.name
-              : `${mod.name} ${cycleSuffix}`,
+            planCycleLabel: mod.name,
             fullName: d.fullName || `Dependente ${idx + 1}`,
             cpf: d.cpf || holderCpf,
             cardNumber: `121225300${idx + 2}`,
@@ -678,6 +775,10 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
         installments: chosenInstallments,
         status: isFree ? 'ACTIVE' : 'INACTIVE',
         origin: 'SITE',
+        consultantName: matchedConsultant?.name || '',
+        consultantCode: matchedConsultant?.referralCode || urlRef || '',
+        consultantId: matchedConsultant?.id || '',
+        attachments: holderDocAttachment ? [holderDocAttachment] : [],
         members: [
           {
             role: 'TITULAR',
@@ -687,6 +788,9 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
             birthDate: holderBirthDate,
             sex: holderSex,
             phone: holderPhone,
+            documentProofUrl: holderDocAttachment?.dataUrl,
+            documentProofName: holderDocAttachment?.name,
+            attachments: holderDocAttachment ? [holderDocAttachment] : [],
           },
           ...dependentsDraft.map((d) => ({
             role: 'DEPENDENTE' as const,
@@ -696,6 +800,9 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
             birthDate: d.birthDate,
             sex: d.sex,
             phone: holderPhone,
+            documentProofUrl: d.docAttachment?.dataUrl,
+            documentProofName: d.docAttachment?.name,
+            attachments: d.docAttachment ? [d.docAttachment] : [],
           })),
         ],
       });
@@ -924,39 +1031,41 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
       )}
 
       <div className="container mx-auto px-4 pt-6 max-w-6xl">
-        {/* BARRA SUPERIOR DE 4 ETAPAS (Plano | Cadastro | Termos | Pagamento) */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-2 max-w-3xl mx-auto mb-8">
-          <div className="grid grid-cols-4 gap-2">
-            {[
-              { num: 1, label: 'Plano' },
-              { num: 2, label: 'Cadastro' },
-              { num: 3, label: 'Termos' },
-              { num: 4, label: 'Pagamento' },
-            ].map((item) => {
-              const active = step === item.num;
-              const completed = step > item.num;
-              return (
-                <button
-                  key={item.num}
-                  type="button"
-                  onClick={() => {
-                    if (item.num < step) setStep(item.num as 1 | 2 | 3 | 4);
-                  }}
-                  disabled={item.num > step}
-                  className={`h-11 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-1.5 ${
-                    active
-                      ? 'bg-[#0b5ed7] text-white shadow-md'
-                      : completed
-                      ? 'bg-[#e6f4ea] text-[#137333] hover:bg-emerald-100 cursor-pointer'
-                      : 'text-slate-600 cursor-default'
-                  }`}
-                >
-                  <span>{item.label}</span>
-                </button>
-              );
-            })}
+        {/* BARRA SUPERIOR DE 4 ETAPAS (Exibida no topo quando step > 1: Cadastro, Termos, Pagamento) */}
+        {step > 1 && (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-2 max-w-3xl mx-auto mb-8">
+            <div className="grid grid-cols-4 gap-2">
+              {[
+                { num: 1, label: 'Plano' },
+                { num: 2, label: 'Cadastro' },
+                { num: 3, label: 'Termos' },
+                { num: 4, label: 'Pagamento' },
+              ].map((item) => {
+                const active = step === item.num;
+                const completed = step > item.num;
+                return (
+                  <button
+                    key={item.num}
+                    type="button"
+                    onClick={() => {
+                      if (item.num < step) setStep(item.num as 1 | 2 | 3 | 4);
+                    }}
+                    disabled={item.num > step}
+                    className={`h-11 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-1.5 ${
+                      active
+                        ? 'bg-[#0b5ed7] text-white shadow-md'
+                        : completed
+                        ? 'bg-[#e6f4ea] text-[#137333] hover:bg-emerald-100 cursor-pointer'
+                        : 'text-slate-600 cursor-default'
+                    }`}
+                  >
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* =====================================================================
             PASSO 1: PLANOS (SUPER DESTAQUE NO PLANO PERSONALIZADO + DEMAIS PLANOS + GRATUIDADES)
@@ -1037,17 +1146,17 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                   {/* Preview das artes das carteirinhas empilhadas */}
                   <div className="flex items-center gap-3 pt-1">
                     <img
-                      src="/cards/24.png"
+                      src="/cards/17.png"
                       alt="Lessa Club"
                       className="w-28 sm:w-32 rounded-xl border-2 border-amber-400/60 shadow-lg"
                     />
                     <img
-                      src="/cards/16.png"
+                      src="/cards/7.png"
                       alt="Student Pass"
                       className="w-24 sm:w-28 rounded-xl border border-white/20 shadow-md -ml-6 mt-3"
                     />
                     <img
-                      src="/cards/39.png"
+                      src="/cards/37.png"
                       alt="Lessa Kids"
                       className="w-24 sm:w-28 rounded-xl border border-white/20 shadow-md -ml-6 -mt-2"
                     />
@@ -1263,6 +1372,60 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
               </div>
             </div>
 
+            {/* BANNER DE VENDEDOR / CONSULTOR RASTREADO */}
+            {matchedConsultant && (
+              <div className="bg-gradient-to-r from-emerald-900 to-teal-950 text-white rounded-2xl p-3.5 max-w-3xl mx-auto my-3 shadow-md flex items-center justify-between gap-3 text-xs border border-emerald-500/30">
+                <div className="flex items-center gap-2.5">
+                  <Sparkles className="w-5 h-5 text-amber-300 shrink-0" />
+                  <div>
+                    <span className="font-bold text-emerald-300 uppercase text-[10px] tracking-wider block">
+                      Indicação Oficial Balneário Lessa
+                    </span>
+                    <span className="font-black text-sm">
+                      Você está contratando através de: {matchedConsultant.name}
+                    </span>
+                  </div>
+                </div>
+                <Badge className="bg-emerald-600 text-white font-mono font-bold text-xs shrink-0">
+                  Ref: {matchedConsultant.referralCode}
+                </Badge>
+              </div>
+            )}
+
+            {/* BARRA DE 4 ETAPAS POSICIONADA ABAIXO DO CARD DE SELEÇÃO DE INTEGRANTES */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-2 max-w-3xl mx-auto my-3">
+              <div className="grid grid-cols-4 gap-2">
+                {[
+                  { num: 1, label: 'Plano' },
+                  { num: 2, label: 'Cadastro' },
+                  { num: 3, label: 'Termos' },
+                  { num: 4, label: 'Pagamento' },
+                ].map((item) => {
+                  const active = step === item.num;
+                  const completed = step > item.num;
+                  return (
+                    <button
+                      key={item.num}
+                      type="button"
+                      onClick={() => {
+                        if (item.num < step) setStep(item.num as 1 | 2 | 3 | 4);
+                      }}
+                      disabled={item.num > step}
+                      className={`h-11 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-1.5 ${
+                        active
+                          ? 'bg-[#0b5ed7] text-white shadow-md'
+                          : completed
+                          ? 'bg-[#e6f4ea] text-[#137333] hover:bg-emerald-100 cursor-pointer'
+                          : 'text-slate-600 cursor-default'
+                      }`}
+                    >
+                      <span>{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* ===============================================================
                 GRADE DE PLANOS INDIVIDUAIS, MEIA-ASSINATURA E GRATUIDADES
             =============================================================== */}
@@ -1316,7 +1479,7 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                     >
                       <div>
                         {/* Adesivo acima da Imagem do Cartão para não tampar a arte */}
-                        <div className="p-4 pb-3 bg-white">
+                        <div className="p-4 pb-3 bg-white space-y-2.5">
                           {card.badge && (
                             <div className="mb-2.5 flex items-center justify-between">
                               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
@@ -1461,6 +1624,108 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                             </li>
                           ))}
                         </ul>
+
+                        {/* AVISO OBRIGATÓRIO DE COMPROVAÇÃO DE DOCUMENTO NA PARTE DE BAIXO DO CARD */}
+                        {(card.modalityCode === 'PCD_TEA' ||
+                          card.modalityCode === 'KIDS' ||
+                          card.modalityCode === 'IDOSO_60' ||
+                          card.modalityCode === 'ESTUDANTE' ||
+                          card.modalityCode === 'PROFESSOR' ||
+                          card.modalityCode === 'SERVIDOR') && (
+                          <div className="mx-4 mb-3 p-3 rounded-xl bg-amber-50 border-2 border-amber-300 text-amber-950 shadow-sm text-left">
+                            <div className="flex items-start gap-2 font-black text-xs leading-snug">
+                              <span className="text-base shrink-0">⚠️</span>
+                              <span>
+                                Atenção: É necessário comprovar com documento no ato da inscrição para ativar este cadastro. Tenha documentos em mãos!
+                              </span>
+                            </div>
+
+                            {card.modalityCode === 'PCD_TEA' && (
+                              <div className="mt-2 pt-2 border-t border-amber-200 text-[11px] leading-relaxed space-y-1">
+                                <div className="font-black text-amber-900">
+                                  📄 Documentos aceitos para comprovação (basta 1):
+                                </div>
+                                <div className="font-semibold text-slate-800">✅ Laudo médico com CID</div>
+                                <div className="font-semibold text-slate-800">✅ Carteira de Identificação da Pessoa com Deficiência</div>
+                                <div className="font-semibold text-slate-800">✅ Carteira do Autista (municipal, estadual ou nacional)</div>
+                                <div className="font-semibold text-slate-800">✅ Documento oficial que comprove a condição</div>
+                                <div className="text-[10px] font-bold text-emerald-800 pt-1">
+                                  📸 Permite tirar foto na hora com a câmera ou anexar arquivo.
+                                </div>
+                              </div>
+                            )}
+
+                            {card.modalityCode === 'KIDS' && (
+                              <div className="mt-2 pt-2 border-t border-amber-200 text-[11px] leading-relaxed space-y-1">
+                                <div className="font-black text-amber-900">
+                                  📄 Documento obrigatório para comprovação de idade:
+                                </div>
+                                <div className="font-semibold text-slate-800">
+                                  ✅ Foto que comprove a idade (ex: RG contendo foto, nome e nascimento ou Certidão de Nascimento).
+                                </div>
+                                <div className="text-[10px] font-bold text-emerald-800 pt-1">
+                                  📸 Permite tirar foto na hora com a câmera ou anexar arquivo.
+                                </div>
+                              </div>
+                            )}
+
+                            {card.modalityCode === 'IDOSO_60' && (
+                              <div className="mt-2 pt-2 border-t border-amber-200 text-[11px] leading-relaxed space-y-1">
+                                <div className="font-black text-amber-900">
+                                  📄 Documento obrigatório para comprovação de idade:
+                                </div>
+                                <div className="font-semibold text-slate-800">
+                                  ✅ Foto que comprove a idade (ex: RG contendo foto, nome e nascimento ou CNH oficial).
+                                </div>
+                                <div className="text-[10px] font-bold text-emerald-800 pt-1">
+                                  📸 Permite tirar foto na hora com a câmera ou anexar arquivo.
+                                </div>
+                              </div>
+                            )}
+
+                            {card.modalityCode === 'ESTUDANTE' && (
+                              <div className="mt-2 pt-2 border-t border-amber-200 text-[11px] leading-relaxed space-y-1">
+                                <div className="font-black text-amber-900">
+                                  📄 Documento comprobatório:
+                                </div>
+                                <div className="font-semibold text-slate-800">
+                                  ✅ Carteirinha de Estudante oficial ou Declaração de Matrícula.
+                                </div>
+                                <div className="text-[10px] font-bold text-emerald-800 pt-1">
+                                  📸 Permite tirar foto na hora com a câmera ou anexar arquivo.
+                                </div>
+                              </div>
+                            )}
+
+                            {card.modalityCode === 'PROFESSOR' && (
+                              <div className="mt-2 pt-2 border-t border-amber-200 text-[11px] leading-relaxed space-y-1">
+                                <div className="font-black text-amber-900">
+                                  📄 Documento comprobatório:
+                                </div>
+                                <div className="font-semibold text-slate-800">
+                                  ✅ Holerite, crachá funcional ou comprovante de docência.
+                                </div>
+                                <div className="text-[10px] font-bold text-emerald-800 pt-1">
+                                  📸 Permite tirar foto na hora com a câmera ou anexar arquivo.
+                                </div>
+                              </div>
+                            )}
+
+                            {card.modalityCode === 'SERVIDOR' && (
+                              <div className="mt-2 pt-2 border-t border-amber-200 text-[11px] leading-relaxed space-y-1">
+                                <div className="font-black text-amber-900">
+                                  📄 Documento comprobatório:
+                                </div>
+                                <div className="font-semibold text-slate-800">
+                                  ✅ Holerite, portaria ou identidade funcional de servidor público.
+                                </div>
+                                <div className="text-[10px] font-bold text-emerald-800 pt-1">
+                                  📸 Permite tirar foto na hora com a câmera ou anexar arquivo.
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
 
                       {/* Rodapé com Preço + Botão Verde "Aderir" */}
@@ -1582,6 +1847,164 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
               </Button>
             </div>
 
+            {/* COMPROVAÇÃO DE DOCUMENTO OBRIGATÓRIA DO TITULAR (PCD/TEA, KIDS OU VITALÍCIO 60+) */}
+            {(holderModality.isFreeTier ||
+              ['PCD_TEA', 'KIDS', 'IDOSO_60'].includes(holderModality.code)) && (
+              <div className="bg-amber-50/90 border-2 border-amber-300 rounded-2xl p-4 sm:p-5 space-y-3 shadow-sm">
+                <div className="flex items-start gap-2.5">
+                  <span className="text-2xl shrink-0">📄</span>
+                  <div>
+                    <h4 className="font-black text-sm text-amber-950 uppercase flex items-center gap-2">
+                      <span>Comprovante Obrigatório para Ativar o Plano ({holderModality.name})</span>
+                      <Badge className="bg-amber-400 text-amber-950 font-black text-[10px]">
+                        OBRIGATÓRIO
+                      </Badge>
+                    </h4>
+                    <p className="text-xs text-amber-900 mt-0.5 font-medium">
+                      Para ativar seu cadastro de gratuidade, é necessário anexar ou tirar uma foto do documento comprobatório no ato da inscrição.
+                    </p>
+                  </div>
+                </div>
+
+                {holderModality.code === 'PCD_TEA' && (
+                  <div className="bg-white/90 p-3.5 rounded-xl border border-amber-200 text-xs text-slate-800 space-y-1.5 shadow-sm">
+                    <strong className="text-amber-950 block text-xs">
+                      📄 Documentos aceitos para comprovação (basta 1):
+                    </strong>
+                    <div className="font-semibold text-slate-700">✅ Laudo médico com CID</div>
+                    <div className="font-semibold text-slate-700">
+                      ✅ Carteira de Identificação da Pessoa com Deficiência
+                    </div>
+                    <div className="font-semibold text-slate-700">
+                      ✅ Carteira do Autista (municipal, estadual ou nacional)
+                    </div>
+                    <div className="font-semibold text-slate-700">
+                      ✅ Documento oficial que comprove a condição
+                    </div>
+                  </div>
+                )}
+
+                {(holderModality.code === 'KIDS' || holderModality.code === 'IDOSO_60') && (
+                  <div className="bg-white/90 p-3.5 rounded-xl border border-amber-200 text-xs text-slate-800 space-y-1.5 shadow-sm">
+                    <strong className="text-amber-950 block text-xs">
+                      📄 Documento obrigatório para comprovação de idade:
+                    </strong>
+                    <div className="font-semibold text-slate-700">
+                      ✅ Foto que comprove a idade (ex: RG com foto, nome e nascimento ou{' '}
+                      {holderModality.code === 'KIDS' ? 'Certidão de Nascimento' : 'CNH oficial'})
+                      para que possa ativar o plano.
+                    </div>
+                  </div>
+                )}
+
+                {/* BOTÕES DE CAPTURA COM CÂMERA OU ANEXAR ARQUIVO */}
+                <div className="pt-1">
+                  {!holderDocAttachment ? (
+                    <div className="flex flex-wrap items-center gap-3">
+                      {/* Botão Câmera */}
+                      <Label
+                        htmlFor="titular-cam-input"
+                        className="flex-1 min-w-[210px] inline-flex items-center justify-center gap-2 px-4 py-3 bg-[#004d00] hover:bg-emerald-900 text-white rounded-xl font-black text-xs cursor-pointer shadow transition-all hover:scale-[1.01]"
+                      >
+                        <Camera className="w-4 h-4 text-emerald-300" />
+                        📸 Tirar Foto na Hora (Câmera)
+                      </Label>
+                      <input
+                        id="titular-cam-input"
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const f = e.target.files?.[0];
+                          if (!f) return;
+                          const dataUrl = await fileToDataUrl(f);
+                          setHolderDocAttachment({
+                            id: `att_holder_${Date.now()}`,
+                            name: `Comprovante_${holderModality.name}_${f.name}`,
+                            mimeType: f.type || 'image/jpeg',
+                            dataUrl,
+                            createdAt: new Date().toISOString(),
+                          });
+                          toast({
+                            title: 'Foto capturada com sucesso!',
+                            description: 'Documento pronto para ativação.',
+                          });
+                        }}
+                      />
+
+                      {/* Botão Anexar Arquivo */}
+                      <Label
+                        htmlFor="titular-file-input"
+                        className="flex-1 min-w-[210px] inline-flex items-center justify-center gap-2 px-4 py-3 bg-white hover:bg-slate-50 text-slate-800 border-2 border-slate-300 rounded-xl font-black text-xs cursor-pointer shadow-sm transition-all"
+                      >
+                        <Upload className="w-4 h-4 text-slate-600" />
+                        📁 Anexar Arquivo / Foto (Galeria ou PDF)
+                      </Label>
+                      <input
+                        id="titular-file-input"
+                        type="file"
+                        accept="image/*,.pdf"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const f = e.target.files?.[0];
+                          if (!f) return;
+                          const dataUrl = await fileToDataUrl(f);
+                          setHolderDocAttachment({
+                            id: `att_holder_${Date.now()}`,
+                            name: `Comprovante_${holderModality.name}_${f.name}`,
+                            mimeType: f.type || 'application/octet-stream',
+                            dataUrl,
+                            createdAt: new Date().toISOString(),
+                          });
+                          toast({
+                            title: 'Arquivo anexado com sucesso!',
+                            description: f.name,
+                          });
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    /* PREVIEW DO DOCUMENTO CAPTURADO / ANEXADO */
+                    <div className="bg-emerald-100/90 border-2 border-emerald-400 p-3.5 rounded-xl flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 overflow-hidden">
+                        {holderDocAttachment.mimeType.startsWith('image/') ? (
+                          <img
+                            src={holderDocAttachment.dataUrl}
+                            alt="Comprovante"
+                            className="w-12 h-12 object-cover rounded-lg border border-emerald-300 shrink-0"
+                          />
+                        ) : (
+                          <div className="w-12 h-12 rounded-lg bg-emerald-800 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                            PDF
+                          </div>
+                        )}
+                        <div className="truncate">
+                          <div className="font-bold text-xs text-emerald-950 flex items-center gap-1.5 truncate">
+                            <FileCheck className="w-4 h-4 text-emerald-700 shrink-0" />
+                            {holderDocAttachment.name}
+                          </div>
+                          <div className="text-[11px] text-emerald-800">
+                            Comprovante anexado pronto para ativação do cadastro
+                          </div>
+                        </div>
+                      </div>
+
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setHolderDocAttachment(null)}
+                        className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 text-xs font-bold shrink-0"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 mr-1" /> Trocar / Remover
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* GRADE DE CAMPOS DO TITULAR (EXATAMENTE COMO NA IMAGEM "Cadastre-se") */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -1617,10 +2040,19 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                 <Input
                   value={holderCpf}
                   onChange={(e) => setHolderCpf(formatCpf(e.target.value))}
-                  placeholder="Digite apenas números"
-                  className="h-11 bg-white border-slate-300"
+                  placeholder="000.000.000-00"
+                  className={`h-11 bg-white ${
+                    holderCpf && cleanDigits(holderCpf).length === 11 && !isValidCpf(holderCpf)
+                      ? 'border-rose-500 focus-visible:ring-rose-500 bg-rose-50/20'
+                      : 'border-slate-300'
+                  }`}
                   required
                 />
+                {holderCpf && cleanDigits(holderCpf).length === 11 && !isValidCpf(holderCpf) && (
+                  <p className="text-[11px] text-rose-600 font-bold mt-1">
+                    ⚠️ CPF inválido. Verifique os números digitados.
+                  </p>
+                )}
               </div>
 
               <div>
@@ -1628,9 +2060,12 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                   Data de nascimento *
                 </Label>
                 <Input
-                  type="date"
+                  type="text"
+                  inputMode="numeric"
                   value={holderBirthDate}
-                  onChange={(e) => setHolderBirthDate(e.target.value)}
+                  onChange={(e) => setHolderBirthDate(formatBirthDate(e.target.value))}
+                  placeholder="DD/MM/AAAA"
+                  maxLength={10}
                   className="h-11 bg-white border-slate-300"
                   required
                 />
@@ -1910,9 +2345,18 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                                   )
                                 );
                               }}
-                              placeholder="Apenas números"
-                              className="h-10 bg-white mt-1"
+                              placeholder="000.000.000-00"
+                              className={`h-10 bg-white mt-1 ${
+                                dep.cpf && cleanDigits(dep.cpf).length === 11 && !isValidCpf(dep.cpf)
+                                  ? 'border-rose-500 focus-visible:ring-rose-500 bg-rose-50/20'
+                                  : ''
+                              }`}
                             />
+                            {dep.cpf && cleanDigits(dep.cpf).length === 11 && !isValidCpf(dep.cpf) && (
+                              <p className="text-[10px] text-rose-600 font-bold mt-0.5">
+                                ⚠️ CPF inválido
+                              </p>
+                            )}
                           </div>
 
                           <div className="sm:col-span-2">
@@ -1920,20 +2364,186 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                               Nascimento
                             </Label>
                             <Input
-                              type="date"
+                              type="text"
+                              inputMode="numeric"
                               value={dep.birthDate}
                               onChange={(e) => {
-                                const val = e.target.value;
+                                const val = formatBirthDate(e.target.value);
                                 setDependentsDraft((prev) =>
                                   prev.map((d, i) =>
                                     i === idx ? { ...d, birthDate: val } : d
                                   )
                                 );
                               }}
+                              placeholder="DD/MM/AAAA"
+                              maxLength={10}
                               className="h-10 bg-white mt-1"
                             />
                           </div>
                         </div>
+
+                        {/* COMPROVAÇÃO DE DOCUMENTO DO DEPENDENTE (PCD/TEA, KIDS OU IDOSO 60+) */}
+                        {['PCD_TEA', 'KIDS', 'IDOSO_60'].includes(dep.modalityCode) && (
+                          <div className="bg-amber-50/90 border border-amber-300 rounded-xl p-3.5 space-y-2.5 mt-2 shadow-sm">
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <span className="font-black text-xs text-amber-950 uppercase flex items-center gap-1.5">
+                                  📄 Comprovante Obrigatório ({depMod.name})
+                                  <Badge className="bg-amber-400 text-amber-950 text-[9px] font-black">
+                                    OBRIGATÓRIO
+                                  </Badge>
+                                </span>
+                                <p className="text-[11px] text-amber-900 mt-0.5 font-medium">
+                                  Para ativar a gratuidade deste dependente, é necessário anexar ou tirar uma foto do documento.
+                                </p>
+                              </div>
+                            </div>
+
+                            {dep.modalityCode === 'PCD_TEA' && (
+                              <div className="bg-white/80 p-2.5 rounded-lg border border-amber-200 text-[11px] text-slate-800 space-y-1">
+                                <strong className="text-amber-950 block text-[11px]">
+                                  Documentos aceitos para comprovação (basta 1):
+                                </strong>
+                                <div>✅ Laudo médico com CID</div>
+                                <div>✅ Carteira de Identificação da Pessoa com Deficiência</div>
+                                <div>✅ Carteira do Autista (municipal, estadual ou nacional)</div>
+                                <div>✅ Documento oficial que comprove a condição</div>
+                              </div>
+                            )}
+
+                            {(dep.modalityCode === 'KIDS' || dep.modalityCode === 'IDOSO_60') && (
+                              <div className="bg-white/80 p-2.5 rounded-lg border border-amber-200 text-[11px] text-slate-800 space-y-1">
+                                <strong className="text-amber-950 block text-[11px]">
+                                  Documento obrigatório para comprovação de idade:
+                                </strong>
+                                <div>
+                                  ✅ Foto que comprove a idade (ex: RG com foto, nome e data de nascimento ou{' '}
+                                  {dep.modalityCode === 'KIDS' ? 'Certidão de Nascimento' : 'CNH oficial'}).
+                                </div>
+                              </div>
+                            )}
+
+                            <div>
+                              {!dep.docAttachment ? (
+                                <div className="flex flex-wrap items-center gap-2">
+                                  {/* Botão Câmera Dependente */}
+                                  <Label
+                                    htmlFor={`dep-cam-input-${dep.id}`}
+                                    className="flex-1 min-w-[160px] inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-[#004d00] hover:bg-emerald-900 text-white rounded-lg font-bold text-xs cursor-pointer shadow-sm transition-all"
+                                  >
+                                    <Camera className="w-3.5 h-3.5 text-emerald-300" />
+                                    📸 Tirar Foto na Hora (Câmera)
+                                  </Label>
+                                  <input
+                                    id={`dep-cam-input-${dep.id}`}
+                                    type="file"
+                                    accept="image/*"
+                                    capture="environment"
+                                    className="hidden"
+                                    onChange={async (e) => {
+                                      const f = e.target.files?.[0];
+                                      if (!f) return;
+                                      const dataUrl = await fileToDataUrl(f);
+                                      const newDoc: ClubAttachment = {
+                                        id: `att_dep_${Date.now()}_${idx}`,
+                                        name: `Comprovante_${depMod.name}_${f.name}`,
+                                        mimeType: f.type || 'image/jpeg',
+                                        dataUrl,
+                                        createdAt: new Date().toISOString(),
+                                      };
+                                      setDependentsDraft((prev) =>
+                                        prev.map((d, i) =>
+                                          i === idx ? { ...d, docAttachment: newDoc } : d
+                                        )
+                                      );
+                                      toast({
+                                        title: 'Foto capturada com sucesso!',
+                                        description: `Comprovante de ${dep.fullName || 'dependente'} anexado.`,
+                                      });
+                                    }}
+                                  />
+
+                                  {/* Botão Anexar Arquivo Dependente */}
+                                  <Label
+                                    htmlFor={`dep-file-input-${dep.id}`}
+                                    className="flex-1 min-w-[160px] inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 rounded-lg font-bold text-xs cursor-pointer shadow-sm transition-all"
+                                  >
+                                    <Upload className="w-3.5 h-3.5 text-slate-600" />
+                                    📁 Anexar Arquivo / Foto (Galeria ou PDF)
+                                  </Label>
+                                  <input
+                                    id={`dep-file-input-${dep.id}`}
+                                    type="file"
+                                    accept="image/*,.pdf"
+                                    className="hidden"
+                                    onChange={async (e) => {
+                                      const f = e.target.files?.[0];
+                                      if (!f) return;
+                                      const dataUrl = await fileToDataUrl(f);
+                                      const newDoc: ClubAttachment = {
+                                        id: `att_dep_${Date.now()}_${idx}`,
+                                        name: `Comprovante_${depMod.name}_${f.name}`,
+                                        mimeType: f.type || 'application/octet-stream',
+                                        dataUrl,
+                                        createdAt: new Date().toISOString(),
+                                      };
+                                      setDependentsDraft((prev) =>
+                                        prev.map((d, i) =>
+                                          i === idx ? { ...d, docAttachment: newDoc } : d
+                                        )
+                                      );
+                                      toast({
+                                        title: 'Arquivo anexado com sucesso!',
+                                        description: f.name,
+                                      });
+                                    }}
+                                  />
+                                </div>
+                              ) : (
+                                <div className="bg-emerald-100/90 border border-emerald-400 p-2.5 rounded-lg flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2 overflow-hidden text-xs">
+                                    {dep.docAttachment.mimeType.startsWith('image/') ? (
+                                      <img
+                                        src={dep.docAttachment.dataUrl}
+                                        alt="Comprovante"
+                                        className="w-10 h-10 object-cover rounded border border-emerald-300 shrink-0"
+                                      />
+                                    ) : (
+                                      <div className="w-10 h-10 rounded bg-emerald-800 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
+                                        PDF
+                                      </div>
+                                    )}
+                                    <div className="truncate">
+                                      <div className="font-bold text-emerald-950 truncate flex items-center gap-1">
+                                        <FileCheck className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                                        {dep.docAttachment.name}
+                                      </div>
+                                      <div className="text-[10px] text-emerald-800">
+                                        Comprovante anexado para ativação
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() =>
+                                      setDependentsDraft((prev) =>
+                                        prev.map((d, i) =>
+                                          i === idx ? { ...d, docAttachment: null } : d
+                                        )
+                                      )
+                                    }
+                                    className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 text-[11px] font-bold h-7"
+                                  >
+                                    <Trash2 className="w-3 h-3 mr-1" /> Trocar / Remover
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -2433,6 +3043,75 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                   </Button>
                 </Link>
               </div>
+
+              {/* CARD DE DADOS DE ACESSO AO PORTAL DO SÓCIO (LOGIN = EMAIL, SENHA = DATA DE NASCIMENTO) */}
+              {(() => {
+                const access = getMemberAccessMessage(createdSub);
+                return (
+                  <div className="bg-slate-900 text-white p-5 rounded-3xl border-2 border-amber-400 shadow-xl space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 block">
+                          🔑 Credenciais de Acesso ao Portal do Associado
+                        </span>
+                        <h4 className="text-base font-black text-white mt-0.5">
+                          Seu Login e Senha para acessar o Portal
+                        </h4>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => {
+                            navigator.clipboard.writeText(access.message);
+                            toast({
+                              title: 'Copiado!',
+                              description: 'Dados de acesso copiados para a área de transferência.',
+                            });
+                          }}
+                          variant="outline"
+                          className="bg-white/10 hover:bg-white/20 border-white/20 text-white font-bold text-xs h-9"
+                        >
+                          <Copy className="w-3.5 h-3.5 mr-1.5" /> Copiar Acesso
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          asChild
+                          className="bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs h-9"
+                        >
+                          <a href={access.whatsappUrl} target="_blank" rel="noopener noreferrer">
+                            Enviar via WhatsApp
+                            <ExternalLink className="w-3.5 h-3.5 ml-1.5" />
+                          </a>
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                      <div className="bg-slate-800/80 p-3 rounded-xl border border-slate-700">
+                        <span className="text-[10px] font-bold text-slate-400 block uppercase">Usuário / Login</span>
+                        <span className="font-mono font-bold text-amber-300 text-sm block truncate" title={access.loginUser}>
+                          {access.loginUser}
+                        </span>
+                      </div>
+                      <div className="bg-slate-800/80 p-3 rounded-xl border border-slate-700">
+                        <span className="text-[10px] font-bold text-slate-400 block uppercase">Senha Padrão</span>
+                        <span className="font-mono font-bold text-emerald-400 text-sm block">
+                          {access.password}
+                        </span>
+                        <span className="text-[9px] text-slate-400 block mt-0.5">Data de nascimento (números)</span>
+                      </div>
+                      <div className="bg-slate-800/80 p-3 rounded-xl border border-slate-700">
+                        <span className="text-[10px] font-bold text-slate-400 block uppercase">Link de Acesso</span>
+                        <span className="font-mono font-bold text-white text-xs block truncate">
+                          balneariolessa.com.br/socio
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* ===============================================================
                   BLOCO DE PAGAMENTO (EXIBIDO ENQUANTO O PLANO ESTÁ INATIVO)

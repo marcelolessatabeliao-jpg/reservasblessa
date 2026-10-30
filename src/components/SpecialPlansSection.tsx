@@ -155,6 +155,20 @@ export function SpecialPlansSection() {
                    </div>
                 ))}
               </div>
+
+              {/* Aviso Documento Obrigatório */}
+              <div className="mt-3 p-3 bg-amber-50 border border-amber-300 rounded-xl text-left text-xs text-amber-950 space-y-1 shadow-sm">
+                <div className="flex items-start gap-1.5 font-black text-[11px] leading-tight">
+                  <span className="text-sm shrink-0">⚠️</span>
+                  <span>
+                    Atenção: É necessário comprovar com documento no ato da inscrição para ativar este cadastro. Tenha documentos em mãos!
+                  </span>
+                </div>
+                <div className="text-[10px] text-amber-900 pt-0.5 leading-snug">
+                  • <strong>Kids & Idosos:</strong> RG com foto, nome e nascimento ou CNH/Certidão.<br />
+                  • <strong>PCD/TEA:</strong> Laudo com CID, Carteira PCD ou CIPTEA (Autista). Permite foto na hora com câmera ou anexar.
+                </div>
+              </div>
             </div>
           </motion.div>
 

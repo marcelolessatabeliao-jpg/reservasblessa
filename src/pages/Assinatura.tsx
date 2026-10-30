@@ -10,7 +10,6 @@ import {
   QrCode
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { SpecialPlansSection } from '@/components/SpecialPlansSection';
 import { PricingComparisonSection } from '@/components/PricingComparisonSection';
 import { PlanosAdesaoSection } from '@/pages/PlanosAdesao';
 import logo from '@/assets/logo.png';
@@ -116,53 +115,9 @@ export default function Assinatura() {
         </div>
       </header>
 
-      {/* 3. HERO SECTION */}
-      <section className="relative pt-10 pb-2 sm:pt-16 sm:pb-4 overflow-hidden bg-transparent">
-        <div className="container mx-auto px-4 relative z-10">
-          <div className="max-w-4xl mx-auto text-center space-y-4 sm:space-y-6">
-            <motion.div
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="inline-flex items-center gap-2 bg-sun/20 text-emerald-950 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider border border-sun/40 shadow-sm"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-amber-600 animate-spin" />
-              Acesso Livre Sex, Sáb, Dom e Feriados
-            </motion.div>
-
-            <motion.h1
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="font-display font-black text-3xl sm:text-5xl md:text-6xl text-foreground leading-[1.1] tracking-tight"
-            >
-              Seu refúgio natural com <br className="hidden sm:inline" />
-              <span className="text-primary italic">
-                Acesso Ilimitado o Ano Inteiro
-              </span>
-            </motion.h1>
-
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15 }}
-              className="text-base sm:text-xl text-muted-foreground font-medium max-w-2xl mx-auto leading-relaxed"
-            >
-              Garanta o preço atual assinando o valor referente ao <strong>Plano Anual parcelado em até 12x no cartão</strong>. Novos valores entrarão em vigência a partir de <strong>2027</strong>.
-            </motion.p>
-          </div>
-        </div>
-      </section>
-
-      {/* 4. VITRINE DE CARDS DE PLANOS COM FLUXO (PLANO -> CADASTRO -> TERMOS -> PAGAMENTO) */}
-      <div id="vitrine-planos">
+      {/* 3. VITRINE DE CARDS DE PLANOS COM FLUXO (PLANO -> CADASTRO -> TERMOS -> PAGAMENTO) */}
+      <div id="vitrine-planos" className="pt-4">
         <PlanosAdesaoSection embedded />
-      </div>
-
-      {/* 4B. SIMULADOR DE MENSALIDADE DA FAMÍLIA (EXATAMENTE COMO NO SITE DE RESERVAS) */}
-      <div id="simulador">
-        <div id="planos">
-          <SpecialPlansSection />
-        </div>
       </div>
 
       {/* 5. VANTAGENS EXCLUSIVAS DO ASSINANTE (O QUE VOCÊ GANHA SENDO SÓCIO LESSA) */}

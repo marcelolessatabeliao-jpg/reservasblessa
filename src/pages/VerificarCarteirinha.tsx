@@ -18,16 +18,20 @@ import { Badge } from '@/components/ui/badge';
 import {
   ClubMember,
   ClubSubscription,
+  ClubVisitRecord,
 } from '@/lib/club-types';
 import {
   ClubDatabaseState,
   fetchClubState,
+  saveClubState,
   findMemberOrSubscriptionByQuery,
   formatDateBR,
 } from '@/lib/club-service';
 import { ClubMemberCardView } from '@/components/club/ClubMemberCardView';
+import { useToast } from '@/hooks/use-toast';
 
 const VerificarCarteirinha: React.FC = () => {
+  const { toast } = useToast();
   const { codigo } = useParams<{ codigo?: string }>();
   const [searchParams] = useSearchParams();
   const initialQuery = codigo || searchParams.get('q') || '';
@@ -39,6 +43,50 @@ const VerificarCarteirinha: React.FC = () => {
   const [searched, setSearched] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  const handleRegisterVisit = async (
+    targetState: ClubDatabaseState,
+    sub: ClubSubscription,
+    member: ClubMember,
+    silent = false
+  ) => {
+    const today = new Date().toISOString().split('T')[0];
+    const nowTime = new Date().toTimeString().slice(0, 5);
+    const existingVisits = sub.visits || [];
+    const alreadyCheckedInToday = existingVisits.some(
+      (v) => v.date === today && v.cardNumber === member.cardNumber
+    );
+    if (alreadyCheckedInToday && silent) return;
+
+    const newVisit: ClubVisitRecord = {
+      id: `vis_${Date.now()}`,
+      date: today,
+      time: nowTime,
+      memberName: member.fullName,
+      cardNumber: member.cardNumber,
+      source: 'QR_SCAN',
+      notes: 'Entrada validada via QR Code / Portaria',
+    };
+    const updatedSub: ClubSubscription = {
+      ...sub,
+      visits: [newVisit, ...existingVisits],
+    };
+    const nextState: ClubDatabaseState = {
+      ...targetState,
+      subscriptions: targetState.subscriptions.map((s) =>
+        s.id === updatedSub.id ? updatedSub : s
+      ),
+    };
+    await saveClubState(nextState);
+    setState(nextState);
+    setMatchedSub(updatedSub);
+    if (!silent) {
+      toast({
+        title: 'Visita registrada na Agenda do Cliente!',
+        description: `${member.fullName} — Entrada confirmada em ${formatDateBR(today)} às ${nowTime}.`,
+      });
+    }
+  };
+
   useEffect(() => {
     fetchClubState().then((loaded) => {
       setState(loaded);
@@ -48,6 +96,14 @@ const VerificarCarteirinha: React.FC = () => {
         if (matches.length > 0) {
           setMatchedSub(matches[0].subscription);
           setMatchedMember(matches[0].member);
+          if (matches[0].subscription.status === 'ACTIVE') {
+            handleRegisterVisit(
+              loaded,
+              matches[0].subscription,
+              matches[0].member,
+              true
+            );
+          }
         } else {
           setMatchedSub(null);
           setMatchedMember(null);
@@ -257,6 +313,23 @@ const VerificarCarteirinha: React.FC = () => {
                     </span>
                   </div>
                 </div>
+
+                {state && isSubActive && (
+                  <div className="pt-2 flex flex-wrap items-center gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() =>
+                        handleRegisterVisit(state, matchedSub, matchedMember, false)
+                      }
+                      className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs"
+                    >
+                      <CheckCircle2 className="w-4 h-4 mr-1.5" /> Confirmar Entrada Hoje (Registrar na Agenda do Cliente)
+                    </Button>
+                    <span className="text-xs text-emerald-200/80">
+                      Total de visitas registradas: <strong>{(matchedSub.visits || []).length}</strong>
+                    </span>
+                  </div>
+                )}
 
                 {/* Vehicle Warning for Family Publicidade */}
                 {matchedSub.contractType === 'FAMILY_PUBLICIDADE' && (

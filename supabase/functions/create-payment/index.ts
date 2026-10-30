@@ -14,7 +14,23 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { orderId, name, email, phone, cpf, billingType, value, description } = await req.json()
+    const body = await req.json();
+    const {
+      action,
+      paymentId,
+      orderId,
+      name,
+      email,
+      phone,
+      cpf,
+      billingType,
+      value,
+      description,
+      dueDate,
+      installmentCount,
+      installmentValue,
+      totalValue,
+    } = body;
 
     // 1. Chave de API e URL (Ambiente Real)
     const ASAAS_API_KEY = Deno.env.get('ASAAS_API_KEY');
@@ -23,6 +39,32 @@ Deno.serve(async (req) => {
     const isProd = ASAAS_API_KEY.startsWith('aact_live_');
     const DEFAULT_URL = isProd ? 'https://www.asaas.com/api/v3' : 'https://sandbox.asaas.com/api/v3';
     const ASAAS_URL = Deno.env.get('ASAAS_BASE_URL') || DEFAULT_URL;
+
+    // Sincronização / Atualização de Vencimento e Valor no Asaas
+    if (action === 'update-due-date' || action === 'update') {
+      const targetPaymentId = paymentId || orderId;
+      if (!targetPaymentId) throw new Error('paymentId é obrigatório para atualizar cobrança no Asaas.');
+      
+      const updatePayload: Record<string, any> = {};
+      if (dueDate) updatePayload.dueDate = dueDate;
+      if (value) updatePayload.value = Number(Number(value).toFixed(2));
+
+      const updateReq = await fetch(`${ASAAS_URL}/payments/${targetPaymentId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'access_token': ASAAS_API_KEY },
+        body: JSON.stringify(updatePayload),
+      });
+
+      const updateData = await updateReq.json();
+      if (!updateReq.ok) {
+        throw new Error(`Asaas (Atualizar Cobrança): ${updateData.errors?.[0]?.description || 'Erro ao sincronizar cobrança no Asaas'}`);
+      }
+
+      return new Response(JSON.stringify({
+        success: true,
+        data: updateData,
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });
+    }
 
     // 2. Limpeza de Dados
     const cleanPhone = phone ? phone.replace(/\D/g, '') : '';
@@ -71,7 +113,8 @@ Deno.serve(async (req) => {
         name: name,
         cpfCnpj: cleanCpf,
         email: email || 'cliente@balneariolessa.com.br',
-        mobilePhone: cleanPhone
+        mobilePhone: cleanPhone,
+        notificationDisabled: false,
       })
     });
 
@@ -80,18 +123,34 @@ Deno.serve(async (req) => {
        throw new Error(`Asaas (Cliente): ${customerData.errors?.[0]?.description || 'Erro ao criar cadastro'}`);
     }
 
-    // 4. Gerar Cobrança (PIX ou CARTÃO)
+    // 4. Gerar Cobrança (PIX, CARTÃO ou CARNÊ com Parcelas)
+    const isInstallment = Number(installmentCount) > 1;
+    const paymentBody: Record<string, any> = {
+      customer: customerData.id,
+      billingType: billingType,
+      dueDate: dueDate || new Date().toISOString().split('T')[0],
+      description: description || `Reserva Balneário Lessa`,
+      externalReference: orderId,
+      postalService: false,
+    };
+
+    if (isInstallment) {
+      paymentBody.installmentCount = Number(installmentCount);
+      if (installmentValue) {
+        paymentBody.installmentValue = Number(Number(installmentValue).toFixed(2));
+      } else if (totalValue) {
+        paymentBody.totalValue = Number(Number(totalValue).toFixed(2));
+      } else {
+        paymentBody.installmentValue = Number(Number(value).toFixed(2));
+      }
+    } else {
+      paymentBody.value = Number(Number(value).toFixed(2));
+    }
+
     const paymentReq = await fetch(`${ASAAS_URL}/payments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'access_token': ASAAS_API_KEY },
-      body: JSON.stringify({
-        customer: customerData.id,
-        billingType: billingType,
-        value: Number(Number(value).toFixed(2)),
-        dueDate: new Date().toISOString().split('T')[0],
-        description: description || `Reserva Balneário Lessa`,
-        externalReference: orderId
-      })
+      body: JSON.stringify(paymentBody)
     });
 
     const paymentData = await paymentReq.json();

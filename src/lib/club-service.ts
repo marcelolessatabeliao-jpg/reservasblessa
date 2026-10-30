@@ -13,10 +13,94 @@ import {
   type ClubSubscription,
   type ContractTemplateType,
   type SubscriptionStatus,
+  type ClubAdditionalService,
 } from './club-types';
 
 const STORAGE_KEY = 'lessa_club_ecosystem_v1';
 const SUPABASE_SETTINGS_KEY = 'lessa_club_ecosystem_v1';
+
+export const DEFAULT_CATALOG_SERVICES: ClubAdditionalService[] = [
+  {
+    id: 'prod-1',
+    name: 'Quiosque com Churrasqueira (Day Use)',
+    category: 'Locação',
+    price: 70.0,
+    addedAt: new Date().toISOString(),
+    notes: 'Espaço com pia, grelha, mesa e tomadas',
+  },
+  {
+    id: 'prod-2',
+    name: 'Mesa c/ 4 Cadeiras e Guarda-sol',
+    category: 'Locação',
+    price: 30.0,
+    addedAt: new Date().toISOString(),
+    notes: 'À beira do rio',
+  },
+  {
+    id: 'prod-3',
+    name: 'Área de Camping / Barraca (Pernoite por pessoa)',
+    category: 'Hospedagem',
+    price: 40.0,
+    addedAt: new Date().toISOString(),
+    notes: 'Área gramada com ponto de energia e banheiro',
+  },
+  {
+    id: 'prod-4',
+    name: 'Colete Salva-Vidas (Day Use)',
+    category: 'Segurança',
+    price: 15.0,
+    addedAt: new Date().toISOString(),
+    notes: 'Vários tamanhos infantil e adulto',
+  },
+  {
+    id: 'prod-5',
+    name: 'Caiaque / Stand Up Paddle (1 Hora)',
+    category: 'Lazer',
+    price: 35.0,
+    addedAt: new Date().toISOString(),
+    notes: 'Com remo e instrução básica',
+  },
+  {
+    id: 'prod-6',
+    name: 'Entrada Visitante Avulso (Não sócio)',
+    category: 'Ingresso',
+    price: 25.0,
+    addedAt: new Date().toISOString(),
+    notes: 'Day use completo nas áreas do balneário',
+  },
+  {
+    id: 'prod-7',
+    name: 'Pulseira Extra Convidado de Sócio',
+    category: 'Ingresso',
+    price: 15.0,
+    addedAt: new Date().toISOString(),
+    notes: 'Desconto exclusivo para convidados acompanhados',
+  },
+  {
+    id: 'prod-8',
+    name: 'Saco de Gelo 5kg',
+    category: 'Conveniência',
+    price: 12.0,
+    addedAt: new Date().toISOString(),
+    notes: 'Gelo em cubo filtrado',
+  },
+  {
+    id: 'prod-9',
+    name: 'Saco de Carvão 3kg',
+    category: 'Conveniência',
+    price: 18.0,
+    addedAt: new Date().toISOString(),
+    notes: 'Carvão vegetal selecionado',
+  },
+  {
+    id: 'prod-10',
+    name: 'Porção Especial de Tambaqui Balneário Lessa',
+    category: 'Restaurante',
+    price: 65.0,
+    addedAt: new Date().toISOString(),
+    notes: 'Acompanha mandioca, vinagrete e farofa',
+  },
+];
 
 export interface ClubDatabaseState {
   modalities: ClubModality[];
@@ -24,6 +108,7 @@ export interface ClubDatabaseState {
   consultants: ClubConsultant[];
   contractTemplates: ClubContractTemplate[];
   cashEntries?: ClubCashEntry[];
+  catalogServices?: ClubAdditionalService[];
   lastCardSequence: number;
   updatedAt: string;
 }
@@ -46,6 +131,7 @@ const getInitialState = (): ClubDatabaseState => ({
   ],
   contractTemplates: DEFAULT_CONTRACT_TEMPLATES,
   cashEntries: [],
+  catalogServices: DEFAULT_CATALOG_SERVICES,
   lastCardSequence: 3000, // Sequência após 1212252999
   updatedAt: new Date().toISOString(),
 });
@@ -66,6 +152,82 @@ export const formatPhone = (val?: string | null): string => {
   if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
   if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7, 11)}`;
+};
+
+export const formatBirthDate = (val?: string | null): string => {
+  if (!val) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+    const [y, m, d] = val.split('-');
+    return `${d}/${m}/${y}`;
+  }
+  const d = cleanDigits(val).slice(0, 8);
+  if (d.length <= 2) return d;
+  if (d.length <= 4) return `${d.slice(0, 2)}/${d.slice(2)}`;
+  return `${d.slice(0, 2)}/${d.slice(2, 4)}/${d.slice(4)}`;
+};
+
+export const getBirthDatePassword = (birthDate?: string | null): string => {
+  if (!birthDate) return '123456';
+  const clean = cleanDigits(birthDate);
+  if (clean.length === 8 && (clean.startsWith('19') || clean.startsWith('20')) && birthDate.includes('-')) {
+    const [y, m, d] = birthDate.split('-');
+    return `${d}${m}${y}`;
+  }
+  return clean.slice(0, 8) || '123456';
+};
+
+export const isValidCpf = (cpf?: string | null): boolean => {
+  if (!cpf) return false;
+  const clean = cleanDigits(cpf);
+  if (clean.length !== 11) return false;
+  // Rejeita sequências de dígitos idênticos (00000000000, 11111111111, etc.)
+  if (/^(\d)\1{10}$/.test(clean)) return false;
+
+  let sum = 0;
+  for (let i = 0; i < 9; i++) {
+    sum += parseInt(clean.charAt(i), 10) * (10 - i);
+  }
+  let rest = (sum * 10) % 11;
+  if (rest === 10 || rest === 11) rest = 0;
+  if (rest !== parseInt(clean.charAt(9), 10)) return false;
+
+  sum = 0;
+  for (let i = 0; i < 10; i++) {
+    sum += parseInt(clean.charAt(i), 10) * (11 - i);
+  }
+  rest = (sum * 10) % 11;
+  if (rest === 10 || rest === 11) rest = 0;
+  return rest === parseInt(clean.charAt(10), 10);
+};
+
+export const isValidCnpj = (cnpj?: string | null): boolean => {
+  if (!cnpj) return false;
+  const clean = cleanDigits(cnpj);
+  if (clean.length !== 14) return false;
+  if (/^(\d)\1{13}$/.test(clean)) return false;
+
+  let size = clean.length - 2;
+  let numbers = clean.substring(0, size);
+  const digits = clean.substring(size);
+  let sum = 0;
+  let pos = size - 7;
+  for (let i = size; i >= 1; i--) {
+    sum += parseInt(numbers.charAt(size - i), 10) * pos--;
+    if (pos < 2) pos = 9;
+  }
+  let result = sum % 11 < 2 ? 0 : 11 - (sum % 11);
+  if (result !== parseInt(digits.charAt(0), 10)) return false;
+
+  size = size + 1;
+  numbers = clean.substring(0, size);
+  sum = 0;
+  pos = size - 7;
+  for (let i = size; i >= 1; i--) {
+    sum += parseInt(numbers.charAt(size - i), 10) * pos--;
+    if (pos < 2) pos = 9;
+  }
+  result = sum % 11 < 2 ? 0 : 11 - (sum % 11);
+  return result === parseInt(digits.charAt(1), 10);
 };
 
 export const formatDateBR = (isoOrDate?: string | null): string => {
@@ -108,35 +270,116 @@ export const getQrCodeImageUrl = (payload: string, size = 240): string =>
   )}`;
 
 // Lê o estado local imediatamente e sincroniza com o Supabase (site_settings)
+const isOutdatedCardUrl = (url?: string) =>
+  !url ||
+  [
+    '/cards/18.png',
+    '/cards/6.png',
+    '/cards/3.png',
+    '/cards/10.png',
+    '/cards/38.png',
+    '/cards/26.png',
+    '/cards/35.png',
+    '/cards/4.png',
+    '/cards/15.png',
+    '/cards/16.png',
+    '/cards/27.png',
+    '/cards/36.png',
+  ].includes(url);
+
+export const normalizeClubDatabaseState = (
+  parsed: Partial<ClubDatabaseState>,
+  fallbackState?: ClubDatabaseState
+): ClubDatabaseState => {
+  const mergedModalities = [...DEFAULT_CLUB_MODALITIES].map((def) => {
+    const saved = parsed.modalities?.find((m) => m.code === def.code || m.id === def.id);
+    if (!saved) return def;
+    return {
+      ...def,
+      ...saved,
+      frontCardUrl: isOutdatedCardUrl(saved.frontCardUrl) ? def.frontCardUrl : saved.frontCardUrl,
+      dependentFrontCardUrl: isOutdatedCardUrl(saved.dependentFrontCardUrl)
+        ? def.dependentFrontCardUrl
+        : saved.dependentFrontCardUrl,
+      backCardUrl: isOutdatedCardUrl(saved.backCardUrl) ? def.backCardUrl : saved.backCardUrl,
+      dependentBackCardUrl: isOutdatedCardUrl(saved.dependentBackCardUrl)
+        ? def.dependentBackCardUrl
+        : saved.dependentBackCardUrl,
+    };
+  });
+
+  const customModalities = (parsed.modalities || []).filter(
+    (m) => !DEFAULT_CLUB_MODALITIES.some((def) => def.code === m.code || def.id === m.id)
+  );
+
+  const normalizedSubscriptions = (parsed.subscriptions || []).map((sub) => ({
+    ...sub,
+    members: (sub.members || []).map((m) => {
+      let frontUrl = m.frontCardUrl;
+      let backUrl = m.backCardUrl;
+
+      if (m.modalityCode === 'ADULTO' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/18.png')) {
+        frontUrl = '/cards/44.png';
+      } else if (m.modalityCode === 'ESTUDANTE' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/6.png')) {
+        frontUrl = '/cards/7.png';
+      } else if (m.modalityCode === 'PROFESSOR' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/3.png')) {
+        frontUrl = '/cards/2.png';
+      } else if (m.modalityCode === 'SERVIDOR' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/10.png')) {
+        frontUrl = '/cards/9.png';
+      } else if (m.modalityCode === 'KIDS' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/38.png')) {
+        frontUrl = '/cards/37.png';
+      } else if (m.modalityCode === 'IDOSO_60' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/26.png')) {
+        frontUrl = '/cards/25.png';
+      } else if (m.modalityCode === 'PCD_TEA' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/35.png')) {
+        frontUrl = '/cards/34.png';
+      }
+
+      if (m.modalityCode === 'KIDS' || m.modalityCode === 'IDOSO_60') {
+        backUrl = '/cards/39.png';
+      } else if (isOutdatedCardUrl(backUrl)) {
+        backUrl = '/cards/24.png';
+      }
+
+      return {
+        ...m,
+        frontCardUrl: frontUrl || '/cards/44.png',
+        backCardUrl: backUrl || '/cards/24.png',
+      };
+    }),
+  }));
+
+  const hasLatestContractFormat = parsed.contractTemplates?.every(
+    (t) =>
+      (t.contentHtml?.includes('[/resumo-financeiro-contrato]') &&
+        t.contentHtml?.includes('BLOCO-ASSINATURAS-IMPRESSAO')) ||
+      t.id === 'TERMOS_SITE'
+  );
+
+  return {
+    modalities: [...mergedModalities, ...customModalities],
+    subscriptions: normalizedSubscriptions,
+    consultants: parsed.consultants?.length ? parsed.consultants : fallbackState?.consultants || getInitialState().consultants,
+    contractTemplates:
+      parsed.contractTemplates?.length && hasLatestContractFormat
+        ? parsed.contractTemplates
+        : DEFAULT_CONTRACT_TEMPLATES,
+    lastCardSequence: Math.max(parsed.lastCardSequence || 3000, fallbackState?.lastCardSequence || 3000),
+    catalogServices:
+      parsed.catalogServices && parsed.catalogServices.length > 0
+        ? parsed.catalogServices
+        : fallbackState?.catalogServices && fallbackState.catalogServices.length > 0
+        ? fallbackState.catalogServices
+        : DEFAULT_CATALOG_SERVICES,
+    updatedAt: parsed.updatedAt || new Date().toISOString(),
+  };
+};
+
 export const loadClubStateLocal = (): ClubDatabaseState => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return getInitialState();
     const parsed = JSON.parse(raw) as Partial<ClubDatabaseState>;
-    // Garante que novas modalidades padrão estejam presentes
-    const mergedModalities = [...DEFAULT_CLUB_MODALITIES].map((def) => {
-      const saved = parsed.modalities?.find((m) => m.code === def.code || m.id === def.id);
-      return saved ? { ...def, ...saved } : def;
-    });
-    const customModalities = (parsed.modalities || []).filter(
-      (m) => !DEFAULT_CLUB_MODALITIES.some((def) => def.code === m.code || def.id === m.id)
-    );
-    const hasLatestContractFormat = parsed.contractTemplates?.every((t) =>
-      (t.contentHtml?.includes('[/resumo-financeiro-contrato]') &&
-        t.contentHtml?.includes('BLOCO-ASSINATURAS-IMPRESSAO')) ||
-      t.id === 'TERMOS_SITE'
-    );
-    return {
-      modalities: [...mergedModalities, ...customModalities],
-      subscriptions: parsed.subscriptions || [],
-      consultants: parsed.consultants?.length ? parsed.consultants : getInitialState().consultants,
-      contractTemplates:
-        parsed.contractTemplates?.length && hasLatestContractFormat
-          ? parsed.contractTemplates
-          : DEFAULT_CONTRACT_TEMPLATES,
-      lastCardSequence: parsed.lastCardSequence || 3000,
-      updatedAt: parsed.updatedAt || new Date().toISOString(),
-    };
+    return normalizeClubDatabaseState(parsed);
   } catch (e) {
     console.error('[ClubService] Error reading local state:', e);
     return getInitialState();
@@ -182,38 +425,14 @@ export const fetchClubState = async (): Promise<ClubDatabaseState> => {
       .maybeSingle();
 
     if (!error && data && (data as any).value) {
-      const remote = (data as any).value as ClubDatabaseState;
-      // Usa o estado que tiver mais assinaturas ou atualização mais recente
+      const remote = (data as any).value as Partial<ClubDatabaseState>;
       const remoteSubsCount = remote.subscriptions?.length || 0;
       const localSubsCount = local.subscriptions?.length || 0;
       if (
         remoteSubsCount > localSubsCount ||
         (remote.updatedAt && (!local.updatedAt || remote.updatedAt >= local.updatedAt))
       ) {
-        const mergedModalities = [...DEFAULT_CLUB_MODALITIES].map((def) => {
-          const saved = remote.modalities?.find((m) => m.code === def.code || m.id === def.id);
-          return saved ? { ...def, ...saved } : def;
-        });
-        const customModalities = (remote.modalities || []).filter(
-          (m) => !DEFAULT_CLUB_MODALITIES.some((def) => def.code === m.code || def.id === m.id)
-        );
-        const remoteHasLatestContract = remote.contractTemplates?.every(
-          (t) =>
-            (t.contentHtml?.includes('[/resumo-financeiro-contrato]') &&
-              t.contentHtml?.includes('BLOCO-ASSINATURAS-IMPRESSAO')) ||
-            t.id === 'TERMOS_SITE'
-        );
-        const normalized: ClubDatabaseState = {
-          modalities: [...mergedModalities, ...customModalities],
-          subscriptions: remote.subscriptions || [],
-          consultants: remote.consultants?.length ? remote.consultants : local.consultants,
-          contractTemplates:
-            remote.contractTemplates?.length && remoteHasLatestContract
-              ? remote.contractTemplates
-              : DEFAULT_CONTRACT_TEMPLATES,
-          lastCardSequence: Math.max(remote.lastCardSequence || 3000, local.lastCardSequence || 3000),
-          updatedAt: remote.updatedAt || new Date().toISOString(),
-        };
+        const normalized = normalizeClubDatabaseState(remote, local);
         try {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
         } catch {}
@@ -241,6 +460,7 @@ export interface CreateSubscriptionMemberInput {
   photoUrl?: string;
   documentProofUrl?: string;
   documentProofName?: string;
+  attachments?: ClubAttachment[];
 }
 
 export interface CreateSubscriptionInput {
@@ -273,6 +493,7 @@ export interface CreateSubscriptionInput {
   vehicleColor?: string;
   notes?: string;
   contractType?: ContractTemplateType;
+  attachments?: ClubAttachment[];
   members: CreateSubscriptionMemberInput[];
 }
 
@@ -338,6 +559,21 @@ export const createClubSubscription = async (
       photoUrl: m.photoUrl || '',
       documentProofUrl: m.documentProofUrl || '',
       documentProofName: m.documentProofName || '',
+      attachments:
+        m.attachments ||
+        (m.documentProofUrl
+          ? [
+              {
+                id: `att_${Date.now()}_${idx}`,
+                name: m.documentProofName || 'Documento Comprobatório',
+                dataUrl: m.documentProofUrl,
+                mimeType: m.documentProofUrl.startsWith('data:image/')
+                  ? 'image/jpeg'
+                  : 'application/pdf',
+                createdAt: now.toISOString(),
+              },
+            ]
+          : []),
       cardNumber: memberCardNumberFormat(memberCardNum),
       holderCardNumber,
       qrToken: memberCardNum,
@@ -495,6 +731,7 @@ export const createClubSubscription = async (
     endDate,
     members: builtMembers,
     invoices,
+    attachments: input.attachments || [],
     createdAt: now.toISOString(),
     updatedAt: now.toISOString(),
   };
@@ -529,6 +766,20 @@ export const generateAsaasChargeForClubInvoice = async (
       ? 'UNDEFINED'
       : billingType;
 
+  const loginUser = subscription.holderEmail || subscription.holderCpf;
+  const loginPass = getBirthDatePassword(subscription.holderBirthDate);
+  const portalUrl =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}/socio`
+      : 'https://balneariolessa.com.br/socio';
+
+  const asaasDescription = [
+    `Lessa Club (${subscription.subscriptionCode}) - ${invoice.description || subscription.planSummaryLabel}`,
+    `🔐 Portal do Sócio: ${portalUrl}`,
+    `👤 Usuário: ${loginUser}`,
+    `🔑 Senha: ${loginPass} (sua data de nascimento)`,
+  ].join('\n');
+
   const { data, error } = await supabase.functions.invoke('create-payment', {
     body: {
       orderId: invoice.id,
@@ -538,7 +789,8 @@ export const generateAsaasChargeForClubInvoice = async (
       cpf: cleanDigits(subscription.holderCpf),
       billingType: asaasBillingType,
       value: invoice.amount,
-      description: `Lessa Club (${subscription.subscriptionCode}) - ${invoice.description || `${subscription.planSummaryLabel}`}`,
+      dueDate: invoice.dueDate,
+      description: asaasDescription,
     },
   });
 
@@ -572,6 +824,84 @@ export const generateAsaasChargeForClubInvoice = async (
     pixPayload: paymentData.pix?.payload,
     pixQrCode: paymentData.pix?.encodedImage,
   };
+};
+
+export const generateUnifiedPaymentLink = async (
+  subscription: ClubSubscription,
+  invoices: ClubInvoice[],
+  billingType: 'CREDIT_CARD' | 'UNDEFINED' | 'PIX' = 'UNDEFINED'
+): Promise<{
+  paymentId: string;
+  invoiceUrl: string;
+  pixPayload?: string;
+  pixQrCode?: string;
+  totalAmount: number;
+}> => {
+  const totalAmount = Number(
+    invoices.reduce((acc, inv) => acc + inv.amount, 0).toFixed(2)
+  );
+
+  const loginUser = subscription.holderEmail || subscription.holderCpf;
+  const loginPass = getBirthDatePassword(subscription.holderBirthDate);
+  const portalUrl =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}/socio`
+      : 'https://balneariolessa.com.br/socio';
+
+  const asaasDescription = [
+    `Lessa Club (${subscription.subscriptionCode}) - Quitação Unificada no Cartão (${invoices.length} parcelas)`,
+    `🔐 Portal do Sócio: ${portalUrl}`,
+    `👤 Usuário: ${loginUser}`,
+    `🔑 Senha: ${loginPass} (sua data de nascimento)`,
+  ].join('\n');
+
+  const { data, error } = await supabase.functions.invoke('create-payment', {
+    body: {
+      orderId: `unified_${subscription.id}_${Date.now()}`,
+      name: subscription.holderName,
+      email: subscription.holderEmail || 'socio@balneariolessa.com.br',
+      phone: cleanDigits(subscription.holderPhone),
+      cpf: cleanDigits(subscription.holderCpf),
+      billingType: billingType === 'CREDIT_CARD' ? 'UNDEFINED' : billingType,
+      value: totalAmount,
+      totalValue: totalAmount,
+      description: asaasDescription,
+    },
+  });
+
+  if (error || !data?.success) {
+    throw new Error(data?.error || error?.message || 'Não foi possível gerar o link de pagamento unificado no Asaas.');
+  }
+
+  const paymentData = data.data;
+  return {
+    paymentId: paymentData.paymentId,
+    invoiceUrl: paymentData.invoiceUrl,
+    pixPayload: paymentData.pix?.payload,
+    pixQrCode: paymentData.pix?.encodedImage,
+    totalAmount,
+  };
+};
+
+export const updateAsaasPaymentDueDate = async (
+  paymentId: string,
+  dueDate: string,
+  value?: number
+): Promise<{ success: boolean; data?: any }> => {
+  const { data, error } = await supabase.functions.invoke('create-payment', {
+    body: {
+      action: 'update-due-date',
+      paymentId,
+      dueDate,
+      value,
+    },
+  });
+
+  if (error || !data?.success) {
+    throw new Error(data?.error || error?.message || 'Falha ao sincronizar alteração com o Asaas.');
+  }
+
+  return data;
 };
 
 export const checkClubInvoicePaymentStatus = async (
@@ -772,6 +1102,7 @@ export const findMemberOrSubscriptionByQuery = (
   for (const sub of state.subscriptions) {
     for (const member of sub.members) {
       const matchName = member.fullName.toLowerCase().includes(q) || sub.holderName.toLowerCase().includes(q);
+      const matchEmail = !!sub.holderEmail && sub.holderEmail.toLowerCase().trim() === q;
       const matchCard =
         member.cardNumber.toLowerCase().includes(q) ||
         member.qrToken.toLowerCase() === q ||
@@ -780,10 +1111,27 @@ export const findMemberOrSubscriptionByQuery = (
         qDigits.length >= 3 &&
         (cleanDigits(member.cpf).includes(qDigits) || cleanDigits(sub.holderCpf).includes(qDigits));
 
-      if (matchName || matchCard || matchCpf) {
+      if (matchName || matchCard || matchCpf || matchEmail) {
         results.push({ member, subscription: sub });
       }
     }
   }
   return results;
+};
+
+// ============================================================================
+// DADOS DE ACESSO AO PORTAL DO SÓCIO (USUÁRIO = EMAIL, SENHA = DATA NASC. DDMMAAAA)
+// ============================================================================
+export const getMemberAccessMessage = (sub: ClubSubscription): { message: string; whatsappUrl: string; loginUser: string; password: string } => {
+  const loginUser = sub.holderEmail || sub.holderCpf;
+  const password = getBirthDatePassword(sub.holderBirthDate);
+  const portalUrl = typeof window !== 'undefined' ? `${window.location.origin}/socio` : 'https://balneariolessa.com.br/socio';
+
+  const message = `🌿 *BALNEÁRIO FAMÍLIA LESSA — BEM-VINDO AO LESSA CLUB!* 🌿\n\nOlá, *${sub.holderName}*! Seu plano foi cadastrado com sucesso.\n\nVocê já pode acessar o Portal do Sócio para ver suas carteirinhas digitais com QR Code, enviar fotos e consultar seu contrato:\n\n🌐 *Portal do Sócio:* ${portalUrl}\n👤 *Usuário (Login):* ${loginUser}\n🔑 *Senha:* ${password} _(sua data de nascimento)_\n\nGuarde esses dados com carinho. Qualquer dúvida, estamos à disposição!`;
+
+  const phone = cleanDigits(sub.holderPhone);
+  const fullPhone = phone.startsWith('55') ? phone : `55${phone}`;
+  const whatsappUrl = `https://wa.me/${fullPhone}?text=${encodeURIComponent(message)}`;
+
+  return { message, whatsappUrl, loginUser, password };
 };

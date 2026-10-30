@@ -17,6 +17,8 @@ import {
   Loader2,
   Download,
   Printer,
+  Upload,
+  FileCheck,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -36,6 +38,9 @@ import {
   createClubSubscription,
   formatCpf,
   formatPhone,
+  formatBirthDate,
+  getMemberAccessMessage,
+  isValidCpf,
   generateAsaasChargeForClubInvoice,
   checkClubInvoicePaymentStatus,
   renderSubscriptionContractHtml,
@@ -280,9 +285,10 @@ export const CustomFamilyCheckoutModal: React.FC<CustomFamilyCheckoutModalProps>
       });
       return false;
     }
-    if (holderCpf.replace(/\D/g, '').length !== 11) {
+    if (!isValidCpf(holderCpf)) {
       toast({
-        title: 'Informe um CPF válido para o Titular',
+        title: 'CPF do Titular Inválido',
+        description: 'Informe um CPF válido com 11 dígitos para o titular.',
         variant: 'destructive',
       });
       return false;
@@ -302,7 +308,30 @@ export const CustomFamilyCheckoutModal: React.FC<CustomFamilyCheckoutModalProps>
         });
         return false;
       }
+      if (membersList[i].cpf && !isValidCpf(membersList[i].cpf)) {
+        toast({
+          title: `CPF do ${i + 1}º integrante inválido`,
+          description: `O CPF informado para ${membersList[i].fullName || 'dependente'} não é válido.`,
+          variant: 'destructive',
+        });
+        return false;
+      }
     }
+
+    for (let i = 0; i < membersList.length; i++) {
+      const m = membersList[i];
+      const isReqDoc = ['PCD_TEA', 'KIDS', 'IDOSO_60'].includes(m.modalityCode);
+      if (isReqDoc && !m.documentProofUrl) {
+        const mod = DEFAULT_CLUB_MODALITIES.find((dm) => dm.code === m.modalityCode);
+        toast({
+          title: `Comprovante obrigatório pendente (${m.fullName || (i === 0 ? 'Titular' : `Dependente #${i}`)})`,
+          description: `É obrigatório anexar ou tirar uma foto do documento comprobatório para o plano ${mod?.name || 'de gratuidade'} antes de ativar o cadastro.`,
+          variant: 'destructive',
+        });
+        return false;
+      }
+    }
+
     return true;
   };
 
@@ -737,9 +766,12 @@ export const CustomFamilyCheckoutModal: React.FC<CustomFamilyCheckoutModalProps>
                 <div>
                   <Label className="text-xs font-bold">Data de Nascimento *</Label>
                   <Input
-                    type="date"
+                    type="text"
+                    inputMode="numeric"
                     value={holderBirthDate}
-                    onChange={(e) => setHolderBirthDate(e.target.value)}
+                    onChange={(e) => setHolderBirthDate(formatBirthDate(e.target.value))}
+                    placeholder="DD/MM/AAAA"
+                    maxLength={10}
                     className="bg-white"
                   />
                 </div>
@@ -916,11 +948,14 @@ export const CustomFamilyCheckoutModal: React.FC<CustomFamilyCheckoutModalProps>
                       <div>
                         <Label className="text-xs font-bold">Data de Nascimento</Label>
                         <Input
-                          type="date"
+                          type="text"
+                          inputMode="numeric"
                           value={memberItem.birthDate || ''}
                           onChange={(e) =>
-                            handleMemberFieldChange(idx, 'birthDate', e.target.value)
+                            handleMemberFieldChange(idx, 'birthDate', formatBirthDate(e.target.value))
                           }
+                          placeholder="DD/MM/AAAA"
+                          maxLength={10}
                           className="bg-white"
                         />
                       </div>
@@ -957,20 +992,134 @@ export const CustomFamilyCheckoutModal: React.FC<CustomFamilyCheckoutModalProps>
                     </div>
 
                     {memberItem.mod.requiresDocument && (
-                      <div className="flex items-center gap-3 bg-amber-50/70 p-2.5 rounded-xl border border-amber-200">
-                        <FileText className="w-6 h-6 text-amber-700 shrink-0" />
-                        <div className="min-w-0 flex-1">
-                          <Label className="text-[11px] font-black text-amber-950 block truncate">
-                            {memberItem.mod.documentLabel || 'Comprovante da Categoria'}
-                          </Label>
-                          <input
-                            type="file"
-                            accept="image/*,.pdf"
-                            onChange={(e) =>
-                              handleFileUpload(idx, 'documentProofUrl', e.target.files?.[0])
-                            }
-                            className="text-[11px] text-slate-600 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-amber-500 file:text-emerald-950 mt-1 w-full"
-                          />
+                      <div className="sm:col-span-2 bg-amber-50/90 p-3 rounded-xl border border-amber-300 space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <span className="text-[11px] font-black text-amber-950 uppercase flex items-center gap-1.5">
+                              📄 Comprovante Obrigatório ({memberItem.mod.name})
+                              <Badge className="bg-amber-400 text-amber-950 text-[9px] font-black">
+                                OBRIGATÓRIO
+                              </Badge>
+                            </span>
+                            <p className="text-[10px] text-amber-900 mt-0.5">
+                              Para ativar este cadastro, é necessário comprovar com documento no ato da inscrição.
+                            </p>
+                          </div>
+                        </div>
+
+                        {memberItem.modalityCode === 'PCD_TEA' && (
+                          <div className="bg-white/90 p-2.5 rounded-lg border border-amber-200 text-[11px] text-slate-800 space-y-0.5">
+                            <strong className="text-amber-950 block text-[11px]">
+                              Documentos aceitos para comprovação (basta 1):
+                            </strong>
+                            <div>✅ Laudo médico com CID</div>
+                            <div>✅ Carteira de Identificação da Pessoa com Deficiência</div>
+                            <div>✅ Carteira do Autista (municipal, estadual ou nacional)</div>
+                            <div>✅ Documento oficial que comprove a condição</div>
+                          </div>
+                        )}
+
+                        {(memberItem.modalityCode === 'KIDS' ||
+                          memberItem.modalityCode === 'IDOSO_60') && (
+                          <div className="bg-white/90 p-2.5 rounded-lg border border-amber-200 text-[11px] text-slate-800 space-y-0.5">
+                            <strong className="text-amber-950 block text-[11px]">
+                              Comprovação de idade obrigatória:
+                            </strong>
+                            <div>
+                              ✅ Foto que comprove a idade (ex: RG com foto, nome e nascimento ou{' '}
+                              {memberItem.modalityCode === 'KIDS'
+                                ? 'Certidão de Nascimento'
+                                : 'CNH oficial'}).
+                            </div>
+                          </div>
+                        )}
+
+                        <div>
+                          {!memberItem.documentProofUrl ? (
+                            <div className="flex flex-wrap items-center gap-2 pt-1">
+                              {/* Câmera */}
+                              <Label
+                                htmlFor={`modal-cam-input-${idx}`}
+                                className="flex-1 min-w-[150px] inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-[#004d00] hover:bg-emerald-900 text-white rounded-lg font-bold text-xs cursor-pointer shadow-sm transition-all"
+                              >
+                                <Camera className="w-3.5 h-3.5 text-emerald-300" />
+                                📸 Tirar Foto na Hora (Câmera)
+                              </Label>
+                              <input
+                                id={`modal-cam-input-${idx}`}
+                                type="file"
+                                accept="image/*"
+                                capture="environment"
+                                className="hidden"
+                                onChange={(e) =>
+                                  handleFileUpload(
+                                    idx,
+                                    'documentProofUrl',
+                                    e.target.files?.[0]
+                                  )
+                                }
+                              />
+
+                              {/* Arquivo / Galeria */}
+                              <Label
+                                htmlFor={`modal-file-input-${idx}`}
+                                className="flex-1 min-w-[150px] inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 rounded-lg font-bold text-xs cursor-pointer shadow-sm transition-all"
+                              >
+                                <Upload className="w-3.5 h-3.5 text-slate-600" />
+                                📁 Anexar Arquivo / Foto
+                              </Label>
+                              <input
+                                id={`modal-file-input-${idx}`}
+                                type="file"
+                                accept="image/*,.pdf"
+                                className="hidden"
+                                onChange={(e) =>
+                                  handleFileUpload(
+                                    idx,
+                                    'documentProofUrl',
+                                    e.target.files?.[0]
+                                  )
+                                }
+                              />
+                            </div>
+                          ) : (
+                            <div className="bg-emerald-100/90 border border-emerald-400 p-2 rounded-lg flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2 overflow-hidden text-xs">
+                                {memberItem.documentProofUrl.startsWith('data:image/') ? (
+                                  <img
+                                    src={memberItem.documentProofUrl}
+                                    alt="Comprovante"
+                                    className="w-9 h-9 object-cover rounded border border-emerald-300 shrink-0"
+                                  />
+                                ) : (
+                                  <div className="w-9 h-9 rounded bg-emerald-800 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
+                                    DOC
+                                  </div>
+                                )}
+                                <div className="truncate">
+                                  <div className="font-bold text-emerald-950 truncate flex items-center gap-1 text-[11px]">
+                                    <FileCheck className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                                    {memberItem.documentProofName || 'Comprovante Anexado'}
+                                  </div>
+                                  <div className="text-[10px] text-emerald-800">
+                                    Documento validado para ativação
+                                  </div>
+                                </div>
+                              </div>
+
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                onClick={() =>
+                                  handleMemberFieldChange(idx, 'documentProofUrl', '')
+                                }
+                                className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 text-[11px] font-bold h-7 px-2"
+                              >
+                                <Trash2 className="w-3 h-3 mr-1" /> Trocar
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
@@ -1175,6 +1324,72 @@ export const CustomFamilyCheckoutModal: React.FC<CustomFamilyCheckoutModalProps>
                 </a>
               </Button>
             </div>
+
+            {/* CARD DE DADOS DE ACESSO (LOGIN = EMAIL, SENHA = DATA NASCIMENTO) */}
+            {(() => {
+              const access = getMemberAccessMessage(createdSubscription);
+              return (
+                <div className="bg-slate-900 text-white p-5 rounded-3xl border-2 border-amber-400 shadow-xl space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 block">
+                        🔑 Credenciais de Acesso ao Portal do Associado
+                      </span>
+                      <h4 className="text-base font-black text-white mt-0.5">
+                        Login e Senha do Sócio
+                      </h4>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => {
+                          navigator.clipboard.writeText(access.message);
+                          toast({ title: 'Copiado!', description: 'Dados de acesso copiados para a área de transferência.' });
+                        }}
+                        variant="outline"
+                        className="bg-white/10 hover:bg-white/20 border-white/20 text-white font-bold text-xs h-9"
+                      >
+                        <Copy className="w-3.5 h-3.5 mr-1.5" /> Copiar Acesso
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        asChild
+                        className="bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs h-9"
+                      >
+                        <a href={access.whatsappUrl} target="_blank" rel="noopener noreferrer">
+                          Enviar via WhatsApp
+                          <ExternalLink className="w-3.5 h-3.5 ml-1.5" />
+                        </a>
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                    <div className="bg-slate-800/80 p-3 rounded-xl border border-slate-700">
+                      <span className="text-[10px] font-bold text-slate-400 block uppercase">Usuário / Login</span>
+                      <span className="font-mono font-bold text-amber-300 text-sm block truncate" title={access.loginUser}>
+                        {access.loginUser}
+                      </span>
+                    </div>
+                    <div className="bg-slate-800/80 p-3 rounded-xl border border-slate-700">
+                      <span className="text-[10px] font-bold text-slate-400 block uppercase">Senha Padrão</span>
+                      <span className="font-mono font-bold text-emerald-400 text-sm block">
+                        {access.password}
+                      </span>
+                      <span className="text-[9px] text-slate-400 block mt-0.5">Data de nascimento (números)</span>
+                    </div>
+                    <div className="bg-slate-800/80 p-3 rounded-xl border border-slate-700">
+                      <span className="text-[10px] font-bold text-slate-400 block uppercase">Link de Acesso</span>
+                      <span className="font-mono font-bold text-white text-xs block truncate">
+                        balneariolessa.com.br/socio
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
 
             <div className="space-y-6">
               {createdSubscription.members.map((member) => (

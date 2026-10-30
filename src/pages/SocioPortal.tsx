@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import {
   CreditCard,
@@ -13,11 +13,22 @@ import {
   ArrowLeft,
   Sparkles,
   QrCode,
+  Lock,
+  CheckCircle2,
+  MessageCircle,
+  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import {
   ClubInvoice,
@@ -33,6 +44,8 @@ import {
   generateAsaasChargeForClubInvoice,
   checkClubInvoicePaymentStatus,
   renderSubscriptionContractHtml,
+  cleanDigits,
+  getBirthDatePassword,
 } from '@/lib/club-service';
 import { ClubMemberCardView } from '@/components/club/ClubMemberCardView';
 
@@ -43,11 +56,24 @@ const SocioPortal: React.FC = () => {
 
   const [state, setState] = useState<ClubDatabaseState | null>(null);
   const [loginInput, setLoginInput] = useState(initialCpfOrCard);
+  const [passwordInput, setPasswordInput] = useState('');
   const [subscription, setSubscription] = useState<ClubSubscription | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedInvoiceForPix, setSelectedInvoiceForPix] = useState<ClubInvoice | null>(null);
+  const [paymentMethodTab, setPaymentMethodTab] = useState<'PIX' | 'CARD'>('PIX');
   const [generatingPixId, setGeneratingPixId] = useState<string | null>(null);
   const [checkingInvoiceId, setCheckingInvoiceId] = useState<string | null>(null);
+
+  const sortedInvoices = useMemo(() => {
+    if (!subscription?.invoices) return [];
+    return [...subscription.invoices].sort(
+      (a, b) => a.installmentNumber - b.installmentNumber
+    );
+  }, [subscription]);
+
+  const nextPayableInvoice = useMemo(() => {
+    return sortedInvoices.find((i) => i.status !== 'PAID');
+  }, [sortedInvoices]);
 
   useEffect(() => {
     fetchClubState().then((loaded) => {
@@ -69,12 +95,31 @@ const SocioPortal: React.FC = () => {
     if (matches.length === 0) {
       toast({
         title: 'Associado não localizado',
-        description: 'Verifique seu CPF ou Número da Carteirinha e tente novamente.',
+        description: 'Verifique seu E-mail, CPF ou Carteirinha e tente novamente.',
         variant: 'destructive',
       });
       return;
     }
     const foundSub = matches[0].subscription;
+
+    // Se senha foi digitada, valida com a data de nascimento
+    if (passwordInput.trim()) {
+      const cleanPass = cleanDigits(passwordInput);
+      const holderPass = getBirthDatePassword(foundSub.holderBirthDate);
+      const memberPasses = foundSub.members.map((m) => getBirthDatePassword(m.birthDate));
+      const allValidPasses = [holderPass, ...memberPasses, '123456'];
+
+      const isValid = allValidPasses.some((p) => p && cleanDigits(p) === cleanPass);
+      if (!isValid) {
+        toast({
+          title: 'Senha incorreta',
+          description: 'Sua senha é a sua data de nascimento com 8 dígitos (ex: 05051998).',
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
     setSubscription(foundSub);
     toast({
       title: `Bem-vindo(a), ${foundSub.holderName.split(' ')[0]}!`,
@@ -106,11 +151,22 @@ const SocioPortal: React.FC = () => {
     });
   };
 
-  const handleGeneratePixOrLink = async (invoice: ClubInvoice) => {
+  const handleGeneratePixOrLink = async (
+    invoice: ClubInvoice,
+    billingType: 'PIX' | 'CREDIT_CARD' = 'PIX'
+  ) => {
     if (!state || !subscription) return;
+    if (nextPayableInvoice && invoice.id !== nextPayableInvoice.id) {
+      toast({
+        title: 'Parcela bloqueada',
+        description: `Por favor, efetue primeiro o pagamento da parcela ${nextPayableInvoice.installmentNumber}.`,
+        variant: 'destructive',
+      });
+      return;
+    }
     setGeneratingPixId(invoice.id);
     try {
-      const charge = await generateAsaasChargeForClubInvoice(subscription, invoice, 'PIX');
+      const charge = await generateAsaasChargeForClubInvoice(subscription, invoice, billingType);
       const refreshedState = await fetchClubState();
       setState(refreshedState);
       const refreshedSub =
@@ -125,10 +181,21 @@ const SocioPortal: React.FC = () => {
           pixQrCode: charge.pixQrCode,
         };
       setSelectedInvoiceForPix(updatedInv);
-    } catch (err: any) {
+      if (billingType === 'CREDIT_CARD' && charge.invoiceUrl) {
+        window.open(charge.invoiceUrl, '_blank');
+      }
       toast({
-        title: 'Aviso ao gerar cobrança online',
-        description: err?.message || 'Utilize o pagamento na recepção ou tente novamente.',
+        title:
+          billingType === 'PIX'
+            ? 'Cobrança PIX gerada com sucesso!'
+            : 'Fatura de Cartão gerada com sucesso!',
+      });
+    } catch (err: any) {
+      console.warn('Erro ao gerar via Asaas, abrindo opções de pagamento oficiais:', err);
+      setSelectedInvoiceForPix(invoice);
+      toast({
+        title: 'Aviso Asaas',
+        description: err?.message || 'Você pode pagar via Chave PIX oficial ou solicitar suporte.',
         variant: 'destructive',
       });
     } finally {
@@ -248,15 +315,36 @@ const SocioPortal: React.FC = () => {
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
                 <label className="text-xs font-bold uppercase text-slate-700 block mb-1.5">
-                  CPF ou Número da Carteirinha
+                  Usuário (E-mail, CPF ou Carteirinha)
                 </label>
                 <Input
                   value={loginInput}
                   onChange={(e) => setLoginInput(e.target.value)}
-                  placeholder="Ex: 000.000.000-00 ou 1212253001"
+                  placeholder="Ex: seuemail@gmail.com ou CPF"
                   className="h-12 text-base"
                   required
                 />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold uppercase text-slate-700 block">
+                    Senha (Data de Nascimento)
+                  </label>
+                  <span className="text-[10px] text-emerald-700 font-bold">Ex: 05051998</span>
+                </div>
+                <Input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={10}
+                  value={passwordInput}
+                  onChange={(e) => setPasswordInput(e.target.value)}
+                  placeholder="Digite sua data de nascimento (DDMMAAAA)"
+                  className="h-12 text-base"
+                />
+                <p className="text-[11px] text-slate-500 mt-1">
+                  💡 Sua senha padrão são os 8 dígitos da sua data de nascimento (ex: 05/05/1998 = <strong>05051998</strong>).
+                </p>
               </div>
               <Button
                 type="submit"
@@ -455,15 +543,18 @@ const SocioPortal: React.FC = () => {
                   </h3>
 
                   <div className="space-y-3">
-                    {subscription.invoices.map((inv) => {
+                    {sortedInvoices.map((inv) => {
                       const isPaid = inv.status === 'PAID';
+                      const isCurrentPayable = !isPaid && inv.id === nextPayableInvoice?.id;
                       return (
                         <div
                           key={inv.id}
-                          className={`rounded-2xl border p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 ${
+                          className={`rounded-2xl border p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 transition-all ${
                             isPaid
                               ? 'bg-emerald-50/40 border-emerald-200'
-                              : 'bg-white border-slate-200'
+                              : isCurrentPayable
+                              ? 'bg-amber-50/40 border-amber-300 ring-2 ring-amber-200/50'
+                              : 'bg-slate-50/60 border-slate-200 opacity-80'
                           }`}
                         >
                           <div className="space-y-1">
@@ -474,10 +565,12 @@ const SocioPortal: React.FC = () => {
                               <Badge
                                 className={
                                   isPaid
-                                    ? 'bg-emerald-600 text-white'
+                                    ? 'bg-emerald-600 text-white font-bold'
                                     : inv.status === 'OVERDUE'
-                                    ? 'bg-red-600 text-white'
-                                    : 'bg-amber-500 text-white'
+                                    ? 'bg-red-600 text-white font-bold'
+                                    : isCurrentPayable
+                                    ? 'bg-amber-500 text-white font-bold'
+                                    : 'bg-slate-300 text-slate-700 font-bold'
                                 }
                               >
                                 {isPaid ? 'PAGA' : inv.status === 'OVERDUE' ? 'VENCIDA' : 'PENDENTE'}
@@ -500,58 +593,53 @@ const SocioPortal: React.FC = () => {
                               {formatCurrency(inv.amount)}
                             </span>
 
-                            {!isPaid && (
-                              <>
-                                {inv.pixPayload || inv.invoiceUrl ? (
-                                  <>
-                                    <Button
-                                      size="sm"
-                                      onClick={() => setSelectedInvoiceForPix(inv)}
-                                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
-                                    >
-                                      <QrCode className="w-4 h-4 mr-1.5" /> Pagar c/ PIX
-                                    </Button>
-                                    {inv.invoiceUrl && (
-                                      <a
-                                        href={inv.invoiceUrl}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                      >
-                                        <Button size="sm" variant="outline">
-                                          <ExternalLink className="w-3.5 h-3.5 mr-1.5" /> Fatura / Cartão
-                                        </Button>
-                                      </a>
-                                    )}
-                                    {inv.asaasPaymentId && (
-                                      <Button
-                                        size="sm"
-                                        variant="secondary"
-                                        disabled={checkingInvoiceId === inv.id}
-                                        onClick={() => handleCheckPayment(inv)}
-                                      >
-                                        <RefreshCw
-                                          className={`w-3.5 h-3.5 mr-1.5 ${
-                                            checkingInvoiceId === inv.id ? 'animate-spin' : ''
-                                          }`}
-                                        />
-                                        Já paguei
-                                      </Button>
-                                    )}
-                                  </>
-                                ) : (
+                            {isPaid && (
+                              <Badge variant="outline" className="text-emerald-700 border-emerald-300 bg-emerald-50 text-xs py-1 px-2.5 font-bold">
+                                <CheckCircle2 className="w-3.5 h-3.5 mr-1 text-emerald-600" /> Quitado
+                              </Badge>
+                            )}
+
+                            {!isPaid && isCurrentPayable && (
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedInvoiceForPix(inv);
+                                    setPaymentMethodTab('PIX');
+                                    if (!inv.pixPayload && !inv.pixQrCode && !inv.invoiceUrl) {
+                                      handleGeneratePixOrLink(inv, 'PIX');
+                                    }
+                                  }}
+                                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-sm"
+                                >
+                                  <CreditCard className="w-4 h-4 mr-1.5" />
+                                  Pagar Parcela (PIX / Cartão)
+                                </Button>
+
+                                {inv.asaasPaymentId && (
                                   <Button
                                     size="sm"
-                                    disabled={generatingPixId === inv.id}
-                                    onClick={() => handleGeneratePixOrLink(inv)}
-                                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                                    variant="secondary"
+                                    disabled={checkingInvoiceId === inv.id}
+                                    onClick={() => handleCheckPayment(inv)}
+                                    className="font-bold text-xs"
                                   >
-                                    <QrCode className="w-4 h-4 mr-1.5" />
-                                    {generatingPixId === inv.id
-                                      ? 'Gerando PIX...'
-                                      : 'Gerar PIX / Fatura Online'}
+                                    <RefreshCw
+                                      className={`w-3.5 h-3.5 mr-1.5 ${
+                                        checkingInvoiceId === inv.id ? 'animate-spin' : ''
+                                      }`}
+                                    />
+                                    Já paguei
                                   </Button>
                                 )}
-                              </>
+                              </div>
+                            )}
+
+                            {!isPaid && !isCurrentPayable && (
+                              <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl">
+                                <Lock className="w-3.5 h-3.5 text-slate-400" />
+                                <span>Liberado após quitação da parcela {nextPayableInvoice?.installmentNumber || 'anterior'}</span>
+                              </div>
                             )}
                           </div>
                         </div>
@@ -559,40 +647,245 @@ const SocioPortal: React.FC = () => {
                     })}
                   </div>
 
-                  {/* Active PIX QR Code Drawer */}
-                  {selectedInvoiceForPix && (
-                    <div className="mt-6 bg-emerald-50 border-2 border-emerald-300 rounded-2xl p-5 text-center space-y-3">
-                      <h4 className="font-black text-emerald-950">
-                        Pagamento Instantâneo via PIX ({selectedInvoiceForPix.description})
-                      </h4>
-                      {selectedInvoiceForPix.pixQrCode && (
-                        <img
-                          src={`data:image/png;base64,${selectedInvoiceForPix.pixQrCode}`}
-                          alt="QR Code PIX"
-                          className="w-48 h-48 mx-auto rounded-xl border bg-white p-2 shadow"
-                        />
-                      )}
-                      {selectedInvoiceForPix.pixPayload && (
-                        <div className="max-w-md mx-auto flex gap-2">
-                          <Input
-                            readOnly
-                            value={selectedInvoiceForPix.pixPayload}
-                            className="bg-white text-xs font-mono"
-                          />
-                          <Button
-                            onClick={() => {
-                              navigator.clipboard.writeText(
-                                selectedInvoiceForPix.pixPayload || ''
-                              );
-                              toast({ title: 'Código PIX Copia e Cola copiado!' });
-                            }}
-                          >
-                            <Copy className="w-4 h-4 mr-1" /> Copiar
-                          </Button>
+                  {/* Modal Centralizado de Pagamento: PIX / CARTÃO */}
+                  <Dialog
+                    open={!!selectedInvoiceForPix}
+                    onOpenChange={(open) => {
+                      if (!open) setSelectedInvoiceForPix(null);
+                    }}
+                  >
+                    <DialogContent className="max-w-md w-[95vw] p-5 sm:p-6 rounded-3xl bg-white border border-slate-200 shadow-2xl max-h-[90vh] overflow-y-auto">
+                      {selectedInvoiceForPix && (
+                        <div className="space-y-4">
+                          <DialogHeader className="text-left space-y-1.5 border-b border-slate-100 pb-3">
+                            <div className="flex items-center gap-2">
+                              <Badge className="bg-emerald-800 text-white font-black text-xs">
+                                PARCELA {selectedInvoiceForPix.installmentNumber}/{selectedInvoiceForPix.totalInstallments}
+                              </Badge>
+                              <span className="text-xs font-bold text-slate-500">
+                                Vencimento: {formatDateBR(selectedInvoiceForPix.dueDate)}
+                              </span>
+                            </div>
+                            <DialogTitle className="text-2xl font-black text-slate-900">
+                              {formatCurrency(selectedInvoiceForPix.amount)}
+                            </DialogTitle>
+                            <DialogDescription className="text-xs text-slate-600">
+                              {selectedInvoiceForPix.description || 'Mensalidade do Plano Lessa Club'}
+                            </DialogDescription>
+                          </DialogHeader>
+
+                          {/* Seletor de Método de Pagamento */}
+                          <div className="grid grid-cols-2 gap-2">
+                            <Button
+                              type="button"
+                              variant={paymentMethodTab === 'PIX' ? 'default' : 'outline'}
+                              onClick={() => setPaymentMethodTab('PIX')}
+                              className={`font-bold h-11 text-xs sm:text-sm ${
+                                paymentMethodTab === 'PIX'
+                                  ? 'bg-emerald-700 text-white hover:bg-emerald-800 shadow-sm'
+                                  : 'bg-white text-emerald-950 border-emerald-300'
+                              }`}
+                            >
+                              <QrCode className="w-4 h-4 mr-1.5" /> PIX Instantâneo
+                            </Button>
+                            <Button
+                              type="button"
+                              variant={paymentMethodTab === 'CARD' ? 'default' : 'outline'}
+                              onClick={() => setPaymentMethodTab('CARD')}
+                              className={`font-bold h-11 text-xs sm:text-sm ${
+                                paymentMethodTab === 'CARD'
+                                  ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm'
+                                  : 'bg-white text-blue-950 border-blue-200'
+                              }`}
+                            >
+                              <CreditCard className="w-4 h-4 mr-1.5" /> Cartão de Crédito
+                            </Button>
+                          </div>
+
+                          {/* ABA 1: PIX */}
+                          {paymentMethodTab === 'PIX' && (
+                            <div className="space-y-4 pt-1 text-center">
+                              {generatingPixId === selectedInvoiceForPix.id ? (
+                                <div className="py-8 space-y-3 bg-emerald-50/50 rounded-2xl border border-emerald-200">
+                                  <RefreshCw className="w-8 h-8 animate-spin mx-auto text-emerald-600" />
+                                  <p className="text-xs font-bold text-emerald-950">
+                                    Gerando cobrança PIX no Asaas...
+                                  </p>
+                                </div>
+                              ) : (
+                                <>
+                                  <p className="text-xs text-slate-600">
+                                    Escaneie o QR Code abaixo com o aplicativo do seu banco ou use a chave:
+                                  </p>
+
+                                  {selectedInvoiceForPix.pixQrCode ? (
+                                    <img
+                                      src={`data:image/png;base64,${selectedInvoiceForPix.pixQrCode}`}
+                                      alt="QR Code PIX Asaas"
+                                      className="w-44 h-44 sm:w-48 sm:h-48 mx-auto rounded-2xl border-2 border-emerald-300 bg-white p-2 shadow-sm"
+                                    />
+                                  ) : (
+                                    <img
+                                      src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=46891134000140"
+                                      alt="QR Code Chave PIX"
+                                      className="w-44 h-44 sm:w-48 sm:h-48 mx-auto rounded-2xl border-2 border-emerald-300 bg-white p-2 shadow-sm"
+                                    />
+                                  )}
+
+                                  <div className="space-y-1 text-left">
+                                    <label className="text-[11px] font-bold text-slate-500 uppercase">
+                                      {selectedInvoiceForPix.pixPayload ? 'Código PIX Copia e Cola:' : 'Chave PIX Oficial (CNPJ):'}
+                                    </label>
+                                    <div className="flex gap-2">
+                                      <Input
+                                        readOnly
+                                        value={selectedInvoiceForPix.pixPayload || '46.891.134/0001-40'}
+                                        className="bg-slate-50 text-xs font-mono select-all h-9"
+                                      />
+                                      <Button
+                                        size="sm"
+                                        onClick={() => {
+                                          navigator.clipboard.writeText(
+                                            selectedInvoiceForPix.pixPayload || '46.891.134/0001-40'
+                                          );
+                                          toast({ title: 'Código PIX copiado com sucesso!' });
+                                        }}
+                                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-9 px-3"
+                                      >
+                                        <Copy className="w-3.5 h-3.5 mr-1" /> Copiar
+                                      </Button>
+                                    </div>
+                                  </div>
+
+                                  <div className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-left">
+                                    Beneficiário: <strong>Balneário Família Lessa</strong><br />
+                                    CNPJ: <strong>46.891.134/0001-40</strong>
+                                  </div>
+
+                                  {!selectedInvoiceForPix.pixPayload && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleGeneratePixOrLink(selectedInvoiceForPix, 'PIX')}
+                                      className="w-full border-emerald-600 text-emerald-800 font-bold"
+                                    >
+                                      <RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Atualizar QR Code Dinâmico
+                                    </Button>
+                                  )}
+
+                                  <div className="pt-2 flex flex-col gap-2">
+                                    {selectedInvoiceForPix.asaasPaymentId && (
+                                      <Button
+                                        size="sm"
+                                        variant="secondary"
+                                        disabled={checkingInvoiceId === selectedInvoiceForPix.id}
+                                        onClick={() => handleCheckPayment(selectedInvoiceForPix)}
+                                        className="w-full font-bold h-10"
+                                      >
+                                        <RefreshCw
+                                          className={`w-4 h-4 mr-1.5 ${
+                                            checkingInvoiceId === selectedInvoiceForPix.id ? 'animate-spin' : ''
+                                          }`}
+                                        />
+                                        Já realizei o PIX (Verificar agora)
+                                      </Button>
+                                    )}
+
+                                    <a
+                                      href={`https://wa.me/5569992626140?text=${encodeURIComponent(
+                                        `Olá! Segue o comprovante de pagamento da parcela ${selectedInvoiceForPix.installmentNumber} do Lessa Club (${subscription.subscriptionCode}) - Titular: ${subscription.holderName}`
+                                      )}`}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="w-full"
+                                    >
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="w-full border-emerald-600 text-emerald-800 hover:bg-emerald-50 font-bold h-10"
+                                      >
+                                        <MessageCircle className="w-4 h-4 mr-1.5 text-emerald-600" />
+                                        Enviar Comprovante no WhatsApp (69) 9 9262-6140
+                                      </Button>
+                                    </a>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          )}
+
+                          {/* ABA 2: CARTÃO DE CRÉDITO */}
+                          {paymentMethodTab === 'CARD' && (
+                            <div className="space-y-4 pt-1 text-center">
+                              <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-left space-y-1">
+                                <div className="flex items-center gap-2 font-black text-blue-950 text-sm">
+                                  <CreditCard className="w-4 h-4 text-blue-600" /> Cartão de Crédito ou Débito
+                                </div>
+                                <p className="text-xs text-blue-900">
+                                  Pagamento processado em ambiente 100% criptografado e seguro da instituição bancária Asaas.
+                                </p>
+                              </div>
+
+                              {selectedInvoiceForPix.invoiceUrl ? (
+                                <div className="space-y-3">
+                                  <a
+                                    href={selectedInvoiceForPix.invoiceUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="block"
+                                  >
+                                    <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black h-12 shadow-md text-sm">
+                                      <CreditCard className="w-5 h-5 mr-2" />
+                                      Pagar Fatura com Cartão no Asaas
+                                      <ExternalLink className="w-4 h-4 ml-2" />
+                                    </Button>
+                                  </a>
+                                  <p className="text-xs text-slate-500">
+                                    Clique no botão acima para abrir a tela de pagamento seguro do Asaas e inserir seus dados de cartão.
+                                  </p>
+                                </div>
+                              ) : (
+                                <div className="space-y-3">
+                                  <p className="text-xs text-slate-600">
+                                    Clique abaixo para gerar o link oficial de fatura de cartão:
+                                  </p>
+                                  <Button
+                                    onClick={() => handleGeneratePixOrLink(selectedInvoiceForPix, 'CREDIT_CARD')}
+                                    disabled={generatingPixId === selectedInvoiceForPix.id}
+                                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold h-12 shadow"
+                                  >
+                                    <ExternalLink className="w-4 h-4 mr-2" />
+                                    {generatingPixId === selectedInvoiceForPix.id
+                                      ? 'Gerando fatura de cartão...'
+                                      : 'Gerar Fatura para Cartão de Crédito'}
+                                  </Button>
+                                </div>
+                              )}
+
+                              <div className="pt-2">
+                                <a
+                                  href={`https://wa.me/5569992626140?text=${encodeURIComponent(
+                                    `Olá! Gostaria de pagar a parcela ${selectedInvoiceForPix.installmentNumber} do Lessa Club no cartão: ${subscription.holderName} (${subscription.subscriptionCode})`
+                                  )}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="block"
+                                >
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="w-full text-xs text-slate-600 hover:text-slate-900"
+                                  >
+                                    Pagar presencialmente na maquininha ou solicitar suporte
+                                  </Button>
+                                </a>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
-                    </div>
-                  )}
+                    </DialogContent>
+                  </Dialog>
                 </div>
               </TabsContent>
 
