@@ -20,11 +20,24 @@ import {
   Upload,
   FileCheck,
   AlertTriangle,
+  ZoomIn,
+  Maximize2,
+  ChevronDown,
+  ChevronUp,
+  Shield,
+  Info,
+  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import logo from '@/assets/logo.png';
 import {
@@ -70,6 +83,7 @@ interface CatalogPlanCard {
   subtitle: string;
   modalityCode: string; // 'ADULTO' | 'ESTUDANTE' | 'PROFESSOR' | 'SERVIDOR' | 'PCD_TEA' | 'IDOSO_60' | 'KIDS'
   cardImage: string;
+  backCardUrl?: string;
   monthlyPrice: number;
   annualPrice: number;
   annualInstallment: number;
@@ -87,6 +101,7 @@ const CATALOG_PLANS: CatalogPlanCard[] = [
     subtitle: 'Plano Individual ou Familiar (Escolha a quantidade de pessoas)',
     modalityCode: 'ADULTO',
     cardImage: '/cards/17.png',
+    backCardUrl: '/cards/24.png',
     monthlyPrice: 49.9,
     annualPrice: 538.92,
     annualInstallment: 44.91,
@@ -109,6 +124,7 @@ const CATALOG_PLANS: CatalogPlanCard[] = [
     subtitle: 'Meia-Assinatura para Estudantes (50% OFF)',
     modalityCode: 'ESTUDANTE',
     cardImage: '/cards/7.png',
+    backCardUrl: '/cards/24.png',
     monthlyPrice: 25.0,
     annualPrice: 270.0,
     annualInstallment: 22.5,
@@ -129,6 +145,7 @@ const CATALOG_PLANS: CatalogPlanCard[] = [
     subtitle: 'Meia-Assinatura para Professores (50% OFF)',
     modalityCode: 'PROFESSOR',
     cardImage: '/cards/2.png',
+    backCardUrl: '/cards/24.png',
     monthlyPrice: 25.0,
     annualPrice: 270.0,
     annualInstallment: 22.5,
@@ -149,6 +166,7 @@ const CATALOG_PLANS: CatalogPlanCard[] = [
     subtitle: 'Meia-Assinatura para Servidores Públicos (50% OFF)',
     modalityCode: 'SERVIDOR',
     cardImage: '/cards/9.png',
+    backCardUrl: '/cards/24.png',
     monthlyPrice: 25.0,
     annualPrice: 270.0,
     annualInstallment: 22.5,
@@ -169,6 +187,7 @@ const CATALOG_PLANS: CatalogPlanCard[] = [
     subtitle: 'Gratuidade Oficial para Pessoas com Deficiência e Autismo (TEA)',
     modalityCode: 'PCD_TEA',
     cardImage: '/cards/34.png',
+    backCardUrl: '/cards/24.png',
     monthlyPrice: 0.0,
     annualPrice: 0.0,
     annualInstallment: 0.0,
@@ -188,6 +207,7 @@ const CATALOG_PLANS: CatalogPlanCard[] = [
     subtitle: 'Gratuidade Oficial para Idosos a partir de 60 anos',
     modalityCode: 'IDOSO_60',
     cardImage: '/cards/25.png',
+    backCardUrl: '/cards/39.png',
     monthlyPrice: 0.0,
     annualPrice: 0.0,
     annualInstallment: 0.0,
@@ -207,6 +227,7 @@ const CATALOG_PLANS: CatalogPlanCard[] = [
     subtitle: 'Gratuidade Oficial para Crianças de 0 a 11 anos',
     modalityCode: 'KIDS',
     cardImage: '/cards/37.png',
+    backCardUrl: '/cards/39.png',
     monthlyPrice: 0.0,
     annualPrice: 0.0,
     annualInstallment: 0.0,
@@ -262,6 +283,17 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
   // Ciclo geral e por card
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('ANNUAL');
   const [cardCycleMap, setCardCycleMap] = useState<Record<string, BillingCycle>>({});
+
+  // Modal para ampliação de carteirinha (Frente e Verso com textos 100% nítidos e legíveis)
+  const [zoomCardModal, setZoomCardModal] = useState<{
+    open: boolean;
+    title: string;
+    frontUrl: string;
+    backUrl?: string;
+  } | null>(null);
+
+  // Controle de abas de benefícios e documentação (fechadas por padrão para melhor visualização dos planos)
+  const [expandedBenefitsMap, setExpandedBenefitsMap] = useState<Record<string, boolean>>({});
 
   // Contador de pessoas no card único "Lessa Club" (1 a 15 pessoas)
   const [lessaClubPeopleCount, setLessaClubPeopleCount] = useState<number>(1);
@@ -1478,10 +1510,10 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                       }`}
                     >
                       <div>
-                        {/* Adesivo acima da Imagem do Cartão para não tampar a arte */}
-                        <div className="p-4 pb-3 bg-white space-y-2.5">
+                        {/* Imagem da Carteirinha com clique para ampliar e textos nítidos */}
+                        <div className="p-4 pb-3 bg-white space-y-2">
                           {card.badge && (
-                            <div className="mb-2.5 flex items-center justify-between">
+                            <div className="mb-2 flex items-center justify-between">
                               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                                 {isFree ? 'Benefício Social' : 'Carteirinha Oficial'}
                               </span>
@@ -1496,13 +1528,51 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                               </div>
                             </div>
                           )}
-                          <div className="aspect-[1.586/1] w-full rounded-xl overflow-hidden shadow-sm border border-slate-100 bg-emerald-900">
+                          <div
+                            onClick={() =>
+                              setZoomCardModal({
+                                open: true,
+                                title: card.title,
+                                frontUrl: card.cardImage,
+                                backUrl: card.backCardUrl || (card.modalityCode === 'KIDS' || card.modalityCode === 'IDOSO_60' ? '/cards/39.png' : '/cards/24.png'),
+                              })
+                            }
+                            className="group relative aspect-[1.586/1] w-full rounded-xl overflow-hidden shadow-sm border border-slate-200 bg-slate-900 cursor-pointer flex items-center justify-center transition-all hover:ring-2 hover:ring-emerald-500"
+                            title="Clique para ver a carteirinha em alta resolução"
+                          >
                             <img
                               src={card.cardImage}
                               alt={card.title}
-                              className="w-full h-full object-cover"
+                              className="w-full h-full object-contain p-1 select-none transition-transform duration-200 group-hover:scale-[1.02]"
                             />
+                            {/* Overlay sutil ao passar o mouse */}
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 text-white">
+                              <ZoomIn className="w-5 h-5 text-amber-300 drop-shadow" />
+                              <span className="text-xs font-black drop-shadow tracking-wide">
+                                Clique para ampliar
+                              </span>
+                              <span className="text-[10px] text-slate-200 font-medium">
+                                Frente e Verso legíveis
+                              </span>
+                            </div>
                           </div>
+
+                          {/* Botão de apoio para abrir o modal de zoom */}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setZoomCardModal({
+                                open: true,
+                                title: card.title,
+                                frontUrl: card.cardImage,
+                                backUrl: card.backCardUrl || (card.modalityCode === 'KIDS' || card.modalityCode === 'IDOSO_60' ? '/cards/39.png' : '/cards/24.png'),
+                              })
+                            }
+                            className="w-full py-1.5 px-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors border border-emerald-200/60"
+                          >
+                            <ZoomIn className="w-3.5 h-3.5 text-emerald-700" />
+                            <span>Ver carteirinha ampliada (textos nítidos)</span>
+                          </button>
                         </div>
 
                         {/* Faixa Azul-Escura com o Nome do Plano */}
@@ -1514,7 +1584,7 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                               : ''}{' '}
                             {!isFree && (
                               <span className="text-amber-300 font-bold text-xs">
-                                ({activeCycle === 'ANNUAL' ? 'Anual' : 'Mensal'})
+                                ({activeCycle === 'ANNUAL' ? 'Plano Anual' : 'Plano Mensal'})
                               </span>
                             )}
                           </h3>
@@ -1525,8 +1595,8 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
 
                         {/* Chave Mensal / Anual dentro do Card (apenas para planos pagos) */}
                         {!isFree ? (
-                          <div className="px-5 pt-3">
-                            <div className="grid grid-cols-2 bg-slate-100 p-1 rounded-xl text-xs font-bold">
+                          <div className="px-5 pt-3 space-y-2">
+                            <div className="grid grid-cols-2 bg-slate-100 p-1 rounded-xl text-xs font-bold gap-1">
                               <button
                                 type="button"
                                 onClick={() =>
@@ -1535,13 +1605,17 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                                     [card.id]: 'MONTHLY',
                                   }))
                                 }
-                                className={`py-1.5 rounded-lg transition-all ${
+                                className={`py-2 px-1 rounded-lg transition-all flex flex-col items-center justify-center ${
                                   activeCycle === 'MONTHLY'
-                                    ? 'bg-white text-slate-900 shadow-sm font-black'
+                                    ? 'bg-white text-slate-900 shadow-sm font-black border border-slate-200'
                                     : 'text-slate-500 hover:text-slate-800'
                                 }`}
                               >
-                                Mensal ({formatCurrency(displayMonthly)})
+                                <span className="text-[11px] font-bold">Plano Mensal</span>
+                                <span className="text-xs font-black text-slate-900">
+                                  {formatCurrency(displayMonthly)}
+                                  <span className="text-[10px] font-normal text-slate-500">/mês</span>
+                                </span>
                               </button>
                               <button
                                 type="button"
@@ -1551,19 +1625,60 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                                     [card.id]: 'ANNUAL',
                                   }))
                                 }
-                                className={`py-1.5 rounded-lg transition-all ${
+                                className={`py-2 px-1 rounded-lg transition-all flex flex-col items-center justify-center ${
                                   activeCycle === 'ANNUAL'
                                     ? 'bg-emerald-700 text-white shadow-sm font-black'
                                     : 'text-slate-500 hover:text-slate-800'
                                 }`}
                               >
-                                Anual 10% OFF
+                                <span className="text-[11px] font-bold flex items-center gap-1">
+                                  <span>Plano Anual</span>
+                                  <span
+                                    className={`text-[9px] px-1 rounded font-black ${
+                                      activeCycle === 'ANNUAL'
+                                        ? 'bg-amber-400 text-emerald-950'
+                                        : 'bg-emerald-100 text-emerald-800'
+                                    }`}
+                                  >
+                                    10% OFF
+                                  </span>
+                                </span>
+                                <span className="text-xs font-black">
+                                  12x {formatCurrency(displayInstallment)}
+                                  <span
+                                    className={`text-[10px] font-normal ${
+                                      activeCycle === 'ANNUAL' ? 'text-emerald-100' : 'text-slate-500'
+                                    }`}
+                                  >
+                                    /mês
+                                  </span>
+                                </span>
                               </button>
+                            </div>
+
+                            {/* Banner de Simulação Ativa - Deixa cristalino o valor simulado */}
+                            <div
+                              className={`py-1.5 px-3 rounded-lg text-[11px] font-bold flex items-center justify-between border ${
+                                activeCycle === 'ANNUAL'
+                                  ? 'bg-emerald-50 border-emerald-300 text-emerald-950'
+                                  : 'bg-slate-50 border-slate-200 text-slate-800'
+                              }`}
+                            >
+                              <span>
+                                {activeCycle === 'ANNUAL'
+                                  ? '⭐ Simulação Anual (10% OFF):'
+                                  : '📅 Simulação Mensal:'}
+                              </span>
+                              <span className="font-black text-right">
+                                {activeCycle === 'ANNUAL'
+                                  ? `12x de ${formatCurrency(displayInstallment)} (${formatCurrency(displayAnnual)} à vista)`
+                                  : `${formatCurrency(displayMonthly)}/mês`}
+                              </span>
                             </div>
                           </div>
                         ) : (
                           <div className="px-5 pt-3">
-                            <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl py-1.5 px-3 text-center text-xs font-black flex items-center justify-center gap-1.5">
+                            <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl py-2 px-3 text-center text-xs font-black flex items-center justify-center gap-1.5">
                               <HeartHandshake className="w-4 h-4 text-emerald-600" />
                               Benefício de Gratuidade • Sem Mensalidade
                             </div>
@@ -1613,119 +1728,157 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                           </div>
                         )}
 
-                        <ul className="p-5 space-y-2.5 text-xs text-slate-600 divide-y divide-slate-100">
-                          {card.benefits.map((b, i) => (
-                            <li
-                              key={i}
-                              className="pt-2 first:pt-0 flex items-start gap-2 leading-relaxed"
-                            >
-                              <Check className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
-                              <span>{b}</span>
-                            </li>
-                          ))}
-                        </ul>
-
-                        {/* AVISO OBRIGATÓRIO DE COMPROVAÇÃO DE DOCUMENTO NA PARTE DE BAIXO DO CARD */}
-                        {(card.modalityCode === 'PCD_TEA' ||
-                          card.modalityCode === 'KIDS' ||
-                          card.modalityCode === 'IDOSO_60' ||
-                          card.modalityCode === 'ESTUDANTE' ||
-                          card.modalityCode === 'PROFESSOR' ||
-                          card.modalityCode === 'SERVIDOR') && (
-                          <div className="mx-4 mb-3 p-3 rounded-xl bg-amber-50 border-2 border-amber-300 text-amber-950 shadow-sm text-left">
-                            <div className="flex items-start gap-2 font-black text-xs leading-snug">
-                              <span className="text-base shrink-0">⚠️</span>
+                        {/* ABA EXTENSÍVEL: VEJA OS BENEFÍCIOS E DOCUMENTAÇÃO (ESCONDIDA POR PADRÃO) */}
+                        <div className="p-4 border-t border-slate-100 mt-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setExpandedBenefitsMap((prev) => ({
+                                ...prev,
+                                [card.id]: !prev[card.id],
+                              }))
+                            }
+                            className={`w-full py-2.5 px-3.5 rounded-xl font-bold text-xs transition-all flex items-center justify-between border shadow-sm ${
+                              expandedBenefitsMap[card.id]
+                                ? 'bg-emerald-50 border-emerald-300 text-emerald-950'
+                                : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700'
+                            }`}
+                          >
+                            <span className="flex items-center gap-2">
+                              <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
+                              <span>Veja os benefícios e documentação</span>
+                            </span>
+                            <span className="flex items-center gap-1 text-[11px] font-black text-emerald-700">
                               <span>
-                                Atenção: É necessário comprovar com documento no ato da inscrição para ativar este cadastro. Tenha documentos em mãos!
+                                {expandedBenefitsMap[card.id] ? 'Recolher' : 'Ver detalhes'}
                               </span>
+                              <ChevronDown
+                                className={`w-4 h-4 transition-transform duration-200 ${
+                                  expandedBenefitsMap[card.id] ? 'rotate-180' : ''
+                                }`}
+                              />
+                            </span>
+                          </button>
+
+                          {/* Conteúdo que se estende para baixo */}
+                          {expandedBenefitsMap[card.id] && (
+                            <div className="pt-3 space-y-3 animate-in fade-in duration-200">
+                              <ul className="space-y-2 text-xs text-slate-600 divide-y divide-slate-100">
+                                {card.benefits.map((b, i) => (
+                                  <li
+                                    key={i}
+                                    className="pt-2 first:pt-0 flex items-start gap-2 leading-relaxed"
+                                  >
+                                    <Check className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
+                                    <span>{b}</span>
+                                  </li>
+                                ))}
+                              </ul>
+
+                              {/* AVISO OBRIGATÓRIO DE COMPROVAÇÃO DE DOCUMENTO NA PARTE DE BAIXO */}
+                              {(card.modalityCode === 'PCD_TEA' ||
+                                card.modalityCode === 'KIDS' ||
+                                card.modalityCode === 'IDOSO_60' ||
+                                card.modalityCode === 'ESTUDANTE' ||
+                                card.modalityCode === 'PROFESSOR' ||
+                                card.modalityCode === 'SERVIDOR') && (
+                                <div className="p-3 rounded-xl bg-amber-50 border-2 border-amber-300 text-amber-950 shadow-sm text-left">
+                                  <div className="flex items-start gap-2 font-black text-xs leading-snug">
+                                    <span className="text-base shrink-0">⚠️</span>
+                                    <span>
+                                      Atenção: É necessário comprovar com documento no ato da inscrição para ativar este cadastro. Tenha documentos em mãos!
+                                    </span>
+                                  </div>
+
+                                  {card.modalityCode === 'PCD_TEA' && (
+                                    <div className="mt-2 pt-2 border-t border-amber-200 text-[11px] leading-relaxed space-y-1">
+                                      <div className="font-black text-amber-900">
+                                        📄 Documentos aceitos para comprovação (basta 1):
+                                      </div>
+                                      <div className="font-semibold text-slate-800">✅ Laudo médico com CID</div>
+                                      <div className="font-semibold text-slate-800">✅ Carteira de Identificação da Pessoa com Deficiência</div>
+                                      <div className="font-semibold text-slate-800">✅ Carteira do Autista (municipal, estadual ou nacional)</div>
+                                      <div className="font-semibold text-slate-800">✅ Documento oficial que comprove a condição</div>
+                                      <div className="text-[10px] font-bold text-emerald-800 pt-1">
+                                        📸 Permite tirar foto na hora com a câmera ou anexar arquivo.
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {card.modalityCode === 'KIDS' && (
+                                    <div className="mt-2 pt-2 border-t border-amber-200 text-[11px] leading-relaxed space-y-1">
+                                      <div className="font-black text-amber-900">
+                                        📄 Documento obrigatório para comprovação de idade:
+                                      </div>
+                                      <div className="font-semibold text-slate-800">
+                                        ✅ Foto que comprove a idade (ex: RG contendo foto, nome e nascimento ou Certidão de Nascimento).
+                                      </div>
+                                      <div className="text-[10px] font-bold text-emerald-800 pt-1">
+                                        📸 Permite tirar foto na hora com a câmera ou anexar arquivo.
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {card.modalityCode === 'IDOSO_60' && (
+                                    <div className="mt-2 pt-2 border-t border-amber-200 text-[11px] leading-relaxed space-y-1">
+                                      <div className="font-black text-amber-900">
+                                        📄 Documento obrigatório para comprovação de idade:
+                                      </div>
+                                      <div className="font-semibold text-slate-800">
+                                        ✅ Foto que comprove a idade (ex: RG contendo foto, nome e nascimento ou CNH oficial).
+                                      </div>
+                                      <div className="text-[10px] font-bold text-emerald-800 pt-1">
+                                        📸 Permite tirar foto na hora com a câmera ou anexar arquivo.
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {card.modalityCode === 'ESTUDANTE' && (
+                                    <div className="mt-2 pt-2 border-t border-amber-200 text-[11px] leading-relaxed space-y-1">
+                                      <div className="font-black text-amber-900">
+                                        📄 Documento comprobatório:
+                                      </div>
+                                      <div className="font-semibold text-slate-800">
+                                        ✅ Carteirinha de Estudante oficial ou Declaração de Matrícula.
+                                      </div>
+                                      <div className="text-[10px] font-bold text-emerald-800 pt-1">
+                                        📸 Permite tirar foto na hora com a câmera ou anexar arquivo.
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {card.modalityCode === 'PROFESSOR' && (
+                                    <div className="mt-2 pt-2 border-t border-amber-200 text-[11px] leading-relaxed space-y-1">
+                                      <div className="font-black text-amber-900">
+                                        📄 Documento comprobatório:
+                                      </div>
+                                      <div className="font-semibold text-slate-800">
+                                        ✅ Holerite, crachá funcional ou comprovante de docência.
+                                      </div>
+                                      <div className="text-[10px] font-bold text-emerald-800 pt-1">
+                                        📸 Permite tirar foto na hora com a câmera ou anexar arquivo.
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {card.modalityCode === 'SERVIDOR' && (
+                                    <div className="mt-2 pt-2 border-t border-amber-200 text-[11px] leading-relaxed space-y-1">
+                                      <div className="font-black text-amber-900">
+                                        📄 Documento comprobatório:
+                                      </div>
+                                      <div className="font-semibold text-slate-800">
+                                        ✅ Holerite, portaria ou identidade funcional de servidor público.
+                                      </div>
+                                      <div className="text-[10px] font-bold text-emerald-800 pt-1">
+                                        📸 Permite tirar foto na hora com a câmera ou anexar arquivo.
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
-
-                            {card.modalityCode === 'PCD_TEA' && (
-                              <div className="mt-2 pt-2 border-t border-amber-200 text-[11px] leading-relaxed space-y-1">
-                                <div className="font-black text-amber-900">
-                                  📄 Documentos aceitos para comprovação (basta 1):
-                                </div>
-                                <div className="font-semibold text-slate-800">✅ Laudo médico com CID</div>
-                                <div className="font-semibold text-slate-800">✅ Carteira de Identificação da Pessoa com Deficiência</div>
-                                <div className="font-semibold text-slate-800">✅ Carteira do Autista (municipal, estadual ou nacional)</div>
-                                <div className="font-semibold text-slate-800">✅ Documento oficial que comprove a condição</div>
-                                <div className="text-[10px] font-bold text-emerald-800 pt-1">
-                                  📸 Permite tirar foto na hora com a câmera ou anexar arquivo.
-                                </div>
-                              </div>
-                            )}
-
-                            {card.modalityCode === 'KIDS' && (
-                              <div className="mt-2 pt-2 border-t border-amber-200 text-[11px] leading-relaxed space-y-1">
-                                <div className="font-black text-amber-900">
-                                  📄 Documento obrigatório para comprovação de idade:
-                                </div>
-                                <div className="font-semibold text-slate-800">
-                                  ✅ Foto que comprove a idade (ex: RG contendo foto, nome e nascimento ou Certidão de Nascimento).
-                                </div>
-                                <div className="text-[10px] font-bold text-emerald-800 pt-1">
-                                  📸 Permite tirar foto na hora com a câmera ou anexar arquivo.
-                                </div>
-                              </div>
-                            )}
-
-                            {card.modalityCode === 'IDOSO_60' && (
-                              <div className="mt-2 pt-2 border-t border-amber-200 text-[11px] leading-relaxed space-y-1">
-                                <div className="font-black text-amber-900">
-                                  📄 Documento obrigatório para comprovação de idade:
-                                </div>
-                                <div className="font-semibold text-slate-800">
-                                  ✅ Foto que comprove a idade (ex: RG contendo foto, nome e nascimento ou CNH oficial).
-                                </div>
-                                <div className="text-[10px] font-bold text-emerald-800 pt-1">
-                                  📸 Permite tirar foto na hora com a câmera ou anexar arquivo.
-                                </div>
-                              </div>
-                            )}
-
-                            {card.modalityCode === 'ESTUDANTE' && (
-                              <div className="mt-2 pt-2 border-t border-amber-200 text-[11px] leading-relaxed space-y-1">
-                                <div className="font-black text-amber-900">
-                                  📄 Documento comprobatório:
-                                </div>
-                                <div className="font-semibold text-slate-800">
-                                  ✅ Carteirinha de Estudante oficial ou Declaração de Matrícula.
-                                </div>
-                                <div className="text-[10px] font-bold text-emerald-800 pt-1">
-                                  📸 Permite tirar foto na hora com a câmera ou anexar arquivo.
-                                </div>
-                              </div>
-                            )}
-
-                            {card.modalityCode === 'PROFESSOR' && (
-                              <div className="mt-2 pt-2 border-t border-amber-200 text-[11px] leading-relaxed space-y-1">
-                                <div className="font-black text-amber-900">
-                                  📄 Documento comprobatório:
-                                </div>
-                                <div className="font-semibold text-slate-800">
-                                  ✅ Holerite, crachá funcional ou comprovante de docência.
-                                </div>
-                                <div className="text-[10px] font-bold text-emerald-800 pt-1">
-                                  📸 Permite tirar foto na hora com a câmera ou anexar arquivo.
-                                </div>
-                              </div>
-                            )}
-
-                            {card.modalityCode === 'SERVIDOR' && (
-                              <div className="mt-2 pt-2 border-t border-amber-200 text-[11px] leading-relaxed space-y-1">
-                                <div className="font-black text-amber-900">
-                                  📄 Documento comprobatório:
-                                </div>
-                                <div className="font-semibold text-slate-800">
-                                  ✅ Holerite, portaria ou identidade funcional de servidor público.
-                                </div>
-                                <div className="text-[10px] font-bold text-emerald-800 pt-1">
-                                  📸 Permite tirar foto na hora com a câmera ou anexar arquivo.
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </div>
 
                       {/* Rodapé com Preço + Botão Verde "Aderir" */}
@@ -3528,6 +3681,95 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
             </div>
           </div>
         )}
+
+        {/* ===============================================================
+            MODAL DE ZOOM EM ALTA DEFINIÇÃO DA CARTEIRINHA (FRENTE E VERSO)
+            GARANTE 100% DE NITIDEZ E LEGIBILIDADE DOS TEXTOS DO CARTÃO
+        =============================================================== */}
+        <Dialog
+          open={!!zoomCardModal?.open}
+          onOpenChange={(open) => {
+            if (!open) setZoomCardModal(null);
+          }}
+        >
+          <DialogContent className="max-w-4xl w-[95vw] p-0 overflow-hidden bg-slate-950 border border-slate-800 text-white rounded-2xl shadow-2xl">
+            <div className="p-4 sm:p-5 border-b border-slate-800/80 bg-slate-900/60 flex items-center justify-between">
+              <div>
+                <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider block">
+                  Carteirinha Oficial Balneário Lessa
+                </span>
+                <DialogTitle className="text-lg sm:text-xl font-black text-white mt-0.5">
+                  {zoomCardModal?.title}
+                </DialogTitle>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setZoomCardModal(null)}
+                className="text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg h-9 w-9 p-0"
+              >
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
+
+            <div className="p-4 sm:p-6 space-y-6 max-h-[82vh] overflow-y-auto">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                {/* Frente */}
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4 text-emerald-400" /> Frente do Cartão
+                    </span>
+                    <Badge className="bg-emerald-900/80 text-emerald-300 border border-emerald-500/40 text-[10px]">
+                      Alta Definição
+                    </Badge>
+                  </div>
+                  <div className="rounded-xl overflow-hidden border-2 border-emerald-500/40 shadow-2xl bg-black">
+                    {zoomCardModal?.frontUrl && (
+                      <img
+                        src={zoomCardModal.frontUrl}
+                        alt={`Frente ${zoomCardModal.title}`}
+                        className="w-full h-auto object-contain block"
+                      />
+                    )}
+                  </div>
+                </div>
+
+                {/* Verso */}
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black uppercase tracking-wider text-teal-400 flex items-center gap-1.5">
+                      <Shield className="w-4 h-4 text-teal-400" /> Verso com Regulamento
+                    </span>
+                    <Badge className="bg-teal-900/80 text-teal-300 border border-teal-500/40 text-[10px]">
+                      Regulamento e Termos
+                    </Badge>
+                  </div>
+                  <div className="rounded-xl overflow-hidden border-2 border-teal-500/40 shadow-2xl bg-black">
+                    {zoomCardModal?.backUrl && (
+                      <img
+                        src={zoomCardModal.backUrl}
+                        alt={`Verso ${zoomCardModal.title}`}
+                        className="w-full h-auto object-contain block"
+                      />
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Dica de nitidez e uso */}
+              <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 text-xs text-slate-300 flex items-start gap-3">
+                <Info className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                <div className="leading-relaxed">
+                  <span className="font-black text-white block">
+                    Garantia de Impressão e Legibilidade Balneário Lessa:
+                  </span>
+                  Todos os textos, versículo bíblico, dados cadastrais e o QR Code são impressos em tecnologia PVC de alta resolução e também disponibilizados digitalmente no seu aplicativo de sócio.
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
