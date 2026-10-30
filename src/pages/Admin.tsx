@@ -53,6 +53,50 @@ import { exportToExcel, exportToPDF, exportMultiSheetExcel } from '@/utils/expor
 // Constants from common types
 import { KIOSKS } from '@/lib/admin-constants';
 
+class ClubErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: any }
+> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error: any) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error: any, errorInfo: any) {
+    console.error('ClubErrorBoundary caught error:', error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-8 text-center bg-white rounded-3xl border border-red-200 shadow-xl space-y-4">
+          <div className="w-12 h-12 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center mx-auto text-xl font-black">
+            ⚠️
+          </div>
+          <h3 className="text-lg font-black text-slate-900">
+            Ocorreu uma instabilidade ao carregar os dados do Lessa Club
+          </h3>
+          <p className="text-xs text-slate-500 max-w-md mx-auto">
+            {this.state.error?.message || 'Erro ao sincronizar dados locais.'}
+          </p>
+          <Button
+            type="button"
+            onClick={() => {
+              this.setState({ hasError: false, error: null });
+              window.location.reload();
+            }}
+            className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs px-6"
+          >
+            Recarregar Módulo Lessa Club
+          </Button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 const QUAD_TIMES = ['09:00', '10:30', '14:00', '15:30'];
 const PAYMENT_METHODS = [
   { value: 'pix', label: 'PIX / Transferência' },
@@ -95,7 +139,7 @@ const isAllowedDay = (date: Date) => {
   return isOperating || isHoliday(date);
 };
 
-export const syncKiosksForOrder = async (orderId: string) => {
+const syncKiosksForOrder = async (orderId: string) => {
   if (!orderId || String(orderId).startsWith('order-')) return;
 
   try {
@@ -251,7 +295,7 @@ export const syncKiosksForOrder = async (orderId: string) => {
   }
 };
 
-export const syncQuadsForOrder = async (orderId: string) => {
+const syncQuadsForOrder = async (orderId: string) => {
   if (!orderId || String(orderId).startsWith('order-')) return;
 
   try {
@@ -3189,7 +3233,11 @@ export default function Admin() {
                 <AdminCreditsTab credits={credits} fetchData={fetchData} toast={toast} />
              )}
              {activeTab === 'disponibilidade' && renderDisponibilidadeTab()}
-             {activeTab === 'clube' && <AdminClubEcosystem />}
+             {activeTab === 'clube' && (
+                <ClubErrorBoundary>
+                  <AdminClubEcosystem />
+                </ClubErrorBoundary>
+             )}
           </div>
        </div>
 

@@ -511,19 +511,19 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     let totalPaidAmount = 0;
     let totalPendingAmount = 0;
 
-    for (const sub of state.subscriptions) {
+    for (const sub of (state?.subscriptions || [])) {
       const isSubActive = sub.status === 'ACTIVE';
       if (isSubActive) holdersActive++;
       else holdersInactive++;
 
-      for (const m of sub.members) {
+      for (const m of (sub.members || [])) {
         if (m.role === 'DEPENDENTE') {
           if (m.status === 'ACTIVE' && isSubActive) dependentsActive++;
           else dependentsInactive++;
         }
       }
 
-      for (const inv of sub.invoices) {
+      for (const inv of (sub.invoices || [])) {
         if (inv.status === 'PAID') {
           invoicesPaid++;
           totalPaidAmount += inv.amount;
@@ -554,8 +554,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
   const allMembers = useMemo(() => {
     if (!state) return [];
     const list: ClubMember[] = [];
-    for (const sub of state.subscriptions) {
-      for (const member of sub.members) {
+    for (const sub of (state.subscriptions || [])) {
+      for (const member of (sub.members || [])) {
         list.push(member);
       }
     }
@@ -569,8 +569,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       invoice: ClubInvoice;
       subscription: ClubSubscription;
     }> = [];
-    for (const sub of state.subscriptions) {
-      for (const invoice of sub.invoices) {
+    for (const sub of (state.subscriptions || [])) {
+      for (const invoice of (sub.invoices || [])) {
         list.push({ invoice, subscription: sub });
       }
     }
@@ -580,7 +580,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
   // Filtered subscriptions (supports Clientes PF, Empresas PJ, Status, Via Site)
   const filteredSubscriptions = useMemo(() => {
     if (!state) return [];
-    return state.subscriptions.filter((sub) => {
+    return (state.subscriptions || []).filter((sub) => {
       if (personFilter !== 'ALL' && sub.personType !== personFilter) {
         return false;
       }
@@ -594,13 +594,13 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       const q = subSearch.toLowerCase();
       const digits = q.replace(/\D/g, '');
       return (
-        sub.holderName.toLowerCase().includes(q) ||
-        (digits && sub.holderCpf.replace(/\D/g, '').includes(digits)) ||
-        sub.members.some(
+        (sub.holderName || '').toLowerCase().includes(q) ||
+        (digits && (sub.holderCpf || '').replace(/\D/g, '').includes(digits)) ||
+        (sub.members || []).some(
           (m) =>
-            m.fullName.toLowerCase().includes(q) ||
-            m.cardNumber.includes(q) ||
-            (digits && m.cpf.replace(/\D/g, '').includes(digits))
+            (m.fullName || '').toLowerCase().includes(q) ||
+            (m.cardNumber || '').includes(q) ||
+            (digits && (m.cpf || '').replace(/\D/g, '').includes(digits))
         )
       );
     });
@@ -610,8 +610,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
   const cashFlowSummary = useMemo(() => {
     const entries: ClubCashEntry[] = [...(state?.cashEntries || [])];
     if (state) {
-      for (const sub of state.subscriptions) {
-        for (const inv of sub.invoices) {
+      for (const sub of (state.subscriptions || [])) {
+        for (const inv of (sub.invoices || [])) {
           if (inv.status === 'PAID' && inv.amount > 0) {
             entries.push({
               id: `inv_${inv.id}`,
@@ -620,14 +620,14 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
               description: `${sub.holderName} - ${inv.description || inv.referenceMonth}`,
               amount: inv.amount,
               paymentMethod: inv.paymentMethod,
-              date: (inv.paidAt || inv.dueDate).split('T')[0],
-              createdAt: inv.paidAt || inv.createdAt,
+              date: (inv.paidAt || inv.dueDate || new Date().toISOString()).split('T')[0],
+              createdAt: inv.paidAt || inv.createdAt || new Date().toISOString(),
             });
           }
         }
       }
     }
-    entries.sort((a, b) => b.date.localeCompare(a.date));
+    entries.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     const totalIn = entries
       .filter((e) => e.type === 'IN')
       .reduce((acc, e) => acc + e.amount, 0);
@@ -726,7 +726,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
   const handleToggleConsultantStatus = async (consultantId: string) => {
     if (!state) return;
-    const updated = state.consultants.map((c) =>
+    const updated = (state.consultants || []).map((c) =>
       c.id === consultantId
         ? { ...c, status: (c.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE') as 'ACTIVE' | 'INACTIVE' }
         : c
@@ -741,7 +741,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
   const handleDeleteConsultant = async (consultantId: string, consultantName: string) => {
     if (!state) return;
     if (!confirm(`Deseja realmente excluir o consultor/influencer "${consultantName}"?`)) return;
-    const updated = state.consultants.filter((c) => c.id !== consultantId);
+    const updated = (state.consultants || []).filter((c) => c.id !== consultantId);
     await persist({ ...state, consultants: updated });
     toast({
       title: 'Consultor removido',
@@ -765,7 +765,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
   const getFilteredReportSubscriptions = () => {
     if (!state) return [];
-    return state.subscriptions.filter((sub) => {
+    return (state.subscriptions || []).filter((sub) => {
       // 1. Período
       if (reportStartDate && sub.startDate < reportStartDate) return false;
       if (reportEndDate && sub.startDate > reportEndDate) return false;
@@ -861,14 +861,14 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
   // Calculate preview monthly total in Manual Registration Modal
   const calculatedManualMonthly = useMemo(() => {
     if (!state) return 0;
-    const holderMod = state.modalities.find((m) => m.code === holderModalityCode);
+    const holderMod = (state.modalities || []).find((m) => m.code === holderModalityCode);
     let sum = holderMod
       ? cycle === 'ANNUAL'
         ? holderMod.annualInstallment
         : holderMod.monthlyPrice
       : 0;
     for (const dep of manualDependents) {
-      const m = state.modalities.find((mod) => mod.code === dep.modalityCode);
+      const m = (state.modalities || []).find((mod) => mod.code === dep.modalityCode);
       if (m) {
         sum += cycle === 'ANNUAL' ? m.annualInstallment : m.monthlyPrice;
       }
@@ -1018,7 +1018,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     };
     const nextState: ClubDatabaseState = {
       ...state,
-      subscriptions: state.subscriptions.map((s) =>
+      subscriptions: (state.subscriptions || []).map((s) =>
         s.id === updatedSub.id ? updatedSub : s
       ),
     };
@@ -1086,7 +1086,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     };
     const nextState: ClubDatabaseState = {
       ...state,
-      subscriptions: state.subscriptions.map((s) =>
+      subscriptions: (state.subscriptions || []).map((s) =>
         s.id === updatedSub.id ? updatedSub : s
       ),
     };
@@ -1420,7 +1420,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     };
     const nextState: ClubDatabaseState = {
       ...state,
-      subscriptions: state.subscriptions.map((s) =>
+      subscriptions: (state.subscriptions || []).map((s) =>
         s.id === updatedSub.id ? updatedSub : s
       ),
     };
@@ -3633,7 +3633,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   return true;
                 })
                 .map((cons) => {
-                  const linkedSubs = state.subscriptions.filter(
+                  const linkedSubs = (state.subscriptions || []).filter(
                     (s) =>
                       s.consultantName?.toLowerCase() === cons.name.toLowerCase() ||
                       s.influencerName?.toLowerCase() === cons.name.toLowerCase() ||
@@ -3728,7 +3728,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 })}
             </div>
 
-            {state.consultants.length === 0 && (
+            {(state.consultants || []).length === 0 && (
               <div className="text-center py-10 text-slate-500 text-sm">
                 Nenhum consultor ou influencer cadastrado ainda. Clique em <strong>"Novo Consultor / Influencer"</strong> acima.
               </div>
@@ -3770,7 +3770,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           className="w-full h-9 rounded-md border border-slate-300 px-2 text-xs font-bold bg-white mt-1"
                         >
                           <option value="TODOS">Todos os Planos (Página Geral de Adesão)</option>
-                          {state.modalities.map((m) => (
+                          {(state.modalities || []).map((m) => (
                             <option key={m.code} value={m.code}>
                               {m.name} — Mensal: {formatCurrency(m.monthlyPrice)} / Anual: {formatCurrency(m.annualPrice)}
                             </option>
@@ -4607,7 +4607,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     className="w-full h-8 rounded-md border border-slate-300 px-2 text-xs font-bold bg-white mt-1"
                   >
                     <option value="TODOS">Todos os Planos</option>
-                    {state.modalities.map((m) => (
+                    {(state.modalities || []).map((m) => (
                       <option key={m.code} value={m.code}>
                         {m.name}
                       </option>
@@ -4692,12 +4692,12 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     </h4>
                     {Array.from(
                       new Set(
-                        state.subscriptions.map(
+                        (state.subscriptions || []).map(
                           (s) => `${s.addressCity || 'Ariquemes'} - ${s.addressState || 'RO'}`
                         )
                       )
                     ).map((cidadeUf) => {
-                      const count = state.subscriptions.filter(
+                      const count = (state.subscriptions || []).filter(
                         (s) =>
                           `${s.addressCity || 'Ariquemes'} - ${s.addressState || 'RO'}` ===
                           cidadeUf
@@ -4936,7 +4936,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                             : true
                         )
                         .map((m) => {
-                          const subCount = state.subscriptions.filter((s) =>
+                          const subCount = (state.subscriptions || []).filter((s) =>
                             s.members.some(
                               (mem) => mem.modalityCode === m.code
                             )
@@ -5000,7 +5000,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     <h4 className="font-black text-sm text-slate-900">
                       Log's de Auditoria e Emissões do Sistema
                     </h4>
-                    {state.subscriptions.map((sub) => (
+                    {(state.subscriptions || []).map((sub) => (
                       <div
                         key={sub.id}
                         className="p-3 rounded-xl border border-slate-200 bg-slate-50 text-xs flex items-center justify-between"
@@ -5019,7 +5019,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     <h4 className="font-black text-sm text-slate-900">
                       Relatório: {otherReportSubFilter}
                     </h4>
-                    {state.subscriptions.map((sub) => (
+                    {(state.subscriptions || []).map((sub) => (
                       <div
                         key={sub.id}
                         className="p-3.5 rounded-xl border border-slate-200 flex items-center justify-between bg-slate-50 text-xs"
@@ -5052,7 +5052,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   className="text-xs"
                 />
                 <div className="space-y-2">
-                  {state.subscriptions.map((sub) => {
+                  {(state.subscriptions || []).map((sub) => {
                     const msg = smsTemplate
                       .replace('{NOME}', sub.holderName)
                       .replace('{CARTAO}', sub.subscriptionCode);
@@ -5092,7 +5092,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 <h4 className="font-black text-base text-slate-900 flex items-center gap-2">
                   <Calendar className="w-5 h-5 text-emerald-700" /> Agenda de Renovações de Contratos e Vencimentos
                 </h4>
-                {state.subscriptions.map((sub) => (
+                {(state.subscriptions || []).map((sub) => (
                   <div
                     key={sub.id}
                     className="p-3.5 rounded-xl border border-slate-200 flex items-center justify-between bg-slate-50 text-xs"
@@ -5155,7 +5155,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   {state.consultants
                     .filter((c) => c.role === 'CONSULTOR')
                     .map((cons) => {
-                      const linkedSubs = state.subscriptions.filter(
+                      const linkedSubs = (state.subscriptions || []).filter(
                         (s) =>
                           (s.consultantName || '')
                             .toLowerCase()
@@ -5254,7 +5254,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   {state.consultants
                     .filter((c) => c.role === 'INFLUENCER')
                     .map((inf) => {
-                      const linkedSubs = state.subscriptions.filter(
+                      const linkedSubs = (state.subscriptions || []).filter(
                         (s) =>
                           (s.influencerName || s.consultantName || '')
                             .toLowerCase()
@@ -5359,7 +5359,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 Selecione um cadastro abaixo caso deseje removê-lo permanentemente da base:
               </p>
               <div className="space-y-2">
-                {state.subscriptions.map((sub) => (
+                {(state.subscriptions || []).map((sub) => (
                   <div
                     key={sub.id}
                     className="p-3.5 rounded-xl border border-slate-200 flex items-center justify-between bg-slate-50 text-xs"
@@ -5427,7 +5427,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     if (!clientToDelete || !state) return;
                     const nextState: ClubDatabaseState = {
                       ...state,
-                      subscriptions: state.subscriptions.filter(
+                      subscriptions: (state.subscriptions || []).filter(
                         (s) => s.id !== clientToDelete.id
                       ),
                     };
@@ -5783,7 +5783,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <h4 className="text-xs font-black uppercase tracking-wider text-slate-700">
-                    PLANOS ATIVOS ({state.modalities.filter((m) => !m.deleted).length})
+                    PLANOS ATIVOS ({(state.modalities || []).filter((m) => !m.deleted).length})
                   </h4>
                 </div>
 
@@ -5860,7 +5860,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                         `order_input_${mod.id}`
                                       ) as HTMLInputElement | null;
                                       const newOrder = inputEl ? Number(inputEl.value) : 1;
-                                      const updated = state.modalities.map((m) =>
+                                      const updated = (state.modalities || []).map((m) =>
                                         m.id === mod.id ? { ...m, sortOrder: newOrder } : m
                                       );
                                       await persist({ ...state, modalities: updated });
@@ -5905,7 +5905,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                     variant="ghost"
                                     onClick={async () => {
                                       if (!confirm(`Deseja realmente desativar/excluir o plano "${mod.name}"?`)) return;
-                                      const updated = state.modalities.map((m) =>
+                                      const updated = (state.modalities || []).map((m) =>
                                         m.id === mod.id ? { ...m, deleted: true, active: false } : m
                                       );
                                       await persist({ ...state, modalities: updated });
@@ -5931,10 +5931,10 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
               {/* SEÇÃO DE PLANOS EXCLUÍDOS (SCREENSHOT 3) */}
               <div className="space-y-3 pt-4 border-t border-slate-200">
                 <h4 className="text-xs font-black uppercase tracking-wider text-rose-800">
-                  PLANOS EXCLUIDOS ({state.modalities.filter((m) => m.deleted).length})
+                  PLANOS EXCLUIDOS ({(state.modalities || []).filter((m) => m.deleted).length})
                 </h4>
 
-                {state.modalities.filter((m) => m.deleted).length === 0 ? (
+                {(state.modalities || []).filter((m) => m.deleted).length === 0 ? (
                   <p className="text-xs text-slate-500 italic p-3 bg-slate-50 rounded-xl">
                     Nenhum plano excluído no momento.
                   </p>
@@ -5963,7 +5963,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                 <Button
                                   size="sm"
                                   onClick={async () => {
-                                    const updated = state.modalities.map((m) =>
+                                    const updated = (state.modalities || []).map((m) =>
                                       m.id === mod.id ? { ...m, deleted: false, active: true } : m
                                     );
                                     await persist({ ...state, modalities: updated });
@@ -6641,7 +6641,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                               };
                               const nextState: ClubDatabaseState = {
                                 ...state,
-                                subscriptions: state.subscriptions.map((s) =>
+                                subscriptions: (state.subscriptions || []).map((s) =>
                                   s.id === updatedSub.id ? updatedSub : s
                                 ),
                               };
@@ -6891,7 +6891,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         className="w-full h-10 mt-1 rounded-md border border-slate-300 px-3 text-xs font-semibold bg-white"
                       >
                         <option value="">Sem Consultor / Direto</option>
-                        {state.consultants.map((c) => (
+                        {(state.consultants || []).map((c) => (
                           <option key={c.id} value={c.name}>
                             {c.name} ({c.role})
                           </option>
@@ -7356,7 +7356,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                               };
                               const nextState: ClubDatabaseState = {
                                 ...state,
-                                subscriptions: state.subscriptions.map((s) =>
+                                subscriptions: (state.subscriptions || []).map((s) =>
                                   s.id === updatedSub.id ? updatedSub : s
                                 ),
                               };
@@ -7419,7 +7419,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                   };
                                   const nextState: ClubDatabaseState = {
                                     ...state,
-                                    subscriptions: state.subscriptions.map((s) =>
+                                    subscriptions: (state.subscriptions || []).map((s) =>
                                       s.id === updatedSub.id ? updatedSub : s
                                     ),
                                   };
@@ -7635,7 +7635,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         };
                         const nextState: ClubDatabaseState = {
                           ...state,
-                          subscriptions: state.subscriptions.map((s) =>
+                          subscriptions: (state.subscriptions || []).map((s) =>
                             s.id === updatedSub.id ? updatedSub : s
                           ),
                         };
@@ -7724,6 +7724,25 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     >
                       VER PARCELAS
                     </button>
+
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => {
+                        const dateSigned = selectedSubForDetail.createdAt
+                          ? formatDateBR(selectedSubForDetail.createdAt.split('T')[0])
+                          : 'recente';
+                        const legalMsg = `Olá, ${selectedSubForDetail.holderName}. Entendemos sua dúvida, mas esclarecemos que a sua associação ao Lessa Club foi realizada em ${dateSigned} via formulário digital oficial. No momento do cadastro, houve o preenchimento dos seus dados pessoais e o aceite eletrônico do Contrato de Adesão de Associado do Balneário Família Lessa, seguido pelo pagamento da primeira mensalidade.\n\nA legislação brasileira (pelo Código Civil e pela Medida Provisória nº 2.200-2/2001) reconhece o contrato eletrônico e o 'clique de aceite' como manifestações de vontade plenamente válidas e com força jurídica de assinatura física. Como o plano escolhido prevê renovação automática e a ausência de frequência ao balneário não suspende a cobrança, o plano continuou ativo e os valores em aberto são devidos.\n\nEstamos à disposição para facilitar o parcelamento desse saldo. Como podemos te ajudar a regularizar?`;
+                        navigator.clipboard.writeText(legalMsg);
+                        toast({
+                          title: '⚖️ Resposta Jurídica Copiada!',
+                          description: 'Texto formal com respaldo do Código Civil e MP 2.200-2/2001 pronto para colar no WhatsApp.',
+                        });
+                      }}
+                      className="h-9 bg-slate-900 hover:bg-slate-800 text-amber-300 border border-amber-400/40 font-bold text-xs shadow-sm"
+                    >
+                      ⚖️ Copiar Resposta Jurídica Cobrança ("Não assinei nada")
+                    </Button>
                   </div>
 
                   {/* Modal/Form inline para Editar Parcela (quando clica no ícone Chave Inglesa) */}
@@ -7809,7 +7828,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           };
                           const nextState: ClubDatabaseState = {
                             ...state,
-                            subscriptions: state.subscriptions.map((s) =>
+                            subscriptions: (state.subscriptions || []).map((s) =>
                               s.id === updatedSub.id ? updatedSub : s
                             ),
                           };
@@ -7919,7 +7938,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           };
                           const nextState: ClubDatabaseState = {
                             ...state,
-                            subscriptions: state.subscriptions.map((s) =>
+                            subscriptions: (state.subscriptions || []).map((s) =>
                               s.id === updatedSub.id ? updatedSub : s
                             ),
                           };
@@ -8098,7 +8117,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                       };
                                       const nextState: ClubDatabaseState = {
                                         ...state,
-                                        subscriptions: state.subscriptions.map(
+                                        subscriptions: (state.subscriptions || []).map(
                                           (s) =>
                                             s.id === updatedSub.id
                                               ? updatedSub
@@ -8207,7 +8226,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           };
                           const nextState: ClubDatabaseState = {
                             ...state,
-                            subscriptions: state.subscriptions.map((s) =>
+                            subscriptions: (state.subscriptions || []).map((s) =>
                               s.id === updatedSub.id ? updatedSub : s
                             ),
                           };
@@ -8828,7 +8847,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         };
                         const nextState: ClubDatabaseState = {
                           ...state,
-                          subscriptions: state.subscriptions.map((s) =>
+                          subscriptions: (state.subscriptions || []).map((s) =>
                             s.id === updatedSub.id ? updatedSub : s
                           ),
                         };
@@ -8897,7 +8916,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                 };
                                 const nextState: ClubDatabaseState = {
                                   ...state,
-                                  subscriptions: state.subscriptions.map((s) =>
+                                  subscriptions: (state.subscriptions || []).map((s) =>
                                     s.id === updatedSub.id ? updatedSub : s
                                   ),
                                 };
@@ -8993,7 +9012,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                     };
                                     const nextState: ClubDatabaseState = {
                                       ...state,
-                                      subscriptions: state.subscriptions.map((s) =>
+                                      subscriptions: (state.subscriptions || []).map((s) =>
                                         s.id === updatedSub.id ? updatedSub : s
                                       ),
                                     };
@@ -9050,7 +9069,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                             };
                                             const nextState: ClubDatabaseState = {
                                               ...state,
-                                              subscriptions: state.subscriptions.map((s) =>
+                                              subscriptions: (state.subscriptions || []).map((s) =>
                                                 s.id === updatedSub.id ? updatedSub : s
                                               ),
                                             };
@@ -9140,7 +9159,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           onChange={(e) => setNewDepModality(e.target.value)}
                           className="w-full h-9 rounded-lg border border-slate-300 px-2 text-xs font-bold bg-white"
                         >
-                          {state.modalities.map((m) => (
+                          {(state.modalities || []).map((m) => (
                             <option key={m.code} value={m.code}>
                               {m.name} —{' '}
                               {m.isFreeTier
@@ -9216,7 +9235,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                               return;
                             }
                             const mod =
-                              state.modalities.find(
+                              (state.modalities || []).find(
                                 (m) => m.code === newDepModality
                               ) || state.modalities[0];
                             const newCardNum = String(
@@ -9281,7 +9300,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                             };
                             const nextState: ClubDatabaseState = {
                               ...state,
-                              subscriptions: state.subscriptions.map((s) =>
+                              subscriptions: (state.subscriptions || []).map((s) =>
                                 s.id === updatedSub.id ? updatedSub : s
                               ),
                             };
@@ -9433,7 +9452,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                       };
                                       const nextState: ClubDatabaseState = {
                                         ...state,
-                                        subscriptions: state.subscriptions.map((s) =>
+                                        subscriptions: (state.subscriptions || []).map((s) =>
                                           s.id === updatedSub.id ? updatedSub : s
                                         ),
                                       };
@@ -9528,7 +9547,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                         }
                                         className="w-full h-8 rounded border border-slate-300 px-2 text-xs font-bold bg-white"
                                       >
-                                        {state.modalities.map((m) => (
+                                        {(state.modalities || []).map((m) => (
                                           <option key={m.code} value={m.code}>
                                             {m.name} —{' '}
                                             {m.isFreeTier
@@ -9562,7 +9581,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                         size="sm"
                                         onClick={async () => {
                                           const newMod =
-                                            state.modalities.find(
+                                            (state.modalities || []).find(
                                               (m) =>
                                                 m.code === targetNewModalityCode
                                             ) || state.modalities[0];
@@ -9628,7 +9647,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                           const nextState: ClubDatabaseState = {
                                             ...state,
                                             subscriptions:
-                                              state.subscriptions.map((s) =>
+                                              (state.subscriptions || []).map((s) =>
                                                 s.id === updatedSub.id
                                                   ? updatedSub
                                                   : s
@@ -9713,7 +9732,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                       };
                                       const nextState: ClubDatabaseState = {
                                         ...state,
-                                        subscriptions: state.subscriptions.map((s) =>
+                                        subscriptions: (state.subscriptions || []).map((s) =>
                                           s.id === updatedSub.id ? updatedSub : s
                                         ),
                                       };
@@ -9801,7 +9820,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                               const nextState: ClubDatabaseState = {
                                                 ...state,
                                                 subscriptions:
-                                                  state.subscriptions.map((s) =>
+                                                  (state.subscriptions || []).map((s) =>
                                                     s.id === updatedSub.id
                                                       ? updatedSub
                                                       : s
@@ -9907,7 +9926,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                             };
                             const nextState: ClubDatabaseState = {
                               ...state,
-                              subscriptions: state.subscriptions.map((s) =>
+                              subscriptions: (state.subscriptions || []).map((s) =>
                                 s.id === updatedSub.id ? updatedSub : s
                               ),
                             };
@@ -9993,7 +10012,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           };
                           const nextState: ClubDatabaseState = {
                             ...state,
-                            subscriptions: state.subscriptions.map((s) =>
+                            subscriptions: (state.subscriptions || []).map((s) =>
                               s.id === updatedSub.id ? updatedSub : s
                             ),
                           };
@@ -10096,7 +10115,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           };
                           const nextState: ClubDatabaseState = {
                             ...state,
-                            subscriptions: state.subscriptions.map((s) =>
+                            subscriptions: (state.subscriptions || []).map((s) =>
                               s.id === updatedSub.id ? updatedSub : s
                             ),
                           };
@@ -10221,7 +10240,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                               };
                               const nextState: ClubDatabaseState = {
                                 ...state,
-                                subscriptions: state.subscriptions.map((s) =>
+                                subscriptions: (state.subscriptions || []).map((s) =>
                                   s.id === updatedSub.id ? updatedSub : s
                                 ),
                               };
@@ -11023,7 +11042,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     onChange={(e) => setHolderModalityCode(e.target.value)}
                     className="w-full h-10 rounded-md border border-slate-300 px-3 text-xs font-bold bg-white"
                   >
-                    {state.modalities.map((m) => (
+                    {(state.modalities || []).map((m) => (
                       <option key={m.code} value={m.code}>
                         {m.name} (
                         {m.isFreeTier
@@ -11149,7 +11168,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           }}
                           className="w-full h-10 rounded-lg border border-slate-300 px-2 text-xs bg-white font-bold"
                         >
-                          {state.modalities.map((m) => (
+                          {(state.modalities || []).map((m) => (
                             <option key={m.code} value={m.code}>
                               {m.name} (
                               {formatCurrency(
@@ -11985,7 +12004,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                       if (!confirm(`Tem certeza que deseja excluir permanentemente o plano "${editingModality.name}"?`)) {
                         return;
                       }
-                      const filtered = state.modalities.filter((m) => m.id !== editingModality.id);
+                      const filtered = (state.modalities || []).filter((m) => m.id !== editingModality.id);
                       await persist({ ...state, modalities: filtered });
                       setEditingModality(null);
                       toast({
@@ -12021,11 +12040,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         });
                         return;
                       }
-                      const exists = state.modalities.some(
+                      const exists = (state.modalities || []).some(
                         (m) => m.id === editingModality.id
                       );
                       const nextModalities = exists
-                        ? state.modalities.map((m) =>
+                        ? (state.modalities || []).map((m) =>
                             m.id === editingModality.id ? editingModality : m
                           )
                         : [...state.modalities, editingModality];

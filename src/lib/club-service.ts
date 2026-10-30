@@ -346,6 +346,10 @@ export const normalizeClubDatabaseState = (
         backCardUrl: backUrl || '/cards/24.png',
       };
     }),
+    invoices: Array.isArray(sub.invoices) ? sub.invoices : [],
+    attachments: Array.isArray(sub.attachments) ? sub.attachments : [],
+    visits: Array.isArray(sub.visits) ? sub.visits : [],
+    additionalServices: Array.isArray(sub.additionalServices) ? sub.additionalServices : [],
   }));
 
   const hasLatestContractFormat = parsed.contractTemplates?.every(
@@ -356,13 +360,19 @@ export const normalizeClubDatabaseState = (
   );
 
   return {
-    modalities: [...mergedModalities, ...customModalities],
+    modalities: [...mergedModalities, ...customModalities].map((m) => ({
+      ...m,
+      benefits: Array.isArray(m.benefits) ? m.benefits : [],
+    })),
     subscriptions: normalizedSubscriptions,
     consultants: parsed.consultants?.length ? parsed.consultants : fallbackState?.consultants || getInitialState().consultants,
     contractTemplates:
       parsed.contractTemplates?.length && hasLatestContractFormat
         ? parsed.contractTemplates
         : DEFAULT_CONTRACT_TEMPLATES,
+    cashEntries: Array.isArray(parsed.cashEntries)
+      ? parsed.cashEntries
+      : fallbackState?.cashEntries || [],
     lastCardSequence: Math.max(parsed.lastCardSequence || 3000, fallbackState?.lastCardSequence || 3000),
     catalogServices:
       parsed.catalogServices && parsed.catalogServices.length > 0

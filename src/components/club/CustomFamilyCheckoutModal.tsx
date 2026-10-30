@@ -1156,18 +1156,28 @@ export const CustomFamilyCheckoutModal: React.FC<CustomFamilyCheckoutModalProps>
         {/* PASSO 3: VISUALIZAÇÃO E ACEITE DO CONTRATO OFICIAL */}
         {step === 'CONTRACT' && (
           <div className="space-y-5 pt-2">
-            <div className="bg-emerald-950 text-white p-4 rounded-2xl flex items-center justify-between gap-3">
+            <div className="bg-emerald-950 text-white p-5 rounded-2xl flex items-center justify-between gap-3 shadow-md border border-emerald-500/30">
               <div className="flex items-center gap-3">
-                <ShieldCheck className="w-7 h-7 text-amber-400 shrink-0" />
+                <ShieldCheck className="w-8 h-8 text-amber-400 shrink-0" />
                 <div>
-                  <h4 className="font-black text-sm uppercase">
-                    Termo de Adesão Oficial Preenchido Automaticamente
+                  <h4 className="font-black text-sm uppercase text-amber-300">
+                    Contrato de Adesão de Associado • Validade Jurídica Plena
                   </h4>
-                  <p className="text-xs text-emerald-100/80">
-                    Este contrato ficará salvo permanentemente no seu Portal do Associado para download a qualquer momento.
+                  <p className="text-xs text-emerald-100/90 leading-tight">
+                    Conforme o Código Civil Brasileiro e a MP 2.200-2/2001, o aceite eletrônico possui força de assinatura física e gera obrigação contratual válida.
                   </p>
                 </div>
               </div>
+            </div>
+
+            {/* AVISO DE CANCELAMENTO E CONTINUIDADE EM DESTAQUE */}
+            <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 text-xs text-amber-950 space-y-1">
+              <strong className="text-amber-900 block font-black uppercase tracking-wide">
+                ⚠️ Cláusula Contratual em Destaque (Cobrança & Cancelamento):
+              </strong>
+              <p className="leading-relaxed">
+                Este plano possui <strong>cobrança recorrente mensal</strong>. A <strong>ausência de frequência ou não uso das dependências do balneário NÃO suspende a cobrança</strong> das mensalidades enquanto o plano estiver ativo. Caso deseje solicitar o cancelamento, é obrigatório estar com as <strong>mensalidades anteriores integralmente em dia</strong>, formalizando o pedido pelo canal oficial do WhatsApp <strong>(69) 99262-6140</strong>.
+              </p>
             </div>
 
             <div
@@ -1175,7 +1185,7 @@ export const CustomFamilyCheckoutModal: React.FC<CustomFamilyCheckoutModalProps>
               dangerouslySetInnerHTML={{ __html: previewContractHtml }}
             />
 
-            <label className="flex items-start gap-3 p-4 rounded-2xl bg-emerald-50 border-2 border-emerald-600/30 cursor-pointer">
+            <label className="flex items-start gap-3 p-4 rounded-2xl bg-emerald-50 border-2 border-emerald-600/30 cursor-pointer hover:bg-emerald-100/60 transition-colors">
               <input
                 type="checkbox"
                 checked={contractAccepted}
@@ -1183,7 +1193,7 @@ export const CustomFamilyCheckoutModal: React.FC<CustomFamilyCheckoutModalProps>
                 className="mt-1 w-5 h-5 accent-emerald-700 rounded"
               />
               <span className="text-xs sm:text-sm font-bold text-emerald-950 leading-snug">
-                Declaro que li, compreendi e aceito integralmente os Termos e Condições Gerais de Uso e Adesão do Balneário Família Lessa, autorizando a emissão das carteirinhas acima.
+                Li, compreendi e concordo integralmente com o <u>Contrato de Adesão de Associado</u> do Balneário Família Lessa, ciente da cobrança mensal contínua e das regras de cancelamento, autorizando a emissão das carteirinhas vinculadas.
               </span>
             </label>
 

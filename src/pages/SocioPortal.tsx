@@ -17,6 +17,13 @@ import {
   CheckCircle2,
   MessageCircle,
   X,
+  HelpCircle,
+  Info,
+  Calendar,
+  Clock,
+  Gift,
+  AlertCircle,
+  ShieldCheck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -275,6 +282,18 @@ const SocioPortal: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2">
+            <a
+              href="https://wa.me/5569992626140?text=Ol%C3%A1%2C+sou+associado+do+Balne%C3%A1rio+Lessa+e+gostaria+de+tirar+uma+d%C3%BAvida+sobre+a+%C3%A1rea+do+associado."
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Button
+                size="sm"
+                className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-sm"
+              >
+                <MessageCircle className="w-3.5 h-3.5 mr-1.5" /> Dúvidas no WhatsApp
+              </Button>
+            </a>
             <Link to="/verificar">
               <Button
                 variant="outline"
@@ -300,8 +319,9 @@ const SocioPortal: React.FC = () => {
 
       <div className="container mx-auto px-4 pt-8 max-w-6xl">
         {!subscription ? (
-          /* Login Card */
-          <div className="max-w-md mx-auto bg-white rounded-3xl border border-slate-200 shadow-xl p-8 mt-8">
+          <>
+            {/* Login Card */}
+            <div className="max-w-md mx-auto bg-white rounded-3xl border border-slate-200 shadow-xl p-8 mt-8">
             <div className="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center mb-5 mx-auto">
               <CreditCard className="w-7 h-7" />
             </div>
@@ -355,15 +375,48 @@ const SocioPortal: React.FC = () => {
               </Button>
             </form>
 
-            <div className="mt-6 pt-6 border-t border-slate-100 text-center">
-              <p className="text-xs text-slate-500 mb-2">Ainda não é sócio do Reserva Lessa?</p>
-              <Link to="/assinatura">
-                <Button variant="outline" size="sm" className="w-full font-bold">
-                  Montar Meu Plano Personalizado
+            <div className="mt-6 pt-6 border-t border-slate-100 text-center space-y-3">
+              <div>
+                <p className="text-xs text-slate-500 mb-2">Ainda não é sócio do Reserva Lessa?</p>
+                <Link to="/assinatura">
+                  <Button variant="outline" size="sm" className="w-full font-bold">
+                    Montar Meu Plano Personalizado
+                  </Button>
+                </Link>
+              </div>
+
+              <a
+                href="https://wa.me/5569992626140?text=Ol%C3%A1%2C+sou+associado+e+preciso+de+ajuda+para+acessar+o+portal+do+s%C3%B3cio."
+                target="_blank"
+                rel="noreferrer"
+                className="block"
+              >
+                <Button variant="ghost" size="sm" className="w-full text-xs text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50 font-bold">
+                  <MessageCircle className="w-3.5 h-3.5 mr-1.5" /> Dúvidas no acesso? Falar no WhatsApp
                 </Button>
-              </Link>
+              </a>
             </div>
           </div>
+
+          <div className="mt-6 max-w-md mx-auto bg-emerald-950 text-white rounded-3xl p-5 border border-emerald-500/30 shadow-lg space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-black text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5" /> Vantagens de ser nosso Associado
+              </span>
+              <span className="text-[10px] text-emerald-300 font-bold">9h às 17h</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-xs text-emerald-100">
+              <div>🚫 Sem taxa de adesão</div>
+              <div>🎟️ Entradas ilimitadas</div>
+              <div>📅 Sex, Sáb, Dom e Feriados</div>
+              <div>💳 Cartão digital e físico</div>
+              <div className="col-span-2 text-amber-300 font-bold">🎟️ Seus convidados pagam apenas meia-entrada!</div>
+            </div>
+            <div className="text-center pt-2 border-t border-emerald-800/80 font-black text-amber-400 text-xs">
+              💡 PAGUE UMA VEZ E APROVEITE O MÊS INTEIRO!
+            </div>
+          </div>
+        </>
         ) : (
           /* Logged-in Member Dashboard */
           <div className="space-y-6">
@@ -419,31 +472,67 @@ const SocioPortal: React.FC = () => {
               </div>
             </div>
 
-            {/* Main Tabs */}
-            <Tabs defaultValue="carteirinhas" className="space-y-6">
-              <TabsList className="grid grid-cols-3 w-full max-w-xl bg-slate-200/80 p-1 rounded-2xl h-12">
-                <TabsTrigger
-                  value="carteirinhas"
-                  className="rounded-xl font-bold text-xs md:text-sm data-[state=active]:bg-white data-[state=active]:text-emerald-700"
-                >
-                  <CreditCard className="w-4 h-4 mr-1.5" /> Carteirinhas ({subscription.members.length})
-                </TabsTrigger>
-                <TabsTrigger
-                  value="faturas"
-                  className="rounded-xl font-bold text-xs md:text-sm data-[state=active]:bg-white data-[state=active]:text-emerald-700"
-                >
-                  <Receipt className="w-4 h-4 mr-1.5" /> Mensalidades ({subscription.invoices.length})
-                </TabsTrigger>
-                <TabsTrigger
-                  value="contrato"
-                  className="rounded-xl font-bold text-xs md:text-sm data-[state=active]:bg-white data-[state=active]:text-emerald-700"
-                >
-                  <FileText className="w-4 h-4 mr-1.5" /> Meu Contrato
-                </TabsTrigger>
-              </TabsList>
+              {/* Main Tabs */}
+              <Tabs defaultValue="carteirinhas" className="space-y-6">
+                <TabsList className="grid grid-cols-2 sm:grid-cols-4 w-full max-w-3xl bg-slate-200/80 p-1 rounded-2xl h-auto sm:h-12 gap-1">
+                  <TabsTrigger
+                    value="carteirinhas"
+                    className="rounded-xl font-bold text-xs md:text-sm data-[state=active]:bg-white data-[state=active]:text-emerald-700"
+                  >
+                    <CreditCard className="w-4 h-4 mr-1.5" /> Carteirinhas ({(subscription.members || []).length})
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="faturas"
+                    className="rounded-xl font-bold text-xs md:text-sm data-[state=active]:bg-white data-[state=active]:text-emerald-700"
+                  >
+                    <Receipt className="w-4 h-4 mr-1.5" /> Mensalidades ({(subscription.invoices || []).length})
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="contrato"
+                    className="rounded-xl font-bold text-xs md:text-sm data-[state=active]:bg-white data-[state=active]:text-emerald-700"
+                  >
+                    <FileText className="w-4 h-4 mr-1.5" /> Meu Contrato
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="vantagens"
+                    className="rounded-xl font-bold text-xs md:text-sm data-[state=active]:bg-white data-[state=active]:text-amber-700"
+                  >
+                    <Sparkles className="w-4 h-4 mr-1.5 text-amber-500" /> Vantagens & Dúvidas
+                  </TabsTrigger>
+                </TabsList>
 
-              {/* TAB 1: CARTEIRINHAS (DIVIDIDO EM TITULAR E DEPENDENTES) */}
-              <TabsContent value="carteirinhas" className="space-y-6">
+                {/* TAB 1: CARTEIRINHAS (DIVIDIDO EM TITULAR E DEPENDENTES) */}
+                <TabsContent value="carteirinhas" className="space-y-6">
+                  {/* EXPLICAÇÃO DO QR CODE DE ACESSO */}
+                  <div className="bg-gradient-to-r from-emerald-950 to-slate-900 text-white rounded-3xl p-5 md:p-6 border border-emerald-500/30 shadow-md">
+                    <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                      <div className="flex items-start gap-3.5">
+                        <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center shrink-0 text-emerald-400">
+                          <QrCode className="w-6 h-6" />
+                        </div>
+                        <div className="space-y-1">
+                          <h4 className="font-black text-sm md:text-base text-white flex items-center gap-2">
+                            <span>📲 Como funciona o QR Code da sua Carteirinha?</span>
+                            <Badge className="bg-emerald-500 text-slate-950 font-black text-[10px]">
+                              Portaria Inteligente
+                            </Badge>
+                          </h4>
+                          <p className="text-xs text-slate-300 leading-relaxed max-w-2xl">
+                            Ao aproximar o QR Code da sua carteirinha do leitor da portaria ou da câmera da recepção, o sistema abre instantaneamente a página oficial de validação em tempo real. Aparece a sua <strong>foto de perfil 3x4</strong>, seus <strong>dados cadastrais</strong>, os <strong>dependentes vinculados</strong> e o <strong>status da mensalidade</strong>. Estando regularizado, a catraca é liberada de imediato sem necessidade de filas!
+                          </p>
+                        </div>
+                      </div>
+                      <Link to="/verificar" className="shrink-0 w-full md:w-auto">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full md:w-auto border-emerald-400/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 text-xs font-bold"
+                        >
+                          <ShieldCheck className="w-3.5 h-3.5 mr-1.5" /> Simular Validação
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
                 {subscription.status !== 'ACTIVE' ? (
                   <div className="bg-rose-50 border-2 border-rose-300 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="space-y-1">
@@ -920,10 +1009,235 @@ const SocioPortal: React.FC = () => {
                   />
                 </div>
               </TabsContent>
+
+              {/* TAB 4: VANTAGENS & DÚVIDAS */}
+              <TabsContent value="vantagens" className="space-y-6">
+                {/* BANNER PRINCIPAL DE VANTAGENS */}
+                <div className="bg-gradient-to-br from-emerald-900 via-emerald-800 to-slate-900 text-white rounded-3xl p-6 md:p-8 shadow-xl space-y-6 border border-emerald-600/40">
+                  <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-emerald-700/60 pb-6">
+                    <div>
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400 text-slate-950 text-xs font-black uppercase tracking-wider mb-2">
+                        ✨ Benefícios Exclusivos do Associado
+                      </span>
+                      <h3 className="text-2xl md:text-3xl font-black text-white">
+                        Vantagens de ser nosso Associado!
+                      </h3>
+                      <p className="text-emerald-100 text-xs md:text-sm mt-1">
+                        Aproveite com sua família tudo o que o Balneário Lessa tem a oferecer com máxima economia e conforto.
+                      </p>
+                    </div>
+
+                    <a
+                      href="https://wa.me/5569992626140?text=Ol%C3%A1%2C+sou+associado+do+Balne%C3%A1rio+Lessa+e+gostaria+de+tirar+uma+d%C3%BAvida+sobre+meus+benef%C3%ADcios."
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      <Button className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-black shadow-lg">
+                        <MessageCircle className="w-4 h-4 mr-2" /> Falar com o Balneário no WhatsApp
+                      </Button>
+                    </a>
+                  </div>
+
+                  {/* GRID DE VANTAGENS OFICIAIS */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+                    <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/10 flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-amber-400 text-slate-950 font-black flex items-center justify-center shrink-0 text-base">
+                        🚫
+                      </div>
+                      <div>
+                        <strong className="text-sm font-black text-white block">Sem Taxa de Adesão</strong>
+                        <p className="text-xs text-emerald-100">Zero custo de matrícula para entrar no clube.</p>
+                      </div>
+                    </div>
+
+                    <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/10 flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-amber-400 text-slate-950 font-black flex items-center justify-center shrink-0 text-base">
+                        🎟️
+                      </div>
+                      <div>
+                        <strong className="text-sm font-black text-white block">Entradas Ilimitadas</strong>
+                        <p className="text-xs text-emerald-100">Acesse quantas vezes quiser durante todo o mês.</p>
+                      </div>
+                    </div>
+
+                    <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/10 flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-amber-400 text-slate-950 font-black flex items-center justify-center shrink-0 text-base">
+                        📅
+                      </div>
+                      <div>
+                        <strong className="text-sm font-black text-white block">Sextas, Sábados, Domingos & Feriados</strong>
+                        <p className="text-xs text-emerald-100">Liberdade total de lazer nos melhores dias.</p>
+                      </div>
+                    </div>
+
+                    <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/10 flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-amber-400 text-slate-950 font-black flex items-center justify-center shrink-0 text-base">
+                        ⏰
+                      </div>
+                      <div>
+                        <strong className="text-sm font-black text-white block">Horário das 9h às 17h</strong>
+                        <p className="text-xs text-emerald-100">Dia inteiro de sol, lazer e diversão em família.</p>
+                      </div>
+                    </div>
+
+                    <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/10 flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-amber-400 text-slate-950 font-black flex items-center justify-center shrink-0 text-base">
+                        💳
+                      </div>
+                      <div>
+                        <strong className="text-sm font-black text-white block">Carteirinha Digital e Física</strong>
+                        <p className="text-xs text-emerald-100">Disponível no celular e em PVC de alta qualidade.</p>
+                      </div>
+                    </div>
+
+                    <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/10 flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-amber-400 text-slate-950 font-black flex items-center justify-center shrink-0 text-base">
+                        📲
+                      </div>
+                      <div>
+                        <strong className="text-sm font-black text-white block">QR Code Exclusivo</strong>
+                        <p className="text-xs text-emerald-100">Acesso instantâneo e seguro sem filas na catraca.</p>
+                      </div>
+                    </div>
+
+                    <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/10 flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-amber-400 text-slate-950 font-black flex items-center justify-center shrink-0 text-base">
+                        🎁
+                      </div>
+                      <div>
+                        <strong className="text-sm font-black text-white block">Descontos Exclusivos</strong>
+                        <p className="text-xs text-emerald-100">Cashback e promoções exclusivas em consumos.</p>
+                      </div>
+                    </div>
+
+                    <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/10 flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-amber-400 text-slate-950 font-black flex items-center justify-center shrink-0 text-base">
+                        🎟️
+                      </div>
+                      <div>
+                        <strong className="text-sm font-black text-white block">Convidados: Meia-Entrada!</strong>
+                        <p className="text-xs text-emerald-100">Basta chegarem junto com você no balneário.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* DESTAQUE PRINCIPAL */}
+                  <div className="bg-amber-400 text-slate-950 rounded-2xl p-4 text-center font-black shadow-lg">
+                    <span className="text-xs uppercase tracking-widest block text-slate-900 font-bold mb-0.5">
+                      🌟 O MAIOR BENEFÍCIO DE TODOS
+                    </span>
+                    <span className="text-lg md:text-xl font-black">
+                      💡 PAGUE UMA VEZ E APROVEITE O MÊS INTEIRO!
+                    </span>
+                  </div>
+                </div>
+
+                {/* FAQ / DÚVIDAS REFORMULADAS DE FORMA CURTA, CLARA E OBJETIVA */}
+                <div className="bg-white rounded-3xl border border-slate-200 p-6 md:p-8 shadow-sm space-y-6">
+                  <div className="border-b border-slate-100 pb-4">
+                    <h3 className="text-xl font-black text-slate-900 flex items-center gap-2">
+                      <HelpCircle className="w-5 h-5 text-emerald-600" />
+                      Perguntas Frequentes & Regras do Associado
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Entenda como funcionam as mensalidades, cortesias para crianças e idosos, regras de convidados e cancelamentos.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* CARD 1: ASSINATURA MENSAL */}
+                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                      <div className="flex items-center gap-2 text-emerald-800 font-black text-sm">
+                        <Calendar className="w-4 h-4 text-emerald-600" />
+                        <span>A assinatura deve ser paga todo mês?</span>
+                      </div>
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        <strong>Sim.</strong> A assinatura de associado do Balneário Lessa é cobrada mensalmente, de forma contínua. <em>O não uso das dependências, piscinas ou serviços disponibilizados não isenta da obrigação de pagamento das mensalidades enquanto o plano permanecer ativo.</em>
+                      </p>
+                    </div>
+
+                    {/* CARD 2: CANCELAMENTO */}
+                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                      <div className="flex items-center gap-2 text-rose-800 font-black text-sm">
+                        <AlertCircle className="w-4 h-4 text-rose-600" />
+                        <span>Como funciona o Cancelamento?</span>
+                      </div>
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        Caso queira cancelar seu plano, <strong>todas as mensalidades anteriores em aberto devem estar quitadas e em dia</strong>. Se os pagamentos não forem realizados, o sistema continuará gerando as cobranças em seu nome até a formalização e quitação do saldo em aberto.
+                      </p>
+                    </div>
+
+                    {/* CARD 3: CRIANÇAS, IDOSOS E PCD */}
+                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                      <div className="flex items-center gap-2 text-emerald-800 font-black text-sm">
+                        <Users className="w-4 h-4 text-emerald-600" />
+                        <span>Crianças, Idosos e PCD/TEA precisam pagar assinatura?</span>
+                      </div>
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        <strong>Não!</strong> No Balneário Lessa, <strong>crianças de até 11 anos, idosos com 60 anos ou mais e pessoas com deficiência (PCD & TEA) possuem ACESSO LIVRE e GRATUITO</strong>. Eles não precisam de assinatura individual e entram gratuitamente acompanhando o titular sócio.
+                      </p>
+                    </div>
+
+                    {/* CARD 4: CONVIDADOS */}
+                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2">
+                      <div className="flex items-center gap-2 text-emerald-800 font-black text-sm">
+                        <Gift className="w-4 h-4 text-emerald-600" />
+                        <span>Posso levar convidados que não são sócios?</span>
+                      </div>
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        <strong>Sim!</strong> Como benefício exclusivo, seus convidados que forem ao balneário <strong>junto com você no mesmo dia pagam apenas MEIA-ENTRADA</strong> no valor do Day Use da portaria!
+                      </p>
+                    </div>
+
+                    {/* CARD 5: O QUE NÃO ESTÁ INCLUSO */}
+                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2 md:col-span-2">
+                      <div className="flex items-center gap-2 text-slate-800 font-black text-sm">
+                        <Info className="w-4 h-4 text-slate-600" />
+                        <span>O que não está incluso na assinatura e é cobrado à parte?</span>
+                      </div>
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        A assinatura garante acesso irrestrito às piscinas, áreas de banho, gramados e estrutura de lazer. São contratados à parte: <strong>consumo no Restaurante e lanchonete</strong> (refeições, porções e bebidas), <strong>locação de Quiosques privativos com churrasqueira</strong> e atividades opcionais (como Futebol de Sabão, Beach Tênis e Pesca Esportiva). Como sócio, você ainda aproveita descontos e condições especiais!
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* SUPORTE WHATSAPP */}
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="space-y-0.5 text-center sm:text-left">
+                      <h4 className="font-black text-emerald-950 text-sm">
+                        Ainda tem alguma dúvida ou precisa de suporte?
+                      </h4>
+                      <p className="text-xs text-emerald-800">
+                        Nossa equipe de atendimento do Balneário Lessa está pronta para te atender.
+                      </p>
+                    </div>
+                    <a
+                      href="https://wa.me/5569992626140?text=Ol%C3%A1%2C+sou+associado+do+Balne%C3%A1rio+Lessa+e+preciso+de+ajuda+com+minha+assinatura."
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      <Button className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs">
+                        <MessageCircle className="w-4 h-4 mr-1.5" /> (69) 99262-6140
+                      </Button>
+                    </a>
+                  </div>
+                </div>
+              </TabsContent>
             </Tabs>
           </div>
         )}
       </div>
+
+      {/* Floating WhatsApp Support Button */}
+      <a
+        href="https://wa.me/5569992626140?text=Ol%C3%A1%2C+sou+associado+do+Balne%C3%A1rio+Lessa+e+gostaria+de+tirar+uma+d%C3%BAvida+sobre+a+%C3%A1rea+do+associado."
+        target="_blank"
+        rel="noreferrer"
+        className="fixed bottom-5 right-5 z-50 flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-black px-4 py-3 rounded-full shadow-2xl transition-all hover:scale-105 active:scale-95 border-2 border-white/30 text-xs sm:text-sm"
+      >
+        <MessageCircle className="w-5 h-5 text-white animate-bounce" />
+        <span className="hidden sm:inline">Dúvidas? Fale no WhatsApp</span>
+      </a>
     </div>
   );
 };

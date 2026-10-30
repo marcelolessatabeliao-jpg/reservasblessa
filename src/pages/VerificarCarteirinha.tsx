@@ -132,7 +132,7 @@ const VerificarCarteirinha: React.FC = () => {
     matchedMember?.status === 'ACTIVE' &&
     new Date(matchedSub.endDate + 'T23:59:59') >= new Date();
 
-  const hasOverdueInvoice = matchedSub?.invoices.some((inv) => {
+  const hasOverdueInvoice = (matchedSub?.invoices || []).some((inv) => {
     if (inv.status === 'OVERDUE') return true;
     if (inv.status === 'PENDING' && new Date(inv.dueDate + 'T23:59:59') < new Date()) {
       return true;
@@ -259,8 +259,8 @@ const VerificarCarteirinha: React.FC = () => {
                       <CheckCircle2 className="w-5 h-5" /> ACESSO LIBERADO • ASSOCIADO ATIVO
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-red-500 text-white font-black text-sm uppercase tracking-wide">
-                      <AlertTriangle className="w-5 h-5" /> ACESSO BLOQUEADO / PENDÊNCIA
+                    <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-red-600 text-white font-black text-sm uppercase tracking-wide animate-pulse">
+                      <AlertTriangle className="w-5 h-5" /> ACESSO BLOQUEADO POR INADIMPLÊNCIA / PENDÊNCIA
                     </span>
                   )}
 
@@ -343,6 +343,26 @@ const VerificarCarteirinha: React.FC = () => {
                       <strong>{matchedSub.vehiclePlate || '—'}</strong> • Cor:{' '}
                       <strong>{matchedSub.vehicleColor || '—'}</strong>
                     </div>
+                  </div>
+                )}
+
+                {(!isSubActive || hasOverdueInvoice) && (
+                  <div className="mt-4 bg-red-950/80 border-2 border-red-500 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-left">
+                    <div className="space-y-1">
+                      <strong className="text-red-200 text-sm block">
+                        ⛔ Acesso Bloqueado pela Portaria
+                      </strong>
+                      <p className="text-xs text-red-300">
+                        {hasOverdueInvoice
+                          ? 'Consta fatura/mensalidade em aberto ou vencida vinculada a esta assinatura. Conforme o Contrato de Adesão, a entrada só é permitida com a situação financeira regularizada.'
+                          : 'A assinatura encontra-se inativa ou fora do período de vigência contratada.'}
+                      </p>
+                    </div>
+                    <Link to={`/socio?card=${encodeURIComponent(matchedMember.cardNumber)}`}>
+                      <Button size="sm" className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs shrink-0 whitespace-nowrap">
+                        <CreditCard className="w-4 h-4 mr-1.5" /> Pagar Fatura / Regularizar
+                      </Button>
+                    </Link>
                   </div>
                 )}
               </div>
