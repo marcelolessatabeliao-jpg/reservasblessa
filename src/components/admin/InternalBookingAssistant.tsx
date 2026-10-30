@@ -273,8 +273,9 @@ export function InternalBookingAssistant({
         setIsOpen(open);
     }}>
       <DialogTrigger asChild>
-        <Button className="rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black h-12 md:h-14 px-6 md:px-8 shadow-xl hover:scale-105 active:scale-95 transition-all border-0 text-xs md:text-sm uppercase tracking-wider flex items-center gap-3">
-          <CalendarPlus className="w-5 h-5 flex-shrink-0" /> <span className="hidden sm:inline">Nova Reserva</span>
+        <Button className="rounded-xl lg:rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black py-2.5 px-4 h-auto text-xs lg:text-[13px] uppercase tracking-wider flex items-center justify-center gap-2 shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all border border-emerald-400/40 whitespace-nowrap">
+          <CalendarPlus className="w-4 h-4 flex-shrink-0 text-emerald-200" />
+          <span>Nova Reserva</span>
         </Button>
       </DialogTrigger>
       

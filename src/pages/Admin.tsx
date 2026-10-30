@@ -3032,40 +3032,15 @@ export default function Admin() {
 
              <div className="hidden lg:block flex-1" />
 
-             {/* INTEGRATED STATS INDICATORS */}
-             <div className="flex items-center justify-between lg:justify-end gap-2 px-2 w-full lg:w-auto">
-                <div className="flex items-center gap-2 w-full overflow-x-auto no-scrollbar pb-1">
-                   <div onClick={() => setActiveTab('vendas')} className="flex-1 min-w-max sm:flex-initial cursor-pointer px-3 py-2 rounded-xl bg-slate-900 border border-yellow-500/50 flex items-center justify-center sm:justify-start gap-2 hover:bg-black transition-all">
-                      <TrendingUp className="w-3.5 h-3.5 text-yellow-400" />
-                      <div className="flex flex-col -space-y-1">
-                         <span className="text-[12px] md:text-[14px] font-black text-[#FFF033] whitespace-nowrap">
-                            {formatCurrency(
-                               (bookings.filter(b => b.visit_date === format(targetDate, 'yyyy-MM-dd')).reduce((s, b) => b.status !== 'cancelled' ? s + (b.total_amount || 0) : s, 0)) + 
-                               (orders.filter(o => (o.visit_date || o.created_at.split('T')[0]) === format(targetDate, 'yyyy-MM-dd')).reduce((s, o) => o.status !== 'cancelled' ? s + (o.total_amount || 0) : s, 0))
-                            ).replace('R$', '').trim()}
-                         </span>
-                         <span className="text-[6px] font-black uppercase text-yellow-500/70">Receita</span>
-                      </div>
-                   </div>
-
-                   <div onClick={() => setActiveTab('reservas')} className="flex-1 min-w-max sm:flex-initial cursor-pointer px-3 py-2 rounded-xl bg-slate-900 border border-emerald-500/50 flex items-center justify-center sm:justify-start gap-2 hover:bg-black transition-all">
-                      <Users className="w-3.5 h-3.5 text-emerald-400" />
-                      <div className="flex flex-col -space-y-1">
-                         <span className="text-[12px] md:text-[14px] font-black text-emerald-400">{bookings.length + orders.length}</span>
-                         <span className="text-[6px] font-black uppercase text-emerald-500/70">Agenda</span>
-                      </div>
-                   </div>
-
-                   <div className="shrink-0">
-                      <InternalBookingAssistant 
-                         onCreated={fetchData} 
-                         isHoliday={isHoliday} 
-                         isAllowedDay={isAllowedDay} 
-                         kioskReservations={kioskReservations}
-                         quadReservations={quadReservations}
-                      />
-                   </div>
-                </div>
+             {/* BOTÃO NOVA RESERVA ENCAIXADO DENTRO DA BARRA */}
+             <div className="flex items-center justify-end px-1 w-full lg:w-auto shrink-0">
+                <InternalBookingAssistant 
+                   onCreated={fetchData} 
+                   isHoliday={isHoliday} 
+                   isAllowedDay={isAllowedDay} 
+                   kioskReservations={kioskReservations}
+                   quadReservations={quadReservations}
+                />
              </div>
           </div>
 {/* CONTENT AREA WITH GRADIENT BACKGROUND */}
