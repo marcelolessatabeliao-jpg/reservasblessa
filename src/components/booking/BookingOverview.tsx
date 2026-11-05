@@ -561,9 +561,13 @@ export function BookingOverview({
                 );
               })}
               
-              <div className="flex justify-between font-black text-emerald-950 pt-2.5 mt-2 border-t border-emerald-200 text-sm">
+              <div className="flex justify-between font-black text-emerald-950 pt-2.5 mt-2 border-t border-emerald-200 text-sm items-center">
                 <span>Subtotal Entradas</span>
-                <span className="text-emerald-900 font-black">{formatCurrency(totals.entriesTotal)}</span>
+                <div className="text-right flex items-center gap-2">
+                  <span className="text-xs text-slate-400 line-through font-bold">{formatCurrency(totals.entriesTotal)}</span>
+                  <span className="text-emerald-900 font-black">{formatCurrency(Math.round(totals.entriesTotal * 0.90 * 100) / 100)}</span>
+                  <span className="text-[10px] bg-amber-100 text-amber-900 font-black px-1.5 py-0.5 rounded border border-amber-300">10% OFF</span>
+                </div>
               </div>
             </div>
           </div>
@@ -579,7 +583,7 @@ export function BookingOverview({
               {booking.kiosks.filter(k => k.quantity > 0).map(k => {
                 const basePrice = getPrice(`kiosk_${k.type}`, KIOSK_INFO[k.type].price);
                 const kioskNames = k.selectedIds && k.selectedIds.length > 0
-                  ? k.selectedIds.sort((a,b)=>a-b).map(id => `Q${String(id).padStart(2,'0')}`).join(' · ')
+                  ? k.selectedIds.sort((a,b)=>a-b).map(id => `Quiosque ${String(id).padStart(2,'0')}`).join(' · ')
                   : `${k.quantity}x ${KIOSK_INFO[k.type].label}`;
                 return (
                 <div key={k.type} className="flex justify-between group/item items-center gap-2 bg-white p-2.5 rounded-xl border border-emerald-100 shadow-xs">
@@ -599,9 +603,13 @@ export function BookingOverview({
                   </div>
                 </div>
               )})}
-              <div className="flex justify-between font-black text-emerald-950 pt-2.5 mt-2 border-t border-emerald-200 text-sm">
+              <div className="flex justify-between font-black text-emerald-950 pt-2.5 mt-2 border-t border-emerald-200 text-sm items-center">
                 <span>Subtotal Quiosques</span>
-                <span className="text-emerald-900 font-black">{formatCurrency(totals.kiosksTotal)}</span>
+                <div className="text-right flex items-center gap-2">
+                  <span className="text-xs text-slate-400 line-through font-bold">{formatCurrency(totals.kiosksTotal)}</span>
+                  <span className="text-emerald-900 font-black">{formatCurrency(Math.round(totals.kiosksTotal * 0.90 * 100) / 100)}</span>
+                  <span className="text-[10px] bg-amber-100 text-amber-900 font-black px-1.5 py-0.5 rounded border border-amber-300">10% OFF</span>
+                </div>
               </div>
             </div>
           </div>
@@ -655,9 +663,13 @@ export function BookingOverview({
                   </div>
                 );
               })}
-              <div className="flex justify-between font-black text-emerald-950 pt-2.5 mt-2 border-t border-emerald-200 text-sm">
+              <div className="flex justify-between font-black text-emerald-950 pt-2.5 mt-2 border-t border-emerald-200 text-sm items-center">
                 <span>Subtotal Quadriciclos</span>
-                <span className="text-emerald-900 font-black">{formatCurrency(totals.quadsTotal)}</span>
+                <div className="text-right flex items-center gap-2">
+                  <span className="text-xs text-slate-400 line-through font-bold">{formatCurrency(totals.quadsTotal)}</span>
+                  <span className="text-emerald-900 font-black">{formatCurrency(Math.round(totals.quadsTotal * 0.90 * 100) / 100)}</span>
+                  <span className="text-[10px] bg-amber-100 text-amber-900 font-black px-1.5 py-0.5 rounded border border-amber-300">10% OFF</span>
+                </div>
               </div>
             </div>
           </div>
@@ -818,9 +830,13 @@ export function BookingOverview({
                   </div>
                 </div>
               )})}
-              <div className="flex justify-between font-black text-emerald-950 pt-2.5 mt-2 border-t border-emerald-200 text-sm">
+              <div className="flex justify-between font-black text-emerald-950 pt-2.5 mt-2 border-t border-emerald-200 text-sm items-center">
                 <span>Subtotal Diversão</span>
-                <span className="text-emerald-900 font-black">{formatCurrency(totals.additionalsTotal)}</span>
+                <div className="text-right flex items-center gap-2">
+                  <span className="text-xs text-slate-400 line-through font-bold">{formatCurrency(totals.additionalsTotal)}</span>
+                  <span className="text-emerald-900 font-black">{formatCurrency(Math.round(totals.additionalsTotal * 0.90 * 100) / 100)}</span>
+                  <span className="text-[10px] bg-amber-100 text-amber-900 font-black px-1.5 py-0.5 rounded border border-amber-300">10% OFF</span>
+                </div>
               </div>
             </div>
           </div>

@@ -217,13 +217,11 @@ export function QuadSelector({ quads, onUpdate }: Props) {
                     "flex flex-col items-center p-2 rounded-xl border transition-all",
                     isFull 
                       ? "bg-red-50 border-red-200" 
-                      : remaining <= 2 
-                        ? "bg-amber-50 border-amber-200"
-                        : "bg-emerald-50 border-emerald-200"
+                      : remaining === 1 ? "bg-amber-50 border-amber-300" : "bg-emerald-50 border-emerald-300 shadow-2xs"
                   )}>
                     <span className={cn(
                       "text-sm sm:text-base font-black",
-                      isFull ? "text-red-500" : remaining <= 2 ? "text-amber-600" : "text-emerald-700"
+                      isFull ? "text-red-500" : remaining === 1 ? "text-amber-700" : "text-emerald-800"
                     )}>
                       {t}
                     </span>
@@ -233,7 +231,7 @@ export function QuadSelector({ quads, onUpdate }: Props) {
                         <div 
                           className={cn(
                             "h-full rounded-full transition-all duration-500",
-                            isFull ? "bg-red-400" : remaining <= 2 ? "bg-amber-400" : "bg-emerald-400"
+                            isFull ? "bg-red-400" : remaining === 1 ? "bg-amber-400" : "bg-emerald-500"
                           )}
                           style={{ width: `${Math.min(pct, 100)}%` }}
                         />
@@ -241,9 +239,9 @@ export function QuadSelector({ quads, onUpdate }: Props) {
                     )}
                     <span className={cn(
                       "text-[9px] sm:text-[10px] font-bold mt-1 text-center leading-none",
-                      isFull ? "text-red-500" : remaining <= 2 ? "text-amber-600" : "text-emerald-600"
+                      isFull ? "text-red-500" : remaining === 1 ? "text-amber-700" : "text-emerald-700 font-black"
                     )}>
-                      {isSlotDisabled ? 'Indisponível no momento' : isFull ? 'LOTADO' : `${totalUsed}/${maxQuads} ocupadas`}
+                      {isSlotDisabled ? 'Indisponível' : isFull ? 'LOTADO' : `${remaining} Livre${remaining > 1 ? "s" : ""}`}
                     </span>
                   </div>
                 );
@@ -401,7 +399,9 @@ export function QuadSelector({ quads, onUpdate }: Props) {
                           toast({ title: 'Escolha uma data primeiro', variant: 'destructive' });
                           return;
                         }
-                        const visitDate = format(quad.date, 'yyyy-MM-dd');
+                        const activeDate = quad.date || checkDate;
+                        if (!activeDate) { toast({ title: 'Escolha uma data primeiro', variant: 'destructive' }); return; }
+                        const visitDate = format(activeDate, 'yyyy-MM-dd');
                         const used = await getQuadAvailability(visitDate, v);
                         const localUsedOthers = quads.reduce((acc, qry, idx) => {
                           if (idx !== cardIndex && qry.time === v) return acc + qry.quantity;
@@ -417,7 +417,7 @@ export function QuadSelector({ quads, onUpdate }: Props) {
                         const newQty = Math.max(1, Math.min(quad.quantity || 1, remaining));
                         onUpdate(actualIndex >= 0 ? actualIndex : cardIndex, { time: v as QuadTime, quantity: newQty });
                       }}
-                      disabled={!quad.date || isFetchingAvailability}
+                      disabled={!(quad.date || checkDate) || isFetchingAvailability}
                     >
                       <SelectTrigger className={cn(
                         "w-full h-12 rounded-2xl font-bold text-sm uppercase tracking-tight",
@@ -441,7 +441,7 @@ export function QuadSelector({ quads, onUpdate }: Props) {
                               className={cn("font-bold py-3", isFull ? "text-destructive" : "text-foreground")}
                               disabled={isFull && quad.time !== t}
                             >
-                              {t} {isSlotDisabled ? ' (Indisponível)' : ''}
+                              {t} {isSlotDisabled ? '— Indisponível' : isFull ? '— Lotado' : `— (${remaining} vaga${remaining > 1 ? 's' : ''} livre${remaining > 1 ? 's' : ''})`}
                             </SelectItem>
                           );
                         })}

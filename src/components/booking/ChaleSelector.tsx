@@ -561,6 +561,8 @@ export function ChaleSelector({
     chale.childrenAges
   );
 
+  const childrenAges = chale.childrenAges || [];
+
   // Mapa de crianças por chalé individual
   const chaleKidsMap: Record<number, ('under11' | '12plus')[]> = useMemo(() => {
     const map: Record<number, ('under11' | '12plus')[]> = {};
