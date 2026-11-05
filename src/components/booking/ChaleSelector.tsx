@@ -58,7 +58,48 @@ interface ChaleReservationDetail {
   checkOut: string; // 'yyyy-MM-dd'
 }
 
-export function ChaleSelector({ 
+class ChaleErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: any }> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: any) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: any, errorInfo: any) {
+    console.error('ChaleSelector error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="bg-red-50 border-2 border-red-200 p-6 rounded-3xl text-center space-y-3">
+          <p className="text-sm font-black text-red-800 uppercase">
+            Ops! Ocorreu um problema ao carregar os chalés.
+          </p>
+          <p className="text-xs text-red-600 font-bold">
+            Clique no botão abaixo para restaurar as informações da hospedagem.
+          </p>
+          <Button
+            type="button"
+            onClick={() => {
+              this.setState({ hasError: false, error: null });
+              window.location.reload();
+            }}
+            className="bg-emerald-800 text-white font-bold h-10 px-4 rounded-xl hover:bg-emerald-900"
+          >
+            Recarregar Chalés
+          </Button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+function ChaleSelectorInner({ 
   chale, 
   onUpdate, 
   visitDate, 
@@ -1303,14 +1344,7 @@ export function ChaleSelector({
               const kid12PlusPrice = isComboStay ? (stayNights * 90) : (stayNights * 100);
 
               // Preço específico deste chalé (adulto conforme ocupação casal/individual + crianças deste chalé)
-              const singleChalePricing = calculateStayPricing(
-                activePkg,
-                checkInActive,
-                checkOutActive,
-                isChaleCasal ? 'casal' : 'individual',
-                1
-              );
-              const chaleAdultPrice = singleChalePricing.discountedTotal;
+              const chaleAdultPrice = isChaleCasal ? stayPricing.totalCasal : stayPricing.totalIndividual;
               const chaleKidsPrice = kidsList.reduce((acc, age) => {
                 return acc + (age === '12plus' ? kid12PlusPrice : kidUnder11Price);
               }, 0);
@@ -1659,5 +1693,13 @@ export function ChaleSelector({
       </div>
 
     </div>
+  );
+}
+
+export function ChaleSelector(props: Props) {
+  return (
+    <ChaleErrorBoundary>
+      <ChaleSelectorInner {...props} />
+    </ChaleErrorBoundary>
   );
 }

@@ -751,7 +751,6 @@ export function BookingOverview({
                           : (Array.isArray(ages) ? ages.slice(uIdx * 2, (uIdx + 1) * 2) : []);
 
                         const stayPricingOverview = calculateStayPricing(
-                          booking.chale.packageType,
                           booking.chale.checkInDate,
                           booking.chale.checkOutDate
                         );
