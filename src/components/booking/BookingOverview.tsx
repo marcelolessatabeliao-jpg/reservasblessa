@@ -709,6 +709,20 @@ export function BookingOverview({
             booking.chale.childrenAges
           );
 
+          const chaleGrossPrice = calculateChaleGrossTotal(
+            booking.chale.packageType,
+            adults,
+            kids,
+            getPrice,
+            booking.chale.includeSundayDayUse,
+            chaletsCount,
+            booking.chale.checkInDate,
+            booking.chale.checkOutDate,
+            booking.chale.chaleOccupancies,
+            booking.chale.chaleIds,
+            booking.chale.childrenAges
+          );
+
           return (
             <div className="pb-5 border-b border-emerald-200">
               <h4 className="font-black text-emerald-950 mb-3 uppercase tracking-widest text-[11px] sm:text-xs flex items-center gap-1.5">
@@ -780,9 +794,19 @@ export function BookingOverview({
                     )}
                   </div>
                 </div>
-                <div className="flex justify-between font-black text-emerald-950 pt-2.5 mt-2 border-t border-emerald-200 text-sm">
+                <div className="flex justify-between font-black text-emerald-950 pt-2.5 mt-2 border-t border-emerald-200 text-sm items-center">
                   <span>Subtotal Hospedagem</span>
-                  <span className="text-emerald-900 font-black">{formatCurrency(chalePrice)}</span>
+                  <div className="text-right flex items-center gap-2">
+                    {chaleGrossPrice > chalePrice ? (
+                      <>
+                        <span className="text-xs text-slate-400 line-through font-bold">{formatCurrency(chaleGrossPrice)}</span>
+                        <span className="text-emerald-900 font-black">{formatCurrency(chalePrice)}</span>
+                        <span className="text-[10px] bg-amber-100 text-amber-900 font-black px-1.5 py-0.5 rounded border border-amber-300">10% OFF</span>
+                      </>
+                    ) : (
+                      <span className="text-emerald-900 font-black">{formatCurrency(chalePrice)}</span>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -830,9 +854,13 @@ export function BookingOverview({
                     )}
                   </div>
                 </div>
-                <div className="flex justify-between font-black text-emerald-950 pt-2.5 mt-2 border-t border-emerald-200 text-sm">
+                <div className="flex justify-between font-black text-emerald-950 pt-2.5 mt-2 border-t border-emerald-200 text-sm items-center">
                   <span>Subtotal Camping</span>
-                  <span>{formatCurrency(totalCamping)}</span>
+                  <div className="text-right flex items-center gap-2">
+                    <span className="text-xs text-slate-400 line-through font-bold">{formatCurrency(totalCamping)}</span>
+                    <span className="text-emerald-900 font-black">{formatCurrency(Math.round(totalCamping * 0.90 * 100) / 100)}</span>
+                    <span className="text-[10px] bg-amber-100 text-amber-900 font-black px-1.5 py-0.5 rounded border border-amber-300">10% OFF</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1071,9 +1099,9 @@ export function BookingOverview({
                       <div className="text-xs text-amber-900 font-bold leading-relaxed space-y-1">
                         <p className="font-black text-amber-950 text-sm">Sua reserva só será garantida após o pagamento!</p>
                         {hasBalcao ? (
-                          <p className="text-amber-900/90 leading-relaxed">Você selecionou a opção de <span className="font-black underline">Pagar no Balcão</span>, que é válida <strong>exclusivamente para a entrada (valor normal de R$ 50,00 cada, sem desconto)</strong>. Os demais itens reservados pelo site (como Quiosques) <strong>devem ser pagos agora mesmo</strong> (via PIX, Cartão ou WhatsApp) com o desconto online de 10% aplicado para garantir seu espaço.</p>
+                          <p className="text-amber-900/90 leading-relaxed">Você selecionou a opção de <span className="font-black underline">Pagar no Balcão</span> para a entrada. Os demais itens reservados pelo site <strong>devem ser pagos agora mesmo</strong> com o desconto online de 10% aplicado para garantir seu espaço. Pagamentos feitos no balcão não terão desconto de 10%!</p>
                         ) : (
-                          <p className="text-amber-900/90 leading-relaxed">Efetue o pagamento agora para confirmar a sua reserva. Vagas não pagas não são reservadas e podem ser preenchidas por outros clientes.</p>
+                          <p className="text-amber-900/90 leading-relaxed">Efetue o pagamento agora para confirmar a sua reserva. Vagas não pagas não são reservadas e podem ser preenchidas por outros clientes. Pagamentos feitos no balcão não terão desconto de 10%!</p>
                         )}
                       </div>
                     </div>
@@ -1109,7 +1137,7 @@ export function BookingOverview({
                   })()
                 ) : (
                   <>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                       {/* Botão PIX */}
                       <Button
                         size="lg"
@@ -1160,26 +1188,6 @@ export function BookingOverview({
                           </span>
                           <span className="block text-xs sm:text-sm font-black uppercase tracking-wide text-white">
                             CARTÃO DE CRÉDITO
-                          </span>
-                        </div>
-                      </Button>
-
-                      {/* Botão CONFIRMAR NO WHATSAPP */}
-                      <Button
-                        size="lg"
-                        onClick={() => handleAction('LOCAL')}
-                        disabled={saving}
-                        className="h-20 sm:h-24 rounded-2xl bg-gradient-to-b from-[#0b3d2b] to-[#042817] hover:from-[#0e4d36] hover:to-[#063820] text-white font-black flex flex-row sm:flex-col items-center justify-center gap-2 shadow-xl hover:shadow-[0_6px_20px_rgba(16,185,129,0.25)] active:scale-[0.98] transition-all border-2 border-emerald-400/90 p-2.5 cursor-pointer"
-                      >
-                        <div className="p-2 bg-emerald-400/15 rounded-xl border border-emerald-400/30 shrink-0">
-                          <MessageCircle className="h-5 w-5 text-emerald-300" />
-                        </div>
-                        <div className="text-left sm:text-center leading-tight">
-                          <span className="inline-block bg-emerald-400 text-slate-950 font-black text-[9px] px-2 py-0.5 rounded-full uppercase tracking-wider mb-0.5 shadow-2xs">
-                            💬 PAGAR NO LOCAL
-                          </span>
-                          <span className="block text-xs sm:text-sm font-black uppercase tracking-wide text-white">
-                            CONFIRMAR NO WHATSAPP
                           </span>
                         </div>
                       </Button>
