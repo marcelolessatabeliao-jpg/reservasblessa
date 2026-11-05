@@ -8,21 +8,24 @@ import { useServices } from '@/hooks/useServices';
 import { getAllQuadAvailabilities, getGlobalSetting } from '@/lib/booking-service';
 import { useToast } from '@/hooks/use-toast';
 import { Bike, Clock, Tag, ChevronDown, Check, User, Users, Loader2, Calendar as CalendarIcon, AlertTriangle, Trash2, X, Minus, Plus } from 'lucide-react';
+import { parseToRODate } from '@/utils/date-utils';
 
 interface Props {
   quads: QuadItem[];
+  selectedDate?: Date | string | null;
   onUpdate: (index: number, updates: Partial<QuadItem>) => void;
   onSetQuads?: (newQuads: QuadItem[]) => void;
   onAddQuad?: (item?: Partial<QuadItem>) => void;
   onRemoveQuad?: (index: number) => void;
 }
 
-const DEFAULT_MAX_QUADS = 2;
+// CAPACIDADE MÁXIMA ESTRITA: O Balneário Lessa opera com no máximo 2 quadriciclos por horário
+const MAX_QUADS_PER_SLOT = 2;
 
-export function QuadSelector({ quads, onUpdate, onSetQuads }: Props) {
+export function QuadSelector({ quads, selectedDate, onUpdate, onSetQuads }: Props) {
   const { getPrice, isLoading } = useServices();
   const { toast } = useToast();
-  const [maxQuads, setMaxQuads] = useState<number>(DEFAULT_MAX_QUADS);
+  const [maxQuads, setMaxQuads] = useState<number>(MAX_QUADS_PER_SLOT);
   const [slotAvailabilities, setSlotAvailabilities] = useState<Record<string, number>>({});
   const [isFetchingAvailability, setIsFetchingAvailability] = useState(false);
   const [disableQuads, setDisableQuads] = useState(false);
@@ -31,12 +34,30 @@ export function QuadSelector({ quads, onUpdate, onSetQuads }: Props) {
   // Horário atualmente selecionado/expandido para configuração
   const [expandedSlot, setExpandedSlot] = useState<QuadTime | null>(null);
 
-  const checkDate = quads[0]?.date || quads.find(q => q.date)?.date;
+  // Guarda persistentemente a data selecionada mesmo quando quads for esvaziado ou zerado
+  const [lastKnownDate, setLastKnownDate] = useState<Date | null>(() => {
+    if (selectedDate) return typeof selectedDate === 'string' ? parseToRODate(selectedDate) : selectedDate;
+    return quads.find(q => q.date)?.date || null;
+  });
+
+  useEffect(() => {
+    if (selectedDate) {
+      const d = typeof selectedDate === 'string' ? parseToRODate(selectedDate) : selectedDate;
+      if (d) setLastKnownDate(d);
+    } else {
+      const fromQuads = quads.find(q => q.date)?.date;
+      if (fromQuads) setLastKnownDate(fromQuads);
+    }
+  }, [selectedDate, quads]);
+
+  const checkDate = (selectedDate ? (typeof selectedDate === 'string' ? parseToRODate(selectedDate) : selectedDate) : null) || lastKnownDate || quads.find(q => q.date)?.date;
 
   useEffect(() => {
     async function fetchConfig() {
-      const total = await getGlobalSetting('total_quads', DEFAULT_MAX_QUADS);
-      setMaxQuads(Math.min(DEFAULT_MAX_QUADS, Number(total) || DEFAULT_MAX_QUADS));
+      // Limite absoluto de no máximo 2 quadriciclos por horário
+      const total = await getGlobalSetting('total_quads', MAX_QUADS_PER_SLOT);
+      const configuredTotal = Number(total);
+      setMaxQuads(configuredTotal > 0 ? Math.min(MAX_QUADS_PER_SLOT, configuredTotal) : MAX_QUADS_PER_SLOT);
       const blockedQuads = await getGlobalSetting('disable_quads', false);
       setDisableQuads(Boolean(blockedQuads));
       const blockedSlots = await getGlobalSetting('disabled_quad_slots', []);
@@ -91,33 +112,35 @@ export function QuadSelector({ quads, onUpdate, onSetQuads }: Props) {
       return;
     }
 
-    if (quantity <= 0) {
-      // Remove o horário
+    // TRAVA ABSOLUTA: Limite estrito de no máximo 2 quadriciclos por horário
+    const clampedQty = Math.max(0, Math.min(MAX_QUADS_PER_SLOT, quantity));
+
+    if (clampedQty <= 0) {
+      // Remove o horário mantendo a data ativa
       const nextQuads = quads.filter(q => q.time !== slotTime);
       if (onSetQuads) {
         onSetQuads(nextQuads);
       } else {
         const idx = quads.findIndex(q => q.time === slotTime);
-        if (idx >= 0) onUpdate(idx, { quantity: 0, time: undefined });
+        if (idx >= 0) onUpdate(idx, { quantity: 0, time: undefined, date: checkDate });
       }
       return;
     }
 
-    // Atualiza ou insere o horário
+    // Atualiza ou insere o horário (máximo 2 quadriciclos)
     const existingIdx = quads.findIndex(q => q.time === slotTime);
     if (existingIdx >= 0) {
       if (onSetQuads) {
-        const next = quads.map((q, i) => i === existingIdx ? { ...q, type, quantity, date: checkDate, time: slotTime } : q);
+        const next = quads.map((q, i) => i === existingIdx ? { ...q, type, quantity: clampedQty, date: checkDate, time: slotTime } : q);
         onSetQuads(next);
       } else {
-        onUpdate(existingIdx, { type, quantity, time: slotTime, date: checkDate });
+        onUpdate(existingIdx, { type, quantity: clampedQty, time: slotTime, date: checkDate });
       }
     } else {
-      const newQuad: QuadItem = { type, quantity, time: slotTime, date: checkDate };
+      const newQuad: QuadItem = { type, quantity: clampedQty, time: slotTime, date: checkDate };
       if (onSetQuads) {
         onSetQuads([...quads.filter(q => q.quantity > 0), newQuad]);
       } else {
-        // Tenta achar um slot livre ou adiciona
         const emptyIdx = quads.findIndex(q => q.quantity === 0);
         if (emptyIdx >= 0) {
           onUpdate(emptyIdx, newQuad);
@@ -131,6 +154,8 @@ export function QuadSelector({ quads, onUpdate, onSetQuads }: Props) {
   const discount = getQuadDiscount(checkDate);
   const indBasePrice = getPrice('quad_individual', 130);
   const dupBasePrice = getPrice('quad_dupla', 195);
+  const indGrossPrice = indBasePrice;
+  const dupGrossPrice = dupBasePrice;
   const indFinalPrice = indBasePrice * (1 - discount);
   const dupFinalPrice = dupBasePrice * (1 - discount);
 
@@ -208,7 +233,7 @@ export function QuadSelector({ quads, onUpdate, onSetQuads }: Props) {
       </div>
 
       {/* SELETOR INTERATIVO POR HORÁRIO: CLIQUE NO HORÁRIO PARA EXPANDIR E CONFIGURAR */}
-      {checkDate && (
+      {checkDate ? (
         <div className="bg-slate-50 border-2 border-emerald-200 rounded-3xl p-4 sm:p-5 space-y-4 shadow-sm">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 pb-2.5 gap-2">
             <div className="flex items-center gap-2">
@@ -238,7 +263,8 @@ export function QuadSelector({ quads, onUpdate, onSetQuads }: Props) {
                   const isSlotDisabled = disabledQuadSlots.includes(t);
                   const bookingThisSlot = getBookingForSlot(t);
                   const isSelectedByMe = Boolean(bookingThisSlot && bookingThisSlot.quantity > 0);
-                  const remaining = isSlotDisabled ? 0 : Math.max(0, maxQuads - dbUsed);
+                  // Trava de no máximo 2 quadriciclos por horário
+                  const remaining = isSlotDisabled ? 0 : Math.max(0, MAX_QUADS_PER_SLOT - dbUsed);
                   const isFull = isSlotDisabled || remaining <= 0;
                   const isExpanded = expandedSlot === t;
 
@@ -311,8 +337,8 @@ export function QuadSelector({ quads, onUpdate, onSetQuads }: Props) {
                 const currentType = currentBooking?.type || 'individual';
                 const currentQty = currentBooking?.quantity || 0;
                 
-                // Vagas disponíveis para este horário (considerando a quantidade já alocada para este usuário)
-                const availableForSlot = isSlotDisabled ? 0 : Math.min(2, Math.max(0, 2 - dbUsed + currentQty));
+                // Vagas disponíveis para este horário: TRAVA RIGOROSA DE NO MÁXIMO 2 NO TOTAL
+                const availableForSlot = isSlotDisabled ? 0 : Math.max(0, Math.min(MAX_QUADS_PER_SLOT, MAX_QUADS_PER_SLOT - dbUsed + currentQty));
                 const priceEach = currentType === 'dupla' ? dupFinalPrice : indFinalPrice;
 
                 return (
@@ -327,7 +353,7 @@ export function QuadSelector({ quads, onUpdate, onSetQuads }: Props) {
                             Configurar Passeio das {slot}
                           </h4>
                           <span className="text-[11px] text-amber-300 font-bold block">
-                            {availableForSlot} quadriciclo{availableForSlot > 1 ? 's' : ''} disponível{availableForSlot > 1 ? 'is' : ''} (Máx: 2 neste horário)
+                            {availableForSlot} quadriciclo{availableForSlot > 1 ? 's' : ''} disponível{availableForSlot > 1 ? 'is' : ''} (Limite: máximo 2 por horário)
                           </span>
                         </div>
                       </div>
@@ -349,7 +375,7 @@ export function QuadSelector({ quads, onUpdate, onSetQuads }: Props) {
                         <div className="grid grid-cols-2 gap-2">
                           <button
                             type="button"
-                            onClick={() => handleSaveSlot(slot, 'individual', Math.max(1, currentQty || 1))}
+                            onClick={() => handleSaveSlot(slot, 'individual', Math.min(MAX_QUADS_PER_SLOT, Math.max(1, currentQty || 1)))}
                             className={cn(
                               "p-3 rounded-2xl border-2 transition-all cursor-pointer text-left flex flex-col justify-between",
                               currentType === 'individual' && currentQty > 0
@@ -386,7 +412,7 @@ export function QuadSelector({ quads, onUpdate, onSetQuads }: Props) {
 
                           <button
                             type="button"
-                            onClick={() => handleSaveSlot(slot, 'dupla', Math.max(1, currentQty || 1))}
+                            onClick={() => handleSaveSlot(slot, 'dupla', Math.min(MAX_QUADS_PER_SLOT, Math.max(1, currentQty || 1)))}
                             className={cn(
                               "p-3 rounded-2xl border-2 transition-all cursor-pointer text-left flex flex-col justify-between",
                               currentType === 'dupla' && currentQty > 0
@@ -426,7 +452,7 @@ export function QuadSelector({ quads, onUpdate, onSetQuads }: Props) {
                       {/* 2. Quantidade de Quadriciclos */}
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-black uppercase tracking-widest text-emerald-300 block">
-                          2. Quantidade de Quadriciclos:
+                          2. Quantidade de Quadriciclos (Máx: 2):
                         </label>
                         <div className="bg-white/10 border border-white/20 rounded-2xl p-3 flex items-center justify-between gap-3 h-[90px]">
                           <div>
@@ -458,6 +484,7 @@ export function QuadSelector({ quads, onUpdate, onSetQuads }: Props) {
                               disabled={currentQty <= 0}
                               onClick={() => handleSaveSlot(slot, currentType, Math.max(0, currentQty - 1))}
                               className="w-8 h-8 rounded-xl font-black bg-emerald-950 border-2 border-emerald-700 text-white hover:bg-emerald-800 disabled:opacity-30 flex items-center justify-center cursor-pointer shadow-xs transition-colors"
+                              title="Diminuir quantidade"
                             >
                               <Minus className="w-3.5 h-3.5 stroke-[3]" />
                             </button>
@@ -466,9 +493,10 @@ export function QuadSelector({ quads, onUpdate, onSetQuads }: Props) {
                             </span>
                             <button
                               type="button"
-                              disabled={currentQty >= availableForSlot}
-                              onClick={() => handleSaveSlot(slot, currentType, Math.min(availableForSlot, currentQty + 1))}
+                              disabled={currentQty >= Math.min(MAX_QUADS_PER_SLOT, availableForSlot)}
+                              onClick={() => handleSaveSlot(slot, currentType, Math.min(MAX_QUADS_PER_SLOT, currentQty + 1))}
                               className="w-8 h-8 rounded-xl font-black bg-amber-400 border-2 border-amber-500 text-slate-950 hover:bg-amber-300 disabled:opacity-30 flex items-center justify-center cursor-pointer shadow-xs transition-colors"
+                              title="Aumentar quantidade (máx 2)"
                             >
                               <Plus className="w-3.5 h-3.5 stroke-[3]" />
                             </button>
@@ -556,6 +584,17 @@ export function QuadSelector({ quads, onUpdate, onSetQuads }: Props) {
               </div>
             )}
           </div>
+        </div>
+      ) : (
+        /* Aviso quando data não selecionada */
+        <div className="bg-amber-50 border-2 border-amber-300 rounded-3xl p-6 text-center space-y-2">
+          <div className="w-10 h-10 rounded-full bg-amber-400/30 text-amber-900 flex items-center justify-center mx-auto font-black">
+            <Clock className="w-5 h-5 text-amber-800" />
+          </div>
+          <h4 className="font-sans font-black text-slate-900 text-base">Selecione a data da visita primeiro</h4>
+          <p className="text-xs font-bold text-slate-600 max-w-md mx-auto">
+            Por favor, escolha a data da sua visita no topo da página para visualizar a disponibilidade em tempo real dos quadriciclos.
+          </p>
         </div>
       )}
 

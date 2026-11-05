@@ -1008,7 +1008,7 @@ export function BookingSection() {
 
                         {dayUseTab === 'quads' && (
                           <div className="space-y-6">
-                            <QuadSelector quads={booking.quads} onUpdate={updateQuad} onSetQuads={setQuads} onAddQuad={addQuad} onRemoveQuad={removeQuad} />
+                            <QuadSelector quads={booking.quads} selectedDate={booking.entry.visitDate} onUpdate={updateQuad} onSetQuads={setQuads} onAddQuad={addQuad} onRemoveQuad={removeQuad} />
 
                             <div className="pt-6 flex flex-col sm:flex-row justify-between items-center gap-3">
                               <Button variant="ghost" onClick={() => setDayUseTab('quiosques')} className="font-bold text-muted-foreground">
@@ -1155,7 +1155,7 @@ export function BookingSection() {
                                 Reserve também passeios de quadriciclo para sua estadia (opcional)
                               </span>
                             </div>
-                            <QuadSelector quads={booking.quads} onUpdate={updateQuad} onSetQuads={setQuads} onAddQuad={addQuad} onRemoveQuad={removeQuad} />
+                            <QuadSelector quads={booking.quads} selectedDate={booking.chale.checkInDate || booking.entry.visitDate} onUpdate={updateQuad} onSetQuads={setQuads} onAddQuad={addQuad} onRemoveQuad={removeQuad} />
 
                             <div className="pt-6 flex flex-col sm:flex-row justify-between items-center gap-3">
                               <Button variant="ghost" onClick={() => setHospedagemTab('quiosques')} className="font-bold text-muted-foreground">
@@ -1289,7 +1289,7 @@ export function BookingSection() {
 
                         {campingTab === 'quads' && (
                           <div className="space-y-6">
-                            <QuadSelector quads={booking.quads} onUpdate={updateQuad} />
+                            <QuadSelector quads={booking.quads} selectedDate={booking.camping.visitDate || booking.entry.visitDate} onUpdate={updateQuad} onSetQuads={setQuads} onAddQuad={addQuad} onRemoveQuad={removeQuad} />
 
                             <div className="pt-6 flex flex-col sm:flex-row justify-between items-center gap-3">
                               <Button variant="ghost" onClick={() => setCampingTab('quiosques')} className="font-bold text-muted-foreground">

@@ -45,11 +45,12 @@ export function InternalBookingAssistant({
   useEffect(() => {
     async function fetchConfig() {
       const total = await getGlobalSetting('total_quads', 2);
-      setMaxQuads(Number(total));
+      const finalTotal = Math.min(2, Number(total) || 2);
+      setMaxQuads(finalTotal);
       // Initialize slot availabilities with the fetched max quads
       const initialAvail: Record<string, number> = {};
       QUAD_TIMES.forEach(t => {
-        initialAvail[t] = Number(total);
+        initialAvail[t] = finalTotal;
       });
       setSlotAvailabilities(initialAvail);
     }
