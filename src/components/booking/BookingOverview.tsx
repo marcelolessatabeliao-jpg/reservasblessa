@@ -121,7 +121,7 @@ export function BookingOverview({
     });
   };
 
-  const handleAction = async (method: 'PIX' | 'CREDIT_CARD' | 'LOCAL') => {
+  const handleAction = async (method: 'PIX' | 'CREDIT_CARD' | 'LOCAL', installmentsCount: number = 1) => {
     const fullName = booking.entry.name?.trim();
 
     if (!fullName || !booking.entry.phone?.trim() || booking.entry.phone.length < 10) {
@@ -641,9 +641,7 @@ export function BookingOverview({
                             ⏰ Horário: {q.time}
                           </span>
                         )}
-                        <span className="bg-amber-100 text-amber-900 px-2 py-0.5 rounded-md border border-amber-300">
-                          10% OFF no Total da Reserva
-                        </span>
+                        
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
@@ -705,35 +703,49 @@ export function BookingOverview({
                 Hospedagem ({chaletsCount > 1 ? `${chaletsCount} Chalés` : 'Chalé'})
               </h4>
               <div className="space-y-2 text-sm sm:text-base text-muted-foreground">
-                <div className="flex justify-between items-start group/item gap-2 bg-white p-3 rounded-2xl border border-emerald-100 shadow-xs">
-                  <div className="min-w-0 flex-1">
+                <div className="flex justify-between items-start group/item gap-2 bg-white p-3.5 rounded-2xl border-2 border-emerald-200 shadow-xs">
+                  <div className="min-w-0 flex-1 space-y-2">
                     <span className="text-xs sm:text-sm font-black truncate block text-emerald-950">
                       🏡 {pkg.title} {chaletsCount > 1 ? `(${chaletsCount} unidades)` : ''}
                     </span>
-                    <span className="text-[11px] text-slate-600 font-bold block mt-0.5">
-                      {chaletsCount > 1 ? `${chaletsCount} Chalés · ` : ''}
-                      {adults} Adulto(s)
-                      {kids > 0 && ` + ${kids} Criança(s)`}
-                      {booking.chale.chaleIds && booking.chale.chaleIds.length > 1
-                        ? ` · Chalés: ${booking.chale.chaleIds.map(id => `Nº ${String(id).padStart(2, '0')}`).join(', ')}`
-                        : booking.chale.chaleId
-                          ? ` · Chalé ${String(booking.chale.chaleId).padStart(2, '0')}`
-                          : ''}
-                    </span>
-                    <span className="text-[10px] text-emerald-800 font-black block mt-0.5">
-                      ☕ Café da manhã das 07h às 09h (Sex, Sáb e Dom) · Check-in 14h / Check-out 12h
-                    </span>
-                    {(booking.chale.includeSundayDayUse || (booking.chale.checkOutDate && new Date(booking.chale.checkOutDate).getDay() === 0)) && (
-                      <span className="text-[10px] text-amber-700 font-black block mt-0.5">
-                        ☀️ Com Day Use de Domingo Incluso (permanência no parque até as 17h)
-                      </span>
-                    )}
-                    {kids > 0 && (
-                      <span className="text-[10px] text-emerald-900 font-bold block mt-0.5">
-                        👶 Adicionais de Crianças (Filhos): {kids} criança(s) {booking.chale.childrenAges && booking.chale.childrenAges.length > 0 && `(${booking.chale.childrenAges.map(a => a === '12plus' ? '12+ anos (R$ 100)' : 'até 11 anos (R$ 50)').join(', ')})`} · Obrigatório comprovação com documento
-                      </span>
-                    )}
+
+                    {/* Agrupamento claro por chalé com seus respectivos adultos e crianças */}
+                    <div className="space-y-2 pt-1 border-t border-emerald-100">
+                      {(booking.chale.chaleIds && booking.chale.chaleIds.length > 0
+                        ? booking.chale.chaleIds
+                        : (booking.chale.chaleId ? [booking.chale.chaleId] : [1])
+                      ).map((id, uIdx) => {
+                        const isCasal = (booking.chale.chaleOccupancies?.[id] || 'casal') !== 'individual';
+                        const ages = booking.chale.childrenAges || [];
+                        // Distribuição de crianças vinculadas a este chalé
+                        const kidsForThis = (booking.chale.chaleKids && booking.chale.chaleKids[id]) || (
+                          ages.slice(uIdx * 2, (uIdx + 1) * 2)
+                        );
+                        return (
+                          <div key={`overview-chale-${id}`} className="bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-200/80 text-xs">
+                            <div className="flex items-center justify-between font-black text-emerald-950">
+                              <span className="flex items-center gap-1.5">
+                                <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
+                                Chalé {String(id).padStart(2, '0')} (Alvenaria)
+                              </span>
+                              <span className="text-[11px] font-black text-emerald-800 bg-white px-2 py-0.5 rounded-md border border-emerald-200">
+                                {isCasal ? 'Casal (2 Adultos)' : 'Individual (1 Adulto)'}
+                              </span>
+                            </div>
+                            {kidsForThis.length > 0 && (
+                              <div className="text-[11px] text-amber-950 font-bold mt-1.5 pt-1 border-t border-emerald-200/60 flex items-center gap-1">
+                                <span>👶</span>
+                                <span>
+                                  <strong>{kidsForThis.length} Criança(s):</strong> {kidsForThis.map(a => a === '12plus' ? '12+ anos (+R$ 100)' : 'até 11 anos (+R$ 50)').join(', ')}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
+
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="whitespace-nowrap text-xs sm:text-sm font-black text-emerald-900">{formatCurrency(chalePrice)}</span>
                     {onUpdateChale && (
@@ -1071,52 +1083,132 @@ export function BookingOverview({
                     );
                   })()
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {/* Botão PIX */}
                     <Button
                       size="lg"
                       onClick={() => handleAction('PIX')}
                       disabled={saving}
-                      className="h-16 sm:h-20 rounded-2xl bg-[#00bdae] hover:bg-[#009b8f] text-white font-black flex flex-row sm:flex-col items-center justify-center gap-2 shadow-lg active:scale-[0.98] transition-all border-b-4 border-[#007a71] p-2"
+                      className="h-20 sm:h-22 rounded-2xl bg-gradient-to-br from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-500 hover:to-teal-500 text-white font-black flex flex-row sm:flex-col items-center justify-center gap-2 shadow-xl active:scale-[0.98] transition-all border-b-4 border-emerald-900 p-2.5"
                     >
-                      <div className="p-1.5 bg-white/20 rounded-xl backdrop-blur-md shrink-0">
+                      <div className="p-2 bg-white/20 rounded-xl backdrop-blur-md shrink-0">
                         {saving && activePaymentMethod === 'PIX' ? <Loader2 className="h-5 w-5 animate-spin" /> : <QrCode className="h-5 w-5 text-white" />}
                       </div>
                       <div className="text-left sm:text-center leading-tight">
-                        <span className="block text-[8px] sm:text-[9px] text-white/85 font-black uppercase tracking-wider">10% OFF</span>
-                        <span className="text-sm font-black uppercase">Gerar PIX</span>
+                        <span className="block text-[9px] text-amber-300 font-black uppercase tracking-widest">10% OFF ONLINE</span>
+                        <span className="text-sm font-black uppercase tracking-tight">GERAR PIX</span>
                       </div>
                     </Button>
 
+                    {/* Botão CARTÃO (com suporte a parcelamento em até 12x) */}
                     <Button
                       size="lg"
-                      onClick={() => handleAction('CREDIT_CARD')}
+                      onClick={() => {
+                        if (totals.total >= 50) {
+                          setShowCardInstallmentModal(true);
+                        } else {
+                          handleAction('CREDIT_CARD', 1);
+                        }
+                      }}
                       disabled={saving}
-                      className="h-16 sm:h-20 rounded-2xl bg-emerald-800 hover:bg-emerald-900 text-white font-black flex flex-row sm:flex-col items-center justify-center gap-1.5 shadow-lg active:scale-[0.98] transition-all border-b-4 border-emerald-950 p-2"
+                      className="h-20 sm:h-22 rounded-2xl bg-gradient-to-br from-[#0c2e1c] via-[#051f12] to-slate-900 hover:from-[#113d26] hover:to-slate-800 text-white font-black flex flex-row sm:flex-col items-center justify-center gap-1.5 shadow-xl active:scale-[0.98] transition-all border-2 border-amber-400/80 border-b-4 border-amber-500 p-2.5"
                     >
-                      <div className="p-1.5 bg-white/20 rounded-xl backdrop-blur-md shrink-0">
-                        {saving && activePaymentMethod === 'CREDIT_CARD' ? <Loader2 className="h-5 w-5 animate-spin" /> : <CreditCard className="h-5 w-5 text-white" />}
+                      <div className="p-2 bg-amber-400/20 rounded-xl backdrop-blur-md shrink-0">
+                        {saving && activePaymentMethod === 'CREDIT_CARD' ? <Loader2 className="h-5 w-5 animate-spin text-amber-400" /> : <CreditCard className="h-5 w-5 text-amber-400" />}
                       </div>
                       <div className="text-left sm:text-center leading-tight">
-                        <span className="block text-[8px] sm:text-[9px] text-amber-300 font-black uppercase tracking-wider">10% OFF</span>
-                        <span className="text-xs sm:text-sm font-black uppercase">Cartão</span>
+                        <span className="block text-[9px] text-amber-300 font-black uppercase tracking-widest">10% OFF · ATÉ 12X</span>
+                        <span className="text-xs sm:text-sm font-black uppercase tracking-tight text-white">CARTÃO DE CRÉDITO</span>
                       </div>
                     </Button>
 
+                    {/* Botão CONFIRMAR NO WHATSAPP */}
                     <Button
                       size="lg"
                       onClick={() => handleAction('LOCAL')}
                       disabled={saving}
-                      className="h-16 sm:h-20 rounded-2xl bg-[#006020] hover:bg-[#004d1a] text-white font-black flex flex-row sm:flex-col items-center justify-center gap-1.5 shadow-lg active:scale-[0.98] transition-all border-b-4 border-[#004015] p-2"
+                      className="h-20 sm:h-22 rounded-2xl bg-gradient-to-br from-[#128C7E] to-[#075E54] hover:from-[#18a392] hover:to-[#0a7266] text-white font-black flex flex-row sm:flex-col items-center justify-center gap-1.5 shadow-xl active:scale-[0.98] transition-all border-b-4 border-[#05423b] p-2.5"
                     >
-                      <div className="p-1.5 bg-white/20 rounded-xl backdrop-blur-md shrink-0">
+                      <div className="p-2 bg-white/20 rounded-xl backdrop-blur-md shrink-0">
                         <MessageCircle className="h-5 w-5 text-white" />
                       </div>
                       <div className="text-left sm:text-center leading-tight">
-                        <span className="block text-[8px] sm:text-[9px] text-emerald-200 font-bold uppercase tracking-wider">No Balcão</span>
-                        <span className="text-xs sm:text-sm font-black uppercase tracking-tight">Confirmar no WhatsApp</span>
+                        <span className="block text-[9px] text-emerald-200 font-black uppercase tracking-widest">PAGAR NO LOCAL</span>
+                        <span className="text-xs sm:text-sm font-black uppercase tracking-tight">CONFIRMAR NO WHATSAPP</span>
                       </div>
                     </Button>
                   </div>
+
+                  {/* MODAL / DIALOG DE SELEÇÃO DE PARCELAS NO CARTÃO DE CRÉDITO */}
+                  {showCardInstallmentModal && (
+                    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+                      <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border-2 border-emerald-600 space-y-4 animate-in fade-in zoom-in-95">
+                        <div className="flex items-center justify-between border-b pb-3">
+                          <div className="flex items-center gap-2">
+                            <CreditCard className="w-5 h-5 text-emerald-700" />
+                            <h3 className="font-sans font-black text-base uppercase text-emerald-950">
+                              Parcelamento no Cartão
+                            </h3>
+                          </div>
+                          <button 
+                            onClick={() => setShowCardInstallmentModal(false)}
+                            className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-700"
+                          >
+                            <X className="w-5 h-5" />
+                          </button>
+                        </div>
+
+                        <div className="bg-emerald-50/70 p-3.5 rounded-2xl border border-emerald-200 space-y-1 text-center">
+                          <span className="text-[11px] font-black uppercase text-emerald-800 tracking-wider block">
+                            Valor Total da Reserva (com 10% OFF Online):
+                          </span>
+                          <span className="text-2xl font-black text-emerald-950 block">
+                            {formatCurrency(totals.total)}
+                          </span>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-xs font-black uppercase text-slate-800 block">
+                            Em quantas vezes deseja pagar no Cartão?
+                          </label>
+                          <select
+                            value={selectedInstallments}
+                            onChange={(e) => setSelectedInstallments(Number(e.target.value))}
+                            className="w-full h-12 rounded-xl border-2 border-emerald-400 bg-white font-bold text-sm px-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          >
+                            {Array.from({ length: Math.min(12, Math.max(1, Math.floor(totals.total / 30))) }).map((_, idx) => {
+                              const times = idx + 1;
+                              const valueEach = totals.total / times;
+                              return (
+                                <option key={times} value={times}>
+                                  {times}x de {formatCurrency(valueEach)} {times === 1 ? '(à vista com 10% OFF)' : '(sem juros adicionais)'}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </div>
+
+                        <div className="pt-2 flex flex-col gap-2">
+                          <Button
+                            onClick={() => {
+                              setShowCardInstallmentModal(false);
+                              handleAction('CREDIT_CARD', selectedInstallments);
+                            }}
+                            className="w-full h-14 rounded-2xl bg-gradient-to-r from-emerald-700 to-emerald-800 hover:from-emerald-600 hover:to-emerald-700 text-white font-black text-sm uppercase tracking-wide shadow-lg border-b-4 border-emerald-950"
+                          >
+                            Prosseguir para Pagamento Seguro ({selectedInstallments}x de {formatCurrency(totals.total / selectedInstallments)})
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            onClick={() => setShowCardInstallmentModal(false)}
+                            className="font-bold text-xs text-slate-500"
+                          >
+                            Cancelar
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 )}
               </div>
             ) : (

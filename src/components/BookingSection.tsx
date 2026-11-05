@@ -64,6 +64,8 @@ export function BookingSection() {
     updateChild, 
     updateKiosk, 
     updateQuad, 
+    addQuad,
+    removeQuad,
     updateAdditional,
     updateChale,
     updateCamping,
@@ -241,7 +243,41 @@ export function BookingSection() {
   const countQuads = booking.quads.reduce((acc, q) => acc + q.quantity, 0);
   const countDiversoes = booking.additionals.reduce((acc, a) => acc + a.quantity, 0);
 
+  const validateHospedagemGuests = (): boolean => {
+    if (modalidade !== 'hospedagem') return true;
+    if (!booking.chale.packageType) {
+      toast({ title: 'Escolha seu Pacote', description: 'Selecione uma opção de pacote ou diárias para continuar.', variant: 'destructive' });
+      return false;
+    }
+    const chaletsCount = (booking.chale.chaleIds && booking.chale.chaleIds.length > 0)
+      ? booking.chale.chaleIds.length
+      : (booking.chale.chaleId ? 1 : 0);
+    if (chaletsCount === 0) {
+      toast({ title: 'Selecione o Chalé', description: 'Escolha pelo menos 1 chalé disponível para continuar.', variant: 'destructive' });
+      return false;
+    }
+    const totalAdults = Math.max(1, booking.chale.adultsCount || (chaletsCount * 2));
+    const totalKids = booking.chale.childrenCount || 0;
+    const totalRequiredGuests = totalAdults + totalKids;
+    const names = booking.chale.guestNames || [];
+    for (let i = 0; i < totalRequiredGuests; i++) {
+      if (!names[i] || !names[i].trim()) {
+        toast({
+          title: 'Nomes Obrigatórios',
+          description: 'Por favor, preencha o nome completo de todos os hóspedes (adultos e crianças) no chalé antes de avançar.',
+          variant: 'destructive'
+        });
+        return false;
+      }
+    }
+    return true;
+  };
+
   const handleGoToSummary = () => {
+    if (modalidade === 'hospedagem' && !validateHospedagemGuests()) {
+      setHospedagemTab('chales');
+      return;
+    }
     if (!booking.entry.visitDate) {
       setCurrentStep('data');
       return;
@@ -919,7 +955,7 @@ export function BookingSection() {
 
                         {dayUseTab === 'quads' && (
                           <div className="space-y-6">
-                            <QuadSelector quads={booking.quads} onUpdate={updateQuad} />
+                            <QuadSelector quads={booking.quads} onUpdate={updateQuad} onAddQuad={addQuad} onRemoveQuad={removeQuad} />
 
                             <div className="pt-6 flex flex-col sm:flex-row justify-between items-center gap-3">
                               <Button variant="ghost" onClick={() => setDayUseTab('quiosques')} className="font-bold text-muted-foreground">
@@ -1005,7 +1041,10 @@ export function BookingSection() {
                               <div className="flex gap-2 w-full sm:w-auto">
                                 <Button 
                                   size="lg"
-                                  onClick={() => setHospedagemTab('quiosques')}
+                                  onClick={() => {
+                                    if (!validateHospedagemGuests()) return;
+                                    setHospedagemTab('quiosques');
+                                  }}
                                   className="w-full sm:w-auto bg-amber-400 hover:bg-amber-500 text-slate-950 font-black h-14 px-8 rounded-2xl shadow-lg"
                                 >
                                   Próximo: Quiosques (Opcional) <ArrowRight className="ml-2 h-4 w-4" />
@@ -1063,7 +1102,7 @@ export function BookingSection() {
                                 Reserve também passeios de quadriciclo para sua estadia (opcional)
                               </span>
                             </div>
-                            <QuadSelector quads={booking.quads} onUpdate={updateQuad} />
+                            <QuadSelector quads={booking.quads} onUpdate={updateQuad} onAddQuad={addQuad} onRemoveQuad={removeQuad} />
 
                             <div className="pt-6 flex flex-col sm:flex-row justify-between items-center gap-3">
                               <Button variant="ghost" onClick={() => setHospedagemTab('quiosques')} className="font-bold text-muted-foreground">

@@ -279,6 +279,27 @@ export async function saveBooking(
   };
 }
 
+export async function getAllQuadAvailabilities(date: string): Promise<Record<string, number>> {
+  const { data, error } = await (supabase
+    .from('quad_reservations') as any)
+    .select('time_slot, quantity, orders!inner(status)')
+    .eq('reservation_date', date);
+
+  const result: Record<string, number> = {};
+  if (error || !data) return result;
+
+  const confirmedStatuses = ['paid', 'pago', 'confirmed', 'confirmado', 'checked-in', 'completed'];
+
+  data.forEach((r: any) => {
+    const status = (r.orders?.status || '').toLowerCase();
+    if (confirmedStatuses.includes(status)) {
+      result[r.time_slot] = (result[r.time_slot] || 0) + (Number(r.quantity) || 0);
+    }
+  });
+
+  return result;
+}
+
 export async function getQuadAvailability(date: string, timeSlot: string): Promise<number> {
   const { data, error } = await (supabase
     .from('quad_reservations') as any)

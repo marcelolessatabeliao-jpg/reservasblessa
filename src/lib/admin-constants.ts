@@ -26,7 +26,7 @@ export const PAYMENT_METHODS = [
 
 export const QUAD_MODELS_LABELS: Record<string, string> = {
   individual: 'Passeio Individual (40 min)',
-  dupla: 'Passeio para Casal (40 min)',
+  dupla: 'Passeio de Dupla (40 min)',
   'adulto-crianca': 'Adulto + Criança'
 };
 

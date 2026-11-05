@@ -1275,17 +1275,22 @@ export function ChaleSelector({
           <div className="space-y-3">
             {selectedChaleUnits.map((chaleId, unitIdx) => {
               const isChaleCasal = chaleOccupancies[chaleId] !== 'individual';
-              // Calcula offset de índice de nomes
+              // Calcula offset de índice de nomes de adultos
               let baseAdultIdx = 0;
               for (let i = 0; i < unitIdx; i++) {
                 baseAdultIdx += chaleOccupancies[selectedChaleUnits[i]] === 'individual' ? 1 : 2;
               }
+              const kidsForThisChale = chaleKidsMap[chaleId] || [];
+              let baseKidOffset = 0;
+              for (let i = 0; i < unitIdx; i++) {
+                baseKidOffset += (chaleKidsMap[selectedChaleUnits[i]] || []).length;
+              }
 
               return (
-                <div key={`chale-group-${chaleId}`} className="bg-slate-50/80 p-3.5 rounded-2xl border-2 border-emerald-200 space-y-2.5">
-                  <div className="flex items-center justify-between border-b border-slate-200 pb-1.5">
-                    <span className="text-xs font-black uppercase text-emerald-900 flex items-center gap-1.5">
-                      <Home className="w-3.5 h-3.5 text-emerald-700" />
+                <div key={`chale-group-${chaleId}`} className="bg-slate-50/80 p-3.5 sm:p-4 rounded-2xl border-2 border-emerald-300 space-y-3 shadow-xs">
+                  <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                    <span className="text-xs sm:text-sm font-black uppercase text-emerald-950 flex items-center gap-1.5">
+                      <Home className="w-4 h-4 text-emerald-700" />
                       Chalé {String(chaleId).padStart(2, '0')} · {isChaleCasal ? 'Casal (2 Adultos)' : 'Individual (1 Adulto)'}
                     </span>
                     <Badge className="bg-emerald-900 text-amber-300 font-black text-[9px] uppercase px-2 py-0.5">
@@ -1293,13 +1298,14 @@ export function ChaleSelector({
                     </Badge>
                   </div>
 
+                  {/* Adultos deste chalé */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <label className="text-[11px] font-black text-slate-900 block">
                         Adulto 1 - Titular do Chalé {String(chaleId).padStart(2, '0')}:
                       </label>
                       <Input
-                        placeholder={`Nome completo do responsável...`}
+                        placeholder={`Nome completo do titular...`}
                         value={(chale.guestNames && chale.guestNames[baseAdultIdx]) || ''}
                         onChange={(e) => handleUpdateGuestName(baseAdultIdx, e.target.value)}
                         className="bg-white border-2 border-slate-300 h-10 rounded-xl text-xs font-bold text-slate-900 focus-visible:ring-emerald-600 shadow-xs"
@@ -1320,37 +1326,38 @@ export function ChaleSelector({
                       </div>
                     )}
                   </div>
+
+                  {/* Crianças deste chalé específico agrupadas junto aos titulares */}
+                  {kidsForThisChale.length > 0 && (
+                    <div className="pt-2.5 mt-2 border-t border-amber-200/80 space-y-2 bg-amber-50/50 p-2.5 rounded-xl border">
+                      <span className="text-[11px] font-black uppercase text-amber-950 flex items-center gap-1.5">
+                        <span>👶</span> Crianças do Chalé {String(chaleId).padStart(2, '0')} (Filhos):
+                      </span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {kidsForThisChale.map((age, kIdx) => {
+                          const kidSlotIdx = currentAdults + baseKidOffset + kIdx;
+                          const ageLabel = age === '12plus' ? '12 anos ou mais (+ R$ 100)' : 'Até 11 anos (+ R$ 50)';
+                          return (
+                            <div key={`chale-${chaleId}-kid-${kIdx}`} className="space-y-1">
+                              <label className="text-[11px] font-bold text-slate-800 block">
+                                Criança {kIdx + 1} do Chalé {String(chaleId).padStart(2, '0')} · {ageLabel}:
+                              </label>
+                              <Input
+                                placeholder={`Nome completo da criança ${kIdx + 1}...`}
+                                value={(chale.guestNames && chale.guestNames[kidSlotIdx]) || ''}
+                                onChange={(e) => handleUpdateGuestName(kidSlotIdx, e.target.value)}
+                                className="bg-white border-2 border-amber-300 h-10 rounded-xl text-xs font-bold text-slate-900 focus-visible:ring-amber-500 shadow-xs"
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
-
-          {/* Crianças */}
-          {Boolean(chale.childrenCount && chale.childrenCount > 0) && (
-            <div className="pt-2 space-y-2">
-              <span className="text-[11px] font-black uppercase text-emerald-950 flex items-center gap-1">
-                <span>👶</span> Nomes das Crianças:
-              </span>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {Array.from({ length: chale.childrenCount || 0 }).map((_, kidIdx) => {
-                  const kidSlotIdx = currentAdults + kidIdx;
-                  return (
-                    <div key={`kid-field-${kidIdx}`} className="space-y-1">
-                      <label className="text-[11px] font-bold text-slate-800 block">
-                        Criança {kidIdx + 1} (Filho/a) · {childrenAges[kidIdx] === '12plus' ? '12 anos ou mais (+ R$ 100)' : 'Até 11 anos (+ R$ 50)'}:
-                      </label>
-                      <Input
-                        placeholder={`Nome da criança ${kidIdx + 1}...`}
-                        value={(chale.guestNames && chale.guestNames[kidSlotIdx]) || ''}
-                        onChange={(e) => handleUpdateGuestName(kidSlotIdx, e.target.value)}
-                        className="bg-white border-2 border-slate-300 h-10 rounded-xl text-xs font-bold text-slate-900 focus-visible:ring-emerald-600 shadow-xs"
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
         </div>
 
         {/* ROW 5: BENEFÍCIOS DO PACOTE & REGRAS OFICIAIS */}

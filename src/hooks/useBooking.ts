@@ -271,5 +271,5 @@ export function useBooking() {
       (booking.camping.peopleCount || 0) > 0;
   }, [booking]);
 
-  return { booking, updateEntry, addAdult, removeAdult, updateAdult, addChild, removeChild, updateChild, updateKiosk, updateQuad, updateAdditional, updateChale, updateCamping, resetOptionalServices, totals, hasItems, getPrice, isLoading };
+  return { booking, updateEntry, addAdult, removeAdult, updateAdult, addChild, removeChild, updateChild, updateKiosk, updateQuad, addQuad, removeQuad, updateAdditional, updateChale, updateCamping, resetOptionalServices, totals, hasItems, getPrice, isLoading };
 }

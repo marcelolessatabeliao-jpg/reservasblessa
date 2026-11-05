@@ -548,8 +548,8 @@ export const QUAD_PRICES: Record<QuadType, number> = {
 
 export const QUAD_LABELS: Record<QuadType, string> = {
   individual: 'Passeio Individual (40 min)',
-  dupla: 'Passeio para Casal (40 min)',
-  'adulto-crianca': 'Passeio para Casal (40 min)',
+  dupla: 'Passeio de Dupla (40 min)',
+  'adulto-crianca': 'Passeio de Dupla (40 min)',
 };
 
 export const QUAD_TIMES: QuadTime[] = [

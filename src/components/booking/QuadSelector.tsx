@@ -7,12 +7,14 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useServices } from '@/hooks/useServices';
-import { getQuadAvailability, getGlobalSetting } from '@/lib/booking-service';
+import { getQuadAvailability, getAllQuadAvailabilities, getGlobalSetting } from '@/lib/booking-service';
 import { useToast } from '@/hooks/use-toast';
 
 interface Props {
   quads: QuadItem[];
   onUpdate: (index: number, updates: Partial<QuadItem>) => void;
+  onAddQuad?: (item?: Partial<QuadItem>) => void;
+  onRemoveQuad?: (index: number) => void;
 }
 
 const QUAD_CARDS = [
@@ -27,7 +29,7 @@ const QUAD_CARDS = [
   {
     type: 'dupla' as const,
     icon: Users,
-    title: 'Passeio para Casal',
+    title: 'Passeio de Dupla',
     subtitle: '2 pessoas • 40 min de aventura e natureza',
     fallbackPrice: 195,
     color: 'blue',
@@ -65,10 +67,8 @@ export function QuadSelector({ quads, onUpdate }: Props) {
       if (!checkDate) return;
       setIsFetchingAvailability(true);
       try {
-        const avail: Record<string, number> = {};
-        for (const t of QUAD_TIMES) {
-          avail[t] = await getQuadAvailability(format(checkDate, 'yyyy-MM-dd'), t);
-        }
+        const dateStr = format(checkDate, 'yyyy-MM-dd');
+        const avail = await getAllQuadAvailabilities(dateStr);
         setSlotAvailabilities(avail);
       } catch (error) {
         console.error("Error fetching quad availability:", error);
@@ -266,14 +266,14 @@ export function QuadSelector({ quads, onUpdate }: Props) {
           // Color mapping
           const colorMap: Record<string, { bg: string; border: string; activeBg: string; activeBorder: string; text: string; iconBg: string }> = {
             emerald: { 
-              bg: 'bg-emerald-50/60', border: 'border-emerald-300/50', 
-              activeBg: 'bg-emerald-600', activeBorder: 'border-emerald-700',
-              text: 'text-emerald-700', iconBg: 'bg-emerald-100'
+              bg: 'bg-emerald-50/70', border: 'border-emerald-300', 
+              activeBg: 'bg-[#063f25] border-2 border-emerald-400', activeBorder: 'border-emerald-400',
+              text: 'text-emerald-950', iconBg: 'bg-emerald-100'
             },
             blue: { 
-              bg: 'bg-blue-50/60', border: 'border-blue-300/50', 
-              activeBg: 'bg-blue-600', activeBorder: 'border-blue-700',
-              text: 'text-blue-700', iconBg: 'bg-blue-100'
+              bg: 'bg-blue-50/70', border: 'border-blue-300', 
+              activeBg: 'bg-[#0f2e5a] border-2 border-blue-400', activeBorder: 'border-blue-400',
+              text: 'text-blue-950', iconBg: 'bg-blue-100'
             },
             amber: { 
               bg: 'bg-amber-50/60', border: 'border-amber-300/50', 
@@ -509,6 +509,162 @@ export function QuadSelector({ quads, onUpdate }: Props) {
           );
         })}
       </div>
+
+      {/* RIDE EXTRA CARDS (se houver mais de 2 passeios configurados) */}
+      {quads.length > 2 && (
+        <div className="space-y-3 pt-2">
+          <span className="text-xs font-black uppercase tracking-wider text-emerald-950 flex items-center gap-1.5">
+            <Bike className="w-4 h-4 text-emerald-700" /> Passeios Adicionais Configurados:
+          </span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {quads.slice(2).map((extraQuad, extraIdx) => {
+              const actualIdx = 2 + extraIdx;
+              const basePrice = getPrice(`quad_${extraQuad.type}`, extraQuad.type === 'dupla' ? 195 : 130);
+              const discount = getQuadDiscount(extraQuad.date);
+              const finalPrice = basePrice * (1 - discount);
+              const isDupla = extraQuad.type === 'dupla';
+
+              return (
+                <div key={`extra-quad-${actualIdx}`} className="bg-[#042817] text-white p-4 rounded-2xl border-2 border-amber-400 shadow-md space-y-3">
+                  <div className="flex items-center justify-between border-b border-emerald-800 pb-2">
+                    <span className="text-xs font-black uppercase text-amber-300">
+                      Passeio Adicional #{extraIdx + 1}
+                    </span>
+                    {onRemoveQuad && (
+                      <button 
+                        type="button"
+                        onClick={() => onRemoveQuad(actualIdx)} 
+                        className="p-1 hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded-lg transition-colors flex items-center gap-1 text-[11px] font-bold"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" /> Remover
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Modalidade */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-emerald-200">
+                      1. Modalidade:
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => onUpdate(actualIdx, { type: 'individual' })}
+                        className={cn(
+                          "py-2 px-3 rounded-xl text-xs font-black uppercase transition-all",
+                          !isDupla ? "bg-amber-400 text-slate-950 shadow-sm" : "bg-white/10 text-white hover:bg-white/20"
+                        )}
+                      >
+                        Individual (R$ 117)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onUpdate(actualIdx, { type: 'dupla' })}
+                        className={cn(
+                          "py-2 px-3 rounded-xl text-xs font-black uppercase transition-all",
+                          isDupla ? "bg-amber-400 text-slate-950 shadow-sm" : "bg-white/10 text-white hover:bg-white/20"
+                        )}
+                      >
+                        De Dupla (R$ 175,50)
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Horário */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-emerald-200">
+                      2. Horário:
+                    </label>
+                    <Select
+                      value={extraQuad.time || ''}
+                      onValueChange={async (v) => {
+                        const activeDate = extraQuad.date || checkDate;
+                        if (!activeDate) { toast({ title: 'Escolha uma data primeiro', variant: 'destructive' }); return; }
+                        const visitDate = format(activeDate, 'yyyy-MM-dd');
+                        const used = await getQuadAvailability(visitDate, v);
+                        const localUsedOthers = quads.reduce((acc, qry, idx) => {
+                          if (idx !== actualIdx && qry.time === v) return acc + qry.quantity;
+                          return acc;
+                        }, 0);
+                        const remaining = Math.max(0, maxQuads - (used + localUsedOthers));
+                        if (remaining <= 0) {
+                          toast({ title: 'Horário Lotado', description: 'Este horário atingiu o limite de quadriciclos.', variant: 'destructive' });
+                          return;
+                        }
+                        const newQty = Math.max(1, Math.min(extraQuad.quantity || 1, remaining));
+                        onUpdate(actualIdx, { time: v as QuadTime, quantity: newQty });
+                      }}
+                      disabled={!(extraQuad.date || checkDate) || isFetchingAvailability}
+                    >
+                      <SelectTrigger className="w-full h-11 rounded-xl bg-white/10 border-white/20 text-white font-bold text-xs uppercase">
+                        <SelectValue placeholder="Selecione o Horário..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {QUAD_TIMES.map(t => {
+                          const totalUsed = getSlotUsage(t, actualIdx);
+                          const isSlotDisabled = disabledQuadSlots.includes(t);
+                          const remaining = isSlotDisabled ? 0 : Math.max(0, maxQuads - totalUsed);
+                          const isFull = isSlotDisabled || remaining <= 0;
+                          return (
+                            <SelectItem 
+                              key={t} 
+                              value={t}
+                              className={cn("font-bold py-2.5", isFull ? "text-destructive" : "text-foreground")}
+                              disabled={isFull && extraQuad.time !== t}
+                            >
+                              {t} {isSlotDisabled ? '— Indisponível' : isFull ? '— Lotado' : `— (${remaining} vaga${remaining > 1 ? 's' : ''} livre${remaining > 1 ? 's' : ''})`}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Quantidade */}
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-xs font-bold text-emerald-100">
+                      {extraQuad.quantity}x = <strong className="text-amber-300 font-black">{formatCurrency(finalPrice * (extraQuad.quantity || 1))}</strong>
+                    </span>
+                    <QuantityStepper
+                      size="sm"
+                      theme="dark"
+                      value={extraQuad.quantity || 1}
+                      max={(() => {
+                        if (!extraQuad.time || !checkDate) return 0;
+                        const totalUsed = getSlotUsage(extraQuad.time, actualIdx);
+                        return Math.max(0, maxQuads - totalUsed);
+                      })()}
+                      onChange={(q) => onUpdate(actualIdx, { quantity: q })}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Botão de Adicionar Mais Trilhas / Passeios */}
+      {onAddQuad && (
+        <div className="pt-1">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              if (!checkDate) {
+                toast({ title: 'Selecione a data primeiro', variant: 'destructive' });
+                return;
+              }
+              onAddQuad({ date: checkDate, quantity: 1, type: 'individual' });
+              toast({ title: 'Novo Passeio Adicionado', description: 'Configure o horário e a modalidade desejada para a trilha extra.' });
+            }}
+            className="w-full h-14 rounded-2xl border-2 border-dashed border-emerald-500 bg-emerald-50/70 hover:bg-emerald-100 text-emerald-950 font-black text-xs sm:text-sm uppercase tracking-wide flex items-center justify-center gap-2 transition-all shadow-sm"
+          >
+            <Plus className="w-5 h-5 text-emerald-700 stroke-[3]" />
+            Adicionar Mais Passeios de Quadriciclo (Outro Horário ou Trilha)
+          </Button>
+        </div>
+      )}
 
       {/* Info cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
