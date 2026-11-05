@@ -541,40 +541,63 @@ export function InternalBookingAssistant({
                                      const qItem = newBookingData.quads.find(q => q.type === type && q.time === t);
                                      const qty = qItem ? qItem.quantity : 0;
                                      const labels: any = { individual: 'INDIVIDUAL', dupla: 'CASAL / DUPLA' };
+
+                                     const handleAdd = () => {
+                                        if (!newBookingData.visit_date) {
+                                           toast({ title: 'Selecione a data primeiro', description: 'Por favor, selecione a data da visita no topo do formulário antes de adicionar quadriciclos.', variant: 'destructive' });
+                                           return;
+                                        }
+                                        if (remaining <= 0) {
+                                           toast({ title: 'Horário lotado', description: `O horário ${t} já atingiu o limite de ${maxQuads} quadriciclos.`, variant: 'destructive' });
+                                           return;
+                                        }
+                                        const existing = newBookingData.quads.find(q => q.type === type && q.time === t);
+                                        let newQuads = [...newBookingData.quads];
+                                        if (existing) {
+                                           newQuads = newQuads.map(q => q.type === type && q.time === t ? {...q, quantity: q.quantity + 1} : q);
+                                        } else {
+                                           newQuads.push({ type, time: t, quantity: 1 });
+                                        }
+                                        setNewBookingData({...newBookingData, quads: newQuads});
+                                     };
+
+                                     const handleRemove = () => {
+                                        if (qty > 0) {
+                                           const newQuads = newBookingData.quads.map(q => q.type === type && q.time === t ? {...q, quantity: q.quantity - 1} : q).filter(q => q.quantity > 0);
+                                           setNewBookingData({...newBookingData, quads: newQuads});
+                                        }
+                                     };
                                      
                                      return (
                                         <div key={type} className="flex flex-col gap-1">
-                                           <div className={cn(
-                                             "h-9 rounded-lg border flex items-center justify-center font-black text-[10px] transition-all px-1 text-center leading-tight",
-                                             qty > 0 ? "bg-emerald-600 border-emerald-700 text-white shadow-inner" : "bg-white border-slate-300 text-slate-600"
-                                           )}>
-                                              {qty > 0 ? `${qty}x` : labels[type]}
-                                           </div>
+                                           <button
+                                              type="button"
+                                              onClick={handleAdd}
+                                              className={cn(
+                                                 "h-9 rounded-lg border flex items-center justify-center font-black text-[10px] transition-all px-1 text-center leading-tight cursor-pointer select-none",
+                                                 qty > 0 
+                                                    ? "bg-emerald-600 border-emerald-700 text-white shadow-inner scale-[1.02]" 
+                                                    : "bg-white border-slate-300 text-slate-700 hover:border-emerald-500 hover:bg-emerald-50"
+                                              )}
+                                           >
+                                              {qty > 0 ? `${qty}x ${labels[type]}` : `+ ${labels[type]}`}
+                                           </button>
                                            <div className="flex gap-1">
                                               <button 
-                                                onClick={() => {
-                                                   if (qty > 0) {
-                                                      const newQuads = newBookingData.quads.map(q => q.type === type && q.time === t ? {...q, quantity: q.quantity - 1} : q).filter(q => q.quantity > 0);
-                                                      setNewBookingData({...newBookingData, quads: newQuads});
-                                                   }
-                                                }} 
-                                                disabled={qty === 0 || !newBookingData.visit_date} 
-                                                className="flex-1 h-6 rounded-md bg-white border border-slate-300 text-slate-800 hover:bg-rose-500 hover:text-white transition-all flex items-center justify-center text-[10px] font-black shadow-sm disabled:opacity-30">-</button>
+                                                 type="button"
+                                                 onClick={handleRemove} 
+                                                 disabled={qty === 0} 
+                                                 className="flex-1 h-6 rounded-md bg-white border border-slate-300 text-slate-800 hover:bg-rose-500 hover:text-white transition-all flex items-center justify-center text-[10px] font-black shadow-sm disabled:opacity-30 cursor-pointer"
+                                              >
+                                                 -
+                                              </button>
                                               <button  
-                                                onClick={() => {
-                                                   if (remaining > 0) {
-                                                      const existing = newBookingData.quads.find(q => q.type === type && q.time === t);
-                                                      let newQuads = [...newBookingData.quads];
-                                                      if (existing) {
-                                                         newQuads = newQuads.map(q => q.type === type && q.time === t ? {...q, quantity: q.quantity + 1} : q);
-                                                      } else {
-                                                         newQuads.push({ type, time: t, quantity: 1 });
-                                                      }
-                                                      setNewBookingData({...newBookingData, quads: newQuads});
-                                                   }
-                                                }} 
-                                                disabled={remaining <= 0 || !newBookingData.visit_date} 
-                                                className="flex-1 h-6 rounded-md bg-white border border-slate-300 text-slate-800 hover:bg-emerald-500 hover:text-white transition-all flex items-center justify-center text-[10px] font-black shadow-sm disabled:opacity-30">+</button>
+                                                 type="button"
+                                                 onClick={handleAdd} 
+                                                 className="flex-1 h-6 rounded-md bg-white border border-slate-300 text-slate-800 hover:bg-emerald-500 hover:text-white transition-all flex items-center justify-center text-[10px] font-black shadow-sm cursor-pointer"
+                                              >
+                                                 +
+                                              </button>
                                            </div>
                                         </div>
                                      );

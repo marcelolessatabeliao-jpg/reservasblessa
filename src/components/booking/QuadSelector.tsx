@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bike, Tag, CalendarIcon, Loader2, Users, User, Baby, Clock, ChevronDown, Check } from 'lucide-react';
+import { Bike, Tag, CalendarIcon, Loader2, Users, User, Baby, Clock, ChevronDown, Check, AlertTriangle } from 'lucide-react';
 import { QuantityStepper } from '@/components/QuantityStepper';
 import { QuadItem, QUAD_LABELS, QUAD_TIMES, getQuadDiscount, formatCurrency, QuadTime, isOperatingDay } from '@/lib/booking-types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -46,7 +46,7 @@ export function QuadSelector({ quads, onUpdate }: Props) {
   const [disabledQuadSlots, setDisabledQuadSlots] = useState<string[]>([]);
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
 
-  const checkDate = quads[0]?.date;
+  const checkDate = quads[0]?.date || quads.find(q => q.date)?.date;
 
   useEffect(() => {
     async function fetchConfig() {

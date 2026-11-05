@@ -165,22 +165,25 @@ export function useBooking() {
   }, []);
 
   const resetOptionalServices = useCallback(() => {
-    setBooking(prev => ({
-      ...prev,
-      kiosks: [
-        { type: 'maior', quantity: 0, date: null },
-        { type: 'menor', quantity: 0, date: null },
-        { type: 'familiar', quantity: 0, date: null },
-      ],
-      quads: [
-        { type: 'individual', quantity: 0, date: null, time: null },
-        { type: 'dupla', quantity: 0, date: null, time: null },
-      ],
-      additionals: [
-        { type: 'pesca', quantity: 0 },
-        { type: 'futebol-sabao', quantity: 0 },
-      ]
-    }));
+    setBooking(prev => {
+      const vDate = prev.entry.visitDate || prev.chale.checkInDate || null;
+      return {
+        ...prev,
+        kiosks: [
+          { type: 'maior', quantity: 0, date: vDate },
+          { type: 'menor', quantity: 0, date: vDate },
+          { type: 'familiar', quantity: 0, date: vDate },
+        ],
+        quads: [
+          { type: 'individual', quantity: 0, date: vDate, time: null },
+          { type: 'dupla', quantity: 0, date: vDate, time: null },
+        ],
+        additionals: [
+          { type: 'pesca', quantity: 0 },
+          { type: 'futebol-sabao', quantity: 0 },
+        ]
+      };
+    });
   }, []);
 
   const updateCamping = useCallback((updates: Partial<CampingBooking>) => {

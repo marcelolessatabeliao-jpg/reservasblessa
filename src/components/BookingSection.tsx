@@ -891,7 +891,7 @@ export function BookingSection() {
                                 <Home className="h-6 w-6" />
                               </div>
                               <div>
-                                <h3 className="font-gliker text-2xl text-emerald-950">Quiosques para seu conforto</h3>
+                                <h3 className="font-gliker text-2xl text-emerald-950">Quiosques para churrasco e confraternização</h3>
                                 <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
                                   Garanta um espaço exclusivo com churrasqueira para sua família
                                 </p>
@@ -922,8 +922,8 @@ export function BookingSection() {
                             <QuadSelector quads={booking.quads} onUpdate={updateQuad} />
 
                             <div className="pt-6 flex flex-col sm:flex-row justify-between items-center gap-3">
-                              <Button variant="ghost" onClick={() => setDayUseTab('quads')} className="font-bold text-muted-foreground">
-                                <ArrowLeft className="w-4 h-4 mr-2" /> Voltar para Quadriciclos
+                              <Button variant="ghost" onClick={() => setDayUseTab('quiosques')} className="font-bold text-muted-foreground">
+                                <ArrowLeft className="w-4 h-4 mr-2" /> Voltar para Quiosques
                               </Button>
                               <div className="flex gap-2 w-full sm:w-auto">
                                 <Button 

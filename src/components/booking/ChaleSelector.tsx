@@ -561,47 +561,78 @@ export function ChaleSelector({
     chale.childrenAges
   );
 
-  const childrenAges = chale.childrenAges || [];
-
-  const handleUpdateChildAge = (index: number, age: 'under11' | '12plus') => {
-    const nextAges = [...childrenAges];
-    while (nextAges.length <= index) {
-      nextAges.push('under11');
+  // Mapa de crianças por chalé individual
+  const chaleKidsMap: Record<number, ('under11' | '12plus')[]> = useMemo(() => {
+    const map: Record<number, ('under11' | '12plus')[]> = {};
+    if (chale.chaleKids) {
+      selectedChaleUnits.forEach(id => {
+        if (Array.isArray(chale.chaleKids?.[id])) {
+          map[id] = [...chale.chaleKids[id]];
+        }
+      });
+      return map;
     }
-    nextAges[index] = age;
-    onUpdate({ childrenAges: nextAges });
-  };
+    // Fallback inicial distribuindo childrenAges entre os chalés
+    const allAges = [...(chale.childrenAges || [])];
+    let cursor = 0;
+    selectedChaleUnits.forEach(id => {
+      const kidsForId: ('under11' | '12plus')[] = [];
+      for (let k = 0; k < 2 && cursor < allAges.length; k++) {
+        kidsForId.push(allAges[cursor++]);
+      }
+      map[id] = kidsForId;
+    });
+    return map;
+  }, [chale.chaleKids, chale.childrenAges, selectedChaleUnits]);
 
-  const handleAddKid = () => {
-    const currentKids = chale.childrenCount || 0;
-    const maxKids = chaletsCount * 2;
-    if (currentKids >= maxKids) return;
-    const nextKids = currentKids + 1;
-    const nextAges = [...childrenAges];
-    while (nextAges.length < nextKids) {
-      nextAges.push('under11');
-    }
+  const syncChaleKids = (newMap: Record<number, ('under11' | '12plus')[]>) => {
+    const flattenedAges: ('under11' | '12plus')[] = [];
+    selectedChaleUnits.forEach(id => {
+      if (newMap[id]) {
+        flattenedAges.push(...newMap[id]);
+      }
+    });
+    const nextKids = flattenedAges.length;
     const curNames = [...(chale.guestNames || [])];
     const nextNames = Array.from({ length: currentAdults + nextKids }, (_, idx) => curNames[idx] || '');
     onUpdate({
+      chaleKids: newMap,
       childrenCount: nextKids,
-      childrenAges: nextAges,
+      childrenAges: flattenedAges,
       guestNames: nextNames
     });
   };
 
-  const handleRemoveKid = () => {
-    const currentKids = chale.childrenCount || 0;
-    if (currentKids <= 0) return;
-    const nextKids = currentKids - 1;
-    const nextAges = childrenAges.slice(0, nextKids);
-    const curNames = [...(chale.guestNames || [])];
-    const nextNames = curNames.slice(0, currentAdults + nextKids);
-    onUpdate({
-      childrenCount: nextKids,
-      childrenAges: nextAges,
-      guestNames: nextNames
-    });
+  const handleAddKidToChale = (chaleId: number) => {
+    const curKids = chaleKidsMap[chaleId] || [];
+    if (curKids.length >= 2) return;
+    const newMap = {
+      ...chaleKidsMap,
+      [chaleId]: [...curKids, 'under11']
+    };
+    syncChaleKids(newMap);
+  };
+
+  const handleRemoveKidFromChale = (chaleId: number) => {
+    const curKids = chaleKidsMap[chaleId] || [];
+    if (curKids.length <= 0) return;
+    const newMap = {
+      ...chaleKidsMap,
+      [chaleId]: curKids.slice(0, -1)
+    };
+    syncChaleKids(newMap);
+  };
+
+  const handleUpdateChaleChildAge = (chaleId: number, kidIdx: number, age: 'under11' | '12plus') => {
+    const curKids = [...(chaleKidsMap[chaleId] || [])];
+    if (kidIdx < curKids.length) {
+      curKids[kidIdx] = age;
+      const newMap = {
+        ...chaleKidsMap,
+        [chaleId]: curKids
+      };
+      syncChaleKids(newMap);
+    }
   };
 
   return (
@@ -1044,190 +1075,187 @@ export function ChaleSelector({
           </div>
         </div>
 
-        {/* ROW 3: OPÇÃO DE OCUPAÇÃO POR CHALÉ (CONFIGURÁVEL INDIVIDUALMENTE) + CRIANÇAS */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 border-t border-slate-100">
-          
-          {/* Ocupação Configurável para cada Chalé */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-black uppercase tracking-wider text-emerald-950 flex items-center gap-1.5">
-                <Users className="w-4 h-4 text-emerald-700" />
-                Opção de Ocupação por Chalé:
-              </span>
-              <span className="bg-amber-100 text-amber-950 border border-amber-300 font-black text-[10px] uppercase px-2.5 py-0.5 rounded-md shadow-2xs">
-                Total: {currentAdults} Adultos ({chaletsCount} chalé{chaletsCount > 1 ? 's' : ''})
-              </span>
-            </div>
-
-            <div className="space-y-2">
-              {selectedChaleUnits.map((chaleId) => {
-                const isChaleCasal = chaleOccupancies[chaleId] !== 'individual';
-                return (
-                  <div key={`occupancy-box-${chaleId}`} className="bg-slate-50 p-2.5 rounded-2xl border-2 border-slate-200 space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-black uppercase text-emerald-950 flex items-center gap-1">
-                        <Home className="w-3.5 h-3.5 text-emerald-700" />
-                        Chalé {String(chaleId).padStart(2, '0')}:
-                      </span>
-                      <span className="text-[10px] font-bold text-slate-600">
-                        {isChaleCasal ? '2 Adultos (Casal)' : '1 Adulto (Individual)'}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleToggleChaleMode(chaleId, 'casal')}
-                        className={cn(
-                          "py-2 px-2.5 rounded-xl text-left transition-all flex items-center justify-between border-2 cursor-pointer select-none",
-                          isChaleCasal
-                            ? "bg-amber-400 text-slate-950 border-amber-500 shadow-xs font-black"
-                            : "bg-white text-slate-800 border-slate-200 hover:border-slate-300"
-                        )}
-                      >
-                        <span className="font-black text-xs uppercase">
-                          👥 Casal
-                        </span>
-                        {isChaleCasal && (
-                          <Badge className="bg-slate-950 text-amber-300 text-[8px] font-black uppercase px-1.5 py-0">
-                            Ativo
-                          </Badge>
-                        )}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => handleToggleChaleMode(chaleId, 'individual')}
-                        className={cn(
-                          "py-2 px-2.5 rounded-xl text-left transition-all flex items-center justify-between border-2 cursor-pointer select-none",
-                          !isChaleCasal
-                            ? "bg-amber-400 text-slate-950 border-amber-500 shadow-xs font-black"
-                            : "bg-white text-slate-800 border-slate-200 hover:border-slate-300"
-                        )}
-                      >
-                        <span className="font-black text-xs uppercase">
-                          👤 Individual
-                        </span>
-                        {!isChaleCasal && (
-                          <Badge className="bg-slate-950 text-amber-300 text-[8px] font-black uppercase px-1.5 py-0">
-                            Ativo
-                          </Badge>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+        {/* ROW 3: CONFIGURAÇÃO AGRUPADA POR CHALÉ (MODALIDADE + ADICIONAL DE CRIANÇAS LADO A LADO) */}
+        <div className="space-y-4 pt-3 border-t border-slate-100">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <span className="text-xs font-black uppercase tracking-wider text-emerald-950 flex items-center gap-1.5">
+              <Users className="w-4 h-4 text-emerald-700" />
+              Configuração por Chalé (Ocupação & Crianças):
+            </span>
+            <span className="bg-amber-100 text-amber-950 border border-amber-300 font-black text-[10px] uppercase px-2.5 py-0.5 rounded-md shadow-2xs">
+              {currentAdults} Adultos · {chale.childrenCount || 0} Crianças · {chaletsCount} Chalé{chaletsCount > 1 ? 's' : ''}
+            </span>
           </div>
 
-          {/* Crianças Adicionais (Filhos) */}
           <div className="space-y-3">
-            <span className="text-xs font-black uppercase tracking-wider text-emerald-950 flex items-center gap-1.5">
-              <span>👶</span> Crianças no Chalé (Filhos):
-            </span>
+            {selectedChaleUnits.map((chaleId) => {
+              const isChaleCasal = chaleOccupancies[chaleId] !== 'individual';
+              const kidsList = chaleKidsMap[chaleId] || [];
+              const kidsCount = kidsList.length;
 
-            <div className="bg-slate-50 p-4 rounded-2xl border-2 border-slate-200 flex items-center justify-between min-h-[70px]">
-              <div>
-                <span className="text-xs font-black text-slate-900 block">
-                  Adicional de Crianças (Filhos)
-                </span>
-                <span className="text-[10.5px] text-emerald-800 font-bold block mt-0.5">
-                  Até 11 anos: R$ 50 · 12 anos ou mais: R$ 100 · Máx: 2 por chalé
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  data-testid="btn-remove-kid"
-                  disabled={(chale.childrenCount || 0) <= 0}
-                  onClick={handleRemoveKid}
-                  className="w-10 h-10 rounded-xl font-black text-base p-0 bg-white border-2 border-slate-300 text-slate-950 hover:bg-slate-100 disabled:opacity-40 flex items-center justify-center cursor-pointer shadow-xs"
+              return (
+                <div
+                  key={`chale-group-card-${chaleId}`}
+                  className="bg-slate-50 p-3.5 sm:p-4 rounded-3xl border-2 border-slate-200 shadow-xs space-y-3"
                 >
-                  <Minus className="w-4 h-4 stroke-[3]" />
-                </button>
-                <span className="w-8 text-center font-black text-base text-slate-950" data-testid="kid-count-display">
-                  {chale.childrenCount || 0}
-                </span>
-                <button
-                  type="button"
-                  data-testid="btn-add-kid"
-                  disabled={(chale.childrenCount || 0) >= (chaletsCount * 2)}
-                  onClick={handleAddKid}
-                  className="w-10 h-10 rounded-xl font-black text-base p-0 bg-white border-2 border-slate-300 text-slate-950 hover:bg-slate-100 disabled:opacity-40 flex items-center justify-center cursor-pointer shadow-xs"
-                >
-                  <Plus className="w-4 h-4 stroke-[3]" />
-                </button>
-              </div>
-            </div>
+                  {/* Cabeçalho do Chalé */}
+                  <div className="flex items-center justify-between border-b border-slate-200/80 pb-2 flex-wrap gap-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-emerald-800 text-white flex items-center justify-center font-black text-xs">
+                        {String(chaleId).padStart(2, '0')}
+                      </div>
+                      <div>
+                        <span className="text-xs font-black uppercase text-slate-950 block">
+                          Chalé {String(chaleId).padStart(2, '0')} • Alvenaria Tradicional
+                        </span>
+                        <span className="text-[10px] font-bold text-emerald-800">
+                          {isChaleCasal ? 'Casal (2 Adultos)' : 'Individual (1 Adulto)'}
+                          {kidsCount > 0 ? ` + ${kidsCount} Criança(s)` : ' · Sem crianças'}
+                        </span>
+                      </div>
+                    </div>
+                    <Badge className="bg-amber-400 text-slate-950 font-black text-[9px] uppercase px-2 py-0.5 shadow-2xs">
+                      {isChaleCasal ? '👥 Casal' : '👤 Individual'}
+                    </Badge>
+                  </div>
 
-            {/* AVISO IMPORTANTE: FILHOS E DOCUMENTO */}
-            <div className="bg-amber-50/90 border-2 border-amber-300 p-3.5 rounded-2xl flex items-start gap-2.5 text-xs text-amber-950 leading-relaxed shadow-xs">
-              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-              <div>
-                <span className="font-black block uppercase text-[10.5px] text-amber-900 tracking-wider">
-                  ⚠️ Importante sobre Adicional de Crianças:
-                </span>
-                <span>
-                  O adicional de crianças é <strong>exclusivo e permitido apenas para filhos</strong> dos hóspedes (limite máximo de até 2 crianças por chalé). É <strong>obrigatório levar e apresentar documento oficial de identificação</strong> (RG ou Certidão de Nascimento) na recepção/check-in para comprovação do parentesco. Todos os adicionais são pagos conforme a faixa etária.
-                </span>
-              </div>
-            </div>
+                  {/* Lado a Lado: Ocupação do Chalé e Adicionais de Crianças */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-stretch">
+                    {/* Lado Esquerdo: Ocupação (Casal vs Individual) */}
+                    <div className="bg-white p-3 rounded-2xl border-2 border-slate-200 flex flex-col justify-between space-y-2">
+                      <div>
+                        <span className="text-[10.5px] font-black uppercase text-slate-700 block">
+                          Modalidade de Ocupação:
+                        </span>
+                        <span className="text-[9.5px] text-slate-500 font-bold block mt-0.5">
+                          {isChaleCasal ? 'Acomoda até 2 adultos' : 'Acomoda 1 adulto'}
+                        </span>
+                      </div>
 
-            {/* SELEÇÃO DE FAIXA ETÁRIA PARA CADA CRIANÇA */}
-            {Boolean(chale.childrenCount && chale.childrenCount > 0) && (
-              <div className="space-y-2 pt-1">
-                <span className="text-[11px] font-black uppercase text-slate-900 block">
-                  Defina a Faixa Etária de cada Criança:
-                </span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {Array.from({ length: chale.childrenCount || 0 }).map((_, kidIdx) => {
-                    const age = childrenAges[kidIdx] || 'under11';
-                    return (
-                      <div key={`kid-age-${kidIdx}`} className="bg-white p-3 rounded-xl border-2 border-emerald-200 shadow-xs space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-black text-slate-900 flex items-center gap-1.5">
-                            <span>👶</span> Criança {kidIdx + 1}:
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleChaleMode(chaleId, 'casal')}
+                          className={cn(
+                            "py-2 px-2.5 rounded-xl text-center transition-all border-2 cursor-pointer select-none",
+                            isChaleCasal
+                              ? "bg-amber-400 text-slate-950 border-amber-500 shadow-xs font-black"
+                              : "bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-300"
+                          )}
+                        >
+                          <span className="font-black text-xs">👥 Casal</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleToggleChaleMode(chaleId, 'individual')}
+                          className={cn(
+                            "py-2 px-2.5 rounded-xl text-center transition-all border-2 cursor-pointer select-none",
+                            !isChaleCasal
+                              ? "bg-amber-400 text-slate-950 border-amber-500 shadow-xs font-black"
+                              : "bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-300"
+                          )}
+                        >
+                          <span className="font-black text-xs">👤 Individual</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Lado Direito: Adicional de Crianças para este Chalé */}
+                    <div className="bg-white p-3 rounded-2xl border-2 border-slate-200 flex flex-col justify-between space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="text-[10.5px] font-black uppercase text-slate-700 block">
+                            👶 Crianças neste Chalé (Filhos):
                           </span>
-                          <span className="text-xs font-black text-emerald-800">
-                            {age === '12plus' ? '+ R$ 100,00' : '+ R$ 50,00'}
+                          <span className="text-[9.5px] text-emerald-800 font-bold block mt-0.5">
+                            Até 11 anos: R$ 50 · 12+ anos: R$ 100 (Máx: 2)
                           </span>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-1.5">
+                        <div className="flex items-center gap-1.5 shrink-0">
                           <button
                             type="button"
-                            onClick={() => handleUpdateChildAge(kidIdx, 'under11')}
-                            className={cn(
-                              "py-2 px-2 rounded-xl text-[11px] font-bold transition-all border-2 text-center cursor-pointer",
-                              age === 'under11'
-                                ? "bg-amber-400 text-slate-950 border-amber-500 font-black shadow-xs"
-                                : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
-                            )}
+                            disabled={kidsCount <= 0}
+                            onClick={() => handleRemoveKidFromChale(chaleId)}
+                            className="w-8 h-8 rounded-xl font-black bg-white border-2 border-slate-300 text-slate-950 hover:bg-slate-100 disabled:opacity-30 flex items-center justify-center cursor-pointer shadow-xs"
                           >
-                            Até 11 anos (+ R$ 50)
+                            <Minus className="w-3.5 h-3.5 stroke-[3]" />
                           </button>
-
+                          <span className="w-6 text-center font-black text-sm text-slate-950">
+                            {kidsCount}
+                          </span>
                           <button
                             type="button"
-                            onClick={() => handleUpdateChildAge(kidIdx, '12plus')}
-                            className={cn(
-                              "py-2 px-2 rounded-xl text-[11px] font-bold transition-all border-2 text-center cursor-pointer",
-                              age === '12plus'
-                                ? "bg-amber-400 text-slate-950 border-amber-500 font-black shadow-xs"
-                                : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
-                            )}
+                            disabled={kidsCount >= 2}
+                            onClick={() => handleAddKidToChale(chaleId)}
+                            className="w-8 h-8 rounded-xl font-black bg-white border-2 border-slate-300 text-slate-950 hover:bg-slate-100 disabled:opacity-30 flex items-center justify-center cursor-pointer shadow-xs"
                           >
-                            12 anos ou + (+ R$ 100)
+                            <Plus className="w-3.5 h-3.5 stroke-[3]" />
                           </button>
                         </div>
                       </div>
-                    );
-                  })}
+
+                      {/* Se houver crianças neste chalé, mostra o seletor de idade da criança aqui mesmo */}
+                      {kidsCount > 0 ? (
+                        <div className="space-y-1.5 pt-1.5 border-t border-slate-100">
+                          {kidsList.map((kAge, kidIdx) => (
+                            <div key={`chale-${chaleId}-kid-${kidIdx}`} className="flex items-center justify-between gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-200">
+                              <span className="text-[10px] font-black text-slate-800">
+                                Criança {kidIdx + 1}:
+                              </span>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => handleUpdateChaleChildAge(chaleId, kidIdx, 'under11')}
+                                  className={cn(
+                                    "px-2 py-1 rounded-lg text-[10px] font-black transition-all border cursor-pointer",
+                                    kAge === 'under11'
+                                      ? "bg-amber-400 text-slate-950 border-amber-500 shadow-2xs"
+                                      : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
+                                  )}
+                                >
+                                  Até 11 anos (+ R$ 50)
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleUpdateChaleChildAge(chaleId, kidIdx, '12plus')}
+                                  className={cn(
+                                    "px-2 py-1 rounded-lg text-[10px] font-black transition-all border cursor-pointer",
+                                    kAge === '12plus'
+                                      ? "bg-amber-400 text-slate-950 border-amber-500 shadow-2xs"
+                                      : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
+                                  )}
+                                >
+                                  12+ anos (+ R$ 100)
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-[10px] text-slate-400 italic">
+                          Nenhum adicional de criança neste chalé.
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })}
+          </div>
+
+          {/* AVISO IMPORTANTE: OCUPANDO TODA A LARGURA (FULL WIDTH) ABAIXO DOS CHALÉS */}
+          <div className="w-full bg-amber-50/90 border-2 border-amber-300 p-3.5 sm:p-4 rounded-2xl flex items-start gap-3 text-xs text-amber-950 leading-relaxed shadow-xs mt-3">
+            <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <span className="font-black block uppercase text-xs text-amber-900 tracking-wider mb-0.5">
+                ⚠️ Importante sobre Adicional de Crianças:
+              </span>
+              <span>
+                O adicional de crianças é <strong>exclusivo e permitido apenas para filhos</strong> dos hóspedes (limite máximo de até 2 crianças por chalé). É <strong>obrigatório levar e apresentar documento oficial de identificação</strong> (RG ou Certidão de Nascimento) na recepção/check-in para comprovação do parentesco. Todos os adicionais são pagos conforme a faixa etária.
+              </span>
+            </div>
           </div>
         </div>
 

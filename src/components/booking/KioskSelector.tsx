@@ -53,7 +53,7 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
     loadSettings();
   }, []);
 
-  const checkDate = kiosks[0]?.date;
+  const checkDate = kiosks[0]?.date || kiosks.find(k => k.date)?.date;
 
   // Collect all currently selected IDs from all kiosk items (maior=0, menor=1, familiar=2)
   const allSelectedIds: number[] = [
