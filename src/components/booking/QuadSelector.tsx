@@ -100,54 +100,58 @@ export function QuadSelector({ quads, selectedDate, onUpdate, onSetQuads }: Prop
     return slotAvailabilities[slotTime] || 0;
   };
 
-  // Encontra a reserva ativa do cliente para um determinado horário
-  const getBookingForSlot = (slotTime: string) => {
-    return quads.find(q => q.time === slotTime && q.quantity > 0);
-  };
-
-  // Salvar ou atualizar passeio para um horário específico
-  const handleSaveSlot = (slotTime: QuadTime, type: 'individual' | 'dupla', quantity: number) => {
+  // Atualizar quantidades para um horário específico (permite 1 Individual + 1 Dupla, 2 Individual, ou 2 Dupla)
+  const handleUpdateSlotQuantities = (slotTime: QuadTime, newIndQty: number, newDupQty: number) => {
     if (!checkDate) {
       toast({ title: 'Selecione a data primeiro', variant: 'destructive' });
       return;
     }
 
-    // TRAVA ABSOLUTA: Limite estrito de no máximo 2 quadriciclos por horário
-    const clampedQty = Math.max(0, Math.min(MAX_QUADS_PER_SLOT, quantity));
+    const dbUsed = getSlotDbUsage(slotTime);
+    const indItem = quads.find(q => q.time === slotTime && q.type === 'individual' && q.quantity > 0);
+    const dupItem = quads.find(q => q.time === slotTime && q.type === 'dupla' && q.quantity > 0);
+    const currentSlotTotal = (indItem?.quantity || 0) + (dupItem?.quantity || 0);
+    const maxAllowed = Math.min(MAX_QUADS_PER_SLOT, Math.max(0, MAX_QUADS_PER_SLOT - dbUsed + currentSlotTotal));
 
-    if (clampedQty <= 0) {
-      // Remove o horário mantendo a data ativa
-      const nextQuads = quads.filter(q => q.time !== slotTime);
-      if (onSetQuads) {
-        onSetQuads(nextQuads);
-      } else {
-        const idx = quads.findIndex(q => q.time === slotTime);
-        if (idx >= 0) onUpdate(idx, { quantity: 0, time: undefined, date: checkDate });
-      }
+    const safeInd = Math.max(0, newIndQty);
+    const safeDup = Math.max(0, newDupQty);
+    if (safeInd + safeDup > maxAllowed) {
+      toast({
+        title: 'Limite atingido',
+        description: `O limite máximo é de ${maxAllowed} quadriciclo(s) para este horário.`,
+        variant: 'destructive',
+      });
       return;
     }
 
-    // Atualiza ou insere o horário (máximo 2 quadriciclos)
-    const existingIdx = quads.findIndex(q => q.time === slotTime);
-    if (existingIdx >= 0) {
-      if (onSetQuads) {
-        const next = quads.map((q, i) => i === existingIdx ? { ...q, type, quantity: clampedQty, date: checkDate, time: slotTime } : q);
-        onSetQuads(next);
-      } else {
-        onUpdate(existingIdx, { type, quantity: clampedQty, time: slotTime, date: checkDate });
-      }
+    // Filtra e reconstrói a lista de passeios
+    const otherQuads = quads.filter(q => q.time !== slotTime && q.quantity > 0);
+    const newSlotQuads: QuadItem[] = [];
+
+    if (safeInd > 0) {
+      newSlotQuads.push({
+        type: 'individual',
+        quantity: safeInd,
+        time: slotTime,
+        date: checkDate,
+      });
+    }
+
+    if (safeDup > 0) {
+      newSlotQuads.push({
+        type: 'dupla',
+        quantity: safeDup,
+        time: slotTime,
+        date: checkDate,
+      });
+    }
+
+    const next = [...otherQuads, ...newSlotQuads];
+    if (onSetQuads) {
+      onSetQuads(next);
     } else {
-      const newQuad: QuadItem = { type, quantity: clampedQty, time: slotTime, date: checkDate };
-      if (onSetQuads) {
-        onSetQuads([...quads.filter(q => q.quantity > 0), newQuad]);
-      } else {
-        const emptyIdx = quads.findIndex(q => q.quantity === 0);
-        if (emptyIdx >= 0) {
-          onUpdate(emptyIdx, newQuad);
-        } else {
-          onUpdate(quads.length, newQuad);
-        }
-      }
+      quads.forEach((_, idx) => onUpdate(idx, { quantity: 0 }));
+      next.forEach((item, idx) => onUpdate(idx, item));
     }
   };
 
@@ -261,8 +265,13 @@ export function QuadSelector({ quads, selectedDate, onUpdate, onSetQuads }: Prop
                 {QUAD_TIMES.map(t => {
                   const dbUsed = getSlotDbUsage(t);
                   const isSlotDisabled = disabledQuadSlots.includes(t);
-                  const bookingThisSlot = getBookingForSlot(t);
-                  const isSelectedByMe = Boolean(bookingThisSlot && bookingThisSlot.quantity > 0);
+                  const slotInd = quads.find(q => q.time === t && q.type === 'individual' && q.quantity > 0);
+                  const slotDup = quads.find(q => q.time === t && q.type === 'dupla' && q.quantity > 0);
+                  const indQty = slotInd?.quantity || 0;
+                  const dupQty = slotDup?.quantity || 0;
+                  const totalSlotQty = indQty + dupQty;
+                  const isSelectedByMe = totalSlotQty > 0;
+
                   // Trava de no máximo 2 quadriciclos por horário
                   const remaining = isSlotDisabled ? 0 : Math.max(0, MAX_QUADS_PER_SLOT - dbUsed);
                   const isFull = isSlotDisabled || remaining <= 0;
@@ -315,13 +324,17 @@ export function QuadSelector({ quads, selectedDate, onUpdate, onSetQuads }: Prop
                                 ? "text-amber-700 font-bold"
                                 : "text-emerald-700 font-black"
                       )}>
-                        {isSelectedByMe 
-                          ? `${bookingThisSlot!.quantity}x ${bookingThisSlot!.type === 'dupla' ? 'Dupla' : 'Indiv.'}`
-                          : isSlotDisabled
-                            ? 'Indisponível'
-                            : isFull
-                              ? 'LOTADO'
-                              : `${remaining} Livre${remaining > 1 ? 's' : ''}`}
+                        {isSelectedByMe ? (
+                          indQty > 0 && dupQty > 0
+                            ? `${indQty}x Ind. + ${dupQty}x Dup.`
+                            : indQty > 0
+                              ? `${indQty}x Indiv.`
+                              : `${dupQty}x Dupla`
+                        ) : isSlotDisabled
+                          ? 'Indisponível'
+                          : isFull
+                            ? 'LOTADO'
+                            : `${remaining} Livre${remaining > 1 ? 's' : ''}`}
                       </span>
                     </button>
                   );
@@ -333,13 +346,16 @@ export function QuadSelector({ quads, selectedDate, onUpdate, onSetQuads }: Prop
                 const slot = expandedSlot;
                 const dbUsed = getSlotDbUsage(slot);
                 const isSlotDisabled = disabledQuadSlots.includes(slot);
-                const currentBooking = getBookingForSlot(slot);
-                const currentType = currentBooking?.type || 'individual';
-                const currentQty = currentBooking?.quantity || 0;
+                const indItem = quads.find(q => q.time === slot && q.type === 'individual' && q.quantity > 0);
+                const dupItem = quads.find(q => q.time === slot && q.type === 'dupla' && q.quantity > 0);
+                const currentIndQty = indItem?.quantity || 0;
+                const currentDupQty = dupItem?.quantity || 0;
+                const currentSlotTotal = currentIndQty + currentDupQty;
                 
                 // Vagas disponíveis para este horário: TRAVA RIGOROSA DE NO MÁXIMO 2 NO TOTAL
-                const availableForSlot = isSlotDisabled ? 0 : Math.max(0, Math.min(MAX_QUADS_PER_SLOT, MAX_QUADS_PER_SLOT - dbUsed + currentQty));
-                const priceEach = currentType === 'dupla' ? dupFinalPrice : indFinalPrice;
+                const availableForSlot = isSlotDisabled ? 0 : Math.max(0, Math.min(MAX_QUADS_PER_SLOT, MAX_QUADS_PER_SLOT - dbUsed + currentSlotTotal));
+                const slotGrossTotal = (currentIndQty * indGrossPrice) + (currentDupQty * dupGrossPrice);
+                const slotFinalTotal = (currentIndQty * indFinalPrice) + (currentDupQty * dupFinalPrice);
 
                 return (
                   <div className="bg-gradient-to-br from-emerald-950 via-[#042817] to-slate-950 text-white rounded-3xl p-4 sm:p-5 border-2 border-amber-400 shadow-xl space-y-4 animate-in fade-in zoom-in-95">
@@ -360,143 +376,119 @@ export function QuadSelector({ quads, selectedDate, onUpdate, onSetQuads }: Prop
                       <button
                         type="button"
                         onClick={() => setExpandedSlot(null)}
-                        className="p-1.5 hover:bg-white/10 rounded-full text-slate-300 hover:text-white"
+                        className="p-1.5 hover:bg-white/10 rounded-full text-slate-300 hover:text-white cursor-pointer"
                       >
                         <X className="w-4 h-4" />
                       </button>
                     </div>
 
+                    {/* SELEÇÃO INDEPENDENTE POR MODALIDADE (PERMITE 1 INDIVIDUAL + 1 DUPLA) */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                      {/* 1. Escolha a Modalidade */}
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-emerald-300 block">
-                          1. Escolha a Modalidade:
-                        </label>
-                        <div className="grid grid-cols-2 gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleSaveSlot(slot, 'individual', Math.min(MAX_QUADS_PER_SLOT, Math.max(1, currentQty || 1)))}
-                            className={cn(
-                              "p-3 rounded-2xl border-2 transition-all cursor-pointer text-left flex flex-col justify-between",
-                              currentType === 'individual' && currentQty > 0
-                                ? "bg-amber-400 text-slate-950 border-amber-300 shadow-md font-black"
-                                : "bg-white/10 text-white border-white/20 hover:bg-white/20"
-                            )}
-                          >
-                            <div className="flex items-center justify-between gap-1">
-                              <div className="flex items-center gap-1.5 font-black text-xs uppercase">
-                                <User className="w-3.5 h-3.5" /> Individual
-                              </div>
-                              <span className={cn(
-                                "text-[9px] font-black px-1.5 py-0.5 rounded uppercase",
-                                currentType === 'individual' && currentQty > 0
-                                  ? "bg-slate-950 text-amber-300"
-                                  : "bg-amber-400 text-slate-950"
-                              )}>
-                                10% OFF
-                              </span>
+                      {/* Modalidade 1: Passeio Individual */}
+                      <div className={cn(
+                        "p-3.5 rounded-2xl border-2 transition-all flex flex-col justify-between space-y-3",
+                        currentIndQty > 0
+                          ? "bg-emerald-900/90 border-amber-400 shadow-md"
+                          : "bg-white/10 border-white/20 hover:border-white/30"
+                      )}>
+                        <div>
+                          <div className="flex items-center justify-between gap-1">
+                            <div className="flex items-center gap-1.5 font-black text-xs uppercase text-white">
+                              <User className="w-3.5 h-3.5 text-amber-400" /> Passeio Individual
                             </div>
-                            <span className="text-[10px] opacity-80 mt-1 block">1 pessoa · 40 min</span>
-                            <div className="mt-2">
-                              <span className={cn(
-                                "text-[10.5px] line-through font-bold block",
-                                currentType === 'individual' && currentQty > 0 ? "text-slate-700" : "text-emerald-300/80"
-                              )}>
-                                De {formatCurrency(indGrossPrice)}
-                              </span>
-                              <span className="text-xs sm:text-sm font-black block">
-                                {formatCurrency(indFinalPrice)}
-                              </span>
-                            </div>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => handleSaveSlot(slot, 'dupla', Math.min(MAX_QUADS_PER_SLOT, Math.max(1, currentQty || 1)))}
-                            className={cn(
-                              "p-3 rounded-2xl border-2 transition-all cursor-pointer text-left flex flex-col justify-between",
-                              currentType === 'dupla' && currentQty > 0
-                                ? "bg-amber-400 text-slate-950 border-amber-300 shadow-md font-black"
-                                : "bg-white/10 text-white border-white/20 hover:bg-white/20"
-                            )}
-                          >
-                            <div className="flex items-center justify-between gap-1">
-                              <div className="flex items-center gap-1.5 font-black text-xs uppercase">
-                                <Users className="w-3.5 h-3.5" /> De Dupla
-                              </div>
-                              <span className={cn(
-                                "text-[9px] font-black px-1.5 py-0.5 rounded uppercase",
-                                currentType === 'dupla' && currentQty > 0
-                                  ? "bg-slate-950 text-amber-300"
-                                  : "bg-amber-400 text-slate-950"
-                              )}>
-                                10% OFF
-                              </span>
-                            </div>
-                            <span className="text-[10px] opacity-80 mt-1 block">2 pessoas · 40 min</span>
-                            <div className="mt-2">
-                              <span className={cn(
-                                "text-[10.5px] line-through font-bold block",
-                                currentType === 'dupla' && currentQty > 0 ? "text-slate-700" : "text-emerald-300/80"
-                              )}>
-                                De {formatCurrency(dupGrossPrice)}
-                              </span>
-                              <span className="text-xs sm:text-sm font-black block">
-                                {formatCurrency(dupFinalPrice)}
-                              </span>
-                            </div>
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* 2. Quantidade de Quadriciclos */}
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-emerald-300 block">
-                          2. Quantidade de Quadriciclos (Máx: 2):
-                        </label>
-                        <div className="bg-white/10 border border-white/20 rounded-2xl p-3 flex items-center justify-between gap-3 h-[90px]">
-                          <div>
-                            <span className="text-[11px] font-bold text-emerald-200 uppercase tracking-tight block">
-                              Total deste horário:
+                            <span className="text-[9px] font-black px-1.5 py-0.5 rounded uppercase bg-amber-400 text-slate-950">
+                              10% OFF
                             </span>
-                            {currentQty > 0 ? (
-                              <div className="space-y-0.5 mt-0.5">
-                                <span className="text-[10.5px] text-emerald-300/80 line-through font-bold block">
-                                  De {formatCurrency((currentType === 'dupla' ? dupGrossPrice : indGrossPrice) * currentQty)}
-                                </span>
-                                <span className="text-base sm:text-lg font-black text-amber-300 block leading-tight">
-                                  {formatCurrency(priceEach * currentQty)}
-                                </span>
-                                <span className="text-[9px] bg-amber-400 text-slate-950 font-black px-1.5 py-0.5 rounded uppercase">
-                                  10% OFF aplicado
-                                </span>
-                              </div>
-                            ) : (
-                              <span className="text-xs font-bold text-slate-400 italic block mt-1">
-                                Selecione a quantidade
-                              </span>
-                            )}
+                          </div>
+                          <span className="text-[10.5px] text-emerald-200/90 font-medium mt-0.5 block">1 pessoa · 40 minutos</span>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-2 pt-2 border-t border-white/10">
+                          <div>
+                            <span className="text-[10px] line-through font-bold text-emerald-300/80 block">
+                              De {formatCurrency(indGrossPrice)}
+                            </span>
+                            <span className="text-sm sm:text-base font-black text-amber-300 block leading-tight">
+                              {formatCurrency(indFinalPrice)}
+                            </span>
                           </div>
 
+                          {/* Stepper Passeio Individual */}
                           <div className="flex items-center gap-2">
                             <button
                               type="button"
-                              disabled={currentQty <= 0}
-                              onClick={() => handleSaveSlot(slot, currentType, Math.max(0, currentQty - 1))}
+                              disabled={currentIndQty <= 0}
+                              onClick={() => handleUpdateSlotQuantities(slot, currentIndQty - 1, currentDupQty)}
                               className="w-8 h-8 rounded-xl font-black bg-emerald-950 border-2 border-emerald-700 text-white hover:bg-emerald-800 disabled:opacity-30 flex items-center justify-center cursor-pointer shadow-xs transition-colors"
-                              title="Diminuir quantidade"
+                              title="Diminuir Individual"
                             >
                               <Minus className="w-3.5 h-3.5 stroke-[3]" />
                             </button>
-                            <span className="w-7 text-center font-black text-sm text-amber-300">
-                              {currentQty}
+                            <span className="w-6 text-center font-black text-sm text-amber-300">
+                              {currentIndQty}
                             </span>
                             <button
                               type="button"
-                              disabled={currentQty >= Math.min(MAX_QUADS_PER_SLOT, availableForSlot)}
-                              onClick={() => handleSaveSlot(slot, currentType, Math.min(MAX_QUADS_PER_SLOT, currentQty + 1))}
+                              disabled={currentSlotTotal >= availableForSlot}
+                              onClick={() => handleUpdateSlotQuantities(slot, currentIndQty + 1, currentDupQty)}
                               className="w-8 h-8 rounded-xl font-black bg-amber-400 border-2 border-amber-500 text-slate-950 hover:bg-amber-300 disabled:opacity-30 flex items-center justify-center cursor-pointer shadow-xs transition-colors"
-                              title="Aumentar quantidade (máx 2)"
+                              title="Adicionar Individual"
+                            >
+                              <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Modalidade 2: Passeio de Dupla */}
+                      <div className={cn(
+                        "p-3.5 rounded-2xl border-2 transition-all flex flex-col justify-between space-y-3",
+                        currentDupQty > 0
+                          ? "bg-emerald-900/90 border-amber-400 shadow-md"
+                          : "bg-white/10 border-white/20 hover:border-white/30"
+                      )}>
+                        <div>
+                          <div className="flex items-center justify-between gap-1">
+                            <div className="flex items-center gap-1.5 font-black text-xs uppercase text-white">
+                              <Users className="w-3.5 h-3.5 text-amber-400" /> Passeio de Dupla
+                            </div>
+                            <span className="text-[9px] font-black px-1.5 py-0.5 rounded uppercase bg-amber-400 text-slate-950">
+                              10% OFF
+                            </span>
+                          </div>
+                          <span className="text-[10.5px] text-emerald-200/90 font-medium mt-0.5 block">2 pessoas · 40 minutos</span>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-2 pt-2 border-t border-white/10">
+                          <div>
+                            <span className="text-[10px] line-through font-bold text-emerald-300/80 block">
+                              De {formatCurrency(dupGrossPrice)}
+                            </span>
+                            <span className="text-sm sm:text-base font-black text-amber-300 block leading-tight">
+                              {formatCurrency(dupFinalPrice)}
+                            </span>
+                          </div>
+
+                          {/* Stepper Passeio de Dupla */}
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              disabled={currentDupQty <= 0}
+                              onClick={() => handleUpdateSlotQuantities(slot, currentIndQty, currentDupQty - 1)}
+                              className="w-8 h-8 rounded-xl font-black bg-emerald-950 border-2 border-emerald-700 text-white hover:bg-emerald-800 disabled:opacity-30 flex items-center justify-center cursor-pointer shadow-xs transition-colors"
+                              title="Diminuir de Dupla"
+                            >
+                              <Minus className="w-3.5 h-3.5 stroke-[3]" />
+                            </button>
+                            <span className="w-6 text-center font-black text-sm text-amber-300">
+                              {currentDupQty}
+                            </span>
+                            <button
+                              type="button"
+                              disabled={currentSlotTotal >= availableForSlot}
+                              onClick={() => handleUpdateSlotQuantities(slot, currentIndQty, currentDupQty + 1)}
+                              className="w-8 h-8 rounded-xl font-black bg-amber-400 border-2 border-amber-500 text-slate-950 hover:bg-amber-300 disabled:opacity-30 flex items-center justify-center cursor-pointer shadow-xs transition-colors"
+                              title="Adicionar de Dupla"
                             >
                               <Plus className="w-3.5 h-3.5 stroke-[3]" />
                             </button>
@@ -505,25 +497,60 @@ export function QuadSelector({ quads, selectedDate, onUpdate, onSetQuads }: Prop
                       </div>
                     </div>
 
+                    {/* Subtotal do Horário */}
+                    <div className="bg-black/30 border border-white/10 rounded-2xl p-3 flex flex-col sm:flex-row items-center justify-between gap-2.5">
+                      <div>
+                        <span className="text-[10px] font-black uppercase text-emerald-300 tracking-wider block text-center sm:text-left">
+                          Total deste horário ({slot}):
+                        </span>
+                        {currentSlotTotal > 0 ? (
+                          <div className="flex items-center gap-2 mt-0.5 justify-center sm:justify-start">
+                            <span className="text-xs text-emerald-300/80 line-through font-bold">
+                              De {formatCurrency(slotGrossTotal)}
+                            </span>
+                            <span className="text-base sm:text-lg font-black text-amber-300">
+                              {formatCurrency(slotFinalTotal)}
+                            </span>
+                            <span className="text-[9px] bg-amber-400 text-slate-950 font-black px-1.5 py-0.5 rounded uppercase">
+                              10% OFF aplicado
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-xs font-bold text-slate-400 italic block mt-0.5 text-center sm:text-left">
+                            Selecione 1 ou 2 quadriciclos (individual ou dupla)
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs font-black text-amber-300 bg-emerald-950/90 px-3 py-1 rounded-xl border border-emerald-700/60 shadow-xs">
+                        {currentSlotTotal} de {availableForSlot} quadriciclo{availableForSlot > 1 ? 's' : ''}
+                      </span>
+                    </div>
+
                     {/* Botões de Ação */}
                     <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-emerald-800/80">
-                      {currentQty > 0 ? (
+                      {currentSlotTotal > 0 ? (
                         <div className="flex items-center gap-2 text-xs text-amber-300 font-bold">
                           <Check className="w-4 h-4 text-emerald-400 stroke-[3]" />
-                          Agendado: <strong>{currentQty}x {currentType === 'dupla' ? 'Passeio de Dupla' : 'Passeio Individual'}</strong> às {slot}
+                          <span>
+                            Agendado às <strong>{slot}</strong>:{' '}
+                            {[
+                              currentIndQty > 0 ? `${currentIndQty}x Individual` : null,
+                              currentDupQty > 0 ? `${currentDupQty}x De Dupla` : null,
+                            ].filter(Boolean).join(' + ')}
+                          </span>
                         </div>
                       ) : (
                         <span className="text-[11px] text-slate-400 italic">
-                          Escolha a modalidade e clique em [+] para agendar às {slot}.
+                          Clique no botão [+] da opção desejada acima para agendar às {slot}.
                         </span>
                       )}
 
                       <div className="flex items-center gap-2">
-                        {currentQty > 0 && (
+                        {currentSlotTotal > 0 && (
                           <button
                             type="button"
-                            onClick={() => handleSaveSlot(slot, currentType, 0)}
-                            className="px-3 py-1.5 rounded-xl bg-red-950/80 border border-red-500/50 hover:bg-red-900 text-red-200 text-xs font-bold flex items-center gap-1 transition-all"
+                            onClick={() => handleUpdateSlotQuantities(slot, 0, 0)}
+                            className="px-3 py-1.5 rounded-xl bg-red-950/80 border border-red-500/50 hover:bg-red-900 text-red-200 text-xs font-bold flex items-center gap-1 transition-all cursor-pointer"
                           >
                             <Trash2 className="w-3.5 h-3.5" /> Remover deste horário
                           </button>
@@ -531,7 +558,7 @@ export function QuadSelector({ quads, selectedDate, onUpdate, onSetQuads }: Prop
                         <Button
                           type="button"
                           onClick={() => setExpandedSlot(null)}
-                          className="h-9 px-4 rounded-xl bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs uppercase"
+                          className="h-9 px-4 rounded-xl bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs uppercase cursor-pointer"
                         >
                           Concluir Horário
                         </Button>
@@ -550,7 +577,7 @@ export function QuadSelector({ quads, selectedDate, onUpdate, onSetQuads }: Prop
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-black uppercase text-emerald-950 flex items-center gap-1.5">
                     <Bike className="w-4 h-4 text-emerald-700" />
-                    Passeios de Quadriciclo Agendados ({activeQuads.length} horário{activeQuads.length > 1 ? 's' : ''}):
+                    Passeios de Quadriciclo Agendados ({activeQuads.length} item{activeQuads.length > 1 ? 'ns' : ''}):
                   </span>
                   <span className="text-sm font-black text-emerald-900 font-sans">
                     Total: {formatCurrency(totalQuadsCost)}
@@ -563,13 +590,18 @@ export function QuadSelector({ quads, selectedDate, onUpdate, onSetQuads }: Prop
                       className="inline-flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-emerald-300 text-xs shadow-2xs"
                     >
                       <span className="font-black text-emerald-950">⏰ {q.time}</span>
-                      <span className="text-slate-600 font-bold">
-                        {q.quantity}x {q.type === 'dupla' ? 'De Dupla' : 'Individual'}
+                      <span className="text-slate-700 font-bold">
+                        {q.quantity}x {q.type === 'dupla' ? 'Passeio de Dupla' : 'Passeio Individual'}
                       </span>
                       <button
                         type="button"
-                        onClick={() => handleSaveSlot(q.time as QuadTime, q.type, 0)}
-                        className="text-slate-400 hover:text-red-500 p-0.5 rounded-full"
+                        onClick={() => {
+                          const slotTime = q.time as QuadTime;
+                          const indQ = q.type === 'individual' ? 0 : (quads.find(x => x.time === slotTime && x.type === 'individual')?.quantity || 0);
+                          const dupQ = q.type === 'dupla' ? 0 : (quads.find(x => x.time === slotTime && x.type === 'dupla')?.quantity || 0);
+                          handleUpdateSlotQuantities(slotTime, indQ, dupQ);
+                        }}
+                        className="text-slate-400 hover:text-red-500 p-0.5 rounded-full cursor-pointer"
                         title="Remover"
                       >
                         <X className="w-3.5 h-3.5" />

@@ -1297,6 +1297,25 @@ export function ChaleSelector({
               const kidsList = chaleKidsMap[chaleId] || [];
               const kidsCount = kidsList.length;
 
+              const stayNights = Math.max(1, stayPricing?.nightsCount || 1);
+              const isComboStay = stayNights >= 2;
+              const kidUnder11Price = isComboStay ? (stayNights * 45) : (stayNights * 50);
+              const kid12PlusPrice = isComboStay ? (stayNights * 90) : (stayNights * 100);
+
+              // Preço específico deste chalé (adulto conforme ocupação casal/individual + crianças deste chalé)
+              const singleChalePricing = calculateStayPricing(
+                activePkg,
+                checkInActive,
+                checkOutActive,
+                isChaleCasal ? 'casal' : 'individual',
+                1
+              );
+              const chaleAdultPrice = singleChalePricing.discountedTotal;
+              const chaleKidsPrice = kidsList.reduce((acc, age) => {
+                return acc + (age === '12plus' ? kid12PlusPrice : kidUnder11Price);
+              }, 0);
+              const thisChaleTotal = chaleAdultPrice + chaleKidsPrice;
+
               // Calculate adult index for this chalet
               const baseAdultIdx = selectedChaleUnits.slice(0, unitIdx).reduce((acc, prevId) => {
                 return acc + (chaleOccupancies[prevId] === 'individual' ? 1 : 2);
@@ -1328,9 +1347,17 @@ export function ChaleSelector({
                         </span>
                       </div>
                     </div>
-                    <Badge className="bg-amber-400 text-slate-950 font-black text-[9px] uppercase px-2 py-0.5 shadow-2xs">
-                      {isChaleCasal ? '👥 Casal' : '👤 Individual'}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <div className="text-right">
+                        <span className="text-[9px] uppercase font-bold text-slate-500 block">Total deste chalé</span>
+                        <span className="font-sans font-black text-sm text-emerald-950 block">
+                          {formatCurrency(thisChaleTotal)}
+                        </span>
+                      </div>
+                      <Badge className="bg-amber-400 text-slate-950 font-black text-[9px] uppercase px-2 py-0.5 shadow-2xs">
+                        {isChaleCasal ? '👥 Casal' : '👤 Individual'}
+                      </Badge>
+                    </div>
                   </div>
 
                   {/* Lado a Lado: Ocupação do Chalé e Adicionais de Crianças */}
@@ -1383,7 +1410,7 @@ export function ChaleSelector({
                             👶 Crianças neste Chalé (Filhos):
                           </span>
                           <span className="text-[9.5px] text-emerald-800 font-bold block mt-0.5">
-                            Até 11 anos: R$ ${kidUnder11Price} · 12+ anos: R$ ${kid12PlusPrice} (${nights} noite${nights > 1 ? 's' : ''})
+                            Até 11 anos: R$ {kidUnder11Price} · 12+ anos: R$ {kid12PlusPrice} ({stayNights} noite{stayNights > 1 ? 's' : ''})
                           </span>
                         </div>
 
@@ -1429,7 +1456,7 @@ export function ChaleSelector({
                                       : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
                                   )}
                                 >
-                                  Até 11 anos (+ R$ ${kidUnder11Price})
+                                  Até 11 anos (+ R$ {kidUnder11Price})
                                 </button>
                                 <button
                                   type="button"
@@ -1441,7 +1468,7 @@ export function ChaleSelector({
                                       : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
                                   )}
                                 >
-                                  12+ anos (+ R$ ${kid12PlusPrice})
+                                  12+ anos (+ R$ {kid12PlusPrice})
                                 </button>
                               </div>
                             </div>

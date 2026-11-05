@@ -640,10 +640,10 @@ export function BookingOverview({
                 const fallbackMap: Record<string, number> = { individual: 130, dupla: 195, 'adulto-crianca': 195 };
                 const basePrice = getPrice(`quad_${q.type}`, fallbackMap[q.type]);
                 const totalPrice = q.quantity * basePrice;
-                const quadIdx = booking.quads.findIndex(x => x.type === q.type);
+                const quadIdx = booking.quads.findIndex(x => x === q || (x.type === q.type && x.time === q.time));
 
                 return (
-                  <div key={q.type} className="flex justify-between group/item items-center gap-2 bg-white p-3 rounded-2xl border border-emerald-100 shadow-xs">
+                  <div key={`overview-quad-${q.type}-${q.time || 'notime'}-${idx}`} className="flex justify-between group/item items-center gap-2 bg-white p-3 rounded-2xl border border-emerald-100 shadow-xs">
                     <div className="min-w-0 flex-1">
                       <span className="text-xs sm:text-sm font-black truncate block text-emerald-950">
                         🏍️ {q.quantity}x {QUAD_LABELS[q.type]}
@@ -730,10 +730,22 @@ export function BookingOverview({
                       ).map((id, uIdx) => {
                         const isCasal = (booking.chale.chaleOccupancies?.[id] || 'casal') !== 'individual';
                         const ages = booking.chale.childrenAges || [];
-                        // Distribuição de crianças vinculadas a este chalé
-                        const kidsForThis = (booking.chale.chaleKids && booking.chale.chaleKids[id]) || (
-                          ages.slice(uIdx * 2, (uIdx + 1) * 2)
+                        const rawKids = booking.chale.chaleKids && booking.chale.chaleKids[id];
+                        // Distribuição segura de crianças vinculadas a este chalé
+                        const kidsForThis: string[] = Array.isArray(rawKids)
+                          ? rawKids
+                          : (Array.isArray(ages) ? ages.slice(uIdx * 2, (uIdx + 1) * 2) : []);
+
+                        const stayPricingOverview = calculateStayPricing(
+                          booking.chale.packageType,
+                          booking.chale.checkInDate,
+                          booking.chale.checkOutDate
                         );
+                        const ovNights = Math.max(1, stayPricingOverview.nightsCount);
+                        const isOvCombo = ovNights >= 2;
+                        const ovKid11 = isOvCombo ? ovNights * 45 : ovNights * 50;
+                        const ovKid12 = isOvCombo ? ovNights * 90 : ovNights * 100;
+
                         return (
                           <div key={`overview-chale-${id}`} className="bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-200/80 text-xs">
                             <div className="flex items-center justify-between font-black text-emerald-950">
@@ -749,7 +761,7 @@ export function BookingOverview({
                               <div className="text-[11px] text-amber-950 font-bold mt-1.5 pt-1 border-t border-emerald-200/60 flex items-center gap-1">
                                 <span>👶</span>
                                 <span>
-                                  <strong>{kidsForThis.length} Criança(s):</strong> {kidsForThis.map(a => a === '12plus' ? '12+ anos (+R$ 100)' : 'até 11 anos (+R$ 50)').join(', ')}
+                                  <strong>{kidsForThis.length} Criança(s):</strong> {kidsForThis.map(a => a === '12plus' ? `12+ anos (+R$ ${ovKid12})` : `até 11 anos (+R$ ${ovKid11})`).join(', ')}
                                 </span>
                               </div>
                             )}
