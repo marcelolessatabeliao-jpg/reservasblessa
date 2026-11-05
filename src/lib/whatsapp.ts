@@ -177,8 +177,8 @@ export function buildWhatsAppMessage(
           msg += `  📋 Hóspedes para Check-in:\n    ${filled.join('\n    ')}\n`;
         }
       }
-      msg += `  ☕ Café da manhã incluso servido até as 09h\n`;
-      msg += `  ⏰ Check-in: entrada a partir das 15h | Check-out: saída até 11h\n`;
+      msg += `  ☕ Café da manhã incluso servido das 07h às 09h\n`;
+      msg += `  ⏰ Check-in a partir das 14h (Quintas em combos às 09h) | Check-out às 12h\n`;
       if (booking.chale.includeSundayDayUse || (booking.chale.checkOutDate && new Date(booking.chale.checkOutDate).getDay() === 0)) {
         msg += `  ☀️ Day Use de Domingo: 100% Incluso até as 17h para todos os hóspedes\n`;
       }

@@ -763,7 +763,7 @@ export function BookingSection() {
                             </div>
                             <div className="flex items-center gap-2">
                               <Check className="w-4 h-4 text-amber-400 shrink-0" />
-                              <span>Check-in 15h / Check-out 11h</span>
+                              <span>Check-in a partir das 14h (Quintas em combos às 09h) • Check-out às 12h</span>
                             </div>
                           </div>
                         </div>
