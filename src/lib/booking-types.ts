@@ -42,9 +42,61 @@ export interface EntryBooking {
 
 export type KioskType = 'menor' | 'maior' | 'familiar';
 export type QuadType = 'individual' | 'dupla' | 'adulto-crianca';
-export type QuadTime = '09:00' | '10:30' | '14:00' | '15:30';
+export type QuadTime = 
+  | '08:00' 
+  | '09:00' 
+  | '10:00' 
+  | '11:00' 
+  | '12:00' 
+  | '13:00' 
+  | '14:00' 
+  | '15:00' 
+  | '16:00';
 
 export type AdditionalService = 'pesca' | 'futebol-sabao';
+
+export type ChalePackageType = 
+  | '1-diaria' 
+  | '2-diarias' 
+  | 'combo-3d-2n' 
+  | 'combo-2n-sex-dom'
+  | 'combo-3n-qui-dom'
+  | 'combo-3n-sex-seg'
+  | 'combo-4n-qui-seg'
+  | 'diaria-qui-sex'
+  | 'diaria-sex-sab'
+  | 'diaria-sab-dom'
+  | 'diaria-dom-seg'
+  | 'domingo-relax-single' 
+  | 'domingo-relax-casal' 
+  | 'fds-lessa' 
+  | 'experiencia-lessa';
+
+export type ChildAgeGroup = 'under11' | '12plus';
+
+export interface ChaleBooking {
+  packageType: ChalePackageType | null;
+  chaleId?: number | null;
+  chaleIds?: number[]; // Lista de chalés selecionados para reserva em conjunto
+  chaleOccupancies?: Record<number, 'casal' | 'individual'>; // Ocupação individual ou casal por chalé
+  adultsCount: number;
+  childrenCount: number;
+  guestNames?: string[]; // Nome de cada hóspede para o check-in
+  checkInDate: Date | null;
+  checkOutDate: Date | null;
+  stayOption?: 'sex-sab' | 'sab-dom' | 'sex-dom' | null;
+  includeSundayDayUse?: boolean; // Se inclui permanência no parque no domingo até 17h
+  notes?: string;
+}
+
+export interface CampingBooking {
+  peopleCount: number; // total de campistas
+  adultsCount?: number; // adultos pagantes (R$ 100 cada)
+  childrenCount?: number; // crianças 0 a 11 anos (grátis)
+  seniorsCount?: number; // idosos 60+ (grátis)
+  date: Date | null;
+  notes?: string;
+}
 
 export interface KioskItem {
   type: KioskType;
@@ -70,6 +122,413 @@ export interface BookingState {
   kiosks: KioskItem[];
   quads: QuadItem[];
   additionals: AdditionalItem[];
+  chale: ChaleBooking;
+  camping: CampingBooking;
+}
+
+export const CAMPING_PRICE_PER_PERSON = 100;
+
+export interface ChalePackageInfo {
+  id: ChalePackageType;
+  title: string;
+  period: string;
+  nights: number;
+  days: number;
+  typeLabel: string;
+  priceIndividual: number;
+  priceCasal: number;
+  basePrice: number;
+  description: string;
+  isPopular?: boolean;
+  badge?: string;
+  commercialHighlight?: string;
+}
+
+export const CHALE_PACKAGES: Record<ChalePackageType, ChalePackageInfo> = {
+  'combo-2n-sex-dom': {
+    id: 'combo-2n-sex-dom',
+    title: 'Combo 2 noites — Sexta a Domingo',
+    period: 'Sexta a Domingo (3 Dias + 2 Noites)',
+    nights: 2,
+    days: 3,
+    typeLabel: 'Individual ou Casal',
+    priceIndividual: 639,
+    priceCasal: 819,
+    basePrice: 819,
+    isPopular: true,
+    badge: '🔥 10% OFF • SEX A DOM',
+    commercialHighlight: 'Check-in sexta às 14h • Check-out domingo às 12h (Day Use no parque liberado até as 17h!)',
+    description: 'Check-in sexta às 14h • Check-out domingo às 12h. Day use de sexta a domingo até as 17h e café da manhã incluso nas manhãs de sábado e domingo.'
+  },
+  'combo-3n-qui-dom': {
+    id: 'combo-3n-qui-dom',
+    title: 'Combo 3 noites — Quinta a Domingo',
+    period: 'Quinta a Domingo (4 Dias + 3 Noites)',
+    nights: 3,
+    days: 4,
+    typeLabel: 'Individual ou Casal',
+    priceIndividual: 855,
+    priceCasal: 1125,
+    basePrice: 1125,
+    badge: '⭐ 10% OFF • QUI A DOM',
+    commercialHighlight: 'Check-in quinta às 9h • Check-out domingo às 12h (Day Use no parque liberado até as 17h!)',
+    description: 'Check-in quinta às 9h • Check-out domingo às 12h. Day use de sexta a domingo até as 17h e café da manhã incluso nas manhãs de sexta, sábado e domingo.'
+  },
+  'combo-3n-sex-seg': {
+    id: 'combo-3n-sex-seg',
+    title: 'Combo 3 noites — Sexta a Segunda',
+    period: 'Sexta a Segunda (4 Dias + 3 Noites)',
+    nights: 3,
+    days: 4,
+    typeLabel: 'Individual ou Casal',
+    priceIndividual: 837,
+    priceCasal: 1107,
+    basePrice: 1107,
+    badge: '🌟 10% OFF • SEX A SEG',
+    commercialHighlight: 'Check-in sexta às 14h • Check-out segunda às 12h (Segunda sem café/parque fechado)',
+    description: 'Check-in sexta às 14h • Check-out segunda às 12h. Day use de sexta a domingo até as 17h. Segunda balneário fechado e sem café da manhã.'
+  },
+  'combo-4n-qui-seg': {
+    id: 'combo-4n-qui-seg',
+    title: 'Combo 4 noites — Quinta a Segunda (Maior Estadia)',
+    period: 'Quinta a Segunda (5 Dias + 4 Noites)',
+    nights: 4,
+    days: 5,
+    typeLabel: 'Individual ou Casal',
+    priceIndividual: 1053,
+    priceCasal: 1413,
+    basePrice: 1413,
+    badge: '👑 MAIOR ESTADIA • 10% OFF',
+    commercialHighlight: '5 dias no calendário e 4 pernoites! Check-in quinta às 9h • Check-out segunda às 12h (Economia de até R$ 137)',
+    description: 'Check-in quinta às 9h • Check-out segunda às 12h. Acesso ao Day Use nos 3 dias em que o parque funciona (sex, sáb, dom). Segunda balneário fechado e sem café da manhã.'
+  },
+  'diaria-qui-sex': {
+    id: 'diaria-qui-sex',
+    title: 'Diária Quinta a Sexta',
+    period: 'Quinta a Sexta (1 Noite)',
+    nights: 1,
+    days: 1,
+    typeLabel: 'Individual ou Casal',
+    priceIndividual: 240,
+    priceCasal: 340,
+    basePrice: 340,
+    description: 'Check-in quinta às 14h • Check-out sexta às 12h com café da manhã incluso na manhã de sexta.'
+  },
+  'diaria-sex-sab': {
+    id: 'diaria-sex-sab',
+    title: 'Diária Sexta a Sábado',
+    period: 'Sexta a Sábado (1 Noite)',
+    nights: 1,
+    days: 1,
+    typeLabel: 'Individual ou Casal',
+    priceIndividual: 340,
+    priceCasal: 440,
+    basePrice: 440,
+    description: 'Check-in sexta às 14h • Check-out sábado às 12h com café da manhã incluso na manhã de sábado.'
+  },
+  'diaria-sab-dom': {
+    id: 'diaria-sab-dom',
+    title: 'Diária Sábado a Domingo',
+    period: 'Sábado a Domingo (1 Noite)',
+    nights: 1,
+    days: 1,
+    typeLabel: 'Individual ou Casal',
+    priceIndividual: 370,
+    priceCasal: 470,
+    basePrice: 470,
+    description: 'Check-in sábado às 14h • Check-out domingo às 12h com café da manhã incluso e Day Use no parque liberado no domingo até as 17h!'
+  },
+  'diaria-dom-seg': {
+    id: 'diaria-dom-seg',
+    title: 'Diária Domingo a Segunda',
+    period: 'Domingo a Segunda (1 Noite)',
+    nights: 1,
+    days: 1,
+    typeLabel: 'Individual ou Casal',
+    priceIndividual: 220,
+    priceCasal: 320,
+    basePrice: 320,
+    description: 'Check-in domingo às 14h • Check-out segunda às 12h (Segunda balneário fechado e sem café da manhã).'
+  },
+  // Aliases de retrocompatibilidade
+  'combo-3d-2n': {
+    id: 'combo-3d-2n',
+    title: 'Combo 2 noites — Sexta a Domingo',
+    period: 'Sexta a Domingo (3 Dias + 2 Noites)',
+    nights: 2,
+    days: 3,
+    typeLabel: 'Individual ou Casal',
+    priceIndividual: 639,
+    priceCasal: 819,
+    basePrice: 819,
+    isPopular: true,
+    badge: '🔥 10% OFF • SEX A DOM',
+    commercialHighlight: 'Check-in sexta às 14h • Check-out domingo às 12h (Day Use no parque liberado até as 17h!)',
+    description: 'Check-in sexta às 14h • Check-out domingo às 12h. Day use de sexta a domingo até as 17h e café da manhã incluso.'
+  },
+  '1-diaria': {
+    id: '1-diaria',
+    title: '1 Diária',
+    period: '1 Diária (Entrada 14h / Saída 12h)',
+    nights: 1,
+    days: 1,
+    typeLabel: 'Individual ou Casal',
+    priceIndividual: 340,
+    priceCasal: 390,
+    basePrice: 390,
+    description: 'Diária avulsa em meio à natureza com café incluso e Day Use conforme pacote.'
+  },
+  '2-diarias': {
+    id: '2-diarias',
+    title: '2 Diárias Consecutivas',
+    period: '2 Diárias (Entrada 14h / Saída 12h)',
+    nights: 2,
+    days: 2,
+    typeLabel: 'Individual ou Casal',
+    priceIndividual: 639,
+    priceCasal: 729,
+    basePrice: 729,
+    description: '2 diárias consecutivas com 10% de desconto.'
+  },
+  'domingo-relax-single': {
+    id: 'domingo-relax-single',
+    title: '1 Diária (Individual)',
+    period: '1 Diária',
+    nights: 1,
+    days: 1,
+    typeLabel: 'Individual',
+    priceIndividual: 220,
+    priceCasal: 270,
+    basePrice: 220,
+    description: '1 diária individual.'
+  },
+  'domingo-relax-casal': {
+    id: 'domingo-relax-casal',
+    title: '1 Diária (Casal)',
+    period: '1 Diária',
+    nights: 1,
+    days: 1,
+    typeLabel: 'Casal',
+    priceIndividual: 220,
+    priceCasal: 270,
+    basePrice: 270,
+    description: '1 diária casal.'
+  },
+  'fds-lessa': {
+    id: 'fds-lessa',
+    title: 'Combo 2 noites — Sexta a Domingo',
+    period: 'Sexta a Domingo (3 Dias + 2 Noites)',
+    nights: 2,
+    days: 3,
+    typeLabel: 'Individual ou Casal',
+    priceIndividual: 639,
+    priceCasal: 729,
+    basePrice: 729,
+    description: 'Combo Sexta a Domingo com 10% OFF.'
+  },
+  'experiencia-lessa': {
+    id: 'experiencia-lessa',
+    title: '2 Diárias',
+    period: '2 Diárias Consecutivas',
+    nights: 2,
+    days: 2,
+    typeLabel: 'Individual ou Casal',
+    priceIndividual: 639,
+    priceCasal: 729,
+    basePrice: 729,
+    description: '2 diárias consecutivas.'
+  }
+};
+
+export const CHALE_RULES = [
+  'Horários da hospedagem: Check-in a partir das 14h (Quintas em combos às 09h) e Check-out pontual até às 12h.',
+  'Café da manhã servido das 7h às 9h nas manhãs de sexta, sábado e domingo.',
+  'Segunda-feira: não haverá café da manhã nem funcionamento do parque balneário.',
+  'Aos domingos, Day Use 100% incluso liberado no parque até as 17h para todos os hóspedes.',
+  'Combos de 2 ou mais noites têm 10% de desconto automático sobre a soma das diárias.',
+  'Capacidade máxima: 2 adultos por chalé (+ crianças).',
+  'Crianças até 11 anos não pagam diária (1ª criança grátis por chalé). A partir da 2ª criança, apenas R$ 40/diária.',
+  'Nos pacotes com saída na segunda-feira, o check-out deverá ser organizado previamente, já que o balneário estará fechado.',
+  'Permitido apenas animais de pequeno porte.',
+  'Proibido fogueiras e churrasqueiras nos chalés.',
+  'Proibido som automotivo/alto e fumar dentro dos chalés.'
+];
+
+export type ChaleModelType = 'alvenaria' | 'vidro';
+
+export interface ChaleUnit {
+  id: number;
+  name: string;
+  type: ChaleModelType;
+  modelLabel: string;
+  capacity: string;
+  maxAdults: number;
+  doubleBeds: number;
+  singleBeds: number;
+  isInitiallyUnavailable?: boolean;
+  unavailableReason?: string;
+  tag?: string;
+}
+
+export const CHALE_UNITS: ChaleUnit[] = [
+  // 6 Chalés de Alvenaria (5 disponíveis, 1 indisponível)
+  { id: 1, name: 'Chalé 01 - Alvenaria Tradicional', type: 'alvenaria', modelLabel: 'Alvenaria', capacity: 'Até 2 adultos', maxAdults: 2, doubleBeds: 1, singleBeds: 0, isInitiallyUnavailable: false },
+  { id: 2, name: 'Chalé 02 - Alvenaria Tradicional', type: 'alvenaria', modelLabel: 'Alvenaria', capacity: 'Até 2 adultos', maxAdults: 2, doubleBeds: 1, singleBeds: 0, isInitiallyUnavailable: false },
+  { id: 3, name: 'Chalé 03 - Alvenaria Tradicional', type: 'alvenaria', modelLabel: 'Alvenaria', capacity: 'Até 2 adultos', maxAdults: 2, doubleBeds: 1, singleBeds: 0, isInitiallyUnavailable: false },
+  { id: 4, name: 'Chalé 04 - Alvenaria Tradicional', type: 'alvenaria', modelLabel: 'Alvenaria', capacity: 'Até 2 adultos', maxAdults: 2, doubleBeds: 1, singleBeds: 0, isInitiallyUnavailable: false },
+  { id: 5, name: 'Chalé 05 - Alvenaria Tradicional', type: 'alvenaria', modelLabel: 'Alvenaria', capacity: 'Até 2 adultos', maxAdults: 2, doubleBeds: 1, singleBeds: 0, isInitiallyUnavailable: false },
+  { id: 6, name: 'Chalé 06 - Alvenaria Tradicional', type: 'alvenaria', modelLabel: 'Alvenaria', capacity: 'Até 2 adultos', maxAdults: 2, doubleBeds: 1, singleBeds: 0, isInitiallyUnavailable: true, unavailableReason: 'Indisponível', tag: 'Indisponível' },
+
+  // 6 Chalés de Vidro (mais caros, todos com a tarja indisponíveis)
+  { id: 7,  name: 'Chalé 07 - Vidro Panorâmico', type: 'vidro', modelLabel: 'Vidro Panorâmico (Luxo)', capacity: 'Até 2 adultos', maxAdults: 2, doubleBeds: 1, singleBeds: 0, isInitiallyUnavailable: true, unavailableReason: 'Indisponível', tag: 'Indisponível' },
+  { id: 8,  name: 'Chalé 08 - Vidro Panorâmico', type: 'vidro', modelLabel: 'Vidro Panorâmico (Luxo)', capacity: 'Até 2 adultos', maxAdults: 2, doubleBeds: 1, singleBeds: 0, isInitiallyUnavailable: true, unavailableReason: 'Indisponível', tag: 'Indisponível' },
+  { id: 9,  name: 'Chalé 09 - Vidro Panorâmico', type: 'vidro', modelLabel: 'Vidro Panorâmico (Luxo)', capacity: 'Até 2 adultos', maxAdults: 2, doubleBeds: 1, singleBeds: 0, isInitiallyUnavailable: true, unavailableReason: 'Indisponível', tag: 'Indisponível' },
+  { id: 10, name: 'Chalé 10 - Vidro Panorâmico', type: 'vidro', modelLabel: 'Vidro Panorâmico (Luxo)', capacity: 'Até 2 adultos', maxAdults: 2, doubleBeds: 1, singleBeds: 0, isInitiallyUnavailable: true, unavailableReason: 'Indisponível', tag: 'Indisponível' },
+  { id: 11, name: 'Chalé 11 - Vidro Panorâmico', type: 'vidro', modelLabel: 'Vidro Panorâmico (Luxo)', capacity: 'Até 2 adultos', maxAdults: 2, doubleBeds: 1, singleBeds: 0, isInitiallyUnavailable: true, unavailableReason: 'Indisponível', tag: 'Indisponível' },
+  { id: 12, name: 'Chalé 12 - Vidro Panorâmico', type: 'vidro', modelLabel: 'Vidro Panorâmico (Luxo)', capacity: 'Até 2 adultos', maxAdults: 2, doubleBeds: 1, singleBeds: 0, isInitiallyUnavailable: true, unavailableReason: 'Indisponível', tag: 'Indisponível' },
+];
+
+
+export const CHALE_NIGHT_RATES: Record<number, { label: string; individual: number; casal: number }> = {
+  4: { label: 'Quinta para Sexta', individual: 240, casal: 340 },
+  5: { label: 'Sexta para Sábado', individual: 340, casal: 440 },
+  6: { label: 'Sábado para Domingo', individual: 370, casal: 470 },
+  0: { label: 'Domingo para Segunda', individual: 220, casal: 320 },
+};
+
+export function calculateStayPricing(checkIn: Date | string | null, checkOut: Date | string | null) {
+  if (!checkIn || !checkOut) {
+    return {
+      nightsCount: 0,
+      totalIndividualGross: 0,
+      totalCasalGross: 0,
+      discountPct: 0,
+      totalIndividual: 0,
+      totalCasal: 0,
+      hasSunday: false,
+      hasMondayOut: false,
+      hasThursdayIn: false,
+      checkInHour: '14h',
+      checkOutHour: '12h'
+    };
+  }
+
+  const inDate = parseToRODate(checkIn);
+  const outDate = parseToRODate(checkOut);
+
+  let current = new Date(inDate);
+  current.setHours(0, 0, 0, 0);
+  const end = new Date(outDate);
+  end.setHours(0, 0, 0, 0);
+
+  let nightsCount = 0;
+  let totalIndividualGross = 0;
+  let totalCasalGross = 0;
+  let hasSunday = false;
+  const hasMondayOut = end.getDay() === 1;
+  const hasThursdayIn = inDate.getDay() === 4;
+
+  while (current < end && nightsCount < 10) {
+    const day = current.getDay();
+    if (day === 0 || current.getDay() === 6) {
+      hasSunday = true;
+    }
+    const rate = CHALE_NIGHT_RATES[day] || { individual: 340, casal: 390 };
+    totalIndividualGross += rate.individual;
+    totalCasalGross += rate.casal;
+    nightsCount++;
+    current.setDate(current.getDate() + 1);
+  }
+
+  // 10% de desconto sobre a soma das diárias se for combo (>= 2 noites)
+  const discountPct = nightsCount >= 2 ? 0.10 : 0;
+  const totalIndividual = Math.round(totalIndividualGross * (1 - discountPct));
+  const totalCasal = Math.round(totalCasalGross * (1 - discountPct));
+
+  // Check-in na quinta às 9h (se for combo de 3 ou 4 noites) ou 14h
+  const checkInHour = (hasThursdayIn && nightsCount >= 3) ? '09h' : '14h';
+  const checkOutHour = '12h';
+
+  return {
+    nightsCount,
+    totalIndividualGross,
+    totalCasalGross,
+    discountPct,
+    totalIndividual,
+    totalCasal,
+    hasSunday,
+    hasMondayOut,
+    hasThursdayIn,
+    checkInHour,
+    checkOutHour
+  };
+}
+
+export function calculateChaleTotal(
+  packageType: ChalePackageType | null,
+  adultsCount: number,
+  childrenCount: number = 0,
+  getPrice?: (key: string, fb: number) => number,
+  includeSundayDayUse?: boolean,
+  chaletsCount: number = 1,
+  checkInDate?: Date | string | null,
+  checkOutDate?: Date | string | null,
+  chaleOccupancies?: Record<number, 'casal' | 'individual'>,
+  chaleIds?: number[],
+  childrenAges?: ('under11' | '12plus')[]
+): number {
+  if (!packageType) return 0;
+  const ids = (chaleIds && chaleIds.length > 0) ? chaleIds : Array.from({ length: Math.max(1, chaletsCount || 1) }, (_, i) => i + 1);
+  const count = ids.length;
+
+  let basePrice = 0;
+
+  if (checkInDate && checkOutDate) {
+    const pricing = calculateStayPricing(checkInDate, checkOutDate);
+    if (pricing.nightsCount > 0) {
+      if (chaleOccupancies && Object.keys(chaleOccupancies).length > 0) {
+        basePrice = ids.reduce((acc, id) => {
+          const occ = chaleOccupancies[id] || (adultsCount === 1 && count === 1 ? 'individual' : 'casal');
+          return acc + (occ === 'individual' ? pricing.totalIndividual : pricing.totalCasal);
+        }, 0);
+      } else {
+        const isIndividual = adultsCount === 1 && count === 1;
+        basePrice = isIndividual ? pricing.totalIndividual : (pricing.totalCasal * count);
+      }
+    }
+  }
+
+  if (basePrice === 0) {
+    const pkg = CHALE_PACKAGES[packageType];
+    if (pkg) {
+      if (chaleOccupancies && Object.keys(chaleOccupancies).length > 0) {
+        basePrice = ids.reduce((acc, id) => {
+          const occ = chaleOccupancies[id] || (adultsCount === 1 && count === 1 ? 'individual' : 'casal');
+          return acc + (occ === 'individual' ? pkg.priceIndividual : pkg.priceCasal);
+        }, 0);
+      } else {
+        const isIndividual = adultsCount === 1 && count === 1;
+        basePrice = isIndividual ? pkg.priceIndividual : (pkg.priceCasal * count);
+      }
+    }
+  }
+
+  // Crianças: Adicional de R$ 50,00 para até 11 anos e R$ 100,00 para 12 anos ou mais.
+  // Não há cortesia para o 1º adicional; todos os adicionais são pagos.
+  let kidsCost = 0;
+  const totalKids = childrenCount || 0;
+  if (totalKids > 0) {
+    if (childrenAges && childrenAges.length > 0) {
+      for (let i = 0; i < totalKids; i++) {
+        const age = childrenAges[i] || 'under11';
+        kidsCost += (age === '12plus' ? 100 : 50);
+      }
+    } else {
+      kidsCost = totalKids * 50;
+    }
+  }
+
+  return basePrice + kidsCost;
 }
 
 export const ENTRY_PRICE = 49.90;
@@ -82,18 +541,28 @@ export const KIOSK_INFO: Record<KioskType, { price: number; capacity: string; av
 };
 
 export const QUAD_PRICES: Record<QuadType, number> = {
-  individual: 150,
-  dupla: 250,
-  'adulto-crianca': 200,
+  individual: 130,
+  dupla: 195,
+  'adulto-crianca': 195,
 };
 
 export const QUAD_LABELS: Record<QuadType, string> = {
-  individual: 'Individual',
-  dupla: 'Dupla',
-  'adulto-crianca': 'Adulto + Criança',
+  individual: 'Passeio Individual (40 min)',
+  dupla: 'Passeio para Casal (40 min)',
+  'adulto-crianca': 'Passeio para Casal (40 min)',
 };
 
-export const QUAD_TIMES: QuadTime[] = ['09:00', '10:30', '14:00', '15:30'];
+export const QUAD_TIMES: QuadTime[] = [
+  '08:00',
+  '09:00',
+  '10:00',
+  '11:00',
+  '12:00',
+  '13:00',
+  '14:00',
+  '15:00',
+  '16:00',
+];
 
 export const ADDITIONAL_INFO: Record<AdditionalService, { label: string; price: number; description: string }> = {
   'pesca': { 
@@ -111,34 +580,47 @@ export const ADDITIONAL_INFO: Record<AdditionalService, { label: string; price: 
 import { parseToRODate } from '@/utils/date-utils';
 
 export function getQuadDiscount(date: Date | string | null): number {
-  if (!date) return 0;
-  
-  // Ensure we are working with a Date object normalized to the RO timezone
-  const d = parseToRODate(date);
-  const day = d.getDay();
-  
-  // Seg (1), Sex (5) -> 20%
-  // We use an explicit check to be absolutely sure
-  if (day === 1 || day === 5) return 0.20;
-  
-  // Sab (6), Dom (0) -> 10%
-  if (day === 0 || day === 6) return 0.10;
-  
-  return 0;
+  // Para os quadriciclos não terá 20% de desconto, apenas 10% fixo
+  return 0.10;
 }
 
-export function isOperatingDay(date: Date | string): boolean {
+export const HOLIDAY_STRINGS_2026 = [
+  '2026-01-01', // Confraternização Universal
+  '2026-02-16', // Carnaval
+  '2026-02-17', // Carnaval
+  '2026-04-03', // Sexta-feira Santa
+  '2026-04-05', // Páscoa
+  '2026-04-21', // Tiradentes
+  '2026-05-01', // Dia do Trabalhador
+  '2026-05-14', // Ascensão do Senhor
+  '2026-05-24', // Nsa Sra Auxiliadora
+  '2026-06-04', // Corpus Christi
+  '2026-07-09', // Revolução Constitucionalista
+  '2026-09-07', // Independência do Brasil
+  '2026-10-12', // Nossa Senhora Aparecida
+  '2026-11-02', // Finados
+  '2026-11-15', // Proclamação da República
+  '2026-11-20', // Dia da Consciência Negra (Sexta-feira)
+  '2026-12-25', // Natal
+];
+
+export function isHolidayDate(date: Date | string | null | undefined): boolean {
+  if (!date) return false;
+  if (typeof date === 'string') {
+    const str = date.split('T')[0];
+    if (HOLIDAY_STRINGS_2026.includes(str)) return true;
+  }
+  if (date instanceof Date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    if (HOLIDAY_STRINGS_2026.includes(`${y}-${m}-${d}`)) return true;
+  }
   const d = parseToRODate(date);
-  const day = d.getDay();
   const year = d.getFullYear();
   const month = d.getMonth();
   const dateNum = d.getDate();
 
-  // Dias normais de funcionamento: Sexta (5), Sábado (6), Domingo (0)
-  const isNormalDay = day === 0 || day === 5 || day === 6;
-  if (isNormalDay) return true;
-
-  // Feriados 2026
   if (year === 2026) {
     const holidays = [
       { m: 0, d: 1 },  // Jan 1
@@ -161,8 +643,30 @@ export function isOperatingDay(date: Date | string): boolean {
     ];
     return holidays.some(h => h.m === month && h.d === dateNum);
   }
-
   return false;
+}
+
+export function isSundayOrHoliday(date: Date | string | null | undefined): boolean {
+  if (!date) return false;
+  if (typeof date === 'string') {
+    const str = date.split('T')[0];
+    if (HOLIDAY_STRINGS_2026.includes(str)) return true;
+  }
+  if (date instanceof Date && date.getDay() === 0) return true;
+  const d = parseToRODate(date);
+  return d.getDay() === 0 || isHolidayDate(d);
+}
+
+export function isOperatingDay(date: Date | string): boolean {
+  const d = parseToRODate(date);
+  const day = d.getDay();
+
+  // Dias normais de funcionamento: Sexta (5), Sábado (6), Domingo (0)
+  const isNormalDay = day === 0 || day === 5 || day === 6;
+  if (isNormalDay) return true;
+
+  // Feriados 2026
+  return isHolidayDate(d);
 }
 
 export function getPersonPrice(
@@ -176,8 +680,9 @@ export function getPersonPrice(
     return 0;
   }
   
-  // Meia-entrada (R$ 25): Professor, Servidor, Estudante, Doador de Sangue, Adulto Solidário (traz doação)
-  const hasProfessionalDiscount = person.isTeacher || person.isServer || person.isStudent || (person as any).isBloodDonor || (person as any).takeDonation;
+  // Meia-entrada (R$ 25): Professor, Servidor, Estudante, Doador de Sangue, Adulto Solidário (traz doação se NÃO for domingo/feriado)
+  const isSolidarioValid = !isSunday && (person as any).takeDonation;
+  const hasProfessionalDiscount = person.isTeacher || person.isServer || person.isStudent || (person as any).isBloodDonor || isSolidarioValid;
   if (hasProfessionalDiscount) {
     return getPrice('entry_half', 25);
   }
@@ -188,7 +693,7 @@ export function getPersonPrice(
 
 export function calculateEntryTotal(entry: EntryBooking, getPrice: (type: string, fb: number) => number): number {
   let total = 0;
-  const isSunday = entry.dayOfWeek === 'domingo';
+  const isSunday = entry.dayOfWeek === 'domingo' || isSundayOrHoliday(entry.visitDate);
 
   for (const adult of entry.adults) {
     total += getPersonPrice(adult, adult.age >= 60, isSunday, getPrice) * (adult.quantity || 1);
@@ -209,3 +714,17 @@ export const WHATSAPP_NUMBER = '556992626140';
 
 export const OPERATING_HOURS = 'Aberto das 9h às 17h';
 export const OPERATING_DAYS = 'Sextas, Sábados, Domingos e Feriados';
+
+export function isChaleCheckInDay(date: Date | string): boolean {
+  const d = parseToRODate(date);
+  const day = d.getDay();
+  // Quinta (4), Sexta (5), Sábado (6), Domingo (0)
+  return day === 4 || day === 5 || day === 6 || day === 0 || isHolidayDate(d);
+}
+
+export function isChaleCheckOutDay(date: Date | string): boolean {
+  const d = parseToRODate(date);
+  const day = d.getDay();
+  // Sexta (5), Sábado (6), Domingo (0), Segunda (1)
+  return day === 5 || day === 6 || day === 0 || day === 1 || isHolidayDate(d);
+}

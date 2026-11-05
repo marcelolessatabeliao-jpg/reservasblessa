@@ -1,4 +1,4 @@
-import { BookingState, KIOSK_INFO, QUAD_LABELS, QUAD_PRICES, ADDITIONAL_INFO, getQuadDiscount, formatCurrency, getPersonPrice } from '@/lib/booking-types';
+import { BookingState, KIOSK_INFO, QUAD_LABELS, QUAD_PRICES, ADDITIONAL_INFO, CHALE_PACKAGES, CAMPING_PRICE_PER_PERSON, getQuadDiscount, formatCurrency, getPersonPrice, isSundayOrHoliday, calculateChaleTotal } from '@/lib/booking-types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { parseToRODate } from '@/utils/date-utils';
@@ -15,7 +15,7 @@ export function buildWhatsAppMessage(
 ): string {
   const { entry } = booking;
   const safeGetPrice = getPrice || ((t: string, fb: number) => fb);
-  const isSunday = entry.dayOfWeek === 'domingo';
+  const isSunday = entry.dayOfWeek === 'domingo' || isSundayOrHoliday(entry.visitDate);
   
   // Mensagem inicial com estilo premium usando emojis literais para garantir compatibilidade
   let msg = `🌿 *BALNEÁRIO FAMÍLIA LESSA*\n`;
@@ -126,7 +126,7 @@ export function buildWhatsAppMessage(
   if (activeQuads.length) {
     msg += `\u{1F69C} *QUADRICICLOS:*\n`;
     activeQuads.forEach(q => {
-      const fallbackMap: Record<string, number> = { individual: 150, dupla: 250, 'adulto-crianca': 200 };
+      const fallbackMap: Record<string, number> = { individual: 130, dupla: 195, 'adulto-crianca': 195 };
       const d = q.date ? parseToRODate(q.date) : null;
       const discount = getQuadDiscount(d);
       const basePrice = safeGetPrice(`quad_${q.type}`, fallbackMap[q.type]);
@@ -147,6 +147,63 @@ export function buildWhatsAppMessage(
       msg += `  ${a.quantity} x ${ADDITIONAL_INFO[a.type].label} - ${formatCurrency(a.quantity * basePrice)}\n`;
     });
     msg += '\n';
+  }
+
+  // Hospedagem (Chalés)
+  if (booking.chale && booking.chale.packageType) {
+    const pkg = CHALE_PACKAGES[booking.chale.packageType];
+    if (pkg) {
+      const adults = Math.min(2, Math.max(1, booking.chale.adultsCount || 2));
+      const kids = booking.chale.childrenCount || 0;
+      const totalChale = calculateChaleTotal(booking.chale.packageType, adults, kids, safeGetPrice, booking.chale.includeSundayDayUse);
+
+      msg += `🏡 *HOSPEDAGEM - CHALÉ:*\n`;
+      msg += `  ${pkg.title} (${pkg.period} — ${pkg.nights} noite${pkg.nights > 1 ? 's' : ''})\n`;
+      msg += `  👥 Hóspedes: ${adults} Adulto(s) (Máximo 2 adultos)`;
+      if (kids > 0) {
+        msg += ` e ${kids} Criança(s) (1ª grátis, extra R$ 40)`;
+      }
+      msg += `\n`;
+      if (booking.chale.chaleIds && booking.chale.chaleIds.length > 1) {
+        msg += `  🚪 Chalés Selecionados (${booking.chale.chaleIds.length} unidades): ${booking.chale.chaleIds.map(id => `Nº ${String(id).padStart(2, '0')}`).join(', ')}\n`;
+      } else if (booking.chale.chaleId) {
+        msg += `  🚪 Chalé Selecionado: Nº ${String(booking.chale.chaleId).padStart(2, '0')}\n`;
+      }
+      if (booking.chale.guestNames && booking.chale.guestNames.length > 0) {
+        const filled = booking.chale.guestNames
+          .map((n, i) => `${i + 1}. ${n.trim()}`)
+          .filter(n => n.length > 3);
+        if (filled.length > 0) {
+          msg += `  📋 Hóspedes para Check-in:\n    ${filled.join('\n    ')}\n`;
+        }
+      }
+      msg += `  ☕ Café da manhã incluso servido até as 09h\n`;
+      msg += `  ⏰ Check-in: entrada a partir das 15h | Check-out: saída até 11h\n`;
+      if (booking.chale.includeSundayDayUse || (booking.chale.checkOutDate && new Date(booking.chale.checkOutDate).getDay() === 0)) {
+        msg += `  ☀️ Day Use de Domingo: 100% Incluso até as 17h para todos os hóspedes\n`;
+      }
+      msg += `  💵 Valor Chalé: ${formatCurrency(totalChale)}\n\n`;
+    }
+  }
+
+  // Camping
+  if (booking.camping && (booking.camping.peopleCount > 0 || (booking.camping.adultsCount || 0) > 0)) {
+    const payingAdults = booking.camping.adultsCount !== undefined ? booking.camping.adultsCount : booking.camping.peopleCount;
+    const campingPrice = safeGetPrice('camping_per_person', CAMPING_PRICE_PER_PERSON);
+    const totalCamping = payingAdults * campingPrice;
+    msg += `⛺ *ÁREA DE CAMPING (PERNOITE):*\n`;
+    msg += `  ${payingAdults} adulto(s) pagante(s) x ${formatCurrency(campingPrice)} = ${formatCurrency(totalCamping)}\n`;
+    if ((booking.camping.childrenCount || 0) > 0) {
+      msg += `  👶 ${booking.camping.childrenCount} criança(s) até 11 anos: Grátis\n`;
+    }
+    if ((booking.camping.seniorsCount || 0) > 0) {
+      msg += `  🧓 ${booking.camping.seniorsCount} idoso(s) 60+: Grátis\n`;
+    }
+    msg += `  ☀️ Day use do dia seguinte incluso no balneário\n`;
+    msg += `  ☕ Café da manhã NÃO incluso no camping\n`;
+    msg += `  🔌 Permitido uso de banheiros e tomadas dos quiosques após 17h\n`;
+    msg += `  🏕️ Barracas e equipamentos por conta do cliente\n`;
+    msg += `  🍽️ Sem fornecimento de alimentação após 17h\n\n`;
   }
 
   if (discount && discount > 0) {

@@ -12,7 +12,7 @@ import {
   User, Phone, CalendarPlus, Tag, History, ChevronDown, ChevronUp,
   Clock, CheckCircle, AlertTriangle, FileCheck, StickyNote,
   CalendarRange, QrCode, DollarSign, UserCheck, Hash, ArrowRight,
-  MessageCircle, Circle, Upload, HelpCircle, CreditCard
+  MessageCircle, Circle, Upload, HelpCircle, CreditCard, Home
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -33,6 +33,7 @@ import { AdminCreditsTab } from '@/components/admin/AdminCreditsTab';
 import { AdminDashboardTab } from '@/components/admin/AdminDashboardTab';
 import { AdminRelatoriosTab } from '@/components/admin/AdminRelatoriosTab';
 import { AdminClubEcosystem } from '@/components/club/AdminClubEcosystem';
+import { AdminChaleTab } from '@/components/admin/AdminChaleTab';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -97,7 +98,7 @@ class ClubErrorBoundary extends React.Component<
   }
 }
 
-const QUAD_TIMES = ['09:00', '10:30', '14:00', '15:30'];
+const QUAD_TIMES = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00'];
 const PAYMENT_METHODS = [
   { value: 'pix', label: 'PIX / Transferência' },
   { value: 'credit_card', label: 'Cartão de Crédito' },
@@ -110,7 +111,7 @@ const QUAD_MODELS_LABELS: Record<string, string> = {
   'adulto-crianca': 'Adulto + Criança'
 };
 
-type TabType = 'painel' | 'reservas' | 'quiosques' | 'quads' | 'vendas' | 'creditos' | 'relatorios' | 'disponibilidade' | 'clube';
+type TabType = 'painel' | 'reservas' | 'quiosques' | 'chales' | 'quads' | 'vendas' | 'creditos' | 'relatorios' | 'disponibilidade' | 'clube';
 
 const normalizeQuadType = (t: string) => {
   const slow = (t || '').toLowerCase();
@@ -552,7 +553,7 @@ export default function Admin() {
   const [orders, setOrders] = useState<any[]>([]);
   const [credits, setCredits] = useState<any[]>([]);
   const [targetDate, setTargetDate] = useState<Date>(new Date());
-  const [totalQuads, setTotalQuads] = useState<number>(3);
+  const [totalQuads, setTotalQuads] = useState<number>(2);
   const [disableFutebolSabao, setDisableFutebolSabao] = useState(false);
   const [disablePesca, setDisablePesca] = useState(false);
   const [disableQuads, setDisableQuads] = useState(false);
@@ -654,7 +655,7 @@ export default function Admin() {
         .select('*')
         .order('created_at', { ascending: false });
       
-      const tQuads = await getGlobalSetting('total_quads', 3);
+      const tQuads = await getGlobalSetting('total_quads', 2);
       setTotalQuads(Number(tQuads));
 
       const fsBlocked = await getGlobalSetting('disable_futebol_sabao', false);
@@ -1776,7 +1777,7 @@ export default function Admin() {
                id: qiId,
                customer_name: b.name || 'Cliente (Interno)',
                reservation_date: b.visit_date,
-               time_slot: b.quad_time_slot || '10:30',
+               time_slot: b.quad_time_slot || '09:00',
                quantity: qi.quantity || 1,
                status: b.status
             });
@@ -1915,9 +1916,12 @@ export default function Admin() {
 
             {!disableQuads && (
               <div className="pt-4 border-t border-slate-200 space-y-2">
-                <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">Bloquear Horários Específicos:</span>
-                <div className="grid grid-cols-2 gap-2">
-                  {['09:00', '10:30', '14:00', '15:30'].map(t => {
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">Bloquear Horários (8h às 16h):</span>
+                  <span className="text-[10px] font-black text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">2 Quadriciclos / Horário</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {QUAD_TIMES.map(t => {
                     const isBlocked = disabledQuadSlots.includes(t);
                     return (
                       <button
@@ -2970,6 +2974,17 @@ export default function Admin() {
                      PAINEL DE RESERVAS BALNEÁRIO LESSA
                   </h1>
 
+                  {/* BOTAO NOVA RESERVA NO MEIO AO TOPO */}
+                  <div className="flex items-center justify-center my-1 md:my-0">
+                    <InternalBookingAssistant 
+                       onCreated={fetchData} 
+                       isHoliday={isHoliday} 
+                       isAllowedDay={isAllowedDay} 
+                       kioskReservations={kioskReservations}
+                       quadReservations={quadReservations}
+                    />
+                  </div>
+
                   <div className="flex items-center justify-between md:justify-end w-full md:w-auto gap-2">
                      <div className="flex items-center gap-2 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 backdrop-blur-md">
                         <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
@@ -3019,6 +3034,10 @@ export default function Admin() {
                  )}>
                     <Tent className="w-4 h-4" />
                     <span>Quiosques</span>
+                 </button>
+                 <button onClick={() => setActiveTab("chales")} className={cn("py-2.5 px-2 rounded-xl lg:rounded-2xl lg:px-4 text-[10px] lg:text-[13px] font-black flex flex-col lg:flex-row items-center justify-center gap-1 lg:gap-2 transition-all", activeTab === "chales" ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10")}>
+                    <Home className="w-4 h-4" />
+                    <span>Hospedagem & Chalés</span>
                  </button>
                  <button onClick={() => setActiveTab('quads')} className={cn(
                    "py-2.5 px-2 rounded-xl lg:rounded-2xl lg:px-4 text-[10px] lg:text-[13px] font-black flex flex-col lg:flex-row items-center justify-center gap-1 lg:gap-2 transition-all",
@@ -3073,20 +3092,7 @@ export default function Admin() {
                     <span>Lessa Club</span>
                  </button>
               </div>
-
-             <div className="hidden lg:block flex-1" />
-
-             {/* BOTÃO NOVA RESERVA ENCAIXADO DENTRO DA BARRA */}
-             <div className="flex items-center justify-end px-1 w-full lg:w-auto shrink-0">
-                <InternalBookingAssistant 
-                   onCreated={fetchData} 
-                   isHoliday={isHoliday} 
-                   isAllowedDay={isAllowedDay} 
-                   kioskReservations={kioskReservations}
-                   quadReservations={quadReservations}
-                />
-             </div>
-          </div>
+           </div>
 {/* CONTENT AREA WITH GRADIENT BACKGROUND */}
           <div className="min-h-[500px] md:min-h-[600px] bg-white/40 backdrop-blur-md rounded-2xl md:rounded-[2rem] p-4 md:p-8 border border-white/60 shadow-premium">
              {activeTab === 'painel' && renderDashboard()}
@@ -3224,6 +3230,14 @@ export default function Admin() {
                </div>
              )}
              {activeTab === 'quiosques' && renderKioskTab()}
+             {activeTab === 'chales' && (
+               <AdminChaleTab 
+                 orders={orders} 
+                 onRefresh={fetchData}
+                 onStatusChange={updateBookingStatus}
+                 onAddNote={addBookingNote}
+               />
+             )}
              {activeTab === 'quads' && renderQuadTab()}
              {activeTab === 'vendas' && renderOrderTab()}
              {activeTab === 'relatorios' && (

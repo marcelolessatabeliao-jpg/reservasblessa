@@ -32,19 +32,19 @@ export function InternalBookingAssistant({
   const [loading, setLoading] = useState(false);
   const [isFetchingAvail, setIsFetchingAvail] = useState(false);
   const [bookedIds, setBookedIds] = useState<number[]>([]);
-  const [maxQuads, setMaxQuads] = useState(3);
+  const [maxQuads, setMaxQuads] = useState(2);
   const [slotAvailabilities, setSlotAvailabilities] = useState<Record<string, number>>({});
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   
   const { toast } = useToast();
   const [generatedPix, setGeneratedPix] = useState<any>(null);
 
-  const QUAD_TIMES = ['09:00', '10:30', '14:00', '15:30'];
+  const QUAD_TIMES = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00'];
 
   // Fetch max quads on mount
   useEffect(() => {
     async function fetchConfig() {
-      const total = await getGlobalSetting('total_quads', 3);
+      const total = await getGlobalSetting('total_quads', 2);
       setMaxQuads(Number(total));
       // Initialize slot availabilities with the fetched max quads
       const initialAvail: Record<string, number> = {};
@@ -244,7 +244,7 @@ export function InternalBookingAssistant({
     const qD = getQuadDiscount(qDate);
     
     // Explicit override for the 20% Monday/Friday discount to avoid any utility ambiguity
-    let finalQuadDiscount = (day === 1 || day === 5) ? 0.2 : qD;
+    let finalQuadDiscount = qD;
     
     if (newBookingData.no_quad_discount) {
       finalQuadDiscount = 0;
@@ -504,7 +504,7 @@ export function InternalBookingAssistant({
                          </div>
                       </div>
                    </div>
-                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-[480px] overflow-y-auto pr-1">
                       {QUAD_TIMES.map(t => {
                          const dbRemaining = slotAvailabilities[t] ?? maxQuads;
                          const localUsed = newBookingData.quads.filter(q => q.time === t).reduce((sum, q) => sum + (q.quantity || 0), 0);
@@ -536,11 +536,11 @@ export function InternalBookingAssistant({
                                  {isFull && <span className="text-[7.5px] font-black text-rose-500 uppercase bg-rose-50 px-1.5 py-0.5 rounded-full border border-rose-100 tracking-wider">Lotado</span>}
                               </div>
                               
-                              <div className="grid grid-cols-3 gap-1">
-                                  {['individual', 'dupla', 'adulto-crianca'].map(type => {
+                              <div className="grid grid-cols-2 gap-1.5">
+                                  {['individual', 'dupla'].map(type => {
                                      const qItem = newBookingData.quads.find(q => q.type === type && q.time === t);
                                      const qty = qItem ? qItem.quantity : 0;
-                                     const labels: any = { individual: 'IND.', dupla: 'DUPLA', 'adulto-crianca': 'ADUL + KIDS' };
+                                     const labels: any = { individual: 'INDIVIDUAL', dupla: 'CASAL / DUPLA' };
                                      
                                      return (
                                         <div key={type} className="flex flex-col gap-1">
@@ -596,7 +596,8 @@ export function InternalBookingAssistant({
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {[
                         { id: 'pesca', label: 'Pesca Esportiva', price: 20, description: 'Acesso ao lago de pesca' },
-                        { id: 'futebol-sabao', label: 'Futebol de Sabão', price: 10, description: '30 min de diversão' }
+                        { id: 'futebol-sabao', label: 'Futebol de Sabão', price: 10, description: '30 min de diversão' },
+                        { id: 'trilha', label: 'Passeio Trilha Ecológica', price: 20, description: 'Trilha guiada pela natureza' }
                       ].map(service => {
                          const item = newBookingData.additionals.find(a => a.type === service.id);
                          const qty = item ? item.quantity : 0;

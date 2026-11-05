@@ -19,30 +19,22 @@ const QUAD_CARDS = [
   {
     type: 'individual' as const,
     icon: User,
-    title: 'Individual',
-    subtitle: '1 pessoa por quadriciclo',
-    fallbackPrice: 150,
+    title: 'Passeio Individual',
+    subtitle: '1 pessoa • 40 min de aventura e emoção',
+    fallbackPrice: 130,
     color: 'emerald',
   },
   {
     type: 'dupla' as const,
     icon: Users,
-    title: 'Dupla',
-    subtitle: '2 pessoas no quadriciclo',
-    fallbackPrice: 250,
+    title: 'Passeio para Casal',
+    subtitle: '2 pessoas • 40 min de aventura e natureza',
+    fallbackPrice: 195,
     color: 'blue',
-  },
-  {
-    type: 'adulto-crianca' as const,
-    icon: Baby,
-    title: 'Adulto + Criança',
-    subtitle: 'Válido para crianças até 11 anos',
-    fallbackPrice: 200,
-    color: 'amber',
   },
 ];
 
-const DEFAULT_MAX_QUADS = 3;
+const DEFAULT_MAX_QUADS = 2;
 
 export function QuadSelector({ quads, onUpdate }: Props) {
   const { getPrice, isLoading } = useServices();
@@ -59,7 +51,7 @@ export function QuadSelector({ quads, onUpdate }: Props) {
   useEffect(() => {
     async function fetchConfig() {
       const total = await getGlobalSetting('total_quads', DEFAULT_MAX_QUADS);
-      setMaxQuads(Number(total));
+      setMaxQuads(Math.min(DEFAULT_MAX_QUADS, Number(total) || DEFAULT_MAX_QUADS));
       const blockedQuads = await getGlobalSetting('disable_quads', false);
       const blockedSlots = await getGlobalSetting('disabled_quad_slots', []);
       setDisableQuads(!!blockedQuads);
@@ -136,19 +128,63 @@ export function QuadSelector({ quads, onUpdate }: Props) {
         <h3 className="font-sans font-bold text-lg sm:text-xl">3. Passeio de Quadriciclo</h3>
       </div>
 
-      {/* Duration info */}
-      <div className="bg-emerald-50/50 border border-emerald-100 p-4 rounded-2xl mb-4 flex flex-col sm:flex-row gap-3 sm:items-center shadow-sm">
-        <div className="bg-white border border-emerald-100 p-2.5 rounded-xl shrink-0 shadow-sm flex items-center justify-center">
-          <Clock className="w-5 h-5 text-emerald-600" />
+      {/* Banner de Retomada Oficial dos Quadriciclos */}
+      <div className="bg-gradient-to-br from-emerald-950 via-[#042817] to-slate-950 border-2 border-amber-400 p-4 sm:p-5 rounded-3xl mb-4 text-white shadow-xl space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-emerald-800/80 pb-3">
+          <div className="flex items-center gap-2.5">
+            <span className="p-2 bg-amber-400 text-slate-950 rounded-xl font-black">
+              <Bike className="w-5 h-5" />
+            </span>
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 block">
+                🔥 RETOMADA OFICIAL DOS PASSEIOS
+              </span>
+              <h4 className="font-sans font-black text-base sm:text-xl text-white">
+                OS PASSEIOS DE QUADRICICLO ESTÃO DE VOLTA!
+              </h4>
+            </div>
+          </div>
+          <span className="self-start sm:self-auto bg-amber-400 text-slate-950 text-[10px] font-black uppercase px-3 py-1 rounded-full shadow-md">
+            💳 Aceitamos Cartão de Crédito
+          </span>
         </div>
-        <div>
-          <h4 className="font-black text-emerald-800 text-sm uppercase tracking-wider mb-0.5">
-            Duração: 1h30 de Aventura Exclusiva
-          </h4>
-          <p className="text-xs sm:text-sm text-emerald-700/80 font-medium leading-relaxed">
-            Desafios com pedras, lama, rio, barrancos, floresta, piscina natural, poças de água, batistério e uma incrível tirolesa!
-          </p>
+
+        <p className="text-xs sm:text-sm text-emerald-100 font-medium leading-relaxed">
+          Venha viver <strong>40 minutos de aventura e natureza</strong> no Balneário Lessa. Escolha seu horário e venha aproveitar a natureza de um jeito diferente!
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-xs">
+          <div className="flex items-center gap-2 bg-emerald-900/60 border border-emerald-700/60 p-2.5 rounded-xl">
+            <Clock className="w-4 h-4 text-amber-400 shrink-0" />
+            <span className="text-white font-bold">
+              Agendamentos das <strong>8h às 16h</strong> (última volta às 16h40)
+            </span>
+          </div>
+          <div className="flex items-center gap-2 bg-emerald-900/60 border border-emerald-700/60 p-2.5 rounded-xl">
+            <Tag className="w-4 h-4 text-amber-400 shrink-0" />
+            <span className="text-amber-300 font-bold">
+              Individual: <strong>R$ 130,00</strong> • Casal: <strong>R$ 195,00</strong>
+            </span>
+          </div>
         </div>
+
+        {/* AVISOS OFICIAIS DE FAIXA ETÁRIA */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-xs">
+          <div className="flex items-center gap-2 bg-amber-400/15 border border-amber-400/30 p-2.5 rounded-xl text-amber-200">
+            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+            <span className="font-bold">
+              Passeio válido apenas para crianças <strong>a partir de 7 anos</strong>
+            </span>
+          </div>
+          <div className="flex items-center gap-2 bg-amber-400/15 border border-amber-400/30 p-2.5 rounded-xl text-amber-200">
+            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+            <span className="font-bold">
+              Para pilotar apenas <strong>a partir de 16 anos</strong>
+            </span>
+          </div>
+        </div>
+
+
       </div>
 
       {/* Slot availability overview */}
@@ -218,9 +254,10 @@ export function QuadSelector({ quads, onUpdate }: Props) {
       )}
 
       {/* Modality Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {QUAD_CARDS.map((card, cardIndex) => {
-          const quad = quads[cardIndex];
+          const quad = quads.find(q => q.type === card.type) || quads[cardIndex];
+          const actualIndex = quads.findIndex(q => q.type === card.type);
           const basePrice = getPrice(`quad_${card.type}`, card.fallbackPrice);
           const discount = getQuadDiscount(quad.date);
           const finalPrice = basePrice * (1 - discount);
@@ -378,7 +415,7 @@ export function QuadSelector({ quads, onUpdate }: Props) {
                         }
                         
                         const newQty = Math.max(1, Math.min(quad.quantity || 1, remaining));
-                        onUpdate(cardIndex, { time: v as QuadTime, quantity: newQty });
+                        onUpdate(actualIndex >= 0 ? actualIndex : cardIndex, { time: v as QuadTime, quantity: newQty });
                       }}
                       disabled={!quad.date || isFetchingAvailability}
                     >
@@ -451,7 +488,7 @@ export function QuadSelector({ quads, onUpdate }: Props) {
                           const totalUsed = getSlotUsage(quad.time, cardIndex);
                           return Math.max(0, maxQuads - totalUsed);
                         })()}
-                        onChange={(q) => onUpdate(cardIndex, { quantity: q })} 
+                        onChange={(q) => onUpdate(actualIndex >= 0 ? actualIndex : cardIndex, { quantity: q })} 
                       />
                     </div>
                   </div>
@@ -477,8 +514,8 @@ export function QuadSelector({ quads, onUpdate }: Props) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 text-xs sm:text-sm space-y-1">
           <p className="font-medium text-primary">🏷️ Descontos:</p>
-          <p className="text-muted-foreground">• Sextas: <strong>20% de desconto</strong></p>
-          <p className="text-muted-foreground">• Sábado e Domingo: <strong>10% de desconto</strong></p>
+          <p className="text-muted-foreground">• Todas as reservas online com <strong>10% de desconto</strong></p>
+
         </div>
 
         <div className="bg-destructive/5 border border-destructive/20 rounded-lg p-3 text-[10px] sm:text-xs flex flex-col justify-center">

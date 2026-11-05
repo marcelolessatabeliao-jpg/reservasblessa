@@ -27,7 +27,7 @@ import {
   Briefcase,
   Gift
 } from 'lucide-react';
-import { BookingState, formatCurrency, isOperatingDay, ChildInfo, AdultInfo } from '@/lib/booking-types';
+import { BookingState, formatCurrency, isOperatingDay, isSundayOrHoliday, isHolidayDate, ChildInfo, AdultInfo } from '@/lib/booking-types';
 import { useServices } from '@/hooks/useServices';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
@@ -71,6 +71,7 @@ interface Props {
   onRemoveChild: (index: number) => void;
   onUpdateChild: (index: number, updates: Partial<ChildInfo>) => void;
   hideMainInfo?: boolean;
+  onlyMainInfo?: boolean;
   hideTitle?: boolean;
   blockedDates?: string[];
 }
@@ -78,7 +79,7 @@ interface Props {
 type WizardType = 'adult' | 'child' | 'senior' | 'pcd' | null;
 type WizardStep = 1 | 2 | 3 | 4;
 
-export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChild, onUpdateAdult, onUpdateChild, hideMainInfo, hideTitle, blockedDates = [] }: Props) {
+export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChild, onUpdateAdult, onUpdateChild, hideMainInfo, onlyMainInfo, hideTitle, blockedDates = [] }: Props) {
   const { toast } = useToast();
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
@@ -98,6 +99,15 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
   };
 
   const handleStartWizard = (type: WizardType) => {
+    if (!entry.visitDate) {
+      toast({
+        title: "Selecione a data primeiro",
+        description: "É obrigatório escolher a data da visita antes de adicionar pessoas.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     resetWizard();
     setWizardType(type);
 
@@ -126,7 +136,9 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
   const handleFinishWizard = (categoryOverride?: string, takeDonationOverride?: boolean) => {
     const { age, isPCD } = wizardData;
     const category = categoryOverride ?? wizardData.category;
-    const takeDonation = takeDonationOverride ?? wizardData.takeDonation;
+    const isNoSolidarioDay = entry.dayOfWeek === 'domingo' || isSundayOrHoliday(entry.visitDate);
+    // Se for domingo ou feriado, entrada solidária NÃO é permitida
+    const takeDonation = isNoSolidarioDay ? false : (takeDonationOverride ?? wizardData.takeDonation);
     const flags: any = {
       age: age || (wizardType === 'child' ? 5 : 30),
       quantity: 1,
@@ -297,15 +309,15 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
           return holidays.includes(format(date, 'yyyy-MM-dd'));
         };
 
-        const isSundayOrHoliday = entry.visitDate ? (entry.visitDate.getDay() === 0 || isHoliday(entry.visitDate)) : false;
+        const isBlockedForSolidario = entry.visitDate ? isSundayOrHoliday(entry.visitDate) : false;
 
         const categories = [
           { id: 'inteira', label: 'Inteira', sublabel: 'Acesso Normal', price: entryFullStr, emoji: '🎟️', bg: 'bg-emerald-50', border: 'border-emerald-100', selectedBg: 'bg-emerald-100', selectedBorder: 'border-emerald-500', priceColor: 'text-emerald-700', labelColor: 'text-emerald-900' },
-          { id: 'solidaria', label: 'Solidária', sublabel: 'Leve 1kg de alimento ou outros donativos', price: entryHalfStr, emoji: '❤️', bg: 'bg-sun/10', border: 'border-sun/20', selectedBg: 'bg-sun/20', selectedBorder: 'border-sun-dark', priceColor: 'text-sun-dark', labelColor: 'text-sun-dark' },
-          { id: 'professor', label: 'Professor', sublabel: 'Lessa Professor Pass', price: entryHalfStr, emoji: '📚', bg: 'bg-blue-50', border: 'border-blue-100', selectedBg: 'bg-blue-100', selectedBorder: 'border-blue-500', priceColor: 'text-blue-700', labelColor: 'text-blue-900' },
-          { id: 'estudante', label: 'Estudante', sublabel: 'Lessa Estudante Pass', price: entryHalfStr, emoji: '🎓', bg: 'bg-violet-50', border: 'border-violet-100', selectedBg: 'bg-violet-100', selectedBorder: 'border-violet-500', priceColor: 'text-violet-700', labelColor: 'text-violet-900' },
-          { id: 'servidor', label: 'Servidor Público', sublabel: 'Lessa Servidor Pass', price: entryHalfStr, emoji: '🏛️', bg: 'bg-indigo-50', border: 'border-indigo-100', selectedBg: 'bg-indigo-100', selectedBorder: 'border-indigo-500', priceColor: 'text-indigo-700', labelColor: 'text-indigo-900' },
-          { id: 'aniversariante', label: 'Aniversariante', sublabel: 'Do dia · com comprovação', price: 'GRÁTIS', emoji: '🎂', bg: 'bg-amber-50', border: 'border-amber-100', selectedBg: 'bg-amber-100', selectedBorder: 'border-amber-500', priceColor: 'text-amber-700', labelColor: 'text-amber-900' },
+          { id: 'solidaria', label: 'Solidária', sublabel: isBlockedForSolidario ? 'Indisponível em domingos e feriados' : 'Leve 1kg de donativo', price: entryHalfStr, emoji: '❤️', bg: 'bg-sun/10', border: 'border-sun/20', selectedBg: 'bg-sun/20', selectedBorder: 'border-sun-dark', priceColor: 'text-sun-dark', labelColor: 'text-sun-dark' },
+          { id: 'professor', label: 'Professor', sublabel: '', price: entryHalfStr, emoji: '📚', bg: 'bg-blue-50', border: 'border-blue-100', selectedBg: 'bg-blue-100', selectedBorder: 'border-blue-500', priceColor: 'text-blue-700', labelColor: 'text-blue-900' },
+          { id: 'estudante', label: 'Estudante', sublabel: '', price: entryHalfStr, emoji: '🎓', bg: 'bg-violet-50', border: 'border-violet-100', selectedBg: 'bg-violet-100', selectedBorder: 'border-violet-500', priceColor: 'text-violet-700', labelColor: 'text-violet-900' },
+          { id: 'servidor', label: 'Servidor Público', sublabel: '', price: entryHalfStr, emoji: '🏛️', bg: 'bg-indigo-50', border: 'border-indigo-100', selectedBg: 'bg-indigo-100', selectedBorder: 'border-indigo-500', priceColor: 'text-indigo-700', labelColor: 'text-indigo-900' },
+          { id: 'aniversariante', label: 'Aniversariante', sublabel: 'Do dia com comprovação', price: 'GRÁTIS', emoji: '🎂', bg: 'bg-amber-50', border: 'border-amber-100', selectedBg: 'bg-amber-100', selectedBorder: 'border-amber-500', priceColor: 'text-amber-700', labelColor: 'text-amber-900' },
         ];
 
         return (
@@ -313,25 +325,25 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
             <div className="grid grid-cols-2 gap-2 px-1">
               <button 
                 className={cn(
-                  "h-auto py-2.5 px-2 flex items-center justify-center rounded-xl border-2 transition-all duration-300 active:scale-[0.98] relative overflow-hidden bg-gold-metallic",
+                  "py-2 px-2 flex items-center justify-center rounded-xl border-2 transition-all duration-200 active:scale-[0.98] relative overflow-hidden bg-gold-metallic",
                   (wizardData.category === 'assinante' || wizardData.category === 'associado')
                     ? "border-[#8a6d3b] text-[#332200] shadow-[0_12px_30px_rgba(184,134,11,0.5)] scale-[1.01]" 
-                    : "border-[#bf953f]/50 text-[#332200] shadow-md hover:border-[#bf953f] hover:shadow-lg"
+                    : "border-[#bf953f]/50 text-[#332200] shadow-sm hover:border-[#bf953f]"
                 )}
                 onClick={() => {
                    setWizardData({ ...wizardData, category: 'associado' });
                    handleFinishWizard('associado', false);
                 }}
               >
-                <div className="flex flex-col items-center gap-1.5 relative z-10 text-center">
+                <div className="flex items-center gap-1.5 relative z-10 text-center">
                   <motion.span 
                     animate={{ rotate: [0, 8, -8, 0] }}
                     transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
-                    className="text-xl filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.3)]"
+                    className="text-base filter drop-shadow-[0_2px_4px_rgba(0,0,0,0.2)]"
                   >
                     👑
                   </motion.span>
-                  <span className="font-black text-[10px] sm:text-xs uppercase tracking-tight leading-tight">
+                  <span className="font-black text-[11px] uppercase tracking-tight leading-tight">
                     Já sou Associado
                   </span>
                 </div>
@@ -339,41 +351,48 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
 
               <button 
                 className={cn(
-                  "h-auto py-2.5 px-2 flex items-center justify-center rounded-xl border-2 transition-all duration-300 active:scale-[0.98] relative overflow-hidden",
+                  "py-2 px-2 flex items-center justify-center rounded-xl border-2 transition-all duration-200 active:scale-[0.98] relative overflow-hidden",
                   wizardData.category === 'balcao'
-                    ? "bg-emerald-600 border-emerald-700 text-white shadow-lg scale-[1.01]" 
-                    : "bg-white border-slate-200 text-slate-600 hover:border-emerald-300 hover:bg-emerald-50/50 shadow-sm"
+                    ? "bg-emerald-600 border-emerald-700 text-white shadow-md scale-[1.01]" 
+                    : "bg-white border-slate-200 text-slate-700 hover:border-emerald-300 hover:bg-emerald-50/50 shadow-xs"
                 )}
                 onClick={() => {
                    setWizardData({ ...wizardData, category: 'balcao' });
                    setWizardStep(8);
                 }}
               >
-                <div className="flex flex-col items-center gap-1.5 relative z-10 text-center">
-                  <span className="text-xl">💵</span>
-                  <span className="font-black text-[10px] sm:text-xs uppercase tracking-tight leading-tight">
-                    Pagar no Balcão
+                <div className="flex flex-col items-center gap-0.5 relative z-10 text-center">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-base">💵</span>
+                    <span className="font-black text-[11px] uppercase tracking-tight leading-tight">
+                      Pagar no Balcão
+                    </span>
+                  </div>
+                  <span className={cn(
+                    "text-[8px] font-bold uppercase tracking-tight",
+                    wizardData.category === 'balcao' ? "text-emerald-100" : "text-amber-800"
+                  )}>
+                    Sem desconto online
                   </span>
                 </div>
               </button>
             </div>
 
             <div className="grid grid-cols-2 gap-2 px-1">
-
               {categories.map((cat) => {
                 const isSelected = wizardData.category === cat.id;
-                const isSundayBlocked = isSundayOrHoliday && cat.id === 'solidaria';
+                const isSundayBlocked = isBlockedForSolidario && cat.id === 'solidaria';
                 return (
                   <button
                     key={cat.id}
                     disabled={isSundayBlocked}
                     className={cn(
-                      "h-auto flex flex-col items-center justify-center py-2 px-1 gap-1 rounded-xl border-2 transition-all text-center select-none relative overflow-hidden active:scale-[0.98]",
+                      "flex flex-col items-center justify-center py-1.5 px-1.5 rounded-xl border-2 transition-all text-center select-none relative overflow-hidden active:scale-[0.98]",
                       isSundayBlocked 
                         ? "opacity-50 grayscale cursor-not-allowed bg-slate-50 border-slate-100" 
                         : (isSelected 
                             ? `${cat.selectedBg} ${cat.selectedBorder} shadow-md scale-[1.02]` 
-                            : `${cat.bg} ${cat.border} hover:border-primary/20 hover:scale-[1.01] shadow-sm`)
+                            : `${cat.bg} ${cat.border} hover:border-primary/20 hover:scale-[1.01] shadow-xs`)
                     )}
                     onClick={() => {
                       setWizardData({ ...wizardData, category: cat.id });
@@ -390,12 +409,14 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                     {isSundayBlocked && (
                       <span className="absolute top-0 left-0 w-full text-[8px] bg-orange-500 text-white font-black py-0.5 uppercase">Indisponível</span>
                     )}
-                    <span className="text-xl sm:text-2xl leading-none">{cat.emoji}</span>
-                    <div className="flex flex-col items-center">
-                      <span className={cn("text-[11px] sm:text-xs font-black leading-tight", cat.labelColor)}>{cat.label}</span>
-                      <span className="text-[9px] sm:text-[10px] font-bold text-muted-foreground leading-tight hidden sm:block whitespace-normal px-1 sm:px-2 line-clamp-2">{cat.sublabel}</span>
+                    <span className="text-lg leading-none">{cat.emoji}</span>
+                    <div className="flex flex-col items-center mt-0.5">
+                      <span className={cn("text-[11px] font-black leading-tight", cat.labelColor)}>{cat.label}</span>
+                      {cat.sublabel ? (
+                        <span className="text-[9px] font-bold text-muted-foreground leading-tight hidden sm:block whitespace-normal px-1 line-clamp-1">{cat.sublabel}</span>
+                      ) : null}
                     </div>
-                    <span className={cn("mt-0.5 text-[9px] sm:text-[10px] px-2 py-0.5 rounded-full font-black", cat.priceColor, "bg-white/90 shadow-sm")}>
+                    <span className={cn("mt-1 text-[10px] px-2 py-0.5 rounded-full font-black", cat.priceColor, "bg-white/95 shadow-xs")}>
                       {cat.price === 'GRÁTIS' ? cat.price : (cat.price.startsWith('R$') ? cat.price : `R$ ${cat.price}`)}
                     </span>
                   </button>
@@ -409,7 +430,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                   setIsWizardOpen(false);
                   resetWizard();
                 }}
-                className="text-slate-800 font-black uppercase tracking-[0.2em] text-[10px] h-8 hover:bg-slate-100 hover:text-primary transition-all flex items-center gap-2 px-4 rounded-full"
+                className="text-slate-800 font-black uppercase tracking-[0.2em] text-[10px] h-7 hover:bg-slate-100 hover:text-primary transition-all flex items-center gap-2 px-3 rounded-full"
               >
                 ← Voltar
               </Button>
@@ -733,111 +754,206 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
 
         {/* Nome & Telefone Row */}
         {!hideMainInfo && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-white p-6 rounded-[2rem] border-2 border-emerald-500/20 shadow-xl">
-            <div>
-              <div className="inline-flex items-center gap-2 bg-emerald-100 text-emerald-800 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-300 shadow-sm mb-3">
-                <User className="h-3 w-3 text-emerald-600" /> Nome Completo
+          <div className="bg-white text-slate-900 p-5 sm:p-7 rounded-[2rem] border-2 border-emerald-100 shadow-md space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 bg-emerald-100 text-emerald-800 rounded-lg">
+                  <User className="h-4 w-4" />
+                </span>
+                <span className="text-xs font-black uppercase tracking-wider text-emerald-950">
+                  Dados do Titular da Reserva
+                </span>
               </div>
-              <Input
-                placeholder="Ex: João Silva"
-                value={entry.name}
-                onChange={(e) => onUpdateEntry({ name: e.target.value })}
-                className="bg-white/90 backdrop-blur-sm border-primary/20 h-11 rounded-xl focus-visible:ring-primary/50 shadow-sm transition-all text-foreground font-medium"
-                maxLength={200}
-              />
+              <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                Campos Obrigatórios *
+              </span>
             </div>
-            <div>
-              <div className="inline-flex items-center gap-2 bg-emerald-100 text-emerald-800 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-300 shadow-sm mb-3">
-                <Phone className="h-3 w-3 text-emerald-600" /> WhatsApp
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-black uppercase text-emerald-950 tracking-tight flex items-center gap-1.5">
+                  <span>👤</span> Nome Completo *
+                </label>
+                <Input
+                  placeholder="Ex: João da Silva"
+                  value={entry.name}
+                  onChange={(e) => onUpdateEntry({ name: e.target.value })}
+                  className="bg-slate-50 border-2 border-slate-200 hover:border-emerald-400 focus-visible:border-emerald-600 focus-visible:ring-emerald-600 h-12 rounded-xl text-xs sm:text-sm font-bold text-slate-800 shadow-xs transition-all"
+                  maxLength={200}
+                />
               </div>
-              <Input
-                placeholder="(00) 00000-0000"
-                value={formatPhone(entry.phone || '')}
-                onChange={(e) => {
-                  const val = e.target.value.replace(/\D/g, '').slice(0, 11);
-                  onUpdateEntry({ phone: val });
-                }}
-                className="bg-white/90 backdrop-blur-sm border-primary/20 h-11 rounded-xl focus-visible:ring-primary/50 shadow-sm transition-all text-foreground font-medium"
-                maxLength={15}
-                type="tel"
-              />
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-black uppercase text-emerald-950 tracking-tight flex items-center gap-1.5">
+                  <span>📱</span> WhatsApp com DDD *
+                </label>
+                <Input
+                  placeholder="(00) 00000-0000"
+                  value={formatPhone(entry.phone || '')}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '').slice(0, 11);
+                    onUpdateEntry({ phone: val });
+                  }}
+                  className="bg-slate-50 border-2 border-slate-200 hover:border-emerald-400 focus-visible:border-emerald-600 focus-visible:ring-emerald-600 h-12 rounded-xl text-xs sm:text-sm font-bold text-slate-800 shadow-xs transition-all"
+                  maxLength={15}
+                  type="tel"
+                />
+              </div>
             </div>
           </div>
         )}
 
         {/* 1. Escolha a Data Row */}
         {!hideMainInfo && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-white p-6 rounded-[2rem] border-2 border-emerald-500/20 shadow-xl">
-            <div className="space-y-1">
-              <div className="inline-flex items-center gap-2 bg-emerald-100 text-emerald-800 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-300 shadow-sm mb-3">
-                <CalendarIcon className="h-3 w-3 text-emerald-600" /> Escolha a Data da Reserva
+          <div className="bg-white text-slate-900 p-5 sm:p-7 rounded-[2rem] border-2 border-emerald-100 shadow-md space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 bg-amber-100 text-amber-800 rounded-lg">
+                  <CalendarIcon className="h-4 w-4" />
+                </span>
+                <span className="text-xs font-black uppercase tracking-wider text-emerald-950">
+                  Data da Visita no Balneário
+                </span>
               </div>
-
-              <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen} modal={true}>
-                <PopoverTrigger asChild>
-                  {entry.visitDate ? (
-                    <Button
-                      variant="outline"
-                      className="w-full h-11 justify-between px-4 font-sans font-bold text-xs rounded-xl border-emerald-500/30 bg-emerald-100/50 text-emerald-900 shadow-sm hover:bg-emerald-200/80 hover:text-emerald-950 transition-all uppercase tracking-tight"
-                    >
-                      <div className="flex items-center gap-2">
-                        <CalendarIcon className="h-4 w-4 text-emerald-600" />
-                        <span>{format(entry.visitDate, "dd/MM/yyyy", { locale: ptBR })}</span>
-                      </div>
-                      <span className="text-[10px] opacity-60 underline">Mudar</span>
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      className="w-full h-11 justify-start px-4 font-sans font-bold text-xs rounded-xl border-primary/20 bg-white text-muted-foreground shadow-sm hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 transition-all uppercase tracking-tight group"
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4 shrink-0 text-primary group-hover:scale-110 transition-transform" />
-                      Clique para escolher a data...
-                    </Button>
-                  )}
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 rounded-3xl border-primary/10 shadow-2xl" align="start">
-                  <CalendarUI
-                    mode="single"
-                    selected={entry.visitDate || undefined}
-                    onSelect={(d) => {
-                      if (d) {
-                        const dayMap: Record<number, any> = { 0: 'domingo', 1: 'segunda', 5: 'sexta', 6: 'sabado' };
-                        const dayOfWeek = dayMap[d.getDay()] || 'sexta';
-                        onUpdateEntry({ visitDate: d, dayOfWeek });
-                      }
-                      setTimeout(() => setIsCalendarOpen(false), 50);
-                    }}
-                    disabled={(d) => {
-                      const today = new Date();
-                      today.setHours(0, 0, 0, 0);
-                      return d < today || !isOperatingDay(d);
-                    }}
-                    className="p-3 pointer-events-auto"
-                    locale={ptBR}
-                    classNames={{
-                      day_today: "bg-primary/10 text-primary font-bold",
-                      day_selected: "bg-primary text-white font-bold hover:bg-primary hover:text-white",
-                    }}
-                  />
-                </PopoverContent>
-              </Popover>
+              <span className="text-[10px] text-amber-800 font-bold bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200">
+                Sex, Sáb, Dom e Feriados
+              </span>
             </div>
 
-            <div className="space-y-1">
-              <Button
-                variant="outline"
-                disabled={!entry.visitDate}
-                onClick={handleOpenAvailability}
-                className={cn(
-                  "w-full min-h-10 h-auto py-2 px-3 rounded-xl border-2 font-black text-[10px] uppercase tracking-widest transition-all whitespace-normal leading-tight text-center",
-                  entry.visitDate 
-                    ? "border-primary/30 text-primary hover:bg-primary hover:text-white shadow-sm" 
-                    : "border-slate-100 text-emerald-800 font-bold bg-emerald-50/40"
-                )}
-              >
-                {entry.visitDate ? "Consultar Quiosques Disponíveis (Apenas Visualização)" : "Selecione uma data primeiro"}
-              </Button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+              <div className="space-y-1">
+                <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen} modal={false}>
+                  <PopoverTrigger asChild>
+                    {entry.visitDate ? (
+                      <Button
+                        variant="outline"
+                        className="w-full h-12 justify-between px-4 font-sans font-black text-xs sm:text-sm rounded-xl border-2 border-amber-400 bg-emerald-950 text-white shadow-md hover:bg-emerald-900 hover:text-white transition-all uppercase tracking-tight group"
+                      >
+                        <div className="flex items-center gap-2">
+                          <CalendarIcon className="h-4 w-4 text-amber-400 group-hover:scale-110 transition-transform" />
+                          <span>{format(entry.visitDate, "dd/MM/yyyy (EEEE)", { locale: ptBR })}</span>
+                        </div>
+                        <Badge className="bg-amber-400 text-slate-950 text-[9px] font-black uppercase tracking-wider px-2 py-0.5">
+                          Mudar
+                        </Badge>
+                      </Button>
+                    ) : (
+                      <Button
+                        type="button"
+                        className="w-full h-12 justify-start px-4 font-sans font-black text-xs sm:text-sm rounded-xl border-2 border-emerald-500/80 bg-emerald-50 text-emerald-950 shadow-sm hover:border-amber-400 hover:bg-emerald-100 hover:text-emerald-950 transition-all uppercase tracking-tight group"
+                        style={{ color: '#022c22' }}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4 shrink-0 text-amber-600 animate-pulse group-hover:scale-110 transition-transform" />
+                        <span className="font-black tracking-tight" style={{ color: '#022c22' }}>
+                          Clique para escolher a data...
+                        </span>
+                      </Button>
+                    )}
+                  </PopoverTrigger>
+
+                  <PopoverContent className="w-[310px] sm:w-[330px] max-w-[calc(100vw-32px)] p-0 rounded-3xl border-2 border-amber-400 bg-white shadow-2xl overflow-hidden" align="start">
+                    {/* Header do Calendário */}
+                    <div className="bg-gradient-to-br from-emerald-950 via-[#042817] to-slate-950 text-white p-3 sm:p-3.5 border-b border-amber-400/50">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="p-1.5 bg-amber-400 text-slate-950 rounded-lg">
+                            <CalendarIcon className="w-4 h-4" />
+                          </span>
+                          <div>
+                            <h5 className="font-sans font-black text-xs sm:text-sm text-white uppercase tracking-tight">
+                              Calendário de Reservas
+                            </h5>
+                            <p className="text-[10px] text-emerald-200">
+                              Balneário Família Lessa
+                            </p>
+                          </div>
+                        </div>
+                        <Badge className="bg-amber-400 text-slate-950 font-black text-[9px] uppercase px-2 py-0.5 shadow-sm">
+                          10% OFF
+                        </Badge>
+                      </div>
+                    </div>
+
+                    {/* Componente Calendário */}
+                    <div className="p-1 sm:p-2 bg-white text-slate-900 flex justify-center">
+                      <CalendarUI
+                        mode="single"
+                        selected={entry.visitDate || undefined}
+                        onSelect={(d) => {
+                          if (d) {
+                            const dayMap: Record<number, any> = { 0: 'domingo', 1: 'segunda', 5: 'sexta', 6: 'sabado' };
+                            const dayOfWeek = dayMap[d.getDay()] || 'sexta';
+                            const isBlockedForSolidario = dayOfWeek === 'domingo' || isSundayOrHoliday(d);
+                            
+                            // Se o novo dia for domingo OU feriado, qualquer entrada solidária é convertida para inteira
+                            let updatedAdults = entry.adults;
+                            let updatedChildren = entry.children;
+                            if (isBlockedForSolidario) {
+                              const hadSolidario = entry.adults.some(a => a.takeDonation) || entry.children.some(c => c.takeDonation);
+                              updatedAdults = entry.adults.map(a => a.takeDonation ? { ...a, takeDonation: false } : a);
+                              updatedChildren = entry.children.map(c => c.takeDonation ? { ...c, takeDonation: false } : c);
+                              if (hadSolidario) {
+                                const isHoliday = isHolidayDate(d);
+                                toast({
+                                  title: isHoliday ? "Feriado Selecionado" : "Regra de Domingo Aplicada",
+                                  description: isHoliday 
+                                    ? "Em feriados não há modalidade Solidária (apenas Inteira R$ 50 ou meia legal). Seus ingressos foram ajustados automaticamente."
+                                    : "Aos domingos não há modalidade Solidária (apenas Inteira R$ 50 ou meia legal). Seus ingressos foram ajustados automaticamente.",
+                                  className: "bg-amber-600 border-amber-700 text-white font-bold"
+                                });
+                              }
+                            }
+
+                            onUpdateEntry({ 
+                              visitDate: d, 
+                              dayOfWeek,
+                              adults: updatedAdults,
+                              children: updatedChildren
+                            });
+                          }
+                          setTimeout(() => setIsCalendarOpen(false), 50);
+                        }}
+                        disabled={(d) => {
+                          const today = new Date();
+                          today.setHours(0, 0, 0, 0);
+                          return d < today || !isOperatingDay(d);
+                        }}
+                        className="p-1 pointer-events-auto"
+                        locale={ptBR}
+                      />
+                    </div>
+
+                    {/* Legenda Informativa no Rodapé do Calendário */}
+                    <div className="bg-emerald-950 text-white p-2.5 sm:p-3 border-t border-emerald-800/80 space-y-1 text-[10px] font-bold">
+                      <div className="flex items-start gap-1.5 text-emerald-300">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0 mt-0.5" />
+                        <span className="leading-tight">Sex e Sáb: Meia Solidária (R$ 25) c/ donativo</span>
+                      </div>
+                      <div className="flex items-start gap-1.5 text-amber-300">
+                        <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0 mt-0.5" />
+                        <span className="leading-tight">Dom e Feriados: Inteira R$ 50 / Meia Legal</span>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div className="space-y-1">
+                <Button
+                  variant="outline"
+                  disabled={!entry.visitDate}
+                  onClick={handleOpenAvailability}
+                  className={cn(
+                    "w-full h-12 px-3 rounded-xl border-2 font-black text-[10px] uppercase tracking-wider transition-all whitespace-normal leading-tight text-center shadow-xs",
+                    entry.visitDate 
+                      ? "border-emerald-600 bg-emerald-700 hover:bg-emerald-800 text-white hover:border-amber-400" 
+                      : "border-slate-200 text-slate-400 bg-slate-50 cursor-not-allowed"
+                  )}
+                >
+                  <Home className="w-4 h-4 mr-1.5 shrink-0" />
+                  {entry.visitDate ? "Consultar Mapa de Quiosques (Visualização)" : "Selecione uma data primeiro"}
+                </Button>
+              </div>
             </div>
 
             <Dialog open={isAvailabilityOpen} onOpenChange={setIsAvailabilityOpen}>
@@ -1027,6 +1143,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
           </div>
         )}
 
+        {!onlyMainInfo && (
         <div className="space-y-6 pt-2">
           <div className="flex flex-col gap-4">
             <div id="adicionar-pessoas-secao" className="flex items-center justify-between border-b-2 border-emerald-200/60 pb-4">
@@ -1040,39 +1157,94 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
               </div>
             </div>
 
-            <div className="flex flex-col gap-3">
-              <div className="grid grid-cols-2 gap-3">
-                <Button
-                  onClick={() => handleStartWizard('adult')}
-                  className="w-full h-16 rounded-[1.25rem] bg-gradient-to-br from-[#006020] to-[#004d1a] border-b-4 border-[#003d14] text-white hover:brightness-110 font-black text-sm shadow-xl transition-all active:translate-y-1 active:border-b-0 flex flex-col items-center justify-center gap-0.5 px-1 group"
-                >
-                  <span className="text-xl group-hover:scale-125 transition-transform">🎟️</span>
-                  <span className="uppercase tracking-wider">Adulto</span>
-                </Button>
-                <Button
-                  onClick={() => handleStartWizard('child')}
-                  className="w-full h-16 rounded-[1.25rem] bg-gradient-to-br from-[#007030] to-[#005020] border-b-4 border-[#004018] text-white hover:brightness-110 font-black text-sm shadow-xl transition-all active:translate-y-1 active:border-b-0 flex flex-col items-center justify-center gap-0.5 px-1 group"
-                >
-                  <span className="text-xl group-hover:scale-125 transition-transform">👶</span>
-                  <span className="uppercase tracking-wider">Criança</span>
-                </Button>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <Button
-                  onClick={() => handleStartWizard('senior')}
-                  className="w-full h-16 rounded-[1.25rem] bg-gradient-to-br from-[#005020] to-[#004018] border-b-4 border-[#002d12] text-white hover:brightness-110 font-black text-sm shadow-xl transition-all active:translate-y-1 active:border-b-0 flex flex-col items-center justify-center gap-0.5 px-1 group"
-                >
-                  <span className="text-xl group-hover:scale-125 transition-transform">🧓</span>
-                  <span className="uppercase tracking-wider whitespace-nowrap">Idoso (60+)</span>
-                </Button>
-                <Button
-                  onClick={() => handleStartWizard('pcd')}
-                  className="w-full h-16 rounded-[1.25rem] bg-gradient-to-br from-[#005020] to-[#004018] border-b-4 border-[#002d12] text-white hover:brightness-110 font-black text-sm shadow-xl transition-all active:translate-y-1 active:border-b-0 flex flex-col items-center justify-center gap-0.5 px-1 group"
-                >
-                  <span className="text-xl group-hover:scale-125 transition-transform">♿</span>
-                  <span className="uppercase tracking-wider">PCD & TEA</span>
-                </Button>
-              </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              {/* ADULTO */}
+              <button
+                type="button"
+                onClick={() => handleStartWizard('adult')}
+                className="group relative rounded-2xl bg-gradient-to-br from-emerald-950 via-[#042817] to-slate-950 text-white p-4 sm:p-5 border-2 border-emerald-600/70 hover:border-amber-400 transition-all duration-200 flex items-center justify-between shadow-lg text-left hover:scale-[1.01] active:scale-[0.98]"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="text-2xl sm:text-3xl p-2 bg-emerald-900/60 rounded-xl border border-emerald-700/60 group-hover:scale-110 transition-transform shrink-0">🎟️</span>
+                  <div className="min-w-0">
+                    <span className="font-sans font-black text-sm sm:text-base text-white block uppercase tracking-tight truncate">
+                      Adulto (12 a 59 anos)
+                    </span>
+                    <span className="text-[10px] sm:text-[11px] text-emerald-200/80 font-medium block truncate">
+                      Inteira, Solidária ou Meia Legal
+                    </span>
+                  </div>
+                </div>
+                <Badge className="bg-amber-400 text-slate-950 text-[10px] font-black uppercase px-2.5 py-1 shadow-sm shrink-0 ml-2">
+                  A partir R$ 25
+                </Badge>
+              </button>
+
+              {/* CRIANÇA */}
+              <button
+                type="button"
+                onClick={() => handleStartWizard('child')}
+                className="group relative rounded-2xl bg-gradient-to-br from-emerald-950 via-[#042817] to-slate-950 text-white p-4 sm:p-5 border-2 border-emerald-600/70 hover:border-amber-400 transition-all duration-200 flex items-center justify-between shadow-lg text-left hover:scale-[1.01] active:scale-[0.98]"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="text-2xl sm:text-3xl p-2 bg-emerald-900/60 rounded-xl border border-emerald-700/60 group-hover:scale-110 transition-transform shrink-0">👶</span>
+                  <div className="min-w-0">
+                    <span className="font-sans font-black text-sm sm:text-base text-white block uppercase tracking-tight truncate">
+                      Criança (0 a 11 anos)
+                    </span>
+                    <span className="text-[10px] sm:text-[11px] text-emerald-200/80 font-medium block truncate">
+                      Entrada gratuita comprovada
+                    </span>
+                  </div>
+                </div>
+                <Badge className="bg-emerald-400 text-slate-950 text-[10px] font-black uppercase px-2.5 py-1 shadow-sm shrink-0 ml-2">
+                  100% Grátis
+                </Badge>
+              </button>
+
+              {/* IDOSO */}
+              <button
+                type="button"
+                onClick={() => handleStartWizard('senior')}
+                className="group relative rounded-2xl bg-gradient-to-br from-emerald-950 via-[#042817] to-slate-950 text-white p-4 sm:p-5 border-2 border-emerald-600/70 hover:border-amber-400 transition-all duration-200 flex items-center justify-between shadow-lg text-left hover:scale-[1.01] active:scale-[0.98]"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="text-2xl sm:text-3xl p-2 bg-emerald-900/60 rounded-xl border border-emerald-700/60 group-hover:scale-110 transition-transform shrink-0">🧓</span>
+                  <div className="min-w-0">
+                    <span className="font-sans font-black text-sm sm:text-base text-white block uppercase tracking-tight truncate">
+                      Melhor Idade (60+ anos)
+                    </span>
+                    <span className="text-[10px] sm:text-[11px] text-emerald-200/80 font-medium block truncate">
+                      Lessa Vitalício com RG
+                    </span>
+                  </div>
+                </div>
+                <Badge className="bg-emerald-400 text-slate-950 text-[10px] font-black uppercase px-2.5 py-1 shadow-sm shrink-0 ml-2">
+                  100% Grátis
+                </Badge>
+              </button>
+
+              {/* PCD & TEA */}
+              <button
+                type="button"
+                onClick={() => handleStartWizard('pcd')}
+                className="group relative rounded-2xl bg-gradient-to-br from-emerald-950 via-[#042817] to-slate-950 text-white p-4 sm:p-5 border-2 border-emerald-600/70 hover:border-amber-400 transition-all duration-200 flex items-center justify-between shadow-lg text-left hover:scale-[1.01] active:scale-[0.98]"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="text-2xl sm:text-3xl p-2 bg-emerald-900/60 rounded-xl border border-emerald-700/60 group-hover:scale-110 transition-transform shrink-0">♿</span>
+                  <div className="min-w-0">
+                    <span className="font-sans font-black text-sm sm:text-base text-white block uppercase tracking-tight truncate">
+                      Inclusão PCD & TEA
+                    </span>
+                    <span className="text-[10px] sm:text-[11px] text-emerald-200/80 font-medium block truncate">
+                      Acesso livre mediante laudo
+                    </span>
+                  </div>
+                </div>
+                <Badge className="bg-emerald-400 text-slate-950 text-[10px] font-black uppercase px-2.5 py-1 shadow-sm shrink-0 ml-2">
+                  100% Grátis
+                </Badge>
+              </button>
             </div>
 
           </div>
@@ -1215,6 +1387,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
             )}
           </div>
         </div>
+        )}
 
         {/* Info Box */}
         <div className="bg-emerald-50 border border-emerald-100 rounded-[2rem] p-4 flex items-start gap-3 shadow-sm shadow-emerald-500/5">
@@ -1242,10 +1415,10 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
               </DialogTitle>
             </div>
             {wizardType === 'adult' && wizardStep === 3 && (
-              <div className="mx-1 mt-1 mb-0 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 flex items-start gap-2">
-                <span className="text-base shrink-0 mt-0.5">💡</span>
-                <p className="text-[11px] text-blue-800 font-semibold leading-relaxed">
-                  <span className="font-black">Vai com mais pessoas?</span> Adicione as entradas online para garantir o desconto de 10% pelo site (válido tanto para Inteira R$ 50 quanto Solidária/Meia R$ 25), ou escolha <span className="font-black">Pagar no Balcão</span> (sem desconto — será cobrado o valor normal na bilheteria).
+              <div className="mx-1 mt-1 mb-0 bg-blue-50/90 border border-blue-200/80 rounded-xl px-2.5 py-1.5 flex items-center justify-center gap-1.5 text-center shadow-xs">
+                <span className="text-xs shrink-0">💡</span>
+                <p className="text-[10px] text-blue-900 font-bold leading-tight">
+                  <span className="font-black text-blue-950">10% OFF no site</span> em todas as entradas. <span className="font-black text-amber-900">Pagar no Balcão não tem desconto</span>.
                 </p>
               </div>
             )}

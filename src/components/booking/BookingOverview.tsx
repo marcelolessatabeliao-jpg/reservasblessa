@@ -1,4 +1,4 @@
-import { MessageCircle, CheckCircle, Loader2, ArrowRight, User, CreditCard, QrCode, Copy, Sparkles, Phone, X, ArrowLeft } from 'lucide-react';
+import { MessageCircle, CheckCircle, Loader2, ArrowRight, User, CreditCard, QrCode, Copy, Sparkles, Phone, X, ArrowLeft, Calendar } from 'lucide-react';
 import { isValidCPF } from '@/utils/cpf-validator';
 import { Link } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
@@ -10,11 +10,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { getPersonPrice, formatCurrency, KIOSK_INFO, QUAD_LABELS, getQuadDiscount, ADDITIONAL_INFO, WHATSAPP_NUMBER, type BookingState, type AdultInfo, type ChildInfo } from '@/lib/booking-types';
+import { getPersonPrice, formatCurrency, KIOSK_INFO, QUAD_LABELS, getQuadDiscount, ADDITIONAL_INFO, CHALE_PACKAGES, CAMPING_PRICE_PER_PERSON, WHATSAPP_NUMBER, isSundayOrHoliday, calculateChaleTotal, type BookingState, type AdultInfo, type ChildInfo } from '@/lib/booking-types';
 import { useState, useEffect } from 'react';
 import { trackFBEvent } from '@/utils/pixel-events';
 
@@ -25,6 +26,8 @@ interface Props {
     kiosksTotal: number;
     quadsTotal: number;
     additionalsTotal: number;
+    chaleTotal?: number;
+    campingTotal?: number;
     subtotal?: number;
     onlineDiscount?: number;
     total: number;
@@ -39,6 +42,8 @@ interface Props {
   onUpdateKiosk?: (index: number, updates: any) => void;
   onUpdateQuad?: (index: number, updates: any) => void;
   onUpdateAdditional?: (index: number, updates: any) => void;
+  onUpdateChale?: (updates: any) => void;
+  onUpdateCamping?: (updates: any) => void;
   onPrevStep?: () => void;
 }
 
@@ -55,6 +60,8 @@ export function BookingOverview({
   onUpdateKiosk,
   onUpdateQuad,
   onUpdateAdditional,
+  onUpdateChale,
+  onUpdateCamping,
   onPrevStep
 }: Props) {
   const [saving, setSaving] = useState(false);
@@ -152,7 +159,7 @@ export function BookingOverview({
     }
 
     const items: any[] = [];
-    const isSunday = booking.entry.dayOfWeek === 'domingo';
+    const isSunday = booking.entry.dayOfWeek === 'domingo' || isSundayOrHoliday(booking.entry.visitDate);
     
     booking.entry.adults.forEach(a => {
       const price = getPersonPrice(a, a.age >= 60, isSunday, getPrice);
@@ -188,13 +195,12 @@ export function BookingOverview({
     });
 
     booking.quads.filter(q => q.quantity > 0).forEach(q => {
-      const fallbackMap: Record<string, number> = { individual: 150, dupla: 250, 'adulto-crianca': 200 };
-      const discount = getQuadDiscount(q.date);
+      const fallbackMap: Record<string, number> = { individual: 130, dupla: 195, 'adulto-crianca': 195 };
       const basePrice = getPrice(`quad_${q.type}`, fallbackMap[q.type]);
       items.push({ 
         product_id: `Quad ${QUAD_LABELS[q.type]}`, 
         quantity: q.quantity, 
-        unit_price: basePrice * (1 - discount),
+        unit_price: basePrice,
         metadata: { time: q.time } 
       });
     });
@@ -206,6 +212,60 @@ export function BookingOverview({
         unit_price: getPrice(`add_${a.type}`, ADDITIONAL_INFO[a.type].price) 
       });
     });
+
+    if (booking.chale && booking.chale.packageType) {
+      const pkg = CHALE_PACKAGES[booking.chale.packageType];
+      if (pkg) {
+        const chaletsCount = (booking.chale.chaleIds && booking.chale.chaleIds.length > 0)
+          ? booking.chale.chaleIds.length
+          : 1;
+        const adults = Math.max(1, booking.chale.adultsCount || (chaletsCount * 2));
+        const kids = booking.chale.childrenCount || 0;
+        const chalePrice = calculateChaleTotal(
+          booking.chale.packageType,
+          adults,
+          kids,
+          getPrice,
+          booking.chale.includeSundayDayUse,
+          chaletsCount,
+          booking.chale.checkInDate,
+          booking.chale.checkOutDate,
+          booking.chale.chaleOccupancies,
+          booking.chale.chaleIds,
+          booking.chale.childrenAges
+        );
+        items.push({
+          product_id: chaletsCount > 1 ? `Chalés (${chaletsCount} unidades): ${pkg.title}` : `Chalé: ${pkg.title}`,
+          quantity: 1,
+          unit_price: chalePrice,
+          metadata: {
+            package_type: pkg.id,
+            chale_id: booking.chale.chaleId || null,
+            chale_ids: booking.chale.chaleIds || (booking.chale.chaleId ? [booking.chale.chaleId] : []),
+            chalets_count: chaletsCount,
+            adults: adults,
+            children: kids,
+            include_sunday_day_use: !!booking.chale.includeSundayDayUse
+          }
+        });
+      }
+    }
+
+    if (booking.camping && (booking.camping.peopleCount > 0 || (booking.camping.adultsCount || 0) > 0)) {
+      const payingAdults = booking.camping.adultsCount !== undefined ? booking.camping.adultsCount : booking.camping.peopleCount;
+      const campingPrice = getPrice('camping_per_person', CAMPING_PRICE_PER_PERSON);
+      items.push({
+        product_id: 'Área de Camping',
+        quantity: payingAdults,
+        unit_price: campingPrice,
+        metadata: {
+          total_people: booking.camping.peopleCount,
+          adults: payingAdults,
+          children: booking.camping.childrenCount || 0,
+          seniors: booking.camping.seniorsCount || 0
+        }
+      });
+    }
     
     let orderIdToRollback: string | null = null;
     setSaving(true);
@@ -347,11 +407,13 @@ export function BookingOverview({
     }
   };
 
+  const isSundayOrHolidayVisit = booking.entry.dayOfWeek === 'domingo' || isSundayOrHoliday(booking.entry.visitDate);
+
   if (!hasAnything) {
     return (
       <div className="flex flex-col items-center justify-center p-10 mt-10 text-center space-y-4 bg-white/30 backdrop-blur-md rounded-2xl border border-white/60">
         <div className="w-16 h-16 bg-white/50 rounded-full flex items-center justify-center text-2xl shadow-sm">🛒</div>
-        <p className="text-muted-foreground font-medium">Você ainda não selecionou nenhum item.<br />Comece adicionando pessoas no Day Use!</p>
+        <p className="text-muted-foreground font-medium">Você ainda não selecionou nenhum item.<br />Comece escolhendo o que deseja!</p>
       </div>
     );
   }
@@ -359,17 +421,25 @@ export function BookingOverview({
   return (
     <div className="space-y-6">
 
-      <div className="bg-white/50 backdrop-blur-md rounded-2xl border border-white/60 p-5 sm:p-6 shadow-xl space-y-5">
+      <div className="bg-emerald-50/40 rounded-3xl border-2 border-emerald-200/80 p-4 sm:p-6 shadow-sm space-y-5">
 
         {/* Entradas */}
         {/* Data selecionada */}
-        <div className="bg-primary/5 rounded-xl border border-primary/20 p-4 flex items-center justify-between">
-          <span className="text-[11px] uppercase font-bold tracking-widest text-muted-foreground">Data da Visita:</span>
-          {booking.entry.visitDate ? (
-            <span className="font-bold text-primary">{format(booking.entry.visitDate, "dd/MM/yyyy (EEEE)", { locale: ptBR })}</span>
-          ) : (
-            <span className="font-medium text-destructive text-sm">Não selecionada</span>
-          )}
+        <div className="bg-gradient-to-r from-emerald-950 via-[#042817] to-slate-950 text-white rounded-2xl border-2 border-amber-400/80 p-3.5 sm:p-4 flex items-center justify-between shadow-md">
+          <div className="flex items-center gap-2.5">
+            <span className="p-1.5 bg-amber-400 text-slate-950 rounded-lg">
+              <Calendar className="w-4 h-4" />
+            </span>
+            <div>
+              <span className="text-[10px] uppercase font-black tracking-widest text-emerald-200 block">Data da Reserva</span>
+              <span className="font-sans font-black text-xs sm:text-sm text-white">
+                {booking.entry.visitDate ? format(booking.entry.visitDate, "dd/MM/yyyy (EEEE)", { locale: ptBR }) : 'Não selecionada'}
+              </span>
+            </div>
+          </div>
+          <Badge className="bg-amber-400 text-slate-950 font-black text-[9px] uppercase tracking-wider px-2.5 py-1 shadow-sm">
+            Confirmada
+          </Badge>
         </div>
 
         {/* Entradas */}
@@ -378,7 +448,7 @@ export function BookingOverview({
             <h4 className="font-bold text-primary mb-3 uppercase tracking-widest text-[10px] sm:text-xs">Day Use (Entradas)</h4>
             <div className="space-y-3 text-sm sm:text-base text-muted-foreground">
               {/* Gratuidades e Balcão Primeiro */}
-              {[...booking.entry.adults, ...booking.entry.children].filter(p => getPersonPrice(p, (p as any).age >= 60 || (p as any).age <= 11, booking.entry.dayOfWeek === 'domingo', getPrice) === 0).map((p, i) => {
+              {[...booking.entry.adults, ...booking.entry.children].filter(p => getPersonPrice(p, (p as any).age >= 60 || (p as any).age <= 11, isSundayOrHolidayVisit, getPrice) === 0).map((p, i) => {
                 const qty = p.quantity || 1;
                 const isBalcao = !!(p as any).isCounterPayment;
 
@@ -444,9 +514,9 @@ export function BookingOverview({
               )}
 
               {/* Pagantes */}
-              {booking.entry.adults.filter(a => getPersonPrice(a, a.age >= 60, booking.entry.dayOfWeek === 'domingo', getPrice) > 0).map((a, i) => {
+              {booking.entry.adults.filter(a => getPersonPrice(a, a.age >= 60, isSundayOrHolidayVisit, getPrice) > 0).map((a, i) => {
                 const qty = a.quantity || 1;
-                const price = getPersonPrice(a, a.age >= 60, booking.entry.dayOfWeek === 'domingo', getPrice);
+                const price = getPersonPrice(a, a.age >= 60, isSundayOrHolidayVisit, getPrice);
                 
                 let label = 'Adulto Inteira';
                 if (a.isTeacher) label = 'Lessa Professor Pass';
@@ -473,9 +543,9 @@ export function BookingOverview({
                 );
               })}
 
-              {booking.entry.children.filter(c => getPersonPrice(c, c.age <= 11, booking.entry.dayOfWeek === 'domingo', getPrice) > 0).map((c, i) => {
+              {booking.entry.children.filter(c => getPersonPrice(c, c.age <= 11, isSundayOrHolidayVisit, getPrice) > 0).map((c, i) => {
                 const qty = c.quantity || 1;
-                const price = getPersonPrice(c, c.age <= 11, booking.entry.dayOfWeek === 'domingo', getPrice);
+                const price = getPersonPrice(c, c.age <= 11, isSundayOrHolidayVisit, getPrice);
                 return (
                   <div key={`child-pay-${i}`} className="flex justify-between items-center py-1 group/item min-h-[32px]">
                     <span className="text-xs font-black text-foreground uppercase tracking-tight truncate flex-1 min-w-0">{qty}x Lessa Kids (6 a 11 anos)</span>
@@ -491,17 +561,20 @@ export function BookingOverview({
                 );
               })}
               
-              <div className="flex justify-between font-bold text-foreground pt-2 mt-2 border-t border-primary/5">
+              <div className="flex justify-between font-black text-emerald-950 pt-2.5 mt-2 border-t border-emerald-200 text-sm">
                 <span>Subtotal Entradas</span>
-                <span>{formatCurrency(totals.entriesTotal)}</span>
+                <span className="text-emerald-900 font-black">{formatCurrency(totals.entriesTotal)}</span>
               </div>
             </div>
           </div>
         )}
-{/* Quiosques */}
+        {/* Quiosques */}
         {booking.kiosks.some(k => k.quantity > 0) && (
-          <div className="pb-5 border-b border-primary/10">
-            <h4 className="font-bold text-primary mb-3 uppercase tracking-widest text-[10px] sm:text-xs">Quiosques</h4>
+          <div className="pb-5 border-b border-emerald-200">
+            <h4 className="font-black text-emerald-950 mb-3 uppercase tracking-widest text-[11px] sm:text-xs flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
+              Quiosques
+            </h4>
             <div className="space-y-2 text-sm sm:text-base text-muted-foreground">
               {booking.kiosks.filter(k => k.quantity > 0).map(k => {
                 const basePrice = getPrice(`kiosk_${k.type}`, KIOSK_INFO[k.type].price);
@@ -509,59 +582,245 @@ export function BookingOverview({
                   ? k.selectedIds.sort((a,b)=>a-b).map(id => `Q${String(id).padStart(2,'0')}`).join(' · ')
                   : `${k.quantity}x ${KIOSK_INFO[k.type].label}`;
                 return (
-                <div key={k.type} className="flex justify-between group/item items-center gap-2">
+                <div key={k.type} className="flex justify-between group/item items-center gap-2 bg-white p-2.5 rounded-xl border border-emerald-100 shadow-xs">
                   <div className="min-w-0 flex-1">
-                    <span className="text-xs font-semibold truncate block">{kioskNames}</span>
+                    <span className="text-xs font-black text-emerald-950 truncate block">{kioskNames}</span>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="whitespace-nowrap text-xs font-bold">{formatCurrency(k.quantity * basePrice)}</span>
+                    <span className="whitespace-nowrap text-xs sm:text-sm font-black text-emerald-900">{formatCurrency(k.quantity * basePrice)}</span>
                     {onUpdateKiosk && (
                       <button onClick={() => {
                         const idx = booking.kiosks.findIndex(x => x.type === k.type);
                         onUpdateKiosk(idx, { quantity: 0, selectedIds: [] });
-                      }} className="p-1 hover:bg-primary/10 rounded-full transition-colors text-primary/40 hover:text-primary">
+                      }} className="p-1 hover:bg-emerald-100 rounded-full transition-colors text-slate-400 hover:text-emerald-900">
                         <X className="h-3.5 w-3.5" />
                       </button>
                     )}
                   </div>
                 </div>
               )})}
-              <div className="flex justify-between font-bold text-foreground pt-1">
+              <div className="flex justify-between font-black text-emerald-950 pt-2.5 mt-2 border-t border-emerald-200 text-sm">
                 <span>Subtotal Quiosques</span>
-                <span>{formatCurrency(totals.kiosksTotal)}</span>
+                <span className="text-emerald-900 font-black">{formatCurrency(totals.kiosksTotal)}</span>
               </div>
             </div>
           </div>
         )}
 
+        {/* Quadriciclos */}
+        {booking.quads.some(q => q.quantity > 0) && (
+          <div className="pb-5 border-b border-emerald-200">
+            <h4 className="font-black text-emerald-950 mb-3 uppercase tracking-widest text-[11px] sm:text-xs flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
+              Passeios de Quadriciclo (40 min)
+            </h4>
+            <div className="space-y-2 text-sm sm:text-base text-muted-foreground">
+              {booking.quads.filter(q => q.quantity > 0).map(q => {
+                const fallbackMap: Record<string, number> = { individual: 130, dupla: 195, 'adulto-crianca': 195 };
+                const basePrice = getPrice(`quad_${q.type}`, fallbackMap[q.type]);
+                const totalPrice = q.quantity * basePrice;
+                const quadIdx = booking.quads.findIndex(x => x.type === q.type);
+
+                return (
+                  <div key={q.type} className="flex justify-between group/item items-center gap-2 bg-white p-3 rounded-2xl border border-emerald-100 shadow-xs">
+                    <div className="min-w-0 flex-1">
+                      <span className="text-xs sm:text-sm font-black truncate block text-emerald-950">
+                        🏍️ {q.quantity}x {QUAD_LABELS[q.type]}
+                      </span>
+                      <div className="flex flex-wrap items-center gap-2 mt-0.5 text-[11px] text-slate-600 font-bold">
+                        {q.time && (
+                          <span className="bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded-md border border-emerald-200">
+                            ⏰ Horário: {q.time}
+                          </span>
+                        )}
+                        <span className="bg-amber-100 text-amber-900 px-2 py-0.5 rounded-md border border-amber-300">
+                          10% OFF no Total da Reserva
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="whitespace-nowrap text-xs sm:text-sm font-black text-emerald-900">
+                        {formatCurrency(totalPrice)}
+                      </span>
+                      {onUpdateQuad && (
+                        <button
+                          onClick={() => onUpdateQuad(quadIdx, { quantity: 0, time: null })}
+                          className="p-1 hover:bg-emerald-100 rounded-full transition-colors text-slate-400 hover:text-emerald-900"
+                          title="Remover quadriciclo"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              <div className="flex justify-between font-black text-emerald-950 pt-2.5 mt-2 border-t border-emerald-200 text-sm">
+                <span>Subtotal Quadriciclos</span>
+                <span className="text-emerald-900 font-black">{formatCurrency(totals.quadsTotal)}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Chalé */}
+        {booking.chale && booking.chale.packageType && (() => {
+          const pkg = CHALE_PACKAGES[booking.chale.packageType];
+          if (!pkg) return null;
+          const chaletsCount = (booking.chale.chaleIds && booking.chale.chaleIds.length > 0)
+            ? booking.chale.chaleIds.length
+            : 1;
+          const adults = Math.max(1, booking.chale.adultsCount || (chaletsCount * 2));
+          const kids = booking.chale.childrenCount || 0;
+          const chalePrice = calculateChaleTotal(
+            booking.chale.packageType,
+            adults,
+            kids,
+            getPrice,
+            booking.chale.includeSundayDayUse,
+            chaletsCount,
+            booking.chale.checkInDate,
+            booking.chale.checkOutDate,
+            booking.chale.chaleOccupancies,
+            booking.chale.chaleIds,
+            booking.chale.childrenAges
+          );
+
+          return (
+            <div className="pb-5 border-b border-emerald-200">
+              <h4 className="font-black text-emerald-950 mb-3 uppercase tracking-widest text-[11px] sm:text-xs flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
+                Hospedagem ({chaletsCount > 1 ? `${chaletsCount} Chalés` : 'Chalé'})
+              </h4>
+              <div className="space-y-2 text-sm sm:text-base text-muted-foreground">
+                <div className="flex justify-between items-start group/item gap-2 bg-white p-3 rounded-2xl border border-emerald-100 shadow-xs">
+                  <div className="min-w-0 flex-1">
+                    <span className="text-xs sm:text-sm font-black truncate block text-emerald-950">
+                      🏡 {pkg.title} {chaletsCount > 1 ? `(${chaletsCount} unidades)` : ''}
+                    </span>
+                    <span className="text-[11px] text-slate-600 font-bold block mt-0.5">
+                      {chaletsCount > 1 ? `${chaletsCount} Chalés · ` : ''}
+                      {adults} Adulto(s)
+                      {kids > 0 && ` + ${kids} Criança(s)`}
+                      {booking.chale.chaleIds && booking.chale.chaleIds.length > 1
+                        ? ` · Chalés: ${booking.chale.chaleIds.map(id => `Nº ${String(id).padStart(2, '0')}`).join(', ')}`
+                        : booking.chale.chaleId
+                          ? ` · Chalé ${String(booking.chale.chaleId).padStart(2, '0')}`
+                          : ''}
+                    </span>
+                    <span className="text-[10px] text-emerald-800 font-black block mt-0.5">
+                      ☕ Café da manhã das 07h às 09h (Sex, Sáb e Dom) · Check-in 14h / Check-out 12h
+                    </span>
+                    {(booking.chale.includeSundayDayUse || (booking.chale.checkOutDate && new Date(booking.chale.checkOutDate).getDay() === 0)) && (
+                      <span className="text-[10px] text-amber-700 font-black block mt-0.5">
+                        ☀️ Com Day Use de Domingo Incluso (permanência no parque até as 17h)
+                      </span>
+                    )}
+                    {kids > 0 && (
+                      <span className="text-[10px] text-emerald-900 font-bold block mt-0.5">
+                        👶 Adicionais de Crianças (Filhos): {kids} criança(s) {booking.chale.childrenAges && booking.chale.childrenAges.length > 0 && `(${booking.chale.childrenAges.map(a => a === '12plus' ? '12+ anos (R$ 100)' : 'até 11 anos (R$ 50)').join(', ')})`} · Obrigatório comprovação com documento
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="whitespace-nowrap text-xs sm:text-sm font-black text-emerald-900">{formatCurrency(chalePrice)}</span>
+                    {onUpdateChale && (
+                      <button onClick={() => onUpdateChale({ packageType: null, chaleId: null })} className="p-1 hover:bg-emerald-100 rounded-full transition-colors text-slate-400 hover:text-emerald-900">
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className="flex justify-between font-black text-emerald-950 pt-2.5 mt-2 border-t border-emerald-200 text-sm">
+                  <span>Subtotal Hospedagem</span>
+                  <span className="text-emerald-900 font-black">{formatCurrency(chalePrice)}</span>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Camping */}
+        {booking.camping && (booking.camping.peopleCount > 0 || (booking.camping.adultsCount || 0) > 0) && (() => {
+          const payingAdults = booking.camping.adultsCount !== undefined ? booking.camping.adultsCount : booking.camping.peopleCount;
+          const campingPrice = getPrice('camping_per_person', CAMPING_PRICE_PER_PERSON);
+          const totalCamping = payingAdults * campingPrice;
+
+          return (
+            <div className="pb-5 border-b border-emerald-200">
+              <h4 className="font-black text-emerald-950 mb-3 uppercase tracking-widest text-[11px] sm:text-xs flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
+                Camping
+              </h4>
+              <div className="space-y-2 text-sm sm:text-base text-muted-foreground">
+                <div className="flex justify-between items-center group/item gap-2 bg-white p-3 rounded-2xl border border-emerald-100 shadow-xs">
+                  <div className="min-w-0 flex-1">
+                    <span className="text-xs sm:text-sm font-black truncate block text-emerald-950">
+                      ⛺ {payingAdults}x Acesso Camping Adulto ({formatCurrency(campingPrice)} cada)
+                    </span>
+                    {(booking.camping.childrenCount || 0) > 0 && (
+                      <span className="text-[11px] text-emerald-700 font-bold block">
+                        + {booking.camping.childrenCount} criança(s) até 11 anos: Grátis
+                      </span>
+                    )}
+                    {(booking.camping.seniorsCount || 0) > 0 && (
+                      <span className="text-[11px] text-emerald-700 font-bold block">
+                        + {booking.camping.seniorsCount} idoso(s) 60+: Grátis
+                      </span>
+                    )}
+                    <span className="text-[10px] text-slate-500 font-medium block mt-0.5">
+                      ☀️ Day use do dia seguinte incluso · ☕ Café da manhã não incluso
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="whitespace-nowrap text-xs sm:text-sm font-black text-emerald-900">{formatCurrency(totalCamping)}</span>
+                    {onUpdateCamping && (
+                      <button onClick={() => onUpdateCamping({ peopleCount: 0, adultsCount: 0, childrenCount: 0, seniorsCount: 0 })} className="p-1 hover:bg-emerald-100 rounded-full transition-colors text-slate-400 hover:text-emerald-900">
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className="flex justify-between font-black text-emerald-950 pt-2.5 mt-2 border-t border-emerald-200 text-sm">
+                  <span>Subtotal Camping</span>
+                  <span>{formatCurrency(totalCamping)}</span>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Adicionais */}
         {booking.additionals.some(a => a.quantity > 0) && (
-          <div className="pb-5 border-b border-primary/10">
-            <h4 className="font-bold text-primary mb-3 uppercase tracking-widest text-[10px] sm:text-xs">Diversão e Lazer</h4>
+          <div className="pb-5 border-b border-emerald-200">
+            <h4 className="font-black text-emerald-950 mb-3 uppercase tracking-widest text-[11px] sm:text-xs flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
+              Diversão e Lazer
+            </h4>
             <div className="space-y-2 text-sm sm:text-base text-muted-foreground">
               {booking.additionals.filter(a => a.quantity > 0).map(a => {
                 const basePrice = getPrice(`add_${a.type}`, ADDITIONAL_INFO[a.type].price);
                 return (
-                <div key={a.type} className="flex justify-between items-center group/item gap-2">
+                <div key={a.type} className="flex justify-between items-center group/item gap-2 bg-white p-2.5 rounded-xl border border-emerald-100 shadow-xs">
                   <div className="min-w-0 flex-1">
-                    <span className="text-xs font-semibold truncate block">{a.quantity}x {ADDITIONAL_INFO[a.type].label}</span>
+                    <span className="text-xs font-black text-emerald-950 truncate block">{a.quantity}x {ADDITIONAL_INFO[a.type].label}</span>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="whitespace-nowrap text-xs font-bold">{formatCurrency(a.quantity * basePrice)}</span>
+                    <span className="whitespace-nowrap text-xs sm:text-sm font-black text-emerald-900">{formatCurrency(a.quantity * basePrice)}</span>
                     {onUpdateAdditional && (
                       <button onClick={() => {
                         const idx = booking.additionals.findIndex(x => x.type === a.type);
                         onUpdateAdditional(idx, { quantity: 0 });
-                      }} className="p-1 hover:bg-primary/10 rounded-full transition-colors text-primary/40 hover:text-primary">
+                      }} className="p-1 hover:bg-emerald-100 rounded-full transition-colors text-slate-400 hover:text-emerald-900">
                         <X className="h-3.5 w-3.5" />
                       </button>
                     )}
                   </div>
                 </div>
               )})}
-              <div className="flex justify-between font-bold text-foreground pt-1">
+              <div className="flex justify-between font-black text-emerald-950 pt-2.5 mt-2 border-t border-emerald-200 text-sm">
                 <span>Subtotal Diversão</span>
-                <span>{formatCurrency(totals.additionalsTotal)}</span>
+                <span className="text-emerald-900 font-black">{formatCurrency(totals.additionalsTotal)}</span>
               </div>
             </div>
           </div>
@@ -580,22 +839,29 @@ export function BookingOverview({
             const totalSavings = entrySavings + discount;
             
             return (
-              <div className="pt-4 space-y-2">
-                <div className="bg-primary/5 rounded-2xl p-4 sm:p-5 border border-primary/10 mb-4 space-y-3">
-                  {discount > 0 && (
-                    <div className="space-y-1.5 pb-3 border-b border-primary/10 text-xs sm:text-sm">
-                      <div className="flex justify-between items-center text-muted-foreground font-semibold">
-                        <span>Subtotal da Compra</span>
-                        <span className="font-bold">{formatCurrency(subtotal)}</span>
+              <div className="pt-2 space-y-2">
+                <div className="bg-gradient-to-br from-emerald-950 via-[#042817] to-slate-950 text-white rounded-3xl p-5 sm:p-6 border-2 border-amber-400 shadow-xl space-y-3.5 mb-4">
+                  {discount > 0 ? (
+                    <div className="space-y-1.5 pb-3 border-b border-white/10 text-xs sm:text-sm">
+                      <div className="flex justify-between items-center text-emerald-200/90 font-bold">
+                        <span>Valor Total da Reserva (Subtotal)</span>
+                        <span className="font-black text-white text-sm sm:text-base">{formatCurrency(subtotal)}</span>
                       </div>
-                      <div className="flex justify-between items-center text-emerald-700 font-bold">
+                      <div className="flex justify-between items-center text-amber-300 font-black">
                         <span className="inline-flex items-center gap-1.5">
-                          <span className="bg-emerald-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider shadow-sm">
+                          <span className="bg-amber-400 text-slate-950 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider shadow-sm">
                             10% OFF
                           </span>
                           Desconto Reserva Online
                         </span>
-                        <span>- {formatCurrency(discount)}</span>
+                        <span className="font-black text-amber-300">- {formatCurrency(discount)}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5 pb-3 border-b border-white/10 text-xs sm:text-sm">
+                      <div className="flex justify-between items-center text-emerald-200/90 font-bold">
+                        <span>Valor Total da Reserva (Subtotal)</span>
+                        <span className="font-black text-white text-sm sm:text-base">{formatCurrency(subtotal)}</span>
                       </div>
                     </div>
                   )}
@@ -603,124 +869,54 @@ export function BookingOverview({
                   <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
                     <div>
                       <div className="flex items-baseline gap-2.5 flex-wrap">
-                        <span className="text-xl sm:text-2xl font-black text-primary">
+                        <span className="text-2xl sm:text-3xl font-black text-amber-400">
                           Total: {formatCurrency(totals.total)}
                         </span>
                         {discount > 0 && (
-                          <span className="text-sm text-muted-foreground/70 line-through font-bold">
+                          <span className="text-sm text-emerald-200/60 line-through font-bold">
                             {formatCurrency(subtotal)}
                           </span>
                         )}
                       </div>
                       {totalSavings > 0 && (
-                        <span className="block text-[9px] sm:text-[10px] text-whatsapp font-black uppercase tracking-widest mt-1">
+                        <span className="block text-[10px] text-emerald-300 font-black uppercase tracking-wider mt-1">
                           ✨ VOCÊ ESTÁ ECONOMIZANDO {formatCurrency(totalSavings)} NESTA RESERVA!
                         </span>
                       )}
                     </div>
                     {discount > 0 && (
-                      <span className="inline-flex self-start sm:self-center text-[10px] sm:text-xs font-black text-emerald-800 bg-emerald-100 border border-emerald-300 px-3 py-1 rounded-full uppercase tracking-wider shadow-sm">
+                      <span className="inline-flex self-start sm:self-center text-[10px] sm:text-xs font-black text-slate-950 bg-amber-400 border border-amber-500 px-3.5 py-1 rounded-full uppercase tracking-wider shadow-md">
                         Economia de {formatCurrency(discount)}
                       </span>
                     )}
                   </div>
                 </div>
 
-                {/* Membership Comparison Action Card */}
-                {(() => {
-                  const allAdults = booking.entry.adults;
-                  const reservaHojeEntries = totals.entriesTotal;
-                  // Contar apenas quem NÃO é assinante E NÃO tem gratuidade hoje (Idoso, PCD, etc) para a comparação
-                  const nonMemberAdults = allAdults.filter(a => 
-                    !a.isMember && !a.isPCD && !a.isTEA && !a.isBirthday && !(a.age >= 60)
-                  );
-                  const halfPriceCount = nonMemberAdults.filter(a => 
-                    a.isTeacher || a.isServer || a.isStudent || (a as any).isBloodDonor || a.takeDonation
-                  ).reduce((acc, a) => acc + (a.quantity || 1), 0);
-                  const fullPriceCount = nonMemberAdults.reduce((acc, a) => acc + (a.quantity || 1), 0) - halfPriceCount;
-                  const membershipPrice = (fullPriceCount * 49.9) + (halfPriceCount * 25);
-
-                  if ((fullPriceCount + halfPriceCount) > 0) {
-                    const isCheaper = membershipPrice <= reservaHojeEntries;
-                    return (
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className="bg-gradient-to-br from-[#FFD700] via-[#FFB900] to-[#E5A500] border-4 border-white/40 rounded-3xl p-5 sm:p-6 relative overflow-hidden group shadow-2xl mb-6"
-                      >
-                        <div className="absolute top-0 right-0 -mr-12 -mt-12 w-48 h-48 bg-white/30 rounded-full blur-3xl group-hover:bg-white/50 transition-all duration-700 animate-pulse" />
-                        <div className="absolute bottom-0 left-0 -ml-12 -mb-12 w-32 h-32 bg-amber-400/20 rounded-full blur-2xl" />
-
-                          <div className="relative">
-                            <div className="w-8 h-8 rounded-lg bg-emerald-950/10 flex items-center justify-center border-2 border-emerald-950/20 shadow-lg backdrop-blur-sm shrink-0">
-                              <Sparkles className="w-4 h-4 text-emerald-950 drop-shadow-sm" />
-                            </div>
-                          </div>
-                          
-                          <h3 className="font-display font-black text-emerald-950 text-base sm:text-lg tracking-tighter leading-tight uppercase">
-                            {isCheaper ? 'Vale mais a pena ser Sócio!' : 'Acesso Ilimitado o mês inteiro!'}
-                          </h3>
-
-                        <div className="space-y-4 relative z-10">
-                          <p className="text-emerald-950/90 text-[10px] sm:text-xs font-bold leading-tight uppercase tracking-tight -mb-2 opacity-70">
-                            Simulação para: {fullPriceCount > 0 ? `${fullPriceCount}x Adulto` : ''} 
-                            {fullPriceCount > 0 && halfPriceCount > 0 ? ' + ' : ''} 
-                            {halfPriceCount > 0 ? `${halfPriceCount}x Meia` : ''}
-                            {allAdults.some(a => a.isMember) ? ' (Assinantes atuais não contam)' : ''}
-                          </p>
-                          <p className="text-emerald-950/90 text-xs sm:text-sm leading-snug font-black">
-                            Sua reserva custa <span className="bg-emerald-950/20 text-emerald-950 px-1.5 py-0.5 rounded-lg">{formatCurrency(reservaHojeEntries)}</span>.
-                            No <span className="text-emerald-950 font-black">Lessa Club</span>, você paga <span className="bg-white/40 text-emerald-950 px-1.5 py-0.5 rounded-lg">{formatCurrency(membershipPrice)}</span>/mês e tem 
-                            <span className="inline-flex items-center text-white font-black mx-1 uppercase text-[9px] bg-emerald-950 px-2 py-0.5 rounded-lg shadow tracking-tighter shrink-0 overflow-hidden">ENTRADAS ILIMITADAS</span>
-                          </p>
-
-                          <Button 
-                            variant="default"
-                            className="w-full min-h-[40px] h-auto py-2.5 bg-emerald-950 hover:bg-emerald-900 text-white font-black text-xs sm:text-sm uppercase tracking-wider rounded-xl shadow-xl transition-all flex items-center justify-center gap-2 border-b-4 border-emerald-900/50 px-4"
-                            onClick={() => {
-                              const element = document.getElementById('especiais');
-                              if (element) {
-                                element.scrollIntoView({ behavior: 'smooth' });
-                              }
-                            }}
-                          >
-                            <span className="flex-1 leading-tight">ATIVAR MEU PLANO DOURADO</span>
-                            <ArrowRight className="h-4 w-4 shrink-0" />
-                          </Button>
-                        </div>
-                      </motion.div>
-                    );
-                  }
-                  return null;
-                })()}
              </div>
            );
         })()}
 
         {/* Seção de Dados do Pagador */}
-        <div className="space-y-4 pt-4 border-t border-primary/10">
-          <h4 className="text-sm font-black text-primary uppercase tracking-widest flex items-center gap-2">
-            <User className="h-4 w-4" /> Dados do Responsável
-          </h4>
-          <div className="space-y-1.5 flex-1">
-            <Label className="text-[10px] uppercase font-black text-primary/60 ml-1">Nome Completo</Label>
-            <Input
-              value={booking.entry.name}
-              onChange={(e) => updateEntry?.({ name: e.target.value })}
-              placeholder="Nome completo do responsável"
-              className="rounded-xl border-primary/20 h-11 focus-visible:ring-primary font-medium"
-            />
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border-2 border-emerald-100 shadow-sm space-y-2">
+          <div className="flex items-center justify-between">
+            <h4 className="text-xs font-black text-emerald-950 uppercase tracking-widest flex items-center gap-2">
+              <User className="h-4 w-4 text-emerald-700" /> CPF do Responsável (para PIX / Reserva)
+            </h4>
+            {booking.entry.name && (
+              <span className="text-[11px] font-bold text-slate-500">
+                Titular: <strong className="text-emerald-950">{booking.entry.name}</strong>
+              </span>
+            )}
           </div>
-          <div className="space-y-1.5">
-            <Label className="text-[10px] uppercase font-black text-primary/60 ml-1">CPF (Obrigatório para Pix/Cartão)</Label>
+          <div className="space-y-1">
             <Input
               value={booking.entry.cpf || ''}
               onChange={(e) => {
                 const val = e.target.value.replace(/\D/g, '').slice(0, 11);
                 updateEntry?.({ cpf: val });
               }}
-              placeholder="000.000.000-00"
-              className="rounded-xl border-primary/20 h-11 focus-visible:ring-primary font-medium"
+              placeholder="000.000.000-00 (apenas números)"
+              className="rounded-xl border-2 border-slate-200 hover:border-emerald-400 focus-visible:border-emerald-600 focus-visible:ring-emerald-600 h-11 font-bold text-slate-800 text-sm shadow-xs transition-all"
             />
           </div>
         </div>
@@ -859,19 +1055,19 @@ export function BookingOverview({
                     );
                   })()
                 ) : (
-                  <>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                     <Button
                       size="lg"
                       onClick={() => handleAction('PIX')}
                       disabled={saving}
-                      className="w-full h-20 sm:h-24 rounded-[2rem] bg-[#00bdae] hover:bg-[#009b8f] text-white font-black text-lg sm:text-xl flex items-center justify-center gap-4 shadow-xl active:scale-[0.97] transition-all group overflow-hidden relative border-b-8 border-[#007a71]"
+                      className="h-16 sm:h-20 rounded-2xl bg-[#00bdae] hover:bg-[#009b8f] text-white font-black flex flex-row sm:flex-col items-center justify-center gap-2 shadow-lg active:scale-[0.98] transition-all border-b-4 border-[#007a71] p-2"
                     >
-                      <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md">
-                        {saving && activePaymentMethod === 'PIX' ? <Loader2 className="h-7 w-7 animate-spin" /> : <QrCode className="h-7 w-7 text-white" />}
+                      <div className="p-1.5 bg-white/20 rounded-xl backdrop-blur-md shrink-0">
+                        {saving && activePaymentMethod === 'PIX' ? <Loader2 className="h-5 w-5 animate-spin" /> : <QrCode className="h-5 w-5 text-white" />}
                       </div>
-                      <div className="text-left leading-tight">
-                        <span className="block text-[10px] text-white/80 font-bold uppercase tracking-widest mb-0.5">Pagar Agora Online</span>
-                        Gerar PIX
+                      <div className="text-left sm:text-center leading-tight">
+                        <span className="block text-[8px] sm:text-[9px] text-white/85 font-black uppercase tracking-wider">10% OFF</span>
+                        <span className="text-sm font-black uppercase">Gerar PIX</span>
                       </div>
                     </Button>
 
@@ -879,14 +1075,14 @@ export function BookingOverview({
                       size="lg"
                       onClick={() => handleAction('CREDIT_CARD')}
                       disabled={saving}
-                      className="w-full h-20 sm:h-24 rounded-[2rem] bg-primary hover:bg-primary-dark text-white font-bold text-lg sm:text-xl flex items-center justify-center gap-4 shadow-xl active:scale-[0.97] transition-all group overflow-hidden relative border-b-8 border-primary-dark"
+                      className="h-16 sm:h-20 rounded-2xl bg-emerald-800 hover:bg-emerald-900 text-white font-black flex flex-row sm:flex-col items-center justify-center gap-1.5 shadow-lg active:scale-[0.98] transition-all border-b-4 border-emerald-950 p-2"
                     >
-                      <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md">
-                        {saving && activePaymentMethod === 'CREDIT_CARD' ? <Loader2 className="h-7 w-7 animate-spin" /> : <CreditCard className="h-7 w-7 text-white" />}
+                      <div className="p-1.5 bg-white/20 rounded-xl backdrop-blur-md shrink-0">
+                        {saving && activePaymentMethod === 'CREDIT_CARD' ? <Loader2 className="h-5 w-5 animate-spin" /> : <CreditCard className="h-5 w-5 text-white" />}
                       </div>
-                      <div className="text-left leading-tight">
-                        <span className="block text-[10px] text-white/80 font-bold uppercase tracking-widest mb-0.5">Pagar Agora Online</span>
-                        Cartão de Crédito
+                      <div className="text-left sm:text-center leading-tight">
+                        <span className="block text-[8px] sm:text-[9px] text-amber-300 font-black uppercase tracking-wider">10% OFF</span>
+                        <span className="text-xs sm:text-sm font-black uppercase">Cartão</span>
                       </div>
                     </Button>
 
@@ -894,17 +1090,17 @@ export function BookingOverview({
                       size="lg"
                       onClick={() => handleAction('LOCAL')}
                       disabled={saving}
-                      className="w-full h-16 sm:h-20 rounded-2xl bg-[#006020] hover:bg-[#004d1a] border-b-4 border-[#004015] text-white font-black flex items-center justify-center gap-2 sm:gap-4 shadow-lg active:scale-[0.97] transition-all relative overflow-hidden group"
+                      className="h-16 sm:h-20 rounded-2xl bg-[#006020] hover:bg-[#004d1a] text-white font-black flex flex-row sm:flex-col items-center justify-center gap-1.5 shadow-lg active:scale-[0.98] transition-all border-b-4 border-[#004015] p-2"
                     >
-                      <div className="p-2.5 bg-white/20 rounded-xl backdrop-blur-md shrink-0">
-                        <MessageCircle className="h-6 w-6 text-white" />
+                      <div className="p-1.5 bg-white/20 rounded-xl backdrop-blur-md shrink-0">
+                        <MessageCircle className="h-5 w-5 text-white" />
                       </div>
-                      <div className="text-left leading-tight min-w-0">
-                        <span className="block text-[9px] text-white/80 font-black uppercase tracking-widest mb-0.5 truncate uppercase">Pagar Presencialmente</span>
-                        <span className="text-sm sm:text-lg uppercase tracking-tighter block whitespace-nowrap overflow-hidden text-ellipsis">Confirmar no WhatsApp</span>
+                      <div className="text-left sm:text-center leading-tight">
+                        <span className="block text-[8px] sm:text-[9px] text-emerald-200 font-bold uppercase tracking-wider">No Balcão</span>
+                        <span className="text-xs sm:text-sm font-black uppercase tracking-tight">Confirmar no WhatsApp</span>
                       </div>
                     </Button>
-                  </>
+                  </div>
                 )}
               </div>
             ) : (
@@ -936,13 +1132,42 @@ export function BookingOverview({
                   <Button 
                     onClick={handleCopyPix}
                     className={cn(
-                      "w-full h-14 rounded-2xl font-black text-base flex items-center justify-center gap-2 transition-all",
+                      "w-full h-14 rounded-2xl font-black text-base flex items-center justify-center gap-2 transition-all shadow-md",
                       copied ? "bg-green-600 hover:bg-green-700 text-white" : "bg-[#00bdae] hover:bg-[#009b8f] text-white"
                     )}
                   >
                     {copied ? <CheckCircle className="h-5 w-5" /> : <Copy className="h-5 w-5" />}
-                    {copied ? 'Código Copiado!' : 'Copiar Código PIX'}
+                    {copied ? 'Código PIX Copiado!' : 'Copiar Código PIX'}
                   </Button>
+
+                  {/* Card de Orientação de Consulta */}
+                  <div className="bg-emerald-50 border-2 border-emerald-300/80 rounded-2xl p-4 text-left space-y-2 shadow-xs">
+                    <div className="flex items-center gap-2 text-emerald-950 font-black text-xs uppercase tracking-tight">
+                      <span className="text-base">💡</span>
+                      <span>Como acompanhar seu agendamento:</span>
+                    </div>
+                    <ol className="text-[11px] text-emerald-950 font-medium space-y-1.5 list-decimal list-inside leading-relaxed pl-1">
+                      <li>Copie o código acima e pague no app do seu banco via <strong>PIX Copia e Cola</strong>.</li>
+                      <li>Ao retornar para esta página, ela <strong>confirma automaticamente</strong> em segundos.</li>
+                      <li>Se a página fechar, consulte a qualquer momento no menu <strong className="text-emerald-800 underline">Consultar Reserva</strong> no topo do site usando seu <strong>WhatsApp</strong> ou <strong>CPF</strong> para ver seu Voucher com QR Code.</li>
+                    </ol>
+                  </div>
+
+                  {/* Botão de Enviar Dados para o WhatsApp */}
+                  {booking.entry.phone && (
+                    <Button 
+                      onClick={() => {
+                        const cleanPhone = booking.entry.phone.replace(/\D/g, '');
+                        const formattedPhone = cleanPhone.length <= 11 ? `55${cleanPhone}` : cleanPhone;
+                        const msg = `*Reserva Balneário Lessa*\n\nOlá, ${booking.entry.name || 'Cliente'}!\n\nSegue seu código PIX para pagamento da reserva:\n\n*PIX Copia e Cola:*\n${pixData.payload}\n\n*Acompanhar / Acessar Voucher:*\nConsulte a qualquer momento em: https://balneariolessa.com.br/consultar informando seu WhatsApp (${booking.entry.phone}).\n\n_Aguardamos você para um dia incrível de lazer na natureza!_`;
+                        window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+                      }}
+                      className="w-full h-12 flex items-center justify-center gap-2 font-black text-xs sm:text-sm rounded-xl bg-[#25D366] hover:bg-[#128C7E] text-white shadow-md transition-all active:scale-[0.98]"
+                    >
+                      <MessageCircle className="h-5 w-5" />
+                      Salvar / Enviar Dados no meu WhatsApp
+                    </Button>
+                  )}
                   
                   <Button 
                     variant="ghost"

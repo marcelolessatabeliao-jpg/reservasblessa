@@ -165,6 +165,48 @@ export async function saveBooking(
             });
           });
         }
+
+        // 6. Hospedagem (Chalé)
+        if (booking.chale && booking.chale.packageType) {
+          const { CHALE_PACKAGES, calculateChaleTotal } = await import('@/lib/booking-types');
+          const pkg = CHALE_PACKAGES[booking.chale.packageType];
+          if (pkg) {
+            const adults = Math.min(2, Math.max(1, booking.chale.adultsCount || 2));
+            const kids = booking.chale.childrenCount || 0;
+            const chaleTotalPrice = calculateChaleTotal(booking.chale.packageType, adults, kids);
+            const visitDateStr = (booking.chale.checkInDate || booking.entry.visitDate)
+              ? format(new Date(booking.chale.checkInDate || booking.entry.visitDate!), 'yyyy-MM-dd')
+              : null;
+
+            orderItems.push({
+              order_id: finalOrderId,
+              product_id: `Hospedagem - ${pkg.title}`,
+              quantity: 1,
+              unit_price: chaleTotalPrice,
+              metadata: {
+                package_type: pkg.id,
+                chale_id: booking.chale.chaleId || null,
+                adults: adults,
+                children: kids,
+                check_in: '15:00',
+                check_out: '11:00',
+                check_in_date: visitDateStr,
+                breakfast: 'Incluso até as 09h',
+                guest_names: booking.chale.guestNames || []
+              }
+            });
+          }
+        }
+
+        // 7. Camping
+        if (booking.camping && booking.camping.peopleCount > 0) {
+          orderItems.push({
+            order_id: finalOrderId,
+            product_id: 'Área de Camping',
+            quantity: booking.camping.peopleCount,
+            unit_price: 100
+          });
+        }
       }
 
       if (orderItems.length > 0) {
@@ -324,6 +366,63 @@ export async function getBookedKioskIds(date: string): Promise<number[]> {
 
   // Retorna IDs únicos para evitar duplicidade visual
   return Array.from(new Set(bookedIds));
+}
+
+export async function getBookedChaleIds(date?: string | null): Promise<number[]> {
+  // Chalés indisponíveis por padrão (6 de alvenaria onde apenas 5 estão disponíveis -> Chalé 06 indisponível; e todos os 6 de vidro 07-12 indisponíveis)
+  const defaultUnavailable = [6, 7, 8, 9, 10, 11, 12];
+  
+  try {
+    const customDisabled = await getGlobalSetting('disabled_chale_ids', defaultUnavailable);
+    const bookedIds: number[] = Array.isArray(customDisabled) 
+      ? customDisabled.map(Number).filter(n => !isNaN(n)) 
+      : [...defaultUnavailable];
+
+    if (!date) return Array.from(new Set(bookedIds));
+
+    const blockedStatuses = ['paid', 'pago', 'confirmed', 'confirmado', 'checked-in', 'completed'];
+
+    // Buscar pedidos pagos ou confirmados para checar reservas de chalé na data especificada
+    const { data, error } = await (supabase
+      .from('orders') as any)
+      .select('id, status, visit_date, order_items(id, product_id, metadata)')
+      .in('status', blockedStatuses);
+
+    if (!error && Array.isArray(data)) {
+      data.forEach((order: any) => {
+        const orderDate = order.visit_date ? order.visit_date.split('T')[0] : null;
+        (order.order_items || []).forEach((item: any) => {
+          const prod = (item.product_id || '').toLowerCase();
+          if (prod.includes('chalé') || prod.includes('chale') || prod.includes('hospedagem')) {
+            const chaleId = item.metadata?.chale_id;
+            const checkIn = item.metadata?.check_in_date || orderDate;
+            const checkOut = item.metadata?.check_out_date;
+
+            let isMatching = false;
+            if (checkIn && checkOut) {
+              isMatching = date >= checkIn && date <= checkOut;
+            } else if (orderDate) {
+              isMatching = date === orderDate;
+            } else {
+              isMatching = true;
+            }
+
+            if (isMatching && chaleId) {
+              const numId = Number(chaleId);
+              if (!isNaN(numId) && numId > 0) {
+                bookedIds.push(numId);
+              }
+            }
+          }
+        });
+      });
+    }
+
+    return Array.from(new Set(bookedIds));
+  } catch (err) {
+    console.warn('Erro ao verificar chalés reservados:', err);
+    return defaultUnavailable;
+  }
 }
 
 export async function getKioskAvailability(date: string, type: string): Promise<number> {

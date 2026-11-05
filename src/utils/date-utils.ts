@@ -12,9 +12,11 @@ export const parseToRODate = (date: Date | string | null | undefined): Date => {
   
   let dateStr = "";
   if (date instanceof Date) {
-    // If it's a date object, we want to extract the "calendar date" relative to RO timezone
-    // but many components pass UTC midnight dates. To be safe, we extract YYYY-MM-DD.
-    dateStr = formatInTimeZone(date, TIMEZONE, 'yyyy-MM-dd');
+    // Extrai ano, mês e dia da data local escolhida pelo usuário
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    dateStr = `${y}-${m}-${d}`;
   } else {
     dateStr = date.split('T')[0];
   }

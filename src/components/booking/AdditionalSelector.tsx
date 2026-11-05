@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { QuantityStepper } from '@/components/QuantityStepper';
 import { AdditionalItem, ADDITIONAL_INFO, formatCurrency } from '@/lib/booking-types';
-import { Fish, CircleDot, Loader2 } from 'lucide-react';
+import { Fish, CircleDot, Loader2, Sparkles, AlertCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { useServices } from '@/hooks/useServices';
 import { getGlobalSetting } from '@/lib/booking-service';
 
@@ -43,74 +44,102 @@ export function AdditionalSelector({ additionals, onUpdate }: Props) {
   }, [disabledServices, additionals, onUpdate]);
 
   if (isLoading) {
-    return <div className="flex items-center justify-center p-6"><Loader2 className="animate-spin text-primary h-6 w-6" /></div>;
+    return <div className="flex items-center justify-center p-6"><Loader2 className="animate-spin text-emerald-600 h-6 w-6" /></div>;
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3 mb-2">
-        <div className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-sun/20 text-foreground shrink-0">
-          <span className="text-base sm:text-lg">⚡</span>
-        </div>
-        <h3 className="font-display font-bold text-lg sm:text-xl">4. Serviços Adicionais</h3>
-      </div>
-
       {additionals.map((item, i) => {
         const info = ADDITIONAL_INFO[item.type];
         const basePrice = getPrice(`add_${item.type}`, info.price);
         const Icon = ICONS[item.type] || Fish;
         const isDisabled = disabledServices[item.type];
+        const isSelected = item.quantity > 0;
+
         return (
-          <div key={item.type} className="bg-white/95 backdrop-blur-md rounded-2xl border-2 border-slate-200 p-4 sm:p-5 shadow-lg transition-colors hover:border-slate-300">
-            <div className="flex items-center justify-between gap-1.5 min-w-0">
-              <div className="flex items-center gap-2 min-w-0 flex-1">
-                <div className="flex items-center justify-center w-7 h-7 sm:w-10 sm:h-10 rounded-lg bg-sun/10 text-sun shrink-0">
-                  <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
+          <div 
+            key={item.type} 
+            className={`bg-white rounded-[2rem] border-2 p-5 sm:p-6 shadow-md transition-all duration-200 ${
+              isSelected 
+                ? 'border-amber-400 ring-2 ring-amber-400/20 shadow-lg' 
+                : 'border-emerald-200 hover:border-emerald-400'
+            }`}
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className={`flex items-center justify-center w-11 h-11 sm:w-12 sm:h-12 rounded-2xl shrink-0 transition-transform ${
+                  isSelected ? 'bg-amber-400 text-slate-950 scale-105' : 'bg-emerald-100 text-emerald-800'
+                }`}>
+                  <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
                 </div>
-                <div className="min-w-0 flex flex-col justify-center">
-                  <p className="font-display font-black text-[10px] sm:text-base uppercase tracking-tight leading-none truncate">{info.label}</p>
-                  <p className="text-primary font-black text-xs sm:text-lg flex flex-row items-baseline gap-1 whitespace-nowrap mt-0.5 overflow-hidden">
-                    {item.quantity >= 1 
-                      ? (
-                        <span className="flex items-center gap-1 flex-nowrap shrink-0">
-                          <span className="opacity-70 text-[8px] sm:text-xs leading-none">{formatCurrency(basePrice)} x {item.quantity} =</span>
-                          <span className="leading-none">{formatCurrency(basePrice * item.quantity)}</span>
+
+                <div className="min-w-0 flex-1 flex flex-col justify-center">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="font-sans font-black text-sm sm:text-base text-emerald-950 uppercase tracking-tight whitespace-normal leading-tight">
+                      {info.label}
+                    </h4>
+                    {isSelected && (
+                      <Badge className="bg-amber-400 text-slate-950 text-[9px] font-black uppercase px-2 py-0.2">
+                        {item.quantity} Selecionado{item.quantity > 1 ? 's' : ''}
+                      </Badge>
+                    )}
+                  </div>
+
+                  <p className="text-emerald-900 font-black text-sm sm:text-base flex items-baseline gap-1 mt-0.5">
+                    {item.quantity >= 1 ? (
+                      <span className="flex items-center gap-1.5 flex-nowrap">
+                        <span className="text-muted-foreground text-xs font-medium">
+                          {formatCurrency(basePrice)} x {item.quantity} =
                         </span>
-                      )
-                      : <span className="text-[8px] sm:text-sm leading-none opacity-60 font-medium">{formatCurrency(basePrice)}{item.type === 'futebol-sabao' ? ' p/ pes.' : ''}</span>}
+                        <span className="text-amber-600 font-black text-base sm:text-lg">
+                          {formatCurrency(basePrice * item.quantity)}
+                        </span>
+                      </span>
+                    ) : (
+                      <span className="text-emerald-800 font-bold text-xs sm:text-sm">
+                        {formatCurrency(basePrice)}{item.type === 'futebol-sabao' ? ' por pessoa' : ''}
+                      </span>
+                    )}
                   </p>
                 </div>
               </div>
-              <div className="shrink-0 ml-2">
+
+              <div className="shrink-0 self-end sm:self-center">
                 {isDisabled ? (
-                  <span className="text-[10px] sm:text-xs font-black text-red-500 bg-red-50 border border-red-200 px-2.5 py-1 rounded-md uppercase tracking-wider">
-                    indisponível no momento
+                  <span className="text-[10px] font-black text-rose-600 bg-rose-50 border border-rose-200 px-3 py-1 rounded-xl uppercase tracking-wider">
+                    Indisponível no momento
                   </span>
                 ) : (
-                  <QuantityStepper value={item.quantity} onChange={(q) => onUpdate(i, { quantity: q })} />
+                  <div className="bg-emerald-50/80 p-2 rounded-2xl border border-emerald-200">
+                    <QuantityStepper value={item.quantity} onChange={(q) => onUpdate(i, { quantity: q })} size="md" />
+                  </div>
                 )}
               </div>
             </div>
             
             {item.type === 'pesca' && (
-              <div className="mt-4 bg-destructive/5 border border-destructive/20 p-3 rounded-xl">
-                <p className="text-[10px] sm:text-xs text-muted-foreground leading-relaxed">
-                  <strong className="text-destructive">⚠️ Observação:</strong><br />
-                  Taxa por cada vara do cliente.<br />
-                  Equipamentos por conta do cliente (não alugamos/vendemos).<br />
-                  Permitido linha 0.50/0.60 sem filamento e anzol sem fisga.<br />
-                  Proibido uso de iscas artificiais.<br />
-                  Peixes: Tambaqui, pirarara, pintado, tucunaré
-                </p>
+              <div className="mt-4 bg-amber-50/80 border border-amber-200 p-4 rounded-2xl space-y-1.5">
+                <div className="flex items-center gap-1.5 text-amber-900 font-black text-xs uppercase tracking-tight">
+                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>Regras da Pesca Esportiva:</span>
+                </div>
+                <ul className="text-xs text-amber-900/90 leading-relaxed space-y-1 list-disc list-inside font-medium pl-1">
+                  <li>Taxa cobrada por cada vara do cliente (traga seu equipamento).</li>
+                  <li>Permitido linha 0.50/0.60 sem filamento e anzol sem fisga.</li>
+                  <li>Proibido o uso de iscas artificiais.</li>
+                  <li>Peixes: Tambaqui, pirarara, pintado e tucunaré (pesque e solte).</li>
+                </ul>
               </div>
             )}
             
             {item.type === 'futebol-sabao' && (
-              <div className="mt-4 bg-primary/5 border border-primary/20 p-3 rounded-xl">
-                <p className="text-[10px] sm:text-xs text-muted-foreground leading-relaxed">
-                  <span className="font-bold text-primary">Máximo de 4 pessoas por partida.</span><br /><br />
-                  <strong className="text-primary">💡 Recomendação:</strong><br />
-                  Recomendado 2 pessoas adultas para cada time ou 3 crianças para cada time.
+              <div className="mt-4 bg-emerald-50/80 border border-emerald-200 p-4 rounded-2xl space-y-1.5">
+                <div className="flex items-center gap-1.5 text-emerald-950 font-black text-xs uppercase tracking-tight">
+                  <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>Informações da Quadra de Sabão:</span>
+                </div>
+                <p className="text-xs text-emerald-900/90 leading-relaxed font-medium">
+                  Partidas de pura diversão! Recomendado 2 pessoas adultas para cada time ou 3 crianças para cada equipe (máximo 4 a 6 pessoas por partida simultânea).
                 </p>
               </div>
             )}

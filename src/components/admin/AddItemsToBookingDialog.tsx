@@ -30,12 +30,12 @@ export function AddItemsToBookingDialog({
   const [loading, setLoading] = useState(false);
   const [isFetchingAvail, setIsFetchingAvail] = useState(false);
   const [bookedIds, setBookedIds] = useState<number[]>([]);
-  const [maxQuads, setMaxQuads] = useState(3);
+  const [maxQuads, setMaxQuads] = useState(2);
   const [slotAvailabilities, setSlotAvailabilities] = useState<Record<string, number>>({});
   
   const { toast } = useToast();
 
-  const QUAD_TIMES = ['09:00', '10:30', '14:00', '15:30'];
+  const QUAD_TIMES = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00'];
 
   const initialData = {
     adults_normal: 0, 
@@ -59,7 +59,7 @@ export function AddItemsToBookingDialog({
 
   useEffect(() => {
     async function fetchConfig() {
-      const total = await getGlobalSetting('total_quads', 3);
+      const total = await getGlobalSetting('total_quads', 2);
       setMaxQuads(Number(total));
     }
     fetchConfig();
@@ -109,7 +109,7 @@ export function AddItemsToBookingDialog({
     const day = qDate.getDay();
     const qD = getQuadDiscount(qDate);
     
-    let finalQuadDiscount = (day === 1 || day === 5) ? 0.2 : qD;
+    let finalQuadDiscount = qD;
     
     if (newData.no_quad_discount) {
       finalQuadDiscount = 0;
@@ -178,13 +178,13 @@ export function AddItemsToBookingDialog({
       });
 
       newData.quads.forEach(q => {
-        const baseMap: Record<string, number> = { individual: 150, dupla: 250, 'adulto-crianca': 200 };
+        const baseMap: Record<string, number> = { individual: 130, dupla: 195, 'adulto-crianca': 195 };
         const labelMap: Record<string, string> = { individual: 'Individual', dupla: 'Dupla', 'adulto-crianca': 'Adulto + Criança' };
         
         const qDate = parseToRODate(visitDateStr);
         const day = qDate.getDay();
         const qD = getQuadDiscount(qDate);
-        let finalQuadDiscount = (day === 1 || day === 5) ? 0.2 : qD;
+        let finalQuadDiscount = qD;
         if (newData.no_quad_discount) finalQuadDiscount = 0;
         
         const finalPrice = (baseMap[q.type] || 0) * (1 - finalQuadDiscount);
@@ -392,11 +392,11 @@ export function AddItemsToBookingDialog({
                            {isFull && <span className="text-[7.5px] font-black text-rose-500 uppercase bg-rose-50 px-1.5 py-0.5 rounded-full border border-rose-100">Lotado</span>}
                         </div>
                         
-                        <div className="grid grid-cols-3 gap-1">
-                            {['individual', 'dupla', 'adulto-crianca'].map(type => {
+                        <div className="grid grid-cols-2 gap-1.5">
+                            {['individual', 'dupla'].map(type => {
                                const qItem = newData.quads.find(q => q.type === type && q.time === t);
                                const qty = qItem ? qItem.quantity : 0;
-                               const labels: any = { individual: 'IND.', dupla: 'DUPLA', 'adulto-crianca': 'ADUL + KIDS' };
+                               const labels: any = { individual: 'INDIVIDUAL', dupla: 'CASAL / DUPLA' };
                                
                                return (
                                   <div key={type} className="flex flex-col gap-1">

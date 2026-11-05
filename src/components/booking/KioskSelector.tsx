@@ -155,52 +155,56 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
       </div>
 
       {/* Map Container */}
-      <div className="relative bg-gradient-to-b from-emerald-100/90 via-green-100/50 to-emerald-100/70 backdrop-blur-md rounded-3xl border-2 border-emerald-600/40 p-4 sm:p-6 shadow-lg overflow-hidden">
+      <div className="relative bg-white rounded-[2rem] border-2 border-emerald-300 p-4 sm:p-6 shadow-xl overflow-hidden space-y-4">
 
         {/* Map Header */}
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <MapPin className="h-4 w-4 text-emerald-600" />
-            <span className="text-[10px] sm:text-xs font-black text-emerald-800/70 uppercase tracking-widest">
-              Mapa dos Quiosques
+            <span className="p-1.5 bg-emerald-100 text-emerald-800 rounded-lg">
+              <MapPin className="h-4 w-4" />
             </span>
-            <span className="hidden sm:inline-block text-[9px] font-bold text-emerald-700/60 ml-1 italic">
-              — Representação da posição no local
-            </span>
+            <div>
+              <span className="text-xs font-black text-emerald-950 uppercase tracking-wider block">
+                Posicionamento no Balneário
+              </span>
+              <span className="text-[10px] text-emerald-700/80 font-medium">
+                Escolha o quiosque de sua preferência clicando no número
+              </span>
+            </div>
           </div>
           {isFetching && (
-            <div className="flex items-center gap-1.5 text-emerald-600">
-              <Loader2 className="h-3 w-3 animate-spin" />
-              <span className="text-[10px] font-bold">Verificando...</span>
+            <div className="flex items-center gap-1.5 text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <span className="text-[10px] font-black uppercase">Atualizando...</span>
             </div>
           )}
         </div>
 
         {/* Legend */}
-        <div className="flex flex-wrap gap-3 mb-4">
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-sm bg-emerald-200 border border-emerald-500" />
-            <span className="text-[9px] sm:text-[10px] font-bold text-emerald-800">Disponível</span>
+        <div className="flex flex-wrap items-center justify-between gap-3 bg-emerald-50/80 p-3 rounded-2xl border border-emerald-200">
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="flex items-center gap-1.5">
+              <span className="w-3.5 h-3.5 rounded-full bg-emerald-500 border border-emerald-600 shadow-xs" />
+              <span className="text-[11px] font-black text-emerald-950 uppercase tracking-tight">Disponível</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-3.5 h-3.5 rounded-full bg-amber-400 border border-amber-500 shadow-xs" />
+              <span className="text-[11px] font-black text-slate-950 uppercase tracking-tight">Selecionado</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-3.5 h-3.5 rounded-full bg-rose-200 border border-rose-400" />
+              <span className="text-[11px] font-bold text-rose-700 uppercase tracking-tight">Reservado</span>
+            </div>
           </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-sm bg-emerald-600 border border-emerald-700" />
-            <span className="text-[9px] sm:text-[10px] font-bold text-emerald-800">Selecionado</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-sm bg-gray-200 border border-gray-300" />
-            <span className="text-[9px] sm:text-[10px] font-bold text-gray-600">Reservado</span>
-          </div>
-        </div>
 
-        {/* Date display */}
-        {checkDate && (
-          <div className="flex items-center gap-2 bg-white/70 px-3 py-1.5 rounded-full border border-emerald-400 w-fit mb-4">
-            <CalendarIcon className="h-3 w-3 text-emerald-600" />
-            <span className="text-[10px] sm:text-xs font-bold text-emerald-800 uppercase">
-              {format(checkDate, "dd/MM/yyyy (EEE)", { locale: ptBR })}
-            </span>
-          </div>
-        )}
+          {/* Date display */}
+          {checkDate && (
+            <div className="flex items-center gap-1.5 bg-emerald-950 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border border-amber-400">
+              <CalendarIcon className="h-3 w-3 text-amber-400" />
+              <span>{format(checkDate, "dd/MM/yyyy (EEE)", { locale: ptBR })}</span>
+            </div>
+          )}
+        </div>
 
         {/* ═══ KIOSK MAP LAYOUT ═══ */}
         <div className="space-y-3">
@@ -226,55 +230,54 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
                   onClick={() => handleToggleKiosk(kioskDef)}
                   disabled={isBooked && !isSelected}
                   className={cn(
-                    "relative flex flex-col items-center justify-center p-3 sm:p-4 rounded-2xl border-2 transition-all duration-300 cursor-pointer group",
-                    "min-h-[100px] sm:min-h-[120px]",
-                    isBooked && !isSelected && "bg-gray-100 border-gray-400 opacity-60 cursor-not-allowed",
-                    isSelected && "bg-emerald-600 border-emerald-700 text-white shadow-lg shadow-emerald-600/40 scale-[1.02]",
-                    !isBooked && !isSelected && "bg-white/90 border-emerald-500/50 hover:border-emerald-600 hover:bg-emerald-50 hover:shadow-md hover:scale-[1.03] active:scale-[0.98]",
+                    "relative flex flex-col items-center justify-center p-3 sm:p-4 rounded-2xl border-2 transition-all duration-200 cursor-pointer group min-h-[115px] sm:min-h-[125px]",
+                    isBooked && !isSelected && "bg-slate-100 border-slate-300 opacity-60 cursor-not-allowed",
+                    isSelected && "bg-amber-400 border-amber-500 text-slate-950 shadow-xl scale-[1.03] ring-2 ring-amber-400/30",
+                    !isBooked && !isSelected && "bg-emerald-50/60 border-emerald-400/80 hover:border-amber-400 hover:bg-emerald-100/70 hover:scale-[1.02] shadow-sm text-emerald-950",
                   )}
                 >
                   {/* Best Choice Badge for 02 and 05 */}
                   {(kioskDef.id === 2 || kioskDef.id === 5) && (
                     <div className={cn(
-                      "absolute -top-3 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-tighter shadow-sm z-10 whitespace-nowrap border animate-pulse",
-                      isSelected ? "bg-white text-emerald-900 border-white" : "bg-emerald-600 text-white border-emerald-400"
+                      "absolute -top-3 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider shadow-sm z-10 whitespace-nowrap border",
+                      isSelected ? "bg-slate-950 text-amber-300 border-slate-950" : "bg-emerald-700 text-white border-emerald-500"
                     )}>
                       🌟 Melhor Escolha
                     </div>
                   )}
 
                   {isSelected && (
-                    <div className="absolute -top-1.5 -right-1.5 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-md border-2 border-emerald-700 z-20">
-                      <Check className="h-3.5 w-3.5 text-emerald-700 stroke-[3]" />
+                    <div className="absolute -top-2 -right-2 w-6 h-6 bg-slate-950 rounded-full flex items-center justify-center shadow-md border-2 border-amber-400 z-20">
+                      <Check className="h-3.5 w-3.5 text-amber-400 stroke-[3]" />
                     </div>
                   )}
 
                   {isBooked && !isSelected && (
-                    <div className="absolute top-1 right-1 px-1.5 py-0.5 bg-red-100 rounded-full">
-                      <span className="text-[8px] font-black text-red-500 uppercase">
-                        {isDisabledByAdmin ? 'Indisponível' : 'Reservado'}
+                    <div className="absolute top-1.5 right-1.5 px-2 py-0.5 bg-rose-100 border border-rose-300 rounded-full">
+                      <span className="text-[8px] font-black text-rose-700 uppercase">
+                        {isDisabledByAdmin ? 'Indisponível' : 'Ocupado'}
                       </span>
                     </div>
                   )}
 
                   <span className={cn(
-                    "text-2xl sm:text-3xl font-black transition-colors",
-                    isSelected ? "text-white" : isBooked ? "text-gray-400" : "text-emerald-700"
+                    "text-3xl font-black transition-colors font-sans",
+                    isSelected ? "text-slate-950" : isBooked ? "text-slate-400" : "text-emerald-950"
                   )}>
                     {String(kioskDef.id).padStart(2, '0')}
                   </span>
 
                   <div className={cn(
                     "flex items-center gap-1 mt-1",
-                    isSelected ? "text-emerald-50" : isBooked ? "text-gray-400" : "text-emerald-600/70"
+                    isSelected ? "text-slate-900 font-bold" : isBooked ? "text-slate-400" : "text-emerald-800"
                   )}>
-                    <Users className="h-2.5 w-2.5" />
-                    <span className="text-[8px] sm:text-[9px] font-bold">{kioskDef.capacity}</span>
+                    <Users className="h-3 w-3" />
+                    <span className="text-[10px] font-bold">{kioskDef.capacity}</span>
                   </div>
 
                   <span className={cn(
-                    "text-xs sm:text-sm font-black mt-1 transition-colors",
-                    isSelected ? "text-white" : isBooked ? "text-gray-400" : "text-emerald-800"
+                    "text-xs sm:text-sm font-black mt-1.5 px-2.5 py-0.5 rounded-full",
+                    isSelected ? "bg-slate-950 text-amber-400 font-black shadow-xs" : isBooked ? "text-slate-400" : "bg-emerald-100 text-emerald-950 border border-emerald-300"
                   )}>
                     {formatCurrency(price)}
                   </span>
@@ -296,44 +299,43 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
                 onClick={() => handleToggleKiosk(kioskDef)}
                 disabled={isBooked && !isSelected}
                 className={cn(
-                  "relative w-full flex items-center justify-between p-4 sm:p-5 rounded-2xl border-2 transition-all duration-300 cursor-pointer group",
-                  "min-h-[80px] sm:min-h-[100px]",
-                  isBooked && !isSelected && "bg-gray-100 border-gray-400 opacity-60 cursor-not-allowed",
-                  isSelected && "bg-emerald-600 border-emerald-700 text-white shadow-lg shadow-emerald-600/40 scale-[1.01]",
-                  !isBooked && !isSelected && "bg-white/90 border-emerald-500/50 hover:border-emerald-600 hover:bg-emerald-50 hover:shadow-md hover:scale-[1.01] active:scale-[0.99]",
+                  "relative w-full flex items-center justify-between p-4 sm:p-5 rounded-2xl border-2 transition-all duration-200 cursor-pointer group min-h-[90px] sm:min-h-[105px]",
+                  isBooked && !isSelected && "bg-slate-100 border-slate-300 opacity-60 cursor-not-allowed",
+                  isSelected && "bg-amber-400 border-amber-500 text-slate-950 shadow-xl scale-[1.01] ring-2 ring-amber-400/30",
+                  !isBooked && !isSelected && "bg-emerald-50/60 border-emerald-400/80 hover:border-amber-400 hover:bg-emerald-100/70 shadow-sm text-emerald-950",
                 )}
               >
                 {isSelected && (
-                  <div className="absolute -top-1.5 -right-1.5 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-md border-2 border-emerald-700">
-                    <Check className="h-3.5 w-3.5 text-emerald-700 stroke-[3]" />
+                  <div className="absolute -top-2 -right-2 w-6 h-6 bg-slate-950 rounded-full flex items-center justify-center shadow-md border-2 border-amber-400 z-20">
+                    <Check className="h-3.5 w-3.5 text-amber-400 stroke-[3]" />
                   </div>
                 )}
 
                 {isBooked && !isSelected && (
-                  <div className="absolute top-2 right-2 px-1.5 py-0.5 bg-red-100 rounded-full">
-                    <span className="text-[8px] font-black text-red-500 uppercase">
-                      {isDisabledByAdmin ? 'Indisponível' : 'Reservado'}
+                  <div className="absolute top-2 right-2 px-2 py-0.5 bg-rose-100 border border-rose-300 rounded-full">
+                    <span className="text-[8px] font-black text-rose-700 uppercase">
+                      {isDisabledByAdmin ? 'Indisponível' : 'Ocupado'}
                     </span>
                   </div>
                 )}
 
                 <div className="flex items-center gap-3 sm:gap-4">
                   <span className={cn(
-                    "text-3xl sm:text-4xl font-black transition-colors",
-                    isSelected ? "text-white" : isBooked ? "text-gray-400" : "text-emerald-700"
+                    "text-3xl sm:text-4xl font-black transition-colors font-sans",
+                    isSelected ? "text-slate-950" : isBooked ? "text-slate-400" : "text-emerald-950"
                   )}>
                     {String(kioskDef.id).padStart(2, '0')}
                   </span>
                   <div className="flex flex-col items-start">
                     <span className={cn(
-                      "text-[10px] sm:text-xs font-black uppercase tracking-wider",
-                      isSelected ? "text-emerald-100" : isBooked ? "text-gray-400" : "text-emerald-500"
+                      "text-[11px] sm:text-xs font-black uppercase tracking-wider",
+                      isSelected ? "text-slate-950" : isBooked ? "text-slate-400" : "text-emerald-900"
                     )}>
-                      Quiosque Grande — Separado
+                      Quiosque Grande — Estrutura Completa
                     </span>
                     <div className={cn(
-                      "flex items-center gap-1",
-                      isSelected ? "text-emerald-50" : isBooked ? "text-gray-400" : "text-emerald-600/70"
+                      "flex items-center gap-1 mt-0.5",
+                      isSelected ? "text-slate-900 font-bold" : isBooked ? "text-slate-400" : "text-emerald-800"
                     )}>
                       <Users className="h-3 w-3" />
                       <span className="text-[10px] sm:text-xs font-bold">{kioskDef.capacity}</span>
@@ -342,8 +344,8 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
                 </div>
 
                 <span className={cn(
-                  "text-lg sm:text-xl font-black transition-colors",
-                  isSelected ? "text-white" : isBooked ? "text-gray-400" : "text-emerald-800"
+                  "text-lg sm:text-2xl font-black transition-colors px-3 py-1 rounded-xl",
+                  isSelected ? "bg-slate-950 text-amber-400 font-black" : isBooked ? "text-slate-400" : "bg-emerald-100 text-emerald-950 border border-emerald-300"
                 )}>
                   {formatCurrency(price)}
                 </span>
@@ -352,16 +354,16 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
           })}
 
           {/* Quiosques Familiares: 06-12 */}
-          <div className="pt-4 border-t border-emerald-600/20">
+          <div className="pt-4 border-t border-emerald-200">
             <div className="flex items-center justify-between gap-2 mb-3">
-              <span className="text-[10px] font-black text-teal-700/80 uppercase tracking-widest">
-                ⛺ Quiosques Familiares — Até 5 pessoas
+              <span className="text-xs font-black text-emerald-950 uppercase tracking-wider flex items-center gap-1.5">
+                <span>⛺</span> Quiosques Familiares — Até 5 pessoas
               </span>
-              <span className="animate-pulse text-[9px] font-black text-teal-600 flex items-center gap-1">
-                Deslize para ver mais <span className="text-xs">➡️</span>
+              <span className="text-[9px] font-black text-emerald-800 flex items-center gap-1 bg-emerald-100 px-2 py-0.5 rounded-full">
+                Deslize para ver mais ➡️
               </span>
             </div>
-            <div className="flex overflow-x-auto gap-2 sm:gap-3 pb-3 snap-x scroll-smooth">
+            <div className="flex overflow-x-auto gap-2.5 sm:gap-3 pb-3 snap-x scroll-smooth no-scrollbar">
               {KIOSK_MAP.filter(k => k.row === 'familiar').map(kioskDef => {
                 const isDisabledByAdmin = disableKiosks || disabledKioskIds.includes(kioskDef.id) || disabledKioskTypes.includes(kioskDef.type);
                 const isBooked = bookedIds.includes(kioskDef.id) || isDisabledByAdmin;
@@ -374,45 +376,45 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
                     onClick={() => handleToggleKiosk(kioskDef)}
                     disabled={isBooked && !isSelected}
                     className={cn(
-                      "relative flex flex-col items-center justify-center p-2 sm:p-4 rounded-2xl border-2 transition-all duration-300 cursor-pointer group shrink-0 snap-center",
-                      "min-w-[90px] sm:min-w-0 sm:flex-1 min-h-[100px] sm:min-h-[110px]",
-                      isBooked && !isSelected && "bg-gray-100 border-gray-400 opacity-60 cursor-not-allowed",
-                      isSelected && "bg-teal-600 border-teal-700 text-white shadow-lg shadow-teal-600/40 scale-[1.02]",
-                      !isBooked && !isSelected && "bg-teal-50/80 border-teal-400/50 hover:border-teal-500 hover:bg-teal-100 hover:shadow-md hover:scale-[1.03] active:scale-[0.98]",
+                      "relative flex flex-col items-center justify-center p-3 sm:p-4 rounded-2xl border-2 transition-all duration-200 cursor-pointer group shrink-0 snap-center",
+                      "min-w-[95px] sm:min-w-0 sm:flex-1 min-h-[110px] sm:min-h-[120px]",
+                      isBooked && !isSelected && "bg-slate-100 border-slate-300 opacity-60 cursor-not-allowed",
+                      isSelected && "bg-amber-400 border-amber-500 text-slate-950 shadow-xl scale-[1.03] ring-2 ring-amber-400/30",
+                      !isBooked && !isSelected && "bg-emerald-50/60 border-emerald-400/80 hover:border-amber-400 hover:bg-emerald-100/70 text-emerald-950 shadow-sm",
                     )}
                   >
                     {isSelected && (
-                      <div className="absolute -top-1.5 -right-1.5 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-md border-2 border-teal-700 z-20">
-                        <Check className="h-3.5 w-3.5 text-teal-700 stroke-[3]" />
+                      <div className="absolute -top-2 -right-2 w-6 h-6 bg-slate-950 rounded-full flex items-center justify-center shadow-md border-2 border-amber-400 z-20">
+                        <Check className="h-3.5 w-3.5 text-amber-400 stroke-[3]" />
                       </div>
                     )}
 
                     {isBooked && !isSelected && (
-                      <div className="absolute top-1 right-1 px-1.5 py-0.5 bg-red-100 rounded-full">
-                        <span className="text-[8px] font-black text-red-500 uppercase">
-                          {isDisabledByAdmin ? 'Indisponível' : 'Reservado'}
+                      <div className="absolute top-1 right-1 px-1.5 py-0.5 bg-rose-100 border border-rose-300 rounded-full">
+                        <span className="text-[7px] font-black text-rose-700 uppercase">
+                          {isDisabledByAdmin ? 'Indisponível' : 'Ocupado'}
                         </span>
                       </div>
                     )}
 
                     <span className={cn(
-                      "text-2xl sm:text-3xl font-black transition-colors",
-                      isSelected ? "text-white" : isBooked ? "text-gray-400" : "text-teal-700"
+                      "text-2xl sm:text-3xl font-black transition-colors font-sans",
+                      isSelected ? "text-slate-950" : isBooked ? "text-slate-400" : "text-emerald-950"
                     )}>
                       {String(kioskDef.id).padStart(2, '0')}
                     </span>
 
                     <div className={cn(
                       "flex items-center gap-1 mt-1",
-                      isSelected ? "text-teal-50" : isBooked ? "text-gray-400" : "text-teal-600/70"
+                      isSelected ? "text-slate-900 font-bold" : isBooked ? "text-slate-400" : "text-emerald-800"
                     )}>
                       <Users className="h-2.5 w-2.5" />
                       <span className="text-[8px] sm:text-[9px] font-bold">{kioskDef.capacity}</span>
                     </div>
 
                     <span className={cn(
-                      "text-xs sm:text-sm font-black mt-1 transition-colors",
-                      isSelected ? "text-white" : isBooked ? "text-gray-400" : "text-teal-800"
+                      "text-xs sm:text-sm font-black mt-1 px-2 py-0.5 rounded-full",
+                      isSelected ? "bg-slate-950 text-amber-400 font-black shadow-xs" : isBooked ? "text-slate-400" : "bg-emerald-100 text-emerald-950 border border-emerald-300"
                     )}>
                       {formatCurrency(price)}
                     </span>

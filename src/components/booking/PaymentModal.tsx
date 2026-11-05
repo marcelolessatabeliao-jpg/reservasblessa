@@ -200,10 +200,9 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, phone, 
   const handleSendWhatsApp = () => {
     if (!pixData || !phone) return;
     const cleanPhone = phone.replace(/\D/g, '');
-    // Ensure international format (55 for BR if not present)
     const formattedPhone = cleanPhone.length <= 11 ? `55${cleanPhone}` : cleanPhone;
     
-    const message = `*Pagamento Seguro*\n\nEscaneie o QR Code no app do seu banco ou copie o código abaixo:\n\n*PIX Copia e Cola:*\n${pixData.payload}\n\n⚠️ *AVISO IMPORTANTE*\n\nSua reserva *SÓ SERÁ GARANTIDA* após a confirmação do pagamento. O QR Code expira e a sua reserva pode ser ocupada por outro cliente se não for pago agora.`;
+    const message = `*Reserva Balneário Família Lessa*\n\nOlá, ${name || 'Cliente'}!\n\nSegue seu código para pagamento da sua reserva:\n\n*PIX Copia e Cola:*\n${pixData.payload}\n\n*Acompanhe ou pegue seu Voucher:*\nConsulte a qualquer momento no site em: https://balneariolessa.com.br/consultar informando seu WhatsApp (${phone}).\n\n⚠️ *Aviso Importante:* Sua reserva só será garantida após a confirmação do pagamento. O QR Code expira em breve.`;
     
     const url = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank');
@@ -359,19 +358,32 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, phone, 
             <Button 
               onClick={handleCopyPix}
               variant={copied ? "default" : "outline"}
-              className="w-full h-12 flex items-center justify-center gap-2 font-bold text-xs sm:text-sm rounded-xl border-primary bg-primary/5 text-primary hover:bg-primary hover:text-white transition-all"
+              className="w-full h-12 flex items-center justify-center gap-2 font-black text-xs sm:text-sm rounded-xl border-primary bg-primary/5 text-primary hover:bg-primary hover:text-white transition-all shadow-sm"
             >
               {copied ? <CheckCircle className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
               {copied ? 'Código PIX Copiado' : 'Copiar Código PIX'}
             </Button>
 
-            {phone && !isClient && (
+            {/* Card de Orientação de Consulta */}
+            <div className="bg-emerald-50 border-2 border-emerald-300/80 rounded-2xl p-4 text-left space-y-2 shadow-xs w-full">
+              <div className="flex items-center gap-2 text-emerald-950 font-black text-xs uppercase tracking-tight">
+                <span className="text-base">💡</span>
+                <span>Como acompanhar seu agendamento:</span>
+              </div>
+              <ol className="text-[11px] text-emerald-950 font-medium space-y-1.5 list-decimal list-inside leading-relaxed pl-1">
+                <li>Copie o código acima e pague no app do seu banco via <strong>PIX Copia e Cola</strong>.</li>
+                <li>Ao voltar para esta página, ela <strong>confirma automaticamente</strong> em segundos.</li>
+                <li>Se a página fechar, consulte a qualquer momento no menu <strong className="text-emerald-800 underline">Consultar Reserva</strong> no topo do site usando seu <strong>WhatsApp</strong> ou <strong>CPF</strong> para ver seu Voucher com QR Code.</li>
+              </ol>
+            </div>
+
+            {phone && (
               <Button 
                 onClick={handleSendWhatsApp}
-                className="w-full h-12 flex items-center justify-center gap-2 font-black text-xs sm:text-sm rounded-xl bg-[#25D366] hover:bg-[#128C7E] text-white shadow-lg transition-all"
+                className="w-full h-12 flex items-center justify-center gap-2 font-black text-xs sm:text-sm rounded-xl bg-[#25D366] hover:bg-[#128C7E] text-white shadow-md transition-all active:scale-[0.98]"
               >
                 <MessageCircle className="h-5 w-5" />
-                Enviar para WhatsApp do Cliente
+                Salvar / Enviar Dados no meu WhatsApp
               </Button>
             )}
 

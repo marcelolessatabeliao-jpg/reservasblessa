@@ -16,7 +16,7 @@ export const KIOSKS = [
   { id: 12, name: 'QUIOSQUE - 12', price: 75, capacity: 'Até 5 pessoas', type: 'Familiar' }
 ];
 
-export const QUAD_TIMES: QuadTime[] = ['09:00', '10:30', '14:00', '15:30'];
+export const QUAD_TIMES: QuadTime[] = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00'];
 
 export const PAYMENT_METHODS = [
   { value: 'pix', label: 'PIX / Transferência' },
@@ -25,8 +25,8 @@ export const PAYMENT_METHODS = [
 ];
 
 export const QUAD_MODELS_LABELS: Record<string, string> = {
-  individual: 'Individual',
-  dupla: 'Dupla',
+  individual: 'Passeio Individual (40 min)',
+  dupla: 'Passeio para Casal (40 min)',
   'adulto-crianca': 'Adulto + Criança'
 };
 

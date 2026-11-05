@@ -41,7 +41,7 @@ export function AdminDashboardTab({
   orders,
   isAllowedDay,
   isHoliday,
-  totalQuads = 3,
+  totalQuads = 2,
   onBookingClick
 }: AdminDashboardTabProps) {
   const [blockedDates, setBlockedDates] = useState<string[]>([]);
@@ -184,7 +184,7 @@ export function AdminDashboardTab({
                         <Users className="w-5 h-5 text-emerald-700" /> Quiosques ({dayKiosks.length}/12)
                      </h4>
                      
-                     <div className="flex flex-col gap-2.5">
+                     <div className="flex flex-col gap-2">
                        {(() => {
                          // Build a lookup map: kiosk slot ID -> reservation
                          const kioskMap: Record<number, any> = {};
@@ -283,11 +283,16 @@ export function AdminDashboardTab({
                   
                      <div className="flex flex-col gap-2.5">
                         {[
-                          { start: '09:00', end: '10:30' },
-                          { start: '10:30', end: '12:00' },
-                          { start: '14:00', end: '15:30' },
-                          { start: '15:30', end: '17:00' }
-                        ].map(slot => {
+                           { start: '08:00', end: '08:40' },
+                           { start: '09:00', end: '09:40' },
+                           { start: '10:00', end: '10:40' },
+                           { start: '11:00', end: '11:40' },
+                           { start: '12:00', end: '12:40' },
+                           { start: '13:00', end: '13:40' },
+                           { start: '14:00', end: '14:40' },
+                           { start: '15:00', end: '15:40' },
+                           { start: '16:00', end: '16:40' }
+                         ].map(slot => {
                           const slotBookings = dayQuads.filter(b => {
                               const bSlot = (b.time_slot || '').split('(')[0].toUpperCase().replace(/H/g, ':').trim();
                               const target = slot.start.toUpperCase();
