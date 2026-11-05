@@ -128,6 +128,27 @@ export function useBooking() {
     }));
   }, []);
 
+  const setQuads = useCallback((newQuads: QuadItem[]) => {
+    setBooking(prev => ({
+      ...prev,
+      quads: newQuads,
+    }));
+  }, []);
+
+  const addQuad = useCallback((quad: QuadItem) => {
+    setBooking(prev => ({
+      ...prev,
+      quads: [...prev.quads, quad]
+    }));
+  }, []);
+
+  const removeQuad = useCallback((index: number) => {
+    setBooking(prev => ({
+      ...prev,
+      quads: prev.quads.filter((_, i) => i !== index)
+    }));
+  }, []);
+
   const updateQuad = useCallback((index: number, updates: Partial<QuadItem>) => {
     setBooking(prev => ({
       ...prev,
@@ -271,5 +292,5 @@ export function useBooking() {
       (booking.camping.peopleCount || 0) > 0;
   }, [booking]);
 
-  return { booking, updateEntry, addAdult, removeAdult, updateAdult, addChild, removeChild, updateChild, updateKiosk, updateQuad, addQuad, removeQuad, updateAdditional, updateChale, updateCamping, resetOptionalServices, totals, hasItems, getPrice, isLoading };
+  return { booking, updateEntry, addAdult, removeAdult, updateAdult, addChild, removeChild, updateChild, updateKiosk, updateQuad, addQuad, removeQuad, setQuads, updateAdditional, updateChale, updateCamping, resetOptionalServices, totals, hasItems, getPrice, isLoading };
 }

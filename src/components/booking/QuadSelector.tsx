@@ -1,44 +1,25 @@
-import React, { useState, useEffect } from 'react';
-import { Bike, Tag, CalendarIcon, Loader2, Users, User, Baby, Clock, ChevronDown, Check, AlertTriangle } from 'lucide-react';
-import { QuantityStepper } from '@/components/QuantityStepper';
-import { QuadItem, QUAD_LABELS, QUAD_TIMES, getQuadDiscount, formatCurrency, QuadTime, isOperatingDay } from '@/lib/booking-types';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useState, useEffect, useMemo } from 'react';
+import { QuadItem, QUAD_LABELS, QUAD_TIMES, getQuadDiscount, formatCurrency, QuadTime } from '@/lib/booking-types';
+import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useServices } from '@/hooks/useServices';
-import { getQuadAvailability, getAllQuadAvailabilities, getGlobalSetting } from '@/lib/booking-service';
+import { getAllQuadAvailabilities, getGlobalSetting } from '@/lib/booking-service';
 import { useToast } from '@/hooks/use-toast';
+import { Bike, Clock, Tag, ChevronDown, Check, User, Users, Loader2, Calendar as CalendarIcon, AlertTriangle, Trash2, X, Minus, Plus } from 'lucide-react';
 
 interface Props {
   quads: QuadItem[];
   onUpdate: (index: number, updates: Partial<QuadItem>) => void;
+  onSetQuads?: (newQuads: QuadItem[]) => void;
   onAddQuad?: (item?: Partial<QuadItem>) => void;
   onRemoveQuad?: (index: number) => void;
 }
 
-const QUAD_CARDS = [
-  {
-    type: 'individual' as const,
-    icon: User,
-    title: 'Passeio Individual',
-    subtitle: '1 pessoa • 40 min de aventura e emoção',
-    fallbackPrice: 130,
-    color: 'emerald',
-  },
-  {
-    type: 'dupla' as const,
-    icon: Users,
-    title: 'Passeio de Dupla',
-    subtitle: '2 pessoas • 40 min de aventura e natureza',
-    fallbackPrice: 195,
-    color: 'blue',
-  },
-];
-
 const DEFAULT_MAX_QUADS = 2;
 
-export function QuadSelector({ quads, onUpdate }: Props) {
+export function QuadSelector({ quads, onUpdate, onSetQuads }: Props) {
   const { getPrice, isLoading } = useServices();
   const { toast } = useToast();
   const [maxQuads, setMaxQuads] = useState<number>(DEFAULT_MAX_QUADS);
@@ -46,7 +27,9 @@ export function QuadSelector({ quads, onUpdate }: Props) {
   const [isFetchingAvailability, setIsFetchingAvailability] = useState(false);
   const [disableQuads, setDisableQuads] = useState(false);
   const [disabledQuadSlots, setDisabledQuadSlots] = useState<string[]>([]);
-  const [expandedCard, setExpandedCard] = useState<string | null>(null);
+  
+  // Horário atualmente selecionado/expandido para configuração
+  const [expandedSlot, setExpandedSlot] = useState<QuadTime | null>(null);
 
   const checkDate = quads[0]?.date || quads.find(q => q.date)?.date;
 
@@ -55,9 +38,9 @@ export function QuadSelector({ quads, onUpdate }: Props) {
       const total = await getGlobalSetting('total_quads', DEFAULT_MAX_QUADS);
       setMaxQuads(Math.min(DEFAULT_MAX_QUADS, Number(total) || DEFAULT_MAX_QUADS));
       const blockedQuads = await getGlobalSetting('disable_quads', false);
+      setDisableQuads(Boolean(blockedQuads));
       const blockedSlots = await getGlobalSetting('disabled_quad_slots', []);
-      setDisableQuads(!!blockedQuads);
-      if (Array.isArray(blockedSlots)) setDisabledQuadSlots(blockedSlots);
+      setDisabledQuadSlots(Array.isArray(blockedSlots) ? blockedSlots : []);
     }
     fetchConfig();
   }, []);
@@ -79,44 +62,83 @@ export function QuadSelector({ quads, onUpdate }: Props) {
     fetchAvailability();
   }, [checkDate]);
 
-  // Auto-expand card that has quantity > 0
+  // Se houver passeios ativos e nenhum expandido, expande o primeiro
   useEffect(() => {
-    const activeQuad = quads.find(q => q.quantity > 0);
-    if (activeQuad && !expandedCard) {
-      setExpandedCard(activeQuad.type);
+    const firstActive = quads.find(q => q.quantity > 0 && q.time);
+    if (firstActive?.time && !expandedSlot) {
+      setExpandedSlot(firstActive.time as QuadTime);
     }
   }, [quads]);
-
-  useEffect(() => {
-    if (disableQuads || maxQuads === 0) {
-      quads.forEach((q, idx) => {
-        if (q.quantity > 0) {
-          onUpdate(idx, { quantity: 0, time: undefined });
-        }
-      });
-    } else {
-      quads.forEach((q, idx) => {
-        if (q.quantity > 0 && q.time && disabledQuadSlots.includes(q.time)) {
-          onUpdate(idx, { quantity: 0, time: undefined });
-        }
-      });
-    }
-  }, [disableQuads, maxQuads, disabledQuadSlots, quads, onUpdate]);
 
   if (isLoading) {
     return <div className="flex items-center justify-center p-6"><Loader2 className="animate-spin text-primary h-6 w-6" /></div>;
   }
 
-  // Calculate total used per slot across all quad types
-  const getSlotUsage = (slotTime: string, excludeIndex?: number) => {
-    const dbUsed = slotAvailabilities[slotTime] || 0;
-    const localUsed = quads.reduce((acc, q, idx) => {
-      if (excludeIndex !== undefined && idx === excludeIndex) return acc;
-      if (q.time === slotTime) return acc + q.quantity;
-      return acc;
-    }, 0);
-    return dbUsed + localUsed;
+  // Uso do slot no banco de dados (excluindo reservas locais do próprio cliente)
+  const getSlotDbUsage = (slotTime: string) => {
+    return slotAvailabilities[slotTime] || 0;
   };
+
+  // Encontra a reserva ativa do cliente para um determinado horário
+  const getBookingForSlot = (slotTime: string) => {
+    return quads.find(q => q.time === slotTime && q.quantity > 0);
+  };
+
+  // Salvar ou atualizar passeio para um horário específico
+  const handleSaveSlot = (slotTime: QuadTime, type: 'individual' | 'dupla', quantity: number) => {
+    if (!checkDate) {
+      toast({ title: 'Selecione a data primeiro', variant: 'destructive' });
+      return;
+    }
+
+    if (quantity <= 0) {
+      // Remove o horário
+      const nextQuads = quads.filter(q => q.time !== slotTime);
+      if (onSetQuads) {
+        onSetQuads(nextQuads);
+      } else {
+        const idx = quads.findIndex(q => q.time === slotTime);
+        if (idx >= 0) onUpdate(idx, { quantity: 0, time: undefined });
+      }
+      return;
+    }
+
+    // Atualiza ou insere o horário
+    const existingIdx = quads.findIndex(q => q.time === slotTime);
+    if (existingIdx >= 0) {
+      if (onSetQuads) {
+        const next = quads.map((q, i) => i === existingIdx ? { ...q, type, quantity, date: checkDate, time: slotTime } : q);
+        onSetQuads(next);
+      } else {
+        onUpdate(existingIdx, { type, quantity, time: slotTime, date: checkDate });
+      }
+    } else {
+      const newQuad: QuadItem = { type, quantity, time: slotTime, date: checkDate };
+      if (onSetQuads) {
+        onSetQuads([...quads.filter(q => q.quantity > 0), newQuad]);
+      } else {
+        // Tenta achar um slot livre ou adiciona
+        const emptyIdx = quads.findIndex(q => q.quantity === 0);
+        if (emptyIdx >= 0) {
+          onUpdate(emptyIdx, newQuad);
+        } else {
+          onUpdate(quads.length, newQuad);
+        }
+      }
+    }
+  };
+
+  const discount = getQuadDiscount(checkDate);
+  const indBasePrice = getPrice('quad_individual', 130);
+  const dupBasePrice = getPrice('quad_dupla', 195);
+  const indFinalPrice = indBasePrice * (1 - discount);
+  const dupFinalPrice = dupBasePrice * (1 - discount);
+
+  const activeQuads = quads.filter(q => q.quantity > 0 && q.time);
+  const totalQuadsCost = activeQuads.reduce((acc, q) => {
+    const base = getPrice(`quad_${q.type}`, q.type === 'dupla' ? 195 : 130);
+    return acc + (base * (1 - discount) * q.quantity);
+  }, 0);
 
   return (
     <div className="space-y-4">
@@ -139,13 +161,13 @@ export function QuadSelector({ quads, onUpdate }: Props) {
               <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 block">
                 🔥 RETOMADA OFICIAL DOS PASSEIOS
               </span>
-              <h4 className="font-sans font-black text-base sm:text-xl text-white">
-                OS PASSEIOS DE QUADRICICLO ESTÃO DE VOLTA!
+              <h4 className="font-sans font-black text-sm sm:text-base text-white">
+                Trilha Ecológica Balneário Lessa
               </h4>
             </div>
           </div>
-          <span className="self-start sm:self-auto bg-amber-400 text-slate-950 text-[10px] font-black uppercase px-3 py-1 rounded-full shadow-md">
-            💳 Aceitamos Cartão de Crédito
+          <span className="self-start sm:self-auto bg-amber-400 text-slate-950 font-black text-[10px] uppercase px-3 py-1 rounded-full shadow-sm">
+            10% OFF Reserva Online
           </span>
         </div>
 
@@ -163,7 +185,7 @@ export function QuadSelector({ quads, onUpdate }: Props) {
           <div className="flex items-center gap-2 bg-emerald-900/60 border border-emerald-700/60 p-2.5 rounded-xl">
             <Tag className="w-4 h-4 text-amber-400 shrink-0" />
             <span className="text-amber-300 font-bold">
-              Individual: <strong>R$ 130,00</strong> • Casal: <strong>R$ 195,00</strong>
+              Individual: <strong>R$ 117,00</strong> • De Dupla: <strong>R$ 175,50</strong> (10% OFF)
             </span>
           </div>
         </div>
@@ -183,20 +205,24 @@ export function QuadSelector({ quads, onUpdate }: Props) {
             </span>
           </div>
         </div>
-
-
       </div>
 
-      {/* Slot availability overview */}
+      {/* SELETOR INTERATIVO POR HORÁRIO: CLIQUE NO HORÁRIO PARA EXPANDIR E CONFIGURAR */}
       {checkDate && (
-        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 sm:p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Clock className="h-3.5 w-3.5 text-slate-500" />
-            <span className="text-[10px] sm:text-xs font-black text-slate-600 uppercase tracking-widest">
-              Disponibilidade por Horário — {format(checkDate, "dd/MM", { locale: ptBR })}
+        <div className="bg-slate-50 border-2 border-emerald-200 rounded-3xl p-4 sm:p-5 space-y-4 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 pb-2.5 gap-2">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-emerald-800" />
+              <span className="text-xs sm:text-sm font-black text-slate-900 uppercase tracking-tight">
+                Clique no horário desejado para escolher o passeio:
+              </span>
+              {isFetchingAvailability && <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-400" />}
+            </div>
+            <span className="text-[10px] font-bold text-slate-500 uppercase">
+              Data: {format(checkDate, "dd/MM/yyyy (EEEE)", { locale: ptBR })}
             </span>
-            {isFetchingAvailability && <Loader2 className="h-3 w-3 animate-spin text-slate-400" />}
           </div>
+
           {(disableQuads || maxQuads === 0) ? (
             <div className="bg-red-50 border-2 border-red-200 p-4 rounded-2xl text-center">
               <span className="text-sm font-black text-red-700 uppercase">
@@ -204,480 +230,301 @@ export function QuadSelector({ quads, onUpdate }: Props) {
               </span>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {QUAD_TIMES.map(t => {
-                const totalUsed = getSlotUsage(t);
-                const isSlotDisabled = disabledQuadSlots.includes(t);
-                const remaining = isSlotDisabled ? 0 : Math.max(0, maxQuads - totalUsed);
-                const pct = isSlotDisabled ? 100 : (totalUsed / maxQuads) * 100;
-                const isFull = isSlotDisabled || remaining <= 0;
+            <div className="space-y-4">
+              {/* Grid dos 9 Horários */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
+                {QUAD_TIMES.map(t => {
+                  const dbUsed = getSlotDbUsage(t);
+                  const isSlotDisabled = disabledQuadSlots.includes(t);
+                  const bookingThisSlot = getBookingForSlot(t);
+                  const isSelectedByMe = Boolean(bookingThisSlot && bookingThisSlot.quantity > 0);
+                  const remaining = isSlotDisabled ? 0 : Math.max(0, maxQuads - dbUsed);
+                  const isFull = isSlotDisabled || remaining <= 0;
+                  const isExpanded = expandedSlot === t;
+
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      disabled={isFull && !isSelectedByMe}
+                      onClick={() => {
+                        setExpandedSlot(isExpanded ? null : t);
+                      }}
+                      className={cn(
+                        "relative flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all cursor-pointer select-none text-center shadow-xs",
+                        isExpanded
+                          ? "ring-2 ring-amber-400 scale-[1.02] border-amber-500 bg-[#042817] text-white shadow-md"
+                          : isSelectedByMe
+                            ? "bg-[#063f25] border-emerald-500 text-white shadow-sm"
+                            : isFull
+                              ? "bg-red-50 border-red-200 text-red-400 opacity-60 cursor-not-allowed"
+                              : remaining === 1
+                                ? "bg-amber-50/80 border-amber-300 hover:border-amber-400 text-slate-900"
+                                : "bg-white border-emerald-300 hover:border-emerald-400 hover:bg-emerald-50/50 text-slate-900"
+                      )}
+                    >
+                      {/* Check se está reservado por mim */}
+                      {isSelectedByMe && (
+                        <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-amber-400 text-slate-950 flex items-center justify-center shadow-xs">
+                          <Check className="w-2.5 h-2.5 stroke-[3]" />
+                        </div>
+                      )}
+
+                      <span className={cn(
+                        "text-sm sm:text-base font-black tracking-tight",
+                        isExpanded ? "text-amber-300" : isSelectedByMe ? "text-white" : "text-slate-900"
+                      )}>
+                        {t}
+                      </span>
+
+                      <span className={cn(
+                        "text-[10px] font-bold mt-0.5",
+                        isExpanded 
+                          ? "text-emerald-200"
+                          : isSelectedByMe
+                            ? "text-amber-300 font-black"
+                            : isFull
+                              ? "text-red-500 font-bold"
+                              : remaining === 1
+                                ? "text-amber-700 font-bold"
+                                : "text-emerald-700 font-black"
+                      )}>
+                        {isSelectedByMe 
+                          ? `${bookingThisSlot!.quantity}x ${bookingThisSlot!.type === 'dupla' ? 'Dupla' : 'Indiv.'}`
+                          : isSlotDisabled
+                            ? 'Indisponível'
+                            : isFull
+                              ? 'LOTADO'
+                              : `${remaining} Livre${remaining > 1 ? 's' : ''}`}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* PAINEL EXPANDIDO DE CONFIGURAÇÃO DO HORÁRIO SELECIONADO */}
+              {expandedSlot && (() => {
+                const slot = expandedSlot;
+                const dbUsed = getSlotDbUsage(slot);
+                const isSlotDisabled = disabledQuadSlots.includes(slot);
+                const currentBooking = getBookingForSlot(slot);
+                const currentType = currentBooking?.type || 'individual';
+                const currentQty = currentBooking?.quantity || 0;
+                
+                // Vagas disponíveis para este horário (considerando a quantidade já alocada para este usuário)
+                const availableForSlot = isSlotDisabled ? 0 : Math.max(0, maxQuads - dbUsed + currentQty);
+                const priceEach = currentType === 'dupla' ? dupFinalPrice : indFinalPrice;
 
                 return (
-                  <div key={t} className={cn(
-                    "flex flex-col items-center p-2 rounded-xl border transition-all",
-                    isFull 
-                      ? "bg-red-50 border-red-200" 
-                      : remaining === 1 ? "bg-amber-50 border-amber-300" : "bg-emerald-50 border-emerald-300 shadow-2xs"
-                  )}>
-                    <span className={cn(
-                      "text-sm sm:text-base font-black",
-                      isFull ? "text-red-500" : remaining === 1 ? "text-amber-700" : "text-emerald-800"
-                    )}>
-                      {t}
-                    </span>
-                    {/* Progress bar */}
-                    {!isSlotDisabled && (
-                      <div className="w-full h-1.5 bg-gray-200 rounded-full mt-1.5 overflow-hidden">
-                        <div 
-                          className={cn(
-                            "h-full rounded-full transition-all duration-500",
-                            isFull ? "bg-red-400" : remaining === 1 ? "bg-amber-400" : "bg-emerald-500"
-                          )}
-                          style={{ width: `${Math.min(pct, 100)}%` }}
-                        />
+                  <div className="bg-gradient-to-br from-emerald-950 via-[#042817] to-slate-950 text-white rounded-3xl p-4 sm:p-5 border-2 border-amber-400 shadow-xl space-y-4 animate-in fade-in zoom-in-95">
+                    <div className="flex items-center justify-between border-b border-emerald-800 pb-2.5">
+                      <div className="flex items-center gap-2">
+                        <span className="p-1.5 bg-amber-400 text-slate-950 rounded-lg">
+                          <Clock className="w-4 h-4" />
+                        </span>
+                        <div>
+                          <h4 className="font-sans font-black text-sm sm:text-base text-white uppercase tracking-tight">
+                            Configurar Passeio das {slot}
+                          </h4>
+                          <span className="text-[11px] text-amber-300 font-bold block">
+                            {availableForSlot} vaga{availableForSlot > 1 ? 's' : ''} disponível{availableForSlot > 1 ? 'is' : ''} neste horário
+                          </span>
+                        </div>
                       </div>
-                    )}
-                    <span className={cn(
-                      "text-[9px] sm:text-[10px] font-bold mt-1 text-center leading-none",
-                      isFull ? "text-red-500" : remaining === 1 ? "text-amber-700" : "text-emerald-700 font-black"
-                    )}>
-                      {isSlotDisabled ? 'Indisponível' : isFull ? 'LOTADO' : `${remaining} Livre${remaining > 1 ? "s" : ""}`}
-                    </span>
+                      <button
+                        type="button"
+                        onClick={() => setExpandedSlot(null)}
+                        className="p-1.5 hover:bg-white/10 rounded-full text-slate-300 hover:text-white"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                      {/* 1. Escolha a Modalidade */}
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-emerald-300 block">
+                          1. Escolha a Modalidade:
+                        </label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleSaveSlot(slot, 'individual', Math.max(1, currentQty || 1))}
+                            className={cn(
+                              "p-3 rounded-2xl border-2 transition-all cursor-pointer text-left flex flex-col justify-between",
+                              currentType === 'individual' && currentQty > 0
+                                ? "bg-amber-400 text-slate-950 border-amber-300 shadow-md font-black"
+                                : "bg-white/10 text-white border-white/20 hover:bg-white/20"
+                            )}
+                          >
+                            <div className="flex items-center gap-1.5 font-black text-xs uppercase">
+                              <User className="w-3.5 h-3.5" /> Individual
+                            </div>
+                            <span className="text-[10px] opacity-80 mt-1 block">1 pessoa · 40 min</span>
+                            <span className="text-xs sm:text-sm font-black mt-2 block">
+                              {formatCurrency(indFinalPrice)}
+                            </span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleSaveSlot(slot, 'dupla', Math.max(1, currentQty || 1))}
+                            className={cn(
+                              "p-3 rounded-2xl border-2 transition-all cursor-pointer text-left flex flex-col justify-between",
+                              currentType === 'dupla' && currentQty > 0
+                                ? "bg-amber-400 text-slate-950 border-amber-300 shadow-md font-black"
+                                : "bg-white/10 text-white border-white/20 hover:bg-white/20"
+                            )}
+                          >
+                            <div className="flex items-center gap-1.5 font-black text-xs uppercase">
+                              <Users className="w-3.5 h-3.5" /> De Dupla
+                            </div>
+                            <span className="text-[10px] opacity-80 mt-1 block">2 pessoas · 40 min</span>
+                            <span className="text-xs sm:text-sm font-black mt-2 block">
+                              {formatCurrency(dupFinalPrice)}
+                            </span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* 2. Quantidade de Quadriciclos */}
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-emerald-300 block">
+                          2. Quantidade de Quadriciclos:
+                        </label>
+                        <div className="bg-white/10 border border-white/20 rounded-2xl p-3 flex items-center justify-between gap-3 h-[90px]">
+                          <div>
+                            <span className="text-xs font-bold text-emerald-100 block">
+                              Total deste horário:
+                            </span>
+                            <span className="text-base sm:text-lg font-black text-amber-300 block">
+                              {currentQty > 0 ? formatCurrency(priceEach * currentQty) : 'Selecione a quantidade'}
+                            </span>
+                            {currentQty > 0 && (
+                              <span className="text-[9px] bg-amber-400 text-slate-950 font-black px-1.5 py-0.5 rounded uppercase">
+                                10% OFF aplicado
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              disabled={currentQty <= 0}
+                              onClick={() => handleSaveSlot(slot, currentType, Math.max(0, currentQty - 1))}
+                              className="w-8 h-8 rounded-xl font-black bg-emerald-950 border-2 border-emerald-700 text-white hover:bg-emerald-800 disabled:opacity-30 flex items-center justify-center cursor-pointer shadow-xs transition-colors"
+                            >
+                              <Minus className="w-3.5 h-3.5 stroke-[3]" />
+                            </button>
+                            <span className="w-7 text-center font-black text-sm text-amber-300">
+                              {currentQty}
+                            </span>
+                            <button
+                              type="button"
+                              disabled={currentQty >= availableForSlot}
+                              onClick={() => handleSaveSlot(slot, currentType, Math.min(availableForSlot, currentQty + 1))}
+                              className="w-8 h-8 rounded-xl font-black bg-amber-400 border-2 border-amber-500 text-slate-950 hover:bg-amber-300 disabled:opacity-30 flex items-center justify-center cursor-pointer shadow-xs transition-colors"
+                            >
+                              <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Botões de Ação */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-emerald-800/80">
+                      {currentQty > 0 ? (
+                        <div className="flex items-center gap-2 text-xs text-amber-300 font-bold">
+                          <Check className="w-4 h-4 text-emerald-400 stroke-[3]" />
+                          Agendado: <strong>{currentQty}x {currentType === 'dupla' ? 'Passeio de Dupla' : 'Passeio Individual'}</strong> às {slot}
+                        </div>
+                      ) : (
+                        <span className="text-[11px] text-slate-400 italic">
+                          Escolha a modalidade e clique em [+] para agendar às {slot}.
+                        </span>
+                      )}
+
+                      <div className="flex items-center gap-2">
+                        {currentQty > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => handleSaveSlot(slot, currentType, 0)}
+                            className="px-3 py-1.5 rounded-xl bg-red-950/80 border border-red-500/50 hover:bg-red-900 text-red-200 text-xs font-bold flex items-center gap-1 transition-all"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" /> Remover deste horário
+                          </button>
+                        )}
+                        <Button
+                          type="button"
+                          onClick={() => setExpandedSlot(null)}
+                          className="h-9 px-4 rounded-xl bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs uppercase"
+                        >
+                          Concluir Horário
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 );
-              })}
+              })()}
             </div>
           )}
-        </div>
-      )}
 
-      {/* Modality Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {QUAD_CARDS.map((card, cardIndex) => {
-          const quad = quads.find(q => q.type === card.type) || quads[cardIndex];
-          const actualIndex = quads.findIndex(q => q.type === card.type);
-          const basePrice = getPrice(`quad_${card.type}`, card.fallbackPrice);
-          const discount = getQuadDiscount(quad.date);
-          const finalPrice = basePrice * (1 - discount);
-          const isExpanded = expandedCard === card.type;
-          const isActive = quad.quantity > 0;
-          const IconComp = card.icon;
-
-          // Color mapping
-          const colorMap: Record<string, { bg: string; border: string; activeBg: string; activeBorder: string; text: string; iconBg: string }> = {
-            emerald: { 
-              bg: 'bg-emerald-50/70', border: 'border-emerald-300', 
-              activeBg: 'bg-[#063f25] border-2 border-emerald-400', activeBorder: 'border-emerald-400',
-              text: 'text-emerald-950', iconBg: 'bg-emerald-100'
-            },
-            blue: { 
-              bg: 'bg-blue-50/70', border: 'border-blue-300', 
-              activeBg: 'bg-[#0f2e5a] border-2 border-blue-400', activeBorder: 'border-blue-400',
-              text: 'text-blue-950', iconBg: 'bg-blue-100'
-            },
-            amber: { 
-              bg: 'bg-amber-50/60', border: 'border-amber-300/50', 
-              activeBg: 'bg-amber-600', activeBorder: 'border-amber-700',
-              text: 'text-amber-700', iconBg: 'bg-amber-100'
-            },
-          };
-          const colors = colorMap[card.color];
-
-          return (
-            <div 
-              key={card.type}
-              className={cn(
-                "relative flex flex-col rounded-2xl border-2 transition-all duration-300 overflow-hidden cursor-pointer",
-                (disableQuads || maxQuads === 0) && "opacity-50 cursor-not-allowed pointer-events-none",
-                isActive 
-                  ? `${colors.activeBg} ${colors.activeBorder} text-white shadow-lg` 
-                  : isExpanded
-                    ? `${colors.bg} ${colors.border} shadow-md ring-2 ring-${card.color}-400/30`
-                    : `bg-white/90 border-slate-200/80 hover:border-slate-300 hover:shadow-md`,
-              )}
-            >
-              {/* Card Header - Clickable */}
-              <button
-                onClick={() => {
-                  if (!checkDate) {
-                    toast({ title: 'Selecione a data primeiro', description: 'Escolha a data de visita antes de selecionar os quadriciclos.', variant: 'destructive' });
-                    return;
-                  }
-                  if (disableQuads || maxQuads === 0) {
-                    toast({ title: 'Quadriciclos Indisponíveis', description: 'O serviço de quadriciclos está indisponível no momento.', variant: 'destructive' });
-                    return;
-                  }
-                  setExpandedCard(isExpanded ? null : card.type);
-                }}
-                className="w-full p-3 sm:p-4 text-left"
-              >
-                {/* Active badge */}
-                {isActive && (
-                  <div className="absolute top-2 right-2 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-md">
-                    <Check className="h-3.5 w-3.5 text-emerald-600 stroke-[3]" />
-                  </div>
-                )}
-
-                {/* Icon & Title */}
-                <div className="flex items-center gap-1.5 min-w-0 flex-nowrap">
-                  <div className={cn(
-                    "w-7 h-7 rounded-lg flex items-center justify-center transition-colors shrink-0",
-                    isActive ? "bg-white/20" : colors.iconBg
-                  )}>
-                    <IconComp className={cn(
-                      "h-4 w-4",
-                      isActive ? "text-white" : colors.text
-                    )} />
-                  </div>
-                  <h4 className={cn(
-                    "font-black text-[11px] sm:text-xs uppercase tracking-tight truncate",
-                    isActive ? "text-white" : "text-slate-800"
-                  )}>
-                    {card.title}
-                  </h4>
-                </div>
-
-                {/* Subtitle */}
-                <p className={cn(
-                  "text-[10px] sm:text-xs font-medium mt-0.5",
-                  isActive ? "text-white/80" : "text-slate-500"
-                )}>
-                  {card.subtitle}
-                </p>
-
-                {/* Price */}
-                <div className="flex items-center gap-2 mt-3">
-                  {discount > 0 && (
-                    <span className={cn(
-                      "line-through text-xs font-bold",
-                      isActive ? "text-white/50" : "text-slate-400"
-                    )}>
-                      {formatCurrency(basePrice)}
-                    </span>
-                  )}
-                  <span className={cn(
-                    "font-black text-lg sm:text-xl",
-                    isActive ? "text-white" : colors.text
-                  )}>
-                    {formatCurrency(finalPrice)}
+          {/* RESUMO DOS QUADRICICLOS AGENDADOS */}
+          <div className="pt-3 border-t border-slate-200">
+            {activeQuads.length > 0 ? (
+              <div className="bg-emerald-50/80 border-2 border-emerald-300 p-3.5 rounded-2xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black uppercase text-emerald-950 flex items-center gap-1.5">
+                    <Bike className="w-4 h-4 text-emerald-700" />
+                    Passeios de Quadriciclo Agendados ({activeQuads.length} horário{activeQuads.length > 1 ? 's' : ''}):
                   </span>
-                  {discount > 0 && (
-                    <span className="bg-amber-400 text-amber-900 text-[9px] font-black px-1.5 py-0.5 rounded-full">
-                      -{discount * 100}%
-                    </span>
-                  )}
+                  <span className="text-sm font-black text-emerald-900 font-sans">
+                    Total: {formatCurrency(totalQuadsCost)}
+                  </span>
                 </div>
-
-                {/* Expand indicator */}
-                <div className="flex items-center justify-center mt-3">
-                  <ChevronDown className={cn(
-                    "h-4 w-4 transition-transform duration-300",
-                    isExpanded && "rotate-180",
-                    isActive ? "text-white/60" : "text-slate-400"
-                  )} />
-                </div>
-              </button>
-
-              {/* Expanded: Time + Quantity Selection */}
-              {isExpanded && (
-                <div className={cn(
-                  "px-4 pb-4 sm:px-5 sm:pb-5 space-y-3 border-t",
-                  isActive ? "border-white/20" : "border-slate-200"
-                )}>
-                  {/* Time Slot Selection */}
-                  <div className="space-y-1.5 pt-3">
-                    <label className={cn(
-                      "text-[10px] font-black uppercase tracking-widest",
-                      isActive ? "text-white/60" : "text-slate-500"
-                    )}>
-                      1. Escolha o Horário
-                    </label>
-                    <Select 
-                      value={quad.time || ''} 
-                      onValueChange={async (v) => {
-                        if (!quad.date) {
-                          toast({ title: 'Escolha uma data primeiro', variant: 'destructive' });
-                          return;
-                        }
-                        const activeDate = quad.date || checkDate;
-                        if (!activeDate) { toast({ title: 'Escolha uma data primeiro', variant: 'destructive' }); return; }
-                        const visitDate = format(activeDate, 'yyyy-MM-dd');
-                        const used = await getQuadAvailability(visitDate, v);
-                        const localUsedOthers = quads.reduce((acc, qry, idx) => {
-                          if (idx !== cardIndex && qry.time === v) return acc + qry.quantity;
-                          return acc;
-                        }, 0);
-                        const remaining = maxQuads - (used + localUsedOthers);
-                        
-                        if (remaining <= 0) {
-                          toast({ title: 'Horário Lotado', description: `Não há vagas disponíveis para as ${v}.`, variant: 'destructive' });
-                          return;
-                        }
-                        
-                        const newQty = Math.max(1, Math.min(quad.quantity || 1, remaining));
-                        onUpdate(actualIndex >= 0 ? actualIndex : cardIndex, { time: v as QuadTime, quantity: newQty });
-                      }}
-                      disabled={!(quad.date || checkDate) || isFetchingAvailability}
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {activeQuads.map(q => (
+                    <div 
+                      key={`summary-${q.time}-${q.type}`} 
+                      className="inline-flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-emerald-300 text-xs shadow-2xs"
                     >
-                      <SelectTrigger className={cn(
-                        "w-full h-12 rounded-2xl font-bold text-sm uppercase tracking-tight",
-                        isActive 
-                          ? "bg-white/20 border-white/30 text-white placeholder:text-white/60" 
-                          : "bg-white border-slate-200 shadow-sm",
-                        !quad.time && !isActive && "border-primary/30 ring-2 ring-primary/10 animate-pulse"
-                      )}>
-                        <SelectValue placeholder="SELECIONAR HORÁRIO" />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-2xl">
-                        {QUAD_TIMES.map(t => {
-                          const totalUsed = getSlotUsage(t, cardIndex);
-                          const isSlotDisabled = disabledQuadSlots.includes(t);
-                          const remaining = isSlotDisabled ? 0 : Math.max(0, maxQuads - totalUsed);
-                          const isFull = isSlotDisabled || remaining <= 0;
-                          return (
-                            <SelectItem 
-                              key={t} 
-                              value={t} 
-                              className={cn("font-bold py-3", isFull ? "text-destructive" : "text-foreground")}
-                              disabled={isFull && quad.time !== t}
-                            >
-                              {t} {isSlotDisabled ? '— Indisponível' : isFull ? '— Lotado' : `— (${remaining} vaga${remaining > 1 ? 's' : ''} livre${remaining > 1 ? 's' : ''})`}
-                            </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Quantity Selection */}
-                  <div className={cn(
-                    "flex flex-col p-3 rounded-2xl border transition-all",
-                    quad.time
-                      ? isActive ? "bg-white/10 border-white/20" : "bg-emerald-50/60 border-emerald-300/40"
-                      : "bg-slate-50 border-slate-200 opacity-50 pointer-events-none"
-                  )}>
-                    <span className={cn(
-                      "text-[10px] font-black uppercase tracking-widest mb-2",
-                      isActive ? "text-white/60" : "text-slate-500"
-                    )}>
-                      2. Quantidade
-                    </span>
-                    <div className="flex items-center justify-between">
-                        <div className="flex flex-row items-center gap-1.5 flex-nowrap min-w-0">
-                          {quad.quantity > 0 ? (
-                            <div className="flex items-center gap-1 whitespace-nowrap overflow-hidden flex-nowrap shrink-0">
-                              <span className={cn("text-[8px] sm:text-[10px] font-bold leading-none opacity-80", isActive ? "text-white" : "text-slate-600")}>
-                                {quad.quantity}x =
-                              </span>
-                              <span className={cn("text-xs sm:text-base font-black leading-none", isActive ? "text-white" : "text-slate-800")}>
-                                {formatCurrency(finalPrice * quad.quantity)}
-                              </span>
-                            </div>
-                          ) : (
-                            <span className={cn("font-black text-xs", isActive ? "text-white" : "text-slate-700")}>
-                              SELECIONE
-                            </span>
-                          )}
-                        </div>
-                      <QuantityStepper 
-                        size="sm"
-                        theme={isActive ? 'dark' : 'default'}
-                        value={quad.quantity} 
-                        max={(() => {
-                          if (!quad.time || !checkDate) return 0;
-                          const totalUsed = getSlotUsage(quad.time, cardIndex);
-                          return Math.max(0, maxQuads - totalUsed);
-                        })()}
-                        onChange={(q) => onUpdate(actualIndex >= 0 ? actualIndex : cardIndex, { quantity: q })} 
-                      />
-                    </div>
-                  </div>
-
-                  {/* Booking confirmation badge */}
-                  {quad.quantity > 0 && quad.time && (
-                    <div className={cn(
-                      "flex items-center gap-2 px-3 py-2 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider",
-                      isActive ? "bg-white/20 text-white" : "bg-emerald-900 text-white"
-                    )}>
-                      <CalendarIcon className="h-3 w-3" />
-                      Agendado — {format(quad.date!, "dd/MM/yyyy")} às {quad.time}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* RIDE EXTRA CARDS (se houver mais de 2 passeios configurados) */}
-      {quads.length > 2 && (
-        <div className="space-y-3 pt-2">
-          <span className="text-xs font-black uppercase tracking-wider text-emerald-950 flex items-center gap-1.5">
-            <Bike className="w-4 h-4 text-emerald-700" /> Passeios Adicionais Configurados:
-          </span>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {quads.slice(2).map((extraQuad, extraIdx) => {
-              const actualIdx = 2 + extraIdx;
-              const basePrice = getPrice(`quad_${extraQuad.type}`, extraQuad.type === 'dupla' ? 195 : 130);
-              const discount = getQuadDiscount(extraQuad.date);
-              const finalPrice = basePrice * (1 - discount);
-              const isDupla = extraQuad.type === 'dupla';
-
-              return (
-                <div key={`extra-quad-${actualIdx}`} className="bg-[#042817] text-white p-4 rounded-2xl border-2 border-amber-400 shadow-md space-y-3">
-                  <div className="flex items-center justify-between border-b border-emerald-800 pb-2">
-                    <span className="text-xs font-black uppercase text-amber-300">
-                      Passeio Adicional #{extraIdx + 1}
-                    </span>
-                    {onRemoveQuad && (
-                      <button 
-                        type="button"
-                        onClick={() => onRemoveQuad(actualIdx)} 
-                        className="p-1 hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded-lg transition-colors flex items-center gap-1 text-[11px] font-bold"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" /> Remover
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Modalidade */}
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-emerald-200">
-                      1. Modalidade:
-                    </label>
-                    <div className="grid grid-cols-2 gap-2">
+                      <span className="font-black text-emerald-950">⏰ {q.time}</span>
+                      <span className="text-slate-600 font-bold">
+                        {q.quantity}x {q.type === 'dupla' ? 'De Dupla' : 'Individual'}
+                      </span>
                       <button
                         type="button"
-                        onClick={() => onUpdate(actualIdx, { type: 'individual' })}
-                        className={cn(
-                          "py-2 px-3 rounded-xl text-xs font-black uppercase transition-all",
-                          !isDupla ? "bg-amber-400 text-slate-950 shadow-sm" : "bg-white/10 text-white hover:bg-white/20"
-                        )}
+                        onClick={() => handleSaveSlot(q.time as QuadTime, q.type, 0)}
+                        className="text-slate-400 hover:text-red-500 p-0.5 rounded-full"
+                        title="Remover"
                       >
-                        Individual (R$ 117)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onUpdate(actualIdx, { type: 'dupla' })}
-                        className={cn(
-                          "py-2 px-3 rounded-xl text-xs font-black uppercase transition-all",
-                          isDupla ? "bg-amber-400 text-slate-950 shadow-sm" : "bg-white/10 text-white hover:bg-white/20"
-                        )}
-                      >
-                        De Dupla (R$ 175,50)
+                        <X className="w-3.5 h-3.5" />
                       </button>
                     </div>
-                  </div>
-
-                  {/* Horário */}
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-emerald-200">
-                      2. Horário:
-                    </label>
-                    <Select
-                      value={extraQuad.time || ''}
-                      onValueChange={async (v) => {
-                        const activeDate = extraQuad.date || checkDate;
-                        if (!activeDate) { toast({ title: 'Escolha uma data primeiro', variant: 'destructive' }); return; }
-                        const visitDate = format(activeDate, 'yyyy-MM-dd');
-                        const used = await getQuadAvailability(visitDate, v);
-                        const localUsedOthers = quads.reduce((acc, qry, idx) => {
-                          if (idx !== actualIdx && qry.time === v) return acc + qry.quantity;
-                          return acc;
-                        }, 0);
-                        const remaining = Math.max(0, maxQuads - (used + localUsedOthers));
-                        if (remaining <= 0) {
-                          toast({ title: 'Horário Lotado', description: 'Este horário atingiu o limite de quadriciclos.', variant: 'destructive' });
-                          return;
-                        }
-                        const newQty = Math.max(1, Math.min(extraQuad.quantity || 1, remaining));
-                        onUpdate(actualIdx, { time: v as QuadTime, quantity: newQty });
-                      }}
-                      disabled={!(extraQuad.date || checkDate) || isFetchingAvailability}
-                    >
-                      <SelectTrigger className="w-full h-11 rounded-xl bg-white/10 border-white/20 text-white font-bold text-xs uppercase">
-                        <SelectValue placeholder="Selecione o Horário..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {QUAD_TIMES.map(t => {
-                          const totalUsed = getSlotUsage(t, actualIdx);
-                          const isSlotDisabled = disabledQuadSlots.includes(t);
-                          const remaining = isSlotDisabled ? 0 : Math.max(0, maxQuads - totalUsed);
-                          const isFull = isSlotDisabled || remaining <= 0;
-                          return (
-                            <SelectItem 
-                              key={t} 
-                              value={t}
-                              className={cn("font-bold py-2.5", isFull ? "text-destructive" : "text-foreground")}
-                              disabled={isFull && extraQuad.time !== t}
-                            >
-                              {t} {isSlotDisabled ? '— Indisponível' : isFull ? '— Lotado' : `— (${remaining} vaga${remaining > 1 ? 's' : ''} livre${remaining > 1 ? 's' : ''})`}
-                            </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Quantidade */}
-                  <div className="flex items-center justify-between pt-1">
-                    <span className="text-xs font-bold text-emerald-100">
-                      {extraQuad.quantity}x = <strong className="text-amber-300 font-black">{formatCurrency(finalPrice * (extraQuad.quantity || 1))}</strong>
-                    </span>
-                    <QuantityStepper
-                      size="sm"
-                      theme="dark"
-                      value={extraQuad.quantity || 1}
-                      max={(() => {
-                        if (!extraQuad.time || !checkDate) return 0;
-                        const totalUsed = getSlotUsage(extraQuad.time, actualIdx);
-                        return Math.max(0, maxQuads - totalUsed);
-                      })()}
-                      onChange={(q) => onUpdate(actualIdx, { quantity: q })}
-                    />
-                  </div>
+                  ))}
                 </div>
-              );
-            })}
+              </div>
+            ) : (
+              <div className="text-center py-2 text-xs text-slate-500 font-medium italic">
+                Nenhum quadriciclo agendado. Clique em qualquer um dos horários acima para adicionar.
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* Botão de Adicionar Mais Trilhas / Passeios */}
-      {onAddQuad && (
-        <div className="pt-1">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              if (!checkDate) {
-                toast({ title: 'Selecione a data primeiro', variant: 'destructive' });
-                return;
-              }
-              onAddQuad({ date: checkDate, quantity: 1, type: 'individual' });
-              toast({ title: 'Novo Passeio Adicionado', description: 'Configure o horário e a modalidade desejada para a trilha extra.' });
-            }}
-            className="w-full h-14 rounded-2xl border-2 border-dashed border-emerald-500 bg-emerald-50/70 hover:bg-emerald-100 text-emerald-950 font-black text-xs sm:text-sm uppercase tracking-wide flex items-center justify-center gap-2 transition-all shadow-sm"
-          >
-            <Plus className="w-5 h-5 text-emerald-700 stroke-[3]" />
-            Adicionar Mais Passeios de Quadriciclo (Outro Horário ou Trilha)
-          </Button>
-        </div>
-      )}
-
       {/* Info cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 text-xs sm:text-sm space-y-1">
-          <p className="font-medium text-primary">🏷️ Descontos:</p>
-          <p className="text-muted-foreground">• Todas as reservas online com <strong>10% de desconto</strong></p>
-
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+        <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 text-xs sm:text-sm space-y-1">
+          <p className="font-black text-primary flex items-center gap-1">🏷️ Descontos:</p>
+          <p className="text-muted-foreground">• Todas as reservas online com <strong>10% de desconto</strong> já calculados.</p>
         </div>
 
-        <div className="bg-destructive/5 border border-destructive/20 rounded-lg p-3 text-[10px] sm:text-xs flex flex-col justify-center">
+        <div className="bg-destructive/5 border border-destructive/20 rounded-xl p-3 text-[10px] sm:text-xs flex flex-col justify-center">
           <p className="text-muted-foreground leading-relaxed">
-            <strong className="text-destructive">⚠️ Obs:</strong> As entradas continuam sendo a parte.<br />
-            Os valores são referente apenas às reservas dos quadriciclos.
+            <strong className="text-destructive">⚠️ Obs:</strong> As entradas continuam sendo à parte.<br />
+            Os valores são referentes exclusivamente às reservas dos quadriciclos.
           </p>
         </div>
       </div>

@@ -1100,10 +1100,20 @@ export function ChaleSelector({
           </div>
 
           <div className="space-y-3">
-            {selectedChaleUnits.map((chaleId) => {
+            {selectedChaleUnits.map((chaleId, unitIdx) => {
               const isChaleCasal = chaleOccupancies[chaleId] !== 'individual';
               const kidsList = chaleKidsMap[chaleId] || [];
               const kidsCount = kidsList.length;
+
+              // Calculate adult index for this chalet
+              const baseAdultIdx = selectedChaleUnits.slice(0, unitIdx).reduce((acc, prevId) => {
+                return acc + (chaleOccupancies[prevId] === 'individual' ? 1 : 2);
+              }, 0);
+
+              // Calculate kid offset for this chalet
+              const baseKidOffset = selectedChaleUnits.slice(0, unitIdx).reduce((acc, prevId) => {
+                return acc + (chaleKidsMap[prevId]?.length || 0);
+              }, 0);
 
               return (
                 <div
@@ -1252,6 +1262,68 @@ export function ChaleSelector({
                       )}
                     </div>
                   </div>
+
+                  {/* NOMES DOS HÓSPEDES DESTE CHALÉ (ADULTOS E CRIANÇAS) DENTRO DO MESMO CARD */}
+                  <div className="pt-3 border-t border-emerald-100 space-y-2.5 bg-emerald-50/40 p-3 sm:p-3.5 rounded-xl border border-emerald-200/70">
+                    <span className="text-[11px] font-black uppercase text-emerald-950 flex items-center gap-1.5">
+                      <span>✍️</span> Hóspedes do Chalé {String(chaleId).padStart(2, '0')}:
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-bold text-slate-800 block">
+                          Adulto 1 - Titular do Chalé {String(chaleId).padStart(2, '0')}:
+                        </label>
+                        <Input
+                          placeholder="Nome completo do titular..."
+                          value={(chale.guestNames && chale.guestNames[baseAdultIdx]) || ''}
+                          onChange={(e) => handleUpdateGuestName(baseAdultIdx, e.target.value)}
+                          className="bg-white border-2 border-slate-300 h-10 rounded-xl text-xs font-bold text-slate-900 focus-visible:ring-emerald-600 shadow-xs"
+                        />
+                      </div>
+
+                      {isChaleCasal && (
+                        <div className="space-y-1">
+                          <label className="text-[11px] font-bold text-slate-800 block">
+                            Adulto 2 - Acompanhante do Chalé {String(chaleId).padStart(2, '0')}:
+                          </label>
+                          <Input
+                            placeholder="Nome completo do acompanhante..."
+                            value={(chale.guestNames && chale.guestNames[baseAdultIdx + 1]) || ''}
+                            onChange={(e) => handleUpdateGuestName(baseAdultIdx + 1, e.target.value)}
+                            className="bg-white border-2 border-slate-300 h-10 rounded-xl text-xs font-bold text-slate-900 focus-visible:ring-emerald-600 shadow-xs"
+                          />
+                        </div>
+                      )}
+
+                      {kidsList.length > 0 && (
+                        <div className="col-span-1 sm:col-span-2 space-y-2 pt-2 border-t border-amber-200/80">
+                          <span className="text-[10px] font-black uppercase text-amber-950 block">
+                            👶 Crianças deste chalé ({kidsList.length}):
+                          </span>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {kidsList.map((age, kIdx) => {
+                              const kidSlotIdx = currentAdults + baseKidOffset + kIdx;
+                              const ageLabel = age === '12plus' ? '12+ anos (+ R$ 100)' : 'Até 11 anos (+ R$ 50)';
+                              return (
+                                <div key={`chale-${chaleId}-kid-name-${kIdx}`} className="space-y-1">
+                                  <label className="text-[11px] font-bold text-slate-800 block">
+                                    Criança {kIdx + 1} ({ageLabel}):
+                                  </label>
+                                  <Input
+                                    placeholder={`Nome completo da criança ${kIdx + 1}...`}
+                                    value={(chale.guestNames && chale.guestNames[kidSlotIdx]) || ''}
+                                    onChange={(e) => handleUpdateGuestName(kidSlotIdx, e.target.value)}
+                                    className="bg-white border-2 border-amber-300 h-10 rounded-xl text-xs font-bold text-slate-900 focus-visible:ring-amber-500 shadow-xs"
+                                  />
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                 </div>
               );
             })}
@@ -1268,105 +1340,6 @@ export function ChaleSelector({
                 O adicional de crianças é <strong>exclusivo e permitido apenas para filhos</strong> dos hóspedes (limite máximo de até 2 crianças por chalé). É <strong>obrigatório levar e apresentar documento oficial de identificação</strong> (RG ou Certidão de Nascimento) na recepção/check-in para comprovação do parentesco. Todos os adicionais são pagos conforme a faixa etária.
               </span>
             </div>
-          </div>
-        </div>
-
-        {/* ROW 4: NOMES DOS HÓSPEDES PARA CHECK-IN */}
-        <div className="space-y-3 pt-3 border-t border-slate-100">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-black uppercase tracking-wider text-emerald-950 flex items-center gap-1.5">
-              <span>✍️</span> Nomes dos Hóspedes para Check-in na Portaria:
-            </span>
-            <span className="text-[10px] font-black text-slate-800 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
-              {currentAdults} Adulto(s) {chaletsCount > 1 ? `(${chaletsCount} chalés)` : ''} {chale.childrenCount ? `+ ${chale.childrenCount} Criança(s)` : ''}
-            </span>
-          </div>
-
-          <div className="space-y-3">
-            {selectedChaleUnits.map((chaleId, unitIdx) => {
-              const isChaleCasal = chaleOccupancies[chaleId] !== 'individual';
-              // Calcula offset de índice de nomes de adultos
-              let baseAdultIdx = 0;
-              for (let i = 0; i < unitIdx; i++) {
-                baseAdultIdx += chaleOccupancies[selectedChaleUnits[i]] === 'individual' ? 1 : 2;
-              }
-              const kidsForThisChale = chaleKidsMap[chaleId] || [];
-              let baseKidOffset = 0;
-              for (let i = 0; i < unitIdx; i++) {
-                baseKidOffset += (chaleKidsMap[selectedChaleUnits[i]] || []).length;
-              }
-
-              return (
-                <div key={`chale-group-${chaleId}`} className="bg-slate-50/80 p-3.5 sm:p-4 rounded-2xl border-2 border-emerald-300 space-y-3 shadow-xs">
-                  <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-                    <span className="text-xs sm:text-sm font-black uppercase text-emerald-950 flex items-center gap-1.5">
-                      <Home className="w-4 h-4 text-emerald-700" />
-                      Chalé {String(chaleId).padStart(2, '0')} · {isChaleCasal ? 'Casal (2 Adultos)' : 'Individual (1 Adulto)'}
-                    </span>
-                    <Badge className="bg-emerald-900 text-amber-300 font-black text-[9px] uppercase px-2 py-0.5">
-                      Alvenaria
-                    </Badge>
-                  </div>
-
-                  {/* Adultos deste chalé */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-black text-slate-900 block">
-                        Adulto 1 - Titular do Chalé {String(chaleId).padStart(2, '0')}:
-                      </label>
-                      <Input
-                        placeholder={`Nome completo do titular...`}
-                        value={(chale.guestNames && chale.guestNames[baseAdultIdx]) || ''}
-                        onChange={(e) => handleUpdateGuestName(baseAdultIdx, e.target.value)}
-                        className="bg-white border-2 border-slate-300 h-10 rounded-xl text-xs font-bold text-slate-900 focus-visible:ring-emerald-600 shadow-xs"
-                      />
-                    </div>
-
-                    {isChaleCasal && (
-                      <div className="space-y-1">
-                        <label className="text-[11px] font-black text-slate-900 block">
-                          Adulto 2 - Acompanhante do Chalé {String(chaleId).padStart(2, '0')}:
-                        </label>
-                        <Input
-                          placeholder={`Nome completo do acompanhante...`}
-                          value={(chale.guestNames && chale.guestNames[baseAdultIdx + 1]) || ''}
-                          onChange={(e) => handleUpdateGuestName(baseAdultIdx + 1, e.target.value)}
-                          className="bg-white border-2 border-slate-300 h-10 rounded-xl text-xs font-bold text-slate-900 focus-visible:ring-emerald-600 shadow-xs"
-                        />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Crianças deste chalé específico agrupadas junto aos titulares */}
-                  {kidsForThisChale.length > 0 && (
-                    <div className="pt-2.5 mt-2 border-t border-amber-200/80 space-y-2 bg-amber-50/50 p-2.5 rounded-xl border">
-                      <span className="text-[11px] font-black uppercase text-amber-950 flex items-center gap-1.5">
-                        <span>👶</span> Crianças do Chalé {String(chaleId).padStart(2, '0')} (Filhos):
-                      </span>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {kidsForThisChale.map((age, kIdx) => {
-                          const kidSlotIdx = currentAdults + baseKidOffset + kIdx;
-                          const ageLabel = age === '12plus' ? '12 anos ou mais (+ R$ 100)' : 'Até 11 anos (+ R$ 50)';
-                          return (
-                            <div key={`chale-${chaleId}-kid-${kIdx}`} className="space-y-1">
-                              <label className="text-[11px] font-bold text-slate-800 block">
-                                Criança {kIdx + 1} do Chalé {String(chaleId).padStart(2, '0')} · {ageLabel}:
-                              </label>
-                              <Input
-                                placeholder={`Nome completo da criança ${kIdx + 1}...`}
-                                value={(chale.guestNames && chale.guestNames[kidSlotIdx]) || ''}
-                                onChange={(e) => handleUpdateGuestName(kidSlotIdx, e.target.value)}
-                                className="bg-white border-2 border-amber-300 h-10 rounded-xl text-xs font-bold text-slate-900 focus-visible:ring-amber-500 shadow-xs"
-                              />
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
           </div>
         </div>
 

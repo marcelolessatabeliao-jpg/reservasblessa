@@ -81,6 +81,8 @@ export interface ChaleBooking {
   chaleOccupancies?: Record<number, 'casal' | 'individual'>; // Ocupação individual ou casal por chalé
   adultsCount: number;
   childrenCount: number;
+  childrenAges?: ('under11' | '12plus')[];
+  chaleKids?: Record<number, ('under11' | '12plus')[]>;
   guestNames?: string[]; // Nome de cada hóspede para o check-in
   checkInDate: Date | null;
   checkOutDate: Date | null;

@@ -67,6 +67,8 @@ export function BookingOverview({
   const [saving, setSaving] = useState(false);
   const [paymentData, setPaymentData] = useState<{ open: boolean; orderId: string; confirmationCode?: string } | null>(null);
   const [activePaymentMethod, setActivePaymentMethod] = useState<'PIX' | 'CREDIT_CARD' | null>(null);
+  const [showCardInstallmentModal, setShowCardInstallmentModal] = useState(false);
+  const [selectedInstallments, setSelectedInstallments] = useState(1);
   const [pixData, setPixData] = useState<{ encodedImage: string; payload: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
@@ -1064,17 +1066,17 @@ export function BookingOverview({
                         onClick={() => handleAction('LOCAL')}
                         disabled={saving}
                         className={cn(
-                          "w-full h-20 sm:h-24 rounded-[2rem] text-white font-black text-lg sm:text-xl flex items-center justify-center gap-4 shadow-xl active:scale-[0.97] transition-all group overflow-hidden relative border-b-8",
+                          "w-full h-20 sm:h-24 rounded-2xl text-white font-black text-lg sm:text-xl flex items-center justify-center gap-4 shadow-xl active:scale-[0.97] transition-all group overflow-hidden relative border-2 cursor-pointer",
                           hasBalcao 
-                            ? "bg-amber-600 hover:bg-amber-700 border-amber-800" 
-                            : "bg-[#00bdae] hover:bg-[#009b8f] border-[#007a71]"
+                            ? "bg-gradient-to-r from-amber-700 to-amber-900 hover:from-amber-600 hover:to-amber-800 border-amber-400" 
+                            : "bg-gradient-to-r from-[#094226] to-[#042817] hover:from-[#0d5531] hover:to-[#063a22] border-amber-400"
                         )}
                       >
                         <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md">
                           {saving ? <Loader2 className="h-7 w-7 animate-spin" /> : <CheckCircle className="h-7 w-7 text-white" />}
                         </div>
                         <div className="text-left leading-tight">
-                          <span className="block text-[10px] text-white/80 font-bold uppercase tracking-widest mb-0.5">
+                          <span className="block text-[10px] text-amber-300 font-bold uppercase tracking-widest mb-0.5">
                             {hasBalcao ? "Pagamento no Balcão" : "Total Grátis"}
                           </span>
                           {hasBalcao ? "Confirmar Reserva" : "Concluir Reserva"}
@@ -1083,134 +1085,156 @@ export function BookingOverview({
                     );
                   })()
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    {/* Botão PIX */}
-                    <Button
-                      size="lg"
-                      onClick={() => handleAction('PIX')}
-                      disabled={saving}
-                      className="h-20 sm:h-22 rounded-2xl bg-gradient-to-br from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-500 hover:to-teal-500 text-white font-black flex flex-row sm:flex-col items-center justify-center gap-2 shadow-xl active:scale-[0.98] transition-all border-b-4 border-emerald-900 p-2.5"
-                    >
-                      <div className="p-2 bg-white/20 rounded-xl backdrop-blur-md shrink-0">
-                        {saving && activePaymentMethod === 'PIX' ? <Loader2 className="h-5 w-5 animate-spin" /> : <QrCode className="h-5 w-5 text-white" />}
-                      </div>
-                      <div className="text-left sm:text-center leading-tight">
-                        <span className="block text-[9px] text-amber-300 font-black uppercase tracking-widest">10% OFF ONLINE</span>
-                        <span className="text-sm font-black uppercase tracking-tight">GERAR PIX</span>
-                      </div>
-                    </Button>
-
-                    {/* Botão CARTÃO (com suporte a parcelamento em até 12x) */}
-                    <Button
-                      size="lg"
-                      onClick={() => {
-                        if (totals.total >= 50) {
-                          setShowCardInstallmentModal(true);
-                        } else {
-                          handleAction('CREDIT_CARD', 1);
-                        }
-                      }}
-                      disabled={saving}
-                      className="h-20 sm:h-22 rounded-2xl bg-gradient-to-br from-[#0c2e1c] via-[#051f12] to-slate-900 hover:from-[#113d26] hover:to-slate-800 text-white font-black flex flex-row sm:flex-col items-center justify-center gap-1.5 shadow-xl active:scale-[0.98] transition-all border-2 border-amber-400/80 border-b-4 border-amber-500 p-2.5"
-                    >
-                      <div className="p-2 bg-amber-400/20 rounded-xl backdrop-blur-md shrink-0">
-                        {saving && activePaymentMethod === 'CREDIT_CARD' ? <Loader2 className="h-5 w-5 animate-spin text-amber-400" /> : <CreditCard className="h-5 w-5 text-amber-400" />}
-                      </div>
-                      <div className="text-left sm:text-center leading-tight">
-                        <span className="block text-[9px] text-amber-300 font-black uppercase tracking-widest">10% OFF · ATÉ 12X</span>
-                        <span className="text-xs sm:text-sm font-black uppercase tracking-tight text-white">CARTÃO DE CRÉDITO</span>
-                      </div>
-                    </Button>
-
-                    {/* Botão CONFIRMAR NO WHATSAPP */}
-                    <Button
-                      size="lg"
-                      onClick={() => handleAction('LOCAL')}
-                      disabled={saving}
-                      className="h-20 sm:h-22 rounded-2xl bg-gradient-to-br from-[#128C7E] to-[#075E54] hover:from-[#18a392] hover:to-[#0a7266] text-white font-black flex flex-row sm:flex-col items-center justify-center gap-1.5 shadow-xl active:scale-[0.98] transition-all border-b-4 border-[#05423b] p-2.5"
-                    >
-                      <div className="p-2 bg-white/20 rounded-xl backdrop-blur-md shrink-0">
-                        <MessageCircle className="h-5 w-5 text-white" />
-                      </div>
-                      <div className="text-left sm:text-center leading-tight">
-                        <span className="block text-[9px] text-emerald-200 font-black uppercase tracking-widest">PAGAR NO LOCAL</span>
-                        <span className="text-xs sm:text-sm font-black uppercase tracking-tight">CONFIRMAR NO WHATSAPP</span>
-                      </div>
-                    </Button>
-                  </div>
-
-                  {/* MODAL / DIALOG DE SELEÇÃO DE PARCELAS NO CARTÃO DE CRÉDITO */}
-                  {showCardInstallmentModal && (
-                    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-                      <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border-2 border-emerald-600 space-y-4 animate-in fade-in zoom-in-95">
-                        <div className="flex items-center justify-between border-b pb-3">
-                          <div className="flex items-center gap-2">
-                            <CreditCard className="w-5 h-5 text-emerald-700" />
-                            <h3 className="font-sans font-black text-base uppercase text-emerald-950">
-                              Parcelamento no Cartão
-                            </h3>
-                          </div>
-                          <button 
-                            onClick={() => setShowCardInstallmentModal(false)}
-                            className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-700"
-                          >
-                            <X className="w-5 h-5" />
-                          </button>
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                      {/* Botão PIX */}
+                      <Button
+                        size="lg"
+                        onClick={() => handleAction('PIX')}
+                        disabled={saving}
+                        className="h-20 sm:h-24 rounded-2xl bg-gradient-to-b from-[#094226] to-[#042817] hover:from-[#0d5531] hover:to-[#063a22] text-white font-black flex flex-row sm:flex-col items-center justify-center gap-2 shadow-xl hover:shadow-[0_6px_20px_rgba(245,158,11,0.25)] active:scale-[0.98] transition-all border-2 border-amber-400 p-2.5 cursor-pointer"
+                      >
+                        <div className="p-2 bg-amber-400/15 rounded-xl border border-amber-400/30 shrink-0">
+                          {saving && activePaymentMethod === 'PIX' ? (
+                            <Loader2 className="h-5 w-5 animate-spin text-amber-400" />
+                          ) : (
+                            <QrCode className="h-5 w-5 text-amber-400" />
+                          )}
                         </div>
-
-                        <div className="bg-emerald-50/70 p-3.5 rounded-2xl border border-emerald-200 space-y-1 text-center">
-                          <span className="text-[11px] font-black uppercase text-emerald-800 tracking-wider block">
-                            Valor Total da Reserva (com 10% OFF Online):
+                        <div className="text-left sm:text-center leading-tight">
+                          <span className="inline-block bg-amber-400 text-slate-950 font-black text-[9px] px-2 py-0.5 rounded-full uppercase tracking-wider mb-0.5 shadow-2xs">
+                            ⚡ 10% OFF ONLINE
                           </span>
-                          <span className="text-2xl font-black text-emerald-950 block">
-                            {formatCurrency(totals.total)}
+                          <span className="block text-xs sm:text-sm font-black uppercase tracking-wide text-white">
+                            GERAR PIX
                           </span>
                         </div>
+                      </Button>
 
-                        <div className="space-y-2">
-                          <label className="text-xs font-black uppercase text-slate-800 block">
-                            Em quantas vezes deseja pagar no Cartão?
-                          </label>
-                          <select
-                            value={selectedInstallments}
-                            onChange={(e) => setSelectedInstallments(Number(e.target.value))}
-                            className="w-full h-12 rounded-xl border-2 border-emerald-400 bg-white font-bold text-sm px-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                          >
-                            {Array.from({ length: Math.min(12, Math.max(1, Math.floor(totals.total / 30))) }).map((_, idx) => {
-                              const times = idx + 1;
-                              const valueEach = totals.total / times;
-                              return (
-                                <option key={times} value={times}>
-                                  {times}x de {formatCurrency(valueEach)} {times === 1 ? '(à vista com 10% OFF)' : '(sem juros adicionais)'}
-                                </option>
-                              );
-                            })}
-                          </select>
+                      {/* Botão CARTÃO (com suporte a parcelamento em até 12x) */}
+                      <Button
+                        size="lg"
+                        onClick={() => {
+                          if (totals.total >= 50) {
+                            setShowCardInstallmentModal(true);
+                          } else {
+                            handleAction('CREDIT_CARD', 1);
+                          }
+                        }}
+                        disabled={saving}
+                        className="h-20 sm:h-24 rounded-2xl bg-gradient-to-b from-[#094226] to-[#042817] hover:from-[#0d5531] hover:to-[#063a22] text-white font-black flex flex-row sm:flex-col items-center justify-center gap-2 shadow-xl hover:shadow-[0_6px_20px_rgba(245,158,11,0.25)] active:scale-[0.98] transition-all border-2 border-amber-400 p-2.5 cursor-pointer"
+                      >
+                        <div className="p-2 bg-amber-400/15 rounded-xl border border-amber-400/30 shrink-0">
+                          {saving && activePaymentMethod === 'CREDIT_CARD' ? (
+                            <Loader2 className="h-5 w-5 animate-spin text-amber-400" />
+                          ) : (
+                            <CreditCard className="h-5 w-5 text-amber-400" />
+                          )}
                         </div>
+                        <div className="text-left sm:text-center leading-tight">
+                          <span className="inline-block bg-amber-400 text-slate-950 font-black text-[9px] px-2 py-0.5 rounded-full uppercase tracking-wider mb-0.5 shadow-2xs">
+                            💳 ATÉ 12X NO CARTÃO
+                          </span>
+                          <span className="block text-xs sm:text-sm font-black uppercase tracking-wide text-white">
+                            CARTÃO DE CRÉDITO
+                          </span>
+                        </div>
+                      </Button>
 
-                        <div className="pt-2 flex flex-col gap-2">
-                          <Button
-                            onClick={() => {
-                              setShowCardInstallmentModal(false);
-                              handleAction('CREDIT_CARD', selectedInstallments);
-                            }}
-                            className="w-full h-14 rounded-2xl bg-gradient-to-r from-emerald-700 to-emerald-800 hover:from-emerald-600 hover:to-emerald-700 text-white font-black text-sm uppercase tracking-wide shadow-lg border-b-4 border-emerald-950"
-                          >
-                            Prosseguir para Pagamento Seguro ({selectedInstallments}x de {formatCurrency(totals.total / selectedInstallments)})
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            onClick={() => setShowCardInstallmentModal(false)}
-                            className="font-bold text-xs text-slate-500"
-                          >
-                            Cancelar
-                          </Button>
+                      {/* Botão CONFIRMAR NO WHATSAPP */}
+                      <Button
+                        size="lg"
+                        onClick={() => handleAction('LOCAL')}
+                        disabled={saving}
+                        className="h-20 sm:h-24 rounded-2xl bg-gradient-to-b from-[#0b3d2b] to-[#042817] hover:from-[#0e4d36] hover:to-[#063820] text-white font-black flex flex-row sm:flex-col items-center justify-center gap-2 shadow-xl hover:shadow-[0_6px_20px_rgba(16,185,129,0.25)] active:scale-[0.98] transition-all border-2 border-emerald-400/90 p-2.5 cursor-pointer"
+                      >
+                        <div className="p-2 bg-emerald-400/15 rounded-xl border border-emerald-400/30 shrink-0">
+                          <MessageCircle className="h-5 w-5 text-emerald-300" />
                         </div>
-                      </div>
+                        <div className="text-left sm:text-center leading-tight">
+                          <span className="inline-block bg-emerald-400 text-slate-950 font-black text-[9px] px-2 py-0.5 rounded-full uppercase tracking-wider mb-0.5 shadow-2xs">
+                            💬 PAGAR NO LOCAL
+                          </span>
+                          <span className="block text-xs sm:text-sm font-black uppercase tracking-wide text-white">
+                            CONFIRMAR NO WHATSAPP
+                          </span>
+                        </div>
+                      </Button>
                     </div>
-                  )}
+
+                    {/* MODAL / DIALOG DE SELEÇÃO DE PARCELAS NO CARTÃO DE CRÉDITO */}
+                    {showCardInstallmentModal && (
+                      <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+                        <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border-2 border-emerald-600 space-y-4 animate-in fade-in zoom-in-95">
+                          <div className="flex items-center justify-between border-b pb-3">
+                            <div className="flex items-center gap-2">
+                              <CreditCard className="w-5 h-5 text-emerald-700" />
+                              <h3 className="font-sans font-black text-base uppercase text-emerald-950">
+                                Parcelamento no Cartão
+                              </h3>
+                            </div>
+                            <button 
+                              onClick={() => setShowCardInstallmentModal(false)}
+                              className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-700"
+                            >
+                              <X className="w-5 h-5" />
+                            </button>
+                          </div>
+
+                          <div className="bg-emerald-50/70 p-3.5 rounded-2xl border border-emerald-200 space-y-1 text-center">
+                            <span className="text-[11px] font-black uppercase text-emerald-800 tracking-wider block">
+                              Valor Total da Reserva (com 10% OFF Online):
+                            </span>
+                            <span className="text-2xl font-black text-emerald-950 block">
+                              {formatCurrency(totals.total)}
+                            </span>
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-xs font-black uppercase text-slate-800 block">
+                              Em quantas vezes deseja pagar no Cartão?
+                            </label>
+                            <select
+                              value={selectedInstallments}
+                              onChange={(e) => setSelectedInstallments(Number(e.target.value))}
+                              className="w-full h-12 rounded-xl border-2 border-emerald-400 bg-white font-bold text-sm px-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                            >
+                              {Array.from({ length: Math.min(12, Math.max(1, Math.floor(totals.total / 30))) }).map((_, idx) => {
+                                const times = idx + 1;
+                                const valueEach = totals.total / times;
+                                return (
+                                  <option key={times} value={times}>
+                                    {times}x de {formatCurrency(valueEach)} {times === 1 ? '(à vista com 10% OFF)' : '(sem juros adicionais)'}
+                                  </option>
+                                );
+                              })}
+                            </select>
+                          </div>
+
+                          <div className="pt-2 flex flex-col gap-2">
+                            <Button
+                              onClick={() => {
+                                setShowCardInstallmentModal(false);
+                                handleAction('CREDIT_CARD', selectedInstallments);
+                              }}
+                              className="w-full h-14 rounded-2xl bg-gradient-to-r from-emerald-700 to-emerald-800 hover:from-emerald-600 hover:to-emerald-700 text-white font-black text-sm uppercase tracking-wide shadow-lg border-b-4 border-emerald-950"
+                            >
+                              Prosseguir para Pagamento Seguro ({selectedInstallments}x de {formatCurrency(totals.total / selectedInstallments)})
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              onClick={() => setShowCardInstallmentModal(false)}
+                              className="font-bold text-xs text-slate-500"
+                            >
+                              Cancelar
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
-              </div>
+</div>
             ) : (
               <motion.div 
                 initial={{ opacity: 0, y: 10 }}
