@@ -788,8 +788,9 @@ export function calculateEntryTotal(entry: EntryBooking, getPrice: (type: string
   return total;
 }
 
-export function formatCurrency(value: number): string {
-  return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+export function formatCurrency(value?: number | null): string {
+  const num = typeof value === 'number' && !isNaN(value) ? value : Number(value) || 0;
+  return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
 export const WHATSAPP_NUMBER = '556992626140';

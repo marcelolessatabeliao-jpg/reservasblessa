@@ -67,11 +67,9 @@ export function AddItemsToBookingDialog({
 
   useEffect(() => {
     const fetchOccupied = async () => {
-      if (!booking.visit_date || !isOpen) return;
+      if (!booking?.visit_date || !isOpen) return;
       setIsFetchingAvail(true);
-      const visitDateStr = typeof booking.visit_date === 'string' && booking.visit_date.includes('T') 
-        ? booking.visit_date.split('T')[0] 
-        : booking.visit_date;
+      const visitDateStr = typeof booking?.visit_date === 'string' && booking.visit_date.includes('T') ? booking.visit_date.split('T')[0] : booking?.visit_date || '';
 
       const ids = await getBookedKioskIds(visitDateStr);
       setBookedIds(ids);
@@ -85,7 +83,7 @@ export function AddItemsToBookingDialog({
       setIsFetchingAvail(false);
     };
     fetchOccupied();
-  }, [booking.visit_date, maxQuads, isOpen]);
+  }, [booking?.visit_date, maxQuads, isOpen]);
 
   const calculateTotalRaw = () => {
     const { 
@@ -101,9 +99,7 @@ export function AddItemsToBookingDialog({
       total += (kiosk?.price || 75);
     });
     
-    const visitDateStr = typeof booking.visit_date === 'string' && booking.visit_date.includes('T') 
-        ? booking.visit_date.split('T')[0] 
-        : booking.visit_date;
+    const visitDateStr = typeof booking?.visit_date === 'string' && booking.visit_date.includes('T') ? booking.visit_date.split('T')[0] : booking?.visit_date || '';
         
     const qDate = parseToRODate(visitDateStr);
     const day = qDate.getDay();
@@ -131,10 +127,9 @@ export function AddItemsToBookingDialog({
   const handleAddItems = async (updateTotalAmount: boolean) => {
     setLoading(true);
     try {
+      if (!booking) return;
       const orderId = booking.id;
-      const visitDateStr = typeof booking.visit_date === 'string' && booking.visit_date.includes('T') 
-        ? booking.visit_date.split('T')[0] 
-        : booking.visit_date;
+      const visitDateStr = typeof booking?.visit_date === 'string' && booking.visit_date.includes('T') ? booking.visit_date.split('T')[0] : booking?.visit_date || '';
 
       const orderItems: any[] = [];
       const kioskReservations: any[] = [];
@@ -249,10 +244,10 @@ export function AddItemsToBookingDialog({
 
       if (updateTotalAmount) {
         const addedTotal = calculateTotalRaw();
-        const newTotal = (booking.total_amount || 0) + addedTotal;
-        const table = booking.is_order || booking.id.length < 36 ? 'orders' : 'bookings';
+        const newTotal = (booking?.total_amount || 0) + addedTotal;
+        const table = booking?.is_order || (booking?.id && String(booking.id).length < 36) ? 'orders' : 'bookings';
         
-        const { error: updateError } = await supabase.from(table).update({ total_amount: newTotal }).eq('id', booking.id);
+        const { error: updateError } = await supabase.from(table).update({ total_amount: newTotal }).eq('id', booking?.id);
         if (updateError) throw updateError;
       }
 
@@ -282,7 +277,7 @@ export function AddItemsToBookingDialog({
              Adicionar Itens à Reserva
           </DialogTitle>
           <div className="mt-2 text-emerald-100 text-sm font-bold">
-            Reserva #{booking.confirmation_code || booking.id.slice(0,8)} - {booking.name || booking.customer_name}
+            Reserva #{booking?.confirmation_code || (booking?.id ? String(booking.id).slice(0,8) : '—')} - {booking?.name || booking?.customer_name || 'Hóspede'}
           </div>
         </div>
         

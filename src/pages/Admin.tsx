@@ -3231,12 +3231,14 @@ export default function Admin() {
              )}
              {activeTab === 'quiosques' && renderKioskTab()}
              {activeTab === 'chales' && (
-               <AdminChaleTab 
-                 orders={orders} 
-                 onRefresh={fetchData}
-                 onStatusChange={updateBookingStatus}
-                 onAddNote={addBookingNote}
-               />
+               <ClubErrorBoundary>
+                 <AdminChaleTab 
+                   orders={orders} 
+                   onRefresh={fetchData}
+                   onStatusChange={updateBookingStatus}
+                   onAddNote={addBookingNote}
+                 />
+               </ClubErrorBoundary>
              )}
              {activeTab === 'quads' && renderQuadTab()}
              {activeTab === 'vendas' && renderOrderTab()}

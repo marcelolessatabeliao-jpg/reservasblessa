@@ -104,7 +104,10 @@ export function AdminChaleTab({
   const [localReservations, setLocalReservations] = useState<ChaleReservation[]>(() => {
     try {
       const saved = localStorage.getItem('lessa_admin_chale_reservations_v2');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
       
       return [
         {
@@ -147,7 +150,11 @@ export function AdminChaleTab({
   const [manualStatuses, setManualStatuses] = useState<Record<number, 'disponivel' | 'indisponivel'>>(() => {
     try {
       const saved = localStorage.getItem('lessa_admin_chale_statuses_v2');
-      return saved ? JSON.parse(saved) : {
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') return parsed;
+      }
+      return {
         6: 'indisponivel',
         7: 'indisponivel',
         8: 'indisponivel',
@@ -231,19 +238,27 @@ export function AdminChaleTab({
     const campings: any[] = [];
 
     (orders || []).forEach((order: any) => {
-      const items = order.order_items || [];
+      if (!order) return;
+      const items = Array.isArray(order.order_items) ? order.order_items : [];
       const orderDate = order.visit_date || (typeof order.created_at === 'string' ? order.created_at.split('T')[0] : '');
 
       items.forEach((item: any) => {
-        const prod = (item.product_id || '').toLowerCase();
+        if (!item) return;
+        const prod = (item.product_id || item.product_name || '').toLowerCase();
         
         if (prod.includes('chalé') || prod.includes('chale')) {
-          const chaleId = item.metadata?.chale_id || 1;
-          const pkgId = item.metadata?.package_type || 'combo_weekend';
+          let meta = item.metadata;
+          if (typeof meta === 'string') {
+            try { meta = JSON.parse(meta); } catch (e) { meta = {}; }
+          }
+          meta = meta || {};
+
+          const chaleId = meta.chale_id || 1;
+          const pkgId = meta.package_type || 'combo-2n-sex-dom';
           const pkg = CHALE_PACKAGES[pkgId as keyof typeof CHALE_PACKAGES];
-          const pkgTitle = pkg ? pkg.title : (item.product_id || 'Hospedagem em Chalé');
-          const cInDate = item.metadata?.check_in_date || orderDate || format(new Date(), 'yyyy-MM-dd');
-          const cOutDate = item.metadata?.check_out_date || cInDate;
+          const pkgTitle = pkg ? pkg.title : (item.product_name || item.product_id || 'Hospedagem em Chalé');
+          const cInDate = meta.check_in_date || orderDate || format(new Date(), 'yyyy-MM-dd');
+          const cOutDate = meta.check_out_date || cInDate;
 
           list.push({
             id: order.id,
@@ -252,14 +267,14 @@ export function AdminChaleTab({
             phone: order.customer_phone || '(Não informado)',
             cpf: order.customer_cpf,
             checkInDate: cInDate,
-            checkInTime: item.metadata?.check_in_time || '15:00',
+            checkInTime: meta.check_in_time || '14:00',
             checkOutDate: cOutDate,
-            checkOutTime: item.metadata?.check_out_time || '11:00',
+            checkOutTime: meta.check_out_time || '12:00',
             packageTitle: pkgTitle,
             packageType: pkgId,
-            occupancyType: item.metadata?.occupancy_type || 'casal',
-            adults: Math.min(2, Math.max(1, item.metadata?.adults || order.adults || 2)),
-            children: item.metadata?.children || order.children || 0,
+            occupancyType: meta.occupancy_type || 'casal',
+            adults: Math.min(2, Math.max(1, meta.adults || order.adults || 2)),
+            children: meta.children || order.children || 0,
             totalPrice: Number(item.unit_price || order.total_amount || 0),
             paymentMethod: order.payment_method || 'PIX',
             status: order.status === 'paid' ? 'paid' : 'pending',
@@ -273,6 +288,20 @@ export function AdminChaleTab({
         }
 
         if (prod.includes('camping')) {
+          let formattedCampingDate = '—';
+          if (orderDate) {
+            try {
+              const d = new Date(orderDate);
+              if (!isNaN(d.getTime())) {
+                formattedCampingDate = format(d, 'dd/MM/yyyy');
+              } else {
+                formattedCampingDate = String(orderDate);
+              }
+            } catch {
+              formattedCampingDate = String(orderDate);
+            }
+          }
+
           campings.push({
             orderId: order.id,
             customerName: order.customer_name || 'Campista Lessa',
@@ -280,7 +309,7 @@ export function AdminChaleTab({
             peopleCount: item.quantity || 1,
             unitPrice: item.unit_price || 100,
             totalPrice: (item.quantity || 1) * (item.unit_price || 100),
-            date: orderDate ? format(new Date(orderDate), 'dd/MM/yyyy') : '—',
+            date: formattedCampingDate,
             confirmationCode: order.confirmation_code,
             status: order.status || 'Confirmado'
           });
@@ -293,12 +322,16 @@ export function AdminChaleTab({
 
   // NO PAINEL ADMIN: MOSTRA TODOS OS 12 CHALÉS (Chalés 01 a 12: 6 Alvenaria + 6 Vidro)
   const chalesList = useMemo(() => {
-    return CHALE_UNITS.map(unit => {
-      const localRes = localReservations.find(r => r.chaleId === unit.id && r.status !== 'cancelled');
-      const onlineRes = realChaleOrders.find(r => r.chaleId === unit.id && r.status !== 'cancelled');
+    const localList = Array.isArray(localReservations) ? localReservations : [];
+    const onlineList = Array.isArray(realChaleOrders) ? realChaleOrders : [];
+    const statuses = (manualStatuses && typeof manualStatuses === 'object') ? manualStatuses : {};
+
+    return (CHALE_UNITS || []).map(unit => {
+      const localRes = localList.find(r => r && Number(r.chaleId) === unit.id && r.status !== 'cancelled');
+      const onlineRes = onlineList.find(r => r && Number(r.chaleId) === unit.id && r.status !== 'cancelled');
       
       const reservation = localRes || onlineRes;
-      const isManualIndisponivel = manualStatuses[unit.id] === 'indisponivel';
+      const isManualIndisponivel = statuses[unit.id] === 'indisponivel';
 
       let status: 'disponivel' | 'indisponivel' | 'ocupado' = 'disponivel';
       if (reservation) {
@@ -319,15 +352,22 @@ export function AdminChaleTab({
 
   // Filtragem
   const filteredChales = useMemo(() => {
-    return chalesList.filter(c => {
-      const q = searchTerm.toLowerCase();
+    return (chalesList || []).filter(c => {
+      if (!c) return false;
+      const q = (searchTerm || '').toLowerCase();
+      const res = c.reservation;
+      const guestName = String(res?.guestName || '').toLowerCase();
+      const phone = String(res?.phone || '');
+      const code = String(res?.confirmationCode || '').toLowerCase();
+      const cName = String(c.name || '').toLowerCase();
+
       const matchesSearch = 
         !searchTerm ||
-        c.name.toLowerCase().includes(q) ||
-        (c.reservation && (
-          c.reservation.guestName.toLowerCase().includes(q) ||
-          c.reservation.phone.includes(q) ||
-          (c.reservation.confirmationCode && c.reservation.confirmationCode.toLowerCase().includes(q))
+        cName.includes(q) ||
+        (res && (
+          guestName.includes(q) ||
+          phone.includes(q) ||
+          code.includes(q)
         ));
 
       const matchesStatus = filterStatus === 'todos' || c.status === filterStatus;
@@ -1786,14 +1826,16 @@ export function AdminChaleTab({
       </Dialog>
 
       {/* MODAL ADICIONAR PRODUTOS/SERVIÇOS À RESERVA DO CHALÉ */}
-      <AddItemsToBookingDialog
-        booking={addItemsBooking}
-        isOpen={isAddItemsOpen}
-        setIsOpen={setIsAddItemsOpen}
-        onAdded={() => {
-          if (onRefresh) onRefresh();
-        }}
-      />
+      {isAddItemsOpen && addItemsBooking && (
+        <AddItemsToBookingDialog
+          booking={addItemsBooking}
+          isOpen={isAddItemsOpen}
+          setIsOpen={setIsAddItemsOpen}
+          onAdded={() => {
+            if (onRefresh) onRefresh();
+          }}
+        />
+      )}
 
     </div>
   );
