@@ -112,7 +112,7 @@ function ChaleSelectorInner({
   const [isLoadingBooked, setIsLoadingBooked] = useState<boolean>(false);
   const [isCheckInCalendarOpen, setIsCheckInCalendarOpen] = useState<boolean>(false);
   const [isCheckOutCalendarOpen, setIsCheckOutCalendarOpen] = useState<boolean>(false);
-  const [shortcutCategory, setShortcutCategory] = useState<'combos' | 'diarias'>('combos');
+  const [shortcutCategory, setShortcutCategory] = useState<'combos' | 'diarias' | null>(null);
 
   // Data âncora inicial
   const anchorDate = useMemo(() => {
@@ -988,277 +988,320 @@ function ChaleSelectorInner({
             </div>
           </div>
 
-          {/* ATALHOS RÁPIDOS: CATEGORIAS SEPARADAS (COMBOS PROMOCIONAIS vs DIÁRIAS AVULSAS) */}
+          {/* ATALHOS RÁPIDOS: CATEGORIAS EXPANSÍVEIS (COMBOS PROMOCIONAIS vs DIÁRIAS AVULSAS) */}
           <div className="space-y-3 pt-2">
-            <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50 p-2.5 sm:p-3 rounded-2xl border border-slate-200 shadow-2xs">
               <span className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-                <span>⚡</span> Atalhos Rápidos de Seleção:
+                <span className="text-amber-500">⚡</span> Atalhos Rápidos de Seleção:
               </span>
 
-              {/* Botões para Alternar entre Combos e Diárias */}
-              <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-2xl border border-slate-200">
+              {/* Apenas as duas opções visíveis com alternância de expansão */}
+              <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
                 <button
                   type="button"
-                  onClick={() => setShortcutCategory('combos')}
+                  onClick={() => setShortcutCategory(prev => prev === 'combos' ? null : 'combos')}
                   className={cn(
-                    "px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer select-none",
+                    "px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer select-none flex items-center gap-2 border shadow-xs",
                     shortcutCategory === 'combos'
-                      ? "bg-amber-400 text-slate-950 shadow-xs scale-[1.02]"
-                      : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
+                      ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 shadow-md scale-[1.02]"
+                      : "bg-white text-slate-700 border-slate-300 hover:bg-amber-50 hover:border-amber-300"
                   )}
+                  title="Clique para ver ou ocultar os combos com 10% OFF"
                 >
-                  🔥 Combos Promocionais (10% OFF)
+                  <span>🔥 Combos Promocionais (10% OFF)</span>
+                  {shortcutCategory === 'combos' ? (
+                    <ChevronUp className="w-4 h-4 text-slate-950 stroke-[3]" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-slate-500 stroke-[2.5]" />
+                  )}
                 </button>
+
                 <button
                   type="button"
-                  onClick={() => setShortcutCategory('diarias')}
+                  onClick={() => setShortcutCategory(prev => prev === 'diarias' ? null : 'diarias')}
                   className={cn(
-                    "px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer select-none",
+                    "px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer select-none flex items-center gap-2 border shadow-xs",
                     shortcutCategory === 'diarias'
-                      ? "bg-amber-400 text-slate-950 shadow-xs scale-[1.02]"
-                      : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
+                      ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 shadow-md scale-[1.02]"
+                      : "bg-white text-slate-700 border-slate-300 hover:bg-amber-50 hover:border-amber-300"
                   )}
+                  title="Clique para ver ou ocultar as diárias avulsas de 1 noite"
                 >
-                  📅 Diárias Avulsas (1 Noite)
+                  <span>📅 Diárias Avulsas (1 Noite)</span>
+                  {shortcutCategory === 'diarias' ? (
+                    <ChevronUp className="w-4 h-4 text-slate-950 stroke-[3]" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-slate-500 stroke-[2.5]" />
+                  )}
                 </button>
               </div>
             </div>
 
-            {/* SE CATEGORIA COMBOS (10% OFF) */}
+            {/* SE CATEGORIA COMBOS EXPANDIDA */}
             {shortcutCategory === 'combos' && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-1 animate-in fade-in">
-                {/* 1. Combo Sex a Dom (2 Noites) */}
-                <button
-                  type="button"
-                  onClick={() => handleSelectStayPreset('combo-2n-sex-dom')}
-                  className={cn(
-                    "p-3 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-1.5",
-                    isComboSexDomActive
-                      ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 font-black shadow-md scale-[1.02]"
-                      : "bg-white text-slate-900 border-slate-200 hover:border-amber-400 hover:bg-amber-50/50"
-                  )}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-black text-xs uppercase">🔥 Sex a Dom (2 Noites)</span>
-                    <span className="text-[9px] bg-slate-950 text-amber-300 font-black px-1.5 py-0.5 rounded">10% OFF</span>
-                  </div>
-                  <span className="text-[10px] text-slate-600 font-bold block">
-                    Check-in Sex 14h ➔ Dom 12h (Parque até 17h)
+              <div className="space-y-2.5 p-3 sm:p-4 bg-amber-50/50 rounded-3xl border-2 border-amber-300/80 animate-in fade-in duration-200">
+                <div className="flex items-center justify-between pb-1 flex-wrap gap-2">
+                  <span className="text-[11px] font-black uppercase text-amber-950 flex items-center gap-1.5">
+                    <span>🔥</span> Escolha um dos 6 Combos Promocionais (10% de Desconto Exato):
                   </span>
-                  <div className="pt-1 border-t border-black/10 flex items-center justify-between text-xs font-black">
-                    <span className="text-emerald-950">R$ 639 <span className="text-[10px] text-slate-500 font-bold">ind.</span></span>
-                    <span className="text-emerald-950">R$ 819 <span className="text-[10px] text-slate-500 font-bold">casal</span></span>
-                  </div>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => setShortcutCategory(null)}
+                    className="text-[10px] font-black uppercase text-slate-600 hover:text-slate-950 bg-white hover:bg-slate-100 border border-slate-300 px-2.5 py-1 rounded-lg cursor-pointer transition-all shadow-2xs"
+                  >
+                    ✕ Fechar Expansão
+                  </button>
+                </div>
 
-                {/* 2. Combo Qui a Sáb (2 Noites) */}
-                <button
-                  type="button"
-                  onClick={() => handleSelectStayPreset('combo-2n-qui-sab')}
-                  className={cn(
-                    "p-3 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-1.5",
-                    isComboQuiSabActive
-                      ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 font-black shadow-md scale-[1.02]"
-                      : "bg-white text-slate-900 border-slate-200 hover:border-amber-400 hover:bg-amber-50/50"
-                  )}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-black text-xs uppercase">🌿 Qui a Sáb (2 Noites)</span>
-                    <span className="text-[9px] bg-slate-950 text-amber-300 font-black px-1.5 py-0.5 rounded">10% OFF</span>
-                  </div>
-                  <span className="text-[10px] text-slate-600 font-bold block">
-                    Check-in Qui 09h ➔ Sáb 12h
-                  </span>
-                  <div className="pt-1 border-t border-black/10 flex items-center justify-between text-xs font-black">
-                    <span className="text-emerald-950">R$ 522 <span className="text-[10px] text-slate-500 font-bold">ind.</span></span>
-                    <span className="text-emerald-950">R$ 702 <span className="text-[10px] text-slate-500 font-bold">casal</span></span>
-                  </div>
-                </button>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                  {/* 1. Combo Sex a Dom (2 Noites) */}
+                  <button
+                    type="button"
+                    onClick={() => handleSelectStayPreset('combo-2n-sex-dom')}
+                    className={cn(
+                      "p-3 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-1.5",
+                      isComboSexDomActive
+                        ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 font-black shadow-md scale-[1.02]"
+                        : "bg-white text-slate-900 border-slate-200 hover:border-amber-400 hover:bg-amber-50/50"
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-black text-xs uppercase">🔥 Sex a Dom (2 Noites)</span>
+                      <span className="text-[9px] bg-slate-950 text-amber-300 font-black px-1.5 py-0.5 rounded">10% OFF</span>
+                    </div>
+                    <span className="text-[10px] text-slate-600 font-bold block">
+                      Check-in Sex 14h ➔ Dom 12h (Day use parque até 17h)
+                    </span>
+                    <div className="pt-1 border-t border-black/10 flex items-center justify-between text-xs font-black">
+                      <span className="text-emerald-950">R$ 639 <span className="text-[10px] text-slate-500 font-bold">ind.</span></span>
+                      <span className="text-emerald-950">R$ 819 <span className="text-[10px] text-slate-500 font-bold">casal</span></span>
+                    </div>
+                  </button>
 
-                {/* 3. Combo Sáb a Seg (2 Noites) */}
-                <button
-                  type="button"
-                  onClick={() => handleSelectStayPreset('combo-2n-sab-seg')}
-                  className={cn(
-                    "p-3 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-1.5",
-                    isComboSabSegActive
-                      ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 font-black shadow-md scale-[1.02]"
-                      : "bg-white text-slate-900 border-slate-200 hover:border-amber-400 hover:bg-amber-50/50"
-                  )}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-black text-xs uppercase">☀️ Sáb a Seg (2 Noites)</span>
-                    <span className="text-[9px] bg-slate-950 text-amber-300 font-black px-1.5 py-0.5 rounded">10% OFF</span>
-                  </div>
-                  <span className="text-[10px] text-slate-600 font-bold block">
-                    Check-in Sáb 14h ➔ Seg 12h
-                  </span>
-                  <div className="pt-1 border-t border-black/10 flex items-center justify-between text-xs font-black">
-                    <span className="text-emerald-950">R$ 531 <span className="text-[10px] text-slate-500 font-bold">ind.</span></span>
-                    <span className="text-emerald-950">R$ 711 <span className="text-[10px] text-slate-500 font-bold">casal</span></span>
-                  </div>
-                </button>
+                  {/* 2. Combo Qui a Sáb (2 Noites) */}
+                  <button
+                    type="button"
+                    onClick={() => handleSelectStayPreset('combo-2n-qui-sab')}
+                    className={cn(
+                      "p-3 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-1.5",
+                      isComboQuiSabActive
+                        ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 font-black shadow-md scale-[1.02]"
+                        : "bg-white text-slate-900 border-slate-200 hover:border-amber-400 hover:bg-amber-50/50"
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-black text-xs uppercase">🌿 Qui a Sáb (2 Noites)</span>
+                      <span className="text-[9px] bg-slate-950 text-amber-300 font-black px-1.5 py-0.5 rounded">10% OFF</span>
+                    </div>
+                    <span className="text-[10px] text-slate-600 font-bold block">
+                      Check-in Qui 09h ➔ Sáb 12h
+                    </span>
+                    <div className="pt-1 border-t border-black/10 flex items-center justify-between text-xs font-black">
+                      <span className="text-emerald-950">R$ 522 <span className="text-[10px] text-slate-500 font-bold">ind.</span></span>
+                      <span className="text-emerald-950">R$ 702 <span className="text-[10px] text-slate-500 font-bold">casal</span></span>
+                    </div>
+                  </button>
 
-                {/* 4. Combo Qui a Dom (3 Noites) */}
-                <button
-                  type="button"
-                  onClick={() => handleSelectStayPreset('combo-3n-qui-dom')}
-                  className={cn(
-                    "p-3 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-1.5",
-                    isComboQuiDomActive
-                      ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 font-black shadow-md scale-[1.02]"
-                      : "bg-white text-slate-900 border-slate-200 hover:border-amber-400 hover:bg-amber-50/50"
-                  )}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-black text-xs uppercase">🌴 Qui a Dom (3 Noites)</span>
-                    <span className="text-[9px] bg-slate-950 text-amber-300 font-black px-1.5 py-0.5 rounded">10% OFF</span>
-                  </div>
-                  <span className="text-[10px] text-slate-600 font-bold block">
-                    Check-in Qui 09h ➔ Dom 12h (Parque até 17h)
-                  </span>
-                  <div className="pt-1 border-t border-black/10 flex items-center justify-between text-xs font-black">
-                    <span className="text-emerald-950">R$ 855 <span className="text-[10px] text-slate-500 font-bold">ind.</span></span>
-                    <span className="text-emerald-950">R$ 1.125 <span className="text-[10px] text-slate-500 font-bold">casal</span></span>
-                  </div>
-                </button>
+                  {/* 3. Combo Sáb a Seg (2 Noites) */}
+                  <button
+                    type="button"
+                    onClick={() => handleSelectStayPreset('combo-2n-sab-seg')}
+                    className={cn(
+                      "p-3 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-1.5",
+                      isComboSabSegActive
+                        ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 font-black shadow-md scale-[1.02]"
+                        : "bg-white text-slate-900 border-slate-200 hover:border-amber-400 hover:bg-amber-50/50"
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-black text-xs uppercase">☀️ Sáb a Seg (2 Noites)</span>
+                      <span className="text-[9px] bg-slate-950 text-amber-300 font-black px-1.5 py-0.5 rounded">10% OFF</span>
+                    </div>
+                    <span className="text-[10px] text-slate-600 font-bold block">
+                      Check-in Sáb 14h ➔ Seg 12h (Domingo Day Use até 17h)
+                    </span>
+                    <div className="pt-1 border-t border-black/10 flex items-center justify-between text-xs font-black">
+                      <span className="text-emerald-950">R$ 531 <span className="text-[10px] text-slate-500 font-bold">ind.</span></span>
+                      <span className="text-emerald-950">R$ 711 <span className="text-[10px] text-slate-500 font-bold">casal</span></span>
+                    </div>
+                  </button>
 
-                {/* 5. Combo Sex a Seg (3 Noites) */}
-                <button
-                  type="button"
-                  onClick={() => handleSelectStayPreset('combo-3n-sex-seg')}
-                  className={cn(
-                    "p-3 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-1.5",
-                    isComboSexSegActive
-                      ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 font-black shadow-md scale-[1.02]"
-                      : "bg-white text-slate-900 border-slate-200 hover:border-amber-400 hover:bg-amber-50/50"
-                  )}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-black text-xs uppercase">🚀 Sex a Seg (3 Noites)</span>
-                    <span className="text-[9px] bg-slate-950 text-amber-300 font-black px-1.5 py-0.5 rounded">10% OFF</span>
-                  </div>
-                  <span className="text-[10px] text-slate-600 font-bold block">
-                    Check-in Sex 14h ➔ Seg 12h
-                  </span>
-                  <div className="pt-1 border-t border-black/10 flex items-center justify-between text-xs font-black">
-                    <span className="text-emerald-950">R$ 837 <span className="text-[10px] text-slate-500 font-bold">ind.</span></span>
-                    <span className="text-emerald-950">R$ 1.107 <span className="text-[10px] text-slate-500 font-bold">casal</span></span>
-                  </div>
-                </button>
+                  {/* 4. Combo Qui a Dom (3 Noites) */}
+                  <button
+                    type="button"
+                    onClick={() => handleSelectStayPreset('combo-3n-qui-dom')}
+                    className={cn(
+                      "p-3 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-1.5",
+                      isComboQuiDomActive
+                        ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 font-black shadow-md scale-[1.02]"
+                        : "bg-white text-slate-900 border-slate-200 hover:border-amber-400 hover:bg-amber-50/50"
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-black text-xs uppercase">🌴 Qui a Dom (3 Noites)</span>
+                      <span className="text-[9px] bg-slate-950 text-amber-300 font-black px-1.5 py-0.5 rounded">10% OFF</span>
+                    </div>
+                    <span className="text-[10px] text-slate-600 font-bold block">
+                      Check-in Qui 09h ➔ Dom 12h (Day use parque até 17h)
+                    </span>
+                    <div className="pt-1 border-t border-black/10 flex items-center justify-between text-xs font-black">
+                      <span className="text-emerald-950">R$ 855 <span className="text-[10px] text-slate-500 font-bold">ind.</span></span>
+                      <span className="text-emerald-950">R$ 1.125 <span className="text-[10px] text-slate-500 font-bold">casal</span></span>
+                    </div>
+                  </button>
 
-                {/* 6. Combo Qui a Seg (4 Noites) */}
-                <button
-                  type="button"
-                  onClick={() => handleSelectStayPreset('combo-4n-qui-seg')}
-                  className={cn(
-                    "p-3 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-1.5",
-                    isComboQuiSegActive
-                      ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 font-black shadow-md scale-[1.02]"
-                      : "bg-white text-slate-900 border-slate-200 hover:border-amber-400 hover:bg-amber-50/50"
-                  )}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-black text-xs uppercase">👑 Qui a Seg (4 Noites)</span>
-                    <span className="text-[9px] bg-slate-950 text-amber-300 font-black px-1.5 py-0.5 rounded">10% OFF</span>
-                  </div>
-                  <span className="text-[10px] text-slate-600 font-bold block">
-                    Check-in Qui 09h ➔ Seg 12h (Maior Estadia)
-                  </span>
-                  <div className="pt-1 border-t border-black/10 flex items-center justify-between text-xs font-black">
-                    <span className="text-emerald-950">R$ 1.053 <span className="text-[10px] text-slate-500 font-bold">ind.</span></span>
-                    <span className="text-emerald-950">R$ 1.413 <span className="text-[10px] text-slate-500 font-bold">casal</span></span>
-                  </div>
-                </button>
+                  {/* 5. Combo Sex a Seg (3 Noites) */}
+                  <button
+                    type="button"
+                    onClick={() => handleSelectStayPreset('combo-3n-sex-seg')}
+                    className={cn(
+                      "p-3 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-1.5",
+                      isComboSexSegActive
+                        ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 font-black shadow-md scale-[1.02]"
+                        : "bg-white text-slate-900 border-slate-200 hover:border-amber-400 hover:bg-amber-50/50"
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-black text-xs uppercase">🚀 Sex a Seg (3 Noites)</span>
+                      <span className="text-[9px] bg-slate-950 text-amber-300 font-black px-1.5 py-0.5 rounded">10% OFF</span>
+                    </div>
+                    <span className="text-[10px] text-slate-600 font-bold block">
+                      Check-in Sex 14h ➔ Seg 12h
+                    </span>
+                    <div className="pt-1 border-t border-black/10 flex items-center justify-between text-xs font-black">
+                      <span className="text-emerald-950">R$ 837 <span className="text-[10px] text-slate-500 font-bold">ind.</span></span>
+                      <span className="text-emerald-950">R$ 1.107 <span className="text-[10px] text-slate-500 font-bold">casal</span></span>
+                    </div>
+                  </button>
+
+                  {/* 6. Combo Qui a Seg (4 Noites) */}
+                  <button
+                    type="button"
+                    onClick={() => handleSelectStayPreset('combo-4n-qui-seg')}
+                    className={cn(
+                      "p-3 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-1.5",
+                      isComboQuiSegActive
+                        ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 font-black shadow-md scale-[1.02]"
+                        : "bg-white text-slate-900 border-slate-200 hover:border-amber-400 hover:bg-amber-50/50"
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-black text-xs uppercase">👑 Qui a Seg (4 Noites)</span>
+                      <span className="text-[9px] bg-slate-950 text-amber-300 font-black px-1.5 py-0.5 rounded">10% OFF</span>
+                    </div>
+                    <span className="text-[10px] text-slate-600 font-bold block">
+                      Check-in Qui 09h ➔ Seg 12h (Maior Estadia)
+                    </span>
+                    <div className="pt-1 border-t border-black/10 flex items-center justify-between text-xs font-black">
+                      <span className="text-emerald-950">R$ 1.053 <span className="text-[10px] text-slate-500 font-bold">ind.</span></span>
+                      <span className="text-emerald-950">R$ 1.413 <span className="text-[10px] text-slate-500 font-bold">casal</span></span>
+                    </div>
+                  </button>
+                </div>
               </div>
             )}
 
-            {/* SE CATEGORIA DIÁRIAS AVULSAS (1 NOITE) */}
+            {/* SE CATEGORIA DIÁRIAS EXPANDIDA */}
             {shortcutCategory === 'diarias' && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 pt-1 animate-in fade-in">
-                {/* 1. Diária Quinta a Sexta */}
-                <button
-                  type="button"
-                  onClick={() => handleSelectStayPreset('diaria-qui-sex')}
-                  className={cn(
-                    "p-3 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-1.5",
-                    inDay === 4 && outDay === 5 && diffNights === 1
-                      ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 font-black shadow-md scale-[1.02]"
-                      : "bg-white text-slate-900 border-slate-200 hover:border-amber-400 hover:bg-amber-50/50"
-                  )}
-                >
-                  <span className="font-black text-xs uppercase">📅 Quinta a Sexta</span>
-                  <span className="text-[10px] text-slate-600 font-bold block">
-                    Check-in Qui 09h ➔ Sex 12h
+              <div className="space-y-2.5 p-3 sm:p-4 bg-amber-50/50 rounded-3xl border-2 border-amber-300/80 animate-in fade-in duration-200">
+                <div className="flex items-center justify-between pb-1 flex-wrap gap-2">
+                  <span className="text-[11px] font-black uppercase text-amber-950 flex items-center gap-1.5">
+                    <span>📅</span> Escolha uma das 4 Diárias Avulsas (1 Noite):
                   </span>
-                  <div className="pt-1 border-t border-black/10 flex items-center justify-between text-xs font-black">
-                    <span className="text-emerald-950">R$ 240 <span className="text-[10px] text-slate-500 font-bold">ind.</span></span>
-                    <span className="text-emerald-950">R$ 340 <span className="text-[10px] text-slate-500 font-bold">casal</span></span>
-                  </div>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => setShortcutCategory(null)}
+                    className="text-[10px] font-black uppercase text-slate-600 hover:text-slate-950 bg-white hover:bg-slate-100 border border-slate-300 px-2.5 py-1 rounded-lg cursor-pointer transition-all shadow-2xs"
+                  >
+                    ✕ Fechar Expansão
+                  </button>
+                </div>
 
-                {/* 2. Diária Sexta a Sábado */}
-                <button
-                  type="button"
-                  onClick={() => handleSelectStayPreset('diaria-sex-sab')}
-                  className={cn(
-                    "p-3 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-1.5",
-                    isDiariaSexSabActive
-                      ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 font-black shadow-md scale-[1.02]"
-                      : "bg-white text-slate-900 border-slate-200 hover:border-amber-400 hover:bg-amber-50/50"
-                  )}
-                >
-                  <span className="font-black text-xs uppercase">📅 Sexta a Sábado</span>
-                  <span className="text-[10px] text-slate-600 font-bold block">
-                    Check-in Sex 14h ➔ Sáb 12h
-                  </span>
-                  <div className="pt-1 border-t border-black/10 flex items-center justify-between text-xs font-black">
-                    <span className="text-emerald-950">R$ 340 <span className="text-[10px] text-slate-500 font-bold">ind.</span></span>
-                    <span className="text-emerald-950">R$ 440 <span className="text-[10px] text-slate-500 font-bold">casal</span></span>
-                  </div>
-                </button>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                  {/* 1. Diária Quinta a Sexta */}
+                  <button
+                    type="button"
+                    onClick={() => handleSelectStayPreset('diaria-qui-sex')}
+                    className={cn(
+                      "p-3 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-1.5",
+                      inDay === 4 && outDay === 5 && diffNights === 1
+                        ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 font-black shadow-md scale-[1.02]"
+                        : "bg-white text-slate-900 border-slate-200 hover:border-amber-400 hover:bg-amber-50/50"
+                    )}
+                  >
+                    <span className="font-black text-xs uppercase">📅 Quinta a Sexta</span>
+                    <span className="text-[10px] text-slate-600 font-bold block">
+                      Check-in Qui 09h ➔ Sex 12h
+                    </span>
+                    <div className="pt-1 border-t border-black/10 flex items-center justify-between text-xs font-black">
+                      <span className="text-emerald-950">R$ 240 <span className="text-[10px] text-slate-500 font-bold">ind.</span></span>
+                      <span className="text-emerald-950">R$ 340 <span className="text-[10px] text-slate-500 font-bold">casal</span></span>
+                    </div>
+                  </button>
 
-                {/* 3. Diária Sábado a Domingo */}
-                <button
-                  type="button"
-                  onClick={() => handleSelectStayPreset('diaria-sab-dom')}
-                  className={cn(
-                    "p-3 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-1.5",
-                    isDiariaSabDomActive
-                      ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 font-black shadow-md scale-[1.02]"
-                      : "bg-white text-slate-900 border-slate-200 hover:border-amber-400 hover:bg-amber-50/50"
-                  )}
-                >
-                  <span className="font-black text-xs uppercase">☀️ Sábado a Domingo</span>
-                  <span className="text-[10px] text-slate-600 font-bold block">
-                    Check-in Sáb 14h ➔ Dom 12h (Parque até 17h)
-                  </span>
-                  <div className="pt-1 border-t border-black/10 flex items-center justify-between text-xs font-black">
-                    <span className="text-emerald-950">R$ 370 <span className="text-[10px] text-slate-500 font-bold">ind.</span></span>
-                    <span className="text-emerald-950">R$ 470 <span className="text-[10px] text-slate-500 font-bold">casal</span></span>
-                  </div>
-                </button>
+                  {/* 2. Diária Sexta a Sábado */}
+                  <button
+                    type="button"
+                    onClick={() => handleSelectStayPreset('diaria-sex-sab')}
+                    className={cn(
+                      "p-3 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-1.5",
+                      isDiariaSexSabActive
+                        ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 font-black shadow-md scale-[1.02]"
+                        : "bg-white text-slate-900 border-slate-200 hover:border-amber-400 hover:bg-amber-50/50"
+                    )}
+                  >
+                    <span className="font-black text-xs uppercase">📅 Sexta a Sábado</span>
+                    <span className="text-[10px] text-slate-600 font-bold block">
+                      Check-in Sex 14h ➔ Sáb 12h
+                    </span>
+                    <div className="pt-1 border-t border-black/10 flex items-center justify-between text-xs font-black">
+                      <span className="text-emerald-950">R$ 340 <span className="text-[10px] text-slate-500 font-bold">ind.</span></span>
+                      <span className="text-emerald-950">R$ 440 <span className="text-[10px] text-slate-500 font-bold">casal</span></span>
+                    </div>
+                  </button>
 
-                {/* 4. Diária Domingo a Segunda */}
-                <button
-                  type="button"
-                  onClick={() => handleSelectStayPreset('diaria-dom-seg')}
-                  className={cn(
-                    "p-3 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-1.5",
-                    inDay === 0 && outDay === 1 && diffNights === 1
-                      ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 font-black shadow-md scale-[1.02]"
-                      : "bg-white text-slate-900 border-slate-200 hover:border-amber-400 hover:bg-amber-50/50"
-                  )}
-                >
-                  <span className="font-black text-xs uppercase">🌙 Domingo a Segunda</span>
-                  <span className="text-[10px] text-slate-600 font-bold block">
-                    Check-in Dom 14h ➔ Seg 12h
-                  </span>
-                  <div className="pt-1 border-t border-black/10 flex items-center justify-between text-xs font-black">
-                    <span className="text-emerald-950">R$ 220 <span className="text-[10px] text-slate-500 font-bold">ind.</span></span>
-                    <span className="text-emerald-950">R$ 320 <span className="text-[10px] text-slate-500 font-bold">casal</span></span>
-                  </div>
-                </button>
+                  {/* 3. Diária Sábado a Domingo */}
+                  <button
+                    type="button"
+                    onClick={() => handleSelectStayPreset('diaria-sab-dom')}
+                    className={cn(
+                      "p-3 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-1.5",
+                      isDiariaSabDomActive
+                        ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 font-black shadow-md scale-[1.02]"
+                        : "bg-white text-slate-900 border-slate-200 hover:border-amber-400 hover:bg-amber-50/50"
+                    )}
+                  >
+                    <span className="font-black text-xs uppercase">☀️ Sábado a Domingo</span>
+                    <span className="text-[10px] text-slate-600 font-bold block">
+                      Check-in Sáb 14h ➔ Dom 12h (Day use parque até 17h)
+                    </span>
+                    <div className="pt-1 border-t border-black/10 flex items-center justify-between text-xs font-black">
+                      <span className="text-emerald-950">R$ 370 <span className="text-[10px] text-slate-500 font-bold">ind.</span></span>
+                      <span className="text-emerald-950">R$ 470 <span className="text-[10px] text-slate-500 font-bold">casal</span></span>
+                    </div>
+                  </button>
+
+                  {/* 4. Diária Domingo a Segunda */}
+                  <button
+                    type="button"
+                    onClick={() => handleSelectStayPreset('diaria-dom-seg')}
+                    className={cn(
+                      "p-3 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-1.5",
+                      inDay === 0 && outDay === 1 && diffNights === 1
+                        ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 font-black shadow-md scale-[1.02]"
+                        : "bg-white text-slate-900 border-slate-200 hover:border-amber-400 hover:bg-amber-50/50"
+                    )}
+                  >
+                    <span className="font-black text-xs uppercase">🌙 Domingo a Segunda</span>
+                    <span className="text-[10px] text-slate-600 font-bold block">
+                      Check-in Dom 14h ➔ Seg 12h
+                    </span>
+                    <div className="pt-1 border-t border-black/10 flex items-center justify-between text-xs font-black">
+                      <span className="text-emerald-950">R$ 220 <span className="text-[10px] text-slate-500 font-bold">ind.</span></span>
+                      <span className="text-emerald-950">R$ 320 <span className="text-[10px] text-slate-500 font-bold">casal</span></span>
+                    </div>
+                  </button>
+                </div>
               </div>
             )}
           </div>
