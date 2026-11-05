@@ -79,18 +79,17 @@ class ChaleErrorBoundary extends React.Component<{ children: React.ReactNode }, 
           <p className="text-sm font-black text-red-800 uppercase">
             Ops! Ocorreu um problema ao carregar os chalés.
           </p>
-          <p className="text-xs text-red-600 font-bold">
-            Clique no botão abaixo para restaurar as informações da hospedagem.
+          <p className="text-xs text-red-600 font-mono bg-white p-3 rounded-xl border border-red-200 text-left overflow-auto max-h-40">
+            {String(this.state.error?.stack || this.state.error?.message || this.state.error)}
           </p>
           <Button
             type="button"
             onClick={() => {
               this.setState({ hasError: false, error: null });
-              window.location.reload();
             }}
-            className="bg-emerald-800 text-white font-bold h-10 px-4 rounded-xl hover:bg-emerald-900"
+            className="bg-emerald-800 text-white font-bold h-10 px-4 rounded-xl hover:bg-emerald-900 cursor-pointer"
           >
-            Recarregar Chalés
+            Tentar Novamente
           </Button>
         </div>
       );
@@ -113,6 +112,7 @@ function ChaleSelectorInner({
   const [isLoadingBooked, setIsLoadingBooked] = useState<boolean>(false);
   const [isCheckInCalendarOpen, setIsCheckInCalendarOpen] = useState<boolean>(false);
   const [isCheckOutCalendarOpen, setIsCheckOutCalendarOpen] = useState<boolean>(false);
+  const [shortcutCategory, setShortcutCategory] = useState<'combos' | 'diarias'>('combos');
 
   // Data âncora inicial
   const anchorDate = useMemo(() => {
@@ -397,14 +397,18 @@ function ChaleSelectorInner({
     setIsCheckOutCalendarOpen(false);
   };
 
-  // Atalhos Rápidos com seleção direta dos 4 Combos e Diárias
+  // Atalhos Rápidos com seleção direta dos Combos e Diárias
   const handleSelectStayPreset = (preset: 
     | 'combo-2n-sex-dom' 
+    | 'combo-2n-qui-sab'
+    | 'combo-2n-sab-seg'
     | 'combo-3n-qui-dom' 
     | 'combo-3n-sex-seg' 
     | 'combo-4n-qui-seg' 
+    | 'diaria-qui-sex'
     | 'diaria-sex-sab' 
     | 'diaria-sab-dom'
+    | 'diaria-dom-seg'
   ) => {
     let inDate = new Date(refFriday);
     let outDate = new Date(refSunday);
@@ -416,6 +420,18 @@ function ChaleSelectorInner({
       outDate = new Date(refSunday);
       outDate.setHours(12, 0, 0, 0);
       pkgType = 'combo-2n-sex-dom';
+    } else if (preset === 'combo-2n-qui-sab') {
+      inDate = new Date(refThursday);
+      inDate.setHours(9, 0, 0, 0);
+      outDate = new Date(refSaturday);
+      outDate.setHours(12, 0, 0, 0);
+      pkgType = 'combo-2n-qui-sab';
+    } else if (preset === 'combo-2n-sab-seg') {
+      inDate = new Date(refSaturday);
+      inDate.setHours(14, 0, 0, 0);
+      outDate = new Date(refMonday);
+      outDate.setHours(12, 0, 0, 0);
+      pkgType = 'combo-2n-sab-seg';
     } else if (preset === 'combo-3n-qui-dom') {
       inDate = new Date(refThursday);
       inDate.setHours(9, 0, 0, 0);
@@ -434,6 +450,12 @@ function ChaleSelectorInner({
       outDate = new Date(refMonday);
       outDate.setHours(12, 0, 0, 0);
       pkgType = 'combo-4n-qui-seg';
+    } else if (preset === 'diaria-qui-sex') {
+      inDate = new Date(refThursday);
+      inDate.setHours(9, 0, 0, 0);
+      outDate = new Date(refFriday);
+      outDate.setHours(12, 0, 0, 0);
+      pkgType = 'diaria-qui-sex';
     } else if (preset === 'diaria-sex-sab') {
       inDate = new Date(refFriday);
       inDate.setHours(14, 0, 0, 0);
@@ -446,6 +468,12 @@ function ChaleSelectorInner({
       outDate = new Date(refSunday);
       outDate.setHours(12, 0, 0, 0);
       pkgType = 'diaria-sab-dom';
+    } else if (preset === 'diaria-dom-seg') {
+      inDate = new Date(refSunday);
+      inDate.setHours(14, 0, 0, 0);
+      outDate = new Date(refMonday);
+      outDate.setHours(12, 0, 0, 0);
+      pkgType = 'diaria-dom-seg';
     }
 
     onUpdate({
@@ -547,17 +575,26 @@ function ChaleSelectorInner({
     const isBookedDirectly = bookedChaleIds.includes(unitId) || disabledChaleIds.includes(unitId);
     const existing = existingReservations.find(r => r.chaleId === unitId);
     if (isBookedDirectly || existing) {
+      let subtext = 'Reservado';
+      if (existing?.checkOut) {
+        try {
+          const d = new Date(existing.checkOut);
+          if (!isNaN(d.getTime())) {
+            subtext = `Até ${format(d, 'dd/MM')}`;
+          }
+        } catch {}
+      }
       return {
         isOccupied: true,
         badge: 'Ocupado',
-        subtext: existing ? `Até ${format(new Date(existing.checkOut), 'dd/MM')}` : 'Reservado',
+        subtext,
         color: 'bg-red-600 text-white border-red-700'
       };
     }
     return {
       isOccupied: false,
       badge: 'Livre',
-      subtext: `Disponível para entrada às ${stayPricing.checkInHour}`,
+      subtext: `Disponível para entrada às ${stayPricing?.checkInHour || '14h'}`,
       color: 'bg-emerald-600 text-white border-emerald-700'
     };
   };
@@ -669,7 +706,7 @@ function ChaleSelectorInner({
   const handleAddKidToChale = (chaleId: number) => {
     const curKids = chaleKidsMap[chaleId] || [];
     if (curKids.length >= 2) return;
-    const newMap = {
+    const newMap: Record<number, ('under11' | '12plus')[]> = {
       ...chaleKidsMap,
       [chaleId]: [...curKids, 'under11']
     };

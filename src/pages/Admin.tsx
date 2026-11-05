@@ -1508,7 +1508,9 @@ export default function Admin() {
           throw new Error(`O(s) quiosque(s) ${conflicts.join(', ')} já estão ocupados nesta data.`);
         }
       } else {
-        const { available } = await getQuadAvailability(newDateStr);
+        const timeSlot = group.items[0]?.time_slot || '09:00';
+        const booked = await getQuadAvailability(newDateStr, timeSlot);
+        const available = Math.max(0, 2 - booked);
         const requested = group.items.reduce((s: number, r: any) => s + (Number(r.quantity) || 1), 0);
         if (available < requested) {
           throw new Error(`Não há quadriciclos disponíveis suficientes para esta data (${available} disponíveis).`);
@@ -1609,6 +1611,24 @@ export default function Admin() {
       console.error(err);
       toast({ title: "Erro no backup", description: "Não foi possível gerar o arquivo.", variant: "destructive" });
     }
+  };
+
+  
+  const resolveGroup = (group: any) => {
+    const dayKiosks = (kioskReservations || []).filter(k => k.reservation_date === group.reservation_date);
+    const resolved = group.items.map((r: any) => {
+      const bid = r.kiosk_id;
+      if (bid === 1 || bid === '1' || bid === 'MAIOR') return KIOSKS.find(k => k.id === 1);
+      if (bid === 'MENOR') {
+        const menors = dayKiosks.filter(dk => dk.kiosk_id === 'MENOR');
+        const idx = menors.findIndex(dk => dk.id === r.id);
+        return KIOSKS.find(k => k.id === idx + 2) || { id: 99, name: 'Quiosque Extra', capacity: 'Até 15 pessoas' };
+      }
+      return KIOSKS.find(k => k.id === Number(bid)) || { id: 99, name: `Q-${bid}`, capacity: 'Até 15 pessoas' };
+    });
+    const names = resolved.map((k: any) => k?.name.replace('Quiosque ', 'Q-')).join(', ');
+    const capacity = resolved.reduce((s: number, k: any) => s + parseInt((k?.capacity || '0').replace(/\D/g, '') || '15'), 0);
+    return { names, capacity };
   };
 
   const handleExportReport = (type: 'excel' | 'pdf', groups: any[], title: string) => {
@@ -2447,7 +2467,7 @@ export default function Admin() {
                                         </div>
                                         <div className="flex items-center gap-2">
                                            <span className="text-[10px] font-black text-blue-900">{r.quantity} un.</span>
-                                           <Button size="icon" variant="ghost" className="h-7 w-7 text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm rounded-lg" onClick={() => startEditing(r.id, 'quad', r)}>
+                                           <Button size="icon" variant="ghost" className="h-7 w-7 text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm rounded-lg" onClick={() => startEditing(r)}>
                                              <Pencil className="w-3.5 h-3.5" />
                                            </Button>
                                         </div>

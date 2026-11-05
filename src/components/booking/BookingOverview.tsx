@@ -636,7 +636,7 @@ export function BookingOverview({
               Passeios de Quadriciclo (40 min)
             </h4>
             <div className="space-y-2 text-sm sm:text-base text-muted-foreground">
-              {booking.quads.filter(q => q.quantity > 0).map(q => {
+              {booking.quads.filter(q => q.quantity > 0).map((q, idx) => {
                 const fallbackMap: Record<string, number> = { individual: 130, dupla: 195, 'adulto-crianca': 195 };
                 const basePrice = getPrice(`quad_${q.type}`, fallbackMap[q.type]);
                 const totalPrice = q.quantity * basePrice;

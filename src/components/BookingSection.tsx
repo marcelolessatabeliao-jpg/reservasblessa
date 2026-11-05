@@ -1,3 +1,4 @@
+import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useBooking } from '@/hooks/useBooking';
@@ -73,6 +74,7 @@ export function BookingSection() {
     resetOptionalServices,
     totals 
   } = useBooking();
+  const { toast } = useToast();
 
   // Etapa principal: 'data' -> 'escolha_modalidade' -> 'servicos' -> 'resumo'
   const [currentStep, setCurrentStep] = useState<'data' | 'escolha_modalidade' | 'servicos' | 'resumo'>('data');
@@ -1289,7 +1291,7 @@ export function BookingSection() {
 
                         {campingTab === 'quads' && (
                           <div className="space-y-6">
-                            <QuadSelector quads={booking.quads} selectedDate={booking.camping.visitDate || booking.entry.visitDate} onUpdate={updateQuad} onSetQuads={setQuads} onAddQuad={addQuad} onRemoveQuad={removeQuad} />
+                            <QuadSelector quads={booking.quads} selectedDate={booking.camping.date || booking.entry.visitDate} onUpdate={updateQuad} onSetQuads={setQuads} onAddQuad={addQuad} onRemoveQuad={removeQuad} />
 
                             <div className="pt-6 flex flex-col sm:flex-row justify-between items-center gap-3">
                               <Button variant="ghost" onClick={() => setCampingTab('quiosques')} className="font-bold text-muted-foreground">

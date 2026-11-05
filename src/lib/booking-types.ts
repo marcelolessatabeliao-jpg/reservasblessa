@@ -1,3 +1,5 @@
+import { parseToRODate } from '@/utils/date-utils';
+
 export interface AdultInfo {
   quantity?: number;
   age: number;
@@ -163,6 +165,34 @@ export const CHALE_PACKAGES: Record<ChalePackageType, ChalePackageInfo> = {
     badge: '🔥 10% OFF • SEX A DOM',
     commercialHighlight: 'Check-in sexta às 14h • Check-out domingo às 12h (Day Use no parque liberado até as 17h!)',
     description: 'Check-in sexta às 14h • Check-out domingo às 12h. Day use de sexta a domingo até as 17h e café da manhã incluso nas manhãs de sábado e domingo.'
+  },
+  'combo-2n-qui-sab': {
+    id: 'combo-2n-qui-sab',
+    title: 'Combo 2 noites — Quinta a Sábado',
+    period: 'Quinta a Sábado (3 Dias + 2 Noites)',
+    nights: 2,
+    days: 3,
+    typeLabel: 'Individual ou Casal',
+    priceIndividual: 522,
+    priceCasal: 702,
+    basePrice: 702,
+    badge: '🌿 10% OFF • QUI A SÁB',
+    commercialHighlight: 'Check-in quinta às 9h • Check-out sábado às 12h',
+    description: 'Check-in quinta às 9h • Check-out sábado às 12h. Café da manhã incluso na sexta e sábado.'
+  },
+  'combo-2n-sab-seg': {
+    id: 'combo-2n-sab-seg',
+    title: 'Combo 2 noites — Sábado a Segunda',
+    period: 'Sábado a Segunda (3 Dias + 2 Noites)',
+    nights: 2,
+    days: 3,
+    typeLabel: 'Individual ou Casal',
+    priceIndividual: 531,
+    priceCasal: 711,
+    basePrice: 711,
+    badge: '☀️ 10% OFF • SÁB A SEG',
+    commercialHighlight: 'Check-in sábado às 14h • Check-out segunda às 12h (Domingo Day Use até 17h)',
+    description: 'Check-in sábado às 14h • Check-out segunda às 12h. Day Use domingo até 17h. Segunda sem café e balneário fechado.'
   },
   'combo-3n-qui-dom': {
     id: 'combo-3n-qui-dom',
@@ -658,8 +688,6 @@ export const ADDITIONAL_INFO: Record<AdditionalService, { label: string; price: 
     description: 'Diversão garantida para grupos por 30 minutos!' 
   },
 };
-
-import { parseToRODate } from '@/utils/date-utils';
 
 export function getQuadDiscount(date: Date | string | null): number {
   // Para os quadriciclos não terá 20% de desconto, apenas 10% fixo

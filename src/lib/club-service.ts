@@ -14,6 +14,7 @@ import {
   type ContractTemplateType,
   type SubscriptionStatus,
   type ClubAdditionalService,
+  type ClubAttachment,
 } from './club-types';
 
 const STORAGE_KEY = 'lessa_club_ecosystem_v1';
@@ -497,6 +498,7 @@ export interface CreateSubscriptionInput {
   status?: SubscriptionStatus;
   origin?: 'SITE' | 'ADMIN' | 'IMPORT_LABCARD';
   consultantName?: string;
+  consultantCode?: string;
   influencerName?: string;
   vehicleModel?: string;
   vehiclePlate?: string;
