@@ -15,7 +15,7 @@ import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { getPersonPrice, formatCurrency, KIOSK_INFO, QUAD_LABELS, getQuadDiscount, ADDITIONAL_INFO, CHALE_PACKAGES, CAMPING_PRICE_PER_PERSON, WHATSAPP_NUMBER, isSundayOrHoliday, calculateChaleTotal, type BookingState, type AdultInfo, type ChildInfo } from '@/lib/booking-types';
+import { getPersonPrice, formatCurrency, KIOSK_INFO, QUAD_LABELS, getQuadDiscount, ADDITIONAL_INFO, CHALE_PACKAGES, CAMPING_PRICE_PER_PERSON, WHATSAPP_NUMBER, isSundayOrHoliday, calculateChaleTotal, calculateChaleGrossTotal, calculateStayPricing, type BookingState, type AdultInfo, type ChildInfo } from '@/lib/booking-types';
 import { useState, useEffect } from 'react';
 import { trackFBEvent } from '@/utils/pixel-events';
 
@@ -223,6 +223,17 @@ export function BookingOverview({
           : 1;
         const adults = Math.max(1, booking.chale.adultsCount || (chaletsCount * 2));
         const kids = booking.chale.childrenCount || 0;
+        const chaleGross = calculateChaleGrossTotal(
+          booking.chale.packageType,
+          booking.chale.adultsCount,
+          booking.chale.childrenCount,
+          chaletsCount,
+          booking.chale.checkInDate,
+          booking.chale.checkOutDate,
+          booking.chale.chaleOccupancies,
+          booking.chale.chaleIds,
+          booking.chale.childrenAges
+        );
         const chalePrice = calculateChaleTotal(
           booking.chale.packageType,
           adults,

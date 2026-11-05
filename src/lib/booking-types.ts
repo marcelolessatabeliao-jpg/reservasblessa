@@ -59,7 +59,9 @@ export type ChalePackageType =
   | '1-diaria' 
   | '2-diarias' 
   | 'combo-3d-2n' 
+  | 'combo-2n-qui-sab'
   | 'combo-2n-sex-dom'
+  | 'combo-2n-sab-seg'
   | 'combo-3n-qui-dom'
   | 'combo-3n-sex-seg'
   | 'combo-4n-qui-seg'
@@ -214,7 +216,7 @@ export const CHALE_PACKAGES: Record<ChalePackageType, ChalePackageInfo> = {
     priceIndividual: 240,
     priceCasal: 340,
     basePrice: 340,
-    description: 'Check-in quinta às 14h • Check-out sexta às 12h com café da manhã incluso na manhã de sexta.'
+    description: 'Check-in quinta às 9h • Check-out sexta às 12h com café da manhã incluso na manhã de sexta.'
   },
   'diaria-sex-sab': {
     id: 'diaria-sex-sab',
@@ -448,7 +450,7 @@ export function calculateStayPricing(checkIn: Date | string | null, checkOut: Da
   const totalCasal = Math.round(totalCasalGross * (1 - discountPct));
 
   // Check-in na quinta às 9h (se for combo de 3 ou 4 noites) ou 14h
-  const checkInHour = (hasThursdayIn && nightsCount >= 3) ? '09h' : '14h';
+  const checkInHour = hasThursdayIn ? '09h' : '14h';
   const checkOutHour = '12h';
 
   return {
@@ -484,10 +486,12 @@ export function calculateChaleTotal(
   const count = ids.length;
 
   let basePrice = 0;
+  let nights = 1;
 
   if (checkInDate && checkOutDate) {
     const pricing = calculateStayPricing(checkInDate, checkOutDate);
     if (pricing.nightsCount > 0) {
+      nights = pricing.nightsCount;
       if (chaleOccupancies && Object.keys(chaleOccupancies).length > 0) {
         basePrice = ids.reduce((acc, id) => {
           const occ = chaleOccupancies[id] || (adultsCount === 1 && count === 1 ? 'individual' : 'casal');
@@ -503,6 +507,7 @@ export function calculateChaleTotal(
   if (basePrice === 0) {
     const pkg = CHALE_PACKAGES[packageType];
     if (pkg) {
+      nights = pkg.nights || 1;
       if (chaleOccupancies && Object.keys(chaleOccupancies).length > 0) {
         basePrice = ids.reduce((acc, id) => {
           const occ = chaleOccupancies[id] || (adultsCount === 1 && count === 1 ? 'individual' : 'casal');
@@ -515,22 +520,97 @@ export function calculateChaleTotal(
     }
   }
 
-  // Crianças: Adicional de R$ 50,00 para até 11 anos e R$ 100,00 para 12 anos ou mais.
-  // Não há cortesia para o 1º adicional; todos os adicionais são pagos.
+  // Crianças: Adicional conforme a tabela oficial do Balneário Lessa
+  // O valor do adicional é somado de acordo com a quantidade de diárias (noites) selecionadas:
+  // Até 11 anos: R$ 50/noite (em combos >= 2 noites recebe 10% OFF: 2 noites = R$ 90, 3 noites = R$ 135, 4 noites = R$ 180)
+  // Acima de 12 anos: R$ 100/noite (em combos >= 2 noites recebe 10% OFF: 2 noites = R$ 180, 3 noites = R$ 270, 4 noites = R$ 360)
   let kidsCost = 0;
+  const totalKids = childrenCount || 0;
+  const discountPct = nights >= 2 ? 0.10 : 0;
+
+  if (totalKids > 0) {
+    if (childrenAges && childrenAges.length > 0) {
+      for (let i = 0; i < totalKids; i++) {
+        const age = childrenAges[i] || 'under11';
+        const ratePerNight = (age === '12plus' ? 100 : 50);
+        const kidGross = ratePerNight * nights;
+        kidsCost += Math.round(kidGross * (1 - discountPct));
+      }
+    } else {
+      const kidGross = 50 * nights * totalKids;
+      kidsCost += Math.round(kidGross * (1 - discountPct));
+    }
+  }
+
+  return basePrice + kidsCost;
+}
+
+export function calculateChaleGrossTotal(
+  packageType: ChalePackageType | null,
+  adultsCount: number,
+  childrenCount: number = 0,
+  chaletsCount: number = 1,
+  checkInDate?: Date | string | null,
+  checkOutDate?: Date | string | null,
+  chaleOccupancies?: Record<number, 'casal' | 'individual'>,
+  chaleIds?: number[],
+  childrenAges?: ('under11' | '12plus')[]
+): number {
+  if (!packageType) return 0;
+  const ids = (chaleIds && chaleIds.length > 0) ? chaleIds : Array.from({ length: Math.max(1, chaletsCount || 1) }, (_, i) => i + 1);
+  const count = ids.length;
+
+  let baseGross = 0;
+  let nights = 1;
+
+  if (checkInDate && checkOutDate) {
+    const pricing = calculateStayPricing(checkInDate, checkOutDate);
+    if (pricing.nightsCount > 0) {
+      nights = pricing.nightsCount;
+      if (chaleOccupancies && Object.keys(chaleOccupancies).length > 0) {
+        baseGross = ids.reduce((acc, id) => {
+          const occ = chaleOccupancies[id] || (adultsCount === 1 && count === 1 ? 'individual' : 'casal');
+          return acc + (occ === 'individual' ? pricing.totalIndividualGross : pricing.totalCasalGross);
+        }, 0);
+      } else {
+        const isIndividual = adultsCount === 1 && count === 1;
+        baseGross = isIndividual ? pricing.totalIndividualGross : (pricing.totalCasalGross * count);
+      }
+    }
+  }
+
+  if (baseGross === 0) {
+    const pkg = CHALE_PACKAGES[packageType];
+    if (pkg) {
+      nights = pkg.nights || 1;
+      const indGross = Math.round(pkg.priceIndividual / 0.9);
+      const casalGross = Math.round(pkg.priceCasal / 0.9);
+      if (chaleOccupancies && Object.keys(chaleOccupancies).length > 0) {
+        baseGross = ids.reduce((acc, id) => {
+          const occ = chaleOccupancies[id] || (adultsCount === 1 && count === 1 ? 'individual' : 'casal');
+          return acc + (occ === 'individual' ? indGross : casalGross);
+        }, 0);
+      } else {
+        const isIndividual = adultsCount === 1 && count === 1;
+        baseGross = isIndividual ? indGross : (casalGross * count);
+      }
+    }
+  }
+
+  let kidsGross = 0;
   const totalKids = childrenCount || 0;
   if (totalKids > 0) {
     if (childrenAges && childrenAges.length > 0) {
       for (let i = 0; i < totalKids; i++) {
         const age = childrenAges[i] || 'under11';
-        kidsCost += (age === '12plus' ? 100 : 50);
+        kidsGross += (age === '12plus' ? 100 : 50) * nights;
       }
     } else {
-      kidsCost = totalKids * 50;
+      kidsGross = 50 * nights * totalKids;
     }
   }
 
-  return basePrice + kidsCost;
+  return baseGross + kidsGross;
 }
 
 export const ENTRY_PRICE = 49.90;

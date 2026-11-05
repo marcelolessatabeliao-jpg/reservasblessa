@@ -81,6 +81,7 @@ export function BookingSection() {
   // Sub-abas ativas dentro de cada modalidade
   const [dayUseTab, setDayUseTab] = useState<DayUseSubTab>('entradas');
   const [hospedagemTab, setHospedagemTab] = useState<HospedagemSubTab>('chales');
+  const [namesValidationError, setNamesValidationError] = useState<boolean>(false);
   const [campingTab, setCampingTab] = useState<CampingSubTab>('camping');
 
   // Modal de troca de modalidade para evitar confusão
@@ -257,20 +258,71 @@ export function BookingSection() {
       toast({ title: 'Selecione o Chalé', description: 'Escolha pelo menos 1 chalé disponível para continuar.', variant: 'destructive' });
       return false;
     }
-    const totalAdults = Math.max(1, booking.chale.adultsCount || (chaletsCount * 2));
-    const totalKids = booking.chale.childrenCount || 0;
-    const totalRequiredGuests = totalAdults + totalKids;
+
+    const selectedUnits = (booking.chale.chaleIds && booking.chale.chaleIds.length > 0)
+      ? booking.chale.chaleIds
+      : (booking.chale.chaleId ? [booking.chale.chaleId] : [1]);
+
+    const occupancies = booking.chale.chaleOccupancies || {};
+    const kidsMap = booking.chale.chaleKids || {};
     const names = booking.chale.guestNames || [];
-    for (let i = 0; i < totalRequiredGuests; i++) {
-      if (!names[i] || !names[i].trim()) {
-        toast({
-          title: 'Nomes Obrigatórios',
-          description: 'Por favor, preencha o nome completo de todos os hóspedes (adultos e crianças) no chalé antes de avançar.',
-          variant: 'destructive'
-        });
-        return false;
+
+    let currentAdults = 0;
+    selectedUnits.forEach(id => {
+      currentAdults += occupancies[id] === 'individual' ? 1 : 2;
+    });
+
+    let adultIdxCounter = 0;
+    let kidIdxCounter = 0;
+    let missingNameLabel = '';
+
+    for (let u = 0; u < selectedUnits.length; u++) {
+      const uId = selectedUnits[u];
+      const isCasal = occupancies[uId] !== 'individual';
+      const uKids = kidsMap[uId] || [];
+
+      // Adult 1
+      if (!names[adultIdxCounter] || !names[adultIdxCounter].trim()) {
+        missingNameLabel = `Adulto 1 (Titular do Chalé ${String(uId).padStart(2, '0')})`;
+        break;
       }
+      adultIdxCounter++;
+
+      // Adult 2
+      if (isCasal) {
+        if (!names[adultIdxCounter] || !names[adultIdxCounter].trim()) {
+          missingNameLabel = `Adulto 2 (Acompanhante do Chalé ${String(uId).padStart(2, '0')})`;
+          break;
+        }
+        adultIdxCounter++;
+      }
+
+      // Kids for this unit
+      for (let k = 0; k < uKids.length; k++) {
+        const kidSlot = currentAdults + kidIdxCounter;
+        if (!names[kidSlot] || !names[kidSlot].trim()) {
+          missingNameLabel = `Criança ${k + 1} do Chalé ${String(uId).padStart(2, '0')}`;
+          break;
+        }
+        kidIdxCounter++;
+      }
+      if (missingNameLabel) break;
     }
+
+    if (missingNameLabel) {
+      setNamesValidationError(true);
+      toast({
+        title: '⚠️ Nomes Obrigatórios',
+        description: `É necessário adicionar os nomes de todos os hóspedes antes de avançar. Preencha o nome do ${missingNameLabel}.`,
+        variant: 'destructive',
+        duration: 7000
+      });
+      const el = document.getElementById('reservas-content');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return false;
+    }
+
+    setNamesValidationError(false);
     return true;
   };
 

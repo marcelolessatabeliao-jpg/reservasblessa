@@ -312,7 +312,7 @@ export function QuadSelector({ quads, onUpdate, onSetQuads }: Props) {
                 const currentQty = currentBooking?.quantity || 0;
                 
                 // Vagas disponíveis para este horário (considerando a quantidade já alocada para este usuário)
-                const availableForSlot = isSlotDisabled ? 0 : Math.max(0, maxQuads - dbUsed + currentQty);
+                const availableForSlot = isSlotDisabled ? 0 : Math.min(2, Math.max(0, 2 - dbUsed + currentQty));
                 const priceEach = currentType === 'dupla' ? dupFinalPrice : indFinalPrice;
 
                 return (
@@ -327,7 +327,7 @@ export function QuadSelector({ quads, onUpdate, onSetQuads }: Props) {
                             Configurar Passeio das {slot}
                           </h4>
                           <span className="text-[11px] text-amber-300 font-bold block">
-                            {availableForSlot} vaga{availableForSlot > 1 ? 's' : ''} disponível{availableForSlot > 1 ? 'is' : ''} neste horário
+                            {availableForSlot} quadriciclo{availableForSlot > 1 ? 's' : ''} disponível{availableForSlot > 1 ? 'is' : ''} (Máx: 2 neste horário)
                           </span>
                         </div>
                       </div>
@@ -357,13 +357,31 @@ export function QuadSelector({ quads, onUpdate, onSetQuads }: Props) {
                                 : "bg-white/10 text-white border-white/20 hover:bg-white/20"
                             )}
                           >
-                            <div className="flex items-center gap-1.5 font-black text-xs uppercase">
-                              <User className="w-3.5 h-3.5" /> Individual
+                            <div className="flex items-center justify-between gap-1">
+                              <div className="flex items-center gap-1.5 font-black text-xs uppercase">
+                                <User className="w-3.5 h-3.5" /> Individual
+                              </div>
+                              <span className={cn(
+                                "text-[9px] font-black px-1.5 py-0.5 rounded uppercase",
+                                currentType === 'individual' && currentQty > 0
+                                  ? "bg-slate-950 text-amber-300"
+                                  : "bg-amber-400 text-slate-950"
+                              )}>
+                                10% OFF
+                              </span>
                             </div>
                             <span className="text-[10px] opacity-80 mt-1 block">1 pessoa · 40 min</span>
-                            <span className="text-xs sm:text-sm font-black mt-2 block">
-                              {formatCurrency(indFinalPrice)}
-                            </span>
+                            <div className="mt-2">
+                              <span className={cn(
+                                "text-[10.5px] line-through font-bold block",
+                                currentType === 'individual' && currentQty > 0 ? "text-slate-700" : "text-emerald-300/80"
+                              )}>
+                                De {formatCurrency(indGrossPrice)}
+                              </span>
+                              <span className="text-xs sm:text-sm font-black block">
+                                {formatCurrency(indFinalPrice)}
+                              </span>
+                            </div>
                           </button>
 
                           <button
@@ -376,13 +394,31 @@ export function QuadSelector({ quads, onUpdate, onSetQuads }: Props) {
                                 : "bg-white/10 text-white border-white/20 hover:bg-white/20"
                             )}
                           >
-                            <div className="flex items-center gap-1.5 font-black text-xs uppercase">
-                              <Users className="w-3.5 h-3.5" /> De Dupla
+                            <div className="flex items-center justify-between gap-1">
+                              <div className="flex items-center gap-1.5 font-black text-xs uppercase">
+                                <Users className="w-3.5 h-3.5" /> De Dupla
+                              </div>
+                              <span className={cn(
+                                "text-[9px] font-black px-1.5 py-0.5 rounded uppercase",
+                                currentType === 'dupla' && currentQty > 0
+                                  ? "bg-slate-950 text-amber-300"
+                                  : "bg-amber-400 text-slate-950"
+                              )}>
+                                10% OFF
+                              </span>
                             </div>
                             <span className="text-[10px] opacity-80 mt-1 block">2 pessoas · 40 min</span>
-                            <span className="text-xs sm:text-sm font-black mt-2 block">
-                              {formatCurrency(dupFinalPrice)}
-                            </span>
+                            <div className="mt-2">
+                              <span className={cn(
+                                "text-[10.5px] line-through font-bold block",
+                                currentType === 'dupla' && currentQty > 0 ? "text-slate-700" : "text-emerald-300/80"
+                              )}>
+                                De {formatCurrency(dupGrossPrice)}
+                              </span>
+                              <span className="text-xs sm:text-sm font-black block">
+                                {formatCurrency(dupFinalPrice)}
+                              </span>
+                            </div>
                           </button>
                         </div>
                       </div>
@@ -394,15 +430,24 @@ export function QuadSelector({ quads, onUpdate, onSetQuads }: Props) {
                         </label>
                         <div className="bg-white/10 border border-white/20 rounded-2xl p-3 flex items-center justify-between gap-3 h-[90px]">
                           <div>
-                            <span className="text-xs font-bold text-emerald-100 block">
+                            <span className="text-[11px] font-bold text-emerald-200 uppercase tracking-tight block">
                               Total deste horário:
                             </span>
-                            <span className="text-base sm:text-lg font-black text-amber-300 block">
-                              {currentQty > 0 ? formatCurrency(priceEach * currentQty) : 'Selecione a quantidade'}
-                            </span>
-                            {currentQty > 0 && (
-                              <span className="text-[9px] bg-amber-400 text-slate-950 font-black px-1.5 py-0.5 rounded uppercase">
-                                10% OFF aplicado
+                            {currentQty > 0 ? (
+                              <div className="space-y-0.5 mt-0.5">
+                                <span className="text-[10.5px] text-emerald-300/80 line-through font-bold block">
+                                  De {formatCurrency((currentType === 'dupla' ? dupGrossPrice : indGrossPrice) * currentQty)}
+                                </span>
+                                <span className="text-base sm:text-lg font-black text-amber-300 block leading-tight">
+                                  {formatCurrency(priceEach * currentQty)}
+                                </span>
+                                <span className="text-[9px] bg-amber-400 text-slate-950 font-black px-1.5 py-0.5 rounded uppercase">
+                                  10% OFF aplicado
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-xs font-bold text-slate-400 italic block mt-1">
+                                Selecione a quantidade
                               </span>
                             )}
                           </div>

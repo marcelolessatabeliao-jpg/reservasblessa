@@ -527,6 +527,8 @@ export function ChaleSelector({
   const diffNights = Math.round(Math.abs(checkOutActive.getTime() - checkInActive.getTime()) / (1000 * 60 * 60 * 24));
 
   const isComboSexDomActive = (inDay === 5 && outDay === 0 && diffNights === 2) || chale.packageType === 'combo-2n-sex-dom';
+  const isComboQuiSabActive = (inDay === 4 && outDay === 6 && diffNights === 2) || chale.packageType === 'combo-2n-qui-sab';
+  const isComboSabSegActive = (inDay === 6 && outDay === 1 && diffNights === 2) || chale.packageType === 'combo-2n-sab-seg';
   const isComboQuiDomActive = (inDay === 4 && outDay === 0 && diffNights === 3) || chale.packageType === 'combo-3n-qui-dom';
   const isComboSexSegActive = (inDay === 5 && outDay === 1 && diffNights === 3) || chale.packageType === 'combo-3n-sex-seg';
   const isComboQuiSegActive = (inDay === 4 && outDay === 1 && diffNights === 4) || chale.packageType === 'combo-4n-qui-seg';
@@ -536,15 +538,17 @@ export function ChaleSelector({
   // Rótulo descritivo do pacote ativo
   const selectedPackageLabel = useMemo(() => {
     if (isComboSexDomActive) return 'Combo 2 Noites — Sexta a Domingo (10% OFF)';
+    if (isComboQuiSabActive) return 'Combo 2 Noites — Quinta a Sábado (10% OFF)';
+    if (isComboSabSegActive) return 'Combo 2 Noites — Sábado a Segunda (10% OFF)';
     if (isComboQuiDomActive) return 'Combo 3 Noites — Quinta a Domingo (10% OFF)';
     if (isComboSexSegActive) return 'Combo 3 Noites — Sexta a Segunda (10% OFF)';
     if (isComboQuiSegActive) return 'Combo 4 Noites — Quinta a Segunda (Maior Estadia — 10% OFF)';
-    if (isDiariaSexSabActive) return 'Diária Avulsa — Sexta para Sábado';
-    if (isDiariaSabDomActive) return 'Diária Avulsa — Sábado para Domingo';
-    if (inDay === 4 && outDay === 5) return 'Diária Avulsa — Quinta para Sexta';
-    if (inDay === 0 && outDay === 1) return 'Diária Avulsa — Domingo para Segunda';
+    if (inDay === 4 && outDay === 5 && diffNights === 1) return 'Diária Avulsa — Quinta para Sexta (Entrada 09h)';
+    if (inDay === 5 && outDay === 6 && diffNights === 1) return 'Diária Avulsa — Sexta para Sábado';
+    if (inDay === 6 && outDay === 0 && diffNights === 1) return 'Diária Avulsa — Sábado para Domingo';
+    if (inDay === 0 && outDay === 1 && diffNights === 1) return 'Diária Avulsa — Domingo para Segunda';
     return `Hospedagem Personalizada (${stayPricing.nightsCount} Noite${stayPricing.nightsCount > 1 ? 's' : ''})`;
-  }, [isComboSexDomActive, isComboQuiDomActive, isComboSexSegActive, isComboQuiSegActive, isDiariaSexSabActive, isDiariaSabDomActive, inDay, outDay, stayPricing.nightsCount]);
+  }, [isComboSexDomActive, isComboQuiSabActive, isComboSabSegActive, isComboQuiDomActive, isComboSexSegActive, isComboQuiSegActive, inDay, outDay, diffNights, stayPricing.nightsCount]);
 
   // Cálculo do total ativo com ocupação por chalé
   const calculatedTotal = calculateChaleTotal(
@@ -568,8 +572,14 @@ export function ChaleSelector({
       const isCasal = (chaleOccupancies[id] || (currentAdults === 1 && chaletsCount === 1 ? 'individual' : 'casal')) !== 'individual';
       gross += isCasal ? stayPricing.totalCasalGross : stayPricing.totalIndividualGross;
     });
+    // Adicionais de crianças multiplicados pelo número de noites
+    const kidsList = chale.childrenAges || [];
+    kidsList.forEach(age => {
+      const rate = age === '12plus' ? 100 : 50;
+      gross += rate * Math.max(1, stayPricing.nightsCount);
+    });
     return gross;
-  }, [selectedChaleUnits, chaleOccupancies, currentAdults, chaletsCount, stayPricing.totalCasalGross, stayPricing.totalIndividualGross]);
+  }, [selectedChaleUnits, chaleOccupancies, currentAdults, chaletsCount, stayPricing.totalCasalGross, stayPricing.totalIndividualGross, stayPricing.nightsCount, chale.childrenAges]);
 
   const childrenAges = chale.childrenAges || [];
 
@@ -900,97 +910,279 @@ export function ChaleSelector({
             </div>
           </div>
 
-          {/* ATALHOS RÁPIDOS EM FLEX-WRAP COM EMOJIS VISÍVEIS (NUNCA CORTA OU SOME) */}
-          <div className="space-y-1.5 pt-1">
-            <span className="text-[11px] font-black uppercase text-slate-800 block">
-              Atalhos Rápidos de Combos & Diárias (Clique para selecionar):
-            </span>
+          {/* ATALHOS RÁPIDOS: CATEGORIAS SEPARADAS (COMBOS PROMOCIONAIS vs DIÁRIAS AVULSAS) */}
+          <div className="space-y-3 pt-2">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <span className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                <span>⚡</span> Atalhos Rápidos de Seleção:
+              </span>
 
-            <div className="flex flex-wrap items-center gap-2 py-1">
-              {/* Combo 2 Noites - Sex a Dom */}
-              <button
-                type="button"
-                onClick={() => handleSelectStayPreset('combo-2n-sex-dom')}
-                className={cn(
-                  "h-10 px-3.5 rounded-xl font-black text-xs transition-all border-2 flex items-center justify-center cursor-pointer shadow-xs select-none",
-                  isComboSexDomActive
-                    ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 font-black shadow-md scale-[1.02]"
-                    : "bg-white text-slate-950 border-slate-300 hover:bg-amber-100 hover:text-slate-950 hover:border-amber-400"
-                )}
-              >
-                🔥 Sex a Dom (2 Noites — 10% OFF)
-              </button>
-
-              {/* Combo 3 Noites - Qui a Dom */}
-              <button
-                type="button"
-                onClick={() => handleSelectStayPreset('combo-3n-qui-dom')}
-                className={cn(
-                  "h-10 px-3.5 rounded-xl font-black text-xs transition-all border-2 flex items-center justify-center cursor-pointer shadow-xs select-none",
-                  isComboQuiDomActive
-                    ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 font-black shadow-md scale-[1.02]"
-                    : "bg-white text-slate-950 border-slate-300 hover:bg-amber-100 hover:text-slate-950 hover:border-amber-400"
-                )}
-              >
-                🌴 Qui a Dom (3 Noites — 10% OFF)
-              </button>
-
-              {/* Combo 3 Noites - Sex a Seg */}
-              <button
-                type="button"
-                onClick={() => handleSelectStayPreset('combo-3n-sex-seg')}
-                className={cn(
-                  "h-10 px-3.5 rounded-xl font-black text-xs transition-all border-2 flex items-center justify-center cursor-pointer shadow-xs select-none",
-                  isComboSexSegActive
-                    ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 font-black shadow-md scale-[1.02]"
-                    : "bg-white text-slate-950 border-slate-300 hover:bg-amber-100 hover:text-slate-950 hover:border-amber-400"
-                )}
-              >
-                🚀 Sex a Seg (3 Noites — 10% OFF)
-              </button>
-
-              {/* Combo 4 Noites - Qui a Seg */}
-              <button
-                type="button"
-                onClick={() => handleSelectStayPreset('combo-4n-qui-seg')}
-                className={cn(
-                  "h-10 px-3.5 rounded-xl font-black text-xs transition-all border-2 flex items-center justify-center cursor-pointer shadow-xs select-none",
-                  isComboQuiSegActive
-                    ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 font-black shadow-md scale-[1.02]"
-                    : "bg-white text-slate-950 border-slate-300 hover:bg-amber-100 hover:text-slate-950 hover:border-amber-400"
-                )}
-              >
-                👑 Qui a Seg (4 Noites — 10% OFF)
-              </button>
-
-              {/* Diária Sex a Sáb */}
-              <button
-                type="button"
-                onClick={() => handleSelectStayPreset('diaria-sex-sab')}
-                className={cn(
-                  "h-10 px-3 rounded-xl font-black text-xs transition-all border-2 flex items-center justify-center cursor-pointer shadow-xs select-none",
-                  isDiariaSexSabActive
-                    ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 font-black shadow-md scale-[1.02]"
-                    : "bg-white text-slate-950 border-slate-300 hover:bg-amber-100 hover:text-slate-950 hover:border-amber-400"
-                )}
-              >
-                📅 Sexta a Sábado (1 Diária)
-              </button>
-
-              {/* Diária Sáb a Dom */}
-              <button
-                type="button"
-                onClick={() => handleSelectStayPreset('diaria-sab-dom')}
-                className={cn(
-                  "h-10 px-3 rounded-xl font-black text-xs transition-all border-2 flex items-center justify-center cursor-pointer shadow-xs select-none",
-                  isDiariaSabDomActive
-                    ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 font-black shadow-md scale-[1.02]"
-                    : "bg-white text-slate-950 border-slate-300 hover:bg-amber-100 hover:text-slate-950 hover:border-amber-400"
-                )}
-              >
-                ☀️ Sábado a Domingo (1 Diária)
-              </button>
+              {/* Botões para Alternar entre Combos e Diárias */}
+              <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-2xl border border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setShortcutCategory('combos')}
+                  className={cn(
+                    "px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer select-none",
+                    shortcutCategory === 'combos'
+                      ? "bg-amber-400 text-slate-950 shadow-xs scale-[1.02]"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
+                  )}
+                >
+                  🔥 Combos Promocionais (10% OFF)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShortcutCategory('diarias')}
+                  className={cn(
+                    "px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer select-none",
+                    shortcutCategory === 'diarias'
+                      ? "bg-amber-400 text-slate-950 shadow-xs scale-[1.02]"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
+                  )}
+                >
+                  📅 Diárias Avulsas (1 Noite)
+                </button>
+              </div>
             </div>
+
+            {/* SE CATEGORIA COMBOS (10% OFF) */}
+            {shortcutCategory === 'combos' && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-1 animate-in fade-in">
+                {/* 1. Combo Sex a Dom (2 Noites) */}
+                <button
+                  type="button"
+                  onClick={() => handleSelectStayPreset('combo-2n-sex-dom')}
+                  className={cn(
+                    "p-3 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-1.5",
+                    isComboSexDomActive
+                      ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 font-black shadow-md scale-[1.02]"
+                      : "bg-white text-slate-900 border-slate-200 hover:border-amber-400 hover:bg-amber-50/50"
+                  )}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-black text-xs uppercase">🔥 Sex a Dom (2 Noites)</span>
+                    <span className="text-[9px] bg-slate-950 text-amber-300 font-black px-1.5 py-0.5 rounded">10% OFF</span>
+                  </div>
+                  <span className="text-[10px] text-slate-600 font-bold block">
+                    Check-in Sex 14h ➔ Dom 12h (Parque até 17h)
+                  </span>
+                  <div className="pt-1 border-t border-black/10 flex items-center justify-between text-xs font-black">
+                    <span className="text-emerald-950">R$ 639 <span className="text-[10px] text-slate-500 font-bold">ind.</span></span>
+                    <span className="text-emerald-950">R$ 819 <span className="text-[10px] text-slate-500 font-bold">casal</span></span>
+                  </div>
+                </button>
+
+                {/* 2. Combo Qui a Sáb (2 Noites) */}
+                <button
+                  type="button"
+                  onClick={() => handleSelectStayPreset('combo-2n-qui-sab')}
+                  className={cn(
+                    "p-3 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-1.5",
+                    isComboQuiSabActive
+                      ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 font-black shadow-md scale-[1.02]"
+                      : "bg-white text-slate-900 border-slate-200 hover:border-amber-400 hover:bg-amber-50/50"
+                  )}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-black text-xs uppercase">🌿 Qui a Sáb (2 Noites)</span>
+                    <span className="text-[9px] bg-slate-950 text-amber-300 font-black px-1.5 py-0.5 rounded">10% OFF</span>
+                  </div>
+                  <span className="text-[10px] text-slate-600 font-bold block">
+                    Check-in Qui 09h ➔ Sáb 12h
+                  </span>
+                  <div className="pt-1 border-t border-black/10 flex items-center justify-between text-xs font-black">
+                    <span className="text-emerald-950">R$ 522 <span className="text-[10px] text-slate-500 font-bold">ind.</span></span>
+                    <span className="text-emerald-950">R$ 702 <span className="text-[10px] text-slate-500 font-bold">casal</span></span>
+                  </div>
+                </button>
+
+                {/* 3. Combo Sáb a Seg (2 Noites) */}
+                <button
+                  type="button"
+                  onClick={() => handleSelectStayPreset('combo-2n-sab-seg')}
+                  className={cn(
+                    "p-3 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-1.5",
+                    isComboSabSegActive
+                      ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 font-black shadow-md scale-[1.02]"
+                      : "bg-white text-slate-900 border-slate-200 hover:border-amber-400 hover:bg-amber-50/50"
+                  )}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-black text-xs uppercase">☀️ Sáb a Seg (2 Noites)</span>
+                    <span className="text-[9px] bg-slate-950 text-amber-300 font-black px-1.5 py-0.5 rounded">10% OFF</span>
+                  </div>
+                  <span className="text-[10px] text-slate-600 font-bold block">
+                    Check-in Sáb 14h ➔ Seg 12h
+                  </span>
+                  <div className="pt-1 border-t border-black/10 flex items-center justify-between text-xs font-black">
+                    <span className="text-emerald-950">R$ 531 <span className="text-[10px] text-slate-500 font-bold">ind.</span></span>
+                    <span className="text-emerald-950">R$ 711 <span className="text-[10px] text-slate-500 font-bold">casal</span></span>
+                  </div>
+                </button>
+
+                {/* 4. Combo Qui a Dom (3 Noites) */}
+                <button
+                  type="button"
+                  onClick={() => handleSelectStayPreset('combo-3n-qui-dom')}
+                  className={cn(
+                    "p-3 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-1.5",
+                    isComboQuiDomActive
+                      ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 font-black shadow-md scale-[1.02]"
+                      : "bg-white text-slate-900 border-slate-200 hover:border-amber-400 hover:bg-amber-50/50"
+                  )}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-black text-xs uppercase">🌴 Qui a Dom (3 Noites)</span>
+                    <span className="text-[9px] bg-slate-950 text-amber-300 font-black px-1.5 py-0.5 rounded">10% OFF</span>
+                  </div>
+                  <span className="text-[10px] text-slate-600 font-bold block">
+                    Check-in Qui 09h ➔ Dom 12h (Parque até 17h)
+                  </span>
+                  <div className="pt-1 border-t border-black/10 flex items-center justify-between text-xs font-black">
+                    <span className="text-emerald-950">R$ 855 <span className="text-[10px] text-slate-500 font-bold">ind.</span></span>
+                    <span className="text-emerald-950">R$ 1.125 <span className="text-[10px] text-slate-500 font-bold">casal</span></span>
+                  </div>
+                </button>
+
+                {/* 5. Combo Sex a Seg (3 Noites) */}
+                <button
+                  type="button"
+                  onClick={() => handleSelectStayPreset('combo-3n-sex-seg')}
+                  className={cn(
+                    "p-3 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-1.5",
+                    isComboSexSegActive
+                      ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 font-black shadow-md scale-[1.02]"
+                      : "bg-white text-slate-900 border-slate-200 hover:border-amber-400 hover:bg-amber-50/50"
+                  )}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-black text-xs uppercase">🚀 Sex a Seg (3 Noites)</span>
+                    <span className="text-[9px] bg-slate-950 text-amber-300 font-black px-1.5 py-0.5 rounded">10% OFF</span>
+                  </div>
+                  <span className="text-[10px] text-slate-600 font-bold block">
+                    Check-in Sex 14h ➔ Seg 12h
+                  </span>
+                  <div className="pt-1 border-t border-black/10 flex items-center justify-between text-xs font-black">
+                    <span className="text-emerald-950">R$ 837 <span className="text-[10px] text-slate-500 font-bold">ind.</span></span>
+                    <span className="text-emerald-950">R$ 1.107 <span className="text-[10px] text-slate-500 font-bold">casal</span></span>
+                  </div>
+                </button>
+
+                {/* 6. Combo Qui a Seg (4 Noites) */}
+                <button
+                  type="button"
+                  onClick={() => handleSelectStayPreset('combo-4n-qui-seg')}
+                  className={cn(
+                    "p-3 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-1.5",
+                    isComboQuiSegActive
+                      ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 font-black shadow-md scale-[1.02]"
+                      : "bg-white text-slate-900 border-slate-200 hover:border-amber-400 hover:bg-amber-50/50"
+                  )}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-black text-xs uppercase">👑 Qui a Seg (4 Noites)</span>
+                    <span className="text-[9px] bg-slate-950 text-amber-300 font-black px-1.5 py-0.5 rounded">10% OFF</span>
+                  </div>
+                  <span className="text-[10px] text-slate-600 font-bold block">
+                    Check-in Qui 09h ➔ Seg 12h (Maior Estadia)
+                  </span>
+                  <div className="pt-1 border-t border-black/10 flex items-center justify-between text-xs font-black">
+                    <span className="text-emerald-950">R$ 1.053 <span className="text-[10px] text-slate-500 font-bold">ind.</span></span>
+                    <span className="text-emerald-950">R$ 1.413 <span className="text-[10px] text-slate-500 font-bold">casal</span></span>
+                  </div>
+                </button>
+              </div>
+            )}
+
+            {/* SE CATEGORIA DIÁRIAS AVULSAS (1 NOITE) */}
+            {shortcutCategory === 'diarias' && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 pt-1 animate-in fade-in">
+                {/* 1. Diária Quinta a Sexta */}
+                <button
+                  type="button"
+                  onClick={() => handleSelectStayPreset('diaria-qui-sex')}
+                  className={cn(
+                    "p-3 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-1.5",
+                    inDay === 4 && outDay === 5 && diffNights === 1
+                      ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 font-black shadow-md scale-[1.02]"
+                      : "bg-white text-slate-900 border-slate-200 hover:border-amber-400 hover:bg-amber-50/50"
+                  )}
+                >
+                  <span className="font-black text-xs uppercase">📅 Quinta a Sexta</span>
+                  <span className="text-[10px] text-slate-600 font-bold block">
+                    Check-in Qui 09h ➔ Sex 12h
+                  </span>
+                  <div className="pt-1 border-t border-black/10 flex items-center justify-between text-xs font-black">
+                    <span className="text-emerald-950">R$ 240 <span className="text-[10px] text-slate-500 font-bold">ind.</span></span>
+                    <span className="text-emerald-950">R$ 340 <span className="text-[10px] text-slate-500 font-bold">casal</span></span>
+                  </div>
+                </button>
+
+                {/* 2. Diária Sexta a Sábado */}
+                <button
+                  type="button"
+                  onClick={() => handleSelectStayPreset('diaria-sex-sab')}
+                  className={cn(
+                    "p-3 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-1.5",
+                    isDiariaSexSabActive
+                      ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 font-black shadow-md scale-[1.02]"
+                      : "bg-white text-slate-900 border-slate-200 hover:border-amber-400 hover:bg-amber-50/50"
+                  )}
+                >
+                  <span className="font-black text-xs uppercase">📅 Sexta a Sábado</span>
+                  <span className="text-[10px] text-slate-600 font-bold block">
+                    Check-in Sex 14h ➔ Sáb 12h
+                  </span>
+                  <div className="pt-1 border-t border-black/10 flex items-center justify-between text-xs font-black">
+                    <span className="text-emerald-950">R$ 340 <span className="text-[10px] text-slate-500 font-bold">ind.</span></span>
+                    <span className="text-emerald-950">R$ 440 <span className="text-[10px] text-slate-500 font-bold">casal</span></span>
+                  </div>
+                </button>
+
+                {/* 3. Diária Sábado a Domingo */}
+                <button
+                  type="button"
+                  onClick={() => handleSelectStayPreset('diaria-sab-dom')}
+                  className={cn(
+                    "p-3 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-1.5",
+                    isDiariaSabDomActive
+                      ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 font-black shadow-md scale-[1.02]"
+                      : "bg-white text-slate-900 border-slate-200 hover:border-amber-400 hover:bg-amber-50/50"
+                  )}
+                >
+                  <span className="font-black text-xs uppercase">☀️ Sábado a Domingo</span>
+                  <span className="text-[10px] text-slate-600 font-bold block">
+                    Check-in Sáb 14h ➔ Dom 12h (Parque até 17h)
+                  </span>
+                  <div className="pt-1 border-t border-black/10 flex items-center justify-between text-xs font-black">
+                    <span className="text-emerald-950">R$ 370 <span className="text-[10px] text-slate-500 font-bold">ind.</span></span>
+                    <span className="text-emerald-950">R$ 470 <span className="text-[10px] text-slate-500 font-bold">casal</span></span>
+                  </div>
+                </button>
+
+                {/* 4. Diária Domingo a Segunda */}
+                <button
+                  type="button"
+                  onClick={() => handleSelectStayPreset('diaria-dom-seg')}
+                  className={cn(
+                    "p-3 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-1.5",
+                    inDay === 0 && outDay === 1 && diffNights === 1
+                      ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 font-black shadow-md scale-[1.02]"
+                      : "bg-white text-slate-900 border-slate-200 hover:border-amber-400 hover:bg-amber-50/50"
+                  )}
+                >
+                  <span className="font-black text-xs uppercase">🌙 Domingo a Segunda</span>
+                  <span className="text-[10px] text-slate-600 font-bold block">
+                    Check-in Dom 14h ➔ Seg 12h
+                  </span>
+                  <div className="pt-1 border-t border-black/10 flex items-center justify-between text-xs font-black">
+                    <span className="text-emerald-950">R$ 220 <span className="text-[10px] text-slate-500 font-bold">ind.</span></span>
+                    <span className="text-emerald-950">R$ 320 <span className="text-[10px] text-slate-500 font-bold">casal</span></span>
+                  </div>
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1191,7 +1383,7 @@ export function ChaleSelector({
                             👶 Crianças neste Chalé (Filhos):
                           </span>
                           <span className="text-[9.5px] text-emerald-800 font-bold block mt-0.5">
-                            Até 11 anos: R$ 50 · 12+ anos: R$ 100 (Máx: 2)
+                            Até 11 anos: R$ ${kidUnder11Price} · 12+ anos: R$ ${kid12PlusPrice} (${nights} noite${nights > 1 ? 's' : ''})
                           </span>
                         </div>
 
@@ -1237,7 +1429,7 @@ export function ChaleSelector({
                                       : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
                                   )}
                                 >
-                                  Até 11 anos (+ R$ 50)
+                                  Até 11 anos (+ R$ ${kidUnder11Price})
                                 </button>
                                 <button
                                   type="button"
@@ -1249,7 +1441,7 @@ export function ChaleSelector({
                                       : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
                                   )}
                                 >
-                                  12+ anos (+ R$ 100)
+                                  12+ anos (+ R$ ${kid12PlusPrice})
                                 </button>
                               </div>
                             </div>
@@ -1303,7 +1495,7 @@ export function ChaleSelector({
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             {kidsList.map((age, kIdx) => {
                               const kidSlotIdx = currentAdults + baseKidOffset + kIdx;
-                              const ageLabel = age === '12plus' ? '12+ anos (+ R$ 100)' : 'Até 11 anos (+ R$ 50)';
+                              const ageLabel = age === '12plus' ? `12+ anos (+ R$ ${kid12PlusPrice})` : `Até 11 anos (+ R$ ${kidUnder11Price})`;
                               return (
                                 <div key={`chale-${chaleId}-kid-name-${kIdx}`} className="space-y-1">
                                   <label className="text-[11px] font-bold text-slate-800 block">
