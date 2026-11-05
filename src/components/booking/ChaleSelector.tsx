@@ -561,6 +561,16 @@ export function ChaleSelector({
     chale.childrenAges
   );
 
+  // Valor bruto (sem desconto) de acordo com a modalidade (individual ou casal) de cada chalé selecionado
+  const selectedGrossTotal = useMemo(() => {
+    let gross = 0;
+    selectedChaleUnits.forEach(id => {
+      const isCasal = (chaleOccupancies[id] || (currentAdults === 1 && chaletsCount === 1 ? 'individual' : 'casal')) !== 'individual';
+      gross += isCasal ? stayPricing.totalCasalGross : stayPricing.totalIndividualGross;
+    });
+    return gross;
+  }, [selectedChaleUnits, chaleOccupancies, currentAdults, chaletsCount, stayPricing.totalCasalGross, stayPricing.totalIndividualGross]);
+
   const childrenAges = chale.childrenAges || [];
 
   // Mapa de crianças por chalé individual
@@ -663,7 +673,7 @@ export function ChaleSelector({
             <div className="text-right">
               <span className="text-[10px] text-amber-300 font-bold block uppercase">Combo Sex a Dom (2 Noites)</span>
               <span className="text-base sm:text-lg font-black text-amber-400 font-sans">
-                R$ 639 <span className="text-[10px] text-white/70">ind.</span> · R$ 729 <span className="text-[10px] text-white/70">casal</span>
+                R$ 639 <span className="text-[10px] text-white/70">ind.</span> · R$ 819 <span className="text-[10px] text-white/70">casal</span>
               </span>
             </div>
             <Button
@@ -1442,7 +1452,7 @@ export function ChaleSelector({
             <div className="text-center sm:text-right shrink-0">
               <span className="text-[10px] font-bold text-emerald-300 uppercase block">
                 {stayPricing.discountPct > 0 ? (
-                  <span>De <span className="line-through text-emerald-400/80">{formatCurrency(stayPricing.totalCasalGross * chaletsCount)}</span> com 10% OFF:</span>
+                  <span>De <span className="line-through text-emerald-400/80">{formatCurrency(selectedGrossTotal)}</span> com 10% OFF:</span>
                 ) : (
                   'Valor Total da Hospedagem:'
                 )}
