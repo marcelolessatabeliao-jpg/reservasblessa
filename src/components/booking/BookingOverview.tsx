@@ -215,7 +215,8 @@ export function BookingOverview({
       });
     });
 
-    if (booking.chale && booking.chale.packageType) {
+    const hasSelectedChale = (booking.chale?.chaleIds && booking.chale.chaleIds.length > 0) || !!booking.chale?.chaleId;
+    if (booking.chale && booking.chale.packageType && hasSelectedChale) {
       const pkg = CHALE_PACKAGES[booking.chale.packageType];
       if (pkg) {
         const chaletsCount = (booking.chale.chaleIds && booking.chale.chaleIds.length > 0)
@@ -687,14 +688,24 @@ export function BookingOverview({
         )}
 
         {/* Chalé */}
-        {booking.chale && booking.chale.packageType && (() => {
+        {booking.chale && booking.chale.packageType && ((booking.chale.chaleIds && booking.chale.chaleIds.length > 0) || booking.chale.chaleId) && (() => {
           const pkg = CHALE_PACKAGES[booking.chale.packageType];
           if (!pkg) return null;
-          const chaletsCount = (booking.chale.chaleIds && booking.chale.chaleIds.length > 0)
-            ? booking.chale.chaleIds.length
-            : 1;
+          const activeIds = (booking.chale.chaleIds && booking.chale.chaleIds.length > 0)
+            ? booking.chale.chaleIds
+            : (booking.chale.chaleId ? [booking.chale.chaleId] : []);
+          const chaletsCount = activeIds.length;
+          if (chaletsCount === 0) return null;
+
           const adults = Math.max(1, booking.chale.adultsCount || (chaletsCount * 2));
           const kids = booking.chale.childrenCount || 0;
+          const stayPricingOverview = calculateStayPricing(
+            booking.chale.checkInDate,
+            booking.chale.checkOutDate
+          );
+          const ovNights = Math.max(1, stayPricingOverview.nightsCount);
+          const isOvCombo = ovNights >= 2;
+
           const chalePrice = calculateChaleTotal(
             booking.chale.packageType,
             adults,
@@ -705,7 +716,7 @@ export function BookingOverview({
             booking.chale.checkInDate,
             booking.chale.checkOutDate,
             booking.chale.chaleOccupancies,
-            booking.chale.chaleIds,
+            activeIds,
             booking.chale.childrenAges
           );
 
@@ -717,7 +728,7 @@ export function BookingOverview({
             booking.chale.checkInDate,
             booking.chale.checkOutDate,
             booking.chale.chaleOccupancies,
-            booking.chale.chaleIds,
+            activeIds,
             booking.chale.childrenAges
           );
 
@@ -730,50 +741,71 @@ export function BookingOverview({
               <div className="space-y-2 text-sm sm:text-base text-muted-foreground">
                 <div className="flex justify-between items-start group/item gap-2 bg-white p-3.5 rounded-2xl border-2 border-emerald-200 shadow-xs">
                   <div className="min-w-0 flex-1 space-y-2">
-                    <span className="text-xs sm:text-sm font-black truncate block text-emerald-950">
-                      🏡 {pkg.title} {chaletsCount > 1 ? `(${chaletsCount} unidades)` : ''}
-                    </span>
+                    <div>
+                      <span className="text-xs sm:text-sm font-black block text-emerald-950">
+                        🏡 {pkg.title} {chaletsCount > 1 ? `(${chaletsCount} unidades)` : ''}
+                      </span>
+                      {booking.chale.checkInDate && booking.chale.checkOutDate && (
+                        <span className="text-[11px] font-bold text-emerald-700 block mt-0.5">
+                          📅 {format(new Date(booking.chale.checkInDate), "dd/MM (EEE)", { locale: ptBR })} às {stayPricingOverview.checkInHour} ➔ {format(new Date(booking.chale.checkOutDate), "dd/MM (EEE)", { locale: ptBR })} às 12h ({ovNights} noite{ovNights > 1 ? 's' : ''})
+                        </span>
+                      )}
+                    </div>
 
-                    {/* Agrupamento claro por chalé com seus respectivos adultos e crianças */}
+                    {/* Detalhamento claro por chalé: Modalidade + Valor da Tabela + Adicionais */}
                     <div className="space-y-2 pt-1 border-t border-emerald-100">
-                      {(booking.chale.chaleIds && booking.chale.chaleIds.length > 0
-                        ? booking.chale.chaleIds
-                        : (booking.chale.chaleId ? [booking.chale.chaleId] : [1])
-                      ).map((id, uIdx) => {
+                      {activeIds.map((id, uIdx) => {
                         const isCasal = (booking.chale.chaleOccupancies?.[id] || 'casal') !== 'individual';
                         const ages = booking.chale.childrenAges || [];
                         const rawKids = booking.chale.chaleKids && booking.chale.chaleKids[id];
-                        // Distribuição segura de crianças vinculadas a este chalé
                         const kidsForThis: string[] = Array.isArray(rawKids)
                           ? rawKids
                           : (Array.isArray(ages) ? ages.slice(uIdx * 2, (uIdx + 1) * 2) : []);
 
-                        const stayPricingOverview = calculateStayPricing(
-                          booking.chale.checkInDate,
-                          booking.chale.checkOutDate
-                        );
-                        const ovNights = Math.max(1, stayPricingOverview.nightsCount);
-                        const isOvCombo = ovNights >= 2;
-                        const ovKid11 = isOvCombo ? ovNights * 45 : ovNights * 50;
-                        const ovKid12 = isOvCombo ? ovNights * 90 : ovNights * 100;
+                        const adultGross = isCasal ? stayPricingOverview.totalCasalGross : stayPricingOverview.totalIndividualGross;
+                        const adultNet = isCasal ? stayPricingOverview.totalCasal : stayPricingOverview.totalIndividual;
 
                         return (
-                          <div key={`overview-chale-${id}`} className="bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-200/80 text-xs">
-                            <div className="flex items-center justify-between font-black text-emerald-950">
+                          <div key={`overview-chale-${id}`} className="bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-200/80 text-xs space-y-1">
+                            <div className="flex flex-wrap items-center justify-between gap-1 font-black text-emerald-950">
                               <span className="flex items-center gap-1.5">
                                 <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
-                                Chalé {String(id).padStart(2, '0')} (Alvenaria)
+                                Chalé {String(id).padStart(2, '0')} · Modalidade {isCasal ? 'Casal (2 Adultos)' : 'Individual (1 Adulto)'}
                               </span>
-                              <span className="text-[11px] font-black text-emerald-800 bg-white px-2 py-0.5 rounded-md border border-emerald-200">
-                                {isCasal ? 'Casal (2 Adultos)' : 'Individual (1 Adulto)'}
+                              <span className="text-[11px] font-black text-emerald-900 bg-white px-2 py-0.5 rounded-md border border-emerald-200">
+                                {isOvCombo ? (
+                                  <>De <span className="line-through text-slate-400 mr-1">{formatCurrency(adultGross)}</span> por {formatCurrency(adultNet)}</>
+                                ) : (
+                                  formatCurrency(adultNet)
+                                )}
                               </span>
                             </div>
-                            {kidsForThis.length > 0 && (
-                              <div className="text-[11px] text-amber-950 font-bold mt-1.5 pt-1 border-t border-emerald-200/60 flex items-center gap-1">
-                                <span>👶</span>
+                            {kidsForThis.length > 0 ? (
+                              <div className="text-[11px] text-amber-950 font-bold pt-1 border-t border-emerald-200/60 flex flex-wrap items-center justify-between gap-1">
                                 <span>
-                                  <strong>{kidsForThis.length} Criança(s):</strong> {kidsForThis.map(a => a === '12plus' ? `12+ anos (+R$ ${ovKid12})` : `até 11 anos (+R$ ${ovKid11})`).join(', ')}
+                                  👶 <strong>Adicionais ({kidsForThis.length} Criança{kidsForThis.length > 1 ? 's' : ''}):</strong>{' '}
+                                  {kidsForThis.map(a => a === '12plus' ? '12+ anos' : 'até 11 anos').join(', ')}
                                 </span>
+                                <span className="font-black text-amber-900">
+                                  {kidsForThis.map((a, kIdx) => {
+                                    const kGross = (a === '12plus' ? 100 : 50) * ovNights;
+                                    const kNet = (a === '12plus' ? (isOvCombo ? 90 : 100) : (isOvCombo ? 45 : 50)) * ovNights;
+                                    return (
+                                      <span key={kIdx}>
+                                        {kIdx > 0 ? ' + ' : '+ '}
+                                        {isOvCombo ? (
+                                          <>De <span className="line-through text-slate-400">{formatCurrency(kGross)}</span> por {formatCurrency(kNet)}</>
+                                        ) : (
+                                          formatCurrency(kNet)
+                                        )}
+                                      </span>
+                                    );
+                                  })}
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="text-[10.5px] text-slate-500 font-medium">
+                                Sem adicionais de crianças
                               </div>
                             )}
                           </div>
@@ -785,7 +817,7 @@ export function BookingOverview({
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="whitespace-nowrap text-xs sm:text-sm font-black text-emerald-900">{formatCurrency(chalePrice)}</span>
                     {onUpdateChale && (
-                      <button onClick={() => onUpdateChale({ packageType: null, chaleId: null })} className="p-1 hover:bg-emerald-100 rounded-full transition-colors text-slate-400 hover:text-emerald-900">
+                      <button onClick={() => onUpdateChale({ packageType: null, chaleId: null, chaleIds: [], adultsCount: 0, childrenCount: 0, childrenAges: [], chaleKids: {} })} className="p-1 hover:bg-emerald-100 rounded-full transition-colors text-slate-400 hover:text-emerald-900">
                         <X className="h-3.5 w-3.5" />
                       </button>
                     )}

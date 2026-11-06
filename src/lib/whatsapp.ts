@@ -150,24 +150,37 @@ export function buildWhatsAppMessage(
   }
 
   // Hospedagem (Chalés)
-  if (booking.chale && booking.chale.packageType) {
+  const activeChaleIds = (booking.chale?.chaleIds && booking.chale.chaleIds.length > 0)
+    ? booking.chale.chaleIds
+    : (booking.chale?.chaleId ? [booking.chale.chaleId] : []);
+  if (booking.chale && booking.chale.packageType && activeChaleIds.length > 0) {
     const pkg = CHALE_PACKAGES[booking.chale.packageType];
     if (pkg) {
-      const adults = Math.min(2, Math.max(1, booking.chale.adultsCount || 2));
+      const chaletsCount = activeChaleIds.length;
+      const adults = Math.max(1, booking.chale.adultsCount || (chaletsCount * 2));
       const kids = booking.chale.childrenCount || 0;
-      const totalChale = calculateChaleTotal(booking.chale.packageType, adults, kids, safeGetPrice, booking.chale.includeSundayDayUse);
+      const totalChale = calculateChaleTotal(
+        booking.chale.packageType,
+        adults,
+        kids,
+        safeGetPrice,
+        booking.chale.includeSundayDayUse,
+        chaletsCount,
+        booking.chale.checkInDate,
+        booking.chale.checkOutDate,
+        booking.chale.chaleOccupancies,
+        activeChaleIds,
+        booking.chale.childrenAges
+      );
 
       msg += `🏡 *HOSPEDAGEM - CHALÉ:*\n`;
-      msg += `  ${pkg.title} (${pkg.period} — ${pkg.nights} noite${pkg.nights > 1 ? 's' : ''})\n`;
-      msg += `  👥 Hóspedes: ${adults} Adulto(s) (Máximo 2 adultos)`;
+      msg += `  ${pkg.title}\n`;
+      activeChaleIds.forEach(id => {
+        const mode = (booking.chale.chaleOccupancies?.[id] || 'casal') === 'individual' ? 'Individual (1 Adulto)' : 'Casal (2 Adultos)';
+        msg += `  🚪 Chalé ${String(id).padStart(2, '0')}: Modalidade ${mode}\n`;
+      });
       if (kids > 0) {
-        msg += ` e ${kids} Criança(s) (1ª grátis, extra R$ 40)`;
-      }
-      msg += `\n`;
-      if (booking.chale.chaleIds && booking.chale.chaleIds.length > 1) {
-        msg += `  🚪 Chalés Selecionados (${booking.chale.chaleIds.length} unidades): ${booking.chale.chaleIds.map(id => `Nº ${String(id).padStart(2, '0')}`).join(', ')}\n`;
-      } else if (booking.chale.chaleId) {
-        msg += `  🚪 Chalé Selecionado: Nº ${String(booking.chale.chaleId).padStart(2, '0')}\n`;
+        msg += `  👶 Adicionais: ${kids} Criança(s)\n`;
       }
       if (booking.chale.guestNames && booking.chale.guestNames.length > 0) {
         const filled = booking.chale.guestNames
@@ -177,12 +190,7 @@ export function buildWhatsAppMessage(
           msg += `  📋 Hóspedes para Check-in:\n    ${filled.join('\n    ')}\n`;
         }
       }
-      msg += `  ☕ Café da manhã incluso servido das 07h às 09h\n`;
-      msg += `  ⏰ Check-in a partir das 14h (Quintas em combos às 09h) | Check-out às 12h\n`;
-      if (booking.chale.includeSundayDayUse || (booking.chale.checkOutDate && new Date(booking.chale.checkOutDate).getDay() === 0)) {
-        msg += `  ☀️ Day Use de Domingo: 100% Incluso até as 17h para todos os hóspedes\n`;
-      }
-      msg += `  💵 Valor Chalé: ${formatCurrency(totalChale)}\n\n`;
+      msg += `  💵 Valor Hospedagem: ${formatCurrency(totalChale)}\n\n`;
     }
   }
 

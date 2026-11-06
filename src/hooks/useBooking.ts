@@ -3,7 +3,7 @@ import {
   BookingState, ChildInfo, AdultInfo, KioskItem, QuadItem, AdditionalItem,
   ChaleBooking, CampingBooking, CHALE_PACKAGES, CAMPING_PRICE_PER_PERSON,
   KIOSK_INFO, ADDITIONAL_INFO,
-  getQuadDiscount, calculateEntryTotal, calculateChaleTotal
+  getQuadDiscount, calculateEntryTotal, calculateChaleTotal, calculateChaleGrossTotal
 } from '@/lib/booking-types';
 import { useServices } from '@/hooks/useServices';
 
@@ -35,7 +35,8 @@ const initialState: BookingState = {
   chale: {
     packageType: null,
     chaleId: null,
-    adultsCount: 2,
+    chaleIds: [],
+    adultsCount: 0,
     childrenCount: 0,
     checkInDate: null,
     checkOutDate: null,
@@ -165,19 +166,19 @@ export function useBooking() {
 
   const updateChale = useCallback((updates: Partial<ChaleBooking>) => {
     setBooking(prev => {
-      const chaletsCount = (updates.chaleIds && updates.chaleIds.length > 0)
-        ? updates.chaleIds.length
-        : (prev.chale.chaleIds && prev.chale.chaleIds.length > 0)
-          ? prev.chale.chaleIds.length
-          : 1;
-      const maxAllowedAdults = Math.max(2, chaletsCount * 2);
-      const nextAdults = updates.adultsCount !== undefined 
-        ? Math.min(maxAllowedAdults, Math.max(1, updates.adultsCount)) 
+      const mergedIds = updates.chaleIds !== undefined ? updates.chaleIds : prev.chale.chaleIds;
+      const mergedId = updates.chaleId !== undefined ? updates.chaleId : prev.chale.chaleId;
+      const chaletsCount = (mergedIds && mergedIds.length > 0)
+        ? mergedIds.length
+        : (mergedId ? 1 : 0);
+      const maxAllowedAdults = chaletsCount * 2;
+      const nextAdults = updates.adultsCount !== undefined
+        ? (chaletsCount === 0 ? 0 : Math.min(maxAllowedAdults, Math.max(1, updates.adultsCount)))
         : prev.chale.adultsCount;
       return {
         ...prev,
-        chale: { 
-          ...prev.chale, 
+        chale: {
+          ...prev.chale,
           ...updates,
           adultsCount: nextAdults
         },
@@ -237,23 +238,39 @@ export function useBooking() {
     const addsFallback: Record<string, number> = { pesca: 20, 'futebol-sabao': 10 };
     const additionalsTotal = booking.additionals.reduce((sum, a) => sum + a.quantity * getPrice(`add_${a.type}`, addsFallback[a.type]), 0);
     
-    // Chalés calculation
+    // Chalés calculation (somente quando ao menos 1 chalé estiver selecionado)
     let chaleTotal = 0;
-    if (booking.chale.packageType) {
-      const chaletsCount = (booking.chale.chaleIds && booking.chale.chaleIds.length > 0)
-        ? booking.chale.chaleIds.length
-        : 1;
+    let chaleGrossTotal = 0;
+    const selectedChalesCount = (booking.chale.chaleIds && booking.chale.chaleIds.length > 0)
+      ? booking.chale.chaleIds.length
+      : (booking.chale.chaleId ? 1 : 0);
+
+    if (booking.chale.packageType && selectedChalesCount > 0) {
+      const effectiveIds = (booking.chale.chaleIds && booking.chale.chaleIds.length > 0)
+        ? booking.chale.chaleIds
+        : (booking.chale.chaleId ? [booking.chale.chaleId] : []);
       chaleTotal = calculateChaleTotal(
         booking.chale.packageType,
         booking.chale.adultsCount,
         booking.chale.childrenCount || 0,
         getPrice,
         true,
-        chaletsCount,
+        selectedChalesCount,
         booking.chale.checkInDate,
         booking.chale.checkOutDate,
         booking.chale.chaleOccupancies,
-        booking.chale.chaleIds,
+        effectiveIds,
+        booking.chale.childrenAges
+      );
+      chaleGrossTotal = calculateChaleGrossTotal(
+        booking.chale.packageType,
+        booking.chale.adultsCount,
+        booking.chale.childrenCount || 0,
+        selectedChalesCount,
+        booking.chale.checkInDate,
+        booking.chale.checkOutDate,
+        booking.chale.chaleOccupancies,
+        effectiveIds,
         booking.chale.childrenAges
       );
     }
@@ -264,9 +281,13 @@ export function useBooking() {
       : (booking.camping.peopleCount || 0);
     const campingTotal = payingCampers * getPrice('camping_per_person', CAMPING_PRICE_PER_PERSON);
 
-    const subtotal = Math.round((entriesTotal + kiosksTotal + quadsTotal + additionalsTotal + chaleTotal + campingTotal) * 100) / 100;
-    // 10% de desconto sobre o valor total da compra para reservas online
-    const onlineDiscount = subtotal > 0 ? Math.round(subtotal * 0.10 * 100) / 100 : 0;
+    // Demais serviços têm 10% de desconto online; chalés já têm a regra oficial (10% nos combos de 2+ noites, 0% nas diárias avulsas)
+    const otherGross = Math.round((entriesTotal + kiosksTotal + quadsTotal + additionalsTotal + campingTotal) * 100) / 100;
+    const otherDiscount = otherGross > 0 ? Math.round(otherGross * 0.10 * 100) / 100 : 0;
+    const chaleDiscount = Math.max(0, Math.round((chaleGrossTotal - chaleTotal) * 100) / 100);
+
+    const subtotal = Math.round((otherGross + chaleGrossTotal) * 100) / 100;
+    const onlineDiscount = Math.round((otherDiscount + chaleDiscount) * 100) / 100;
     const total = Math.max(0, Math.round((subtotal - onlineDiscount) * 100) / 100);
 
     return { 
@@ -288,7 +309,7 @@ export function useBooking() {
       booking.kiosks.some(k => k.quantity > 0) ||
       booking.quads.some(q => q.quantity > 0) ||
       booking.additionals.some(a => a.quantity > 0) ||
-      booking.chale.packageType !== null ||
+      (booking.chale.packageType !== null && ((booking.chale.chaleIds && booking.chale.chaleIds.length > 0) || booking.chale.chaleId !== null)) ||
       (booking.camping.peopleCount || 0) > 0;
   }, [booking]);
 

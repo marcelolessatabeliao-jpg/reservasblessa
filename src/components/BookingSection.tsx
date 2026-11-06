@@ -226,7 +226,7 @@ export function BookingSection() {
     if (modalidade === 'dayuse') {
       hasCurrentItems = booking.entry.adults.length > 0 || booking.entry.children.length > 0;
     } else if (modalidade === 'hospedagem') {
-      hasCurrentItems = !!booking.chale.packageType;
+      hasCurrentItems = (booking.chale.chaleIds && booking.chale.chaleIds.length > 0) || !!booking.chale.chaleId;
     } else if (modalidade === 'camping') {
       hasCurrentItems = (booking.camping.peopleCount || 0) > 0;
     }
@@ -242,7 +242,9 @@ export function BookingSection() {
   // Contagens
   const countEntradas = booking.entry.adults.length + booking.entry.children.length;
   const countQuiosques = booking.kiosks.reduce((acc, k) => acc + k.quantity, 0);
-  const countHospedagem = booking.chale.packageType ? 1 : 0;
+  const countHospedagem = (booking.chale.chaleIds && booking.chale.chaleIds.length > 0)
+    ? booking.chale.chaleIds.length
+    : (booking.chale.chaleId ? 1 : 0);
   const countCamping = booking.camping.peopleCount || 0;
   const countQuads = booking.quads.reduce((acc, q) => acc + q.quantity, 0);
   const countDiversoes = booking.additionals.reduce((acc, a) => acc + a.quantity, 0);

@@ -163,7 +163,7 @@ function ChaleSelectorInner({
     };
   }, [anchorDate]);
 
-  // Garantir pacote padrão se ainda não definido
+  // Garantir pacote padrão se ainda não definido (sem pré-selecionar nenhum chalé)
   useEffect(() => {
     if (!chale.packageType || !chale.checkInDate) {
       onUpdate({
@@ -171,8 +171,12 @@ function ChaleSelectorInner({
         checkInDate: refFriday,
         checkOutDate: refSunday,
         includeSundayDayUse: true,
-        adultsCount: 2,
-        childrenCount: 0
+        chaleId: null,
+        chaleIds: [],
+        adultsCount: 0,
+        childrenCount: 0,
+        childrenAges: [],
+        chaleKids: {}
       });
     }
   }, [chale.packageType, refFriday, refSunday]);
@@ -245,7 +249,7 @@ function ChaleSelectorInner({
     };
   }, [formattedDate]);
 
-  // Lista de chalés selecionados (suporte a múltiplos chalés na mesma reserva)
+  // Lista de chalés selecionados (nenhum chalé pré-selecionado inicialmente)
   const selectedChaleUnits: number[] = useMemo(() => {
     if (chale.chaleIds && Array.isArray(chale.chaleIds) && chale.chaleIds.length > 0) {
       return chale.chaleIds;
@@ -253,7 +257,7 @@ function ChaleSelectorInner({
     if (chale.chaleId) {
       return [chale.chaleId];
     }
-    return [1];
+    return [];
   }, [chale.chaleIds, chale.chaleId]);
 
   const chaletsCount = selectedChaleUnits.length;
@@ -373,6 +377,10 @@ function ChaleSelectorInner({
     let pkgType: ChalePackageType = '1-diaria';
     if (inDay === 5 && outDay === 0 && diffNights === 2) {
       pkgType = 'combo-2n-sex-dom';
+    } else if (inDay === 4 && outDay === 6 && diffNights === 2) {
+      pkgType = 'combo-2n-qui-sab';
+    } else if (inDay === 6 && outDay === 1 && diffNights === 2) {
+      pkgType = 'combo-2n-sab-seg';
     } else if (inDay === 4 && outDay === 0 && diffNights === 3) {
       pkgType = 'combo-3n-qui-dom';
     } else if (inDay === 5 && outDay === 1 && diffNights === 3) {
@@ -500,37 +508,59 @@ function ChaleSelectorInner({
 
     let updated: number[];
     if (selectedChaleUnits.includes(unitId)) {
-      if (selectedChaleUnits.length === 1) {
-        toast({
-          title: "Chalé Obrigatório",
-          description: "Ao menos 1 chalé deve permanecer selecionado na sua reserva.",
-        });
-        return;
-      }
       updated = selectedChaleUnits.filter(id => id !== unitId);
     } else {
       updated = [...selectedChaleUnits, unitId].sort((a, b) => a - b);
     }
 
-    const nextOccupancies = { ...chaleOccupancies };
-    if (!nextOccupancies[unitId]) {
-      nextOccupancies[unitId] = 'casal';
+    if (updated.length === 0) {
+      setSelectedChaleUnit(null);
+      onUpdate({
+        chaleId: null,
+        chaleIds: [],
+        chaleOccupancies: {},
+        adultsCount: 0,
+        childrenCount: 0,
+        childrenAges: [],
+        chaleKids: {},
+        guestNames: []
+      });
+      toast({
+        title: "Chalé Removido",
+        description: "Nenhum chalé selecionado no momento. Clique em um chalé livre para selecionar.",
+      });
+      return;
     }
+
+    const nextOccupancies: Record<number, 'casal' | 'individual'> = {};
+    updated.forEach(id => {
+      nextOccupancies[id] = chaleOccupancies[id] || 'casal';
+    });
+    const nextKidsMap: Record<number, ('under11' | '12plus')[]> = {};
+    const nextAges: ('under11' | '12plus')[] = [];
+    updated.forEach(id => {
+      const kList = chale.chaleKids?.[id] || [];
+      nextKidsMap[id] = kList;
+      nextAges.push(...kList);
+    });
     const nextAdults = updated.reduce((acc, id) => acc + (nextOccupancies[id] === 'individual' ? 1 : 2), 0);
     const curNames = chale.guestNames || [];
-    const nextNames = Array.from({ length: nextAdults + (chale.childrenCount || 0) }, (_, idx) => curNames[idx] || '');
+    const nextNames = Array.from({ length: nextAdults + nextAges.length }, (_, idx) => curNames[idx] || '');
 
     setSelectedChaleUnit(updated[0]);
     onUpdate({
       chaleId: updated[0],
       chaleIds: updated,
       chaleOccupancies: nextOccupancies,
+      chaleKids: nextKidsMap,
+      childrenCount: nextAges.length,
+      childrenAges: nextAges,
       adultsCount: nextAdults,
       guestNames: nextNames
     });
 
     toast({
-      title: updated.includes(unitId) ? "Chalé Adicionado!" : "Chalé Removido",
+      title: updated.includes(unitId) ? "Chalé Selecionado!" : "Chalé Removido",
       description: `${updated.length} chalé(s) na reserva: ${updated.map(id => `Chalé ${String(id).padStart(2, '0')}`).join(', ')}.`,
     });
   };
@@ -606,14 +636,14 @@ function ChaleSelectorInner({
   const outDay = checkOutActive.getDay();
   const diffNights = Math.round(Math.abs(checkOutActive.getTime() - checkInActive.getTime()) / (1000 * 60 * 60 * 24));
 
-  const isComboSexDomActive = (inDay === 5 && outDay === 0 && diffNights === 2) || chale.packageType === 'combo-2n-sex-dom';
-  const isComboQuiSabActive = (inDay === 4 && outDay === 6 && diffNights === 2) || chale.packageType === 'combo-2n-qui-sab';
-  const isComboSabSegActive = (inDay === 6 && outDay === 1 && diffNights === 2) || chale.packageType === 'combo-2n-sab-seg';
-  const isComboQuiDomActive = (inDay === 4 && outDay === 0 && diffNights === 3) || chale.packageType === 'combo-3n-qui-dom';
-  const isComboSexSegActive = (inDay === 5 && outDay === 1 && diffNights === 3) || chale.packageType === 'combo-3n-sex-seg';
-  const isComboQuiSegActive = (inDay === 4 && outDay === 1 && diffNights === 4) || chale.packageType === 'combo-4n-qui-seg';
-  const isDiariaSexSabActive = (inDay === 5 && outDay === 6 && diffNights === 1) || chale.packageType === 'diaria-sex-sab';
-  const isDiariaSabDomActive = (inDay === 6 && outDay === 0 && diffNights === 1) || chale.packageType === 'diaria-sab-dom';
+  const isComboSexDomActive = inDay === 5 && outDay === 0 && diffNights === 2;
+  const isComboQuiSabActive = inDay === 4 && outDay === 6 && diffNights === 2;
+  const isComboSabSegActive = inDay === 6 && outDay === 1 && diffNights === 2;
+  const isComboQuiDomActive = inDay === 4 && outDay === 0 && diffNights === 3;
+  const isComboSexSegActive = inDay === 5 && outDay === 1 && diffNights === 3;
+  const isComboQuiSegActive = inDay === 4 && outDay === 1 && diffNights === 4;
+  const isDiariaSexSabActive = inDay === 5 && outDay === 6 && diffNights === 1;
+  const isDiariaSabDomActive = inDay === 6 && outDay === 0 && diffNights === 1;
 
   // Rótulo descritivo do pacote ativo
   const selectedPackageLabel = useMemo(() => {
@@ -630,36 +660,38 @@ function ChaleSelectorInner({
     return `Hospedagem Personalizada (${stayPricing.nightsCount} Noite${stayPricing.nightsCount > 1 ? 's' : ''})`;
   }, [isComboSexDomActive, isComboQuiSabActive, isComboSabSegActive, isComboQuiDomActive, isComboSexSegActive, isComboQuiSegActive, inDay, outDay, diffNights, stayPricing.nightsCount]);
 
-  // Cálculo do total ativo com ocupação por chalé
-  const calculatedTotal = calculateChaleTotal(
-    chale.packageType || 'combo-2n-sex-dom',
-    currentAdults,
-    chale.childrenCount || 0,
-    getPrice,
-    chale.includeSundayDayUse,
-    chaletsCount,
-    checkInActive,
-    checkOutActive,
-    chaleOccupancies,
-    selectedChaleUnits,
-    chale.childrenAges
-  );
+  // Cálculo do total ativo com ocupação por chalé (apenas quando houver chalé selecionado)
+  const calculatedTotal = chaletsCount > 0
+    ? calculateChaleTotal(
+        chale.packageType || 'combo-2n-sex-dom',
+        currentAdults,
+        chale.childrenCount || 0,
+        getPrice,
+        chale.includeSundayDayUse,
+        chaletsCount,
+        checkInActive,
+        checkOutActive,
+        chaleOccupancies,
+        selectedChaleUnits,
+        chale.childrenAges
+      )
+    : 0;
 
   // Valor bruto (sem desconto) de acordo com a modalidade (individual ou casal) de cada chalé selecionado
   const selectedGrossTotal = useMemo(() => {
+    if (chaletsCount === 0) return 0;
     let gross = 0;
     selectedChaleUnits.forEach(id => {
-      const isCasal = (chaleOccupancies[id] || (currentAdults === 1 && chaletsCount === 1 ? 'individual' : 'casal')) !== 'individual';
+      const isCasal = (chaleOccupancies[id] || 'casal') !== 'individual';
       gross += isCasal ? stayPricing.totalCasalGross : stayPricing.totalIndividualGross;
     });
-    // Adicionais de crianças multiplicados pelo número de noites
     const kidsList = chale.childrenAges || [];
     kidsList.forEach(age => {
       const rate = age === '12plus' ? 100 : 50;
       gross += rate * Math.max(1, stayPricing.nightsCount);
     });
     return gross;
-  }, [selectedChaleUnits, chaleOccupancies, currentAdults, chaletsCount, stayPricing.totalCasalGross, stayPricing.totalIndividualGross, stayPricing.nightsCount, chale.childrenAges]);
+  }, [selectedChaleUnits, chaleOccupancies, chaletsCount, stayPricing.totalCasalGross, stayPricing.totalIndividualGross, stayPricing.nightsCount, chale.childrenAges]);
 
   const childrenAges = chale.childrenAges || [];
 
@@ -1321,9 +1353,15 @@ function ChaleSelectorInner({
                 Você pode selecionar 1 ou mais chalés para acomodar amigos ou familiares na mesma reserva!
               </p>
             </div>
-            <span className="text-[11px] font-black text-slate-950 bg-amber-400 border border-amber-500 px-3 py-1 rounded-xl shadow-xs self-start sm:self-auto">
-              ✓ {chaletsCount} {chaletsCount === 1 ? 'Chalé Selecionado' : 'Chalés Selecionados'}: {selectedChaleUnits.map(id => `Chalé ${String(id).padStart(2, '0')}`).join(', ')}
-            </span>
+            {chaletsCount > 0 ? (
+              <span className="text-[11px] font-black text-slate-950 bg-amber-400 border border-amber-500 px-3 py-1 rounded-xl shadow-xs self-start sm:self-auto">
+                ✓ {chaletsCount} {chaletsCount === 1 ? 'Chalé Selecionado' : 'Chalés Selecionados'}: {selectedChaleUnits.map(id => `Chalé ${String(id).padStart(2, '0')}`).join(', ')}
+              </span>
+            ) : (
+              <span className="text-[11px] font-black text-amber-950 bg-amber-100 border border-amber-300 px-3 py-1 rounded-xl shadow-xs self-start sm:self-auto">
+                👆 Clique em um chalé livre abaixo para selecionar
+              </span>
+            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
@@ -1414,6 +1452,16 @@ function ChaleSelectorInner({
             </span>
           </div>
 
+          {chaletsCount === 0 ? (
+            <div className="bg-amber-50/70 border-2 border-dashed border-amber-300 rounded-2xl p-5 text-center space-y-1.5">
+              <p className="text-xs sm:text-sm font-black text-amber-950 uppercase tracking-wide">
+                👆 Selecione ao menos 1 chalé disponível acima
+              </p>
+              <p className="text-xs text-amber-900 font-bold">
+                Clique em qualquer chalé livre (Chalé 01 a 05) para definir a modalidade (Individual ou Casal), adicionar crianças (se houver) e informar os nomes dos hóspedes.
+              </p>
+            </div>
+          ) : (
           <div className="space-y-3">
             {selectedChaleUnits.map((chaleId, unitIdx) => {
               const isChaleCasal = chaleOccupancies[chaleId] !== 'individual';
@@ -1663,6 +1711,7 @@ function ChaleSelectorInner({
               );
             })}
           </div>
+          )}
 
           {/* AVISO IMPORTANTE: OCUPANDO TODA A LARGURA (FULL WIDTH) ABAIXO DOS CHALÉS */}
           <div className="w-full bg-amber-50/90 border-2 border-amber-300 p-3.5 sm:p-4 rounded-2xl flex items-start gap-3 text-xs text-amber-950 leading-relaxed shadow-xs mt-3">
@@ -1671,104 +1720,120 @@ function ChaleSelectorInner({
               <span className="font-black block uppercase text-xs text-amber-900 tracking-wider mb-0.5">
                 ⚠️ Importante sobre Adicional de Crianças:
               </span>
-              <span>
-                O adicional de crianças é <strong>exclusivo e permitido apenas para filhos</strong> dos hóspedes (limite máximo de até 2 crianças por chalé). É <strong>obrigatório levar e apresentar documento oficial de identificação</strong> (RG ou Certidão de Nascimento) na recepção/check-in para comprovação do parentesco. Todos os adicionais são pagos conforme a faixa etária.
+              <span className="font-bold">
+                O adicional de crianças é exclusivo e permitido apenas para filhos dos hóspedes
               </span>
             </div>
           </div>
         </div>
 
-        {/* ROW 5: BENEFÍCIOS DO PACOTE & REGRAS OFICIAIS */}
-        <div className="bg-gradient-to-br from-emerald-950 via-[#032817] to-slate-950 text-white rounded-2xl p-4 sm:p-5 border-2 border-emerald-600 shadow-lg space-y-3">
-          <div className="flex items-center gap-2 border-b border-emerald-800/80 pb-2.5">
-            <Sparkles className="w-4 h-4 text-amber-400" />
-            <span className="font-sans font-black text-xs sm:text-sm uppercase tracking-wide text-amber-400">
-              Benefícios Inclusos na Hospedagem:
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="bg-emerald-900/60 border border-emerald-700/60 p-3 rounded-xl space-y-1">
-              <div className="flex items-center gap-1.5 text-amber-300 font-black text-xs">
-                <Coffee className="w-3.5 h-3.5 text-amber-400" />
-                <span>Café da Manhã Incluso</span>
-              </div>
-              <p className="text-[11px] text-emerald-100 font-bold">
-                Servido das 07h às 09h nas manhãs de sexta, sábado e domingo.
-              </p>
-              {stayPricing.hasMondayOut && (
-                <p className="text-[10px] text-amber-300/90 font-medium">
-                  *Segunda-feira o balneário estará fechado e não haverá café da manhã.
-                </p>
-              )}
-            </div>
-
-            <div className="bg-emerald-900/60 border border-emerald-700/60 p-3 rounded-xl space-y-1">
-              <div className="flex items-center gap-1.5 text-amber-300 font-black text-xs">
-                <Sun className="w-3.5 h-3.5 text-amber-400" />
-                <span>Day Use de Domingo Incluso</span>
-              </div>
-              <p className="text-[11px] text-emerald-100 font-bold">
-                Check-out do chalé às 12h • Acesso livre ao parque até as 17h!
-              </p>
-              <p className="text-[10px] text-emerald-200/90">
-                Piscinas, cachoeiras e área de lazer inclusas sem nenhum custo adicional.
-              </p>
-            </div>
-
-            <div className="bg-emerald-900/60 border border-emerald-700/60 p-3 rounded-xl space-y-1">
-              <div className="flex items-center gap-1.5 text-amber-300 font-black text-xs">
-                <Clock className="w-3.5 h-3.5 text-amber-400" />
-                <span>Horários de Estadia</span>
-              </div>
-              <p className="text-[11px] text-emerald-100 font-bold">
-                Check-in às {stayPricing.checkInHour} · Check-out às 12h
-              </p>
-              {stayPricing.hasMondayOut ? (
-                <p className="text-[10px] text-amber-300/90 font-medium">
-                  Saída na segunda organizada previamente na recepção.
-                </p>
-              ) : (
-                <p className="text-[10px] text-emerald-200/90">
-                  Recepção disponível para atendimento exclusivo.
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Resumo da Hospedagem Selecionada com valor e desconto */}
-          <div className="bg-emerald-900/90 rounded-2xl p-3.5 sm:p-4 border border-emerald-700 flex flex-col sm:flex-row items-center justify-between gap-3 text-white shadow-inner mt-2">
-            <div className="space-y-0.5 text-center sm:text-left">
-              <div className="flex items-center gap-2 justify-center sm:justify-start">
-                <span className="text-[10px] font-black uppercase text-amber-400 tracking-wider">
-                  ✓ Resumo da Hospedagem Selecionada
-                </span>
-                {stayPricing.discountPct > 0 && (
-                  <span className="bg-amber-400 text-slate-950 text-[9px] font-black uppercase px-2 py-0.5 rounded-md font-sans">
-                    10% OFF APLICADO
+        {/* ROW 5: RESUMO DA HOSPEDAGEM SELECIONADA (DETALHADO COM MODALIDADE E ADICIONAIS) */}
+        <div className="bg-gradient-to-br from-emerald-950 via-[#032817] to-slate-950 text-white rounded-2xl p-4 sm:p-5 border-2 border-emerald-600 shadow-lg">
+          <div className="bg-emerald-900/90 rounded-2xl p-3.5 sm:p-4 border border-emerald-700 flex flex-col gap-3 text-white shadow-inner">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="space-y-0.5 text-center sm:text-left">
+                <div className="flex items-center gap-2 justify-center sm:justify-start">
+                  <span className="text-[10px] font-black uppercase text-amber-400 tracking-wider">
+                    ✓ Resumo da Hospedagem Selecionada
                   </span>
+                  {stayPricing.discountPct > 0 && (
+                    <span className="bg-amber-400 text-slate-950 text-[9px] font-black uppercase px-2 py-0.5 rounded-md font-sans">
+                      10% OFF APLICADO
+                    </span>
+                  )}
+                </div>
+                <h4 className="font-sans font-black text-base sm:text-lg text-white">
+                  {selectedPackageLabel}
+                </h4>
+                <p className="text-xs text-emerald-200 font-medium">
+                  {format(checkInActive, "dd/MM (EEEE)", { locale: ptBR })} às {stayPricing.checkInHour} ➔ {format(checkOutActive, "dd/MM (EEEE)", { locale: ptBR })} às 12h
+                  {chaletsCount > 0 ? ` · ${chaletsCount} Chalé${chaletsCount > 1 ? 's' : ''} · ${currentAdults} Adulto(s)${chale.childrenCount ? ` + ${chale.childrenCount} Criança(s)` : ''}` : ' · Nenhum chalé selecionado'}
+                </p>
+              </div>
+
+              <div className="text-center sm:text-right shrink-0">
+                {chaletsCount > 0 ? (
+                  <>
+                    <span className="text-[10px] font-bold text-emerald-300 uppercase block">
+                      {stayPricing.discountPct > 0 ? (
+                        <span>De <span className="line-through text-emerald-400/80">{formatCurrency(selectedGrossTotal)}</span> com 10% OFF:</span>
+                      ) : (
+                        'Valor Total da Hospedagem:'
+                      )}
+                    </span>
+                    <span className="font-sans font-black text-2xl sm:text-3xl text-amber-400">
+                      {formatCurrency(calculatedTotal)}
+                    </span>
+                  </>
+                ) : (
+                  <div className="bg-emerald-950/80 border border-emerald-700/80 px-3 py-2 rounded-xl text-left sm:text-right space-y-0.5">
+                    <span className="text-[10px] font-black uppercase text-amber-300 block">Valores de Referência do Período:</span>
+                    <span className="text-xs font-bold text-emerald-100 block">
+                      👤 Individual: {stayPricing.discountPct > 0 ? <><span className="line-through opacity-70">{formatCurrency(stayPricing.totalIndividualGross)}</span> <strong className="text-amber-400">{formatCurrency(stayPricing.totalIndividual)}</strong></> : <strong className="text-amber-400">{formatCurrency(stayPricing.totalIndividual)}</strong>}
+                    </span>
+                    <span className="text-xs font-bold text-emerald-100 block">
+                      👥 Casal: {stayPricing.discountPct > 0 ? <><span className="line-through opacity-70">{formatCurrency(stayPricing.totalCasalGross)}</span> <strong className="text-amber-400">{formatCurrency(stayPricing.totalCasal)}</strong></> : <strong className="text-amber-400">{formatCurrency(stayPricing.totalCasal)}</strong>}
+                    </span>
+                  </div>
                 )}
               </div>
-              <h4 className="font-sans font-black text-base sm:text-lg text-white">
-                {selectedPackageLabel}
-              </h4>
-              <p className="text-xs text-emerald-200 font-medium">
-                {format(checkInActive, "dd/MM (EEEE)", { locale: ptBR })} às {stayPricing.checkInHour} ➔ {format(checkOutActive, "dd/MM (EEEE)", { locale: ptBR })} às 12h · {currentAdults} Adulto(s) {chaletsCount > 1 ? `(${chaletsCount} chalés)` : ''} {chale.childrenCount ? `+ ${chale.childrenCount} Criança(s)` : ''}
-              </p>
             </div>
 
-            <div className="text-center sm:text-right shrink-0">
-              <span className="text-[10px] font-bold text-emerald-300 uppercase block">
-                {stayPricing.discountPct > 0 ? (
-                  <span>De <span className="line-through text-emerald-400/80">{formatCurrency(selectedGrossTotal)}</span> com 10% OFF:</span>
-                ) : (
-                  'Valor Total da Hospedagem:'
-                )}
-              </span>
-              <span className="font-sans font-black text-2xl sm:text-3xl text-amber-400">
-                {formatCurrency(calculatedTotal)}
-              </span>
-            </div>
+            {/* Detalhamento de Modalidade e Adicionais por Chalé Selecionado */}
+            {chaletsCount > 0 && (
+              <div className="pt-2.5 border-t border-emerald-700/80 space-y-1.5 text-xs">
+                {selectedChaleUnits.map((id) => {
+                  const isCasal = (chaleOccupancies[id] || 'casal') !== 'individual';
+                  const kidsForThis = chaleKidsMap[id] || [];
+                  const stayNights = Math.max(1, stayPricing.nightsCount || 1);
+                  const isComboStay = stayNights >= 2;
+                  const adultGross = isCasal ? stayPricing.totalCasalGross : stayPricing.totalIndividualGross;
+                  const adultNet = isCasal ? stayPricing.totalCasal : stayPricing.totalIndividual;
+
+                  return (
+                    <div key={`summary-chale-${id}`} className="bg-emerald-950/70 border border-emerald-800/80 rounded-xl px-3 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-black text-amber-300 uppercase">
+                          🏡 Chalé {String(id).padStart(2, '0')}:
+                        </span>
+                        <span className="font-bold text-white">
+                          Modalidade {isCasal ? 'Casal (2 Adultos)' : 'Individual (1 Adulto)'}:{' '}
+                          {isComboStay ? (
+                            <span>
+                              De <span className="line-through text-emerald-300/70">{formatCurrency(adultGross)}</span> por <strong className="text-amber-300">{formatCurrency(adultNet)}</strong>
+                            </span>
+                          ) : (
+                            <strong className="text-amber-300">{formatCurrency(adultNet)}</strong>
+                          )}
+                        </span>
+                        {kidsForThis.length > 0 ? (
+                          <span className="font-bold text-emerald-200">
+                            · Adicionais ({kidsForThis.length} Criança{kidsForThis.length > 1 ? 's' : ''}):{' '}
+                            {kidsForThis.map((age, kIdx) => {
+                              const kGross = (age === '12plus' ? 100 : 50) * stayNights;
+                              const kNet = (age === '12plus' ? (isComboStay ? 90 : 100) : (isComboStay ? 45 : 50)) * stayNights;
+                              const label = age === '12plus' ? '12+ anos' : 'até 11 anos';
+                              return (
+                                <span key={kIdx}>
+                                  {kIdx > 0 ? ' + ' : ''}1 Criança ({label}):{' '}
+                                  {isComboStay ? (
+                                    <span>De <span className="line-through text-emerald-300/70">{formatCurrency(kGross)}</span> por <strong className="text-amber-300">{formatCurrency(kNet)}</strong></span>
+                                  ) : (
+                                    <strong className="text-amber-300">{formatCurrency(kNet)}</strong>
+                                  )}
+                                </span>
+                              );
+                            })}
+                          </span>
+                        ) : (
+                          <span className="text-emerald-300/80 font-medium">· Sem adicionais de crianças</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 
