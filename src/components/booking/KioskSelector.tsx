@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Home, AlertTriangle, CalendarIcon, Loader2, Check, Users, MapPin, X } from 'lucide-react';
+import { Home, AlertTriangle, CalendarIcon, Loader2, Check, Users, MapPin, X, ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
 import { KioskItem, KIOSK_INFO, formatCurrency, isOperatingDay } from '@/lib/booking-types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -39,6 +39,7 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
   const [disableKiosks, setDisableKiosks] = useState(false);
   const [disabledKioskTypes, setDisabledKioskTypes] = useState<string[]>([]);
   const [disabledKioskIds, setDisabledKioskIds] = useState<number[]>([]);
+  const [showKioskRules, setShowKioskRules] = useState(false);
 
   useEffect(() => {
     async function loadSettings() {
@@ -451,41 +452,77 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
         </p>
       </div>
 
-      {/* Included items info & Rules */}
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-col gap-2 bg-emerald-50/50 border border-emerald-100 p-3 sm:p-4 rounded-xl shadow-sm text-emerald-800 text-xs sm:text-sm">
-          <h4 className="font-black text-emerald-900 flex items-center gap-2 mb-1">
-            <Check className="h-4 w-4 stroke-[3]" /> O que inclui?
-          </h4>
-          <ul className="list-disc pl-6 space-y-1">
-            <li><strong>Quiosque 01 (Grande):</strong> Capacidade para 25 pessoas, separado dos demais. Churrasqueira, pia, grelha, mesas e cadeiras, 1 tomada.</li>
-            <li><strong>Quiosques 02 ao 05 (Médios):</strong> Capacidade para até 15 pessoas, um ao lado do outro. Churrasqueira, pia, grelha, mesas e cadeiras, 1 tomada.</li>
-            <li><strong>Quiosques 06 ao 12 (Familiares):</strong> Tamanho familiar para até 5 pessoas. Churrasqueira, grelha, 1 mesa e bancos. Pia comunitária próxima aos quiosques.</li>
-            <li><strong>Carvão:</strong> Por conta do cliente.</li>
-          </ul>
-        </div>
-
-        <div className="flex flex-col gap-2 bg-destructive/5 border border-destructive/20 rounded-xl p-3 sm:p-4">
-          <div className="flex items-start gap-2">
-            <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-destructive shrink-0 mt-0.5" />
-            <p className="text-xs sm:text-sm font-bold text-foreground">
-              Reservas de quiosque não possuem reembolso em caso de desistência.
-            </p>
-          </div>
-          <div className="text-[10px] sm:text-xs text-muted-foreground leading-relaxed pl-6 sm:pl-7 space-y-2 mt-1">
-            <p>
-              <strong>Observação:</strong> As reservas não incluem o valor das entradas, que continuam sendo pagas à parte na chegada. Os valores acima referem-se exclusivamente à locação dos espaços.
-            </p>
-            <div className="flex flex-col gap-1 mt-2 p-2 bg-white/50 rounded-lg border border-slate-100">
-              <p className="text-emerald-700 font-bold flex items-center gap-1.5">
-                <Check className="h-3.5 w-3.5 stroke-[3]" /> É permitido levar todo tipo de alimento.
-              </p>
-              <p className="text-destructive font-bold flex items-center gap-1.5">
-                <X className="h-3.5 w-3.5 stroke-[3]" /> Proibido levar quaisquer tipos de bebidas, apenas sendo adquiridas no local.
+      {/* Aba Notável e Expansível: Regras, Condições, Avisos Importantes e O que inclui */}
+      <div className="rounded-2xl border-2 border-amber-400 bg-gradient-to-r from-emerald-950 via-[#042817] to-slate-950 p-1 shadow-lg">
+        <button
+          type="button"
+          onClick={() => setShowKioskRules(prev => !prev)}
+          className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-4 py-3.5 rounded-xl bg-emerald-950/90 hover:bg-emerald-900/80 text-white transition-all cursor-pointer text-left"
+        >
+          <div className="flex items-center gap-3">
+            <span className="p-2 rounded-xl bg-amber-400 text-slate-950 shrink-0 shadow-xs">
+              <AlertTriangle className="w-5 h-5 stroke-[2.5]" />
+            </span>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-sans font-black text-xs sm:text-sm uppercase tracking-wider text-amber-300">
+                  ⚠️ Regras, Condições e O que inclui nos Quiosques
+                </span>
+                <span className="bg-amber-400 text-slate-950 text-[9px] font-black uppercase px-2 py-0.5 rounded-full">
+                  Importante • Leia antes de reservar
+                </span>
+              </div>
+              <p className="text-[11px] text-emerald-200 font-bold mt-0.5">
+                Veja itens inclusos (churrasqueira, grelha, mesas) e avisos sobre bebidas, alimentos e regras de reserva.
               </p>
             </div>
           </div>
-        </div>
+
+          <span className="inline-flex items-center justify-center gap-1.5 bg-amber-400 text-slate-950 font-black text-[11px] uppercase px-3.5 py-2 rounded-xl shrink-0 self-end sm:self-center shadow-xs">
+            {showKioskRules ? 'Fechar Informações' : 'Ver Regras e O que Inclui'}
+            {showKioskRules ? <ChevronUp className="w-4 h-4 stroke-[3]" /> : <ChevronDown className="w-4 h-4 stroke-[3]" />}
+          </span>
+        </button>
+
+        {showKioskRules && (
+          <div className="p-3 sm:p-4 bg-white rounded-xl mt-1 space-y-3 animate-in fade-in slide-in-from-top-1 duration-200">
+            <div className="flex flex-col gap-2 bg-emerald-50/80 border-2 border-emerald-200 p-3.5 sm:p-4 rounded-xl shadow-xs text-emerald-900 text-xs sm:text-sm">
+              <h4 className="font-black text-emerald-950 flex items-center gap-2 uppercase tracking-wide text-xs sm:text-sm">
+                <Sparkles className="h-4 w-4 text-emerald-700" /> O que inclui em cada Quiosque?
+              </h4>
+              <ul className="list-disc pl-5 space-y-1.5 font-medium">
+                <li><strong>Quiosque 01 (Grande):</strong> Capacidade para 25 pessoas, separado dos demais. Churrasqueira, pia, grelha, mesas e cadeiras, 1 tomada.</li>
+                <li><strong>Quiosques 02 ao 05 (Médios):</strong> Capacidade para até 15 pessoas, um ao lado do outro. Churrasqueira, pia, grelha, mesas e cadeiras, 1 tomada.</li>
+                <li><strong>Quiosques 06 ao 12 (Familiares):</strong> Tamanho familiar para até 5 pessoas. Churrasqueira, grelha, 1 mesa e bancos. Pia comunitária próxima aos quiosques.</li>
+                <li><strong>Carvão:</strong> Por conta do cliente.</li>
+              </ul>
+            </div>
+
+            <div className="flex flex-col gap-2 bg-amber-50 border-2 border-amber-300 rounded-xl p-3.5 sm:p-4">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+                <p className="text-xs sm:text-sm font-black text-red-900 uppercase tracking-tight">
+                  Aviso Importante: Reservas de quiosque não possuem reembolso em caso de desistência.
+                </p>
+              </div>
+              <div className="text-xs text-slate-800 leading-relaxed pl-7 space-y-2">
+                <p className="font-bold">
+                  <strong>Observação:</strong> As reservas de quiosque não incluem o valor das entradas no balneário, que são adicionadas separadamente. Os valores acima referem-se exclusivamente à locação dos espaços.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                  <div className="p-2.5 bg-emerald-100/80 rounded-xl border border-emerald-300 text-emerald-950 font-black flex items-center gap-2 text-xs">
+                    <Check className="h-4 w-4 text-emerald-700 stroke-[3] shrink-0" />
+                    <span>É permitido levar todo tipo de alimento.</span>
+                  </div>
+                  <div className="p-2.5 bg-red-100/80 rounded-xl border border-red-300 text-red-950 font-black flex items-center gap-2 text-xs">
+                    <X className="h-4 w-4 text-red-700 stroke-[3] shrink-0" />
+                    <span>Proibido levar quaisquer tipos de bebidas (adquiridas apenas no local).</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

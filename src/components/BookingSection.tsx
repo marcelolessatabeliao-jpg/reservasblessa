@@ -406,82 +406,60 @@ export function BookingSection() {
 
     if (position === 'top') {
       return (
-        <div className="flex flex-wrap items-center justify-between gap-2 pb-4 mb-2 border-b border-emerald-100">
-          <Button
+        <div className="flex flex-wrap items-center justify-between gap-2 pb-3 mb-2 border-b border-emerald-100">
+          <button
             type="button"
-            variant="outline"
-            size="sm"
             onClick={handlePrev}
-            className="rounded-xl border-2 border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100 text-emerald-950 font-black text-xs px-3.5 h-10 shadow-xs"
+            className="inline-flex items-center justify-center rounded-xl border-2 border-emerald-300 bg-white hover:bg-emerald-950 text-emerald-950 hover:text-amber-300 hover:border-emerald-950 font-black text-xs px-4 h-9 shadow-xs transition-all cursor-pointer"
           >
-            <ArrowLeft className="w-4 h-4 mr-1.5 text-emerald-700" />
-            {prevStep ? `Voltar para ${prevStep.label}` : 'Voltar para Modalidades'}
-          </Button>
+            <ArrowLeft className="w-4 h-4 mr-1.5" />
+            Voltar
+          </button>
 
           <div className="flex items-center gap-2">
-            <span className="text-[11px] font-black uppercase tracking-wider text-emerald-950 bg-amber-100 border border-amber-300 px-3 py-1.5 rounded-xl shadow-2xs">
+            <span className="text-[11px] font-black uppercase tracking-wider text-emerald-950 bg-amber-100 border border-amber-300 px-3 py-1 rounded-xl shadow-2xs">
               📍 Etapa {activeIndex + 1} de 4: {stepsList[activeIndex].label}
             </span>
             {nextStep && (
-              <Button
+              <button
                 type="button"
-                size="sm"
                 onClick={handleNext}
-                className="rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-black text-xs px-3.5 h-10 shadow-xs"
+                className="inline-flex items-center justify-center rounded-xl bg-emerald-800 hover:bg-emerald-950 text-white hover:text-amber-300 font-black text-xs px-3.5 h-9 shadow-xs transition-all cursor-pointer"
               >
                 Próximo: {nextStep.label}
                 <ArrowRight className="w-3.5 h-3.5 ml-1.5 text-amber-300" />
-              </Button>
+              </button>
             )}
           </div>
         </div>
       );
     }
 
+    const getStepIcon = (stepId: string) => {
+      if (stepId === 'entradas') return <Ticket className="w-3.5 h-3.5" />;
+      if (stepId === 'chales') return <Crown className="w-3.5 h-3.5" />;
+      if (stepId === 'camping') return <Tent className="w-3.5 h-3.5" />;
+      if (stepId === 'quiosques') return <Home className="w-3.5 h-3.5" />;
+      if (stepId === 'quads') return <Bike className="w-3.5 h-3.5" />;
+      if (stepId === 'diversoes') return <Fish className="w-3.5 h-3.5" />;
+      return <ClipboardList className="w-3.5 h-3.5" />;
+    };
+
     return (
-      <div className="pt-6 space-y-4 border-t border-emerald-100">
-        {/* Linha Principal: Voltar e Próximo */}
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
-          <Button
+      <div className="pt-5 border-t border-emerald-100">
+        {/* Linha Única: Botão Voltar (esquerda) + Etapas Compactas no Centro + Botão Próximo (direita) */}
+        <div className="flex flex-col lg:flex-row items-center justify-between gap-2.5">
+          <button
             type="button"
-            variant="outline"
             onClick={handlePrev}
-            className="w-full sm:w-auto rounded-2xl border-2 border-emerald-200 bg-white hover:bg-emerald-50 text-emerald-950 font-black h-12 px-6 shadow-xs"
+            className="w-full lg:w-auto inline-flex items-center justify-center rounded-xl border-2 border-emerald-300 bg-white hover:bg-emerald-950 text-emerald-950 hover:text-amber-300 hover:border-emerald-950 font-black text-xs h-11 px-5 shadow-xs transition-all cursor-pointer shrink-0"
           >
-            <ArrowLeft className="w-4 h-4 mr-2 text-emerald-700" />
-            {prevStep ? `Voltar para ${prevStep.label}` : 'Voltar para Modalidades'}
-          </Button>
+            <ArrowLeft className="w-4 h-4 mr-1.5" />
+            Voltar
+          </button>
 
-          <Button
-            type="button"
-            size="lg"
-            onClick={handleNext}
-            className={cn(
-              "w-full sm:w-auto font-black h-14 px-8 rounded-2xl shadow-lg",
-              modalidade === 'hospedagem' && activeIndex === 0
-                ? "bg-amber-400 hover:bg-amber-500 text-slate-950"
-                : "bg-primary hover:bg-primary-dark text-white"
-            )}
-          >
-            {nextStep && nextStep.id !== 'resumo'
-              ? `Próximo: ${nextStep.label}${modalidade === 'hospedagem' ? ' (Opcional)' : ''}`
-              : 'Ver Resumo e Finalizar'}
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
-        </div>
-
-        {/* Barra de Etapas Expostas para Navegação Direta com Indicador da Etapa Atual */}
-        <div className="bg-gradient-to-br from-emerald-950 via-[#042817] to-slate-950 p-3.5 sm:p-4 rounded-2xl border-2 border-emerald-700/80 shadow-md space-y-2.5">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
-              <span>🧭</span> Navegação entre Etapas (Clique para ir direto):
-            </span>
-            <span className="text-[10px] font-bold text-emerald-200">
-              Você está em: <strong className="text-amber-300 uppercase">{stepsList[activeIndex].stepNum}. {stepsList[activeIndex].label}</strong>
-            </span>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+          {/* Barra Compacta de Etapas (mesmo padrão visual do topo) */}
+          <div className="inline-flex items-center justify-center flex-wrap gap-1.5 bg-gradient-to-r from-emerald-950 via-[#042817] to-slate-950 px-2.5 py-1.5 rounded-2xl border-2 border-amber-400/80 shadow-md">
             {stepsList.map((st, idx) => {
               const isCurrent = idx === activeIndex;
               return (
@@ -490,38 +468,42 @@ export function BookingSection() {
                   type="button"
                   onClick={() => handleSelectStep(st.id)}
                   className={cn(
-                    "relative flex flex-col items-start justify-between p-2.5 rounded-xl border text-left transition-all cursor-pointer select-none",
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wide transition-all cursor-pointer select-none",
                     isCurrent
-                      ? "bg-amber-400 text-slate-950 border-amber-300 shadow-md ring-2 ring-amber-400/50 scale-[1.02]"
-                      : "bg-emerald-900/60 text-emerald-100 border-emerald-700/60 hover:bg-emerald-800/80 hover:border-amber-400/60 hover:text-white"
+                      ? "bg-amber-400 text-emerald-950 shadow-sm font-black"
+                      : "bg-white/10 text-emerald-100 hover:bg-white/20 hover:text-white"
                   )}
                 >
-                  <div className="flex items-center justify-between w-full gap-1 mb-1">
+                  {getStepIcon(st.id)}
+                  <span>{st.id === 'resumo' ? 'Resumo' : st.label}</span>
+                  {st.count > 0 && (
                     <span className={cn(
-                      "text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md",
-                      isCurrent ? "bg-slate-950 text-amber-300" : "bg-emerald-950/80 text-emerald-300"
+                      "text-[9px] px-1.5 rounded-full font-bold",
+                      isCurrent ? "bg-emerald-950 text-amber-300" : "bg-amber-400 text-emerald-950"
                     )}>
-                      {isCurrent ? '● ATUAL' : `Etapa ${st.stepNum}`}
+                      {st.count}
                     </span>
-                    {st.count > 0 && (
-                      <span className={cn(
-                        "text-[9px] font-black px-1.5 py-0.2 rounded-full",
-                        isCurrent ? "bg-emerald-950 text-amber-300" : "bg-amber-400 text-slate-950"
-                      )}>
-                        {st.count}
-                      </span>
-                    )}
-                  </div>
-                  <span className={cn(
-                    "font-sans font-black text-xs uppercase tracking-tight leading-snug",
-                    isCurrent ? "text-slate-950" : "text-white"
-                  )}>
-                    {st.stepNum}. {st.label}
-                  </span>
+                  )}
                 </button>
               );
             })}
           </div>
+
+          <button
+            type="button"
+            onClick={handleNext}
+            className={cn(
+              "w-full lg:w-auto inline-flex items-center justify-center font-black text-xs sm:text-sm h-11 px-6 rounded-xl shadow-md transition-all cursor-pointer shrink-0",
+              modalidade === 'hospedagem' && activeIndex === 0
+                ? "bg-amber-400 hover:bg-amber-500 text-slate-950"
+                : "bg-emerald-800 hover:bg-emerald-950 text-white hover:text-amber-300"
+            )}
+          >
+            {nextStep && nextStep.id !== 'resumo'
+              ? `Próximo: ${nextStep.label}${modalidade === 'hospedagem' ? ' (Opcional)' : ''}`
+              : 'Ver Resumo e Finalizar'}
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </button>
         </div>
       </div>
     );

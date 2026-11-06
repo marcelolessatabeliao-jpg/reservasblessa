@@ -1157,25 +1157,25 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               {/* ADULTO */}
               <button
                 type="button"
                 onClick={() => handleStartWizard('adult')}
-                className="group relative rounded-2xl bg-gradient-to-br from-emerald-950 via-[#042817] to-slate-950 text-white p-4 sm:p-5 border-2 border-emerald-600/70 hover:border-amber-400 transition-all duration-200 flex items-center justify-between gap-2 shadow-lg text-left hover:scale-[1.01] active:scale-[0.98]"
+                className="group relative rounded-xl bg-gradient-to-br from-emerald-950 via-[#042817] to-slate-950 text-white px-3 py-2.5 sm:px-3.5 sm:py-3 border-2 border-emerald-600/70 hover:border-amber-400 transition-all duration-200 flex items-center justify-between gap-2 shadow-md text-left hover:scale-[1.01] active:scale-[0.98]"
               >
-                <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <span className="text-2xl sm:text-3xl p-2 bg-emerald-900/60 rounded-xl border border-emerald-700/60 group-hover:scale-110 transition-transform shrink-0">🎟️</span>
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <span className="text-xl sm:text-2xl p-1.5 bg-emerald-900/60 rounded-lg border border-emerald-700/60 group-hover:scale-105 transition-transform shrink-0">🎟️</span>
                   <div className="min-w-0 flex-1">
-                    <span className="font-sans font-black text-xs sm:text-sm md:text-base text-white group-hover:text-amber-300 transition-colors block uppercase tracking-tight leading-snug">
+                    <span className="font-sans font-black text-[11px] sm:text-xs md:text-[13px] text-white group-hover:text-amber-300 transition-colors block uppercase tracking-tight whitespace-nowrap leading-tight">
                       Adulto (12 a 59 anos)
                     </span>
-                    <span className="text-[10px] sm:text-[11px] text-emerald-200/90 font-medium block leading-snug mt-0.5">
+                    <span className="text-[10px] text-emerald-200/90 font-medium block whitespace-nowrap leading-tight mt-0.5">
                       Inteira, Solidária ou Meia Legal
                     </span>
                   </div>
                 </div>
-                <span className="inline-flex items-center justify-center rounded-full bg-amber-400 group-hover:bg-amber-300 text-slate-950 text-[10px] font-black uppercase px-2.5 py-1 shadow-sm shrink-0 transition-colors whitespace-nowrap">
+                <span className="inline-flex items-center justify-center rounded-full bg-amber-400 group-hover:bg-amber-300 text-slate-950 text-[9.5px] sm:text-[10px] font-black uppercase px-2 py-0.5 shadow-sm shrink-0 transition-colors whitespace-nowrap">
                   A partir R$ 25,00
                 </span>
               </button>
@@ -1184,20 +1184,20 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
               <button
                 type="button"
                 onClick={() => handleStartWizard('child')}
-                className="group relative rounded-2xl bg-gradient-to-br from-emerald-950 via-[#042817] to-slate-950 text-white p-4 sm:p-5 border-2 border-emerald-600/70 hover:border-amber-400 transition-all duration-200 flex items-center justify-between gap-2 shadow-lg text-left hover:scale-[1.01] active:scale-[0.98]"
+                className="group relative rounded-xl bg-gradient-to-br from-emerald-950 via-[#042817] to-slate-950 text-white px-3 py-2.5 sm:px-3.5 sm:py-3 border-2 border-emerald-600/70 hover:border-amber-400 transition-all duration-200 flex items-center justify-between gap-2 shadow-md text-left hover:scale-[1.01] active:scale-[0.98]"
               >
-                <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <span className="text-2xl sm:text-3xl p-2 bg-emerald-900/60 rounded-xl border border-emerald-700/60 group-hover:scale-110 transition-transform shrink-0">👶</span>
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <span className="text-xl sm:text-2xl p-1.5 bg-emerald-900/60 rounded-lg border border-emerald-700/60 group-hover:scale-105 transition-transform shrink-0">👶</span>
                   <div className="min-w-0 flex-1">
-                    <span className="font-sans font-black text-xs sm:text-sm md:text-base text-white group-hover:text-amber-300 transition-colors block uppercase tracking-tight leading-snug">
+                    <span className="font-sans font-black text-[11px] sm:text-xs md:text-[13px] text-white group-hover:text-amber-300 transition-colors block uppercase tracking-tight whitespace-nowrap leading-tight">
                       Criança (0 a 11 anos)
                     </span>
-                    <span className="text-[10px] sm:text-[11px] text-emerald-200/90 font-medium block leading-snug mt-0.5">
+                    <span className="text-[10px] text-emerald-200/90 font-medium block whitespace-nowrap leading-tight mt-0.5">
                       Entrada gratuita comprovada
                     </span>
                   </div>
                 </div>
-                <span className="inline-flex items-center justify-center rounded-full bg-emerald-400 group-hover:bg-emerald-300 text-slate-950 text-[10px] font-black uppercase px-2.5 py-1 shadow-sm shrink-0 transition-colors whitespace-nowrap">
+                <span className="inline-flex items-center justify-center rounded-full bg-emerald-400 group-hover:bg-emerald-300 text-slate-950 text-[9.5px] sm:text-[10px] font-black uppercase px-2 py-0.5 shadow-sm shrink-0 transition-colors whitespace-nowrap">
                   100% Grátis
                 </span>
               </button>
@@ -1206,20 +1206,20 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
               <button
                 type="button"
                 onClick={() => handleStartWizard('senior')}
-                className="group relative rounded-2xl bg-gradient-to-br from-emerald-950 via-[#042817] to-slate-950 text-white p-4 sm:p-5 border-2 border-emerald-600/70 hover:border-amber-400 transition-all duration-200 flex items-center justify-between gap-2 shadow-lg text-left hover:scale-[1.01] active:scale-[0.98]"
+                className="group relative rounded-xl bg-gradient-to-br from-emerald-950 via-[#042817] to-slate-950 text-white px-3 py-2.5 sm:px-3.5 sm:py-3 border-2 border-emerald-600/70 hover:border-amber-400 transition-all duration-200 flex items-center justify-between gap-2 shadow-md text-left hover:scale-[1.01] active:scale-[0.98]"
               >
-                <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <span className="text-2xl sm:text-3xl p-2 bg-emerald-900/60 rounded-xl border border-emerald-700/60 group-hover:scale-110 transition-transform shrink-0">🧓</span>
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <span className="text-xl sm:text-2xl p-1.5 bg-emerald-900/60 rounded-lg border border-emerald-700/60 group-hover:scale-105 transition-transform shrink-0">🧓</span>
                   <div className="min-w-0 flex-1">
-                    <span className="font-sans font-black text-xs sm:text-sm md:text-base text-white group-hover:text-amber-300 transition-colors block uppercase tracking-tight leading-snug">
+                    <span className="font-sans font-black text-[11px] sm:text-xs md:text-[13px] text-white group-hover:text-amber-300 transition-colors block uppercase tracking-tight whitespace-nowrap leading-tight">
                       Melhor Idade (60+ anos)
                     </span>
-                    <span className="text-[10px] sm:text-[11px] text-emerald-200/90 font-medium block leading-snug mt-0.5">
+                    <span className="text-[10px] text-emerald-200/90 font-medium block whitespace-nowrap leading-tight mt-0.5">
                       Lessa Vitalício com RG
                     </span>
                   </div>
                 </div>
-                <span className="inline-flex items-center justify-center rounded-full bg-emerald-400 group-hover:bg-emerald-300 text-slate-950 text-[10px] font-black uppercase px-2.5 py-1 shadow-sm shrink-0 transition-colors whitespace-nowrap">
+                <span className="inline-flex items-center justify-center rounded-full bg-emerald-400 group-hover:bg-emerald-300 text-slate-950 text-[9.5px] sm:text-[10px] font-black uppercase px-2 py-0.5 shadow-sm shrink-0 transition-colors whitespace-nowrap">
                   100% Grátis
                 </span>
               </button>
@@ -1228,20 +1228,20 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
               <button
                 type="button"
                 onClick={() => handleStartWizard('pcd')}
-                className="group relative rounded-2xl bg-gradient-to-br from-emerald-950 via-[#042817] to-slate-950 text-white p-4 sm:p-5 border-2 border-emerald-600/70 hover:border-amber-400 transition-all duration-200 flex items-center justify-between gap-2 shadow-lg text-left hover:scale-[1.01] active:scale-[0.98]"
+                className="group relative rounded-xl bg-gradient-to-br from-emerald-950 via-[#042817] to-slate-950 text-white px-3 py-2.5 sm:px-3.5 sm:py-3 border-2 border-emerald-600/70 hover:border-amber-400 transition-all duration-200 flex items-center justify-between gap-2 shadow-md text-left hover:scale-[1.01] active:scale-[0.98]"
               >
-                <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <span className="text-2xl sm:text-3xl p-2 bg-emerald-900/60 rounded-xl border border-emerald-700/60 group-hover:scale-110 transition-transform shrink-0">♿</span>
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <span className="text-xl sm:text-2xl p-1.5 bg-emerald-900/60 rounded-lg border border-emerald-700/60 group-hover:scale-105 transition-transform shrink-0">♿</span>
                   <div className="min-w-0 flex-1">
-                    <span className="font-sans font-black text-xs sm:text-sm md:text-base text-white group-hover:text-amber-300 transition-colors block uppercase tracking-tight leading-snug">
+                    <span className="font-sans font-black text-[11px] sm:text-xs md:text-[13px] text-white group-hover:text-amber-300 transition-colors block uppercase tracking-tight whitespace-nowrap leading-tight">
                       Inclusão PCD & TEA
                     </span>
-                    <span className="text-[10px] sm:text-[11px] text-emerald-200/90 font-medium block leading-snug mt-0.5">
+                    <span className="text-[10px] text-emerald-200/90 font-medium block whitespace-nowrap leading-tight mt-0.5">
                       Acesso livre mediante laudo
                     </span>
                   </div>
                 </div>
-                <span className="inline-flex items-center justify-center rounded-full bg-emerald-400 group-hover:bg-emerald-300 text-slate-950 text-[10px] font-black uppercase px-2.5 py-1 shadow-sm shrink-0 transition-colors whitespace-nowrap">
+                <span className="inline-flex items-center justify-center rounded-full bg-emerald-400 group-hover:bg-emerald-300 text-slate-950 text-[9.5px] sm:text-[10px] font-black uppercase px-2 py-0.5 shadow-sm shrink-0 transition-colors whitespace-nowrap">
                   100% Grátis
                 </span>
               </button>
