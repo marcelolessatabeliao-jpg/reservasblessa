@@ -17,7 +17,7 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { getPersonPrice, formatCurrency, KIOSK_INFO, QUAD_LABELS, getQuadDiscount, ADDITIONAL_INFO, CHALE_PACKAGES, CAMPING_PRICE_PER_PERSON, WHATSAPP_NUMBER, isSundayOrHoliday, calculateChaleTotal, calculateChaleGrossTotal, calculateStayPricing, type BookingState, type AdultInfo, type ChildInfo } from '@/lib/booking-types';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { trackFBEvent } from '@/utils/pixel-events';
 
 interface Props {
@@ -85,6 +85,28 @@ export function BookingOverview({
     booking.chale.packageType &&
     ((booking.chale.chaleIds && booking.chale.chaleIds.length > 0) || booking.chale.chaleId)
   );
+
+  const isChaleTermsAccepted = Boolean(booking.chale?.termsAccepted || chaleTermsAccepted);
+
+  const chaleAcceptedAtDate = useMemo(() => {
+    if (booking.chale?.termsAcceptedAt) {
+      const d = new Date(booking.chale.termsAcceptedAt);
+      if (!isNaN(d.getTime())) return d;
+    }
+    if (chaleTermsAcceptedAt) return chaleTermsAcceptedAt;
+    return null;
+  }, [booking.chale?.termsAcceptedAt, chaleTermsAcceptedAt]);
+
+  const formattedTermsAcceptedAt = useMemo(() => {
+    if (!chaleAcceptedAtDate) return '';
+    return chaleAcceptedAtDate.toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }, [chaleAcceptedAtDate]);
 
   useEffect(() => {
     if (!persistedOrderId || paymentConfirmed) return;
@@ -172,7 +194,7 @@ export function BookingOverview({
     }
 
     const hasSelectedChale = (booking.chale?.chaleIds && booking.chale.chaleIds.length > 0) || !!booking.chale?.chaleId;
-    const isTermsSigned = Boolean(booking.chale?.termsAccepted || chaleTermsAccepted);
+    const isTermsSigned = isChaleTermsAccepted;
     if (booking.chale && booking.chale.packageType && hasSelectedChale && !isTermsSigned) {
       setTermsErrorHighlight(true);
       toast({
@@ -282,7 +304,7 @@ export function BookingOverview({
           guestName: fullName,
           guestCpf: booking.entry.cpf,
           guestPhone: booking.entry.phone,
-          acceptedAt: chaleTermsAcceptedAt || new Date(),
+          acceptedAt: chaleAcceptedAtDate || new Date(),
         });
         items.push({
           product_id: chaletsCount > 1 ? `Chalés (${chaletsCount} unidades): ${pkg.title}` : `Chalé: ${pkg.title}`,
@@ -1201,13 +1223,13 @@ export function BookingOverview({
                     <div className="flex items-center gap-2 text-xs">
                       <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0" />
                       <span className="font-bold text-emerald-100">
-                        {booking.chale?.termsAccepted 
-                          ? `Termos de Hospedagem assinados na etapa de chalé (${CHALE_TERMS_VERSION})`
+                        {isChaleTermsAccepted 
+                          ? `Termos de Hospedagem aceitos ${formattedTermsAcceptedAt ? `em ${formattedTermsAcceptedAt}` : 'na etapa de chalé'}`
                           : 'Termos de Hospedagem: Aceite pendente na etapa de seleção do chalé'}
                       </span>
                     </div>
-                    <Badge className={cn("text-[10px] font-black uppercase px-2.5 py-0.5", booking.chale?.termsAccepted ? "bg-amber-400 text-slate-950" : "bg-red-500 text-white")}>
-                      {booking.chale?.termsAccepted ? 'Aceite Registrado ✓' : 'Pendente na Etapa 1'}
+                    <Badge className={cn("text-[10px] font-black uppercase px-2.5 py-0.5", isChaleTermsAccepted ? "bg-amber-400 text-slate-950" : "bg-red-500 text-white")}>
+                      {isChaleTermsAccepted ? 'Aceite Registrado ✓' : 'Pendente na Etapa 1'}
                     </Badge>
                   </div>
                 )}
@@ -1243,7 +1265,7 @@ export function BookingOverview({
                   <>
                     <div className={cn(
                       "grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4 transition-opacity",
-                      hasSelectedChaleBooking && !chaleTermsAccepted && "opacity-60"
+                      hasSelectedChaleBooking && !isChaleTermsAccepted && "opacity-60"
                     )}>
                       {/* Botão PIX */}
                       <Button
@@ -1273,7 +1295,7 @@ export function BookingOverview({
                       <Button
                         size="lg"
                         onClick={() => {
-                          if (hasSelectedChaleBooking && !chaleTermsAccepted) {
+                          if (hasSelectedChaleBooking && !isChaleTermsAccepted) {
                             handleAction('CREDIT_CARD', 1);
                             return;
                           }
@@ -1434,7 +1456,7 @@ export function BookingOverview({
                         const cleanPhone = booking.entry.phone.replace(/\D/g, '');
                         const formattedPhone = cleanPhone.length <= 11 ? `55${cleanPhone}` : cleanPhone;
                         const termsNote = hasSelectedChaleBooking
-                          ? `\n*Comprovante de Aceite dos Termos de Hospedagem:*\nVersão ${CHALE_TERMS_VERSION} aceita eletronicamente por ${booking.entry.name || 'Hóspede'} em ${(chaleTermsAcceptedAt || new Date()).toLocaleString('pt-BR')}. Os termos completos estão disponíveis no seu painel em https://reservas.balneariolessa.com.br/consultar\n`
+                          ? `\n*Comprovante de Aceite dos Termos de Hospedagem:*\nTermos aceitos eletronicamente por ${booking.entry.name || 'Hóspede'} em ${(chaleAcceptedAtDate || new Date()).toLocaleString('pt-BR')}. Os termos completos estão disponíveis no seu painel em https://reservas.balneariolessa.com.br/consultar\n`
                           : '';
                         const msg = `*Reserva Balneário Lessa*\n\nOlá, ${booking.entry.name || 'Cliente'}!\n\nSegue seu código PIX para pagamento da reserva:\n\n*PIX Copia e Cola:*\n${pixData.payload}\n${termsNote}\n*Acompanhar / Acessar Voucher e Termos:*\nConsulte a qualquer momento em: https://reservas.balneariolessa.com.br/consultar informando seu WhatsApp (${booking.entry.phone}).\n\n_Aguardamos você para um dia incrível de lazer na natureza!_`;
                         window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(msg)}`, '_blank');
@@ -1486,14 +1508,14 @@ export function BookingOverview({
           setTermsErrorHighlight(false);
         }}
         acceptanceRecord={
-          chaleTermsAccepted && chaleTermsAcceptedAt
+          isChaleTermsAccepted && chaleAcceptedAtDate
             ? buildChaleTermsAcceptanceRecord({
                 guestName: booking.entry.name || 'Hóspede Titular',
                 guestCpf: booking.entry.cpf,
                 guestPhone: booking.entry.phone,
                 reservationCode: persistedConfirmationCode || '',
                 orderId: persistedOrderId || '',
-                acceptedAt: chaleTermsAcceptedAt,
+                acceptedAt: chaleAcceptedAtDate,
               })
             : null
         }
