@@ -1394,17 +1394,19 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
         </div>
         )}
 
-        {/* Info Box */}
-        <div className="bg-emerald-50 border border-emerald-100 rounded-[2rem] p-4 flex items-start gap-3 shadow-sm shadow-emerald-500/5">
-          <div className="bg-emerald-100 p-1.5 rounded-full">
-            <CheckCircle2 className="h-4 w-4 text-emerald-700" />
+        {/* Info Box (apenas na etapa de ingressos, removido da tela de início) */}
+        {!onlyMainInfo && (
+          <div className="bg-emerald-50 border border-emerald-100 rounded-[2rem] p-4 flex items-start gap-3 shadow-sm shadow-emerald-500/5">
+            <div className="bg-emerald-100 p-1.5 rounded-full">
+              <CheckCircle2 className="h-4 w-4 text-emerald-700" />
+            </div>
+            <p className="text-[11px] font-bold text-emerald-800 leading-relaxed">
+              {entry.dayOfWeek === 'domingo'
+                ? '✅ DOMINGO: Valor único de R$ 50,00 Inteira. PCD e TEA, Crianças, Idosos e Aniversariantes mantêm gratuidade. Professores, Estudantes e Servidores têm meia-entrada mediante comprovação.'
+                : '✅ DICA POSITIVA: Traga 1kg de alimento, livro, brinquedo ou roupas em bom estado e pague apenas meia-Entrada (R$ 25,00) nas sextas e sábados e ajude quem precisa!'}
+            </p>
           </div>
-          <p className="text-[11px] font-bold text-emerald-800 leading-relaxed">
-            {entry.dayOfWeek === 'domingo'
-              ? '✅ DOMINGO: Valor único de R$ 50,00 Inteira. PCD e TEA, Crianças, Idosos e Aniversariantes mantêm gratuidade. Professores, Estudantes e Servidores têm meia-entrada mediante comprovação.'
-              : '✅ DICA POSITIVA: Traga 1kg de alimento, livro, brinquedo ou roupas em bom estado e pague apenas meia-Entrada (R$ 25,00) nas sextas e sábados e ajude quem precisa!'}
-          </p>
-        </div>
+        )}
       </div>
 
       {/* Simplified Guided Wizard Modal */}
