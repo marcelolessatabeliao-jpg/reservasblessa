@@ -383,8 +383,8 @@ export function AdminChaleTab({
   // Toggle Bloquear / Liberar Manutenção
   const handleToggleBlock = (chaleId: number) => {
     setManualStatuses(prev => {
-      const next = { ...prev, [chaleId]: prev[chaleId] === 'indisponivel' ? 'disponivel' : 'indisponivel' };
-      return next;
+      const nextStatus: 'disponivel' | 'indisponivel' = prev[chaleId] === 'indisponivel' ? 'disponivel' : 'indisponivel';
+      return { ...prev, [chaleId]: nextStatus };
     });
     toast({
       title: manualStatuses[chaleId] === 'indisponivel' ? `Chalé ${chaleId} liberado (Verde)` : `Chalé ${chaleId} bloqueado para manutenção (Amarelo)`,

@@ -713,8 +713,6 @@ export function BookingOverview({
             booking.chale.packageType,
             adults,
             kids,
-            getPrice,
-            booking.chale.includeSundayDayUse,
             chaletsCount,
             booking.chale.checkInDate,
             booking.chale.checkOutDate,
