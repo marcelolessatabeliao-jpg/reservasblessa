@@ -349,6 +349,29 @@ export function BookingSection() {
     }
 
     setNamesValidationError(false);
+
+    // Validação estrita: obrigatório aceitar os termos antes de avançar qualquer etapa
+    if (!booking.chale.termsAccepted) {
+      toast({
+        title: 'Aceite dos Termos Obrigatório',
+        description: 'É necessário marcar a caixa de aceite dos Termos e Condições de Hospedagem antes de avançar.',
+        variant: 'destructive',
+        duration: 7000
+      });
+      if (hospedagemTab !== 'chales') {
+        setHospedagemTab('chales');
+      }
+      setTimeout(() => {
+        const el = document.getElementById('chale-terms-box');
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.classList.add('ring-4', 'ring-amber-400');
+          setTimeout(() => el.classList.remove('ring-4', 'ring-amber-400'), 2500);
+        }
+      }, 100);
+      return false;
+    }
+
     return true;
   };
 

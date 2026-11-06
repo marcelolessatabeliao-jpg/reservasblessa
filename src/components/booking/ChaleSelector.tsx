@@ -1843,10 +1843,17 @@ function ChaleSelectorInner({
         >
           {/* TOPO: Confirmação da Reserva + Botão para Expandir / Ler Termos */}
           <div className="flex items-center justify-between gap-2 flex-wrap border-b border-white/15 pb-3">
-            <span className="text-xs sm:text-sm font-black text-white flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 text-amber-400 shrink-0" />
-              Confirmação da reserva
-            </span>
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className={cn("w-5 h-5 shrink-0", chale.termsAccepted ? "text-emerald-400" : "text-amber-400")} />
+              <span className="text-xs sm:text-sm font-black text-white">
+                Confirmação da reserva
+              </span>
+              {chale.termsAccepted && (
+                <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded-full font-black uppercase tracking-wider">
+                  ✓ Aceito
+                </span>
+              )}
+            </div>
             <button
               type="button"
               onClick={() => setIsTermsExpanded(prev => !prev)}
@@ -1857,8 +1864,8 @@ function ChaleSelectorInner({
             </button>
           </div>
 
-          {/* CHECKBOX E DECLARAÇÃO LEGAL */}
-          <label className="flex items-start gap-3 cursor-pointer select-none group">
+          {/* CHECKBOX E DECLARAÇÃO LEGAL (APENAS A LINHA DE ACEITE) */}
+          <label className="flex items-center gap-3 cursor-pointer select-none group py-1">
             <input
               type="checkbox"
               checked={Boolean(chale.termsAccepted)}
@@ -1870,42 +1877,23 @@ function ChaleSelectorInner({
                   termsVersion: CHALE_TERMS_VERSION
                 });
               }}
-              className="mt-1 w-5 h-5 rounded-md border-2 border-amber-400 accent-amber-400 cursor-pointer shrink-0"
+              className="w-5 h-5 rounded-md border-2 border-amber-400 accent-amber-400 cursor-pointer shrink-0"
             />
-            <div className="space-y-1.5 text-xs sm:text-sm leading-relaxed">
-              <p className="font-bold text-white group-hover:text-amber-200 transition-colors">
-                Li e aceito os{' '}
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setIsTermsExpanded(prev => !prev);
-                  }}
-                  className="font-black text-amber-300 underline underline-offset-2 hover:text-amber-200 inline"
-                >
-                  Termos e Condições de Hospedagem do Balneário Lessa
-                </button>
-                , incluindo os horários, as regras de uso e a política de cancelamento e reembolso.
-              </p>
-            </div>
+            <p className="font-bold text-white text-xs sm:text-sm group-hover:text-amber-200 transition-colors">
+              Li e aceito os{' '}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setIsTermsExpanded(prev => !prev);
+                }}
+                className="font-black text-amber-300 underline underline-offset-2 hover:text-amber-200 inline cursor-pointer"
+              >
+                Termos e Condições de Hospedagem do Balneário Lessa
+              </button>
+              .
+            </p>
           </label>
-
-          {/* STATUS DE CONFIRMAÇÃO DO ACEITE */}
-          {chale.termsAccepted ? (
-            <div className="pt-2.5 border-t border-white/10 flex items-center justify-between gap-2 text-[10px] text-emerald-300 font-bold flex-wrap">
-              <span className="flex items-center gap-1.5">
-                <ShieldCheck className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                Aceite registrado em {chale.termsAcceptedAt ? new Date(chale.termsAcceptedAt).toLocaleString('pt-BR') : new Date().toLocaleString('pt-BR')} • Versão {CHALE_TERMS_VERSION}
-              </span>
-              <span className="text-amber-300 uppercase font-black tracking-wider">
-                LIBERADO P/ PAGAMENTO ✓
-              </span>
-            </div>
-          ) : (
-            <div className="pt-2 border-t border-white/10 text-[11px] text-amber-300/95 font-bold flex items-center gap-1.5">
-              <span>☝️ Marque a caixa acima para registrar seu aceite dos termos de hospedagem.</span>
-            </div>
-          )}
 
           {/* ABA EXPANSÍVEL: LEIA O TERMO COMPLETO (VISUALIZAÇÃO COMPLETA DIRETO NA PÁGINA) */}
           {isTermsExpanded && (
