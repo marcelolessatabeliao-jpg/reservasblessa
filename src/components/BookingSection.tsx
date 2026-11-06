@@ -342,6 +342,191 @@ export function BookingSection() {
     setCurrentStep('resumo');
   };
 
+  const scrollToContentTop = () => {
+    const el = document.getElementById('reservas-content');
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const renderStepNavigation = (position: 'top' | 'bottom') => {
+    const firstStepId = modalidade === 'dayuse' ? 'entradas' : modalidade === 'hospedagem' ? 'chales' : 'camping';
+    const firstStepLabel = modalidade === 'dayuse' ? 'Entradas' : modalidade === 'hospedagem' ? 'Chalés' : 'Camping';
+    const firstStepCount = modalidade === 'dayuse' ? countEntradas : modalidade === 'hospedagem' ? countHospedagem : countCamping;
+
+    const currentTab = modalidade === 'dayuse' ? dayUseTab : modalidade === 'hospedagem' ? hospedagemTab : campingTab;
+
+    const stepsList = [
+      { id: firstStepId, stepNum: 1, label: firstStepLabel, count: firstStepCount },
+      { id: 'quiosques', stepNum: 2, label: 'Quiosques', count: countQuiosques },
+      { id: 'quads', stepNum: 3, label: 'Quadriciclos', count: countQuads },
+      { id: 'diversoes', stepNum: 4, label: 'Diversões', count: countDiversoes },
+      { id: 'resumo', stepNum: 5, label: 'Resumo & Pagamento', count: 0 },
+    ];
+
+    const currentIdx = stepsList.findIndex(s => s.id === currentTab);
+    const activeIndex = currentIdx >= 0 ? currentIdx : 0;
+    const prevStep = activeIndex > 0 ? stepsList[activeIndex - 1] : null;
+    const nextStep = activeIndex < stepsList.length - 1 ? stepsList[activeIndex + 1] : null;
+
+    const handleSelectStep = (stepId: string) => {
+      if (stepId === 'resumo') {
+        handleGoToSummary();
+        scrollToContentTop();
+        return;
+      }
+      if (modalidade === 'hospedagem' && stepId !== 'chales' && !validateHospedagemGuests()) {
+        return;
+      }
+      if (modalidade === 'dayuse') {
+        setDayUseTab(stepId as any);
+      } else if (modalidade === 'hospedagem') {
+        setHospedagemTab(stepId as any);
+      } else {
+        setCampingTab(stepId as any);
+      }
+      scrollToContentTop();
+    };
+
+    const handlePrev = () => {
+      if (!prevStep) {
+        setCurrentStep('escolha_modalidade');
+        scrollToContentTop();
+        return;
+      }
+      handleSelectStep(prevStep.id);
+    };
+
+    const handleNext = () => {
+      if (!nextStep) {
+        handleGoToSummary();
+        scrollToContentTop();
+        return;
+      }
+      handleSelectStep(nextStep.id);
+    };
+
+    if (position === 'top') {
+      return (
+        <div className="flex flex-wrap items-center justify-between gap-2 pb-4 mb-2 border-b border-emerald-100">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handlePrev}
+            className="rounded-xl border-2 border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100 text-emerald-950 font-black text-xs px-3.5 h-10 shadow-xs"
+          >
+            <ArrowLeft className="w-4 h-4 mr-1.5 text-emerald-700" />
+            {prevStep ? `Voltar para ${prevStep.label}` : 'Voltar para Modalidades'}
+          </Button>
+
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-black uppercase tracking-wider text-emerald-950 bg-amber-100 border border-amber-300 px-3 py-1.5 rounded-xl shadow-2xs">
+              📍 Etapa {activeIndex + 1} de 4: {stepsList[activeIndex].label}
+            </span>
+            {nextStep && (
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleNext}
+                className="rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-black text-xs px-3.5 h-10 shadow-xs"
+              >
+                Próximo: {nextStep.label}
+                <ArrowRight className="w-3.5 h-3.5 ml-1.5 text-amber-300" />
+              </Button>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="pt-6 space-y-4 border-t border-emerald-100">
+        {/* Linha Principal: Voltar e Próximo */}
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handlePrev}
+            className="w-full sm:w-auto rounded-2xl border-2 border-emerald-200 bg-white hover:bg-emerald-50 text-emerald-950 font-black h-12 px-6 shadow-xs"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2 text-emerald-700" />
+            {prevStep ? `Voltar para ${prevStep.label}` : 'Voltar para Modalidades'}
+          </Button>
+
+          <Button
+            type="button"
+            size="lg"
+            onClick={handleNext}
+            className={cn(
+              "w-full sm:w-auto font-black h-14 px-8 rounded-2xl shadow-lg",
+              modalidade === 'hospedagem' && activeIndex === 0
+                ? "bg-amber-400 hover:bg-amber-500 text-slate-950"
+                : "bg-primary hover:bg-primary-dark text-white"
+            )}
+          >
+            {nextStep && nextStep.id !== 'resumo'
+              ? `Próximo: ${nextStep.label}${modalidade === 'hospedagem' ? ' (Opcional)' : ''}`
+              : 'Ver Resumo e Finalizar'}
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+        </div>
+
+        {/* Barra de Etapas Expostas para Navegação Direta com Indicador da Etapa Atual */}
+        <div className="bg-gradient-to-br from-emerald-950 via-[#042817] to-slate-950 p-3.5 sm:p-4 rounded-2xl border-2 border-emerald-700/80 shadow-md space-y-2.5">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
+              <span>🧭</span> Navegação entre Etapas (Clique para ir direto):
+            </span>
+            <span className="text-[10px] font-bold text-emerald-200">
+              Você está em: <strong className="text-amber-300 uppercase">{stepsList[activeIndex].stepNum}. {stepsList[activeIndex].label}</strong>
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+            {stepsList.map((st, idx) => {
+              const isCurrent = idx === activeIndex;
+              return (
+                <button
+                  key={st.id}
+                  type="button"
+                  onClick={() => handleSelectStep(st.id)}
+                  className={cn(
+                    "relative flex flex-col items-start justify-between p-2.5 rounded-xl border text-left transition-all cursor-pointer select-none",
+                    isCurrent
+                      ? "bg-amber-400 text-slate-950 border-amber-300 shadow-md ring-2 ring-amber-400/50 scale-[1.02]"
+                      : "bg-emerald-900/60 text-emerald-100 border-emerald-700/60 hover:bg-emerald-800/80 hover:border-amber-400/60 hover:text-white"
+                  )}
+                >
+                  <div className="flex items-center justify-between w-full gap-1 mb-1">
+                    <span className={cn(
+                      "text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md",
+                      isCurrent ? "bg-slate-950 text-amber-300" : "bg-emerald-950/80 text-emerald-300"
+                    )}>
+                      {isCurrent ? '● ATUAL' : `Etapa ${st.stepNum}`}
+                    </span>
+                    {st.count > 0 && (
+                      <span className={cn(
+                        "text-[9px] font-black px-1.5 py-0.2 rounded-full",
+                        isCurrent ? "bg-emerald-950 text-amber-300" : "bg-amber-400 text-slate-950"
+                      )}>
+                        {st.count}
+                      </span>
+                    )}
+                  </div>
+                  <span className={cn(
+                    "font-sans font-black text-xs uppercase tracking-tight leading-snug",
+                    isCurrent ? "text-slate-950" : "text-white"
+                  )}>
+                    {st.stepNum}. {st.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <section id="reservas" className="relative pt-6 pb-12 sm:pt-32 sm:pb-28 bg-transparent min-h-screen">
       {/* Background decoration */}
@@ -582,36 +767,119 @@ export function BookingSection() {
                 )}
 
                 {modalidade === 'hospedagem' && (
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 pt-1">
-                    <div className="flex items-center gap-2 bg-emerald-900/50 backdrop-blur-md px-3.5 py-2.5 rounded-2xl border border-emerald-700/50">
-                      <Clock className="w-4 h-4 text-amber-400 shrink-0" />
-                      <div className="text-[11px] leading-tight">
-                        <span className="font-black text-white block">Entrada: 14h</span>
-                        <span className="text-emerald-200/80 text-[10px]">Saída: às 12h</span>
+                  <div className="space-y-2.5 pt-1">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-black uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
+                          <Crown className="w-4 h-4 text-amber-400" /> Modalidade Hospedagem em Chalés:
+                        </span>
+                        <button
+                          onClick={() => handleRequestSwitch('dayuse')}
+                          className="text-[10px] text-emerald-200/90 hover:text-white flex items-center gap-1 underline underline-offset-2"
+                        >
+                          <RefreshCw className="w-3 h-3" /> Mudar para Day Use
+                        </button>
+                      </div>
+
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <button
+                          onClick={() => setHospedagemTab('chales')}
+                          className={cn(
+                            "flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wide transition-all",
+                            hospedagemTab === 'chales'
+                              ? "bg-amber-400 text-emerald-950 shadow-sm font-black"
+                              : "bg-white/10 text-emerald-100 hover:bg-white/20"
+                          )}
+                        >
+                          <Crown className="w-3.5 h-3.5" />
+                          <span>Chalés</span>
+                          {countHospedagem > 0 && <span className="text-[9px] bg-emerald-950 text-amber-300 px-1.5 rounded-full font-bold">{countHospedagem}</span>}
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            if (!validateHospedagemGuests()) return;
+                            setHospedagemTab('quiosques');
+                          }}
+                          className={cn(
+                            "flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wide transition-all",
+                            hospedagemTab === 'quiosques'
+                              ? "bg-amber-400 text-emerald-950 shadow-sm font-black"
+                              : "bg-white/10 text-emerald-100 hover:bg-white/20"
+                          )}
+                        >
+                          <Home className="w-3.5 h-3.5" />
+                          <span>Quiosques</span>
+                          {countQuiosques > 0 && <span className="text-[9px] bg-emerald-950 text-amber-300 px-1.5 rounded-full font-bold">{countQuiosques}</span>}
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            if (!validateHospedagemGuests()) return;
+                            setHospedagemTab('quads');
+                          }}
+                          className={cn(
+                            "flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wide transition-all",
+                            hospedagemTab === 'quads'
+                              ? "bg-amber-400 text-emerald-950 shadow-sm font-black"
+                              : "bg-white/10 text-emerald-100 hover:bg-white/20"
+                          )}
+                        >
+                          <Bike className="w-3.5 h-3.5" />
+                          <span>Quadriciclos</span>
+                          {countQuads > 0 && <span className="text-[9px] bg-emerald-950 text-amber-300 px-1.5 rounded-full font-bold">{countQuads}</span>}
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            if (!validateHospedagemGuests()) return;
+                            setHospedagemTab('diversoes');
+                          }}
+                          className={cn(
+                            "flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wide transition-all",
+                            hospedagemTab === 'diversoes'
+                              ? "bg-amber-400 text-emerald-950 shadow-sm font-black"
+                              : "bg-white/10 text-emerald-100 hover:bg-white/20"
+                          )}
+                        >
+                          <Fish className="w-3.5 h-3.5" />
+                          <span>Diversões</span>
+                          {countDiversoes > 0 && <span className="text-[9px] bg-emerald-950 text-amber-300 px-1.5 rounded-full font-bold">{countDiversoes}</span>}
+                        </button>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 bg-emerald-900/50 backdrop-blur-md px-3.5 py-2.5 rounded-2xl border border-emerald-700/50">
-                      <Coffee className="w-4 h-4 text-amber-400 shrink-0" />
-                      <div className="text-[11px] leading-tight">
-                        <span className="font-black text-white block">Café Incluso</span>
-                        <span className="text-emerald-200/80 text-[10px]">Das 7h às 9h (Sex, Sáb, Dom)</span>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+                      <div className="flex items-center gap-2 bg-emerald-900/50 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-emerald-700/50">
+                        <Clock className="w-4 h-4 text-amber-400 shrink-0" />
+                        <div className="text-[11px] leading-tight">
+                          <span className="font-black text-white block">Entrada: 15h</span>
+                          <span className="text-emerald-200/80 text-[10px]">Saída: às 12h</span>
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="flex items-center gap-2 bg-emerald-900/50 backdrop-blur-md px-3.5 py-2.5 rounded-2xl border border-emerald-700/50">
-                      <Users className="w-4 h-4 text-amber-400 shrink-0" />
-                      <div className="text-[11px] leading-tight">
-                        <span className="font-black text-white block">Capacidade</span>
-                        <span className="text-emerald-200/80 text-[10px]">Até 2 adultos por chalé</span>
+                      <div className="flex items-center gap-2 bg-emerald-900/50 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-emerald-700/50">
+                        <Coffee className="w-4 h-4 text-amber-400 shrink-0" />
+                        <div className="text-[11px] leading-tight">
+                          <span className="font-black text-white block">Café Incluso</span>
+                          <span className="text-emerald-200/80 text-[10px]">Das 7h às 9h (Sex, Sáb, Dom)</span>
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="flex items-center gap-2 bg-emerald-900/50 backdrop-blur-md px-3.5 py-2.5 rounded-2xl border border-emerald-700/50">
-                      <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
-                      <div className="text-[11px] leading-tight">
-                        <span className="font-black text-white block">Day Use Incluso</span>
-                        <span className="text-emerald-200/80 text-[10px]">Sex a Dom até 17h</span>
+                      <div className="flex items-center gap-2 bg-emerald-900/50 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-emerald-700/50">
+                        <Users className="w-4 h-4 text-amber-400 shrink-0" />
+                        <div className="text-[11px] leading-tight">
+                          <span className="font-black text-white block">Capacidade</span>
+                          <span className="text-emerald-200/80 text-[10px]">Até 2 adultos por chalé</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 bg-emerald-900/50 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-emerald-700/50">
+                        <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+                        <div className="text-[11px] leading-tight">
+                          <span className="font-black text-white block">Day Use Incluso</span>
+                          <span className="text-emerald-200/80 text-[10px]">Sex a Dom até 17h</span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -808,7 +1076,7 @@ export function BookingSection() {
                           <div className="space-y-2 pt-3 border-t border-emerald-800/60 text-xs font-bold text-emerald-200">
                             <div className="flex items-center gap-2">
                               <Check className="w-4 h-4 text-amber-400 shrink-0" />
-                              <span>Entradas Adulto, Criança, Idoso e Meia</span>
+                              <span>Entradas para o Day Use</span>
                             </div>
                             <div className="flex items-center gap-2">
                               <Check className="w-4 h-4 text-amber-400 shrink-0" />
@@ -817,6 +1085,14 @@ export function BookingSection() {
                             <div className="flex items-center gap-2">
                               <Check className="w-4 h-4 text-amber-400 shrink-0" />
                               <span>Pesca Esportiva e Futebol de Sabão</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Check className="w-4 h-4 text-amber-400 shrink-0" />
+                              <span>Passeios de quadriciclos</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Check className="w-4 h-4 text-amber-400 shrink-0" />
+                              <span>Restaurante</span>
                             </div>
                           </div>
                         </div>
@@ -852,11 +1128,15 @@ export function BookingSection() {
                             </div>
                             <div className="flex items-center gap-2">
                               <Check className="w-4 h-4 text-amber-400 shrink-0" />
-                              <span>Café da manhã incluso servido até as 09h</span>
+                              <span>Café da manhã: sexta a domingo, das 7h às 9h.</span>
                             </div>
                             <div className="flex items-center gap-2">
                               <Check className="w-4 h-4 text-amber-400 shrink-0" />
-                              <span>Check-in a partir das 14h (Quintas em combos às 09h) • Check-out às 12h</span>
+                              <span>Check-in a partir das 15h Check-out às 12h</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Check className="w-4 h-4 text-amber-400 shrink-0" />
+                              <span className="text-amber-300 font-black">Desconto de 10% nos combos</span>
                             </div>
                           </div>
                         </div>
@@ -892,11 +1172,15 @@ export function BookingSection() {
                             </div>
                             <div className="flex items-center gap-2">
                               <Check className="w-4 h-4 text-amber-400 shrink-0" />
+                              <span>Gratuidades para crianças e idosos</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Check className="w-4 h-4 text-amber-400 shrink-0" />
                               <span>Entradas no Balneário Inclusas</span>
                             </div>
                             <div className="flex items-center gap-2">
                               <Check className="w-4 h-4 text-amber-400 shrink-0" />
-                              <span>Estrutura com banheiros e duchas quentes</span>
+                              <span>Estrutura com banheiros e tomadas a partir das 19h</span>
                             </div>
                           </div>
                         </div>
@@ -928,6 +1212,9 @@ export function BookingSection() {
                     exit={{ opacity: 0, x: -20 }}
                     className="space-y-8"
                   >
+                    {/* BARRA DE VOLTAR E INDICADOR NO TOPO DAS ETAPAS */}
+                    {renderStepNavigation('top')}
+
                     {/* SE DAY USE */}
                     {modalidade === 'dayuse' && (
                       <div className="space-y-8">
@@ -960,20 +1247,7 @@ export function BookingSection() {
                               blockedDates={blockedDates}
                             />
 
-                            <div className="pt-6 flex flex-col sm:flex-row justify-between items-center gap-3">
-                              <Button variant="ghost" onClick={() => handleRequestSwitch('hospedagem')} className="font-bold text-muted-foreground">
-                                <RefreshCw className="w-4 h-4 mr-2" /> Trocar para Hospedagem
-                              </Button>
-                              <div className="flex gap-2 w-full sm:w-auto">
-                                <Button 
-                                  size="lg"
-                                  onClick={() => setDayUseTab('quiosques')}
-                                  className="w-full sm:w-auto bg-primary hover:bg-primary-dark text-white font-black h-14 px-8 rounded-2xl shadow-lg"
-                                >
-                                  Próximo: Quiosques <ArrowRight className="ml-2 h-4 w-4" />
-                                </Button>
-                              </div>
-                            </div>
+                            {renderStepNavigation('bottom')}
                           </div>
                         )}
 
@@ -993,20 +1267,7 @@ export function BookingSection() {
 
                             <KioskSelector kiosks={booking.kiosks} onUpdate={updateKiosk} />
 
-                            <div className="pt-6 flex flex-col sm:flex-row justify-between items-center gap-3">
-                              <Button variant="ghost" onClick={() => setDayUseTab('entradas')} className="font-bold text-muted-foreground">
-                                <ArrowLeft className="w-4 h-4 mr-2" /> Voltar para Entradas
-                              </Button>
-                              <div className="flex gap-2 w-full sm:w-auto">
-                                <Button 
-                                  size="lg"
-                                  onClick={() => setDayUseTab('quads')}
-                                  className="w-full sm:w-auto bg-primary hover:bg-primary-dark text-white font-black h-14 px-8 rounded-2xl shadow-lg"
-                                >
-                                  Próximo: Quadriciclos <ArrowRight className="ml-2 h-4 w-4" />
-                                </Button>
-                              </div>
-                            </div>
+                            {renderStepNavigation('bottom')}
                           </div>
                         )}
 
@@ -1014,20 +1275,7 @@ export function BookingSection() {
                           <div className="space-y-6">
                             <QuadSelector quads={booking.quads} selectedDate={booking.entry.visitDate} onUpdate={updateQuad} onSetQuads={setQuads} onAddQuad={addQuad} onRemoveQuad={removeQuad} />
 
-                            <div className="pt-6 flex flex-col sm:flex-row justify-between items-center gap-3">
-                              <Button variant="ghost" onClick={() => setDayUseTab('quiosques')} className="font-bold text-muted-foreground">
-                                <ArrowLeft className="w-4 h-4 mr-2" /> Voltar para Quiosques
-                              </Button>
-                              <div className="flex gap-2 w-full sm:w-auto">
-                                <Button 
-                                  size="lg"
-                                  onClick={() => setDayUseTab('diversoes')}
-                                  className="w-full sm:w-auto bg-primary hover:bg-primary-dark text-white font-black h-14 px-8 rounded-2xl shadow-lg"
-                                >
-                                  Próximo: Diversões <ArrowRight className="ml-2 h-4 w-4" />
-                                </Button>
-                              </div>
-                            </div>
+                            {renderStepNavigation('bottom')}
                           </div>
                         )}
 
@@ -1062,18 +1310,7 @@ export function BookingSection() {
                               />
                             </div>
 
-                            <div className="pt-6 flex flex-col sm:flex-row justify-between items-center gap-3">
-                              <Button variant="ghost" onClick={() => setDayUseTab('quads')} className="font-bold text-muted-foreground">
-                                <ArrowLeft className="w-4 h-4 mr-2" /> Voltar para Quadriciclos
-                              </Button>
-                              <Button 
-                                size="lg"
-                                onClick={handleGoToSummary}
-                                className="w-full sm:w-auto bg-primary hover:bg-primary-dark text-white font-black h-16 px-10 rounded-2xl shadow-lg"
-                              >
-                                Ver Resumo e Finalizar <ArrowRight className="ml-2 h-5 w-5" />
-                              </Button>
-                            </div>
+                            {renderStepNavigation('bottom')}
                           </div>
                         )}
                       </div>
@@ -1091,23 +1328,7 @@ export function BookingSection() {
                               onUpdateVisitDate={(date) => updateEntry({ visitDate: date })}
                             />
 
-                            <div className="pt-6 flex flex-col sm:flex-row justify-between items-center gap-3">
-                              <Button variant="ghost" onClick={() => handleRequestSwitch('dayuse')} className="font-bold text-muted-foreground">
-                                <RefreshCw className="w-4 h-4 mr-2" /> Trocar para Day Use
-                              </Button>
-                              <div className="flex gap-2 w-full sm:w-auto">
-                                <Button 
-                                  size="lg"
-                                  onClick={() => {
-                                    if (!validateHospedagemGuests()) return;
-                                    setHospedagemTab('quiosques');
-                                  }}
-                                  className="w-full sm:w-auto bg-amber-400 hover:bg-amber-500 text-slate-950 font-black h-14 px-8 rounded-2xl shadow-lg"
-                                >
-                                  Próximo: Quiosques (Opcional) <ArrowRight className="ml-2 h-4 w-4" />
-                                </Button>
-                              </div>
-                            </div>
+                            {renderStepNavigation('bottom')}
                           </div>
                         )}
 
@@ -1132,20 +1353,7 @@ export function BookingSection() {
 
                             <KioskSelector kiosks={booking.kiosks} onUpdate={updateKiosk} />
 
-                            <div className="pt-6 flex flex-col sm:flex-row justify-between items-center gap-3">
-                              <Button variant="ghost" onClick={() => setHospedagemTab('chales')} className="font-bold text-muted-foreground">
-                                <ArrowLeft className="w-4 h-4 mr-2" /> Voltar para Chalés
-                              </Button>
-                              <div className="flex gap-2 w-full sm:w-auto">
-                                <Button 
-                                  size="lg"
-                                  onClick={() => setHospedagemTab('quads')}
-                                  className="w-full sm:w-auto bg-emerald-700 hover:bg-emerald-800 text-white font-black h-14 px-8 rounded-2xl shadow-lg"
-                                >
-                                  Próximo: Quadriciclos (Opcional) <ArrowRight className="ml-2 h-4 w-4" />
-                                </Button>
-                              </div>
-                            </div>
+                            {renderStepNavigation('bottom')}
                           </div>
                         )}
 
@@ -1161,20 +1369,7 @@ export function BookingSection() {
                             </div>
                             <QuadSelector quads={booking.quads} selectedDate={booking.chale.checkInDate || booking.entry.visitDate} onUpdate={updateQuad} onSetQuads={setQuads} onAddQuad={addQuad} onRemoveQuad={removeQuad} />
 
-                            <div className="pt-6 flex flex-col sm:flex-row justify-between items-center gap-3">
-                              <Button variant="ghost" onClick={() => setHospedagemTab('quiosques')} className="font-bold text-muted-foreground">
-                                <ArrowLeft className="w-4 h-4 mr-2" /> Voltar para Quiosques
-                              </Button>
-                              <div className="flex gap-2 w-full sm:w-auto">
-                                <Button 
-                                  size="lg"
-                                  onClick={() => setHospedagemTab('diversoes')}
-                                  className="w-full sm:w-auto bg-emerald-700 hover:bg-emerald-800 text-white font-black h-14 px-8 rounded-2xl shadow-lg"
-                                >
-                                  Próximo: Diversões (Opcional) <ArrowRight className="ml-2 h-4 w-4" />
-                                </Button>
-                              </div>
-                            </div>
+                            {renderStepNavigation('bottom')}
                           </div>
                         )}
 
@@ -1214,18 +1409,7 @@ export function BookingSection() {
                               />
                             </div>
 
-                            <div className="pt-6 flex flex-col sm:flex-row justify-between items-center gap-3">
-                              <Button variant="ghost" onClick={() => setHospedagemTab('quads')} className="font-bold text-muted-foreground">
-                                <ArrowLeft className="w-4 h-4 mr-2" /> Voltar para Quadriciclos
-                              </Button>
-                              <Button 
-                                size="lg"
-                                onClick={handleGoToSummary}
-                                className="w-full sm:w-auto bg-emerald-700 hover:bg-emerald-800 text-white font-black h-16 px-10 rounded-2xl shadow-lg"
-                              >
-                                Ver Resumo e Finalizar <ArrowRight className="ml-2 h-5 w-5" />
-                              </Button>
-                            </div>
+                            {renderStepNavigation('bottom')}
                           </div>
                         )}
                       </div>
@@ -1241,20 +1425,7 @@ export function BookingSection() {
                               onUpdate={updateCamping}
                             />
 
-                            <div className="pt-6 flex flex-col sm:flex-row justify-between items-center gap-3">
-                              <Button variant="ghost" onClick={() => handleRequestSwitch('dayuse')} className="font-bold text-muted-foreground">
-                                <RefreshCw className="w-4 h-4 mr-2" /> Trocar para Day Use
-                              </Button>
-                              <div className="flex gap-2 w-full sm:w-auto">
-                                <Button 
-                                  size="lg"
-                                  onClick={() => setCampingTab('quiosques')}
-                                  className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-black h-14 px-8 rounded-2xl shadow-lg"
-                                >
-                                  Próximo: Quiosques <ArrowRight className="ml-2 h-4 w-4" />
-                                </Button>
-                              </div>
-                            </div>
+                            {renderStepNavigation('bottom')}
                           </div>
                         )}
 
@@ -1274,20 +1445,7 @@ export function BookingSection() {
 
                             <KioskSelector kiosks={booking.kiosks} onUpdate={updateKiosk} />
 
-                            <div className="pt-6 flex flex-col sm:flex-row justify-between items-center gap-3">
-                              <Button variant="ghost" onClick={() => setCampingTab('camping')} className="font-bold text-muted-foreground">
-                                <ArrowLeft className="w-4 h-4 mr-2" /> Voltar para Camping
-                              </Button>
-                              <div className="flex gap-2 w-full sm:w-auto">
-                                <Button 
-                                  size="lg"
-                                  onClick={() => setCampingTab('quads')}
-                                  className="w-full sm:w-auto bg-emerald-700 hover:bg-emerald-800 text-white font-black h-14 px-8 rounded-2xl shadow-lg"
-                                >
-                                  Próximo: Quadriciclos <ArrowRight className="ml-2 h-4 w-4" />
-                                </Button>
-                              </div>
-                            </div>
+                            {renderStepNavigation('bottom')}
                           </div>
                         )}
 
@@ -1295,20 +1453,7 @@ export function BookingSection() {
                           <div className="space-y-6">
                             <QuadSelector quads={booking.quads} selectedDate={booking.camping.date || booking.entry.visitDate} onUpdate={updateQuad} onSetQuads={setQuads} onAddQuad={addQuad} onRemoveQuad={removeQuad} />
 
-                            <div className="pt-6 flex flex-col sm:flex-row justify-between items-center gap-3">
-                              <Button variant="ghost" onClick={() => setCampingTab('quiosques')} className="font-bold text-muted-foreground">
-                                <ArrowLeft className="w-4 h-4 mr-2" /> Voltar para Quiosques
-                              </Button>
-                              <div className="flex gap-2 w-full sm:w-auto">
-                                <Button 
-                                  size="lg"
-                                  onClick={() => setCampingTab('diversoes')}
-                                  className="w-full sm:w-auto bg-emerald-700 hover:bg-emerald-800 text-white font-black h-14 px-8 rounded-2xl shadow-lg"
-                                >
-                                  Próximo: Diversões <ArrowRight className="ml-2 h-4 w-4" />
-                                </Button>
-                              </div>
-                            </div>
+                            {renderStepNavigation('bottom')}
                           </div>
                         )}
 
@@ -1343,18 +1488,7 @@ export function BookingSection() {
                               />
                             </div>
 
-                            <div className="pt-6 flex flex-col sm:flex-row justify-between items-center gap-3">
-                              <Button variant="ghost" onClick={() => setCampingTab('quads')} className="font-bold text-muted-foreground">
-                                <ArrowLeft className="w-4 h-4 mr-2" /> Voltar para Quadriciclos
-                              </Button>
-                              <Button 
-                                size="lg"
-                                onClick={handleGoToSummary}
-                                className="w-full sm:w-auto bg-emerald-700 hover:bg-emerald-800 text-white font-black h-16 px-10 rounded-2xl shadow-lg"
-                              >
-                                Ver Resumo e Finalizar <ArrowRight className="ml-2 h-5 w-5" />
-                              </Button>
-                            </div>
+                            {renderStepNavigation('bottom')}
                           </div>
                         )}
                       </div>
