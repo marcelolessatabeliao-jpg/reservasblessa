@@ -1,151 +1,6 @@
-import React from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { ShieldCheck, FileText, Printer, CheckCircle2, Clock, User, Hash } from 'lucide-react';
-
-export const CHALE_TERMS_VERSION = 'v1.0-2026-11';
-
-export interface ChaleTermsAcceptanceRecord {
-  accepted: boolean;
-  acceptedAtIso: string;
-  acceptedAtFormatted: string;
-  termsVersion: string;
-  guestName: string;
-  guestCpf?: string;
-  guestPhone?: string;
-  reservationCode?: string;
-  orderId?: string;
-  technicalLog: {
-    userAgent: string;
-    language: string;
-    timezone: string;
-    screenResolution: string;
-    origin: string;
-    consentHash: string;
-  };
-}
-
-export function buildChaleTermsAcceptanceRecord(params: {
-  guestName: string;
-  guestCpf?: string;
-  guestPhone?: string;
-  reservationCode?: string;
-  orderId?: string;
-  acceptedAt?: Date;
-}): ChaleTermsAcceptanceRecord {
-  const now = params.acceptedAt || new Date();
-  const iso = now.toISOString();
-  const formatted = now.toLocaleString('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  });
-
-  const rawSignature = `${params.guestName}|${params.guestCpf || ''}|${iso}|${CHALE_TERMS_VERSION}`;
-  let hash = 0;
-  for (let i = 0; i < rawSignature.length; i++) {
-    hash = (hash << 5) - hash + rawSignature.charCodeAt(i);
-    hash |= 0;
-  }
-  const consentHash = `BL-TERMS-${Math.abs(hash).toString(16).toUpperCase().padStart(8, '0')}`;
-
-  return {
-    accepted: true,
-    acceptedAtIso: iso,
-    acceptedAtFormatted: formatted,
-    termsVersion: CHALE_TERMS_VERSION,
-    guestName: params.guestName,
-    guestCpf: params.guestCpf || '',
-    guestPhone: params.guestPhone || '',
-    reservationCode: params.reservationCode || '',
-    orderId: params.orderId || '',
-    technicalLog: {
-      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'Web Client',
-      language: typeof navigator !== 'undefined' ? navigator.language : 'pt-BR',
-      timezone: typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'America/Porto_Velho',
-      screenResolution: typeof window !== 'undefined' ? `${window.screen.width}x${window.screen.height}` : 'unknown',
-      origin: typeof window !== 'undefined' ? window.location.origin : 'https://reservas.balneariolessa.com.br',
-      consentHash,
-    },
-  };
-}
-
-interface ChaleTermsModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onAccept?: () => void;
-  acceptanceRecord?: ChaleTermsAcceptanceRecord | null;
-}
-
-export function ChaleTermsModal({
-  open,
-  onOpenChange,
-  onAccept,
-  acceptanceRecord,
-}: ChaleTermsModalProps) {
-  const handlePrintTerms = () => {
-    window.print();
-  };
-
+export function ChaleTermsFullContent() {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl w-[calc(100vw-24px)] max-h-[90vh] overflow-y-auto rounded-3xl p-5 sm:p-8 bg-white border-2 border-emerald-300 shadow-2xl">
-        <DialogHeader className="space-y-2 pb-4 border-b border-emerald-100">
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest bg-emerald-950 text-amber-400 px-3 py-1 rounded-full border border-amber-400">
-              <FileText className="w-3.5 h-3.5" /> Versão Oficial {CHALE_TERMS_VERSION}
-            </span>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handlePrintTerms}
-              className="h-8 px-3 rounded-xl text-xs font-bold border-emerald-300 text-emerald-900 hover:bg-emerald-50 flex items-center gap-1.5"
-            >
-              <Printer className="w-3.5 h-3.5" /> Imprimir / Salvar PDF
-            </Button>
-          </div>
-          <DialogTitle className="text-xl sm:text-2xl font-black text-emerald-950 tracking-tight">
-            Termos e Condições de Hospedagem — Balneário Lessa
-          </DialogTitle>
-          <DialogDescription className="text-xs sm:text-sm text-slate-700 font-medium leading-relaxed">
-            <strong>Leia atentamente antes de confirmar sua reserva.</strong> Ao marcar a opção de aceite e concluir o pagamento, você concorda com as condições de hospedagem descritas abaixo, sem prejuízo dos direitos garantidos pela legislação brasileira.
-          </DialogDescription>
-        </DialogHeader>
-
-        {/* Se já houver registro de aceite, mostra o Comprovante Técnico */}
-        {acceptanceRecord && (
-          <div className="my-3 bg-emerald-50 border-2 border-emerald-400 rounded-2xl p-4 space-y-2 shadow-xs">
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <span className="text-xs font-black uppercase tracking-wider text-emerald-950 flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-emerald-700" />
-                Comprovante de Aceite Eletrônico Registrado
-              </span>
-              <span className="text-[10px] font-black bg-emerald-700 text-white px-2.5 py-0.5 rounded-full uppercase">
-                {acceptanceRecord.technicalLog?.consentHash || CHALE_TERMS_VERSION}
-              </span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] text-emerald-950 font-medium pt-1 border-t border-emerald-200/70">
-              <div className="flex items-center gap-1.5">
-                <User className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                <span><strong>Hóspede:</strong> {acceptanceRecord.guestName}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                <span><strong>Data/Hora:</strong> {acceptanceRecord.acceptedAtFormatted}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Hash className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                <span><strong>Versão:</strong> {acceptanceRecord.termsVersion}</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="space-y-5 py-3 text-xs sm:text-sm text-slate-800 leading-relaxed">
+    <div className="space-y-5 py-3 text-xs sm:text-sm text-slate-800 leading-relaxed">
           <section className="space-y-1.5">
             <h3 className="font-black text-emerald-950 text-sm sm:text-base uppercase tracking-tight">
               1. Sobre os chalés
@@ -353,6 +208,157 @@ export function ChaleTermsModal({
             </p>
           </section>
         </div>
+  );
+}
+
+import React from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { ShieldCheck, FileText, Printer, CheckCircle2, Clock, User, Hash } from 'lucide-react';
+
+export const CHALE_TERMS_VERSION = 'v1.0-2026-11';
+
+export interface ChaleTermsAcceptanceRecord {
+  accepted: boolean;
+  acceptedAtIso: string;
+  acceptedAtFormatted: string;
+  termsVersion: string;
+  guestName: string;
+  guestCpf?: string;
+  guestPhone?: string;
+  reservationCode?: string;
+  orderId?: string;
+  technicalLog: {
+    userAgent: string;
+    language: string;
+    timezone: string;
+    screenResolution: string;
+    origin: string;
+    consentHash: string;
+  };
+}
+
+export function buildChaleTermsAcceptanceRecord(params: {
+  guestName: string;
+  guestCpf?: string;
+  guestPhone?: string;
+  reservationCode?: string;
+  orderId?: string;
+  acceptedAt?: Date;
+}): ChaleTermsAcceptanceRecord {
+  const now = params.acceptedAt || new Date();
+  const iso = now.toISOString();
+  const formatted = now.toLocaleString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+
+  const rawSignature = `${params.guestName}|${params.guestCpf || ''}|${iso}|${CHALE_TERMS_VERSION}`;
+  let hash = 0;
+  for (let i = 0; i < rawSignature.length; i++) {
+    hash = (hash << 5) - hash + rawSignature.charCodeAt(i);
+    hash |= 0;
+  }
+  const consentHash = `BL-TERMS-${Math.abs(hash).toString(16).toUpperCase().padStart(8, '0')}`;
+
+  return {
+    accepted: true,
+    acceptedAtIso: iso,
+    acceptedAtFormatted: formatted,
+    termsVersion: CHALE_TERMS_VERSION,
+    guestName: params.guestName,
+    guestCpf: params.guestCpf || '',
+    guestPhone: params.guestPhone || '',
+    reservationCode: params.reservationCode || '',
+    orderId: params.orderId || '',
+    technicalLog: {
+      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'Web Client',
+      language: typeof navigator !== 'undefined' ? navigator.language : 'pt-BR',
+      timezone: typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'America/Porto_Velho',
+      screenResolution: typeof window !== 'undefined' ? `${window.screen.width}x${window.screen.height}` : 'unknown',
+      origin: typeof window !== 'undefined' ? window.location.origin : 'https://reservas.balneariolessa.com.br',
+      consentHash,
+    },
+  };
+}
+
+interface ChaleTermsModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onAccept?: () => void;
+  acceptanceRecord?: ChaleTermsAcceptanceRecord | null;
+}
+
+export function ChaleTermsModal({
+  open,
+  onOpenChange,
+  onAccept,
+  acceptanceRecord,
+}: ChaleTermsModalProps) {
+  const handlePrintTerms = () => {
+    window.print();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl w-[calc(100vw-24px)] max-h-[90vh] overflow-y-auto rounded-3xl p-5 sm:p-8 bg-white border-2 border-emerald-300 shadow-2xl">
+        <DialogHeader className="space-y-2 pb-4 border-b border-emerald-100">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest bg-emerald-950 text-amber-400 px-3 py-1 rounded-full border border-amber-400">
+              <FileText className="w-3.5 h-3.5" /> Versão Oficial {CHALE_TERMS_VERSION}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handlePrintTerms}
+              className="h-8 px-3 rounded-xl text-xs font-bold border-emerald-300 text-emerald-900 hover:bg-emerald-50 flex items-center gap-1.5"
+            >
+              <Printer className="w-3.5 h-3.5" /> Imprimir / Salvar PDF
+            </Button>
+          </div>
+          <DialogTitle className="text-xl sm:text-2xl font-black text-emerald-950 tracking-tight">
+            Termos e Condições de Hospedagem — Balneário Lessa
+          </DialogTitle>
+          <DialogDescription className="text-xs sm:text-sm text-slate-700 font-medium leading-relaxed">
+            <strong>Leia atentamente antes de confirmar sua reserva.</strong> Ao marcar a opção de aceite e concluir o pagamento, você concorda com as condições de hospedagem descritas abaixo, sem prejuízo dos direitos garantidos pela legislação brasileira.
+          </DialogDescription>
+        </DialogHeader>
+
+        {/* Se já houver registro de aceite, mostra o Comprovante Técnico */}
+        {acceptanceRecord && (
+          <div className="my-3 bg-emerald-50 border-2 border-emerald-400 rounded-2xl p-4 space-y-2 shadow-xs">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <span className="text-xs font-black uppercase tracking-wider text-emerald-950 flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-emerald-700" />
+                Comprovante de Aceite Eletrônico Registrado
+              </span>
+              <span className="text-[10px] font-black bg-emerald-700 text-white px-2.5 py-0.5 rounded-full uppercase">
+                {acceptanceRecord.technicalLog?.consentHash || CHALE_TERMS_VERSION}
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] text-emerald-950 font-medium pt-1 border-t border-emerald-200/70">
+              <div className="flex items-center gap-1.5">
+                <User className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                <span><strong>Hóspede:</strong> {acceptanceRecord.guestName}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                <span><strong>Data/Hora:</strong> {acceptanceRecord.acceptedAtFormatted}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Hash className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                <span><strong>Versão:</strong> {acceptanceRecord.termsVersion}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <ChaleTermsFullContent />
 
         <DialogFooter className="flex flex-col sm:flex-row gap-2 pt-4 border-t border-emerald-100">
           <Button

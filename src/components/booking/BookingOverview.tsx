@@ -172,7 +172,8 @@ export function BookingOverview({
     }
 
     const hasSelectedChale = (booking.chale?.chaleIds && booking.chale.chaleIds.length > 0) || !!booking.chale?.chaleId;
-    if (booking.chale && booking.chale.packageType && hasSelectedChale && !chaleTermsAccepted) {
+    const isTermsSigned = Boolean(booking.chale?.termsAccepted || chaleTermsAccepted);
+    if (booking.chale && booking.chale.packageType && hasSelectedChale && !isTermsSigned) {
       setTermsErrorHighlight(true);
       toast({
         title: 'Aceite dos Termos Obrigatório',
@@ -1194,86 +1195,20 @@ export function BookingOverview({
                   );
                 })()}
 
-                {/* CAIXA DE ACEITE DOS TERMOS DE HOSPEDAGEM (Exibida quando há Chalé selecionado) */}
+                {/* CONFIRMAÇÃO DO ACEITE DOS TERMOS (Assinado na etapa de chalé) */}
                 {hasSelectedChaleBooking && (
-                  <div
-                    id="chale-terms-box"
-                    className={cn(
-                      "rounded-2xl p-4 sm:p-5 bg-gradient-to-br from-slate-950 via-[#041f12] to-slate-950 text-white border-2 transition-all shadow-xl space-y-3",
-                      termsErrorHighlight && !chaleTermsAccepted
-                        ? "border-rose-500 ring-4 ring-rose-500/25"
-                        : chaleTermsAccepted
-                        ? "border-amber-400 ring-2 ring-amber-400/20"
-                        : "border-emerald-700/80"
-                    )}
-                  >
-                    <div className="flex items-center justify-between gap-2 flex-wrap border-b border-white/15 pb-2.5">
-                      <span className="text-xs sm:text-sm font-black text-white flex items-center gap-2">
-                        <CheckCircle className="w-4 h-4 text-amber-400 shrink-0" />
-                        Confirmação da reserva
+                  <div className="rounded-2xl p-3.5 sm:p-4 bg-emerald-950/90 text-white border-2 border-amber-400 flex items-center justify-between gap-2 shadow-md flex-wrap">
+                    <div className="flex items-center gap-2 text-xs">
+                      <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0" />
+                      <span className="font-bold text-emerald-100">
+                        {booking.chale?.termsAccepted 
+                          ? `Termos de Hospedagem assinados na etapa de chalé (${CHALE_TERMS_VERSION})`
+                          : 'Termos de Hospedagem: Aceite pendente na etapa de seleção do chalé'}
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => setIsTermsModalOpen(true)}
-                        className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider bg-amber-400 hover:bg-amber-300 text-slate-950 px-3 py-1 rounded-full transition-all cursor-pointer shadow-xs"
-                      >
-                        <FileText className="w-3.5 h-3.5" />
-                        Ler Termos Completos
-                      </button>
                     </div>
-
-                    <label className="flex items-start gap-3 cursor-pointer select-none group">
-                      <input
-                        type="checkbox"
-                        checked={chaleTermsAccepted}
-                        onChange={(e) => {
-                          const checked = e.target.checked;
-                          setChaleTermsAccepted(checked);
-                          if (checked) {
-                            setChaleTermsAcceptedAt(new Date());
-                            setTermsErrorHighlight(false);
-                          } else {
-                            setChaleTermsAcceptedAt(null);
-                          }
-                        }}
-                        className="mt-1 w-5 h-5 rounded-md border-2 border-amber-400 accent-amber-400 cursor-pointer shrink-0"
-                      />
-                      <div className="space-y-1.5 text-xs sm:text-sm leading-relaxed">
-                        <p className="font-bold text-white group-hover:text-amber-200 transition-colors">
-                          Li e aceito os{' '}
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              setIsTermsModalOpen(true);
-                            }}
-                            className="font-black text-amber-300 underline underline-offset-2 hover:text-amber-200"
-                          >
-                            Termos de Hospedagem e Condições Gerais do Balneário Lessa
-                          </button>
-                          .
-                        </p>
-                        <p className="text-[11px] sm:text-xs text-emerald-100/90 font-medium leading-relaxed">
-                          Declaro estar ciente dos horários de check-in e check-out, das regras de hospedagem e utilização do day use, dos adicionais para crianças e da política de cancelamento, incluindo o direito de arrependimento de 7 dias nas contratações online e a previsão de retenção de 30% após esse prazo, respeitada a legislação aplicável.
-                        </p>
-                      </div>
-                    </label>
-
-                    {chaleTermsAccepted && chaleTermsAcceptedAt && (
-                      <div className="pt-2 border-t border-white/10 flex items-center justify-between gap-2 text-[10px] text-emerald-300 font-bold">
-                        <span className="flex items-center gap-1">
-                          <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
-                          Aceite registrado em {chaleTermsAcceptedAt.toLocaleString('pt-BR')} • Versão {CHALE_TERMS_VERSION}
-                        </span>
-                        <span className="text-amber-300 uppercase font-black">Liberado p/ Pagamento ✓</span>
-                      </div>
-                    )}
-
-                    {!chaleTermsAccepted && (
-                      <div className="pt-2 border-t border-white/10 text-[11px] text-amber-300/95 font-bold flex items-center gap-1.5">
-                        <span>☝️ Marque a caixa acima para liberar os botões de pagamento.</span>
-                      </div>
-                    )}
+                    <Badge className={cn("text-[10px] font-black uppercase px-2.5 py-0.5", booking.chale?.termsAccepted ? "bg-amber-400 text-slate-950" : "bg-red-500 text-white")}>
+                      {booking.chale?.termsAccepted ? 'Aceite Registrado ✓' : 'Pendente na Etapa 1'}
+                    </Badge>
                   </div>
                 )}
 

@@ -93,6 +93,9 @@ export interface ChaleBooking {
   checkOutDate: Date | null;
   stayOption?: 'sex-sab' | 'sab-dom' | 'sex-dom' | null;
   includeSundayDayUse?: boolean; // Se inclui permanência no parque no domingo até 17h
+  termsAccepted?: boolean; // Aceite eletrônico dos Termos de Hospedagem
+  termsAcceptedAt?: string | null; // Data e horário ISO do aceite
+  termsVersion?: string; // Versão dos termos aceitos (ex: v1.0-2026-11)
   notes?: string;
 }
 

@@ -1,3 +1,5 @@
+import { ChaleTermsModal, ChaleTermsFullContent, CHALE_TERMS_VERSION } from './ChaleTermsModal';
+import { CheckCircle, FileText, Printer, ShieldCheck } from 'lucide-react';
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Home, 
@@ -115,6 +117,8 @@ function ChaleSelectorInner({
   const [isCheckInCalendarOpen, setIsCheckInCalendarOpen] = useState<boolean>(false);
   const [isCheckOutCalendarOpen, setIsCheckOutCalendarOpen] = useState<boolean>(false);
   const [shortcutCategory, setShortcutCategory] = useState<'combos' | 'diarias' | null>(null);
+  const [isTermsExpanded, setIsTermsExpanded] = useState<boolean>(false);
+  const [isTermsModalOpen, setIsTermsModalOpen] = useState<boolean>(false);
 
   // Data âncora inicial (Hospedagem liberada a partir de 12/11/2026)
   const anchorDate = useMemo(() => {
@@ -1826,6 +1830,122 @@ function ChaleSelectorInner({
             )}
           </div>
         </div>
+
+        {/* ROW 6: CAIXA DE ASSINATURA DOS TERMOS DE HOSPEDAGEM (Abaixo do Resumo da Hospedagem Selecionada) */}
+        <div
+          id="chale-terms-box"
+          className={cn(
+            "rounded-3xl p-5 sm:p-6 bg-gradient-to-br from-slate-950 via-[#041f12] to-slate-950 text-white border-2 transition-all shadow-xl space-y-4",
+            chale.termsAccepted
+              ? "border-amber-400 ring-2 ring-amber-400/20"
+              : "border-emerald-600"
+          )}
+        >
+          {/* TOPO: Confirmação da Reserva + Botão para Expandir / Ler Termos */}
+          <div className="flex items-center justify-between gap-2 flex-wrap border-b border-white/15 pb-3">
+            <span className="text-xs sm:text-sm font-black text-white flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-amber-400 shrink-0" />
+              Confirmação da reserva
+            </span>
+            <button
+              type="button"
+              onClick={() => setIsTermsExpanded(prev => !prev)}
+              className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider bg-amber-400 hover:bg-amber-300 text-slate-950 px-3.5 py-1.5 rounded-full transition-all cursor-pointer shadow-xs"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              {isTermsExpanded ? 'Ocultar Termos Completos' : 'Ler Termos Completos'}
+            </button>
+          </div>
+
+          {/* CHECKBOX E DECLARAÇÃO LEGAL */}
+          <label className="flex items-start gap-3 cursor-pointer select-none group">
+            <input
+              type="checkbox"
+              checked={Boolean(chale.termsAccepted)}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                onUpdate({
+                  termsAccepted: checked,
+                  termsAcceptedAt: checked ? new Date().toISOString() : null,
+                  termsVersion: CHALE_TERMS_VERSION
+                });
+              }}
+              className="mt-1 w-5 h-5 rounded-md border-2 border-amber-400 accent-amber-400 cursor-pointer shrink-0"
+            />
+            <div className="space-y-1.5 text-xs sm:text-sm leading-relaxed">
+              <p className="font-bold text-white group-hover:text-amber-200 transition-colors">
+                Li e aceito os{' '}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setIsTermsExpanded(prev => !prev);
+                  }}
+                  className="font-black text-amber-300 underline underline-offset-2 hover:text-amber-200"
+                >
+                  Termos de Hospedagem e Condições Gerais do Balneário Lessa
+                </button>
+                .
+              </p>
+              <p className="text-[11px] sm:text-xs text-emerald-100/90 font-medium leading-relaxed">
+                Declaro estar ciente dos horários de check-in e check-out, das regras de hospedagem e utilização do day use, dos adicionais para crianças e da política de cancelamento, incluindo o direito de arrependimento de 7 dias nas contratações online e a previsão de retenção de 30% após esse prazo, respeitada a legislação aplicável.
+              </p>
+            </div>
+          </label>
+
+          {/* STATUS DE CONFIRMAÇÃO DO ACEITE */}
+          {chale.termsAccepted ? (
+            <div className="pt-2.5 border-t border-white/10 flex items-center justify-between gap-2 text-[10px] text-emerald-300 font-bold flex-wrap">
+              <span className="flex items-center gap-1.5">
+                <ShieldCheck className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                Aceite registrado em {chale.termsAcceptedAt ? new Date(chale.termsAcceptedAt).toLocaleString('pt-BR') : new Date().toLocaleString('pt-BR')} • Versão {CHALE_TERMS_VERSION}
+              </span>
+              <span className="text-amber-300 uppercase font-black tracking-wider">
+                LIBERADO P/ PAGAMENTO ✓
+              </span>
+            </div>
+          ) : (
+            <div className="pt-2 border-t border-white/10 text-[11px] text-amber-300/95 font-bold flex items-center gap-1.5">
+              <span>☝️ Marque a caixa acima para registrar seu aceite dos termos de hospedagem.</span>
+            </div>
+          )}
+
+          {/* ABA EXPANSÍVEL: LEIA O TERMO COMPLETO (VISUALIZAÇÃO COMPLETA DIRETO NA PÁGINA) */}
+          {isTermsExpanded && (
+            <div className="pt-3 border-t border-white/15 space-y-3 animate-in fade-in duration-300">
+              <div className="flex items-center justify-between gap-2 bg-emerald-950/80 p-2.5 rounded-xl border border-emerald-700/60 flex-wrap">
+                <span className="text-xs font-black uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
+                  <FileText className="w-4 h-4" />
+                  Regulamento Completo de Hospedagem ({CHALE_TERMS_VERSION})
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsTermsModalOpen(true)}
+                  className="text-[10px] font-bold text-white/90 hover:text-white underline underline-offset-2 flex items-center gap-1 cursor-pointer"
+                >
+                  <Printer className="w-3 h-3" /> Abrir em Janela / Imprimir
+                </button>
+              </div>
+
+              <div className="bg-white text-slate-900 rounded-2xl p-4 sm:p-5 border-2 border-emerald-300 max-h-96 overflow-y-auto shadow-inner text-xs sm:text-sm">
+                <ChaleTermsFullContent />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Modal complementar se quiser ver em tela cheia / imprimir */}
+        <ChaleTermsModal
+          open={isTermsModalOpen}
+          onOpenChange={setIsTermsModalOpen}
+          onAccept={() => {
+            onUpdate({
+              termsAccepted: true,
+              termsAcceptedAt: new Date().toISOString(),
+              termsVersion: CHALE_TERMS_VERSION
+            });
+          }}
+        />
 
       </div>
 
