@@ -241,8 +241,8 @@ export default function Consultar() {
     <div className="min-h-screen bg-gradient-to-br from-emerald-100/80 via-emerald-50 to-teal-100/80 bg-fixed">
       <Navbar />
 
-      <main className="max-w-4xl mx-auto px-4 pt-32 pb-20">
-        <div className="mb-8 flex justify-center sm:justify-start">
+      <main className="max-w-4xl mx-auto px-3 sm:px-4 pt-24 sm:pt-32 pb-16 sm:pb-20">
+        <div className="mb-5 sm:mb-8 flex justify-center sm:justify-start">
           <Button
             variant="ghost"
             onClick={() => navigate('/')}
@@ -253,49 +253,49 @@ export default function Consultar() {
           </Button>
         </div>
 
-        <div className="text-center mb-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
-          <h1 className="text-4xl md:text-5xl font-black text-emerald-950 uppercase tracking-tighter mb-3">
+        <div className="text-center mb-6 sm:mb-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <h1 className="text-2xl sm:text-4xl md:text-5xl font-black text-emerald-950 uppercase tracking-tighter mb-2 sm:mb-3">
             Consultar <span className="text-emerald-600">Minha Reserva</span>
           </h1>
-          <p className="text-emerald-800/80 font-bold max-w-lg mx-auto">
+          <p className="text-emerald-800/80 text-xs sm:text-base font-bold max-w-lg mx-auto px-2">
             Acesse seu voucher digital de Day Use, Hospedagem em Chalés ou Camping informando o Código da Reserva, CPF ou Telefone.
           </p>
         </div>
 
-        <Card className="bg-white/80 backdrop-blur-xl border-2 border-emerald-200 shadow-2xl rounded-[2.5rem] overflow-hidden mb-10">
-          <CardContent className="p-6 sm:p-10 space-y-5">
-            <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4">
+        <Card className="bg-white/80 backdrop-blur-xl border-2 border-emerald-200 shadow-2xl rounded-3xl sm:rounded-[2.5rem] overflow-hidden mb-8 sm:mb-10">
+          <CardContent className="p-4 sm:p-10 space-y-4 sm:space-y-5">
+            <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-3 sm:gap-4">
               <div className="relative flex-1 group">
-                <div className="absolute left-5 top-1/2 -translate-y-1/2 text-emerald-700 group-focus-within:scale-110 transition-transform">
+                <div className="absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 text-emerald-700 group-focus-within:scale-110 transition-transform">
                   <User className="w-5 h-5" />
                 </div>
                 <Input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Digite seu Código (ex: CHA-8931), CPF ou Telefone"
-                  className="h-14 sm:h-16 pl-14 pr-6 rounded-2xl border-2 border-emerald-200 focus:border-emerald-600 bg-white text-base sm:text-lg font-bold shadow-sm transition-all"
+                  placeholder="Código (ex: CHA-8931), CPF ou Telefone"
+                  className="h-12 sm:h-16 pl-11 sm:pl-14 pr-4 sm:pr-6 rounded-2xl border-2 border-emerald-200 focus:border-emerald-600 bg-white text-sm sm:text-lg font-bold shadow-sm transition-all"
                 />
               </div>
               <Button
                 type="submit"
                 disabled={loading || !query}
-                className="h-14 sm:h-16 px-10 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-white font-black text-lg shadow-xl transition-all active:scale-95 cursor-pointer"
+                className="h-12 sm:h-16 px-8 sm:px-10 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-white font-black text-base sm:text-lg shadow-xl transition-all active:scale-95 cursor-pointer"
               >
-                {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Search className="w-6 h-6" />}
+                {loading ? <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin" /> : <Search className="w-5 h-5 sm:w-6 sm:h-6" />}
               </Button>
             </form>
 
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t border-emerald-100">
-              <p className="text-xs text-emerald-800 font-bold uppercase tracking-wider">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 sm:gap-3 pt-2 border-t border-emerald-100">
+              <p className="text-[11px] sm:text-xs text-emerald-800 font-bold uppercase tracking-wider text-center sm:text-left">
                 Consulte vouchers de Hospedagem, Day Use e Camping
               </p>
               <button
                 type="button"
                 onClick={handleLoadDemoHospedagem}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-950 via-[#042817] to-slate-950 hover:from-emerald-900 hover:to-emerald-950 text-amber-300 border-2 border-amber-400 font-black text-xs uppercase tracking-wider shadow-md transition-all cursor-pointer"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-950 via-[#042817] to-slate-950 hover:from-emerald-900 hover:to-emerald-950 text-amber-300 border-2 border-amber-400 font-black text-[11px] sm:text-xs uppercase tracking-wider shadow-md transition-all cursor-pointer text-center"
               >
-                <Home className="w-4 h-4 text-amber-400" />
-                Ver Reserva Fictícia de Hospedagem (CHA-8931)
+                <Home className="w-4 h-4 text-amber-400 shrink-0" />
+                <span>Ver Reserva Fictícia de Hospedagem (CHA-8931)</span>
               </button>
             </div>
           </CardContent>

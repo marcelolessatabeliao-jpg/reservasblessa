@@ -435,24 +435,24 @@ export function BookingSection() {
           <button
             type="button"
             onClick={handlePrev}
-            className="inline-flex items-center justify-center rounded-xl border-2 border-emerald-300 bg-white hover:bg-emerald-950 text-emerald-950 hover:text-amber-300 hover:border-emerald-950 font-black text-xs px-4 h-9 shadow-xs transition-all cursor-pointer"
+            className="inline-flex items-center justify-center rounded-xl border-2 border-emerald-300 bg-white hover:bg-emerald-950 text-emerald-950 hover:text-amber-300 hover:border-emerald-950 font-black text-[11px] sm:text-xs px-3 sm:px-4 h-8 sm:h-9 shadow-xs transition-all cursor-pointer shrink-0"
           >
-            <ArrowLeft className="w-4 h-4 mr-1.5" />
+            <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" />
             Voltar
           </button>
 
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-black uppercase tracking-wider text-emerald-950 bg-amber-100 border border-amber-300 px-3 py-1 rounded-xl shadow-2xs">
-              📍 Etapa {activeIndex + 1} de 4: {stepsList[activeIndex].label}
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap justify-end">
+            <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-emerald-950 bg-amber-100 border border-amber-300 px-2.5 sm:px-3 py-1 rounded-xl shadow-2xs whitespace-nowrap">
+              📍 Etapa {activeIndex + 1}/4: {stepsList[activeIndex].label}
             </span>
             {nextStep && (
               <button
                 type="button"
                 onClick={handleNext}
-                className="inline-flex items-center justify-center rounded-xl bg-emerald-800 hover:bg-emerald-950 text-white hover:text-amber-300 font-black text-xs px-3.5 h-9 shadow-xs transition-all cursor-pointer"
+                className="inline-flex items-center justify-center rounded-xl bg-emerald-800 hover:bg-emerald-950 text-white hover:text-amber-300 font-black text-[11px] sm:text-xs px-2.5 sm:px-3.5 h-8 sm:h-9 shadow-xs transition-all cursor-pointer whitespace-nowrap"
               >
                 Próximo: {nextStep.label}
-                <ArrowRight className="w-3.5 h-3.5 ml-1.5 text-amber-300" />
+                <ArrowRight className="w-3.5 h-3.5 ml-1 text-amber-300" />
               </button>
             )}
           </div>
@@ -461,30 +461,30 @@ export function BookingSection() {
     }
 
     const getStepIcon = (stepId: string) => {
-      if (stepId === 'entradas') return <Ticket className="w-3.5 h-3.5" />;
-      if (stepId === 'chales') return <Crown className="w-3.5 h-3.5" />;
-      if (stepId === 'camping') return <Tent className="w-3.5 h-3.5" />;
-      if (stepId === 'quiosques') return <Home className="w-3.5 h-3.5" />;
-      if (stepId === 'quads') return <Bike className="w-3.5 h-3.5" />;
-      if (stepId === 'diversoes') return <Fish className="w-3.5 h-3.5" />;
-      return <ClipboardList className="w-3.5 h-3.5" />;
+      if (stepId === 'entradas') return <Ticket className="w-3.5 h-3.5 shrink-0" />;
+      if (stepId === 'chales') return <Crown className="w-3.5 h-3.5 shrink-0" />;
+      if (stepId === 'camping') return <Tent className="w-3.5 h-3.5 shrink-0" />;
+      if (stepId === 'quiosques') return <Home className="w-3.5 h-3.5 shrink-0" />;
+      if (stepId === 'quads') return <Bike className="w-3.5 h-3.5 shrink-0" />;
+      if (stepId === 'diversoes') return <Fish className="w-3.5 h-3.5 shrink-0" />;
+      return <ClipboardList className="w-3.5 h-3.5 shrink-0" />;
     };
 
     return (
       <div className="pt-4 border-t border-emerald-100">
-        {/* Linha Única: Botão Voltar (esquerda) + 4 Etapas Compactas na Mesma Linha + Botão Próximo (direita) */}
-        <div className="flex flex-col md:flex-row items-center justify-between gap-2">
+        {/* Desktop: Voltar + 4 Etapas + Próximo na mesma linha | Mobile: Barra 4 Etapas + Linha Voltar/Próximo */}
+        <div className="flex flex-col md:flex-row items-center justify-between gap-2.5">
           <button
             type="button"
             onClick={handlePrev}
-            className="w-full md:w-auto inline-flex items-center justify-center rounded-xl border-2 border-emerald-300 bg-white hover:bg-emerald-950 text-emerald-950 hover:text-amber-300 hover:border-emerald-950 font-black text-xs h-9 px-3.5 shadow-xs transition-all cursor-pointer shrink-0 whitespace-nowrap"
+            className="hidden md:inline-flex items-center justify-center rounded-xl border-2 border-emerald-300 bg-white hover:bg-emerald-950 text-emerald-950 hover:text-amber-300 hover:border-emerald-950 font-black text-xs h-9 px-3.5 shadow-xs transition-all cursor-pointer shrink-0 whitespace-nowrap"
           >
             <ArrowLeft className="w-3.5 h-3.5 mr-1.5" />
             Voltar
           </button>
 
-          {/* Barra Compacta das 4 Etapas Fixa (sem barra de rolagem, todas em uma única linha) */}
-          <div className="inline-flex items-center justify-center flex-nowrap gap-1 bg-gradient-to-r from-emerald-950 via-[#042817] to-slate-950 px-2 py-1.5 rounded-xl border-2 border-amber-400/80 shadow-md">
+          {/* Barra Compacta das 4 Etapas Fixa (Grid 4 colunas no celular, inline-flex no desktop) */}
+          <div className="w-full md:w-auto grid grid-cols-4 md:inline-flex items-center justify-center gap-1 bg-gradient-to-r from-emerald-950 via-[#042817] to-slate-950 p-1 sm:px-2 sm:py-1.5 rounded-xl border-2 border-amber-400/80 shadow-md">
             {stepsList.filter(st => st.id !== 'resumo').map((st, idx) => {
               const isCurrent = idx === activeIndex;
               return (
@@ -493,17 +493,17 @@ export function BookingSection() {
                   type="button"
                   onClick={() => handleSelectStep(st.id)}
                   className={cn(
-                    "flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] sm:text-[11px] font-black uppercase tracking-tight transition-all cursor-pointer select-none whitespace-nowrap shrink-0",
+                    "relative flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1 px-1 sm:px-2.5 py-1.5 sm:py-1 rounded-lg text-[9px] sm:text-[11px] font-black uppercase tracking-tight transition-all cursor-pointer select-none whitespace-nowrap min-w-0",
                     isCurrent
                       ? "bg-amber-400 text-emerald-950 shadow-sm font-black"
                       : "bg-white/10 text-emerald-100 hover:bg-white/20 hover:text-white"
                   )}
                 >
                   {getStepIcon(st.id)}
-                  <span>{st.label}</span>
+                  <span className="truncate max-w-full">{st.label}</span>
                   {st.count > 0 && (
                     <span className={cn(
-                      "text-[9px] px-1.5 rounded-full font-bold",
+                      "text-[8px] sm:text-[9px] px-1 sm:px-1.5 rounded-full font-bold",
                       isCurrent ? "bg-emerald-950 text-amber-300" : "bg-amber-400 text-emerald-950"
                     )}>
                       {st.count}
@@ -514,11 +514,41 @@ export function BookingSection() {
             })}
           </div>
 
+          {/* Mobile: Voltar + Próximo lado a lado na mesma linha */}
+          <div className="grid grid-cols-[auto_1fr] md:hidden gap-2 w-full">
+            <button
+              type="button"
+              onClick={handlePrev}
+              className="inline-flex items-center justify-center rounded-xl border-2 border-emerald-300 bg-white hover:bg-emerald-950 text-emerald-950 hover:text-amber-300 hover:border-emerald-950 font-black text-xs h-10 px-3.5 shadow-xs transition-all cursor-pointer shrink-0 whitespace-nowrap"
+            >
+              <ArrowLeft className="w-3.5 h-3.5 mr-1" />
+              Voltar
+            </button>
+
+            <button
+              type="button"
+              onClick={handleNext}
+              className={cn(
+                "inline-flex items-center justify-center font-black text-xs h-10 px-3 rounded-xl shadow-md transition-all cursor-pointer whitespace-nowrap min-w-0",
+                modalidade === 'hospedagem' && activeIndex === 0
+                  ? "bg-amber-400 hover:bg-amber-500 text-slate-950"
+                  : "bg-emerald-800 hover:bg-emerald-950 text-white hover:text-amber-300"
+              )}
+            >
+              <span className="truncate">
+                {nextStep && nextStep.id !== 'resumo'
+                  ? `Próximo: ${nextStep.label}`
+                  : 'Ver Resumo e Finalizar'}
+              </span>
+              <ArrowRight className="ml-1.5 h-3.5 w-3.5 shrink-0" />
+            </button>
+          </div>
+
           <button
             type="button"
             onClick={handleNext}
             className={cn(
-              "w-full md:w-auto inline-flex items-center justify-center font-black text-xs h-9 px-4 rounded-xl shadow-md transition-all cursor-pointer shrink-0 whitespace-nowrap",
+              "hidden md:inline-flex items-center justify-center font-black text-xs h-9 px-4 rounded-xl shadow-md transition-all cursor-pointer shrink-0 whitespace-nowrap",
               modalidade === 'hospedagem' && activeIndex === 0
                 ? "bg-amber-400 hover:bg-amber-500 text-slate-950"
                 : "bg-emerald-800 hover:bg-emerald-950 text-white hover:text-amber-300"
@@ -588,8 +618,8 @@ export function BookingSection() {
               </button>
 
               {/* Seletor Exclusivo das 3 Modalidades: DAY USE, HOSPEDAGEM (CHALÉS) E CAMPING */}
-              <div className="flex flex-col items-center gap-0.5">
-                <div className="inline-flex bg-black/40 p-1 rounded-xl border border-white/20 backdrop-blur-md gap-1 flex-wrap">
+              <div className="flex flex-col items-center gap-0.5 w-full sm:w-auto">
+                <div className="w-full sm:w-auto grid grid-cols-3 sm:inline-flex bg-black/40 p-1 rounded-xl border border-white/20 backdrop-blur-md gap-1">
                   {/* 1. BOTÃO DAY USE */}
                   <button
                     type="button"
@@ -602,7 +632,7 @@ export function BookingSection() {
                       }
                     }}
                     className={cn(
-                      "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all",
+                      "flex items-center justify-center gap-1 sm:gap-1.5 px-1.5 sm:px-3 py-1.5 rounded-lg text-[10px] sm:text-xs font-black uppercase tracking-tight sm:tracking-wider transition-all whitespace-nowrap",
                       !booking.entry.visitDate && "opacity-40 cursor-not-allowed",
                       currentStep === 'servicos' && modalidade === 'dayuse'
                         ? "bg-emerald-600 text-white shadow-md border border-emerald-400"
@@ -612,10 +642,10 @@ export function BookingSection() {
                     )}
                     title={currentStep === 'servicos' && modalidade !== 'dayuse' ? "Clique para alternar para Day Use" : ""}
                   >
-                    <Sun className="w-3.5 h-3.5 text-amber-400" />
+                    <Sun className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-400 shrink-0" />
                     <span>Day Use</span>
                     {currentStep === 'servicos' && modalidade === 'dayuse' && (
-                      <span className="bg-amber-400 text-emerald-950 text-[9px] px-1.5 py-0.2 rounded-full font-bold">
+                      <span className="hidden sm:inline-block bg-amber-400 text-emerald-950 text-[9px] px-1.5 py-0.2 rounded-full font-bold">
                         Ativo
                       </span>
                     )}
@@ -633,7 +663,7 @@ export function BookingSection() {
                       }
                     }}
                     className={cn(
-                      "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all",
+                      "flex items-center justify-center gap-1 sm:gap-1.5 px-1.5 sm:px-3 py-1.5 rounded-lg text-[10px] sm:text-xs font-black uppercase tracking-tight sm:tracking-wider transition-all whitespace-nowrap",
                       !booking.entry.visitDate && "opacity-40 cursor-not-allowed",
                       currentStep === 'servicos' && modalidade === 'hospedagem'
                         ? "bg-amber-400 text-emerald-950 shadow-md font-black"
@@ -643,10 +673,11 @@ export function BookingSection() {
                     )}
                     title={currentStep === 'servicos' && modalidade !== 'hospedagem' ? "Clique para alternar para Chalés" : ""}
                   >
-                    <Crown className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Hospedagem (Chalés)</span>
+                    <Crown className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-400 shrink-0" />
+                    <span className="sm:hidden">Hospedagem</span>
+                    <span className="hidden sm:inline">Hospedagem (Chalés)</span>
                     {currentStep === 'servicos' && modalidade === 'hospedagem' && (
-                      <span className="bg-emerald-950 text-amber-300 text-[9px] px-1.5 py-0.2 rounded-full font-bold">
+                      <span className="hidden sm:inline-block bg-emerald-950 text-amber-300 text-[9px] px-1.5 py-0.2 rounded-full font-bold">
                         Ativo
                       </span>
                     )}
@@ -664,7 +695,7 @@ export function BookingSection() {
                       }
                     }}
                     className={cn(
-                      "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all",
+                      "flex items-center justify-center gap-1 sm:gap-1.5 px-1.5 sm:px-3 py-1.5 rounded-lg text-[10px] sm:text-xs font-black uppercase tracking-tight sm:tracking-wider transition-all whitespace-nowrap",
                       !booking.entry.visitDate && "opacity-40 cursor-not-allowed",
                       currentStep === 'servicos' && modalidade === 'camping'
                         ? "bg-emerald-500 text-white shadow-md font-black border border-emerald-300"
@@ -674,10 +705,10 @@ export function BookingSection() {
                     )}
                     title={currentStep === 'servicos' && modalidade !== 'camping' ? "Clique para alternar para Camping" : ""}
                   >
-                    <Tent className="w-3.5 h-3.5 text-amber-400" />
+                    <Tent className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-400 shrink-0" />
                     <span>Camping</span>
                     {currentStep === 'servicos' && modalidade === 'camping' && (
-                      <span className="bg-amber-400 text-emerald-950 text-[9px] px-1.5 py-0.2 rounded-full font-bold">
+                      <span className="hidden sm:inline-block bg-amber-400 text-emerald-950 text-[9px] px-1.5 py-0.2 rounded-full font-bold">
                         Ativo
                       </span>
                     )}
@@ -713,61 +744,61 @@ export function BookingSection() {
                       </button>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="w-full sm:w-auto grid grid-cols-4 sm:flex items-center gap-1 sm:gap-2">
                       <button
                         onClick={() => setDayUseTab('entradas')}
                         className={cn(
-                          "flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wide transition-all",
+                          "flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1.5 sm:px-3.5 py-1.5 rounded-xl text-[9.5px] sm:text-xs font-black uppercase tracking-tight sm:tracking-wide transition-all whitespace-nowrap min-w-0",
                           dayUseTab === 'entradas'
                             ? "bg-amber-400 text-emerald-950 shadow-sm font-black"
                             : "bg-white/10 text-emerald-100 hover:bg-white/20"
                         )}
                       >
-                        <Ticket className="w-3.5 h-3.5" />
-                        <span>Entradas</span>
-                        {countEntradas > 0 && <span className="text-[9px] bg-emerald-950 text-amber-300 px-1.5 rounded-full font-bold">{countEntradas}</span>}
+                        <Ticket className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate">Entradas</span>
+                        {countEntradas > 0 && <span className="text-[8px] sm:text-[9px] bg-emerald-950 text-amber-300 px-1 sm:px-1.5 rounded-full font-bold">{countEntradas}</span>}
                       </button>
 
                       <button
                         onClick={() => setDayUseTab('quiosques')}
                         className={cn(
-                          "flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wide transition-all",
+                          "flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1.5 sm:px-3.5 py-1.5 rounded-xl text-[9.5px] sm:text-xs font-black uppercase tracking-tight sm:tracking-wide transition-all whitespace-nowrap min-w-0",
                           dayUseTab === 'quiosques'
                             ? "bg-amber-400 text-emerald-950 shadow-sm font-black"
                             : "bg-white/10 text-emerald-100 hover:bg-white/20"
                         )}
                       >
-                        <Home className="w-3.5 h-3.5" />
-                        <span>Quiosques</span>
-                        {countQuiosques > 0 && <span className="text-[9px] bg-emerald-950 text-amber-300 px-1.5 rounded-full font-bold">{countQuiosques}</span>}
+                        <Home className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate">Quiosques</span>
+                        {countQuiosques > 0 && <span className="text-[8px] sm:text-[9px] bg-emerald-950 text-amber-300 px-1 sm:px-1.5 rounded-full font-bold">{countQuiosques}</span>}
                       </button>
 
                       <button
                         onClick={() => setDayUseTab('quads')}
                         className={cn(
-                          "flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wide transition-all",
+                          "flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1.5 sm:px-3.5 py-1.5 rounded-xl text-[9.5px] sm:text-xs font-black uppercase tracking-tight sm:tracking-wide transition-all whitespace-nowrap min-w-0",
                           dayUseTab === 'quads'
                             ? "bg-amber-400 text-emerald-950 shadow-sm font-black"
                             : "bg-white/10 text-emerald-100 hover:bg-white/20"
                         )}
                       >
-                        <Bike className="w-3.5 h-3.5" />
-                        <span>Quadriciclos</span>
-                        {countQuads > 0 && <span className="text-[9px] bg-emerald-950 text-amber-300 px-1.5 rounded-full font-bold">{countQuads}</span>}
+                        <Bike className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate">Quadriciclos</span>
+                        {countQuads > 0 && <span className="text-[8px] sm:text-[9px] bg-emerald-950 text-amber-300 px-1 sm:px-1.5 rounded-full font-bold">{countQuads}</span>}
                       </button>
 
                       <button
                         onClick={() => setDayUseTab('diversoes')}
                         className={cn(
-                          "flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wide transition-all",
+                          "flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1.5 sm:px-3.5 py-1.5 rounded-xl text-[9.5px] sm:text-xs font-black uppercase tracking-tight sm:tracking-wide transition-all whitespace-nowrap min-w-0",
                           dayUseTab === 'diversoes'
                             ? "bg-amber-400 text-emerald-950 shadow-sm font-black"
                             : "bg-white/10 text-emerald-100 hover:bg-white/20"
                         )}
                       >
-                        <Fish className="w-3.5 h-3.5" />
-                        <span>Diversões</span>
-                        {countDiversoes > 0 && <span className="text-[9px] bg-emerald-950 text-amber-300 px-1.5 rounded-full font-bold">{countDiversoes}</span>}
+                        <Fish className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate">Diversões</span>
+                        {countDiversoes > 0 && <span className="text-[8px] sm:text-[9px] bg-emerald-950 text-amber-300 px-1 sm:px-1.5 rounded-full font-bold">{countDiversoes}</span>}
                       </button>
                     </div>
                   </div>
@@ -788,19 +819,19 @@ export function BookingSection() {
                         </button>
                       </div>
 
-                      <div className="flex items-center gap-2 flex-wrap">
+                      <div className="w-full sm:w-auto grid grid-cols-4 sm:flex items-center gap-1 sm:gap-2">
                         <button
                           onClick={() => setHospedagemTab('chales')}
                           className={cn(
-                            "flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wide transition-all",
+                            "flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1.5 sm:px-3.5 py-1.5 rounded-xl text-[9.5px] sm:text-xs font-black uppercase tracking-tight sm:tracking-wide transition-all whitespace-nowrap min-w-0",
                             hospedagemTab === 'chales'
                               ? "bg-amber-400 text-emerald-950 shadow-sm font-black"
                               : "bg-white/10 text-emerald-100 hover:bg-white/20"
                           )}
                         >
-                          <Crown className="w-3.5 h-3.5" />
-                          <span>Chalés</span>
-                          {countHospedagem > 0 && <span className="text-[9px] bg-emerald-950 text-amber-300 px-1.5 rounded-full font-bold">{countHospedagem}</span>}
+                          <Crown className="w-3.5 h-3.5 shrink-0" />
+                          <span className="truncate">Chalés</span>
+                          {countHospedagem > 0 && <span className="text-[8px] sm:text-[9px] bg-emerald-950 text-amber-300 px-1 sm:px-1.5 rounded-full font-bold">{countHospedagem}</span>}
                         </button>
 
                         <button
@@ -809,15 +840,15 @@ export function BookingSection() {
                             setHospedagemTab('quiosques');
                           }}
                           className={cn(
-                            "flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wide transition-all",
+                            "flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1.5 sm:px-3.5 py-1.5 rounded-xl text-[9.5px] sm:text-xs font-black uppercase tracking-tight sm:tracking-wide transition-all whitespace-nowrap min-w-0",
                             hospedagemTab === 'quiosques'
                               ? "bg-amber-400 text-emerald-950 shadow-sm font-black"
                               : "bg-white/10 text-emerald-100 hover:bg-white/20"
                           )}
                         >
-                          <Home className="w-3.5 h-3.5" />
-                          <span>Quiosques</span>
-                          {countQuiosques > 0 && <span className="text-[9px] bg-emerald-950 text-amber-300 px-1.5 rounded-full font-bold">{countQuiosques}</span>}
+                          <Home className="w-3.5 h-3.5 shrink-0" />
+                          <span className="truncate">Quiosques</span>
+                          {countQuiosques > 0 && <span className="text-[8px] sm:text-[9px] bg-emerald-950 text-amber-300 px-1 sm:px-1.5 rounded-full font-bold">{countQuiosques}</span>}
                         </button>
 
                         <button
@@ -826,15 +857,15 @@ export function BookingSection() {
                             setHospedagemTab('quads');
                           }}
                           className={cn(
-                            "flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wide transition-all",
+                            "flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1.5 sm:px-3.5 py-1.5 rounded-xl text-[9.5px] sm:text-xs font-black uppercase tracking-tight sm:tracking-wide transition-all whitespace-nowrap min-w-0",
                             hospedagemTab === 'quads'
                               ? "bg-amber-400 text-emerald-950 shadow-sm font-black"
                               : "bg-white/10 text-emerald-100 hover:bg-white/20"
                           )}
                         >
-                          <Bike className="w-3.5 h-3.5" />
-                          <span>Quadriciclos</span>
-                          {countQuads > 0 && <span className="text-[9px] bg-emerald-950 text-amber-300 px-1.5 rounded-full font-bold">{countQuads}</span>}
+                          <Bike className="w-3.5 h-3.5 shrink-0" />
+                          <span className="truncate">Quadriciclos</span>
+                          {countQuads > 0 && <span className="text-[8px] sm:text-[9px] bg-emerald-950 text-amber-300 px-1 sm:px-1.5 rounded-full font-bold">{countQuads}</span>}
                         </button>
 
                         <button
@@ -843,49 +874,49 @@ export function BookingSection() {
                             setHospedagemTab('diversoes');
                           }}
                           className={cn(
-                            "flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wide transition-all",
+                            "flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1.5 sm:px-3.5 py-1.5 rounded-xl text-[9.5px] sm:text-xs font-black uppercase tracking-tight sm:tracking-wide transition-all whitespace-nowrap min-w-0",
                             hospedagemTab === 'diversoes'
                               ? "bg-amber-400 text-emerald-950 shadow-sm font-black"
                               : "bg-white/10 text-emerald-100 hover:bg-white/20"
                           )}
                         >
-                          <Fish className="w-3.5 h-3.5" />
-                          <span>Diversões</span>
-                          {countDiversoes > 0 && <span className="text-[9px] bg-emerald-950 text-amber-300 px-1.5 rounded-full font-bold">{countDiversoes}</span>}
+                          <Fish className="w-3.5 h-3.5 shrink-0" />
+                          <span className="truncate">Diversões</span>
+                          {countDiversoes > 0 && <span className="text-[8px] sm:text-[9px] bg-emerald-950 text-amber-300 px-1 sm:px-1.5 rounded-full font-bold">{countDiversoes}</span>}
                         </button>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
-                      <div className="flex items-center gap-2 bg-emerald-900/50 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-emerald-700/50">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+                      <div className="flex items-center gap-2 bg-emerald-900/50 backdrop-blur-md px-2.5 sm:px-3.5 py-2 rounded-2xl border border-emerald-700/50">
                         <Clock className="w-4 h-4 text-amber-400 shrink-0" />
-                        <div className="text-[11px] leading-tight">
+                        <div className="text-[10.5px] sm:text-[11px] leading-tight">
                           <span className="font-black text-white block">Entrada: 15h</span>
-                          <span className="text-emerald-200/80 text-[10px]">Saída: às 12h</span>
+                          <span className="text-emerald-200/80 text-[9.5px] sm:text-[10px]">Saída: às 12h</span>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 bg-emerald-900/50 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-emerald-700/50">
+                      <div className="flex items-center gap-2 bg-emerald-900/50 backdrop-blur-md px-2.5 sm:px-3.5 py-2 rounded-2xl border border-emerald-700/50">
                         <Coffee className="w-4 h-4 text-amber-400 shrink-0" />
-                        <div className="text-[11px] leading-tight">
+                        <div className="text-[10.5px] sm:text-[11px] leading-tight">
                           <span className="font-black text-white block">Café Incluso</span>
-                          <span className="text-emerald-200/80 text-[10px]">Das 7h às 9h (Sex, Sáb, Dom)</span>
+                          <span className="text-emerald-200/80 text-[9.5px] sm:text-[10px]">Das 7h às 9h (Sex-Dom)</span>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 bg-emerald-900/50 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-emerald-700/50">
+                      <div className="flex items-center gap-2 bg-emerald-900/50 backdrop-blur-md px-2.5 sm:px-3.5 py-2 rounded-2xl border border-emerald-700/50">
                         <Users className="w-4 h-4 text-amber-400 shrink-0" />
-                        <div className="text-[11px] leading-tight">
+                        <div className="text-[10.5px] sm:text-[11px] leading-tight">
                           <span className="font-black text-white block">Capacidade</span>
-                          <span className="text-emerald-200/80 text-[10px]">Até 2 adultos por chalé</span>
+                          <span className="text-emerald-200/80 text-[9.5px] sm:text-[10px]">Até 2 adultos/chalé</span>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 bg-emerald-900/50 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-emerald-700/50">
+                      <div className="flex items-center gap-2 bg-emerald-900/50 backdrop-blur-md px-2.5 sm:px-3.5 py-2 rounded-2xl border border-emerald-700/50">
                         <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
-                        <div className="text-[11px] leading-tight">
+                        <div className="text-[10.5px] sm:text-[11px] leading-tight">
                           <span className="font-black text-white block">Day Use Incluso</span>
-                          <span className="text-emerald-200/80 text-[10px]">Sex a Dom até 17h</span>
+                          <span className="text-emerald-200/80 text-[9.5px] sm:text-[10px]">Sex a Dom até 17h</span>
                         </div>
                       </div>
                     </div>
@@ -906,61 +937,61 @@ export function BookingSection() {
                       </button>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="w-full sm:w-auto grid grid-cols-4 sm:flex items-center gap-1 sm:gap-2">
                       <button
                         onClick={() => setCampingTab('camping')}
                         className={cn(
-                          "flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wide transition-all",
+                          "flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1.5 sm:px-3.5 py-1.5 rounded-xl text-[9.5px] sm:text-xs font-black uppercase tracking-tight sm:tracking-wide transition-all whitespace-nowrap min-w-0",
                           campingTab === 'camping'
                             ? "bg-amber-400 text-emerald-950 shadow-sm font-black"
                             : "bg-white/10 text-emerald-100 hover:bg-white/20"
                         )}
                       >
-                        <Tent className="w-3.5 h-3.5" />
-                        <span>Camping</span>
-                        {countCamping > 0 && <span className="text-[9px] bg-emerald-950 text-amber-300 px-1.5 rounded-full font-bold">{countCamping}</span>}
+                        <Tent className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate">Camping</span>
+                        {countCamping > 0 && <span className="text-[8px] sm:text-[9px] bg-emerald-950 text-amber-300 px-1 sm:px-1.5 rounded-full font-bold">{countCamping}</span>}
                       </button>
 
                       <button
                         onClick={() => setCampingTab('quiosques')}
                         className={cn(
-                          "flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wide transition-all",
+                          "flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1.5 sm:px-3.5 py-1.5 rounded-xl text-[9.5px] sm:text-xs font-black uppercase tracking-tight sm:tracking-wide transition-all whitespace-nowrap min-w-0",
                           campingTab === 'quiosques'
                             ? "bg-amber-400 text-emerald-950 shadow-sm font-black"
                             : "bg-white/10 text-emerald-100 hover:bg-white/20"
                         )}
                       >
-                        <Home className="w-3.5 h-3.5" />
-                        <span>Quiosques</span>
-                        {countQuiosques > 0 && <span className="text-[9px] bg-emerald-950 text-amber-300 px-1.5 rounded-full font-bold">{countQuiosques}</span>}
+                        <Home className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate">Quiosques</span>
+                        {countQuiosques > 0 && <span className="text-[8px] sm:text-[9px] bg-emerald-950 text-amber-300 px-1 sm:px-1.5 rounded-full font-bold">{countQuiosques}</span>}
                       </button>
 
                       <button
                         onClick={() => setCampingTab('quads')}
                         className={cn(
-                          "flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wide transition-all",
+                          "flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1.5 sm:px-3.5 py-1.5 rounded-xl text-[9.5px] sm:text-xs font-black uppercase tracking-tight sm:tracking-wide transition-all whitespace-nowrap min-w-0",
                           campingTab === 'quads'
                             ? "bg-amber-400 text-emerald-950 shadow-sm font-black"
                             : "bg-white/10 text-emerald-100 hover:bg-white/20"
                         )}
                       >
-                        <Bike className="w-3.5 h-3.5" />
-                        <span>Quadriciclos</span>
-                        {countQuads > 0 && <span className="text-[9px] bg-emerald-950 text-amber-300 px-1.5 rounded-full font-bold">{countQuads}</span>}
+                        <Bike className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate">Quadriciclos</span>
+                        {countQuads > 0 && <span className="text-[8px] sm:text-[9px] bg-emerald-950 text-amber-300 px-1 sm:px-1.5 rounded-full font-bold">{countQuads}</span>}
                       </button>
 
                       <button
                         onClick={() => setCampingTab('diversoes')}
                         className={cn(
-                          "flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wide transition-all",
+                          "flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1.5 sm:px-3.5 py-1.5 rounded-xl text-[9.5px] sm:text-xs font-black uppercase tracking-tight sm:tracking-wide transition-all whitespace-nowrap min-w-0",
                           campingTab === 'diversoes'
                             ? "bg-amber-400 text-emerald-950 shadow-sm font-black"
                             : "bg-white/10 text-emerald-100 hover:bg-white/20"
                         )}
                       >
-                        <Fish className="w-3.5 h-3.5" />
-                        <span>Diversões</span>
-                        {countDiversoes > 0 && <span className="text-[9px] bg-emerald-950 text-amber-300 px-1.5 rounded-full font-bold">{countDiversoes}</span>}
+                        <Fish className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate">Diversões</span>
+                        {countDiversoes > 0 && <span className="text-[8px] sm:text-[9px] bg-emerald-950 text-amber-300 px-1 sm:px-1.5 rounded-full font-bold">{countDiversoes}</span>}
                       </button>
                     </div>
                   </div>

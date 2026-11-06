@@ -65,46 +65,46 @@ export function AdditionalSelector({ additionals, onUpdate }: Props) {
         return (
           <div 
             key={item.type} 
-            className={`bg-white rounded-2xl border-2 p-4 sm:p-5 shadow-md transition-all duration-200 ${
+            className={`bg-white rounded-2xl border-2 p-3.5 sm:p-5 shadow-md transition-all duration-200 ${
               isSelected 
                 ? 'border-amber-400 ring-2 ring-amber-400/20 shadow-lg' 
                 : 'border-emerald-200 hover:border-emerald-400'
             }`}
           >
             {/* Linha Principal: Ícone + Título na mesma linha + Valor + Seletor de Quantidade */}
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 min-w-0 flex-1">
-                <div className={`flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-xl shrink-0 transition-transform ${
+            <div className="flex items-center justify-between gap-2 sm:gap-3">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                <div className={`flex items-center justify-center w-9 h-9 sm:w-11 sm:h-11 rounded-xl shrink-0 transition-transform ${
                   isSelected ? 'bg-amber-400 text-slate-950 scale-105' : 'bg-emerald-100 text-emerald-800'
                 }`}>
-                  <Icon className="h-5 w-5" />
+                  <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
                 </div>
 
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <h4 className="font-sans font-black text-xs sm:text-sm md:text-base text-emerald-950 uppercase tracking-tight whitespace-nowrap leading-tight">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <h4 className="font-sans font-black text-[11px] sm:text-sm md:text-base text-emerald-950 uppercase tracking-tight whitespace-nowrap leading-tight truncate">
                       {info.label}
                     </h4>
                     {isSelected && (
-                      <Badge className="bg-amber-400 hover:bg-amber-400 text-slate-950 text-[9px] font-black uppercase px-2 py-0.2 whitespace-nowrap">
+                      <Badge className="bg-amber-400 hover:bg-amber-400 text-slate-950 text-[8.5px] sm:text-[9px] font-black uppercase px-1.5 sm:px-2 py-0.2 whitespace-nowrap shrink-0">
                         {item.quantity}x
                       </Badge>
                     )}
                   </div>
 
-                  <p className="text-emerald-900 font-black text-xs sm:text-sm flex items-baseline gap-1 mt-0.5 whitespace-nowrap">
+                  <p className="text-emerald-900 font-black text-[11px] sm:text-sm flex items-baseline gap-1 mt-0.5 whitespace-nowrap">
                     {item.quantity >= 1 ? (
-                      <span className="flex items-center gap-1.5 flex-nowrap">
-                        <span className="text-muted-foreground text-xs font-medium">
+                      <span className="flex items-center gap-1 sm:gap-1.5 flex-nowrap">
+                        <span className="text-muted-foreground text-[10px] sm:text-xs font-medium">
                           {formatCurrency(basePrice)} x {item.quantity} =
                         </span>
-                        <span className="text-amber-600 font-black text-sm sm:text-base">
+                        <span className="text-amber-600 font-black text-xs sm:text-base">
                           {formatCurrency(basePrice * item.quantity)}
                         </span>
                       </span>
                     ) : (
-                      <span className="text-emerald-800 font-bold text-xs sm:text-sm">
-                        {formatCurrency(basePrice)}{item.type === 'futebol-sabao' ? ' por pessoa' : ''}
+                      <span className="text-emerald-800 font-bold text-[11px] sm:text-sm">
+                        {formatCurrency(basePrice)}{item.type === 'futebol-sabao' ? ' / pessoa' : ''}
                       </span>
                     )}
                   </p>
@@ -117,8 +117,8 @@ export function AdditionalSelector({ additionals, onUpdate }: Props) {
                     Indisponível
                   </span>
                 ) : (
-                  <div className="bg-emerald-50/80 p-1.5 rounded-xl border border-emerald-200">
-                    <QuantityStepper value={item.quantity} onChange={(q) => onUpdate(i, { quantity: q })} size="default" />
+                  <div className="bg-emerald-50/80 p-1 sm:p-1.5 rounded-xl border border-emerald-200">
+                    <QuantityStepper value={item.quantity} onChange={(q) => onUpdate(i, { quantity: q })} size="sm" />
                   </div>
                 )}
               </div>
@@ -129,17 +129,17 @@ export function AdditionalSelector({ additionals, onUpdate }: Props) {
               <button
                 type="button"
                 onClick={() => toggleExpand(item.type)}
-                className="w-full flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-950 via-[#042817] to-slate-950 hover:from-emerald-900 hover:to-emerald-950 border-2 border-amber-400 text-white shadow-md transition-all cursor-pointer group"
+                className="w-full flex items-center justify-between gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-2 sm:py-2.5 rounded-xl bg-gradient-to-r from-emerald-950 via-[#042817] to-slate-950 hover:from-emerald-900 hover:to-emerald-950 border-2 border-amber-400 text-white shadow-md transition-all cursor-pointer group"
               >
-                <span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-wider text-amber-300 whitespace-nowrap">
+                <span className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-[11px] font-black uppercase tracking-tight sm:tracking-wider text-amber-300 whitespace-nowrap min-w-0 truncate">
                   <span className="p-1 rounded-lg bg-amber-400 text-slate-950 shrink-0 shadow-2xs">
-                    <AlertCircle className="w-3.5 h-3.5 stroke-[2.5]" />
+                    <AlertCircle className="w-3 h-3 sm:w-3.5 sm:h-3.5 stroke-[2.5]" />
                   </span>
-                  Saiba mais: Regras e Condições
+                  <span className="truncate">Saiba mais: Regras e Condições</span>
                 </span>
-                <span className="inline-flex items-center gap-1 bg-amber-400 group-hover:bg-amber-300 text-slate-950 font-black text-[10px] uppercase px-2.5 py-1 rounded-lg shrink-0 whitespace-nowrap shadow-2xs transition-colors">
+                <span className="inline-flex items-center gap-1 bg-amber-400 group-hover:bg-amber-300 text-slate-950 font-black text-[9.5px] sm:text-[10px] uppercase px-2 sm:px-2.5 py-1 rounded-lg shrink-0 whitespace-nowrap shadow-2xs transition-colors">
                   {isExpanded ? 'Fechar' : 'Ver detalhes'}
-                  {isExpanded ? <ChevronUp className="w-3.5 h-3.5 stroke-[3]" /> : <ChevronDown className="w-3.5 h-3.5 stroke-[3]" />}
+                  {isExpanded ? <ChevronUp className="w-3 h-3 sm:w-3.5 sm:h-3.5 stroke-[3]" /> : <ChevronDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 stroke-[3]" />}
                 </span>
               </button>
 

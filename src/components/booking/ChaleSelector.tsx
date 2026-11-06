@@ -851,15 +851,15 @@ function ChaleSelectorInner({
                   <div
                     role="button"
                     tabIndex={0}
-                    className="w-full h-12 rounded-2xl border-2 border-emerald-600 bg-white hover:bg-emerald-50 text-slate-950 font-black text-xs sm:text-sm flex items-center justify-between px-4 shadow-sm cursor-pointer transition-all select-none group"
+                    className="w-full h-12 rounded-2xl border-2 border-emerald-600 bg-white hover:bg-emerald-50 text-slate-950 font-black text-xs sm:text-sm flex items-center justify-between px-3 sm:px-4 gap-1.5 shadow-sm cursor-pointer transition-all select-none group"
                   >
-                    <div className="flex items-center gap-2 text-slate-950 font-black">
+                    <div className="flex items-center gap-1.5 sm:gap-2 text-slate-950 font-black min-w-0">
                       <Calendar className="w-4 h-4 text-emerald-700 shrink-0" />
-                      <span className="text-slate-950 font-black text-xs sm:text-sm">
+                      <span className="text-slate-950 font-black text-[11px] sm:text-sm truncate">
                         {format(checkInActive, "dd/MM/yyyy (EEEE)", { locale: ptBR })}
                       </span>
                     </div>
-                    <span className="text-[10px] uppercase font-black text-slate-950 bg-amber-400 group-hover:bg-amber-500 px-2.5 py-1 rounded-lg shadow-xs shrink-0">
+                    <span className="text-[9.5px] sm:text-[10px] uppercase font-black text-slate-950 bg-amber-400 group-hover:bg-amber-500 px-2 sm:px-2.5 py-1 rounded-lg shadow-xs shrink-0 whitespace-nowrap">
                       Alterar Entrada
                     </span>
                   </div>
@@ -940,15 +940,15 @@ function ChaleSelectorInner({
                   <div
                     role="button"
                     tabIndex={0}
-                    className="w-full h-12 rounded-2xl border-2 border-amber-500 bg-white hover:bg-amber-50 text-slate-950 font-black text-xs sm:text-sm flex items-center justify-between px-4 shadow-sm cursor-pointer transition-all select-none group"
+                    className="w-full h-12 rounded-2xl border-2 border-amber-500 bg-white hover:bg-amber-50 text-slate-950 font-black text-xs sm:text-sm flex items-center justify-between px-3 sm:px-4 gap-1.5 shadow-sm cursor-pointer transition-all select-none group"
                   >
-                    <div className="flex items-center gap-2 text-slate-950 font-black">
+                    <div className="flex items-center gap-1.5 sm:gap-2 text-slate-950 font-black min-w-0">
                       <Calendar className="w-4 h-4 text-amber-600 shrink-0" />
-                      <span className="text-slate-950 font-black text-xs sm:text-sm">
+                      <span className="text-slate-950 font-black text-[11px] sm:text-sm truncate">
                         {format(checkOutActive, "dd/MM/yyyy (EEEE)", { locale: ptBR })}
                       </span>
                     </div>
-                    <span className="text-[10px] uppercase font-black text-slate-950 bg-amber-400 group-hover:bg-amber-500 px-2.5 py-1 rounded-lg shadow-xs shrink-0">
+                    <span className="text-[9.5px] sm:text-[10px] uppercase font-black text-slate-950 bg-amber-400 group-hover:bg-amber-500 px-2 sm:px-2.5 py-1 rounded-lg shadow-xs shrink-0 whitespace-nowrap">
                       Alterar Saída
                     </span>
                   </div>
@@ -1347,22 +1347,22 @@ function ChaleSelectorInner({
         <div className="space-y-3 pt-3 border-t border-slate-100">
           <div className="space-y-1">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="text-xs font-black uppercase tracking-wider text-emerald-950 flex items-center gap-1.5 whitespace-nowrap">
+              <span className="text-xs font-black uppercase tracking-wider text-emerald-950 flex items-center gap-1.5 sm:whitespace-nowrap">
                 <Home className="w-4 h-4 text-emerald-700 shrink-0" />
                 Selecione o(s) Chalé(s) Desejado(s) para sua Reserva:
               </span>
               {chaletsCount > 0 && (
-                <span className="text-[11px] font-black text-slate-950 bg-amber-400 border border-amber-500 px-3 py-1 rounded-xl shadow-xs shrink-0 whitespace-nowrap">
+                <span className="text-[10.5px] sm:text-[11px] font-black text-slate-950 bg-amber-400 border border-amber-500 px-2.5 sm:px-3 py-1 rounded-xl shadow-xs shrink-0 max-w-full truncate">
                   ✓ {chaletsCount} {chaletsCount === 1 ? 'Chalé Selecionado' : 'Chalés Selecionados'}: {selectedChaleUnits.map(id => `Chalé ${String(id).padStart(2, '0')}`).join(', ')}
                 </span>
               )}
             </div>
-            <p className="text-[11px] text-emerald-800 font-bold whitespace-nowrap overflow-x-auto">
+            <p className="text-[11px] text-emerald-800 font-bold sm:whitespace-nowrap leading-snug">
               Você pode selecionar 1 ou mais chalés para acomodar amigos ou familiares na mesma reserva!
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3">
             {readyUnits.map((unit) => {
               const isUnitSelected = selectedChaleUnits.includes(unit.id);
               const status = getUnitStatus(unit.id);
@@ -1373,7 +1373,7 @@ function ChaleSelectorInner({
                   key={unit.id}
                   onClick={() => handleToggleUnitSelection(unit.id, isOccupied)}
                   className={cn(
-                    "p-4 rounded-2xl border-2 text-left transition-all relative flex flex-col justify-between min-h-[125px] select-none shadow-md",
+                    "p-3 sm:p-4 rounded-2xl border-2 text-left transition-all relative flex flex-col justify-between min-h-[115px] sm:min-h-[125px] select-none shadow-md",
                     isOccupied
                       ? "opacity-50 bg-[#1f1315] border-red-900/60 cursor-not-allowed text-red-200"
                       : isUnitSelected
@@ -1595,16 +1595,16 @@ function ChaleSelectorInner({
                       {kidsCount > 0 ? (
                         <div className="space-y-1.5 pt-1.5 border-t border-slate-100">
                           {kidsList.map((kAge, kidIdx) => (
-                            <div key={`chale-${chaleId}-kid-${kidIdx}`} className="flex items-center justify-between gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-200">
-                              <span className="text-[10px] font-black text-slate-800">
+                            <div key={`chale-${chaleId}-kid-${kidIdx}`} className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 bg-slate-50 p-2 rounded-xl border border-slate-200">
+                              <span className="text-[10px] font-black text-slate-800 shrink-0">
                                 Criança {kidIdx + 1}:
                               </span>
-                              <div className="flex items-center gap-1">
+                              <div className="grid grid-cols-2 sm:flex items-center gap-1 w-full sm:w-auto">
                                 <button
                                   type="button"
                                   onClick={() => handleUpdateChaleChildAge(chaleId, kidIdx, 'under11')}
                                   className={cn(
-                                    "px-2 py-1 rounded-lg text-[10px] font-black transition-all border cursor-pointer",
+                                    "px-2 py-1 rounded-lg text-[9.5px] sm:text-[10px] font-black transition-all border cursor-pointer text-center whitespace-nowrap",
                                     kAge === 'under11'
                                       ? "bg-amber-400 text-slate-950 border-amber-500 shadow-2xs"
                                       : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
@@ -1616,7 +1616,7 @@ function ChaleSelectorInner({
                                   type="button"
                                   onClick={() => handleUpdateChaleChildAge(chaleId, kidIdx, '12plus')}
                                   className={cn(
-                                    "px-2 py-1 rounded-lg text-[10px] font-black transition-all border cursor-pointer",
+                                    "px-2 py-1 rounded-lg text-[9.5px] sm:text-[10px] font-black transition-all border cursor-pointer text-center whitespace-nowrap",
                                     kAge === '12plus'
                                       ? "bg-amber-400 text-slate-950 border-amber-500 shadow-2xs"
                                       : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"

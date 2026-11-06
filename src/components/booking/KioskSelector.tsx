@@ -219,7 +219,7 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
           )}
 
           {/* Top row: Quiosques 02-05 (médios) */}
-          <div className="grid grid-cols-4 gap-2 sm:gap-3">
+          <div className="grid grid-cols-4 gap-1.5 sm:gap-3">
             {KIOSK_MAP.filter(k => k.row === 'top').map(kioskDef => {
               const isDisabledByAdmin = disableKiosks || disabledKioskIds.includes(kioskDef.id) || disabledKioskTypes.includes(kioskDef.type);
               const isBooked = bookedIds.includes(kioskDef.id) || isDisabledByAdmin;
@@ -232,7 +232,7 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
                   onClick={() => handleToggleKiosk(kioskDef)}
                   disabled={isBooked && !isSelected}
                   className={cn(
-                    "relative flex flex-col items-center justify-center p-3 sm:p-4 rounded-2xl border-2 transition-all duration-200 cursor-pointer group min-h-[115px] sm:min-h-[125px]",
+                    "relative flex flex-col items-center justify-center p-2 sm:p-4 rounded-2xl border-2 transition-all duration-200 cursor-pointer group min-h-[108px] sm:min-h-[125px]",
                     isBooked && !isSelected && "bg-slate-100 border-slate-300 opacity-60 cursor-not-allowed",
                     isSelected && "bg-amber-400 border-amber-500 text-slate-950 shadow-xl scale-[1.03] ring-2 ring-amber-400/30",
                     !isBooked && !isSelected && "bg-emerald-50/60 border-emerald-400/80 hover:border-amber-400 hover:bg-emerald-100/70 hover:scale-[1.02] shadow-sm text-emerald-950",
@@ -241,10 +241,11 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
                   {/* Best Choice Badge for 02 and 05 */}
                   {(kioskDef.id === 2 || kioskDef.id === 5) && (
                     <div className={cn(
-                      "absolute -top-3 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider shadow-sm z-10 whitespace-nowrap border",
+                      "absolute -top-2.5 left-1/2 -translate-x-1/2 px-1.5 sm:px-2.5 py-0.5 rounded-full text-[7px] sm:text-[8px] font-black uppercase tracking-wider shadow-sm z-10 whitespace-nowrap border",
                       isSelected ? "bg-slate-950 text-amber-300 border-slate-950" : "bg-emerald-700 text-white border-emerald-500"
                     )}>
-                      🌟 Melhor Escolha
+                      <span className="sm:hidden">🌟 Top</span>
+                      <span className="hidden sm:inline">🌟 Melhor Escolha</span>
                     </div>
                   )}
 
@@ -255,33 +256,34 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
                   )}
 
                   {isBooked && !isSelected && (
-                    <div className="absolute top-1.5 right-1.5 px-2 py-0.5 bg-rose-100 border border-rose-300 rounded-full">
-                      <span className="text-[8px] font-black text-rose-700 uppercase">
-                        {isDisabledByAdmin ? 'Indisponível' : 'Ocupado'}
+                    <div className="absolute top-1.5 right-1.5 px-1.5 sm:px-2 py-0.5 bg-rose-100 border border-rose-300 rounded-full">
+                      <span className="text-[7px] sm:text-[8px] font-black text-rose-700 uppercase">
+                        {isDisabledByAdmin ? 'Indisp.' : 'Ocupado'}
                       </span>
                     </div>
                   )}
 
                   <span className={cn(
-                    "text-3xl font-black transition-colors font-sans",
+                    "text-2xl sm:text-3xl font-black transition-colors font-sans",
                     isSelected ? "text-slate-950" : isBooked ? "text-slate-400" : "text-emerald-950"
                   )}>
                     {String(kioskDef.id).padStart(2, '0')}
                   </span>
 
                   <div className={cn(
-                    "flex items-center gap-1 mt-1",
+                    "flex items-center gap-0.5 sm:gap-1 mt-1",
                     isSelected ? "text-slate-900 font-bold" : isBooked ? "text-slate-400" : "text-emerald-800"
                   )}>
-                    <Users className="h-3 w-3" />
-                    <span className="text-[10px] font-bold">{kioskDef.capacity}</span>
+                    <Users className="h-2.5 w-2.5 sm:h-3 sm:w-3 shrink-0" />
+                    <span className="text-[8.5px] sm:text-[10px] font-bold whitespace-nowrap">{kioskDef.capacity}</span>
                   </div>
 
                   <span className={cn(
-                    "text-xs sm:text-sm font-black mt-1.5 px-2.5 py-0.5 rounded-full",
+                    "text-[10px] sm:text-sm font-black mt-1 sm:mt-1.5 px-1.5 sm:px-2.5 py-0.5 rounded-full whitespace-nowrap",
                     isSelected ? "bg-slate-950 text-amber-400 font-black shadow-xs" : isBooked ? "text-slate-400" : "bg-emerald-100 text-emerald-950 border border-emerald-300"
                   )}>
-                    {formatCurrency(price)}
+                    <span className="sm:hidden">{formatCurrency(price).replace(',00', '')}</span>
+                    <span className="hidden sm:inline">{formatCurrency(price)}</span>
                   </span>
                 </button>
               );
@@ -301,7 +303,7 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
                 onClick={() => handleToggleKiosk(kioskDef)}
                 disabled={isBooked && !isSelected}
                 className={cn(
-                  "relative w-full flex items-center justify-between p-4 sm:p-5 rounded-2xl border-2 transition-all duration-200 cursor-pointer group min-h-[90px] sm:min-h-[105px]",
+                  "relative w-full flex items-center justify-between gap-2 p-3 sm:p-5 rounded-2xl border-2 transition-all duration-200 cursor-pointer group min-h-[85px] sm:min-h-[105px]",
                   isBooked && !isSelected && "bg-slate-100 border-slate-300 opacity-60 cursor-not-allowed",
                   isSelected && "bg-amber-400 border-amber-500 text-slate-950 shadow-xl scale-[1.01] ring-2 ring-amber-400/30",
                   !isBooked && !isSelected && "bg-emerald-50/60 border-emerald-400/80 hover:border-amber-400 hover:bg-emerald-100/70 shadow-sm text-emerald-950",
@@ -321,16 +323,16 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
                   </div>
                 )}
 
-                <div className="flex items-center gap-3 sm:gap-4">
+                <div className="flex items-center gap-2.5 sm:gap-4 min-w-0 text-left">
                   <span className={cn(
-                    "text-3xl sm:text-4xl font-black transition-colors font-sans",
+                    "text-2xl sm:text-4xl font-black transition-colors font-sans shrink-0",
                     isSelected ? "text-slate-950" : isBooked ? "text-slate-400" : "text-emerald-950"
                   )}>
                     {String(kioskDef.id).padStart(2, '0')}
                   </span>
-                  <div className="flex flex-col items-start">
+                  <div className="flex flex-col items-start min-w-0">
                     <span className={cn(
-                      "text-[11px] sm:text-xs font-black uppercase tracking-wider",
+                      "text-[10.5px] sm:text-xs font-black uppercase tracking-tight sm:tracking-wider leading-tight",
                       isSelected ? "text-slate-950" : isBooked ? "text-slate-400" : "text-emerald-900"
                     )}>
                       Quiosque Grande — Estrutura Completa
@@ -339,14 +341,14 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
                       "flex items-center gap-1 mt-0.5",
                       isSelected ? "text-slate-900 font-bold" : isBooked ? "text-slate-400" : "text-emerald-800"
                     )}>
-                      <Users className="h-3 w-3" />
+                      <Users className="h-3 w-3 shrink-0" />
                       <span className="text-[10px] sm:text-xs font-bold">{kioskDef.capacity}</span>
                     </div>
                   </div>
                 </div>
 
                 <span className={cn(
-                  "text-lg sm:text-2xl font-black transition-colors px-3 py-1 rounded-xl",
+                  "text-sm sm:text-2xl font-black transition-colors px-2.5 sm:px-3 py-1 rounded-xl shrink-0 whitespace-nowrap",
                   isSelected ? "bg-slate-950 text-amber-400 font-black" : isBooked ? "text-slate-400" : "bg-emerald-100 text-emerald-950 border border-emerald-300"
                 )}>
                   {formatCurrency(price)}
@@ -362,7 +364,7 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
                 <span>⛺</span> Quiosques Familiares — Até 5 pessoas
               </span>
             </div>
-            <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 sm:gap-2.5 pb-1">
+            <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5 sm:gap-2.5 pb-1">
               {KIOSK_MAP.filter(k => k.row === 'familiar').map(kioskDef => {
                 const isDisabledByAdmin = disableKiosks || disabledKioskIds.includes(kioskDef.id) || disabledKioskTypes.includes(kioskDef.type);
                 const isBooked = bookedIds.includes(kioskDef.id) || isDisabledByAdmin;
@@ -375,8 +377,8 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
                     onClick={() => handleToggleKiosk(kioskDef)}
                     disabled={isBooked && !isSelected}
                     className={cn(
-                      "relative flex flex-col items-center justify-center p-2.5 sm:p-3.5 rounded-2xl border-2 transition-all duration-200 cursor-pointer group",
-                      "w-full min-h-[105px] sm:min-h-[115px]",
+                      "relative flex flex-col items-center justify-center p-2 sm:p-3.5 rounded-2xl border-2 transition-all duration-200 cursor-pointer group",
+                      "w-full min-h-[100px] sm:min-h-[115px]",
                       isBooked && !isSelected && "bg-slate-100 border-slate-300 opacity-60 cursor-not-allowed",
                       isSelected && "bg-amber-400 border-amber-500 text-slate-950 shadow-xl scale-[1.03] ring-2 ring-amber-400/30",
                       !isBooked && !isSelected && "bg-emerald-50/60 border-emerald-400/80 hover:border-amber-400 hover:bg-emerald-100/70 text-emerald-950 shadow-sm",
@@ -391,31 +393,32 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
                     {isBooked && !isSelected && (
                       <div className="absolute top-1 right-1 px-1.5 py-0.5 bg-rose-100 border border-rose-300 rounded-full">
                         <span className="text-[7px] font-black text-rose-700 uppercase">
-                          {isDisabledByAdmin ? 'Indisponível' : 'Ocupado'}
+                          {isDisabledByAdmin ? 'Indisp.' : 'Ocupado'}
                         </span>
                       </div>
                     )}
 
                     <span className={cn(
-                      "text-2xl sm:text-3xl font-black transition-colors font-sans",
+                      "text-xl sm:text-3xl font-black transition-colors font-sans",
                       isSelected ? "text-slate-950" : isBooked ? "text-slate-400" : "text-emerald-950"
                     )}>
                       {String(kioskDef.id).padStart(2, '0')}
                     </span>
 
                     <div className={cn(
-                      "flex items-center gap-1 mt-1",
+                      "flex items-center gap-0.5 sm:gap-1 mt-1",
                       isSelected ? "text-slate-900 font-bold" : isBooked ? "text-slate-400" : "text-emerald-800"
                     )}>
-                      <Users className="h-2.5 w-2.5" />
-                      <span className="text-[8px] sm:text-[9px] font-bold">{kioskDef.capacity}</span>
+                      <Users className="h-2.5 w-2.5 shrink-0" />
+                      <span className="text-[8px] sm:text-[9px] font-bold whitespace-nowrap">{kioskDef.capacity}</span>
                     </div>
 
                     <span className={cn(
-                      "text-xs sm:text-sm font-black mt-1 px-2 py-0.5 rounded-full",
+                      "text-[10px] sm:text-sm font-black mt-1 px-1.5 sm:px-2 py-0.5 rounded-full whitespace-nowrap",
                       isSelected ? "bg-slate-950 text-amber-400 font-black shadow-xs" : isBooked ? "text-slate-400" : "bg-emerald-100 text-emerald-950 border border-emerald-300"
                     )}>
-                      {formatCurrency(price)}
+                      <span className="sm:hidden">{formatCurrency(price).replace(',00', '')}</span>
+                      <span className="hidden sm:inline">{formatCurrency(price)}</span>
                     </span>
                   </button>
                 );

@@ -258,7 +258,7 @@ export function QuadSelector({ quads, selectedDate, onUpdate, onSetQuads }: Prop
           ) : (
             <div className="space-y-4">
               {/* Grid dos 9 Horários com Design de Cores Fortes */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 pt-1">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5 sm:gap-3 pt-1">
                 {QUAD_TIMES.map(t => {
                   const dbUsed = getSlotDbUsage(t);
                   const isSlotDisabled = disabledQuadSlots.includes(t);
@@ -284,7 +284,7 @@ export function QuadSelector({ quads, selectedDate, onUpdate, onSetQuads }: Prop
                         setExpandedSlot(isExpanded ? null : t);
                       }}
                       className={cn(
-                        "group relative flex flex-col items-start justify-between p-3.5 rounded-2xl border-2 transition-all select-none text-left min-h-[104px] shadow-md",
+                        "group relative flex flex-col items-start justify-between p-3 sm:p-3.5 rounded-2xl border-2 transition-all select-none text-left min-h-[96px] sm:min-h-[104px] shadow-md",
                         isFull && !isSelectedByMe
                           ? "opacity-55 bg-gradient-to-b from-[#241215] to-[#160a0c] border-red-900/70 text-red-200 cursor-not-allowed"
                           : isHighlighted
