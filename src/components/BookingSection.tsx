@@ -1089,7 +1089,7 @@ export function BookingSection() {
                         onClick={() => setCurrentStep('escolha_modalidade')}
                         className="w-full sm:w-auto bg-primary hover:bg-primary-dark text-white font-bold h-16 px-10 rounded-2xl shadow-xl shadow-primary/20 text-lg group"
                       >
-                        Continuar para Escolha do Serviço <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                        Continue com a sua reserva <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                       </Button>
                     </div>
                   </motion.div>
