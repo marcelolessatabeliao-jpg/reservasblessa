@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarUI } from '@/components/ui/calendar';
 import { 
   Tent, 
   Users, 
@@ -74,8 +76,18 @@ export function CampingSelector({ camping, onUpdate, visitDate, onUpdateVisitDat
     });
   };
 
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const activeDate = camping.date || visitDate;
   const isDateValid = activeDate ? (isOperatingDay(activeDate) && isDateAvailableForHospedagem(activeDate)) : false;
+
+  // Garante que o camping inicie em data válida a partir de 12/11/2026
+  useEffect(() => {
+    if (!activeDate || new Date(activeDate) < new Date('2026-11-12T00:00:00')) {
+      const defaultCampingDate = new Date('2026-11-13T12:00:00');
+      onUpdate({ date: defaultCampingDate });
+      if (onUpdateVisitDate) onUpdateVisitDate(defaultCampingDate);
+    }
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -151,12 +163,51 @@ export function CampingSelector({ camping, onUpdate, visitDate, onUpdateVisitDat
             </p>
           </div>
 
-          {activeDate && (
-            <Badge className="bg-emerald-50 text-emerald-900 border border-emerald-200 text-xs font-bold self-start sm:self-auto py-1 px-3 rounded-xl">
-              <Calendar className="w-3.5 h-3.5 mr-1 text-emerald-700" />
-              {format(activeDate, "dd/MM/yyyy (EEE)", { locale: ptBR })}
-            </Badge>
-          )}
+          <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className="bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border-2 border-emerald-300 hover:border-emerald-500 text-xs font-black self-start sm:self-auto py-1.5 px-3.5 rounded-xl flex items-center gap-2 cursor-pointer shadow-xs transition-all"
+                title="Alterar data do pernoite de camping"
+              >
+                <Calendar className="w-4 h-4 text-emerald-700" />
+                <span>{activeDate ? format(activeDate, "dd/MM/yyyy (EEEE)", { locale: ptBR }) : 'Escolher Data de Entrada'}</span>
+                <span className="text-[10px] uppercase font-bold bg-amber-400 text-slate-950 px-2 py-0.5 rounded-md">Alterar</span>
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0 rounded-3xl border-2 border-emerald-600 bg-white shadow-2xl overflow-hidden" align="end">
+              <div className="bg-emerald-950 text-white p-3 border-b border-emerald-800">
+                <h5 className="text-xs font-black uppercase tracking-tight flex items-center gap-1.5">
+                  <Tent className="w-4 h-4 text-amber-400" />
+                  Data de Entrada do Camping
+                </h5>
+                <p className="text-[10px] text-emerald-300">
+                  Liberado a partir de 12/11/2026 (dias de funcionamento)
+                </p>
+              </div>
+              <div className="p-2 flex justify-center">
+                <CalendarUI
+                  mode="single"
+                  selected={activeDate || undefined}
+                  onSelect={(d) => {
+                    if (d) {
+                      onUpdate({ date: d });
+                      if (onUpdateVisitDate) onUpdateVisitDate(d);
+                      setIsCalendarOpen(false);
+                    }
+                  }}
+                  disabled={(d) => {
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const minDate = new Date('2026-11-12T00:00:00');
+                    return d < today || d < minDate || !isOperatingDay(d);
+                  }}
+                  locale={ptBR}
+                  className="p-1"
+                />
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
 
         {/* Linhas de Seleção de Campistas */}
