@@ -5,7 +5,6 @@ import { HeroSection } from '@/components/HeroSection';
 import { AboutSection } from '@/components/AboutSection';
 import { DayUsePricing, DayUseRules } from '@/components/DayUseInfoSection';
 import { PricingComparisonSection } from '@/components/PricingComparisonSection';
-import { LessaClubPlanCards } from '@/components/LessaClubPlanCards';
 import { SpecialPlansSection } from '@/components/SpecialPlansSection';
 import { SpecialPlansCards } from '@/components/SpecialPlansCards';
 import { ServicesSection } from '@/components/ServicesSection';
@@ -43,7 +42,6 @@ const Index = () => {
       <AboutSection />
       <DayUsePricing />
       <DayUseRules />
-      <LessaClubPlanCards />
       <SpecialPlansCards />
       <ServicesSection />
       <TestimonialsSection />
