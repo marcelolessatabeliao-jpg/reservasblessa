@@ -11,7 +11,7 @@ const services = [
   },
   {
     title: 'Passeio de Quadriciclo',
-    description: 'Passeios de 40 minutos. Individual e dupla.',
+    description: 'Aventura e adrenalina em trilhas ecológicas na natureza com passeios guiados de 40 minutos. Opções individual e dupla.',
     price: 'A partir de R$ 135,00',
     image: '/images/quadriciclo.jpg',
     badge: 'SOB RESERVA',
@@ -125,9 +125,9 @@ export function ServicesSection() {
                 show: { opacity: 1, y: 0, transition: { type: "spring", damping: 20, stiffness: 100 } }
               }}
               whileTap={{ scale: 0.97 }}
-              className="bg-card rounded-xl border shadow-card hover:shadow-elevated transition-shadow group overflow-hidden"
+              className="bg-card rounded-xl border shadow-card hover:shadow-elevated transition-shadow group overflow-hidden flex flex-col h-full"
             >
-              <div className="h-40 sm:h-48 overflow-hidden relative">
+              <div className="h-40 sm:h-48 overflow-hidden relative shrink-0">
                 {service.badge && (
                   <div className="absolute top-2 right-2 z-10">
                     <div className="bg-sun text-foreground font-black text-[9px] px-2.5 py-1 rounded-lg shadow-lg transform rotate-2 border border-white/40 whitespace-nowrap uppercase tracking-tight">
@@ -142,21 +142,23 @@ export function ServicesSection() {
                   loading="lazy"
                 />
               </div>
-              <div className="p-4 sm:p-5">
-                <h3 className="font-display font-bold text-base sm:text-lg mb-1.5 sm:mb-2">{service.title}</h3>
-                <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4 leading-relaxed">{service.description}</p>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-primary font-bold text-xs sm:text-sm">{service.price}</span>
+              <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between">
+                <div>
+                  <h3 className="font-display font-bold text-base sm:text-lg mb-1.5 sm:mb-2">{service.title}</h3>
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4 leading-relaxed">{service.description}</p>
+                </div>
+                <div className="flex items-center justify-between gap-2 mt-auto pt-3 border-t border-border/30">
+                  <span className="text-primary font-black text-xs sm:text-sm">{service.price}</span>
                   {!(service as any).noButton && (
                     <Button 
                       asChild={(service as any).link ? true : false}
                       size="sm" 
-                      className="bg-primary hover:bg-primary/90 text-primary-foreground font-display font-bold text-xs sm:text-sm shrink-0 cursor-pointer"
+                      className="bg-primary hover:bg-primary/90 text-primary-foreground font-display font-bold text-xs sm:text-sm shrink-0 cursor-pointer shadow-sm"
                       onClick={() => {
                         if (!(service as any).link) {
                           let tab = 'entrada';
                           if (service.title === 'Quiosques') tab = 'quiosques';
-                          if (service.title === 'Quadriciclos' || service.title === 'Quadriciclo') tab = 'quads';
+                          if (service.title.toLowerCase().includes('quadriciclo')) tab = 'quads';
                           if (service.title === 'Chalés') tab = 'hospedagem';
                           if (service.title === 'Futebol de Sabão') tab = 'futebol';
                           if (service.title === 'Pesca Esportiva') tab = 'pesca';
