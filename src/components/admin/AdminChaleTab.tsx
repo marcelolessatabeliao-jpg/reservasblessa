@@ -71,6 +71,9 @@ export interface ChaleReservation {
   occupancyType: 'individual' | 'casal';
   adults: number;
   children: number;
+  adultNames?: string[];
+  childNames?: { name: string; ageLabel: string }[];
+  extraItems?: { name: string; quantity: number; price: number; timeSlot?: string }[];
   totalPrice: number;
   paymentMethod: string;
   status: 'paid' | 'pending' | 'cancelled';
@@ -117,15 +120,21 @@ export function AdminChaleTab({
           phone: '(69) 99341-2290',
           cpf: '123.456.789-00',
           checkInDate: '2026-11-06',
-          checkInTime: '14:00',
+          checkInTime: '15:00',
           checkOutDate: '2026-11-08',
           checkOutTime: '12:00',
           packageTitle: 'Combo 2 Noites — Sex a Dom (10% OFF)',
-          packageType: 'combo_2n',
+          packageType: 'combo-2n-sex-dom',
           occupancyType: 'casal',
           adults: 2,
-          children: 0,
-          totalPrice: 729,
+          children: 1,
+          adultNames: ['Carlos Oliveira (Titular)', 'Fernanda Oliveira (Acompanhante)'],
+          childNames: [{ name: 'Lucas Oliveira (8 anos)', ageLabel: 'Até 11 anos • Filho(a) Hóspede' }],
+          extraItems: [
+            { name: 'Quiosque 02 (Churrasqueira, Pia e Grelha)', quantity: 1, price: 90.00 },
+            { name: 'Passeio de Quadriciclo — De Dupla', quantity: 1, price: 175.50, timeSlot: '10:00' }
+          ],
+          totalPrice: 1174.50,
           paymentMethod: 'PIX',
           status: 'paid',
           isCheckedIn: true,
@@ -1601,24 +1610,65 @@ export function AdminChaleTab({
                     <span className="font-black text-white">{voucherRes.guestName}</span>
                   </div>
                   <div className="flex justify-between border-b border-white/10 pb-1.5">
-                    <span className="text-emerald-200 font-bold uppercase text-[10px]">WhatsApp:</span>
+                    <span className="text-emerald-200 font-bold uppercase text-[10px]">CPF:</span>
+                    <span className="font-black text-amber-300">{voucherRes.cpf || '123.456.789-00'}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-white/10 pb-1.5">
+                    <span className="text-emerald-200 font-bold uppercase text-[10px]">Telefone / WhatsApp:</span>
                     <span className="font-bold text-white">{voucherRes.phone}</span>
                   </div>
                   <div className="flex justify-between border-b border-white/10 pb-1.5">
                     <span className="text-emerald-200 font-bold uppercase text-[10px]">Check-in (Entrada):</span>
-                    <span className="font-black text-white">{voucherRes.checkInDate} às {voucherRes.checkInTime}</span>
+                    <span className="font-black text-white">{voucherRes.checkInDate} às {voucherRes.checkInTime || '15:00'}</span>
                   </div>
                   <div className="flex justify-between border-b border-white/10 pb-1.5">
                     <span className="text-emerald-200 font-bold uppercase text-[10px]">Check-out (Saída):</span>
-                    <span className="font-black text-amber-300">{voucherRes.checkOutDate} às {voucherRes.checkOutTime}</span>
+                    <span className="font-black text-amber-300">{voucherRes.checkOutDate} às {voucherRes.checkOutTime || '12:00'}</span>
                   </div>
                   <div className="flex justify-between border-b border-white/10 pb-1.5">
-                    <span className="text-emerald-200 font-bold uppercase text-[10px]">Pacote:</span>
-                    <span className="font-black text-amber-400">{voucherRes.packageTitle}</span>
+                    <span className="text-emerald-200 font-bold uppercase text-[10px]">Pacote & Modalidade:</span>
+                    <span className="font-black text-amber-400 text-right">
+                      {voucherRes.packageTitle} ({voucherRes.occupancyType === 'individual' ? 'Individual' : 'Casal'})
+                    </span>
                   </div>
+                  <div className="space-y-1 border-b border-white/10 pb-1.5">
+                    <span className="text-emerald-200 font-bold uppercase text-[10px] block">
+                      Nomes dos Hóspedes ({voucherRes.adults} Adulto{voucherRes.adults > 1 ? 's' : ''}{voucherRes.children > 0 ? ` + ${voucherRes.children} Criança(s)` : ''}):
+                    </span>
+                    <div className="text-[11px] font-bold text-white space-y-0.5 pl-1">
+                      {(voucherRes.adultNames && voucherRes.adultNames.length > 0
+                        ? voucherRes.adultNames
+                        : [voucherRes.guestName, ...(voucherRes.occupancyType === 'casal' ? ['Acompanhante Adulto 2'] : [])]
+                      ).map((name, i) => (
+                        <div key={i}>👤 {name}</div>
+                      ))}
+                      {(voucherRes.childNames && voucherRes.childNames.length > 0) ? (
+                        voucherRes.childNames.map((c, i) => (
+                          <div key={i} className="text-amber-300">👶 {c.name} ({c.ageLabel})</div>
+                        ))
+                      ) : voucherRes.children > 0 ? (
+                        <div className="text-amber-300">👶 {voucherRes.children}x Criança adicional (Filho(a) do Hóspede)</div>
+                      ) : null}
+                    </div>
+                  </div>
+                  {voucherRes.extraItems && voucherRes.extraItems.length > 0 && (
+                    <div className="space-y-1 border-b border-white/10 pb-1.5">
+                      <span className="text-emerald-200 font-bold uppercase text-[10px] block">
+                        Demais Itens Inclusos na Reserva:
+                      </span>
+                      <div className="text-[11px] font-bold text-amber-200 space-y-0.5 pl-1">
+                        {voucherRes.extraItems.map((ext, i) => (
+                          <div key={i} className="flex justify-between">
+                            <span>• {ext.quantity}x {ext.name}{ext.timeSlot ? ` (${ext.timeSlot})` : ''}</span>
+                            <span>{formatCurrency(ext.price)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <div className="flex justify-between pt-1">
-                    <span className="text-emerald-200 font-bold uppercase text-[10px]">Café da Manhã & Day Use:</span>
-                    <span className="font-black text-emerald-300">Inclusos ✓</span>
+                    <span className="text-emerald-200 font-bold uppercase text-[10px]">Café (Sex-Dom 7h-9h) & Day Use:</span>
+                    <span className="font-black text-emerald-300">100% Inclusos ✓</span>
                   </div>
                 </div>
 
@@ -1681,6 +1731,14 @@ export function AdminChaleTab({
                   className="w-full h-10 border-2 border-slate-300 text-slate-900 hover:bg-slate-100 font-black text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-2"
                 >
                   <Share2 className="w-4 h-4 text-emerald-600" /> Enviar Mensagem no WhatsApp
+                </Button>
+
+                <Button
+                  onClick={() => window.open(`/voucher/${voucherRes.confirmationCode || 'CHA-8931'}`, '_blank')}
+                  variant="outline"
+                  className="w-full h-10 border-2 border-amber-400 bg-amber-50 text-emerald-950 hover:bg-amber-100 font-black text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-2"
+                >
+                  <ExternalLink className="w-4 h-4 text-amber-600" /> Ver Página Completa do Voucher ({voucherRes.confirmationCode || 'CHA-8931'})
                 </Button>
               </div>
             </div>

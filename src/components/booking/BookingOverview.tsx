@@ -254,11 +254,22 @@ export function BookingOverview({
           unit_price: chalePrice,
           metadata: {
             package_type: pkg.id,
+            package_title: pkg.title,
             chale_id: booking.chale.chaleId || null,
             chale_ids: booking.chale.chaleIds || (booking.chale.chaleId ? [booking.chale.chaleId] : []),
             chalets_count: chaletsCount,
+            chale_occupancies: booking.chale.chaleOccupancies || {},
+            chale_kids: booking.chale.chaleKids || {},
             adults: adults,
             children: kids,
+            children_ages: booking.chale.childrenAges || [],
+            guest_names: booking.chale.guestNames || {},
+            check_in_date: booking.chale.checkInDate ? format(booking.chale.checkInDate, 'yyyy-MM-dd') : (booking.date ? format(booking.date, 'yyyy-MM-dd') : null),
+            check_in_time: '15:00',
+            check_out_date: booking.chale.checkOutDate ? format(booking.chale.checkOutDate, 'yyyy-MM-dd') : null,
+            check_out_time: '12:00',
+            chale_gross_price: chaleGross,
+            chale_net_price: chalePrice,
             include_sunday_day_use: !!booking.chale.includeSundayDayUse
           }
         });
