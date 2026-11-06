@@ -1,6 +1,11 @@
 import { CHALE_PACKAGES } from '@/lib/booking-types';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import {
+  buildChaleTermsAcceptanceRecord,
+  CHALE_TERMS_VERSION,
+  ChaleTermsAcceptanceRecord
+} from '@/components/booking/ChaleTermsModal';
 
 export interface ParsedChaleDetails {
   isHospedagem: boolean;
@@ -19,6 +24,7 @@ export interface ParsedChaleDetails {
   childrenList: { label: string; name: string; ageLabel: string; chaleId: number }[];
   chalePrice: number;
   chaleGrossPrice: number;
+  termsAcceptance: ChaleTermsAcceptanceRecord;
   otherItems: {
     name: string;
     quantity: number;
@@ -352,6 +358,40 @@ export function extractChaleDetailsFromOrder(order: any): ParsedChaleDetails | n
       };
     });
 
+  // Extract or reconstruct Terms Acceptance Record
+  let termsAcceptance: ChaleTermsAcceptanceRecord | null = meta.terms_acceptance || null;
+  if (!termsAcceptance && typeof window !== 'undefined') {
+    try {
+      const codeKey = order.confirmation_code ? `lessa_terms_acceptance_${order.confirmation_code}` : null;
+      const idKey = order.id ? `lessa_terms_acceptance_${order.id}` : null;
+      const rawStored = (codeKey && localStorage.getItem(codeKey)) || (idKey && localStorage.getItem(idKey));
+      if (rawStored) {
+        termsAcceptance = JSON.parse(rawStored);
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  if (!termsAcceptance) {
+    const fallbackDate = order.created_at ? new Date(order.created_at) : new Date('2026-11-06T10:00:00.000Z');
+    termsAcceptance = buildChaleTermsAcceptanceRecord({
+      guestName: order.customer_name || 'Hóspede Titular',
+      guestCpf: order.customer_cpf || '',
+      guestPhone: order.customer_phone || '',
+      reservationCode: order.confirmation_code || String(order.id || '').slice(0, 8).toUpperCase(),
+      orderId: String(order.id || ''),
+      acceptedAt: isNaN(fallbackDate.getTime()) ? new Date() : fallbackDate,
+    });
+  } else {
+    termsAcceptance = {
+      ...termsAcceptance,
+      termsVersion: termsAcceptance.termsVersion || CHALE_TERMS_VERSION,
+      reservationCode: termsAcceptance.reservationCode || order.confirmation_code || String(order.id || '').slice(0, 8).toUpperCase(),
+      orderId: termsAcceptance.orderId || String(order.id || ''),
+    };
+  }
+
   return {
     isHospedagem: true,
     chaleIds,
@@ -369,6 +409,7 @@ export function extractChaleDetailsFromOrder(order: any): ParsedChaleDetails | n
     childrenList,
     chalePrice,
     chaleGrossPrice,
+    termsAcceptance,
     otherItems
   };
 }

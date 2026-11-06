@@ -1,10 +1,11 @@
-import { MessageCircle, CheckCircle, Loader2, ArrowRight, User, CreditCard, QrCode, Copy, Sparkles, Phone, X, ArrowLeft, Calendar } from 'lucide-react';
+import { MessageCircle, CheckCircle, Loader2, ArrowRight, User, CreditCard, QrCode, Copy, Sparkles, Phone, X, ArrowLeft, Calendar, FileText, ShieldCheck } from 'lucide-react';
 import { isValidCPF } from '@/utils/cpf-validator';
 import { Link } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { saveBooking } from '@/lib/booking-service';
 import { buildWhatsAppMessage } from '@/lib/whatsapp';
 import { PaymentModal } from './PaymentModal';
+import { ChaleTermsModal, buildChaleTermsAcceptanceRecord, CHALE_TERMS_VERSION } from './ChaleTermsModal';
 import { useServices } from '@/hooks/useServices';
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
@@ -72,8 +73,18 @@ export function BookingOverview({
   const [pixData, setPixData] = useState<{ encodedImage: string; payload: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
+  const [chaleTermsAccepted, setChaleTermsAccepted] = useState(false);
+  const [chaleTermsAcceptedAt, setChaleTermsAcceptedAt] = useState<Date | null>(null);
+  const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
+  const [termsErrorHighlight, setTermsErrorHighlight] = useState(false);
   const { getPrice } = useServices();
   const { toast } = useToast();
+
+  const hasSelectedChaleBooking = Boolean(
+    booking.chale &&
+    booking.chale.packageType &&
+    ((booking.chale.chaleIds && booking.chale.chaleIds.length > 0) || booking.chale.chaleId)
+  );
 
   useEffect(() => {
     if (!persistedOrderId || paymentConfirmed) return;
@@ -160,6 +171,21 @@ export function BookingOverview({
       return;
     }
 
+    const hasSelectedChale = (booking.chale?.chaleIds && booking.chale.chaleIds.length > 0) || !!booking.chale?.chaleId;
+    if (booking.chale && booking.chale.packageType && hasSelectedChale && !chaleTermsAccepted) {
+      setTermsErrorHighlight(true);
+      toast({
+        title: 'Aceite dos Termos Obrigatório',
+        description: 'Para prosseguir com o pagamento da hospedagem, marque a caixa de aceite dos Termos de Hospedagem e Condições Gerais.',
+        variant: 'destructive'
+      });
+      setTimeout(() => {
+        const el = document.getElementById('chale-terms-box');
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
+      return;
+    }
+
     const items: any[] = [];
     const isSunday = booking.entry.dayOfWeek === 'domingo' || isSundayOrHoliday(booking.entry.visitDate);
     
@@ -215,7 +241,7 @@ export function BookingOverview({
       });
     });
 
-    const hasSelectedChale = (booking.chale?.chaleIds && booking.chale.chaleIds.length > 0) || !!booking.chale?.chaleId;
+    let termsAcceptanceSnapshot: any = null;
     if (booking.chale && booking.chale.packageType && hasSelectedChale) {
       const pkg = CHALE_PACKAGES[booking.chale.packageType];
       if (pkg) {
@@ -251,6 +277,12 @@ export function BookingOverview({
         const chaleSiteNet = chaleGross > chalePrice
           ? chalePrice
           : Math.round(chaleGross * 0.90 * 100) / 100;
+        termsAcceptanceSnapshot = buildChaleTermsAcceptanceRecord({
+          guestName: fullName,
+          guestCpf: booking.entry.cpf,
+          guestPhone: booking.entry.phone,
+          acceptedAt: chaleTermsAcceptedAt || new Date(),
+        });
         items.push({
           product_id: chaletsCount > 1 ? `Chalés (${chaletsCount} unidades): ${pkg.title}` : `Chalé: ${pkg.title}`,
           quantity: 1,
@@ -273,7 +305,8 @@ export function BookingOverview({
             check_out_time: '12:00',
             chale_gross_price: chaleGross,
             chale_net_price: chaleSiteNet,
-            include_sunday_day_use: !!booking.chale.includeSundayDayUse
+            include_sunday_day_use: !!booking.chale.includeSundayDayUse,
+            terms_acceptance: termsAcceptanceSnapshot
           }
         });
       }
@@ -317,6 +350,18 @@ export function BookingOverview({
       
       setPersistedOrderId(orderId);
       setPersistedConfirmationCode(confCode);
+
+      if (termsAcceptanceSnapshot) {
+        const enrichedAcceptance = {
+          ...termsAcceptanceSnapshot,
+          orderId,
+          reservationCode: confCode || '',
+        };
+        try {
+          if (confCode) localStorage.setItem(`lessa_terms_acceptance_${confCode}`, JSON.stringify(enrichedAcceptance));
+          if (orderId) localStorage.setItem(`lessa_terms_acceptance_${orderId}`, JSON.stringify(enrichedAcceptance));
+        } catch (e) {}
+      }
 
       if (totals.total === 0) {
          setPaymentConfirmed(true);
@@ -1149,6 +1194,89 @@ export function BookingOverview({
                   );
                 })()}
 
+                {/* CAIXA DE ACEITE DOS TERMOS DE HOSPEDAGEM (Exibida quando há Chalé selecionado) */}
+                {hasSelectedChaleBooking && (
+                  <div
+                    id="chale-terms-box"
+                    className={cn(
+                      "rounded-2xl p-4 sm:p-5 bg-gradient-to-br from-slate-950 via-[#041f12] to-slate-950 text-white border-2 transition-all shadow-xl space-y-3",
+                      termsErrorHighlight && !chaleTermsAccepted
+                        ? "border-rose-500 ring-4 ring-rose-500/25"
+                        : chaleTermsAccepted
+                        ? "border-amber-400 ring-2 ring-amber-400/20"
+                        : "border-emerald-700/80"
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-2 flex-wrap border-b border-white/15 pb-2.5">
+                      <span className="text-xs sm:text-sm font-black text-white flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                        Confirmação da reserva
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setIsTermsModalOpen(true)}
+                        className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider bg-amber-400 hover:bg-amber-300 text-slate-950 px-3 py-1 rounded-full transition-all cursor-pointer shadow-xs"
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        Ler Termos Completos
+                      </button>
+                    </div>
+
+                    <label className="flex items-start gap-3 cursor-pointer select-none group">
+                      <input
+                        type="checkbox"
+                        checked={chaleTermsAccepted}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setChaleTermsAccepted(checked);
+                          if (checked) {
+                            setChaleTermsAcceptedAt(new Date());
+                            setTermsErrorHighlight(false);
+                          } else {
+                            setChaleTermsAcceptedAt(null);
+                          }
+                        }}
+                        className="mt-1 w-5 h-5 rounded-md border-2 border-amber-400 accent-amber-400 cursor-pointer shrink-0"
+                      />
+                      <div className="space-y-1.5 text-xs sm:text-sm leading-relaxed">
+                        <p className="font-bold text-white group-hover:text-amber-200 transition-colors">
+                          Li e aceito os{' '}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setIsTermsModalOpen(true);
+                            }}
+                            className="font-black text-amber-300 underline underline-offset-2 hover:text-amber-200"
+                          >
+                            Termos de Hospedagem e Condições Gerais do Balneário Lessa
+                          </button>
+                          .
+                        </p>
+                        <p className="text-[11px] sm:text-xs text-emerald-100/90 font-medium leading-relaxed">
+                          Declaro estar ciente dos horários de check-in e check-out, das regras de hospedagem e utilização do day use, dos adicionais para crianças e da política de cancelamento, incluindo o direito de arrependimento de 7 dias nas contratações online e a previsão de retenção de 30% após esse prazo, respeitada a legislação aplicável.
+                        </p>
+                      </div>
+                    </label>
+
+                    {chaleTermsAccepted && chaleTermsAcceptedAt && (
+                      <div className="pt-2 border-t border-white/10 flex items-center justify-between gap-2 text-[10px] text-emerald-300 font-bold">
+                        <span className="flex items-center gap-1">
+                          <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+                          Aceite registrado em {chaleTermsAcceptedAt.toLocaleString('pt-BR')} • Versão {CHALE_TERMS_VERSION}
+                        </span>
+                        <span className="text-amber-300 uppercase font-black">Liberado p/ Pagamento ✓</span>
+                      </div>
+                    )}
+
+                    {!chaleTermsAccepted && (
+                      <div className="pt-2 border-t border-white/10 text-[11px] text-amber-300/95 font-bold flex items-center gap-1.5">
+                        <span>☝️ Marque a caixa acima para liberar os botões de pagamento.</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {totals.total === 0 ? (
                   (() => {
                     const hasBalcao = booking.entry.adults.some((a: any) => a.isCounterPayment);
@@ -1178,7 +1306,10 @@ export function BookingOverview({
                   })()
                 ) : (
                   <>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
+                    <div className={cn(
+                      "grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4 transition-opacity",
+                      hasSelectedChaleBooking && !chaleTermsAccepted && "opacity-60"
+                    )}>
                       {/* Botão PIX */}
                       <Button
                         size="lg"
@@ -1207,6 +1338,10 @@ export function BookingOverview({
                       <Button
                         size="lg"
                         onClick={() => {
+                          if (hasSelectedChaleBooking && !chaleTermsAccepted) {
+                            handleAction('CREDIT_CARD', 1);
+                            return;
+                          }
                           if (totals.total >= 50) {
                             setShowCardInstallmentModal(true);
                           } else {
@@ -1363,13 +1498,16 @@ export function BookingOverview({
                       onClick={() => {
                         const cleanPhone = booking.entry.phone.replace(/\D/g, '');
                         const formattedPhone = cleanPhone.length <= 11 ? `55${cleanPhone}` : cleanPhone;
-                        const msg = `*Reserva Balneário Lessa*\n\nOlá, ${booking.entry.name || 'Cliente'}!\n\nSegue seu código PIX para pagamento da reserva:\n\n*PIX Copia e Cola:*\n${pixData.payload}\n\n*Acompanhar / Acessar Voucher:*\nConsulte a qualquer momento em: https://balneariolessa.com.br/consultar informando seu WhatsApp (${booking.entry.phone}).\n\n_Aguardamos você para um dia incrível de lazer na natureza!_`;
+                        const termsNote = hasSelectedChaleBooking
+                          ? `\n*Comprovante de Aceite dos Termos de Hospedagem:*\nVersão ${CHALE_TERMS_VERSION} aceita eletronicamente por ${booking.entry.name || 'Hóspede'} em ${(chaleTermsAcceptedAt || new Date()).toLocaleString('pt-BR')}. Os termos completos estão disponíveis no seu painel em https://reservas.balneariolessa.com.br/consultar\n`
+                          : '';
+                        const msg = `*Reserva Balneário Lessa*\n\nOlá, ${booking.entry.name || 'Cliente'}!\n\nSegue seu código PIX para pagamento da reserva:\n\n*PIX Copia e Cola:*\n${pixData.payload}\n${termsNote}\n*Acompanhar / Acessar Voucher e Termos:*\nConsulte a qualquer momento em: https://reservas.balneariolessa.com.br/consultar informando seu WhatsApp (${booking.entry.phone}).\n\n_Aguardamos você para um dia incrível de lazer na natureza!_`;
                         window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(msg)}`, '_blank');
                       }}
                       className="w-full h-12 flex items-center justify-center gap-2 font-black text-xs sm:text-sm rounded-xl bg-[#25D366] hover:bg-[#128C7E] text-white shadow-md transition-all active:scale-[0.98]"
                     >
                       <MessageCircle className="h-5 w-5" />
-                      Salvar / Enviar Dados no meu WhatsApp
+                      Salvar / Enviar Dados e Comprovante dos Termos no WhatsApp
                     </Button>
                   )}
                   
@@ -1403,6 +1541,28 @@ export function BookingOverview({
           onSuccess={handlePaymentSuccess}
         />
       )}
+
+      <ChaleTermsModal
+        open={isTermsModalOpen}
+        onOpenChange={setIsTermsModalOpen}
+        onAccept={() => {
+          setChaleTermsAccepted(true);
+          setChaleTermsAcceptedAt(new Date());
+          setTermsErrorHighlight(false);
+        }}
+        acceptanceRecord={
+          chaleTermsAccepted && chaleTermsAcceptedAt
+            ? buildChaleTermsAcceptanceRecord({
+                guestName: booking.entry.name || 'Hóspede Titular',
+                guestCpf: booking.entry.cpf,
+                guestPhone: booking.entry.phone,
+                reservationCode: persistedConfirmationCode || '',
+                orderId: persistedOrderId || '',
+                acceptedAt: chaleTermsAcceptedAt,
+              })
+            : null
+        }
+      />
     </div>
   );
 }

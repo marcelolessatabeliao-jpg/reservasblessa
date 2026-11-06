@@ -10,9 +10,9 @@ const services = [
     badge: 'SOB RESERVA',
   },
   {
-    title: 'Quadriciclos',
-    description: 'Passeios de 1h30 por trilhas na natureza. Individual, dupla ou adulto + criança.',
-    price: 'A partir de R$ 150,00',
+    title: 'Passeio de Quadriciclo',
+    description: 'Passeios de 40 minutos. Individual e dupla.',
+    price: 'A partir de R$ 135,00',
     image: '/images/quadriciclo.jpg',
     badge: 'SOB RESERVA',
   },

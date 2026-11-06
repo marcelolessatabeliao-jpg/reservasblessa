@@ -24,13 +24,15 @@ import {
   Users,
   Baby,
   Sparkles,
-  CheckCircle2
+  CheckCircle2,
+  ShieldCheck
 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Navbar } from '@/components/Navbar';
 import { PaymentModal } from '@/components/booking/PaymentModal';
+import { ChaleTermsModal, ChaleTermsAcceptanceRecord } from '@/components/booking/ChaleTermsModal';
 import { formatCurrency } from '@/lib/booking-types';
 import { formatProductDisplayName } from '@/utils/product-utils';
 import {
@@ -50,6 +52,8 @@ export default function Consultar() {
   const [syncingId, setSyncingId] = useState<string | null>(null);
   const [paymentOrder, setPaymentOrder] = useState<any>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [termsModalRecord, setTermsModalRecord] = useState<ChaleTermsAcceptanceRecord | null>(null);
+  const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
 
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -289,14 +293,27 @@ export default function Consultar() {
               <p className="text-[11px] sm:text-xs text-emerald-800 font-bold uppercase tracking-wider text-center sm:text-left">
                 Consulte vouchers de Hospedagem, Day Use e Camping
               </p>
-              <button
-                type="button"
-                onClick={handleLoadDemoHospedagem}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-950 via-[#042817] to-slate-950 hover:from-emerald-900 hover:to-emerald-950 text-amber-300 border-2 border-amber-400 font-black text-[11px] sm:text-xs uppercase tracking-wider shadow-md transition-all cursor-pointer text-center"
-              >
-                <Home className="w-4 h-4 text-amber-400 shrink-0" />
-                <span>Ver Reserva Fictícia de Hospedagem (CHA-8931)</span>
-              </button>
+              <div className="flex flex-wrap items-center justify-center sm:justify-end gap-2 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTermsModalRecord(null);
+                    setIsTermsModalOpen(true);
+                  }}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border-2 border-emerald-300 font-black text-[11px] sm:text-xs uppercase tracking-wider shadow-xs transition-all cursor-pointer text-center"
+                >
+                  <FileText className="w-4 h-4 text-emerald-700 shrink-0" />
+                  <span>Ler Termos de Hospedagem</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLoadDemoHospedagem}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-950 via-[#042817] to-slate-950 hover:from-emerald-900 hover:to-emerald-950 text-amber-300 border-2 border-amber-400 font-black text-[11px] sm:text-xs uppercase tracking-wider shadow-md transition-all cursor-pointer text-center"
+                >
+                  <Home className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span>Ver Reserva Fictícia de Hospedagem (CHA-8931)</span>
+                </button>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -539,6 +556,53 @@ export default function Consultar() {
                             )}
                           </div>
 
+                          {/* Linha 4: Termos de Hospedagem & Comprovante de Aceite Eletrônico */}
+                          <div className="bg-slate-950 text-white p-3.5 sm:p-4 rounded-xl border-2 border-amber-400/70 space-y-2.5 shadow-sm">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/15 pb-2.5">
+                              <div className="flex items-center gap-2">
+                                <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0" />
+                                <div>
+                                  <span className="text-[11px] font-black uppercase text-amber-300 tracking-wider block">
+                                    Termos de Hospedagem e Condições Gerais ({chaleDetails.termsAcceptance.termsVersion})
+                                  </span>
+                                  <span className="text-[10.5px] text-emerald-200 font-bold block">
+                                    ✓ Aceite eletrônico registrado e vinculado à reserva #{voucherCode}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <Button
+                                type="button"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setTermsModalRecord(chaleDetails.termsAcceptance);
+                                  setIsTermsModalOpen(true);
+                                }}
+                                className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-[11px] uppercase tracking-wider rounded-lg h-9 px-3.5 shrink-0 cursor-pointer"
+                              >
+                                <FileText className="w-3.5 h-3.5 mr-1.5" />
+                                Ler Termos e Comprovante de Aceite
+                              </Button>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[10.5px] text-slate-300 font-medium">
+                              <div>
+                                <span className="text-slate-400 font-bold uppercase block text-[9.5px]">Hóspede / Reserva:</span>
+                                <strong className="text-white">{chaleDetails.termsAcceptance.guestName} (#{voucherCode})</strong>
+                              </div>
+                              <div>
+                                <span className="text-slate-400 font-bold uppercase block text-[9.5px]">Data e Horário do Aceite:</span>
+                                <strong className="text-white">{chaleDetails.termsAcceptance.acceptedAtFormatted}</strong>
+                              </div>
+                              <div>
+                                <span className="text-slate-400 font-bold uppercase block text-[9.5px]">Hash / Registro Técnico:</span>
+                                <strong className="text-amber-300 font-mono">{chaleDetails.termsAcceptance.technicalLog.consentHash}</strong>
+                              </div>
+                            </div>
+                          </div>
+
                           <Link
                             to={`/voucher/${voucherCode}`}
                             className="w-full h-12 bg-gradient-to-r from-emerald-950 via-[#042817] to-slate-950 hover:from-emerald-900 hover:to-emerald-950 text-amber-300 border-2 border-amber-400 font-black rounded-xl flex items-center justify-center gap-2 transition-all shadow-md text-xs sm:text-sm uppercase tracking-wider"
@@ -659,6 +723,12 @@ export default function Consultar() {
             </Button>
           </div>
         )}
+
+        <ChaleTermsModal
+          open={isTermsModalOpen}
+          onOpenChange={setIsTermsModalOpen}
+          acceptanceRecord={termsModalRecord}
+        />
       </main>
     </div>
   );

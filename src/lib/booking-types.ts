@@ -163,8 +163,8 @@ export const CHALE_PACKAGES: Record<ChalePackageType, ChalePackageInfo> = {
     basePrice: 819,
     isPopular: true,
     badge: '🔥 10% OFF • SEX A DOM',
-    commercialHighlight: 'Check-in sexta às 14h • Check-out domingo às 12h (Day Use no parque liberado até as 17h!)',
-    description: 'Check-in sexta às 14h • Check-out domingo às 12h. Day use de sexta a domingo até as 17h e café da manhã incluso nas manhãs de sábado e domingo.'
+    commercialHighlight: 'Check-in sexta às 15h • Check-out domingo às 12h (Day Use no parque liberado até as 17h!)',
+    description: 'Check-in sexta às 15h • Check-out domingo às 12h. Day use de sexta a domingo até as 17h e café da manhã incluso nas manhãs de sábado e domingo.'
   },
   'combo-2n-qui-sab': {
     id: 'combo-2n-qui-sab',
@@ -191,8 +191,8 @@ export const CHALE_PACKAGES: Record<ChalePackageType, ChalePackageInfo> = {
     priceCasal: 711,
     basePrice: 711,
     badge: '☀️ 10% OFF • SÁB A SEG',
-    commercialHighlight: 'Check-in sábado às 14h • Check-out segunda às 12h (Domingo Day Use até 17h)',
-    description: 'Check-in sábado às 14h • Check-out segunda às 12h. Day Use domingo até 17h. Segunda sem café e balneário fechado.'
+    commercialHighlight: 'Check-in sábado às 15h • Check-out segunda às 12h (Domingo Day Use até 17h)',
+    description: 'Check-in sábado às 15h • Check-out segunda às 12h. Day Use domingo até 17h. Segunda sem café e balneário fechado.'
   },
   'combo-3n-qui-dom': {
     id: 'combo-3n-qui-dom',
@@ -219,8 +219,8 @@ export const CHALE_PACKAGES: Record<ChalePackageType, ChalePackageInfo> = {
     priceCasal: 1107,
     basePrice: 1107,
     badge: '🌟 10% OFF • SEX A SEG',
-    commercialHighlight: 'Check-in sexta às 14h • Check-out segunda às 12h (Segunda sem café/parque fechado)',
-    description: 'Check-in sexta às 14h • Check-out segunda às 12h. Day use de sexta a domingo até as 17h. Segunda balneário fechado e sem café da manhã.'
+    commercialHighlight: 'Check-in sexta às 15h • Check-out segunda às 12h (Segunda sem café/parque fechado)',
+    description: 'Check-in sexta às 15h • Check-out segunda às 12h. Day use de sexta a domingo até as 17h. Segunda balneário fechado e sem café da manhã.'
   },
   'combo-4n-qui-seg': {
     id: 'combo-4n-qui-seg',
@@ -258,7 +258,7 @@ export const CHALE_PACKAGES: Record<ChalePackageType, ChalePackageInfo> = {
     priceIndividual: 340,
     priceCasal: 440,
     basePrice: 440,
-    description: 'Check-in sexta às 14h • Check-out sábado às 12h com café da manhã incluso na manhã de sábado.'
+    description: 'Check-in sexta às 15h • Check-out sábado às 12h com café da manhã incluso na manhã de sábado.'
   },
   'diaria-sab-dom': {
     id: 'diaria-sab-dom',
@@ -270,7 +270,7 @@ export const CHALE_PACKAGES: Record<ChalePackageType, ChalePackageInfo> = {
     priceIndividual: 370,
     priceCasal: 470,
     basePrice: 470,
-    description: 'Check-in sábado às 14h • Check-out domingo às 12h com café da manhã incluso e Day Use no parque liberado no domingo até as 17h!'
+    description: 'Check-in sábado às 15h • Check-out domingo às 12h com café da manhã incluso e Day Use no parque liberado no domingo até as 17h!'
   },
   'diaria-dom-seg': {
     id: 'diaria-dom-seg',
@@ -282,7 +282,7 @@ export const CHALE_PACKAGES: Record<ChalePackageType, ChalePackageInfo> = {
     priceIndividual: 220,
     priceCasal: 320,
     basePrice: 320,
-    description: 'Check-in domingo às 14h • Check-out segunda às 12h (Segunda balneário fechado e sem café da manhã).'
+    description: 'Check-in domingo às 15h • Check-out segunda às 12h (Segunda balneário fechado e sem café da manhã).'
   },
   // Aliases de retrocompatibilidade
   'combo-3d-2n': {
@@ -297,13 +297,13 @@ export const CHALE_PACKAGES: Record<ChalePackageType, ChalePackageInfo> = {
     basePrice: 819,
     isPopular: true,
     badge: '🔥 10% OFF • SEX A DOM',
-    commercialHighlight: 'Check-in sexta às 14h • Check-out domingo às 12h (Day Use no parque liberado até as 17h!)',
-    description: 'Check-in sexta às 14h • Check-out domingo às 12h. Day use de sexta a domingo até as 17h e café da manhã incluso.'
+    commercialHighlight: 'Check-in sexta às 15h • Check-out domingo às 12h (Day Use no parque liberado até as 17h!)',
+    description: 'Check-in sexta às 15h • Check-out domingo às 12h. Day use de sexta a domingo até as 17h e café da manhã incluso.'
   },
   '1-diaria': {
     id: '1-diaria',
     title: '1 Diária',
-    period: '1 Diária (Entrada 14h / Saída 12h)',
+    period: '1 Diária (Entrada 15h / Saída 12h)',
     nights: 1,
     days: 1,
     typeLabel: 'Individual ou Casal',
@@ -315,7 +315,7 @@ export const CHALE_PACKAGES: Record<ChalePackageType, ChalePackageInfo> = {
   '2-diarias': {
     id: '2-diarias',
     title: '2 Diárias Consecutivas',
-    period: '2 Diárias (Entrada 14h / Saída 12h)',
+    period: '2 Diárias (Entrada 15h / Saída 12h)',
     nights: 2,
     days: 2,
     typeLabel: 'Individual ou Casal',
@@ -375,13 +375,13 @@ export const CHALE_PACKAGES: Record<ChalePackageType, ChalePackageInfo> = {
 };
 
 export const CHALE_RULES = [
-  'Horários da hospedagem: Check-in a partir das 14h (Quintas em combos às 09h) e Check-out pontual até às 12h.',
+  'Horários da hospedagem: Check-in a partir das 15h (Quintas às 09h) e Check-out pontual até às 12h.',
   'Café da manhã servido das 7h às 9h nas manhãs de sexta, sábado e domingo.',
   'Segunda-feira: não haverá café da manhã nem funcionamento do parque balneário.',
   'Aos domingos, Day Use 100% incluso liberado no parque até as 17h para todos os hóspedes.',
   'Combos de 2 ou mais noites têm 10% de desconto automático sobre a soma das diárias.',
   'Capacidade máxima: 2 adultos por chalé (+ crianças).',
-  'Crianças até 11 anos não pagam diária (1ª criança grátis por chalé). A partir da 2ª criança, apenas R$ 40/diária.',
+  'Crianças até 11 anos: adicional de R$ 50/diária (R$ 45/diária em combos). 12+ anos: R$ 100/diária (R$ 90/diária em combos).',
   'Nos pacotes com saída na segunda-feira, o check-out deverá ser organizado previamente, já que o balneário estará fechado.',
   'Permitido apenas animais de pequeno porte.',
   'Proibido fogueiras e churrasqueiras nos chalés.',
@@ -442,7 +442,7 @@ export function calculateStayPricing(checkIn: Date | string | null, checkOut: Da
       hasSunday: false,
       hasMondayOut: false,
       hasThursdayIn: false,
-      checkInHour: '14h',
+      checkInHour: '15h',
       checkOutHour: '12h'
     };
   }
@@ -479,8 +479,8 @@ export function calculateStayPricing(checkIn: Date | string | null, checkOut: Da
   const totalIndividual = Math.round(totalIndividualGross * (1 - discountPct));
   const totalCasal = Math.round(totalCasalGross * (1 - discountPct));
 
-  // Check-in na quinta às 9h (se for combo de 3 ou 4 noites) ou 14h
-  const checkInHour = hasThursdayIn ? '09h' : '14h';
+  // Check-in na quinta às 9h ou 15h nos demais dias
+  const checkInHour = hasThursdayIn ? '09h' : '15h';
   const checkOutHour = '12h';
 
   return {
@@ -826,8 +826,19 @@ export const WHATSAPP_NUMBER = '556992626140';
 export const OPERATING_HOURS = 'Aberto das 9h às 17h';
 export const OPERATING_DAYS = 'Sextas, Sábados, Domingos e Feriados';
 
+// Hospedagem e Camping liberados a partir do dia 12 de Novembro de 2026 (bloqueados até 11/11/2026)
+export const MIN_HOSPEDAGEM_CAMPING_DATE = '2026-11-12';
+
+export function isDateAvailableForHospedagem(date: Date | string | null | undefined): boolean {
+  if (!date) return false;
+  const d = parseToRODate(date);
+  const dateStr = format(d, 'yyyy-MM-dd');
+  return dateStr >= MIN_HOSPEDAGEM_CAMPING_DATE;
+}
+
 export function isChaleCheckInDay(date: Date | string): boolean {
   const d = parseToRODate(date);
+  if (!isDateAvailableForHospedagem(d)) return false;
   const day = d.getDay();
   // Quinta (4), Sexta (5), Sábado (6), Domingo (0)
   return day === 4 || day === 5 || day === 6 || day === 0 || isHolidayDate(d);
@@ -835,6 +846,7 @@ export function isChaleCheckInDay(date: Date | string): boolean {
 
 export function isChaleCheckOutDay(date: Date | string): boolean {
   const d = parseToRODate(date);
+  if (!isDateAvailableForHospedagem(d)) return false;
   const day = d.getDay();
   // Sexta (5), Sábado (6), Domingo (0), Segunda (1)
   return day === 5 || day === 6 || day === 0 || day === 1 || isHolidayDate(d);

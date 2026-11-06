@@ -116,9 +116,14 @@ function ChaleSelectorInner({
   const [isCheckOutCalendarOpen, setIsCheckOutCalendarOpen] = useState<boolean>(false);
   const [shortcutCategory, setShortcutCategory] = useState<'combos' | 'diarias' | null>(null);
 
-  // Data âncora inicial
+  // Data âncora inicial (Hospedagem liberada a partir de 12/11/2026)
   const anchorDate = useMemo(() => {
-    return chale.checkInDate || visitDate || new Date();
+    const minHosp = new Date('2026-11-12T00:00:00');
+    let candidate = chale.checkInDate || visitDate || new Date();
+    if (new Date(candidate) < minHosp) {
+      candidate = minHosp;
+    }
+    return candidate;
   }, [chale.checkInDate, visitDate]);
 
   // Cálculo de quinta, sexta, sábado, domingo e segunda de referência
@@ -143,10 +148,10 @@ function ChaleSelectorInner({
     thursday.setHours(9, 0, 0, 0);
 
     const friday = addDays(thursday, 1);
-    friday.setHours(14, 0, 0, 0);
+    friday.setHours(15, 0, 0, 0);
 
     const saturday = addDays(thursday, 2);
-    saturday.setHours(14, 0, 0, 0);
+    saturday.setHours(15, 0, 0, 0);
 
     const sunday = addDays(thursday, 3);
     sunday.setHours(12, 0, 0, 0);
@@ -323,7 +328,7 @@ function ChaleSelectorInner({
   // Alterar data de entrada via calendário
   const handleSelectCheckInDate = (newInDate: Date) => {
     const day = newInDate.getDay();
-    newInDate.setHours(day === 4 ? 9 : 14, 0, 0, 0);
+    newInDate.setHours(day === 4 ? 9 : 15, 0, 0, 0);
 
     let defaultPkg: ChalePackageType = 'combo-2n-sex-dom';
     let outDate = addDays(newInDate, 1);
@@ -426,7 +431,7 @@ function ChaleSelectorInner({
 
     if (preset === 'combo-2n-sex-dom') {
       inDate = new Date(refFriday);
-      inDate.setHours(14, 0, 0, 0);
+      inDate.setHours(15, 0, 0, 0);
       outDate = new Date(refSunday);
       outDate.setHours(12, 0, 0, 0);
       pkgType = 'combo-2n-sex-dom';
@@ -438,7 +443,7 @@ function ChaleSelectorInner({
       pkgType = 'combo-2n-qui-sab';
     } else if (preset === 'combo-2n-sab-seg') {
       inDate = new Date(refSaturday);
-      inDate.setHours(14, 0, 0, 0);
+      inDate.setHours(15, 0, 0, 0);
       outDate = new Date(refMonday);
       outDate.setHours(12, 0, 0, 0);
       pkgType = 'combo-2n-sab-seg';
@@ -450,7 +455,7 @@ function ChaleSelectorInner({
       pkgType = 'combo-3n-qui-dom';
     } else if (preset === 'combo-3n-sex-seg') {
       inDate = new Date(refFriday);
-      inDate.setHours(14, 0, 0, 0);
+      inDate.setHours(15, 0, 0, 0);
       outDate = new Date(refMonday);
       outDate.setHours(12, 0, 0, 0);
       pkgType = 'combo-3n-sex-seg';
@@ -468,19 +473,19 @@ function ChaleSelectorInner({
       pkgType = 'diaria-qui-sex';
     } else if (preset === 'diaria-sex-sab') {
       inDate = new Date(refFriday);
-      inDate.setHours(14, 0, 0, 0);
+      inDate.setHours(15, 0, 0, 0);
       outDate = new Date(refSaturday);
       outDate.setHours(12, 0, 0, 0);
       pkgType = 'diaria-sex-sab';
     } else if (preset === 'diaria-sab-dom') {
       inDate = new Date(refSaturday);
-      inDate.setHours(14, 0, 0, 0);
+      inDate.setHours(15, 0, 0, 0);
       outDate = new Date(refSunday);
       outDate.setHours(12, 0, 0, 0);
       pkgType = 'diaria-sab-dom';
     } else if (preset === 'diaria-dom-seg') {
       inDate = new Date(refSunday);
-      inDate.setHours(14, 0, 0, 0);
+      inDate.setHours(15, 0, 0, 0);
       outDate = new Date(refMonday);
       outDate.setHours(12, 0, 0, 0);
       pkgType = 'diaria-dom-seg';
@@ -565,11 +570,16 @@ function ChaleSelectorInner({
     });
   };
 
-  // Redefinir as datas para o padrão (Combo Sex a Dom)
+  // Redefinir as datas para o padrão (Combo Sex a Dom - a partir de 12/11/2026)
   const handleResetDates = () => {
-    const inDate = new Date(refFriday);
-    inDate.setHours(14, 0, 0, 0);
-    const outDate = new Date(refSunday);
+    const minHosp = new Date('2026-11-12T00:00:00');
+    let inDate = new Date(refFriday);
+    if (inDate < minHosp) {
+      inDate = new Date('2026-11-13T15:00:00');
+    } else {
+      inDate.setHours(15, 0, 0, 0);
+    }
+    const outDate = addDays(inDate, 2);
     outDate.setHours(12, 0, 0, 0);
     onUpdate({
       packageType: 'combo-2n-sex-dom',
@@ -626,7 +636,7 @@ function ChaleSelectorInner({
     return {
       isOccupied: false,
       badge: 'Livre',
-      subtext: `Disponível para entrada às ${stayPricing?.checkInHour || '14h'}`,
+      subtext: `Disponível para entrada às ${stayPricing?.checkInHour || '15h'}`,
       color: 'bg-emerald-600 text-white border-emerald-700'
     };
   };
@@ -818,24 +828,11 @@ function ChaleSelectorInner({
         
         {/* ROW 1: CALENDÁRIO COM DIAS DE ENTRADA E SAÍDA + ATALHOS RÁPIDOS */}
         <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-2.5 gap-2">
-            <span className="text-xs font-black uppercase tracking-wider text-emerald-950 flex items-center gap-1.5">
-              <CalendarDays className="w-4 h-4 text-emerald-700" />
+          <div className="border-b border-slate-100 pb-2.5">
+            <span className="text-xs sm:text-sm font-black uppercase tracking-wider text-emerald-950 flex items-center gap-1.5 whitespace-nowrap">
+              <CalendarDays className="w-4 h-4 text-emerald-700 shrink-0" />
               Selecione as Datas de Entrada e Saída da Hospedagem:
             </span>
-            <div className="flex items-center gap-2 self-start sm:self-auto">
-              <span className="hidden md:inline text-[11px] font-bold text-emerald-800">
-                Check-in: {stayPricing.checkInHour} · Check-out: às 12h (Domingo Day Use até 17h)
-              </span>
-              <button
-                type="button"
-                onClick={handleResetDates}
-                className="text-[10px] font-black uppercase text-amber-900 bg-amber-100 hover:bg-amber-200 border border-amber-300 px-2.5 py-1 rounded-lg flex items-center gap-1 cursor-pointer transition-all shadow-xs"
-                title="Redefinir para o Combo Sexta a Domingo padrão"
-              >
-                <RefreshCw className="w-3 h-3" /> Limpar / Redefinir Datas
-              </button>
-            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -897,7 +894,8 @@ function ChaleSelectorInner({
                       disabled={(d) => {
                         const today = new Date();
                         today.setHours(0, 0, 0, 0);
-                        return d < today || !isChaleCheckInDay(d);
+                        const minHosp = new Date('2026-11-12T00:00:00');
+                        return d < today || d < minHosp || !isChaleCheckInDay(d);
                       }}
                       className="p-1 pointer-events-auto"
                       locale={ptBR}
@@ -911,7 +909,7 @@ function ChaleSelectorInner({
                     </div>
                     <div className="flex items-start gap-1.5 text-amber-300">
                       <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0 mt-0.5" />
-                      <span className="leading-tight">Check-in às 14h (Quintas em combos às 09h)</span>
+                      <span className="leading-tight">Check-in às 15h (Quintas às 09h)</span>
                     </div>
 
                     <button
@@ -986,10 +984,11 @@ function ChaleSelectorInner({
                       disabled={(d) => {
                         const today = new Date();
                         today.setHours(0, 0, 0, 0);
+                        const minHosp = new Date('2026-11-12T00:00:00');
                         const isAfterCheckIn = d > checkInActive;
                         const isWithinWeekend = d <= maxWeekendOutDate;
                         const isValidOperating = isChaleCheckOutDay(d);
-                        return d < today || !isAfterCheckIn || !isWithinWeekend || !isValidOperating;
+                        return d < today || d < minHosp || !isAfterCheckIn || !isWithinWeekend || !isValidOperating;
                       }}
                       className="p-1 pointer-events-auto"
                       locale={ptBR}

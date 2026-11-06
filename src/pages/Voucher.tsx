@@ -37,6 +37,7 @@ import {
   formatCpfDisplay,
   formatPhoneDisplay
 } from '@/lib/chale-voucher-utils';
+import { ChaleTermsModal } from '@/components/booking/ChaleTermsModal';
 
 export default function Voucher() {
   const { code } = useParams();
@@ -45,6 +46,7 @@ export default function Voucher() {
   const [loading, setLoading] = useState(true);
   const [qrBase64, setQrBase64] = useState<string>('');
   const [generatingImg, setGeneratingImg] = useState(false);
+  const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
   const voucherRef = React.useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -564,6 +566,48 @@ export default function Voucher() {
                       </span>
                     </div>
                   </div>
+
+                  {/* Card 5: Comprovante de Aceite Eletrônico dos Termos de Hospedagem */}
+                  <div className="bg-slate-950 text-white rounded-3xl p-4 sm:p-5 border-2 border-amber-400/70 space-y-2.5 shadow-sm">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/15 pb-2.5">
+                      <div className="flex items-center gap-2">
+                        <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0" />
+                        <div>
+                          <span className="text-[11px] font-black uppercase text-amber-300 tracking-wider block">
+                            Termos e Condições de Hospedagem ({chaleDetails.termsAcceptance.termsVersion})
+                          </span>
+                          <span className="text-[10.5px] text-emerald-200 font-bold block">
+                            ✓ Aceite eletrônico registrado • Reserva #{order.confirmation_code || order.id?.slice(0, 8).toUpperCase()}
+                          </span>
+                        </div>
+                      </div>
+
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => setIsTermsModalOpen(true)}
+                        className="voucher-buttons bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-[11px] uppercase tracking-wider rounded-xl h-9 px-3.5 shrink-0 cursor-pointer"
+                      >
+                        <FileText className="w-3.5 h-3.5 mr-1.5" />
+                        Ler Termos Completos
+                      </Button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[10.5px] text-slate-300 font-medium">
+                      <div>
+                        <span className="text-slate-400 font-bold uppercase block text-[9.5px]">Hóspede Titular:</span>
+                        <strong className="text-white">{chaleDetails.termsAcceptance.guestName}</strong>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 font-bold uppercase block text-[9.5px]">Data e Horário do Aceite:</span>
+                        <strong className="text-white">{chaleDetails.termsAcceptance.acceptedAtFormatted}</strong>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 font-bold uppercase block text-[9.5px]">Registro Técnico (Hash):</span>
+                        <strong className="text-amber-300 font-mono">{chaleDetails.termsAcceptance.technicalLog.consentHash}</strong>
+                      </div>
+                    </div>
+                  </div>
                 </>
               ) : (
                 /* ================= LAYOUT PADRÃO DAY USE / CAMPING ================= */
@@ -715,6 +759,14 @@ export default function Voucher() {
             </div>
           </div>
         </div>
+
+        {chaleDetails && (
+          <ChaleTermsModal
+            open={isTermsModalOpen}
+            onOpenChange={setIsTermsModalOpen}
+            acceptanceRecord={chaleDetails.termsAcceptance}
+          />
+        )}
 
       </div>
     </div>

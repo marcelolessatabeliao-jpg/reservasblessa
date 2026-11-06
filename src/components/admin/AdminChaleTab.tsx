@@ -21,6 +21,7 @@ import {
   RefreshCw,
   Info,
   Plus,
+  Minus,
   Trash2,
   CalendarDays,
   X,
@@ -28,6 +29,7 @@ import {
   FileCheck,
   StickyNote,
   QrCode,
+  CreditCard,
   Share2,
   Check,
   RotateCcw,
@@ -39,16 +41,33 @@ import {
   Image as ImageIcon,
   Loader2,
   ExternalLink,
-  Upload
+  Upload,
+  Baby
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarUI } from '@/components/ui/calendar';
 import { Label } from '@/components/ui/label';
-import { formatCurrency, CHALE_UNITS, CHALE_PACKAGES } from '@/lib/booking-types';
+import {
+  formatCurrency,
+  CHALE_UNITS,
+  CHALE_PACKAGES,
+  ChalePackageType,
+  calculateStayPricing,
+  calculateChaleTotal,
+  calculateChaleGrossTotal,
+  isChaleCheckInDay,
+  isChaleCheckOutDay,
+  QUAD_TIMES,
+  KIOSK_INFO,
+  QUAD_PRICES
+} from '@/lib/booking-types';
 import { AddItemsToBookingDialog } from './AddItemsToBookingDialog';
+import { PaymentModal } from '@/components/booking/PaymentModal';
 import { cn } from '@/lib/utils';
 import { format, parseISO, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -63,16 +82,16 @@ export interface ChaleReservation {
   phone: string;
   cpf?: string;
   checkInDate: string;  // 'yyyy-MM-dd'
-  checkInTime: string;  // '15:00'
+  checkInTime: string;  // '15:00' ou '09:00'
   checkOutDate: string; // 'yyyy-MM-dd'
-  checkOutTime: string; // '11:00'
+  checkOutTime: string; // '12:00'
   packageTitle: string;
   packageType?: string;
   occupancyType: 'individual' | 'casal';
   adults: number;
   children: number;
   adultNames?: string[];
-  childNames?: { name: string; ageLabel: string }[];
+  childNames?: { name: string; ageLabel: string; ageGroup?: 'under11' | '12plus' }[];
   extraItems?: { name: string; quantity: number; price: number; timeSlot?: string }[];
   totalPrice: number;
   paymentMethod: string;
@@ -101,7 +120,7 @@ export function AdminChaleTab({
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'todos' | 'disponivel' | 'indisponivel' | 'ocupado'>('todos');
-  const [activeSubTab, setActiveSubTab] = useState<'chales' | 'camping'>('chales');
+  const [activeSubTab, setActiveSubTab] = useState<'mapa' | 'chales' | 'camping'>('mapa');
 
   // RESERVAS MANUAIS SALVAS LOCALMENTE
   const [localReservations, setLocalReservations] = useState<ChaleReservation[]>(() => {
@@ -129,7 +148,7 @@ export function AdminChaleTab({
           adults: 2,
           children: 1,
           adultNames: ['Carlos Oliveira (Titular)', 'Fernanda Oliveira (Acompanhante)'],
-          childNames: [{ name: 'Lucas Oliveira (8 anos)', ageLabel: 'Até 11 anos • Filho(a) Hóspede' }],
+          childNames: [{ name: 'Lucas Oliveira (8 anos)', ageLabel: 'Até 11 anos • Filho(a) Hóspede', ageGroup: 'under11' }],
           extraItems: [
             { name: 'Quiosque 02 (Churrasqueira, Pia e Grelha)', quantity: 1, price: 90.00 },
             { name: 'Passeio de Quadriciclo — De Dupla', quantity: 1, price: 175.50, timeSlot: '10:00' }
@@ -201,22 +220,52 @@ export function AdminChaleTab({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editingResId, setEditingResId] = useState<string | null>(null);
+  const [isChaleLocked, setIsChaleLocked] = useState(false);
 
   // Form Fields
   const [formChaleId, setFormChaleId] = useState<number>(1);
   const [formGuestName, setFormGuestName] = useState('');
+  const [formAdult2Name, setFormAdult2Name] = useState('');
   const [formPhone, setFormPhone] = useState('');
   const [formCpf, setFormCpf] = useState('');
-  const [formCheckInDate, setFormCheckInDate] = useState('');
+  const [formCheckInDate, setFormCheckInDate] = useState('2026-11-06');
   const [formCheckInTime, setFormCheckInTime] = useState('15:00');
-  const [formCheckOutDate, setFormCheckOutDate] = useState('');
-  const [formCheckOutTime, setFormCheckOutTime] = useState('11:00');
+  const [formCheckOutDate, setFormCheckOutDate] = useState('2026-11-08');
+  const [formCheckOutTime, setFormCheckOutTime] = useState('12:00');
   const [formOccupancyType, setFormOccupancyType] = useState<'casal' | 'individual'>('casal');
-  const [formPackageType, setFormPackageType] = useState<string>('combo_weekend');
-  const [formPrice, setFormPrice] = useState<number>(900);
+  const [formPackageType, setFormPackageType] = useState<ChalePackageType | 'custom'>('combo-2n-sex-dom');
+  const [formKids, setFormKids] = useState<{ name: string; ageGroup: 'under11' | '12plus' }[]>([]);
+  const [formApplySiteDiscount, setFormApplySiteDiscount] = useState<boolean>(true);
+  const [formCustomPriceOverride, setFormCustomPriceOverride] = useState<number | null>(null);
   const [formPaymentMethod, setFormPaymentMethod] = useState('PIX');
   const [formPaymentStatus, setFormPaymentStatus] = useState<'paid' | 'pending'>('paid');
   const [formNotes, setFormNotes] = useState('');
+
+  // Calendários Popover dentro do Modal
+  const [isInCalendarOpen, setIsInCalendarOpen] = useState(false);
+  const [isOutCalendarOpen, setIsOutCalendarOpen] = useState(false);
+
+  // Adição de Serviços Extras na Reserva Interna
+  const [extraKioskType, setExtraKioskType] = useState<'none' | 'familiar' | 'menor' | 'maior'>('none');
+  const [extraKioskNumber, setExtraKioskNumber] = useState<number>(1);
+  const [extraQuadType, setExtraQuadType] = useState<'none' | 'individual' | 'dupla'>('none');
+  const [extraQuadTime, setExtraQuadTime] = useState<string>('10:00');
+  const [extraQuadQty, setExtraQuadQty] = useState<number>(1);
+  const [extraPescaQty, setExtraPescaQty] = useState<number>(0);
+  const [extraSabaoQty, setExtraSabaoQty] = useState<number>(0);
+
+  // PaymentModal para gerar QR Code PIX ou Cartão diretamente pela reserva interna
+  const [adminPaymentData, setAdminPaymentData] = useState<{
+    open: boolean;
+    orderId: string;
+    name: string;
+    phone: string;
+    cpf: string;
+    totalAmount: number;
+    initialMethod: 'PIX' | 'CREDIT_CARD';
+    chaleId: number;
+  } | null>(null);
+  const [generatingPayment, setGeneratingPayment] = useState(false);
 
   // Modal: Reagendar Rápido
   const [isRescheduleOpen, setIsRescheduleOpen] = useState(false);
@@ -240,6 +289,232 @@ export function AdminChaleTab({
   const [receiptRes, setReceiptRes] = useState<ChaleReservation | null>(null);
   const [uploadingReceipt, setUploadingReceipt] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Datas de referência (Quinta, Sexta, Sábado, Domingo, Segunda) para os pacotes do modal
+  const refWeekendDates = useMemo(() => {
+    const base = formCheckInDate ? new Date(`${formCheckInDate}T12:00:00`) : new Date();
+    const validBase = isNaN(base.getTime()) ? new Date() : base;
+    const day = validBase.getDay();
+    let thursday = new Date(validBase);
+    if (day === 4) {
+      // quinta
+    } else if (day === 5) {
+      thursday = addDays(validBase, -1);
+    } else if (day === 6) {
+      thursday = addDays(validBase, -2);
+    } else if (day === 0) {
+      thursday = addDays(validBase, -3);
+    } else if (day === 1) {
+      thursday = addDays(validBase, -4);
+    } else {
+      const diff = (4 - day + 7) % 7;
+      thursday = addDays(validBase, diff);
+    }
+    return {
+      thursday,
+      friday: addDays(thursday, 1),
+      saturday: addDays(thursday, 2),
+      sunday: addDays(thursday, 3),
+      monday: addDays(thursday, 4),
+    };
+  }, [formCheckInDate]);
+
+  // Motor automático de cálculo de valores da reserva interna
+  const modalStayPricing = useMemo(() => {
+    const inDate = formCheckInDate ? new Date(`${formCheckInDate}T12:00:00`) : null;
+    const outDate = formCheckOutDate ? new Date(`${formCheckOutDate}T12:00:00`) : null;
+    return calculateStayPricing(inDate, outDate);
+  }, [formCheckInDate, formCheckOutDate]);
+
+  const modalPricingBreakdown = useMemo(() => {
+    const inDate = formCheckInDate ? new Date(`${formCheckInDate}T12:00:00`) : null;
+    const outDate = formCheckOutDate ? new Date(`${formCheckOutDate}T12:00:00`) : null;
+    const pkgType: ChalePackageType = formPackageType === 'custom' ? 'combo-2n-sex-dom' : formPackageType;
+    const adultsCount = formOccupancyType === 'casal' ? 2 : 1;
+    const kidsAges = formKids.map(k => k.ageGroup);
+
+    const chaleGross = calculateChaleGrossTotal(
+      pkgType,
+      adultsCount,
+      kidsAges.length,
+      1,
+      inDate,
+      outDate,
+      { [formChaleId]: formOccupancyType },
+      [formChaleId],
+      kidsAges
+    );
+
+    const chaleComboOrTable = calculateChaleTotal(
+      pkgType,
+      adultsCount,
+      kidsAges.length,
+      undefined,
+      true,
+      1,
+      inDate,
+      outDate,
+      { [formChaleId]: formOccupancyType },
+      [formChaleId],
+      kidsAges
+    );
+
+    // Se for diária avulsa (1 noite) e o desconto online de 10% estiver ativo, aplica 10% OFF sobre a diária avulsa também
+    const isSingleNight = modalStayPricing.nightsCount === 1;
+    const chaleFinal = formApplySiteDiscount
+      ? (isSingleNight ? Math.round(chaleGross * 0.90 * 100) / 100 : chaleComboOrTable)
+      : chaleGross;
+
+    // Serviços extras
+    const discountFactor = formApplySiteDiscount ? 0.90 : 1.0;
+    const kioskGross = extraKioskType !== 'none' ? KIOSK_INFO[extraKioskType].price : 0;
+    const kioskNet = Math.round(kioskGross * discountFactor * 100) / 100;
+
+    const quadGross = extraQuadType !== 'none' ? QUAD_PRICES[extraQuadType] * extraQuadQty : 0;
+    const quadNet = Math.round(quadGross * discountFactor * 100) / 100;
+
+    const pescaGross = extraPescaQty * 20;
+    const pescaNet = Math.round(pescaGross * discountFactor * 100) / 100;
+
+    const sabaoGross = extraSabaoQty * 10;
+    const sabaoNet = Math.round(sabaoGross * discountFactor * 100) / 100;
+
+    const extrasGross = kioskGross + quadGross + pescaGross + sabaoGross;
+    const extrasNet = kioskNet + quadNet + pescaNet + sabaoNet;
+
+    const grandGross = chaleGross + extrasGross;
+    const calculatedGrandTotal = Math.round((chaleFinal + extrasNet) * 100) / 100;
+    const finalTotal = formCustomPriceOverride !== null ? formCustomPriceOverride : calculatedGrandTotal;
+
+    return {
+      chaleGross,
+      chaleFinal,
+      kioskGross,
+      kioskNet,
+      quadGross,
+      quadNet,
+      pescaGross,
+      pescaNet,
+      sabaoGross,
+      sabaoNet,
+      extrasGross,
+      extrasNet,
+      grandGross,
+      calculatedGrandTotal,
+      finalTotal
+    };
+  }, [
+    formCheckInDate,
+    formCheckOutDate,
+    formPackageType,
+    formOccupancyType,
+    formKids,
+    formChaleId,
+    formApplySiteDiscount,
+    formCustomPriceOverride,
+    modalStayPricing.nightsCount,
+    extraKioskType,
+    extraQuadType,
+    extraQuadQty,
+    extraPescaQty,
+    extraSabaoQty
+  ]);
+
+  // Aplicar pacote comercial e atualizar datas/horários automaticamente
+  const handleSelectPackagePreset = (pkg: ChalePackageType | 'custom') => {
+    setFormPackageType(pkg);
+    setFormCustomPriceOverride(null);
+    if (pkg === 'custom') return;
+
+    const { thursday, friday, saturday, sunday, monday } = refWeekendDates;
+    let inD = friday;
+    let outD = sunday;
+    let inTime = '15:00';
+
+    if (pkg === 'combo-2n-sex-dom') {
+      inD = friday; outD = sunday; inTime = '15:00';
+    } else if (pkg === 'combo-2n-qui-sab') {
+      inD = thursday; outD = saturday; inTime = '09:00';
+    } else if (pkg === 'combo-2n-sab-seg') {
+      inD = saturday; outD = monday; inTime = '15:00';
+    } else if (pkg === 'combo-3n-qui-dom') {
+      inD = thursday; outD = sunday; inTime = '09:00';
+    } else if (pkg === 'combo-3n-sex-seg') {
+      inD = friday; outD = monday; inTime = '15:00';
+    } else if (pkg === 'combo-4n-qui-seg') {
+      inD = thursday; outD = monday; inTime = '09:00';
+    } else if (pkg === 'diaria-qui-sex') {
+      inD = thursday; outD = friday; inTime = '09:00';
+    } else if (pkg === 'diaria-sex-sab') {
+      inD = friday; outD = saturday; inTime = '15:00';
+    } else if (pkg === 'diaria-sab-dom') {
+      inD = saturday; outD = sunday; inTime = '15:00';
+    } else if (pkg === 'diaria-dom-seg') {
+      inD = sunday; outD = monday; inTime = '15:00';
+    }
+
+    setFormCheckInDate(format(inD, 'yyyy-MM-dd'));
+    setFormCheckOutDate(format(outD, 'yyyy-MM-dd'));
+    setFormCheckInTime(inTime);
+    setFormCheckOutTime('12:00');
+  };
+
+  // Atualizar data de entrada pelo calendário do modal
+  const handleModalSelectCheckIn = (d: Date) => {
+    const day = d.getDay();
+    const inStr = format(d, 'yyyy-MM-dd');
+    setFormCheckInDate(inStr);
+    setFormCheckInTime(day === 4 ? '09:00' : '15:00');
+    setFormCheckOutTime('12:00');
+    setFormCustomPriceOverride(null);
+
+    let outDate = addDays(d, 2);
+    let nextPkg: ChalePackageType = 'combo-2n-sex-dom';
+    if (day === 4) {
+      outDate = addDays(d, 3);
+      nextPkg = 'combo-3n-qui-dom';
+    } else if (day === 5) {
+      outDate = addDays(d, 2);
+      nextPkg = 'combo-2n-sex-dom';
+    } else if (day === 6) {
+      outDate = addDays(d, 1);
+      nextPkg = 'diaria-sab-dom';
+    } else if (day === 0) {
+      outDate = addDays(d, 1);
+      nextPkg = 'diaria-dom-seg';
+    }
+    setFormCheckOutDate(format(outDate, 'yyyy-MM-dd'));
+    setFormPackageType(nextPkg);
+    setIsInCalendarOpen(false);
+  };
+
+  // Atualizar data de saída pelo calendário do modal
+  const handleModalSelectCheckOut = (d: Date) => {
+    const inDate = formCheckInDate ? new Date(`${formCheckInDate}T12:00:00`) : new Date();
+    let validOut = d <= inDate ? addDays(inDate, 1) : d;
+    setFormCheckOutDate(format(validOut, 'yyyy-MM-dd'));
+    setFormCheckOutTime('12:00');
+    setFormCustomPriceOverride(null);
+
+    const inDay = inDate.getDay();
+    const outDay = validOut.getDay();
+    const diffNights = Math.round(Math.abs(validOut.getTime() - inDate.getTime()) / (1000 * 60 * 60 * 24));
+
+    let nextPkg: ChalePackageType = 'combo-2n-sex-dom';
+    if (inDay === 5 && outDay === 0 && diffNights === 2) nextPkg = 'combo-2n-sex-dom';
+    else if (inDay === 4 && outDay === 6 && diffNights === 2) nextPkg = 'combo-2n-qui-sab';
+    else if (inDay === 6 && outDay === 1 && diffNights === 2) nextPkg = 'combo-2n-sab-seg';
+    else if (inDay === 4 && outDay === 0 && diffNights === 3) nextPkg = 'combo-3n-qui-dom';
+    else if (inDay === 5 && outDay === 1 && diffNights === 3) nextPkg = 'combo-3n-sex-seg';
+    else if (inDay === 4 && outDay === 1 && diffNights === 4) nextPkg = 'combo-4n-qui-seg';
+    else if (inDay === 4 && outDay === 5 && diffNights === 1) nextPkg = 'diaria-qui-sex';
+    else if (inDay === 5 && outDay === 6 && diffNights === 1) nextPkg = 'diaria-sex-sab';
+    else if (inDay === 6 && outDay === 0 && diffNights === 1) nextPkg = 'diaria-sab-dom';
+    else if (inDay === 0 && outDay === 1 && diffNights === 1) nextPkg = 'diaria-dom-seg';
+
+    setFormPackageType(nextPkg);
+    setIsOutCalendarOpen(false);
+  };
 
   // Extrair reservas reais de Chalés e Camping a partir de orders
   const { realChaleOrders, campingBookings } = useMemo(() => {
@@ -276,7 +551,7 @@ export function AdminChaleTab({
             phone: order.customer_phone || '(Não informado)',
             cpf: order.customer_cpf,
             checkInDate: cInDate,
-            checkInTime: meta.check_in_time || '14:00',
+            checkInTime: meta.check_in_time || '15:00',
             checkOutDate: cOutDate,
             checkOutTime: meta.check_out_time || '12:00',
             packageTitle: pkgTitle,
@@ -328,6 +603,91 @@ export function AdminChaleTab({
 
     return { realChaleOrders: list, campingBookings: campings };
   }, [orders]);
+
+  // TODAS AS RESERVAS ATIVAS (Locais + Supabase Online)
+  const allActiveReservations = useMemo(() => {
+    const localList = Array.isArray(localReservations) ? localReservations : [];
+    const onlineList = Array.isArray(realChaleOrders) ? realChaleOrders : [];
+    return [...localList, ...onlineList].filter(r => r && r.status !== 'cancelled');
+  }, [localReservations, realChaleOrders]);
+
+  // MAPA DE OCUPAÇÃO: DATA SELECIONADA (Inicia a partir do dia 13/11/2026 - Primeira sexta disponível)
+  const [mapTargetDate, setMapTargetDate] = useState<Date>(() => new Date('2026-11-13T12:00:00'));
+  const [isMapCalendarOpen, setIsMapCalendarOpen] = useState(false);
+  const mapTargetDateStr = format(mapTargetDate, 'yyyy-MM-dd');
+
+  // RESUMO DE DATAS COM RESERVAS (MARCADORES NO CALENDÁRIO E DIAS)
+  const bookedDatesSummary = useMemo(() => {
+    const map: Record<string, { chaleId: number; guestName: string; code?: string; res: ChaleReservation }[]> = {};
+    allActiveReservations.forEach(r => {
+      if (!r || !r.checkInDate) return;
+      try {
+        const inStr = r.checkInDate.split('T')[0];
+        const outStr = r.checkOutDate ? r.checkOutDate.split('T')[0] : inStr;
+        const inD = parseISO(inStr);
+        const outD = parseISO(outStr);
+        let curr = new Date(inD);
+        while (curr <= outD) {
+          const dStr = format(curr, 'yyyy-MM-dd');
+          if (!map[dStr]) map[dStr] = [];
+          if (!map[dStr].some(x => x.chaleId === r.chaleId)) {
+            map[dStr].push({ chaleId: r.chaleId, guestName: r.guestName, code: r.confirmationCode, res: r });
+          }
+          curr = addDays(curr, 1);
+        }
+      } catch (err) {
+        console.warn('Erro ao processar data para mapa de ocupação:', err);
+      }
+    });
+    return map;
+  }, [allActiveReservations]);
+
+  const upcomingBookedDates = useMemo(() => {
+    return Object.keys(bookedDatesSummary)
+      .filter(dStr => dStr >= '2026-11-12')
+      .sort()
+      .map(dStr => ({
+        dateStr: dStr,
+        bookings: bookedDatesSummary[dStr]
+      }));
+  }, [bookedDatesSummary]);
+
+  // STATUS DOS 12 CHALÉS NA DATA SELECIONADA DO MAPA
+  const chalesOnTargetDate = useMemo(() => {
+    const statuses = (manualStatuses && typeof manualStatuses === 'object') ? manualStatuses : {};
+
+    return (CHALE_UNITS || []).map(unit => {
+      const reservation = allActiveReservations.find(r => {
+        if (!r || Number(r.chaleId) !== unit.id) return false;
+        const inStr = (r.checkInDate || '').split('T')[0];
+        const outStr = (r.checkOutDate || inStr).split('T')[0];
+        if (!inStr) return false;
+        return mapTargetDateStr >= inStr && mapTargetDateStr <= outStr;
+      });
+
+      const isManualIndisponivel = statuses[unit.id] === 'indisponivel';
+      let status: 'disponivel' | 'indisponivel' | 'ocupado' = 'disponivel';
+      if (reservation) {
+        status = 'ocupado';
+      } else if (isManualIndisponivel) {
+        status = 'indisponivel';
+      }
+
+      return {
+        id: unit.id,
+        name: unit.name,
+        type: unit.type,
+        modelLabel: unit.modelLabel,
+        capacity: unit.capacity,
+        status,
+        reservation
+      };
+    });
+  }, [allActiveReservations, manualStatuses, mapTargetDateStr]);
+
+  const mapCountDisponiveis = chalesOnTargetDate.filter(c => c.status === 'disponivel').length;
+  const mapCountOcupados = chalesOnTargetDate.filter(c => c.status === 'ocupado').length;
+  const mapCountIndisponiveis = chalesOnTargetDate.filter(c => c.status === 'indisponivel').length;
 
   // NO PAINEL ADMIN: MOSTRA TODOS OS 12 CHALÉS (Chalés 01 a 12: 6 Alvenaria + 6 Vidro)
   const chalesList = useMemo(() => {
@@ -401,22 +761,50 @@ export function AdminChaleTab({
   };
 
   // Abrir Modal de Nova Reserva
-  const handleOpenNewBooking = (targetChaleId?: number) => {
+  const handleOpenNewBooking = (targetChaleId?: number, initialCheckIn?: string, initialCheckOut?: string) => {
     setIsEditing(false);
     setEditingResId(null);
+    const locked = typeof targetChaleId === 'number' && targetChaleId > 0;
+    setIsChaleLocked(locked);
     setFormChaleId(targetChaleId || 1);
     setFormGuestName('');
+    setFormAdult2Name('');
     setFormPhone('');
     setFormCpf('');
-    const today = format(new Date(), 'yyyy-MM-dd');
-    const sunday = format(addDays(new Date(), 2), 'yyyy-MM-dd');
-    setFormCheckInDate(today);
-    setFormCheckInTime('14:00');
-    setFormCheckOutDate(sunday);
+
+    let inDateStr = initialCheckIn;
+    let outDateStr = initialCheckOut;
+
+    if (!inDateStr) {
+      const minDate = new Date('2026-11-12T00:00:00');
+      let base = new Date();
+      if (base < minDate) base = minDate;
+      const day = base.getDay();
+      let diffToFri = 0;
+      if (day === 5) diffToFri = 0;
+      else if (day < 5) diffToFri = 5 - day;
+      else diffToFri = 6;
+      const fri = addDays(base, diffToFri);
+      inDateStr = format(fri, 'yyyy-MM-dd');
+      outDateStr = format(addDays(fri, 2), 'yyyy-MM-dd');
+    }
+
+    setFormCheckInDate(inDateStr);
+    setFormCheckInTime('15:00');
+    setFormCheckOutDate(outDateStr || format(addDays(parseISO(inDateStr), 2), 'yyyy-MM-dd'));
     setFormCheckOutTime('12:00');
     setFormOccupancyType('casal');
-    setFormPackageType('combo_2n');
-    setFormPrice(729);
+    setFormPackageType('combo-2n-sex-dom');
+    setFormKids([]);
+    setFormApplySiteDiscount(true);
+    setFormCustomPriceOverride(null);
+    setExtraKioskType('none');
+    setExtraKioskNumber(1);
+    setExtraQuadType('none');
+    setExtraQuadTime('10:00');
+    setExtraQuadQty(1);
+    setExtraPescaQty(0);
+    setExtraSabaoQty(0);
     setFormPaymentMethod('PIX');
     setFormPaymentStatus('paid');
     setFormNotes('');
@@ -427,102 +815,262 @@ export function AdminChaleTab({
   const handleOpenEditBooking = (reservation: ChaleReservation) => {
     setIsEditing(true);
     setEditingResId(reservation.id);
+    setIsChaleLocked(true);
     setFormChaleId(reservation.chaleId);
     setFormGuestName(reservation.guestName);
+    setFormAdult2Name(reservation.adultNames?.[1] || '');
     setFormPhone(reservation.phone);
     setFormCpf(reservation.cpf || '');
     setFormCheckInDate(reservation.checkInDate);
-    setFormCheckInTime(reservation.checkInTime);
+    setFormCheckInTime(reservation.checkInTime || '15:00');
     setFormCheckOutDate(reservation.checkOutDate);
-    setFormCheckOutTime(reservation.checkOutTime);
+    setFormCheckOutTime(reservation.checkOutTime || '12:00');
     setFormOccupancyType(reservation.occupancyType || 'casal');
-    setFormPackageType(reservation.packageType || 'custom');
-    setFormPrice(reservation.totalPrice);
+    const pkgKey = (reservation.packageType && CHALE_PACKAGES[reservation.packageType as ChalePackageType])
+      ? (reservation.packageType as ChalePackageType)
+      : 'combo-2n-sex-dom';
+    setFormPackageType(pkgKey);
+    setFormKids(
+      (reservation.childNames || []).map(c => ({
+        name: c.name,
+        ageGroup: c.ageGroup || (c.ageLabel?.includes('12+') ? '12plus' : 'under11')
+      }))
+    );
+    setFormApplySiteDiscount(true);
+    setFormCustomPriceOverride(reservation.totalPrice);
+    setExtraKioskType('none');
+    setExtraQuadType('none');
+    setExtraPescaQty(0);
+    setExtraSabaoQty(0);
     setFormPaymentMethod(reservation.paymentMethod || 'PIX');
     setFormPaymentStatus(reservation.status === 'paid' ? 'paid' : 'pending');
     setFormNotes(reservation.notes || '');
     setIsModalOpen(true);
   };
 
-  // Salvar Nova Reserva ou Atualização
+  // Montar objeto de reserva estruturado com todos os nomes e itens extras
+  const buildReservationFromForm = (overrideStatus?: 'paid' | 'pending', overrideMethod?: string, orderId?: string, confCode?: string): ChaleReservation => {
+    const pkgInfo = formPackageType !== 'custom' ? CHALE_PACKAGES[formPackageType] : null;
+    const pkgTitle = pkgInfo ? pkgInfo.title : `Hospedagem (${modalStayPricing.nightsCount} Noite${modalStayPricing.nightsCount > 1 ? 's' : ''})`;
+    const adultNames = formOccupancyType === 'casal'
+      ? [formGuestName.trim(), formAdult2Name.trim() || 'Acompanhante Adulto 2']
+      : [formGuestName.trim()];
+
+    const childNames = formKids.map((k, idx) => ({
+      name: k.name.trim() || `Criança ${idx + 1}`,
+      ageLabel: k.ageGroup === '12plus' ? '12+ anos • Filho(a) Hóspede' : 'Até 11 anos • Filho(a) Hóspede',
+      ageGroup: k.ageGroup
+    }));
+
+    const extraItems: { name: string; quantity: number; price: number; timeSlot?: string }[] = [];
+    if (extraKioskType !== 'none') {
+      extraItems.push({
+        name: `Quiosque ${String(extraKioskNumber).padStart(2, '0')} (${KIOSK_INFO[extraKioskType].label})`,
+        quantity: 1,
+        price: modalPricingBreakdown.kioskNet
+      });
+    }
+    if (extraQuadType !== 'none') {
+      extraItems.push({
+        name: `Passeio de Quadriciclo (${extraQuadType === 'dupla' ? 'Dupla' : 'Individual'})`,
+        quantity: extraQuadQty,
+        price: modalPricingBreakdown.quadNet,
+        timeSlot: extraQuadTime
+      });
+    }
+    if (extraPescaQty > 0) {
+      extraItems.push({
+        name: 'Pesca Esportiva',
+        quantity: extraPescaQty,
+        price: modalPricingBreakdown.pescaNet
+      });
+    }
+    if (extraSabaoQty > 0) {
+      extraItems.push({
+        name: 'Futebol de Sabão',
+        quantity: extraSabaoQty,
+        price: modalPricingBreakdown.sabaoNet
+      });
+    }
+
+    return {
+      id: editingResId || orderId || `res-${Date.now()}`,
+      chaleId: formChaleId,
+      guestName: formGuestName.trim(),
+      phone: formPhone || '(69) 99999-0000',
+      cpf: formCpf,
+      checkInDate: formCheckInDate,
+      checkInTime: formCheckInTime,
+      checkOutDate: formCheckOutDate,
+      checkOutTime: formCheckOutTime,
+      packageTitle: pkgTitle,
+      packageType: formPackageType,
+      occupancyType: formOccupancyType,
+      adults: formOccupancyType === 'casal' ? 2 : 1,
+      children: formKids.length,
+      adultNames,
+      childNames,
+      extraItems,
+      totalPrice: Number(modalPricingBreakdown.finalTotal),
+      paymentMethod: overrideMethod || formPaymentMethod,
+      status: overrideStatus || formPaymentStatus,
+      isCheckedIn: false,
+      orderId: orderId,
+      isOrder: !!orderId,
+      confirmationCode: confCode || `CHA-${Math.floor(1000 + Math.random() * 9000)}`,
+      notes: formNotes || 'Reserva interna realizada pelo Painel Admin.'
+    };
+  };
+
+  // Salvar Nova Reserva ou Atualização (Confirmação Interna / Balcão)
   const handleSaveBooking = async () => {
     if (!formGuestName.trim()) {
-      alert('Por favor, informe o nome do hóspede.');
+      toast({
+        title: 'Informe o nome do titular',
+        description: 'Por favor, preencha o nome completo do hóspede responsável.',
+        variant: 'destructive'
+      });
       return;
     }
 
+    const built = buildReservationFromForm();
+
     if (isEditing && editingResId) {
-      setLocalReservations(prev => prev.map(r => {
-        if (r.id === editingResId) {
-          return {
-            ...r,
-            chaleId: formChaleId,
-            guestName: formGuestName,
-            phone: formPhone,
-            cpf: formCpf,
-            checkInDate: formCheckInDate,
-            checkInTime: formCheckInTime,
-            checkOutDate: formCheckOutDate,
-            checkOutTime: formCheckOutTime,
-            occupancyType: formOccupancyType,
-            packageType: formPackageType,
-            totalPrice: formPrice,
-            paymentMethod: formPaymentMethod,
-            status: formPaymentStatus,
-            notes: formNotes
-          };
-        }
-        return r;
-      }));
+      setLocalReservations(prev => prev.map(r => (r.id === editingResId ? { ...r, ...built } : r)));
 
       try {
         await supabase.from('orders').update({
-          customer_name: formGuestName,
-          customer_phone: formPhone,
-          total_amount: formPrice,
-          status: formPaymentStatus,
-          notes: formNotes
+          customer_name: built.guestName,
+          customer_phone: built.phone,
+          customer_cpf: built.cpf || null,
+          total_amount: built.totalPrice,
+          status: built.status,
+          notes: built.notes
         }).eq('id', editingResId);
       } catch (e) {}
 
-      toast({ title: `✓ Reserva do Chalé ${formChaleId} atualizada!` });
+      toast({ title: `✓ Reserva do Chalé ${String(formChaleId).padStart(2, '0')} atualizada!` });
     } else {
-      const newReservation: ChaleReservation = {
-        id: `res-${Date.now()}`,
-        chaleId: formChaleId,
-        guestName: formGuestName,
-        phone: formPhone || '(69) 99999-0000',
-        cpf: formCpf,
-        checkInDate: formCheckInDate,
-        checkInTime: formCheckInTime,
-        checkOutDate: formCheckOutDate,
-        checkOutTime: formCheckOutTime,
-        packageTitle: formPackageType === 'combo_2n' ? 'Combo 2 Noites (Sex a Dom)' :
-                       formPackageType === 'combo_3n_qui' ? 'Combo 3 Noites (Qui a Dom)' :
-                       formPackageType === 'combo_3n_seg' ? 'Combo 3 Noites (Sex a Seg)' :
-                       formPackageType === 'combo_4n' ? 'Combo 4 Noites (Qui a Seg)' :
-                       formPackageType === 'diaria_sab_dom' ? 'Diária Sábado a Domingo' :
-                       formPackageType === 'diaria_sex_sab' ? 'Diária Sexta a Sábado' :
-                       formPackageType === 'diaria_qui_sex' ? 'Diária Quinta a Sexta' :
-                       formPackageType === 'diaria_dom_seg' ? 'Diária Domingo a Segunda' : 'Hospedagem Personalizada',
-        packageType: formPackageType,
-        occupancyType: formOccupancyType,
-        adults: formOccupancyType === 'casal' ? 2 : 1,
-        children: 0,
-        totalPrice: Number(formPrice),
-        paymentMethod: formPaymentMethod,
-        status: formPaymentStatus,
-        isCheckedIn: false,
-        confirmationCode: `CHA-${Math.floor(1000 + Math.random() * 9000)}`,
-        notes: formNotes || 'Reserva interna realizada pelo Host Admin.'
-      };
-
-      setLocalReservations(prev => [...prev.filter(r => r.chaleId !== formChaleId), newReservation]);
-      toast({ title: `✓ Chalé ${formChaleId} reservado e marcado como Ocupado (Vermelho)!` });
+      setLocalReservations(prev => [...prev.filter(r => r.chaleId !== formChaleId), built]);
+      toast({ title: `✓ Chalé ${String(formChaleId).padStart(2, '0')} reservado com sucesso (${formatCurrency(built.totalPrice)})!` });
     }
 
     setIsModalOpen(false);
     if (onRefresh) onRefresh();
+  };
+
+  // Gerar Pagamento QR Code PIX ou Cartão diretamente do Modal Interno
+  const handleGenerateAdminPayment = async (method: 'PIX' | 'CREDIT_CARD') => {
+    if (!formGuestName.trim()) {
+      toast({
+        title: 'Informe o nome do titular',
+        description: 'Preencha o nome do hóspede antes de gerar o pagamento.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    setGeneratingPayment(true);
+    try {
+      const confCode = `CHA-${Math.floor(1000 + Math.random() * 9000)}`;
+      const built = buildReservationFromForm('pending', method === 'PIX' ? 'PIX' : 'Cartão de Crédito', undefined, confCode);
+
+      // 1. Criar pedido no Supabase para permitir cobrança real via Asaas (PaymentModal)
+      let createdOrderId = `local-${Date.now()}`;
+      try {
+        const { data: orderData, error: orderErr } = await (supabase as any)
+          .from('orders')
+          .insert({
+            customer_name: built.guestName,
+            customer_phone: built.phone,
+            customer_cpf: built.cpf || null,
+            visit_date: built.checkInDate,
+            total_amount: built.totalPrice,
+            status: 'pending',
+            payment_method: method,
+            confirmation_code: confCode,
+            notes: built.notes
+          })
+          .select('id, confirmation_code')
+          .single();
+
+        if (!orderErr && orderData?.id) {
+          createdOrderId = orderData.id;
+          const allGuestNames = [
+            ...(built.adultNames || [built.guestName]),
+            ...(built.childNames || []).map(c => c.name)
+          ];
+          const itemsPayload: any[] = [
+            {
+              order_id: createdOrderId,
+              product_id: `Chalé ${String(built.chaleId).padStart(2, '0')}: ${built.packageTitle}`,
+              product_name: `Chalé ${String(built.chaleId).padStart(2, '0')} — ${built.packageTitle}`,
+              quantity: 1,
+              unit_price: modalPricingBreakdown.chaleFinal,
+              total_price: modalPricingBreakdown.chaleFinal,
+              metadata: {
+                package_type: built.packageType,
+                package_title: built.packageTitle,
+                chale_id: built.chaleId,
+                chale_ids: [built.chaleId],
+                chalets_count: 1,
+                chale_occupancies: { [built.chaleId]: built.occupancyType },
+                chale_kids: { [built.chaleId]: formKids.map(k => k.ageGroup) },
+                adults: built.adults,
+                children: built.children,
+                children_ages: formKids.map(k => k.ageGroup),
+                guest_names: allGuestNames,
+                check_in_date: built.checkInDate,
+                check_in_time: built.checkInTime,
+                check_out_date: built.checkOutDate,
+                check_out_time: built.checkOutTime,
+                chale_gross_price: modalPricingBreakdown.chaleGross,
+                chale_net_price: modalPricingBreakdown.chaleFinal
+              }
+            }
+          ];
+
+          (built.extraItems || []).forEach(ext => {
+            itemsPayload.push({
+              order_id: createdOrderId,
+              product_id: ext.name,
+              product_name: ext.name,
+              quantity: ext.quantity,
+              unit_price: ext.price / Math.max(1, ext.quantity),
+              total_price: ext.price,
+              metadata: ext.timeSlot ? { time_slot: ext.timeSlot } : {}
+            });
+          });
+
+          await (supabase as any).from('order_items').insert(itemsPayload);
+        }
+      } catch (dbErr) {
+        console.warn('Aviso ao criar pedido Supabase para pagamento admin:', dbErr);
+      }
+
+      const finalReservation: ChaleReservation = {
+        ...built,
+        id: createdOrderId,
+        orderId: createdOrderId,
+        isOrder: true
+      };
+
+      setLocalReservations(prev => [...prev.filter(r => r.chaleId !== formChaleId), finalReservation]);
+      setIsModalOpen(false);
+
+      setAdminPaymentData({
+        open: true,
+        orderId: createdOrderId,
+        name: built.guestName,
+        phone: built.phone,
+        cpf: built.cpf || '',
+        totalAmount: built.totalPrice,
+        initialMethod: method,
+        chaleId: built.chaleId
+      });
+    } finally {
+      setGeneratingPayment(false);
+    }
   };
 
   // Excluir / Cancelar Reserva (libera o chalé)
@@ -803,6 +1351,206 @@ export function AdminChaleTab({
     toast({ title: "✓ Reserva reagendada com sucesso!" });
   };
 
+  const selectedUnitObj = useMemo(() => {
+    return CHALE_UNITS.find(u => u.id === formChaleId) || CHALE_UNITS[0];
+  }, [formChaleId]);
+
+  // CARD DO MAPA DE OCUPAÇÃO (Exibição por data selecionada)
+  const renderChaleMapCard = (unit: typeof chalesOnTargetDate[0]) => {
+    const isOccupied = unit.status === 'ocupado';
+    const isAvailable = unit.status === 'disponivel';
+    const isMaintenance = unit.status === 'indisponivel';
+    const res = unit.reservation;
+
+    return (
+      <div
+        key={unit.id}
+        className={cn(
+          "rounded-3xl border-2 transition-all shadow-sm overflow-hidden flex flex-col justify-between bg-white",
+          isOccupied
+            ? "border-red-400 ring-2 ring-red-100"
+            : isAvailable
+            ? "border-emerald-500 hover:shadow-md"
+            : "border-amber-400 bg-amber-50/30"
+        )}
+      >
+        {/* CARD TOP HEADER */}
+        <div className={cn(
+          "p-4 border-b flex items-center justify-between gap-2",
+          isOccupied ? "bg-red-50 border-red-200" : isAvailable ? "bg-emerald-50/80 border-emerald-200" : "bg-amber-100/60 border-amber-200"
+        )}>
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className={cn(
+              "w-9 h-9 rounded-xl font-black text-sm flex items-center justify-center shrink-0 shadow-xs",
+              isOccupied ? "bg-red-600 text-white" : isAvailable ? "bg-emerald-600 text-white" : "bg-amber-500 text-slate-950"
+            )}>
+              {String(unit.id).padStart(2, '0')}
+            </span>
+            <div className="min-w-0">
+              <h5 className="font-black text-sm text-slate-900 truncate">
+                {unit.name}
+              </h5>
+              <p className="text-[10px] text-slate-500 font-bold uppercase truncate">
+                {unit.modelLabel}
+              </p>
+            </div>
+          </div>
+
+          <Badge className={cn(
+            "text-[10px] font-black uppercase px-2.5 py-1 tracking-wider shrink-0 shadow-xs",
+            isOccupied
+              ? "bg-red-600 hover:bg-red-600 text-white"
+              : isAvailable
+              ? "bg-emerald-600 hover:bg-emerald-600 text-white"
+              : "bg-amber-500 hover:bg-amber-500 text-slate-950"
+          )}>
+            {isOccupied ? 'OCUPADO' : isAvailable ? 'LIVRE' : 'MANUTENÇÃO'}
+          </Badge>
+        </div>
+
+        {/* CARD CONTENT */}
+        <div className="p-4 space-y-3 flex-1 text-xs">
+          {isOccupied && res ? (
+            <div className="space-y-2.5">
+              <div className="bg-white rounded-xl border border-red-200 p-3 shadow-xs space-y-1.5">
+                <div className="flex items-start justify-between gap-1">
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight block">Hóspede Titular</span>
+                    <h6 className="font-black text-sm text-slate-900">{res.guestName}</h6>
+                  </div>
+                  {res.confirmationCode && (
+                    <Badge variant="outline" className="border-red-300 text-red-700 font-mono text-[9px] font-black">
+                      {res.confirmationCode}
+                    </Badge>
+                  )}
+                </div>
+
+                {res.adultNames && res.adultNames.length > 1 && (
+                  <p className="text-[11px] text-slate-600">
+                    <span className="font-bold">Acompanhante:</span> {res.adultNames[1]}
+                  </p>
+                )}
+
+                {res.childNames && res.childNames.length > 0 && (
+                  <p className="text-[11px] text-slate-600">
+                    <span className="font-bold">Crianças ({res.childNames.length}):</span> {res.childNames.map(c => c.name).join(', ')}
+                  </p>
+                )}
+
+                <div className="pt-1 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                  <span className="font-bold text-emerald-800 truncate mr-2">{res.packageTitle}</span>
+                  <span className="font-black text-slate-900 shrink-0">{formatCurrency(res.totalPrice)}</span>
+                </div>
+
+                <div className="flex items-center justify-between text-[10px] text-slate-500 font-medium pt-0.5">
+                  <span>Entrada: {res.checkInDate} ({res.checkInTime})</span>
+                  <span>Saída: {res.checkOutDate} ({res.checkOutTime})</span>
+                </div>
+              </div>
+
+              {/* CONTATO DO HÓSPEDE */}
+              <div className="flex items-center justify-between text-xs text-slate-700 px-1">
+                <span className="font-bold flex items-center gap-1">
+                  <Phone className="w-3.5 h-3.5 text-slate-400" />
+                  {res.phone || 'Sem telefone'}
+                </span>
+                <Badge className={cn("text-[9px] font-black uppercase px-2 py-0.5", res.status === 'paid' ? "bg-emerald-100 text-emerald-800 border border-emerald-300" : "bg-amber-100 text-amber-800 border border-amber-300")}>
+                  {res.status === 'paid' ? 'PAGO OK' : 'PENDENTE'}
+                </Badge>
+              </div>
+            </div>
+          ) : isAvailable ? (
+            <div className="space-y-3 py-2 text-center">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center mx-auto shadow-xs">
+                <DoorOpen className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="font-black text-slate-900 text-xs uppercase tracking-tight">
+                  Chalé Totalmente Disponível
+                </p>
+                <p className="text-[11px] text-slate-500 font-medium">
+                  {unit.capacity} • Cama casal, ar-condicionado, café e Day Use.
+                </p>
+              </div>
+              <Button
+                type="button"
+                onClick={() => handleOpenNewBooking(unit.id, mapTargetDateStr, format(addDays(mapTargetDate, 2), 'yyyy-MM-dd'))}
+                className="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs uppercase tracking-wider rounded-xl h-10 shadow-xs cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <Plus className="w-4 h-4 stroke-[3]" /> Reservar Este Chalé
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-3 py-3 text-center">
+              <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center mx-auto shadow-xs">
+                <AlertCircle className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="font-black text-slate-900 text-xs uppercase tracking-tight">
+                  Chalé Bloqueado para Manutenção
+                </p>
+                <p className="text-[11px] text-slate-500 font-medium">
+                  Unidade indisponível para reservas de hóspedes.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* CARD FOOTER ACTIONS */}
+        <div className="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-1.5 flex-wrap">
+          {isOccupied && res ? (
+            <>
+              <button
+                type="button"
+                onClick={() => handleOpenVoucherModal(res)}
+                className="text-[11px] font-bold text-slate-700 hover:text-emerald-800 bg-white hover:bg-emerald-50 border border-slate-200 px-2.5 py-1.5 rounded-lg flex items-center gap-1 shadow-xs cursor-pointer transition-all"
+                title="Visualizar e Imprimir Voucher"
+              >
+                <FileCheck className="w-3.5 h-3.5 text-emerald-600" /> Voucher
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleOpenEditBooking(res)}
+                className="text-[11px] font-bold text-slate-700 hover:text-blue-800 bg-white hover:bg-blue-50 border border-slate-200 px-2.5 py-1.5 rounded-lg flex items-center gap-1 shadow-xs cursor-pointer transition-all"
+                title="Editar dados da reserva"
+              >
+                <Edit className="w-3.5 h-3.5 text-blue-600" /> Editar
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleMarkAsVacant(res)}
+                className="text-[11px] font-black text-amber-900 hover:text-white bg-amber-100 hover:bg-amber-600 border border-amber-300 px-2.5 py-1.5 rounded-lg flex items-center gap-1 shadow-xs cursor-pointer transition-all ml-auto"
+                title="Desocupar e liberar chalé imediatamente"
+              >
+                <RotateCcw className="w-3 h-3" /> Desocupar
+              </button>
+            </>
+          ) : isAvailable ? (
+            <button
+              type="button"
+              onClick={() => handleToggleBlock(unit.id)}
+              className="text-[10px] font-bold text-amber-800 hover:text-amber-900 hover:bg-amber-100 px-2.5 py-1 rounded-lg transition-all ml-auto cursor-pointer"
+            >
+              Bloquear p/ Manutenção
+            </button>
+          ) : (
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => handleToggleBlock(unit.id)}
+              className="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs h-8 rounded-lg cursor-pointer"
+            >
+              ✓ Liberar Chalé
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       
@@ -832,8 +1580,19 @@ export function AdminChaleTab({
               <Plus className="w-4 h-4 stroke-[3]" /> Nova Reserva de Chalé
             </Button>
 
-            {/* Sub-abas: Chalés / Camping */}
+            {/* Sub-abas: Mapa de Ocupação / Chalés Geral / Camping */}
             <div className="flex items-center gap-1.5 bg-white/10 p-1 rounded-2xl border border-white/15">
+              <button
+                onClick={() => setActiveSubTab('mapa')}
+                className={cn(
+                  "px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2",
+                  activeSubTab === 'mapa'
+                    ? "bg-amber-400 text-slate-950 shadow-md scale-[1.02]"
+                    : "text-white/80 hover:text-white hover:bg-white/10"
+                )}
+              >
+                <CalendarDays className="w-4 h-4" /> Mapa de Ocupação
+              </button>
               <button
                 onClick={() => setActiveSubTab('chales')}
                 className={cn(
@@ -843,7 +1602,7 @@ export function AdminChaleTab({
                     : "text-white/80 hover:text-white hover:bg-white/10"
                 )}
               >
-                <Bed className="w-4 h-4" /> Chalés (12)
+                <Bed className="w-4 h-4" /> Chalés Geral (12)
               </button>
               <button
                 onClick={() => setActiveSubTab('camping')}
@@ -863,28 +1622,242 @@ export function AdminChaleTab({
         {/* INDICADORES VISUAIS: Ocupado=Vermelho, Livres=Verde, Manutenção=Amarelo */}
         <div className="pt-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="bg-emerald-900/80 border-2 border-emerald-400/50 rounded-2xl p-3.5 text-center shadow-md">
-            <span className="text-[11px] font-black text-emerald-300 uppercase block tracking-wider">Chalés Livres</span>
-            <span className="text-3xl font-black text-white">{countDisponiveis}</span>
+            <span className="text-[11px] font-black text-emerald-300 uppercase block tracking-wider">
+              {activeSubTab === 'mapa' ? 'Chalés Livres na Data' : 'Chalés Livres'}
+            </span>
+            <span className="text-3xl font-black text-white">
+              {activeSubTab === 'mapa' ? mapCountDisponiveis : countDisponiveis}
+            </span>
           </div>
 
           <div className="bg-red-950/80 border-2 border-red-500/60 rounded-2xl p-3.5 text-center shadow-md">
-            <span className="text-[11px] font-black text-red-300 uppercase block tracking-wider">Chalés Ocupados</span>
-            <span className="text-3xl font-black text-white">{countOcupados}</span>
+            <span className="text-[11px] font-black text-red-300 uppercase block tracking-wider">
+              {activeSubTab === 'mapa' ? 'Chalés Ocupados na Data' : 'Chalés Ocupados'}
+            </span>
+            <span className="text-3xl font-black text-white">
+              {activeSubTab === 'mapa' ? mapCountOcupados : countOcupados}
+            </span>
           </div>
 
           <div className="bg-amber-950/80 border-2 border-amber-400/60 rounded-2xl p-3.5 text-center shadow-md">
-            <span className="text-[11px] font-black text-amber-300 uppercase block tracking-wider">Manutenção</span>
-            <span className="text-3xl font-black text-white">{countIndisponiveis}</span>
+            <span className="text-[11px] font-black text-amber-300 uppercase block tracking-wider">
+              Manutenção
+            </span>
+            <span className="text-3xl font-black text-white">
+              {activeSubTab === 'mapa' ? mapCountIndisponiveis : countIndisponiveis}
+            </span>
           </div>
 
           <div className="bg-purple-950/80 border-2 border-purple-400/50 rounded-2xl p-3.5 text-center shadow-md">
-            <span className="text-[11px] font-black text-purple-300 uppercase block tracking-wider">Campistas</span>
-            <span className="text-3xl font-black text-white">
-              {campingBookings.reduce((sum, c) => sum + (c.peopleCount || 0), 0)}
+            <span className="text-[11px] font-black text-purple-300 uppercase block tracking-wider">
+              {activeSubTab === 'mapa' ? 'Data Selecionada' : 'Campistas'}
+            </span>
+            <span className={cn("font-black text-white", activeSubTab === 'mapa' ? "text-xl sm:text-2xl mt-1 block" : "text-3xl")}>
+              {activeSubTab === 'mapa' 
+                ? format(mapTargetDate, 'dd/MM/yyyy')
+                : campingBookings.reduce((sum, c) => sum + (c.peopleCount || 0), 0)
+              }
             </span>
           </div>
         </div>
       </div>
+
+      {/* ABA: MAPA DE OCUPAÇÃO DOS CHALÉS */}
+      {activeSubTab === 'mapa' && (
+        <div className="space-y-6">
+          {/* BARRA DE CONTROLE DE DATA DO MAPA COM MARCADORES NOS DIAS */}
+          <div className="bg-white rounded-3xl border-2 border-emerald-300 p-5 sm:p-6 shadow-md space-y-4">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+              <div>
+                <h4 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
+                  <CalendarDays className="w-5 h-5 text-emerald-700" />
+                  Mapa de Ocupação dos Chalés por Período
+                </h4>
+                <p className="text-xs text-slate-600 font-medium">
+                  Selecione a data ou fim de semana para visualizar em tempo real quais chalés estarão ocupados ou livres.
+                </p>
+              </div>
+
+              {/* CONTROLES DE NAVEGAÇÃO DE DATA */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setMapTargetDate(prev => addDays(prev, -1))}
+                  className="h-10 px-3 rounded-xl border-slate-200 text-slate-700 font-black text-xs hover:bg-slate-100 cursor-pointer"
+                >
+                  ◀ Dia Anterior
+                </Button>
+
+                {/* POPOVER CALENDÁRIO COM MARCADORES */}
+                <Popover open={isMapCalendarOpen} onOpenChange={setIsMapCalendarOpen}>
+                  <PopoverTrigger asChild>
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      className="h-10 px-4 rounded-xl border-2 border-emerald-600 bg-emerald-50 text-emerald-950 font-black text-xs sm:text-sm flex items-center gap-2 cursor-pointer shadow-xs hover:bg-emerald-100 transition-all select-none"
+                    >
+                      <Calendar className="w-4 h-4 text-emerald-700 shrink-0" />
+                      <span>{format(mapTargetDate, "dd/MM/yyyy (EEEE)", { locale: ptBR })}</span>
+                      <Badge className={cn("text-[9px] font-black uppercase px-1.5 py-0.5", mapCountOcupados > 0 ? "bg-red-600 text-white" : "bg-emerald-600 text-white")}>
+                        {mapCountOcupados > 0 ? `${mapCountOcupados} ocupado(s)` : '100% Livre'}
+                      </Badge>
+                    </div>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 rounded-3xl border-2 border-emerald-600 bg-white shadow-2xl overflow-hidden" align="center">
+                    <div className="bg-emerald-950 text-white p-3 border-b border-emerald-800">
+                      <h5 className="text-xs font-black uppercase tracking-tight flex items-center gap-2">
+                        <CalendarDays className="w-4 h-4 text-amber-400" />
+                        Escolha a Data do Mapa
+                      </h5>
+                      <p className="text-[10px] text-emerald-300">
+                        Dias com reservas possuem marcadores no calendário
+                      </p>
+                    </div>
+                    <div className="p-2 flex justify-center">
+                      <CalendarUI
+                        mode="single"
+                        selected={mapTargetDate}
+                        onSelect={(d) => {
+                          if (d) {
+                            setMapTargetDate(d);
+                            setIsMapCalendarOpen(false);
+                          }
+                        }}
+                        locale={ptBR}
+                        className="p-1"
+                      />
+                    </div>
+                  </PopoverContent>
+                </Popover>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setMapTargetDate(prev => addDays(prev, 1))}
+                  className="h-10 px-3 rounded-xl border-slate-200 text-slate-700 font-black text-xs hover:bg-slate-100 cursor-pointer"
+                >
+                  Próximo Dia ▶
+                </Button>
+              </div>
+            </div>
+
+            {/* ATALHOS RÁPIDOS DE FINS DE SEMANA */}
+            <div className="flex items-center gap-2 flex-wrap text-xs">
+              <span className="font-black text-slate-500 uppercase text-[10px] tracking-wider shrink-0">
+                Atalhos de Fins de Semana:
+              </span>
+              {[
+                { label: 'Sex 13/11 a Dom 15/11', date: '2026-11-13' },
+                { label: 'Sex 20/11 a Dom 22/11', date: '2026-11-20' },
+                { label: 'Sex 27/11 a Dom 29/11', date: '2026-11-27' },
+                { label: 'Sex 04/12 a Dom 06/12', date: '2026-12-04' },
+                { label: 'Sex 11/12 a Dom 13/12', date: '2026-12-11' },
+              ].map(shortcut => {
+                const isSelected = mapTargetDateStr === shortcut.date;
+                const hasReservations = Boolean(bookedDatesSummary[shortcut.date]);
+                return (
+                  <button
+                    key={shortcut.date}
+                    type="button"
+                    onClick={() => setMapTargetDate(new Date(`${shortcut.date}T12:00:00`))}
+                    className={cn(
+                      "px-3 py-1.5 rounded-xl font-black text-[11px] transition-all flex items-center gap-1.5 shadow-xs cursor-pointer",
+                      isSelected
+                        ? "bg-emerald-800 text-white shadow-sm ring-2 ring-emerald-500"
+                        : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
+                    )}
+                  >
+                    {hasReservations && <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />}
+                    {shortcut.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* MARCADORES NOS DIAS: PRÓXIMAS DATAS COM RESERVAS REGISTRADAS */}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-black text-slate-800 uppercase tracking-tight flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-red-500" />
+                  Datas com Marcadores de Reservas Ativas:
+                </span>
+                <span className="text-[11px] font-bold text-slate-500">
+                  {upcomingBookedDates.length} data(s) com chalés ocupados
+                </span>
+              </div>
+
+              {upcomingBookedDates.length === 0 ? (
+                <p className="text-xs text-slate-500 italic">
+                  Nenhuma reserva registrada para datas futuras. Todos os chalés estão disponíveis.
+                </p>
+              ) : (
+                <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-0.5 no-scrollbar">
+                  {upcomingBookedDates.map(item => {
+                    const isCurrent = item.dateStr === mapTargetDateStr;
+                    const dateFormatted = format(parseISO(item.dateStr), 'dd/MM (EEE)', { locale: ptBR });
+                    const chaletsListText = item.bookings.map(b => `Ch ${String(b.chaleId).padStart(2, '0')}`).join(', ');
+                    return (
+                      <button
+                        key={item.dateStr}
+                        type="button"
+                        onClick={() => setMapTargetDate(new Date(`${item.dateStr}T12:00:00`))}
+                        className={cn(
+                          "px-3 py-1.5 rounded-xl text-xs font-black shrink-0 transition-all flex items-center gap-1.5 border shadow-xs cursor-pointer",
+                          isCurrent
+                            ? "bg-red-600 text-white border-red-700 ring-2 ring-red-400"
+                            : "bg-white text-slate-800 border-red-200 hover:bg-red-50"
+                        )}
+                      >
+                        <span className={cn("w-2 h-2 rounded-full", isCurrent ? "bg-white" : "bg-red-500")} />
+                        <span>{dateFormatted}:</span>
+                        <span className={cn("text-[10px] font-bold uppercase", isCurrent ? "text-red-100" : "text-red-700")}>
+                          {chaletsListText} ({item.bookings.length})
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* GRADE DOS 12 CHALÉS NA DATA SELECIONADA */}
+          {/* GRUPO 1: CHALÉS DE ALVENARIA (01 AO 06) */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between border-b-2 border-emerald-800 pb-2">
+              <h4 className="text-base sm:text-lg font-black text-emerald-950 flex items-center gap-2">
+                <Home className="w-5 h-5 text-emerald-700" />
+                Chalés de Alvenaria Tradicional (Chalés 01 ao 06)
+              </h4>
+              <Badge className="bg-emerald-100 text-emerald-900 border border-emerald-300 font-black text-[10px] uppercase">
+                6 Unidades
+              </Badge>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {chalesOnTargetDate.filter(c => c.type === 'alvenaria').map(unit => renderChaleMapCard(unit))}
+            </div>
+          </div>
+
+          {/* GRUPO 2: CHALÉS DE VIDRO PANORÂMICO (07 AO 12) */}
+          <div className="space-y-4 pt-4">
+            <div className="flex items-center justify-between border-b-2 border-amber-600 pb-2">
+              <h4 className="text-base sm:text-lg font-black text-amber-950 flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-amber-600" />
+                Chalés de Vidro Panorâmico — Luxo (Chalés 07 ao 12)
+              </h4>
+              <Badge className="bg-amber-100 text-amber-900 border border-amber-300 font-black text-[10px] uppercase">
+                6 Unidades
+              </Badge>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {chalesOnTargetDate.filter(c => c.type === 'vidro').map(unit => renderChaleMapCard(unit))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ABA: CHALÉS (MOSTRA TODOS OS 12 CHALÉS NO PAINEL ADMIN) */}
       {activeSubTab === 'chales' && (
@@ -996,7 +1969,7 @@ export function AdminChaleTab({
                         </div>
                         <h4 className="font-black text-lg text-slate-950 mt-0.5">{unit.name}</h4>
                         <span className="text-xs font-bold text-slate-800 block">
-                          Entrada: 14h · Saída: 12h · Café das 07h às 09h
+                          Entrada: 15h (Qui 09h) · Saída: 12h · Café das 07h às 09h
                         </span>
                       </div>
                     </div>
@@ -1294,7 +2267,7 @@ export function AdminChaleTab({
                   {/* RODAPÉ DO CARD: CAPACIDADE E MANUTENÇÃO COM ALTO CONTRASTE */}
                   <div className="flex items-center justify-between pt-3 border-t border-slate-200">
                     <span className="text-xs font-black text-slate-950">
-                      Capacidade Máx: 2 adultos
+                      Capacidade Máx: 2 adultos (+ até 2 crianças)
                     </span>
 
                     {isOccupied && res && (
@@ -1364,180 +2337,566 @@ export function AdminChaleTab({
         </div>
       )}
 
-      {/* MODAL: NOVA RESERVA OU ALTERAR RESERVA */}
+      {/* MODAL COMPLETO: NOVA RESERVA INTERNA DE CHALÉ OU ALTERAR RESERVA */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-xl rounded-3xl p-6 bg-white border border-slate-200 shadow-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader className="space-y-1">
+        <DialogContent className="sm:max-w-2xl rounded-3xl p-5 sm:p-6 bg-white border-2 border-emerald-200 shadow-2xl max-h-[92vh] overflow-y-auto">
+          <DialogHeader className="space-y-1 border-b border-slate-100 pb-3">
             <DialogTitle className="text-lg font-black text-emerald-950 flex items-center gap-2">
               <Calendar className="w-5 h-5 text-amber-500" />
-              {isEditing ? `Alterar Reserva - Chalé ${formChaleId}` : 'Nova Reserva Interna de Chalé'}
+              {isEditing
+                ? `Alterar Reserva • Chalé ${String(formChaleId).padStart(2, '0')}`
+                : isChaleLocked
+                ? `Nova Reserva Interna • Chalé ${String(formChaleId).padStart(2, '0')}`
+                : 'Nova Reserva Interna de Chalé'}
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-600 font-medium">
-              Preencha os dados do hóspede, datas, horários e valores.
+              Motor oficial de datas, pacotes comerciais, nomes de todos os ocupantes, adição de serviços e geração de QR Code PIX / Cartão.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-black text-slate-900">Selecione o Chalé (01 ao 12):</Label>
-              <select
-                value={formChaleId}
-                onChange={(e) => setFormChaleId(Number(e.target.value))}
-                className="w-full h-10 px-3 rounded-xl border border-slate-300 bg-slate-50 font-bold text-xs text-slate-900"
-              >
-                {CHALE_UNITS.map(u => (
-                  <option key={u.id} value={u.id}>
-                    {u.name} ({u.type === 'alvenaria' ? 'Alvenaria' : 'Vidro Panorâmico'})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs font-black text-slate-900">Nome do Hóspede:</Label>
-                <Input
-                  placeholder="Nome completo"
-                  value={formGuestName}
-                  onChange={(e) => setFormGuestName(e.target.value)}
-                  className="h-10 text-xs font-bold rounded-xl border-slate-300 text-slate-900"
-                />
+          <div className="space-y-4 py-2">
+            {/* 1. UNIDADE DO CHALÉ (TRAVADO QUANDO SELECIONADO NO CARD ESPECÍFICO) */}
+            {isChaleLocked ? (
+              <div className="bg-gradient-to-r from-emerald-950 via-[#042817] to-slate-950 text-white p-3.5 rounded-2xl border-2 border-amber-400 flex items-center justify-between gap-3 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <span className="p-2 bg-amber-400 text-slate-950 rounded-xl font-black">
+                    <Home className="w-5 h-5" />
+                  </span>
+                  <div>
+                    <span className="text-[10px] font-black uppercase text-amber-300 tracking-wider block">
+                      Unidade Selecionada para Reserva Interna
+                    </span>
+                    <span className="font-black text-sm sm:text-base text-white">
+                      {selectedUnitObj.name} ({selectedUnitObj.modelLabel})
+                    </span>
+                  </div>
+                </div>
+                <Badge className="bg-amber-400 text-slate-950 font-black text-[10px] uppercase px-2.5 py-1">
+                  Chalé {String(formChaleId).padStart(2, '0')} Fixo
+                </Badge>
               </div>
-
-              <div className="space-y-1">
-                <Label className="text-xs font-black text-slate-900">WhatsApp / Telefone:</Label>
-                <Input
-                  placeholder="(00) 00000-0000"
-                  value={formPhone}
-                  onChange={(e) => setFormPhone(e.target.value)}
-                  className="h-10 text-xs font-bold rounded-xl border-slate-300 text-slate-900"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="text-[11px] font-black text-slate-900">Data de Entrada:</Label>
-                <Input
-                  type="date"
-                  value={formCheckInDate}
-                  onChange={(e) => setFormCheckInDate(e.target.value)}
-                  className="h-10 text-xs font-bold rounded-xl border-slate-300 text-slate-900"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-[11px] font-black text-slate-900">Horário Entrada:</Label>
-                <Input
-                  type="time"
-                  value={formCheckInTime}
-                  onChange={(e) => setFormCheckInTime(e.target.value)}
-                  className="h-10 text-xs font-bold rounded-xl border-slate-300 text-slate-900"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="text-[11px] font-black text-slate-900">Data de Saída:</Label>
-                <Input
-                  type="date"
-                  value={formCheckOutDate}
-                  onChange={(e) => setFormCheckOutDate(e.target.value)}
-                  className="h-10 text-xs font-bold rounded-xl border-slate-300 text-slate-900"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-[11px] font-black text-slate-900">Horário Saída:</Label>
-                <Input
-                  type="time"
-                  value={formCheckOutTime}
-                  onChange={(e) => setFormCheckOutTime(e.target.value)}
-                  className="h-10 text-xs font-bold rounded-xl border-slate-300 text-slate-900"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="text-[11px] font-black text-slate-900">Ocupação:</Label>
+            ) : (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-black text-slate-900">Selecione o Chalé (01 ao 12):</Label>
                 <select
-                  value={formOccupancyType}
-                  onChange={(e) => setFormOccupancyType(e.target.value as any)}
-                  className="w-full h-10 px-3 rounded-xl border border-slate-300 bg-slate-50 font-bold text-xs text-slate-900"
+                  value={formChaleId}
+                  onChange={(e) => setFormChaleId(Number(e.target.value))}
+                  className="w-full h-11 px-3 rounded-xl border-2 border-emerald-300 bg-emerald-50/40 font-black text-xs text-slate-950"
                 >
-                  <option value="casal">Casal (2 Adultos)</option>
-                  <option value="individual">Individual (1 Adulto)</option>
+                  {CHALE_UNITS.map(u => (
+                    <option key={u.id} value={u.id}>
+                      {u.name} ({u.type === 'alvenaria' ? 'Alvenaria' : 'Vidro Panorâmico'})
+                    </option>
+                  ))}
                 </select>
               </div>
+            )}
 
+            {/* 2. MOTOR DE CALENDÁRIO E ATALHOS DE PACOTES COMERCIAIS */}
+            <div className="bg-emerald-50/50 p-3.5 rounded-2xl border border-emerald-200 space-y-3">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <span className="text-xs font-black uppercase text-emerald-950 flex items-center gap-1.5">
+                  <CalendarDays className="w-4 h-4 text-emerald-700" />
+                  Datas, Horários e Pacotes Oficiais de Hospedagem
+                </span>
+                <span className="text-[10.5px] font-bold text-emerald-800">
+                  Check-in: {formCheckInTime} · Check-out: {formCheckOutTime} ({modalStayPricing.nightsCount} noite{modalStayPricing.nightsCount > 1 ? 's' : ''})
+                </span>
+              </div>
+
+              {/* Atalhos Rápidos de Pacotes Comerciais */}
               <div className="space-y-1">
-                <Label className="text-[11px] font-black text-slate-900">Pacote Comercial:</Label>
+                <Label className="text-[11px] font-black text-slate-900">Pacote Comercial / Modalidade de Estadia:</Label>
                 <select
                   value={formPackageType}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setFormPackageType(val);
-                    const isC = formOccupancyType === 'casal';
-                    if (val === 'combo_2n') setFormPrice(isC ? 729 : 639);
-                    else if (val === 'combo_3n_qui') setFormPrice(isC ? 990 : 855);
-                    else if (val === 'combo_3n_seg') setFormPrice(isC ? 972 : 837);
-                    else if (val === 'combo_4n') setFormPrice(isC ? 1233 : 1053);
-                    else if (val === 'diaria_sab_dom') setFormPrice(isC ? 420 : 370);
-                    else if (val === 'diaria_sex_sab') setFormPrice(isC ? 390 : 340);
-                    else if (val === 'diaria_qui_sex') setFormPrice(isC ? 290 : 240);
-                    else if (val === 'diaria_dom_seg') setFormPrice(isC ? 270 : 220);
-                  }}
-                  className="w-full h-10 px-3 rounded-xl border border-slate-300 bg-slate-50 font-bold text-xs text-slate-900"
+                  onChange={(e) => handleSelectPackagePreset(e.target.value as any)}
+                  className="w-full h-10 px-3 rounded-xl border-2 border-emerald-500 bg-white font-black text-xs text-slate-950 shadow-2xs"
                 >
-                  <option value="combo_2n">Combo 2 Noites — Sex a Dom (R$ 729 / 639 - 10% OFF)</option>
-                  <option value="combo_3n_qui">Combo 3 Noites — Qui a Dom (R$ 990 / 855 - 10% OFF)</option>
-                  <option value="combo_3n_seg">Combo 3 Noites — Sex a Seg (R$ 972 / 837 - 10% OFF)</option>
-                  <option value="combo_4n">Combo 4 Noites — Qui a Seg (R$ 1.233 / 1.053 - 10% OFF)</option>
-                  <option value="diaria_sab_dom">Diária Sáb a Dom (R$ 420 / 370)</option>
-                  <option value="diaria_sex_sab">Diária Sex a Sáb (R$ 390 / 340)</option>
-                  <option value="diaria_qui_sex">Diária Qui a Sex (R$ 290 / 240)</option>
-                  <option value="diaria_dom_seg">Diária Dom a Seg (R$ 270 / 220)</option>
-                  <option value="custom">Valor Personalizado</option>
+                  <optgroup label="🔥 Combos Promocionais (10% OFF Automático)">
+                    <option value="combo-2n-sex-dom">Combo 2 Noites — Sexta a Domingo (Casal R$ 819 · Ind. R$ 639)</option>
+                    <option value="combo-2n-qui-sab">Combo 2 Noites — Quinta a Sábado (Casal R$ 702 · Ind. R$ 522)</option>
+                    <option value="combo-2n-sab-seg">Combo 2 Noites — Sábado a Segunda (Casal R$ 711 · Ind. R$ 531)</option>
+                    <option value="combo-3n-qui-dom">Combo 3 Noites — Quinta a Domingo (Casal R$ 1.125 · Ind. R$ 855)</option>
+                    <option value="combo-3n-sex-seg">Combo 3 Noites — Sexta a Segunda (Casal R$ 1.107 · Ind. R$ 837)</option>
+                    <option value="combo-4n-qui-seg">Combo 4 Noites — Quinta a Segunda (Casal R$ 1.413 · Ind. R$ 1.053)</option>
+                  </optgroup>
+                  <optgroup label="📅 Diárias Avulsas (1 Noite)">
+                    <option value="diaria-qui-sex">Diária Avulsa — Quinta a Sexta (Casal R$ 340 · Ind. R$ 240)</option>
+                    <option value="diaria-sex-sab">Diária Avulsa — Sexta a Sábado (Casal R$ 440 · Ind. R$ 340)</option>
+                    <option value="diaria-sab-dom">Diária Avulsa — Sábado a Domingo (Casal R$ 470 · Ind. R$ 370)</option>
+                    <option value="diaria-dom-seg">Diária Avulsa — Domingo a Segunda (Casal R$ 320 · Ind. R$ 220)</option>
+                  </optgroup>
+                  <optgroup label="⚙️ Personalizado">
+                    <option value="custom">Período / Valor Personalizado</option>
+                  </optgroup>
                 </select>
+              </div>
+
+              {/* Calendário Interativo de Entrada e Saída + Horários */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-[11px] font-black text-slate-900">📅 Data de Entrada (Check-in):</Label>
+                  <div className="flex gap-1.5">
+                    <Popover open={isInCalendarOpen} onOpenChange={setIsInCalendarOpen}>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          className="flex-1 h-10 px-3 rounded-xl border-2 border-emerald-600 bg-white hover:bg-emerald-50 text-left font-black text-xs text-slate-950 flex items-center justify-between"
+                        >
+                          <span>
+                            {formCheckInDate ? format(new Date(`${formCheckInDate}T12:00:00`), 'dd/MM/yyyy (EEE)', { locale: ptBR }) : 'Selecionar'}
+                          </span>
+                          <Calendar className="w-3.5 h-3.5 text-emerald-700" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-2 bg-white rounded-2xl border-2 border-emerald-600 shadow-xl" align="start">
+                        <CalendarUI
+                          mode="single"
+                          selected={formCheckInDate ? new Date(`${formCheckInDate}T12:00:00`) : undefined}
+                          onSelect={(d) => d && handleModalSelectCheckIn(d)}
+                          disabled={(d) => !isChaleCheckInDay(d)}
+                          locale={ptBR}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <Input
+                      type="time"
+                      value={formCheckInTime}
+                      onChange={(e) => setFormCheckInTime(e.target.value)}
+                      className="w-24 h-10 text-xs font-black rounded-xl border-slate-300 bg-white text-slate-950"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-[11px] font-black text-slate-900">📅 Data de Saída (Check-out):</Label>
+                  <div className="flex gap-1.5">
+                    <Popover open={isOutCalendarOpen} onOpenChange={setIsOutCalendarOpen}>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          className="flex-1 h-10 px-3 rounded-xl border-2 border-amber-500 bg-white hover:bg-amber-50 text-left font-black text-xs text-slate-950 flex items-center justify-between"
+                        >
+                          <span>
+                            {formCheckOutDate ? format(new Date(`${formCheckOutDate}T12:00:00`), 'dd/MM/yyyy (EEE)', { locale: ptBR }) : 'Selecionar'}
+                          </span>
+                          <Calendar className="w-3.5 h-3.5 text-amber-600" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-2 bg-white rounded-2xl border-2 border-amber-500 shadow-xl" align="end">
+                        <CalendarUI
+                          mode="single"
+                          selected={formCheckOutDate ? new Date(`${formCheckOutDate}T12:00:00`) : undefined}
+                          onSelect={(d) => d && handleModalSelectCheckOut(d)}
+                          disabled={(d) => !isChaleCheckOutDay(d)}
+                          locale={ptBR}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <Input
+                      type="time"
+                      value={formCheckOutTime}
+                      onChange={(e) => setFormCheckOutTime(e.target.value)}
+                      className="w-24 h-10 text-xs font-black rounded-xl border-slate-300 bg-white text-slate-950"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-1">
-                <Label className="text-[11px] font-black text-slate-900">Valor Total (R$):</Label>
-                <Input
-                  type="number"
-                  value={formPrice}
-                  onChange={(e) => setFormPrice(Number(e.target.value))}
-                  className="h-10 text-xs font-bold rounded-xl border-slate-300 text-slate-900"
-                />
+            {/* 3. OCUPAÇÃO E NOMES DE TODOS OS OCUPANTES (ADULTOS E CRIANÇAS) */}
+            <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-3">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <span className="text-xs font-black uppercase text-slate-950 flex items-center gap-1.5">
+                  <Users className="w-4 h-4 text-emerald-700" />
+                  Ocupação e Identificação de Todos os Hóspedes
+                </span>
+
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFormOccupancyType('casal');
+                      setFormCustomPriceOverride(null);
+                    }}
+                    className={cn(
+                      "px-3 py-1 rounded-lg text-xs font-black border transition-all cursor-pointer",
+                      formOccupancyType === 'casal'
+                        ? "bg-amber-400 text-slate-950 border-amber-500 shadow-2xs"
+                        : "bg-white text-slate-700 border-slate-300"
+                    )}
+                  >
+                    👥 Casal (2 Adultos)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFormOccupancyType('individual');
+                      setFormCustomPriceOverride(null);
+                    }}
+                    className={cn(
+                      "px-3 py-1 rounded-lg text-xs font-black border transition-all cursor-pointer",
+                      formOccupancyType === 'individual'
+                        ? "bg-amber-400 text-slate-950 border-amber-500 shadow-2xs"
+                        : "bg-white text-slate-700 border-slate-300"
+                    )}
+                  >
+                    👤 Individual (1 Adulto)
+                  </button>
+                </div>
               </div>
 
-              <div className="space-y-1">
-                <Label className="text-[11px] font-black text-slate-900">Pagamento:</Label>
-                <select
-                  value={formPaymentMethod}
-                  onChange={(e) => setFormPaymentMethod(e.target.value)}
-                  className="w-full h-10 px-3 rounded-xl border border-slate-300 bg-slate-50 font-bold text-xs text-slate-900"
-                >
-                  <option value="PIX">PIX</option>
-                  <option value="Cartão de Crédito">Cartão de Crédito</option>
-                  <option value="Cartão de Débito">Cartão de Débito</option>
-                  <option value="Dinheiro">Dinheiro</option>
-                  <option value="Cortesia">Cortesia</option>
-                </select>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs font-black text-slate-900">Adulto 1 • Hóspede Titular:</Label>
+                  <Input
+                    placeholder="Nome completo do titular"
+                    value={formGuestName}
+                    onChange={(e) => setFormGuestName(e.target.value)}
+                    className="h-10 text-xs font-bold rounded-xl border-slate-300 bg-white text-slate-900"
+                  />
+                </div>
+
+                {formOccupancyType === 'casal' && (
+                  <div className="space-y-1">
+                    <Label className="text-xs font-black text-slate-900">Adulto 2 • Acompanhante:</Label>
+                    <Input
+                      placeholder="Nome completo do acompanhante"
+                      value={formAdult2Name}
+                      onChange={(e) => setFormAdult2Name(e.target.value)}
+                      className="h-10 text-xs font-bold rounded-xl border-slate-300 bg-white text-slate-900"
+                    />
+                  </div>
+                )}
+
+                <div className="space-y-1">
+                  <Label className="text-xs font-black text-slate-900">WhatsApp / Telefone:</Label>
+                  <Input
+                    placeholder="(69) 99999-0000"
+                    value={formPhone}
+                    onChange={(e) => setFormPhone(e.target.value)}
+                    className="h-10 text-xs font-bold rounded-xl border-slate-300 bg-white text-slate-900"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs font-black text-slate-900">CPF do Titular:</Label>
+                  <Input
+                    placeholder="000.000.000-00"
+                    value={formCpf}
+                    onChange={(e) => setFormCpf(e.target.value)}
+                    className="h-10 text-xs font-bold rounded-xl border-slate-300 bg-white text-slate-900"
+                  />
+                </div>
               </div>
 
-              <div className="space-y-1">
-                <Label className="text-[11px] font-black text-slate-900">Status:</Label>
-                <select
-                  value={formPaymentStatus}
-                  onChange={(e) => setFormPaymentStatus(e.target.value as any)}
-                  className="w-full h-10 px-3 rounded-xl border border-slate-300 bg-slate-50 font-bold text-xs text-slate-900"
-                >
-                  <option value="paid">PAGO OK</option>
-                  <option value="pending">Aguardando Pagamento</option>
-                </select>
+              {/* Adicional de Crianças (Filhos dos Hóspedes — até 2 por chalé) */}
+              <div className="pt-2.5 border-t border-slate-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-black text-amber-950 flex items-center gap-1.5">
+                      <Baby className="w-4 h-4 text-amber-600" />
+                      Crianças Adicionais neste Chalé (Filhos • Máx 2):
+                    </span>
+                    <span className="text-[10px] font-bold text-slate-600 block">
+                      Até 11 anos: R$ 50/noite (R$ 45 em combo) · 12+ anos: R$ 100/noite (R$ 90 em combo)
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={formKids.length === 0}
+                      onClick={() => {
+                        setFormKids(prev => prev.slice(0, -1));
+                        setFormCustomPriceOverride(null);
+                      }}
+                      className="h-8 w-8 p-0 rounded-lg border-slate-300"
+                    >
+                      <Minus className="w-3.5 h-3.5" />
+                    </Button>
+                    <span className="w-6 text-center font-black text-xs text-slate-950">{formKids.length}</span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={formKids.length >= 2}
+                      onClick={() => {
+                        if (formKids.length < 2) {
+                          setFormKids(prev => [...prev, { name: '', ageGroup: 'under11' }]);
+                          setFormCustomPriceOverride(null);
+                        }
+                      }}
+                      className="h-8 w-8 p-0 rounded-lg border-slate-300"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </div>
+
+                {formKids.length > 0 && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                    {formKids.map((kid, idx) => (
+                      <div key={idx} className="bg-amber-50/70 p-2.5 rounded-xl border border-amber-200 space-y-2">
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-[11px] font-black text-amber-950">Criança {idx + 1}:</span>
+                          <div className="flex gap-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setFormKids(prev => prev.map((k, i) => (i === idx ? { ...k, ageGroup: 'under11' } : k)));
+                                setFormCustomPriceOverride(null);
+                              }}
+                              className={cn(
+                                "px-2 py-0.5 rounded text-[10px] font-black border cursor-pointer",
+                                kid.ageGroup === 'under11'
+                                  ? "bg-amber-400 text-slate-950 border-amber-500"
+                                  : "bg-white text-slate-600 border-slate-200"
+                              )}
+                            >
+                              Até 11 anos
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setFormKids(prev => prev.map((k, i) => (i === idx ? { ...k, ageGroup: '12plus' } : k)));
+                                setFormCustomPriceOverride(null);
+                              }}
+                              className={cn(
+                                "px-2 py-0.5 rounded text-[10px] font-black border cursor-pointer",
+                                kid.ageGroup === '12plus'
+                                  ? "bg-amber-400 text-slate-950 border-amber-500"
+                                  : "bg-white text-slate-600 border-slate-200"
+                              )}
+                            >
+                              12+ anos
+                            </button>
+                          </div>
+                        </div>
+                        <Input
+                          placeholder={`Nome e idade da criança ${idx + 1}`}
+                          value={kid.name}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setFormKids(prev => prev.map((k, i) => (i === idx ? { ...k, name: val } : k)));
+                          }}
+                          className="h-9 text-xs font-bold bg-white border-amber-300 rounded-lg"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 4. ADIÇÃO DE SERVIÇOS EXTRAS NA RESERVA (QUIOSQUES, QUADRICICLOS, DIVERSÕES) */}
+            <div className="bg-white p-3.5 rounded-2xl border-2 border-emerald-100 space-y-3">
+              <span className="text-xs font-black uppercase text-emerald-950 flex items-center gap-1.5">
+                <ShoppingBag className="w-4 h-4 text-emerald-700" />
+                Adição de Serviços Opcionais na Mesma Reserva (Quiosque, Quadriciclo, Diversões)
+              </span>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Quiosque */}
+                <div className="space-y-1">
+                  <Label className="text-[11px] font-black text-slate-800">Adicionar Quiosque:</Label>
+                  <div className="flex gap-1.5">
+                    <select
+                      value={extraKioskType}
+                      onChange={(e) => {
+                        setExtraKioskType(e.target.value as any);
+                        setFormCustomPriceOverride(null);
+                      }}
+                      className="flex-1 h-9 px-2.5 rounded-xl border border-slate-300 bg-slate-50 font-bold text-xs text-slate-900"
+                    >
+                      <option value="none">Nenhum Quiosque</option>
+                      <option value="familiar">Quiosque Familiar (R$ 75)</option>
+                      <option value="menor">Quiosque Médio (R$ 100)</option>
+                      <option value="maior">Quiosque Grande (R$ 150)</option>
+                    </select>
+                    {extraKioskType !== 'none' && (
+                      <Input
+                        type="number"
+                        min={1}
+                        max={22}
+                        value={extraKioskNumber}
+                        onChange={(e) => setExtraKioskNumber(Number(e.target.value) || 1)}
+                        placeholder="Nº"
+                        title="Número do Quiosque"
+                        className="w-16 h-9 text-xs font-black text-center rounded-xl border-slate-300"
+                      />
+                    )}
+                  </div>
+                </div>
+
+                {/* Passeio de Quadriciclo */}
+                <div className="space-y-1">
+                  <Label className="text-[11px] font-black text-slate-800">Passeio de Quadriciclo:</Label>
+                  <div className="flex gap-1.5">
+                    <select
+                      value={extraQuadType}
+                      onChange={(e) => {
+                        setExtraQuadType(e.target.value as any);
+                        setFormCustomPriceOverride(null);
+                      }}
+                      className="flex-1 h-9 px-2.5 rounded-xl border border-slate-300 bg-slate-50 font-bold text-xs text-slate-900"
+                    >
+                      <option value="none">Nenhum Quadriciclo</option>
+                      <option value="individual">Individual (R$ 130)</option>
+                      <option value="dupla">De Dupla (R$ 195)</option>
+                    </select>
+                    {extraQuadType !== 'none' && (
+                      <select
+                        value={extraQuadTime}
+                        onChange={(e) => setExtraQuadTime(e.target.value)}
+                        className="w-24 h-9 px-2 rounded-xl border border-amber-400 bg-amber-50 font-black text-xs text-slate-950"
+                      >
+                        {QUAD_TIMES.map(t => (
+                          <option key={t} value={t}>{t}</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                </div>
+
+                {/* Pesca Esportiva */}
+                <div className="flex items-center justify-between bg-slate-50 px-3 py-2 rounded-xl border border-slate-200">
+                  <div>
+                    <span className="text-xs font-black text-slate-900 block">🎣 Pesca Esportiva</span>
+                    <span className="text-[10px] font-bold text-slate-500">R$ 20,00 por pessoa</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setExtraPescaQty(q => Math.max(0, q - 1));
+                        setFormCustomPriceOverride(null);
+                      }}
+                      className="h-7 w-7 p-0 rounded-lg"
+                    >
+                      <Minus className="w-3 h-3" />
+                    </Button>
+                    <span className="w-5 text-center font-black text-xs">{extraPescaQty}</span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setExtraPescaQty(q => q + 1);
+                        setFormCustomPriceOverride(null);
+                      }}
+                      className="h-7 w-7 p-0 rounded-lg"
+                    >
+                      <Plus className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Futebol de Sabão */}
+                <div className="flex items-center justify-between bg-slate-50 px-3 py-2 rounded-xl border border-slate-200">
+                  <div>
+                    <span className="text-xs font-black text-slate-900 block">🫧 Futebol de Sabão</span>
+                    <span className="text-[10px] font-bold text-slate-500">R$ 10,00 por pessoa</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setExtraSabaoQty(q => Math.max(0, q - 1));
+                        setFormCustomPriceOverride(null);
+                      }}
+                      className="h-7 w-7 p-0 rounded-lg"
+                    >
+                      <Minus className="w-3 h-3" />
+                    </Button>
+                    <span className="w-5 text-center font-black text-xs">{extraSabaoQty}</span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setExtraSabaoQty(q => q + 1);
+                        setFormCustomPriceOverride(null);
+                      }}
+                      className="h-7 w-7 p-0 rounded-lg"
+                    >
+                      <Plus className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 5. RESUMO AUTOMÁTICO DE VALORES, PAGAMENTO E STATUS */}
+            <div className="bg-gradient-to-br from-emerald-950 via-[#042817] to-slate-950 text-white p-4 rounded-2xl border-2 border-amber-400 space-y-3">
+              <div className="flex items-center justify-between flex-wrap gap-2 border-b border-white/15 pb-2.5">
+                <div>
+                  <span className="text-[10px] font-black uppercase text-amber-400 tracking-wider block">
+                    Cálculo Automático da Reserva
+                  </span>
+                  <span className="text-xs font-bold text-emerald-100">
+                    Hospedagem: {formatCurrency(modalPricingBreakdown.chaleFinal)}
+                    {modalPricingBreakdown.extrasNet > 0 ? ` + Extras: ${formatCurrency(modalPricingBreakdown.extrasNet)}` : ''}
+                  </span>
+                </div>
+
+                <label className="flex items-center gap-2 text-xs font-black text-amber-300 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={formApplySiteDiscount}
+                    onChange={(e) => {
+                      setFormApplySiteDiscount(e.target.checked);
+                      setFormCustomPriceOverride(null);
+                    }}
+                    className="w-4 h-4 accent-amber-400 rounded cursor-pointer"
+                  />
+                  Aplicar 10% OFF (Desconto Site / Combo)
+                </label>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-[11px] font-black text-amber-300">Valor Final Total (R$):</Label>
+                  <Input
+                    type="number"
+                    value={modalPricingBreakdown.finalTotal}
+                    onChange={(e) => setFormCustomPriceOverride(Number(e.target.value))}
+                    className="h-10 text-sm font-black rounded-xl border-amber-400 bg-white text-slate-950"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-[11px] font-black text-emerald-200">Forma de Pagamento:</Label>
+                  <select
+                    value={formPaymentMethod}
+                    onChange={(e) => setFormPaymentMethod(e.target.value)}
+                    className="w-full h-10 px-3 rounded-xl border border-slate-300 bg-white font-bold text-xs text-slate-950"
+                  >
+                    <option value="PIX">PIX</option>
+                    <option value="Cartão de Crédito">Cartão de Crédito</option>
+                    <option value="Cartão de Débito">Cartão de Débito</option>
+                    <option value="Dinheiro">Dinheiro</option>
+                    <option value="Cortesia">Cortesia</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-[11px] font-black text-emerald-200">Status da Reserva:</Label>
+                  <select
+                    value={formPaymentStatus}
+                    onChange={(e) => setFormPaymentStatus(e.target.value as any)}
+                    className="w-full h-10 px-3 rounded-xl border border-slate-300 bg-white font-bold text-xs text-slate-950"
+                  >
+                    <option value="paid">PAGO OK</option>
+                    <option value="pending">Aguardando Pagamento</option>
+                  </select>
+                </div>
               </div>
             </div>
 
@@ -1547,28 +2906,68 @@ export function AdminChaleTab({
                 placeholder="Ex: Reserva balcão, solicitou berço, com desconto..."
                 value={formNotes}
                 onChange={(e) => setFormNotes(e.target.value)}
-                className="text-xs font-medium rounded-xl border-slate-300 min-h-[70px] text-slate-900"
+                className="text-xs font-medium rounded-xl border-slate-300 min-h-[60px] text-slate-900"
               />
             </div>
           </div>
 
-          <DialogFooter className="flex gap-2">
+          <DialogFooter className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-slate-100">
             <Button
-              variant="outline"
-              onClick={() => setIsModalOpen(false)}
-              className="rounded-xl font-bold text-xs"
+              type="button"
+              onClick={() => handleGenerateAdminPayment('PIX')}
+              disabled={generatingPayment}
+              className="flex-1 h-11 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-md"
             >
-              Cancelar
+              {generatingPayment ? <Loader2 className="w-4 h-4 animate-spin" /> : <QrCode className="w-4 h-4 text-amber-300" />}
+              Gerar QR Code PIX
             </Button>
+
             <Button
-              onClick={handleSaveBooking}
-              className="rounded-xl bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider"
+              type="button"
+              onClick={() => handleGenerateAdminPayment('CREDIT_CARD')}
+              disabled={generatingPayment}
+              className="flex-1 h-11 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-300 border border-amber-400 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-md"
             >
-              {isEditing ? 'Salvar Alterações' : 'Confirmar Reserva'}
+              {generatingPayment ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4 text-amber-400" />}
+              Pagar com Cartão
+            </Button>
+
+            <Button
+              type="button"
+              onClick={handleSaveBooking}
+              className="flex-1 h-11 rounded-xl bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-md"
+            >
+              {isEditing ? 'Salvar Alterações' : '✓ Confirmar Reserva'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* MODAL DE PAGAMENTO PIX / CARTÃO DISPARADO PELA RESERVA INTERNA */}
+      {adminPaymentData && (
+        <PaymentModal
+          open={adminPaymentData.open}
+          onOpenChange={(op) => setAdminPaymentData(prev => prev ? { ...prev, open: op } : null)}
+          orderId={adminPaymentData.orderId}
+          name={adminPaymentData.name}
+          email=""
+          phone={adminPaymentData.phone}
+          cpf={adminPaymentData.cpf}
+          totalAmount={adminPaymentData.totalAmount}
+          initialMethod={adminPaymentData.initialMethod}
+          onSuccess={() => {
+            setLocalReservations(prev => prev.map(r => (
+              r.chaleId === adminPaymentData.chaleId ? { ...r, status: 'paid' } : r
+            )));
+            setAdminPaymentData(null);
+            toast({
+              title: '✓ Pagamento Confirmado!',
+              description: `A reserva do Chalé ${String(adminPaymentData.chaleId).padStart(2, '0')} foi marcada como PAGO OK.`
+            });
+            if (onRefresh) onRefresh();
+          }}
+        />
+      )}
 
       {/* MODAL: GERADOR DE IMAGEM DO VOUCHER COM HTML2CANVAS (COMO DAY USE) */}
       <Dialog open={isVoucherModalOpen} onOpenChange={setIsVoucherModalOpen}>

@@ -17,7 +17,14 @@ import {
   HeartHandshake,
   AlertTriangle
 } from 'lucide-react';
-import { CampingBooking, CAMPING_PRICE_PER_PERSON, formatCurrency, isOperatingDay } from '@/lib/booking-types';
+import { 
+  CampingBooking, 
+  CAMPING_PRICE_PER_PERSON, 
+  formatCurrency, 
+  isOperatingDay,
+  isDateAvailableForHospedagem,
+  MIN_HOSPEDAGEM_CAMPING_DATE
+} from '@/lib/booking-types';
 import { QuantityStepper } from '@/components/QuantityStepper';
 import { Badge } from '@/components/ui/badge';
 import { useServices } from '@/hooks/useServices';
@@ -68,7 +75,7 @@ export function CampingSelector({ camping, onUpdate, visitDate, onUpdateVisitDat
   };
 
   const activeDate = camping.date || visitDate;
-  const isDateValid = activeDate ? isOperatingDay(activeDate) : false;
+  const isDateValid = activeDate ? (isOperatingDay(activeDate) && isDateAvailableForHospedagem(activeDate)) : false;
 
   return (
     <div className="space-y-6">
@@ -126,7 +133,7 @@ export function CampingSelector({ camping, onUpdate, visitDate, onUpdateVisitDat
           <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
           <div className="text-xs">
             <strong className="block text-amber-900 font-black">Atenção ao dia selecionado:</strong>
-            O camping é permitido <strong>exclusivamente em dias de funcionamento do parque</strong> (sextas, sábados, domingos e feriados oficiais).
+            O camping está disponível <strong>a partir de 12/11/2026</strong>, exclusivamente em dias de funcionamento do parque (sextas, sábados, domingos e feriados).
           </div>
         </div>
       )}
