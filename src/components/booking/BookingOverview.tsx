@@ -1166,32 +1166,32 @@ export function BookingOverview({
                   })()
                 ) : (
                   <>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {/* Botão PIX */}
                       <Button
                         size="lg"
                         onClick={() => handleAction('PIX')}
                         disabled={saving}
-                        className="h-20 sm:h-24 rounded-2xl bg-gradient-to-b from-[#094226] to-[#042817] hover:from-[#0d5531] hover:to-[#063a22] text-white font-black flex flex-row sm:flex-col items-center justify-center gap-2 shadow-xl hover:shadow-[0_6px_20px_rgba(245,158,11,0.25)] active:scale-[0.98] transition-all border-2 border-amber-400 p-2.5 cursor-pointer"
+                        className="h-20 sm:h-24 rounded-2xl bg-gradient-to-b from-[#094226] to-[#042817] hover:from-[#0d5531] hover:to-[#063a22] text-white font-black flex flex-row items-center justify-center gap-3.5 sm:gap-4 shadow-xl hover:shadow-[0_6px_20px_rgba(245,158,11,0.25)] active:scale-[0.98] transition-all border-2 border-amber-400 px-5 py-3 cursor-pointer"
                       >
-                        <div className="p-2 bg-amber-400/15 rounded-xl border border-amber-400/30 shrink-0">
+                        <div className="p-3 bg-amber-400/15 rounded-2xl border border-amber-400/30 shrink-0 flex items-center justify-center">
                           {saving && activePaymentMethod === 'PIX' ? (
-                            <Loader2 className="h-5 w-5 animate-spin text-amber-400" />
+                            <Loader2 className="h-7 w-7 sm:h-8 sm:w-8 animate-spin text-amber-400" />
                           ) : (
-                            <QrCode className="h-5 w-5 text-amber-400" />
+                            <QrCode className="h-7 w-7 sm:h-8 sm:w-8 text-amber-400" />
                           )}
                         </div>
-                        <div className="text-left sm:text-center leading-tight">
-                          <span className="inline-block bg-amber-400 text-slate-950 font-black text-[9px] px-2 py-0.5 rounded-full uppercase tracking-wider mb-0.5 shadow-2xs">
+                        <div className="text-left leading-tight">
+                          <span className="inline-block bg-amber-400 text-slate-950 font-black text-[10px] sm:text-[11px] px-2.5 py-0.5 rounded-full uppercase tracking-wider mb-1 shadow-2xs">
                             ⚡ 10% OFF ONLINE
                           </span>
-                          <span className="block text-xs sm:text-sm font-black uppercase tracking-wide text-white">
+                          <span className="block text-base sm:text-lg font-black uppercase tracking-wide text-white">
                             GERAR PIX
                           </span>
                         </div>
                       </Button>
 
-                      {/* Botão CARTÃO (com suporte a parcelamento em até 12x) */}
+                      {/* Botão CARTÃO DÉBITO E CRÉDITO (com suporte a parcelamento em até 12x) */}
                       <Button
                         size="lg"
                         onClick={() => {
@@ -1202,21 +1202,21 @@ export function BookingOverview({
                           }
                         }}
                         disabled={saving}
-                        className="h-20 sm:h-24 rounded-2xl bg-gradient-to-b from-[#094226] to-[#042817] hover:from-[#0d5531] hover:to-[#063a22] text-white font-black flex flex-row sm:flex-col items-center justify-center gap-2 shadow-xl hover:shadow-[0_6px_20px_rgba(245,158,11,0.25)] active:scale-[0.98] transition-all border-2 border-amber-400 p-2.5 cursor-pointer"
+                        className="h-20 sm:h-24 rounded-2xl bg-gradient-to-b from-[#094226] to-[#042817] hover:from-[#0d5531] hover:to-[#063a22] text-white font-black flex flex-row items-center justify-center gap-3.5 sm:gap-4 shadow-xl hover:shadow-[0_6px_20px_rgba(245,158,11,0.25)] active:scale-[0.98] transition-all border-2 border-amber-400 px-5 py-3 cursor-pointer"
                       >
-                        <div className="p-2 bg-amber-400/15 rounded-xl border border-amber-400/30 shrink-0">
+                        <div className="p-3 bg-amber-400/15 rounded-2xl border border-amber-400/30 shrink-0 flex items-center justify-center">
                           {saving && activePaymentMethod === 'CREDIT_CARD' ? (
-                            <Loader2 className="h-5 w-5 animate-spin text-amber-400" />
+                            <Loader2 className="h-7 w-7 sm:h-8 sm:w-8 animate-spin text-amber-400" />
                           ) : (
-                            <CreditCard className="h-5 w-5 text-amber-400" />
+                            <CreditCard className="h-7 w-7 sm:h-8 sm:w-8 text-amber-400" />
                           )}
                         </div>
-                        <div className="text-left sm:text-center leading-tight">
-                          <span className="inline-block bg-amber-400 text-slate-950 font-black text-[9px] px-2 py-0.5 rounded-full uppercase tracking-wider mb-0.5 shadow-2xs">
+                        <div className="text-left leading-tight">
+                          <span className="inline-block bg-amber-400 text-slate-950 font-black text-[10px] sm:text-[11px] px-2.5 py-0.5 rounded-full uppercase tracking-wider mb-1 shadow-2xs">
                             💳 ATÉ 12X NO CARTÃO
                           </span>
-                          <span className="block text-xs sm:text-sm font-black uppercase tracking-wide text-white">
-                            CARTÃO DE CRÉDITO
+                          <span className="block text-sm sm:text-base md:text-lg font-black uppercase tracking-wide text-white">
+                            CARTÃO DÉBITO E CRÉDITO
                           </span>
                         </div>
                       </Button>
