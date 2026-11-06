@@ -10,6 +10,28 @@ const services = [
     badge: 'SOB RESERVA',
   },
   {
+    title: 'Quadriciclos',
+    description: 'Passeios de 1h30 por trilhas na natureza. Individual, dupla ou adulto + criança.',
+    price: 'A partir de R$ 150,00',
+    image: '/images/quadriciclo.jpg',
+    badge: 'SOB RESERVA',
+  },
+  {
+    title: 'Chalés',
+    description: 'Hospedagem em chalés cercados pela natureza com entradas no balneário e café da manhã inclusos!',
+    price: 'A partir de R$ 200,00',
+    image: '/images/chale-novo.jpg',
+    badge: 'NOVIDADE',
+  },
+  {
+    title: 'Balde Maluco',
+    description: 'Ducha gigante e refrescante para a criançada e adultos se divertirem na piscina infantil.',
+    price: 'Incluso no Day Use',
+    image: '/images/IMG_2068.mov_snapshot_00.01.342.jpg',
+    badge: 'NOVIDADE',
+    noButton: true,
+  },
+  {
     title: 'Piscinas',
     description: 'Piscinas para adultos e crianças em ambiente seguro e refrescante.',
     price: 'Incluso no Day Use',
@@ -25,14 +47,6 @@ const services = [
     noButton: true,
   },
   {
-    title: 'Balde Maluco',
-    description: 'Ducha gigante e refrescante para a criançada e adultos se divertirem na piscina infantil.',
-    price: 'Incluso no Day Use',
-    image: '/images/IMG_2068.mov_snapshot_00.01.342.jpg',
-    badge: 'NOVIDADE',
-    noButton: true,
-  },
-  {
     title: 'Cachoeiras',
     description: 'Cachoeiras com bio-piscinas naturais para um contato direto com a natureza.',
     price: 'Incluso no Day Use',
@@ -42,15 +56,8 @@ const services = [
   {
     title: 'Futebol de Sabão',
     description: 'Diversão garantida para grupos por 30 minutos! Mínimo de 6 pessoas por partida.',
-    price: 'R$ 20/pessoa (30 min)',
+    price: 'R$ 10,00/pessoa (30 min)',
     image: '/images/futebol-sabao-novo.jpg',
-  },
-  {
-    title: 'Campo de Futebol e Vôlei',
-    description: 'Área gramada para prática de esportes com amigos e família.',
-    price: 'Incluso no Day Use',
-    image: '/images/campo-novo.jpg',
-    noButton: true,
   },
   {
     title: 'Pesca Esportiva',
@@ -77,13 +84,6 @@ const services = [
     price: 'Consumo à parte',
     image: '/images/restaurante.jpg',
     noButton: true,
-  },
-  {
-    title: 'Chalés',
-    description: 'Em breve! Hospedagem em chalés cercados pela natureza. Pré-reserve já!',
-    price: 'Disponível em breve',
-    image: '/images/chale-novo.jpg',
-    link: 'https://forms.gle/murE6ZpRjWzJCmto8',
   },
 ];
 
@@ -117,7 +117,7 @@ export function ServicesSection() {
           viewport={{ once: true, margin: "-100px" }}
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 max-w-6xl mx-auto"
         >
-          {services.map((service, i) => (
+          {services.map((service) => (
             <motion.div
               key={service.title}
               variants={{
@@ -151,11 +151,13 @@ export function ServicesSection() {
                     <Button 
                       asChild={(service as any).link ? true : false}
                       size="sm" 
-                      className="bg-primary hover:bg-primary/90 text-primary-foreground font-display font-bold text-xs sm:text-sm shrink-0"
+                      className="bg-primary hover:bg-primary/90 text-primary-foreground font-display font-bold text-xs sm:text-sm shrink-0 cursor-pointer"
                       onClick={() => {
                         if (!(service as any).link) {
                           let tab = 'entrada';
                           if (service.title === 'Quiosques') tab = 'quiosques';
+                          if (service.title === 'Quadriciclos' || service.title === 'Quadriciclo') tab = 'quads';
+                          if (service.title === 'Chalés') tab = 'hospedagem';
                           if (service.title === 'Futebol de Sabão') tab = 'futebol';
                           if (service.title === 'Pesca Esportiva') tab = 'pesca';
                           

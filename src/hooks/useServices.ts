@@ -27,6 +27,9 @@ export function useServices() {
   });
 
   const getPrice = (type: string, fallbackPrice: number = 0): number => {
+    if (type === 'add_futebol-sabao' || type === 'futebol-sabao') {
+      return 10;
+    }
     const service = services.find((s) => s.type === type);
     return service ? Number(service.base_price) : fallbackPrice;
   };
