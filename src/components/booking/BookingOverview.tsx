@@ -177,7 +177,7 @@ export function BookingOverview({
       setTermsErrorHighlight(true);
       toast({
         title: 'Aceite dos Termos Obrigatório',
-        description: 'Para prosseguir com o pagamento da hospedagem, marque a caixa de aceite dos Termos de Hospedagem e Condições Gerais.',
+        description: 'Para prosseguir com o pagamento da hospedagem, marque a caixa de aceite dos Termos e Condições de Hospedagem.',
         variant: 'destructive'
       });
       setTimeout(() => {

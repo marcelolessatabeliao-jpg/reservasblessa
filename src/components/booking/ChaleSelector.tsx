@@ -1881,14 +1881,11 @@ function ChaleSelectorInner({
                     e.preventDefault();
                     setIsTermsExpanded(prev => !prev);
                   }}
-                  className="font-black text-amber-300 underline underline-offset-2 hover:text-amber-200"
+                  className="font-black text-amber-300 underline underline-offset-2 hover:text-amber-200 inline"
                 >
-                  Termos de Hospedagem e Condições Gerais do Balneário Lessa
+                  Termos e Condições de Hospedagem do Balneário Lessa
                 </button>
-                .
-              </p>
-              <p className="text-[11px] sm:text-xs text-emerald-100/90 font-medium leading-relaxed">
-                Declaro estar ciente dos horários de check-in e check-out, das regras de hospedagem e utilização do day use, dos adicionais para crianças e da política de cancelamento, incluindo o direito de arrependimento de 7 dias nas contratações online e a previsão de retenção de 30% após esse prazo, respeitada a legislação aplicável.
+                , incluindo os horários, as regras de uso e a política de cancelamento e reembolso.
               </p>
             </div>
           </label>
