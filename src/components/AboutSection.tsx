@@ -138,6 +138,9 @@ export function AboutSection() {
                     { emoji: '🫧', text: 'Futebol de Sabão' },
                     { emoji: '🏸', text: 'Beach Tênis' },
                     { emoji: '🎣', text: 'Pesca Esportiva' },
+                    { emoji: '🏎️', text: 'Passeio de Quadriciclo' },
+                    { emoji: '🏡', text: 'Hospedagem' },
+                    { emoji: '⛺', text: 'Camping' },
                   ].map((item, idx) => (
                     <motion.li 
                       key={idx} 
@@ -151,8 +154,6 @@ export function AboutSection() {
                       <span className="leading-tight pt-0.5">{item.text}</span>
                     </motion.li>
                   ))}
-                  {/* Invisible spacer to match height of the left card if needed */}
-                  <li className="opacity-0 select-none h-4 sm:h-auto" aria-hidden="true">Spacer</li>
                 </motion.ul>
               </div>
             </div>
