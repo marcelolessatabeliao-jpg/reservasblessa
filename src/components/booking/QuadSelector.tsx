@@ -173,10 +173,10 @@ export function QuadSelector({ quads, selectedDate, onUpdate, onSetQuads }: Prop
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center gap-3 mb-2">
-        <div className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-primary/10 text-primary shrink-0">
-          <Bike className="h-4 w-4 sm:h-5 sm:w-5" />
+        <div className="p-2.5 bg-emerald-950 text-amber-400 border-2 border-amber-400 rounded-2xl shadow-sm shrink-0">
+          <Bike className="h-5 w-5" />
         </div>
-        <h3 className="font-sans font-bold text-lg sm:text-xl">3. Passeio de Quadriciclo</h3>
+        <h3 className="font-gliker text-xl sm:text-2xl text-emerald-950">Passeio de Quadriciclo</h3>
       </div>
 
       {/* Banner de Retomada Oficial dos Quadriciclos */}

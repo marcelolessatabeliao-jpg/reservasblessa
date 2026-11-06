@@ -144,15 +144,13 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between gap-3 mb-2">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-secondary/10 text-secondary shrink-0">
-            <Home className="h-4 w-4 sm:h-5 sm:w-5" />
-          </div>
-          <h3 className="font-sans font-bold text-lg sm:text-xl">2. Quiosques</h3>
+      <div className="flex items-center gap-3 mb-2">
+        <div className="p-2.5 bg-emerald-950 text-amber-400 border-2 border-amber-400 rounded-2xl shadow-sm shrink-0">
+          <Home className="h-5 w-5" />
         </div>
-        {/* Botão popup de fotos */}
-        <KioskPhotoButton />
+        <h3 className="font-gliker text-xl sm:text-2xl text-emerald-950">
+          Quiosques para churrasco e confraternização
+        </h3>
       </div>
 
       {/* Map Container */}
@@ -181,9 +179,9 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
           )}
         </div>
 
-        {/* Legend */}
-        <div className="flex flex-wrap items-center justify-between gap-3 bg-emerald-50/80 p-3 rounded-2xl border border-emerald-200">
-          <div className="flex items-center gap-4 flex-wrap">
+        {/* Legend + Ver fotos dos quiosques entre a legenda e a data */}
+        <div className="flex flex-wrap items-center justify-between gap-2.5 bg-emerald-50/80 p-3 rounded-2xl border border-emerald-200">
+          <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
             <div className="flex items-center gap-1.5">
               <span className="w-3.5 h-3.5 rounded-full bg-emerald-500 border border-emerald-600 shadow-xs" />
               <span className="text-[11px] font-black text-emerald-950 uppercase tracking-tight">Disponível</span>
@@ -198,9 +196,12 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
             </div>
           </div>
 
+          {/* Botão popup de fotos posicionado entre os status e a data */}
+          <KioskPhotoButton className="px-3.5 py-1.5 text-xs bg-white border-2 border-emerald-500 text-emerald-950 font-black hover:bg-emerald-950 hover:text-amber-300 hover:border-emerald-950 shadow-xs" />
+
           {/* Date display */}
           {checkDate && (
-            <div className="flex items-center gap-1.5 bg-emerald-950 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border border-amber-400">
+            <div className="flex items-center gap-1.5 bg-emerald-950 text-white px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider border border-amber-400">
               <CalendarIcon className="h-3 w-3 text-amber-400" />
               <span>{format(checkDate, "dd/MM/yyyy (EEE)", { locale: ptBR })}</span>
             </div>

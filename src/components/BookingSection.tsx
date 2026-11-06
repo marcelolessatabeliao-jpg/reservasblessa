@@ -471,21 +471,21 @@ export function BookingSection() {
     };
 
     return (
-      <div className="pt-5 border-t border-emerald-100">
-        {/* Linha Única: Botão Voltar (esquerda) + Etapas Compactas no Centro + Botão Próximo (direita) */}
-        <div className="flex flex-col lg:flex-row items-center justify-between gap-2.5">
+      <div className="pt-4 border-t border-emerald-100">
+        {/* Linha Única: Botão Voltar (esquerda) + 4 Etapas Compactas na Mesma Linha + Botão Próximo (direita) */}
+        <div className="flex flex-col md:flex-row items-center justify-between gap-2">
           <button
             type="button"
             onClick={handlePrev}
-            className="w-full lg:w-auto inline-flex items-center justify-center rounded-xl border-2 border-emerald-300 bg-white hover:bg-emerald-950 text-emerald-950 hover:text-amber-300 hover:border-emerald-950 font-black text-xs h-11 px-5 shadow-xs transition-all cursor-pointer shrink-0"
+            className="w-full md:w-auto inline-flex items-center justify-center rounded-xl border-2 border-emerald-300 bg-white hover:bg-emerald-950 text-emerald-950 hover:text-amber-300 hover:border-emerald-950 font-black text-xs h-9 px-3.5 shadow-xs transition-all cursor-pointer shrink-0 whitespace-nowrap"
           >
-            <ArrowLeft className="w-4 h-4 mr-1.5" />
+            <ArrowLeft className="w-3.5 h-3.5 mr-1.5" />
             Voltar
           </button>
 
-          {/* Barra Compacta de Etapas (mesmo padrão visual do topo) */}
-          <div className="inline-flex items-center justify-center flex-wrap gap-1.5 bg-gradient-to-r from-emerald-950 via-[#042817] to-slate-950 px-2.5 py-1.5 rounded-2xl border-2 border-amber-400/80 shadow-md">
-            {stepsList.map((st, idx) => {
+          {/* Barra Compacta das 4 Etapas (sem Resumo, todas em uma única linha) */}
+          <div className="inline-flex items-center justify-center flex-nowrap gap-1 bg-gradient-to-r from-emerald-950 via-[#042817] to-slate-950 px-2 py-1 rounded-xl border-2 border-amber-400/80 shadow-md overflow-x-auto max-w-full">
+            {stepsList.filter(st => st.id !== 'resumo').map((st, idx) => {
               const isCurrent = idx === activeIndex;
               return (
                 <button
@@ -493,14 +493,14 @@ export function BookingSection() {
                   type="button"
                   onClick={() => handleSelectStep(st.id)}
                   className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wide transition-all cursor-pointer select-none",
+                    "flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] sm:text-[11px] font-black uppercase tracking-tight transition-all cursor-pointer select-none whitespace-nowrap shrink-0",
                     isCurrent
                       ? "bg-amber-400 text-emerald-950 shadow-sm font-black"
                       : "bg-white/10 text-emerald-100 hover:bg-white/20 hover:text-white"
                   )}
                 >
                   {getStepIcon(st.id)}
-                  <span>{st.id === 'resumo' ? 'Resumo' : st.label}</span>
+                  <span>{st.label}</span>
                   {st.count > 0 && (
                     <span className={cn(
                       "text-[9px] px-1.5 rounded-full font-bold",
@@ -518,7 +518,7 @@ export function BookingSection() {
             type="button"
             onClick={handleNext}
             className={cn(
-              "w-full lg:w-auto inline-flex items-center justify-center font-black text-xs sm:text-sm h-11 px-6 rounded-xl shadow-md transition-all cursor-pointer shrink-0",
+              "w-full md:w-auto inline-flex items-center justify-center font-black text-xs h-9 px-4 rounded-xl shadow-md transition-all cursor-pointer shrink-0 whitespace-nowrap",
               modalidade === 'hospedagem' && activeIndex === 0
                 ? "bg-amber-400 hover:bg-amber-500 text-slate-950"
                 : "bg-emerald-800 hover:bg-emerald-950 text-white hover:text-amber-300"
@@ -527,7 +527,7 @@ export function BookingSection() {
             {nextStep && nextStep.id !== 'resumo'
               ? `Próximo: ${nextStep.label}${modalidade === 'hospedagem' ? ' (Opcional)' : ''}`
               : 'Ver Resumo e Finalizar'}
-            <ArrowRight className="ml-2 h-4 w-4" />
+            <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
           </button>
         </div>
       </div>
@@ -1227,20 +1227,6 @@ export function BookingSection() {
                       <div className="space-y-8">
                         {dayUseTab === 'entradas' && (
                           <div className="space-y-6">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <div className="p-3 bg-secondary/10 rounded-2xl text-secondary shadow-sm">
-                                  <Ticket className="h-6 w-6" />
-                                </div>
-                                <div>
-                                  <h3 className="font-gliker text-2xl text-emerald-950">Entradas Day Use</h3>
-                                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
-                                    {booking.entry.visitDate ? format(booking.entry.visitDate, "dd/MM/yyyy (EEEE)", { locale: ptBR }) : ''}
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-
                             <EntrySelector
                               entry={booking.entry}
                               onUpdateEntry={updateEntry}
@@ -1260,18 +1246,6 @@ export function BookingSection() {
 
                         {dayUseTab === 'quiosques' && (
                           <div className="space-y-6">
-                            <div className="flex items-center gap-3">
-                              <div className="p-3 bg-secondary/10 rounded-2xl text-secondary shadow-sm">
-                                <Home className="h-6 w-6" />
-                              </div>
-                              <div>
-                                <h3 className="font-gliker text-2xl text-emerald-950">Quiosques para churrasco e confraternização</h3>
-                                <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
-                                  Garanta um espaço exclusivo com churrasqueira para sua família
-                                </p>
-                              </div>
-                            </div>
-
                             <KioskSelector kiosks={booking.kiosks} onUpdate={updateKiosk} />
 
                             {renderStepNavigation('bottom')}
@@ -1289,8 +1263,8 @@ export function BookingSection() {
                         {dayUseTab === 'diversoes' && (
                           <div className="space-y-6">
                             <div className="flex items-center gap-3">
-                              <div className="p-3 bg-secondary/10 rounded-2xl text-secondary shadow-sm">
-                                <Fish className="h-6 w-6" />
+                              <div className="p-2.5 bg-emerald-950 text-amber-400 border-2 border-amber-400 rounded-2xl shadow-sm shrink-0">
+                                <Fish className="h-5 w-5" />
                               </div>
                               <div>
                                 <h3 className="font-gliker text-2xl text-emerald-950">Diversões & Atividades</h3>
@@ -1341,23 +1315,6 @@ export function BookingSection() {
 
                         {hospedagemTab === 'quiosques' && (
                           <div className="space-y-6">
-                            <div className="flex items-center gap-3">
-                              <div className="p-3 bg-secondary/10 rounded-2xl text-secondary shadow-sm">
-                                <Home className="h-6 w-6" />
-                              </div>
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <h3 className="font-gliker text-2xl text-emerald-950">Quiosques para seu churrasco</h3>
-                                  <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-amber-400 text-slate-950 shadow-xs">
-                                    Opcional
-                                  </span>
-                                </div>
-                                <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-0.5">
-                                  Item Opcional • Garanta uma churrasqueira exclusiva para seu churrasco durante a hospedagem (não é obrigatório)
-                                </p>
-                              </div>
-                            </div>
-
                             <KioskSelector kiosks={booking.kiosks} onUpdate={updateKiosk} />
 
                             {renderStepNavigation('bottom')}
@@ -1383,8 +1340,8 @@ export function BookingSection() {
                         {hospedagemTab === 'diversoes' && (
                           <div className="space-y-6">
                             <div className="flex items-center gap-3">
-                              <div className="p-3 bg-secondary/10 rounded-2xl text-secondary shadow-sm">
-                                <Fish className="h-6 w-6" />
+                              <div className="p-2.5 bg-emerald-950 text-amber-400 border-2 border-amber-400 rounded-2xl shadow-sm shrink-0">
+                                <Fish className="h-5 w-5" />
                               </div>
                               <div>
                                 <div className="flex items-center gap-2">
@@ -1438,18 +1395,6 @@ export function BookingSection() {
 
                         {campingTab === 'quiosques' && (
                           <div className="space-y-6">
-                            <div className="flex items-center gap-3">
-                              <div className="p-3 bg-secondary/10 rounded-2xl text-secondary shadow-sm">
-                                <Home className="h-6 w-6" />
-                              </div>
-                              <div>
-                                <h3 className="font-gliker text-2xl text-emerald-950">Quiosques para Campistas</h3>
-                                <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
-                                  Garanta uma churrasqueira exclusiva para sua estadia no camping
-                                </p>
-                              </div>
-                            </div>
-
                             <KioskSelector kiosks={booking.kiosks} onUpdate={updateKiosk} />
 
                             {renderStepNavigation('bottom')}
@@ -1467,8 +1412,8 @@ export function BookingSection() {
                         {campingTab === 'diversoes' && (
                           <div className="space-y-6">
                             <div className="flex items-center gap-3">
-                              <div className="p-3 bg-secondary/10 rounded-2xl text-secondary shadow-sm">
-                                <Fish className="h-6 w-6" />
+                              <div className="p-2.5 bg-emerald-950 text-amber-400 border-2 border-amber-400 rounded-2xl shadow-sm shrink-0">
+                                <Fish className="h-5 w-5" />
                               </div>
                               <div>
                                 <h3 className="font-gliker text-2xl text-emerald-950">Diversões & Atividades</h3>

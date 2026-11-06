@@ -1146,14 +1146,19 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
         {!onlyMainInfo && (
         <div className="space-y-6 pt-2">
           <div className="flex flex-col gap-4">
-            <div id="adicionar-pessoas-secao" className="flex items-center justify-between border-b-2 border-emerald-200/60 pb-4">
-              <div className="flex flex-row items-center flex-wrap gap-x-4 gap-y-2">
-                <h4 className="font-sans font-semibold text-primary text-2xl flex items-center gap-2">
-                  <User className="h-6 w-6" /> Adicionar Pessoas:
-                </h4>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">
-                  aproveite para incluir as entradas na sua reserva.
-                </span>
+            <div id="adicionar-pessoas-secao" className="flex items-center justify-between border-b-2 border-emerald-200/60 pb-3">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-emerald-950 text-amber-400 border-2 border-amber-400 rounded-2xl shadow-sm shrink-0">
+                  <Ticket className="h-5 w-5" />
+                </div>
+                <div>
+                  <h4 className="font-gliker text-xl sm:text-2xl text-emerald-950 leading-tight">
+                    Entradas Day Use
+                  </h4>
+                  <p className="text-xs font-black text-emerald-800 uppercase tracking-widest">
+                    {entry.visitDate ? format(entry.visitDate, "dd/MM/yyyy (EEEE)", { locale: ptBR }) : ''}
+                  </p>
+                </div>
               </div>
             </div>
 
