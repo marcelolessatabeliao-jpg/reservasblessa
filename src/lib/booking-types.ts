@@ -1,4 +1,5 @@
 import { parseToRODate } from '@/utils/date-utils';
+import { format } from 'date-fns';
 
 export interface AdultInfo {
   quantity?: number;
@@ -832,7 +833,10 @@ export const MIN_HOSPEDAGEM_CAMPING_DATE = '2026-11-12';
 export function isDateAvailableForHospedagem(date: Date | string | null | undefined): boolean {
   if (!date) return false;
   const d = parseToRODate(date);
-  const dateStr = format(d, 'yyyy-MM-dd');
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const dateStr = `${year}-${month}-${day}`;
   return dateStr >= MIN_HOSPEDAGEM_CAMPING_DATE;
 }
 
