@@ -1024,29 +1024,36 @@ function ChaleSelectorInner({
 
           {/* ATALHOS RÁPIDOS: CATEGORIAS EXPANSÍVEIS (COMBOS PROMOCIONAIS vs DIÁRIAS AVULSAS) */}
           <div className="space-y-3 pt-2">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50 p-2.5 sm:p-3 rounded-2xl border border-slate-200 shadow-2xs">
-              <span className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-                <span className="text-amber-500">⚡</span> Atalhos Rápidos de Seleção:
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-gradient-to-r from-emerald-950 via-[#042817] to-slate-950 p-3 sm:p-3.5 rounded-2xl border-2 border-amber-400/80 shadow-md">
+              <span className="text-xs font-black uppercase tracking-wider text-white flex items-center gap-1.5 whitespace-nowrap shrink-0">
+                <span className="text-amber-400 text-sm">⚡</span> Atalhos Rápidos de Seleção:
               </span>
 
-              {/* Apenas as duas opções visíveis com alternância de expansão */}
-              <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+              {/* As duas opções em destaque com cores fortes e texto entre parênteses na linha de baixo */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full md:w-auto">
                 <button
                   type="button"
                   onClick={() => setShortcutCategory(prev => prev === 'combos' ? null : 'combos')}
                   className={cn(
-                    "px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer select-none flex items-center gap-2 border shadow-xs",
+                    "px-4 py-2 rounded-xl transition-all cursor-pointer select-none flex items-center justify-between gap-3 border-2 shadow-md",
                     shortcutCategory === 'combos'
-                      ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 shadow-md scale-[1.02]"
-                      : "bg-white text-slate-700 border-slate-300 hover:bg-amber-50 hover:border-amber-300"
+                      ? "bg-gradient-to-r from-amber-300 via-amber-400 to-amber-500 text-slate-950 border-white ring-2 ring-amber-300 scale-[1.02]"
+                      : "bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 border-amber-300"
                   )}
                   title="Clique para ver ou ocultar os combos com 10% OFF"
                 >
-                  <span>🔥 Combos Promocionais (10% OFF)</span>
+                  <div className="flex flex-col items-start text-left leading-tight">
+                    <span className="text-xs font-black uppercase tracking-wider whitespace-nowrap">
+                      🔥 Combos Promocionais
+                    </span>
+                    <span className="text-[10px] font-black uppercase tracking-widest bg-slate-950 text-amber-300 px-2 py-0.5 rounded-md mt-1">
+                      (10% OFF)
+                    </span>
+                  </div>
                   {shortcutCategory === 'combos' ? (
-                    <ChevronUp className="w-4 h-4 text-slate-950 stroke-[3]" />
+                    <ChevronUp className="w-4 h-4 text-slate-950 stroke-[3] shrink-0" />
                   ) : (
-                    <ChevronDown className="w-4 h-4 text-slate-500 stroke-[2.5]" />
+                    <ChevronDown className="w-4 h-4 text-slate-950 stroke-[3] shrink-0" />
                   )}
                 </button>
 
@@ -1054,18 +1061,25 @@ function ChaleSelectorInner({
                   type="button"
                   onClick={() => setShortcutCategory(prev => prev === 'diarias' ? null : 'diarias')}
                   className={cn(
-                    "px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer select-none flex items-center gap-2 border shadow-xs",
+                    "px-4 py-2 rounded-xl transition-all cursor-pointer select-none flex items-center justify-between gap-3 border-2 shadow-md",
                     shortcutCategory === 'diarias'
-                      ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 shadow-md scale-[1.02]"
-                      : "bg-white text-slate-700 border-slate-300 hover:bg-amber-50 hover:border-amber-300"
+                      ? "bg-gradient-to-r from-emerald-500 via-emerald-600 to-emerald-700 text-white border-amber-300 ring-2 ring-amber-300 scale-[1.02]"
+                      : "bg-gradient-to-r from-emerald-700 to-emerald-800 hover:from-emerald-600 hover:to-emerald-700 text-white border-emerald-400"
                   )}
                   title="Clique para ver ou ocultar as diárias avulsas de 1 noite"
                 >
-                  <span>📅 Diárias Avulsas (1 Noite)</span>
+                  <div className="flex flex-col items-start text-left leading-tight">
+                    <span className="text-xs font-black uppercase tracking-wider whitespace-nowrap">
+                      📅 Diárias Avulsas
+                    </span>
+                    <span className="text-[10px] font-black uppercase tracking-widest bg-amber-400 text-slate-950 px-2 py-0.5 rounded-md mt-1">
+                      (1 Noite)
+                    </span>
+                  </div>
                   {shortcutCategory === 'diarias' ? (
-                    <ChevronUp className="w-4 h-4 text-slate-950 stroke-[3]" />
+                    <ChevronUp className="w-4 h-4 text-amber-300 stroke-[3] shrink-0" />
                   ) : (
-                    <ChevronDown className="w-4 h-4 text-slate-500 stroke-[2.5]" />
+                    <ChevronDown className="w-4 h-4 text-amber-300 stroke-[3] shrink-0" />
                   )}
                 </button>
               </div>
@@ -1343,25 +1357,21 @@ function ChaleSelectorInner({
 
         {/* ROW 2: SELEÇÃO DO(S) CHALÉ(S) NO TOPO (ENTRE DATAS E OCUPAÇÃO) */}
         <div className="space-y-3 pt-3 border-t border-slate-100">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div>
-              <span className="text-xs font-black uppercase tracking-wider text-emerald-950 flex items-center gap-1.5">
-                <Home className="w-4 h-4 text-emerald-700" />
+          <div className="space-y-1">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-xs font-black uppercase tracking-wider text-emerald-950 flex items-center gap-1.5 whitespace-nowrap">
+                <Home className="w-4 h-4 text-emerald-700 shrink-0" />
                 Selecione o(s) Chalé(s) Desejado(s) para sua Reserva:
               </span>
-              <p className="text-[11px] text-emerald-800 font-bold">
-                Você pode selecionar 1 ou mais chalés para acomodar amigos ou familiares na mesma reserva!
-              </p>
+              {chaletsCount > 0 && (
+                <span className="text-[11px] font-black text-slate-950 bg-amber-400 border border-amber-500 px-3 py-1 rounded-xl shadow-xs shrink-0 whitespace-nowrap">
+                  ✓ {chaletsCount} {chaletsCount === 1 ? 'Chalé Selecionado' : 'Chalés Selecionados'}: {selectedChaleUnits.map(id => `Chalé ${String(id).padStart(2, '0')}`).join(', ')}
+                </span>
+              )}
             </div>
-            {chaletsCount > 0 ? (
-              <span className="text-[11px] font-black text-slate-950 bg-amber-400 border border-amber-500 px-3 py-1 rounded-xl shadow-xs self-start sm:self-auto">
-                ✓ {chaletsCount} {chaletsCount === 1 ? 'Chalé Selecionado' : 'Chalés Selecionados'}: {selectedChaleUnits.map(id => `Chalé ${String(id).padStart(2, '0')}`).join(', ')}
-              </span>
-            ) : (
-              <span className="text-[11px] font-black text-amber-950 bg-amber-100 border border-amber-300 px-3 py-1 rounded-xl shadow-xs self-start sm:self-auto">
-                👆 Clique em um chalé livre abaixo para selecionar
-              </span>
-            )}
+            <p className="text-[11px] text-emerald-800 font-bold whitespace-nowrap overflow-x-auto">
+              Você pode selecionar 1 ou mais chalés para acomodar amigos ou familiares na mesma reserva!
+            </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
@@ -1441,28 +1451,20 @@ function ChaleSelectorInner({
         </div>
 
         {/* ROW 3: CONFIGURAÇÃO AGRUPADA POR CHALÉ (MODALIDADE + ADICIONAL DE CRIANÇAS LADO A LADO) */}
-        <div className="space-y-4 pt-3 border-t border-slate-100">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <span className="text-xs font-black uppercase tracking-wider text-emerald-950 flex items-center gap-1.5">
-              <Users className="w-4 h-4 text-emerald-700" />
-              Configuração por Chalé (Ocupação & Crianças):
-            </span>
-            <span className="bg-amber-100 text-amber-950 border border-amber-300 font-black text-[10px] uppercase px-2.5 py-0.5 rounded-md shadow-2xs">
-              {currentAdults} Adultos · {chale.childrenCount || 0} Crianças · {chaletsCount} Chalé{chaletsCount > 1 ? 's' : ''}
-            </span>
-          </div>
+        <div id="chale-guests-section" className="space-y-4 pt-3 border-t border-slate-100">
+          {chaletsCount > 0 && (
+            <>
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <span className="text-xs font-black uppercase tracking-wider text-emerald-950 flex items-center gap-1.5">
+                  <Users className="w-4 h-4 text-emerald-700" />
+                  Configuração por Chalé (Ocupação & Crianças):
+                </span>
+                <span className="bg-amber-100 text-amber-950 border border-amber-300 font-black text-[10px] uppercase px-2.5 py-0.5 rounded-md shadow-2xs">
+                  {currentAdults} Adultos · {chale.childrenCount || 0} Crianças · {chaletsCount} Chalé{chaletsCount > 1 ? 's' : ''}
+                </span>
+              </div>
 
-          {chaletsCount === 0 ? (
-            <div className="bg-amber-50/70 border-2 border-dashed border-amber-300 rounded-2xl p-5 text-center space-y-1.5">
-              <p className="text-xs sm:text-sm font-black text-amber-950 uppercase tracking-wide">
-                👆 Selecione ao menos 1 chalé disponível acima
-              </p>
-              <p className="text-xs text-amber-900 font-bold">
-                Clique em qualquer chalé livre (Chalé 01 a 05) para definir a modalidade (Individual ou Casal), adicionar crianças (se houver) e informar os nomes dos hóspedes.
-              </p>
-            </div>
-          ) : (
-          <div className="space-y-3">
+              <div className="space-y-3">
             {selectedChaleUnits.map((chaleId, unitIdx) => {
               const isChaleCasal = chaleOccupancies[chaleId] !== 'individual';
               const kidsList = chaleKidsMap[chaleId] || [];
@@ -1647,7 +1649,7 @@ function ChaleSelectorInner({
                   </div>
 
                   {/* NOMES DOS HÓSPEDES DESTE CHALÉ (ADULTOS E CRIANÇAS) DENTRO DO MESMO CARD */}
-                  <div className="pt-3 border-t border-emerald-100 space-y-2.5 bg-emerald-50/40 p-3 sm:p-3.5 rounded-xl border border-emerald-200/70">
+                  <div data-chale-names-box="true" className="pt-3 border-t border-emerald-100 space-y-2.5 bg-emerald-50/40 p-3 sm:p-3.5 rounded-xl border border-emerald-200/70">
                     <span className="text-[11px] font-black uppercase text-emerald-950 flex items-center gap-1.5">
                       <span>✍️</span> Hóspedes do Chalé {String(chaleId).padStart(2, '0')}:
                     </span>
@@ -1710,7 +1712,8 @@ function ChaleSelectorInner({
                 </div>
               );
             })}
-          </div>
+              </div>
+            </>
           )}
 
           {/* AVISO IMPORTANTE: OCUPANDO TODA A LARGURA (FULL WIDTH) ABAIXO DOS CHALÉS */}

@@ -317,12 +317,34 @@ export function BookingSection() {
       setNamesValidationError(true);
       toast({
         title: '⚠️ Nomes Obrigatórios',
-        description: `É necessário adicionar os nomes de todos os hóspedes antes de avançar. Preencha o nome do ${missingNameLabel}.`,
+        description: 'É necessário adicionar os nomes de todos os hóspedes antes de avançar.',
         variant: 'destructive',
         duration: 7000
       });
-      const el = document.getElementById('reservas-content');
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (hospedagemTab !== 'chales') {
+        setHospedagemTab('chales');
+      }
+      setTimeout(() => {
+        const namesBoxes = document.querySelectorAll('[data-chale-names-box="true"]');
+        let targetEl = null;
+        for (const box of namesBoxes) {
+          const inputs = box.querySelectorAll('input');
+          for (const inp of inputs) {
+            if (!inp.value || !inp.value.trim()) {
+              targetEl = box;
+              setTimeout(() => inp.focus(), 350);
+              break;
+            }
+          }
+          if (targetEl) break;
+        }
+        if (!targetEl) {
+          targetEl = document.getElementById('chale-guests-section');
+        }
+        if (targetEl) {
+          targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 80);
       return false;
     }
 
@@ -330,16 +352,17 @@ export function BookingSection() {
     return true;
   };
 
-  const handleGoToSummary = () => {
+  const handleGoToSummary = (): boolean => {
     if (modalidade === 'hospedagem' && !validateHospedagemGuests()) {
       setHospedagemTab('chales');
-      return;
+      return false;
     }
     if (!booking.entry.visitDate) {
       setCurrentStep('data');
-      return;
+      return false;
     }
     setCurrentStep('resumo');
+    return true;
   };
 
   const scrollToContentTop = () => {
@@ -369,8 +392,9 @@ export function BookingSection() {
 
     const handleSelectStep = (stepId: string) => {
       if (stepId === 'resumo') {
-        handleGoToSummary();
-        scrollToContentTop();
+        if (handleGoToSummary()) {
+          scrollToContentTop();
+        }
         return;
       }
       if (modalidade === 'hospedagem' && stepId !== 'chales' && !validateHospedagemGuests()) {
@@ -397,8 +421,9 @@ export function BookingSection() {
 
     const handleNext = () => {
       if (!nextStep) {
-        handleGoToSummary();
-        scrollToContentTop();
+        if (handleGoToSummary()) {
+          scrollToContentTop();
+        }
         return;
       }
       handleSelectStep(nextStep.id);

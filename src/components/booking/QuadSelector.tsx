@@ -187,11 +187,8 @@ export function QuadSelector({ quads, selectedDate, onUpdate, onSetQuads }: Prop
               <Bike className="w-5 h-5" />
             </span>
             <div>
-              <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 block">
-                🔥 RETOMADA OFICIAL DOS PASSEIOS
-              </span>
-              <h4 className="font-sans font-black text-sm sm:text-base text-white">
-                Trilha Ecológica Balneário Lessa
+              <h4 className="font-sans font-black text-sm sm:text-base text-amber-400 uppercase tracking-wide">
+                🔥 INCRÍVEIS PASSEIOS DE QUADRICICLOS EM MEIO À NATUREZA
               </h4>
             </div>
           </div>
@@ -260,8 +257,8 @@ export function QuadSelector({ quads, selectedDate, onUpdate, onSetQuads }: Prop
             </div>
           ) : (
             <div className="space-y-4">
-              {/* Grid dos 9 Horários */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
+              {/* Grid dos 9 Horários com Design de Cores Fortes */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 pt-1">
                 {QUAD_TIMES.map(t => {
                   const dbUsed = getSlotDbUsage(t);
                   const isSlotDisabled = disabledQuadSlots.includes(t);
@@ -276,6 +273,7 @@ export function QuadSelector({ quads, selectedDate, onUpdate, onSetQuads }: Prop
                   const remaining = isSlotDisabled ? 0 : Math.max(0, MAX_QUADS_PER_SLOT - dbUsed);
                   const isFull = isSlotDisabled || remaining <= 0;
                   const isExpanded = expandedSlot === t;
+                  const isHighlighted = isSelectedByMe || isExpanded;
 
                   return (
                     <button
@@ -286,55 +284,100 @@ export function QuadSelector({ quads, selectedDate, onUpdate, onSetQuads }: Prop
                         setExpandedSlot(isExpanded ? null : t);
                       }}
                       className={cn(
-                        "relative flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all cursor-pointer select-none text-center shadow-xs",
-                        isExpanded
-                          ? "ring-2 ring-amber-400 scale-[1.02] border-amber-500 bg-[#042817] text-white shadow-md"
-                          : isSelectedByMe
-                            ? "bg-[#063f25] border-emerald-500 text-white shadow-sm"
-                            : isFull
-                              ? "bg-red-50 border-red-200 text-red-400 opacity-60 cursor-not-allowed"
-                              : remaining === 1
-                                ? "bg-amber-50/80 border-amber-300 hover:border-amber-400 text-slate-900"
-                                : "bg-white border-emerald-300 hover:border-emerald-400 hover:bg-emerald-50/50 text-slate-900"
+                        "group relative flex flex-col items-start justify-between p-3.5 rounded-2xl border-2 transition-all select-none text-left min-h-[104px] shadow-md",
+                        isFull && !isSelectedByMe
+                          ? "opacity-55 bg-gradient-to-b from-[#241215] to-[#160a0c] border-red-900/70 text-red-200 cursor-not-allowed"
+                          : isHighlighted
+                            ? "bg-gradient-to-br from-amber-400 via-amber-300 to-amber-500 text-slate-950 border-amber-200 shadow-xl scale-[1.03] cursor-pointer ring-2 ring-amber-400/60"
+                            : "bg-gradient-to-b from-[#063321] to-[#032014] text-white border-emerald-700/70 hover:border-amber-400 hover:shadow-xl hover:scale-[1.02] cursor-pointer"
                       )}
                     >
-                      {/* Check se está reservado por mim */}
-                      {isSelectedByMe && (
-                        <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-amber-400 text-slate-950 flex items-center justify-center shadow-xs">
-                          <Check className="w-2.5 h-2.5 stroke-[3]" />
-                        </div>
-                      )}
-
-                      <span className={cn(
-                        "text-sm sm:text-base font-black tracking-tight",
-                        isExpanded ? "text-amber-300" : isSelectedByMe ? "text-white" : "text-slate-900"
-                      )}>
-                        {t}
-                      </span>
-
-                      <span className={cn(
-                        "text-[10px] font-bold mt-0.5",
-                        isExpanded 
-                          ? "text-emerald-200"
-                          : isSelectedByMe
-                            ? "text-amber-300 font-black"
-                            : isFull
-                              ? "text-red-500 font-bold"
-                              : remaining === 1
-                                ? "text-amber-700 font-bold"
-                                : "text-emerald-700 font-black"
+                      {/* Selo flutuante superior direito */}
+                      <div className={cn(
+                        "absolute -top-2.5 right-2 font-black text-[9px] uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow-md border flex items-center gap-1 z-10",
+                        isFull && !isSelectedByMe
+                          ? "bg-red-600 text-white border-red-400"
+                          : isHighlighted
+                            ? "bg-slate-950 text-amber-300 border-slate-800"
+                            : remaining === 1
+                              ? "bg-amber-400 text-slate-950 border-amber-200"
+                              : "bg-emerald-500 text-emerald-950 border-emerald-300"
                       )}>
                         {isSelectedByMe ? (
-                          indQty > 0 && dupQty > 0
-                            ? `${indQty}x Ind. + ${dupQty}x Dup.`
-                            : indQty > 0
-                              ? `${indQty}x Indiv.`
-                              : `${dupQty}x Dupla`
-                        ) : isSlotDisabled
-                          ? 'Indisponível'
-                          : isFull
-                            ? 'LOTADO'
-                            : `${remaining} Livre${remaining > 1 ? 's' : ''}`}
+                          <>
+                            <Check className="w-2.5 h-2.5 stroke-[3] text-amber-300" />
+                            <span>RESERVADO</span>
+                          </>
+                        ) : isExpanded ? (
+                          <>
+                            <Clock className="w-2.5 h-2.5 text-amber-300" />
+                            <span>ABERTO</span>
+                          </>
+                        ) : isFull ? (
+                          <span>ESGOTADO</span>
+                        ) : (
+                          <>
+                            <Clock className="w-2.5 h-2.5" />
+                            <span>{remaining === 1 ? '1 VAGA' : 'LIVRE'}</span>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Horário Principal */}
+                      <div className="space-y-1 w-full">
+                        <div className="flex items-center gap-1.5">
+                          <Clock className={cn(
+                            "w-4 h-4 shrink-0",
+                            isFull && !isSelectedByMe ? "text-red-400" : isHighlighted ? "text-slate-950" : "text-amber-400"
+                          )} />
+                          <span className={cn(
+                            "text-base sm:text-lg font-black tracking-tight font-sans",
+                            isFull && !isSelectedByMe ? "text-red-300" : isHighlighted ? "text-slate-950" : "text-white group-hover:text-amber-300"
+                          )}>
+                            {t}
+                          </span>
+                        </div>
+
+                        <span className={cn(
+                          "text-[9.5px] font-black uppercase px-2 py-0.5 rounded-md inline-block tracking-wider",
+                          isFull && !isSelectedByMe
+                            ? "bg-red-950/70 text-red-300 border border-red-800/50"
+                            : isHighlighted
+                              ? "bg-slate-950 text-amber-300"
+                              : "bg-emerald-900/90 text-emerald-200 border border-emerald-700/60"
+                        )}>
+                          {isSelectedByMe ? (
+                            indQty > 0 && dupQty > 0
+                              ? `${indQty}x Ind. + ${dupQty}x Dup.`
+                              : indQty > 0
+                                ? `${indQty}x Individual`
+                                : `${dupQty}x De Dupla`
+                          ) : isSlotDisabled ? (
+                            'Indisponível'
+                          ) : isFull ? (
+                            'Lotado'
+                          ) : (
+                            `${remaining} ${remaining === 1 ? 'Livre' : 'Livres'}`
+                          )}
+                        </span>
+                      </div>
+
+                      {/* Rodapé de Ação */}
+                      <span className={cn(
+                        "text-[10px] font-bold block pt-1.5",
+                        isFull && !isSelectedByMe
+                          ? "text-red-300/70"
+                          : isHighlighted
+                            ? "text-slate-950 font-black"
+                            : "text-amber-300 group-hover:text-amber-200"
+                      )}>
+                        {isFull && !isSelectedByMe
+                          ? 'Sem vagas neste horário'
+                          : isSelectedByMe
+                            ? '✓ Toque p/ alterar'
+                            : isExpanded
+                              ? '▼ Escolha abaixo'
+                              : '+ Clique p/ reservar'}
                       </span>
                     </button>
                   );
