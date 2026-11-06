@@ -1537,13 +1537,13 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                                 backUrl: card.backCardUrl || (card.modalityCode === 'KIDS' || card.modalityCode === 'IDOSO_60' ? '/cards/39.png' : '/cards/24.png'),
                               })
                             }
-                            className="group relative aspect-[1.586/1] w-full rounded-xl overflow-hidden shadow-sm border border-slate-200 bg-slate-900 cursor-pointer flex items-center justify-center transition-all hover:ring-2 hover:ring-emerald-500"
+                            className="group relative aspect-[1.586/1] w-full rounded-xl overflow-hidden shadow-sm bg-transparent cursor-pointer flex items-center justify-center transition-all hover:ring-2 hover:ring-emerald-500"
                             title="Clique para ver a carteirinha em alta resolução"
                           >
                             <img
                               src={card.cardImage}
                               alt={card.title}
-                              className="w-full h-full object-contain p-1 select-none transition-transform duration-200 group-hover:scale-[1.02]"
+                              className="w-full h-full object-cover rounded-xl select-none transition-transform duration-200 group-hover:scale-[1.02]"
                             />
                             {/* Overlay sutil ao passar o mouse */}
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 text-white">
@@ -1556,23 +1556,6 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                               </span>
                             </div>
                           </div>
-
-                          {/* Botão de apoio para abrir o modal de zoom */}
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setZoomCardModal({
-                                open: true,
-                                title: card.title,
-                                frontUrl: card.cardImage,
-                                backUrl: card.backCardUrl || (card.modalityCode === 'KIDS' || card.modalityCode === 'IDOSO_60' ? '/cards/39.png' : '/cards/24.png'),
-                              })
-                            }
-                            className="w-full py-1.5 px-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors border border-emerald-200/60"
-                          >
-                            <ZoomIn className="w-3.5 h-3.5 text-emerald-700" />
-                            <span>Ver carteirinha ampliada (textos nítidos)</span>
-                          </button>
                         </div>
 
                         {/* Faixa Azul-Escura com o Nome do Plano */}
