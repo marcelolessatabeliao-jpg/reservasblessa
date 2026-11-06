@@ -483,8 +483,8 @@ export function BookingSection() {
             Voltar
           </button>
 
-          {/* Barra Compacta das 4 Etapas (sem Resumo, todas em uma única linha) */}
-          <div className="inline-flex items-center justify-center flex-nowrap gap-1 bg-gradient-to-r from-emerald-950 via-[#042817] to-slate-950 px-2 py-1 rounded-xl border-2 border-amber-400/80 shadow-md overflow-x-auto max-w-full">
+          {/* Barra Compacta das 4 Etapas Fixa (sem barra de rolagem, todas em uma única linha) */}
+          <div className="inline-flex items-center justify-center flex-nowrap gap-1 bg-gradient-to-r from-emerald-950 via-[#042817] to-slate-950 px-2 py-1.5 rounded-xl border-2 border-amber-400/80 shadow-md">
             {stepsList.filter(st => st.id !== 'resumo').map((st, idx) => {
               const isCurrent = idx === activeIndex;
               return (

@@ -124,20 +124,22 @@ export function AdditionalSelector({ additionals, onUpdate }: Props) {
               </div>
             </div>
 
-            {/* Aba Expansível: Saiba mais: Regras e Condições */}
+            {/* Aba Expansível Chamativa: Saiba mais: Regras e Condições */}
             <div className="mt-3 pt-2.5 border-t border-slate-100">
               <button
                 type="button"
                 onClick={() => toggleExpand(item.type)}
-                className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-emerald-50/80 hover:bg-emerald-100/80 border border-emerald-200/80 text-emerald-950 text-[11px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                className="w-full flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-950 via-[#042817] to-slate-950 hover:from-emerald-900 hover:to-emerald-950 border-2 border-amber-400 text-white shadow-md transition-all cursor-pointer group"
               >
-                <span className="flex items-center gap-1.5">
-                  <AlertCircle className="w-3.5 h-3.5 text-emerald-700" />
+                <span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-wider text-amber-300 whitespace-nowrap">
+                  <span className="p-1 rounded-lg bg-amber-400 text-slate-950 shrink-0 shadow-2xs">
+                    <AlertCircle className="w-3.5 h-3.5 stroke-[2.5]" />
+                  </span>
                   Saiba mais: Regras e Condições
                 </span>
-                <span className="flex items-center gap-1 text-[10px] text-emerald-800">
+                <span className="inline-flex items-center gap-1 bg-amber-400 group-hover:bg-amber-300 text-slate-950 font-black text-[10px] uppercase px-2.5 py-1 rounded-lg shrink-0 whitespace-nowrap shadow-2xs transition-colors">
                   {isExpanded ? 'Fechar' : 'Ver detalhes'}
-                  {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                  {isExpanded ? <ChevronUp className="w-3.5 h-3.5 stroke-[3]" /> : <ChevronDown className="w-3.5 h-3.5 stroke-[3]" />}
                 </span>
               </button>
 

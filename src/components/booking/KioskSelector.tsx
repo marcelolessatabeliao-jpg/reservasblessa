@@ -361,11 +361,8 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
               <span className="text-xs font-black text-emerald-950 uppercase tracking-wider flex items-center gap-1.5">
                 <span>⛺</span> Quiosques Familiares — Até 5 pessoas
               </span>
-              <span className="text-[9px] font-black text-emerald-800 flex items-center gap-1 bg-emerald-100 px-2 py-0.5 rounded-full">
-                Deslize para ver mais ➡️
-              </span>
             </div>
-            <div className="flex overflow-x-auto gap-2.5 sm:gap-3 pb-3 snap-x scroll-smooth no-scrollbar">
+            <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 sm:gap-2.5 pb-1">
               {KIOSK_MAP.filter(k => k.row === 'familiar').map(kioskDef => {
                 const isDisabledByAdmin = disableKiosks || disabledKioskIds.includes(kioskDef.id) || disabledKioskTypes.includes(kioskDef.type);
                 const isBooked = bookedIds.includes(kioskDef.id) || isDisabledByAdmin;
@@ -378,8 +375,8 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
                     onClick={() => handleToggleKiosk(kioskDef)}
                     disabled={isBooked && !isSelected}
                     className={cn(
-                      "relative flex flex-col items-center justify-center p-3 sm:p-4 rounded-2xl border-2 transition-all duration-200 cursor-pointer group shrink-0 snap-center",
-                      "min-w-[95px] sm:min-w-0 sm:flex-1 min-h-[110px] sm:min-h-[120px]",
+                      "relative flex flex-col items-center justify-center p-2.5 sm:p-3.5 rounded-2xl border-2 transition-all duration-200 cursor-pointer group",
+                      "w-full min-h-[105px] sm:min-h-[115px]",
                       isBooked && !isSelected && "bg-slate-100 border-slate-300 opacity-60 cursor-not-allowed",
                       isSelected && "bg-amber-400 border-amber-500 text-slate-950 shadow-xl scale-[1.03] ring-2 ring-amber-400/30",
                       !isBooked && !isSelected && "bg-emerald-50/60 border-emerald-400/80 hover:border-amber-400 hover:bg-emerald-100/70 text-emerald-950 shadow-sm",
@@ -495,7 +492,7 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
                 <li><strong>Quiosque 01 (Grande):</strong> Capacidade para 25 pessoas, separado dos demais. Churrasqueira, pia, grelha, mesas e cadeiras, 1 tomada.</li>
                 <li><strong>Quiosques 02 ao 05 (Médios):</strong> Capacidade para até 15 pessoas, um ao lado do outro. Churrasqueira, pia, grelha, mesas e cadeiras, 1 tomada.</li>
                 <li><strong>Quiosques 06 ao 12 (Familiares):</strong> Tamanho familiar para até 5 pessoas. Churrasqueira, grelha, 1 mesa e bancos. Pia comunitária próxima aos quiosques.</li>
-                <li><strong>Carvão:</strong> Por conta do cliente.</li>
+                <li className="text-red-600 font-black"><strong>Carvão:</strong> Por conta do cliente.</li>
               </ul>
             </div>
 

@@ -1107,22 +1107,22 @@ function ChaleSelectorInner({
                     type="button"
                     onClick={() => handleSelectStayPreset('combo-2n-sex-dom')}
                     className={cn(
-                      "p-3 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-1.5",
+                      "p-3.5 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-2",
                       isComboSexDomActive
                         ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 font-black shadow-md scale-[1.02]"
-                        : "bg-white text-slate-900 border-slate-200 hover:border-amber-400 hover:bg-amber-50/50"
+                        : "bg-white text-slate-950 border-slate-300 hover:border-amber-400 hover:bg-amber-50/50"
                     )}
                   >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-black text-xs uppercase">🔥 Sex a Dom (2 Noites)</span>
-                      <span className="text-[9px] bg-slate-950 text-amber-300 font-black px-1.5 py-0.5 rounded">10% OFF</span>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex flex-col leading-tight">
+                        <span className="font-black text-xs uppercase text-slate-950 whitespace-nowrap">🔥 Sex a Dom</span>
+                        <span className="font-black text-[10.5px] uppercase text-emerald-950 mt-0.5 whitespace-nowrap">(2 Noites)</span>
+                      </div>
+                      <span className="text-[10px] bg-slate-950 text-amber-300 font-black px-2 py-0.5 rounded-md whitespace-nowrap shrink-0">10% OFF</span>
                     </div>
-                    <span className="text-[10px] text-slate-600 font-bold block">
-                      Check-in Sex 14h ➔ Dom 12h (Day use parque até 17h)
-                    </span>
-                    <div className="pt-1 border-t border-black/10 flex items-center justify-between text-xs font-black">
-                      <span className="text-emerald-950">R$ 639 <span className="text-[10px] text-slate-500 font-bold">ind.</span></span>
-                      <span className="text-emerald-950">R$ 819 <span className="text-[10px] text-slate-500 font-bold">casal</span></span>
+                    <div className="pt-2 border-t border-slate-950/15 flex items-center justify-between text-xs font-black">
+                      <span className="text-slate-950">R$ 639 <span className="text-[10.5px] text-slate-900 font-extrabold">ind.</span></span>
+                      <span className="text-slate-950">R$ 819 <span className="text-[10.5px] text-slate-900 font-extrabold">casal</span></span>
                     </div>
                   </button>
 
@@ -1131,22 +1131,22 @@ function ChaleSelectorInner({
                     type="button"
                     onClick={() => handleSelectStayPreset('combo-2n-qui-sab')}
                     className={cn(
-                      "p-3 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-1.5",
+                      "p-3.5 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-2",
                       isComboQuiSabActive
                         ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 font-black shadow-md scale-[1.02]"
-                        : "bg-white text-slate-900 border-slate-200 hover:border-amber-400 hover:bg-amber-50/50"
+                        : "bg-white text-slate-950 border-slate-300 hover:border-amber-400 hover:bg-amber-50/50"
                     )}
                   >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-black text-xs uppercase">🌿 Qui a Sáb (2 Noites)</span>
-                      <span className="text-[9px] bg-slate-950 text-amber-300 font-black px-1.5 py-0.5 rounded">10% OFF</span>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex flex-col leading-tight">
+                        <span className="font-black text-xs uppercase text-slate-950 whitespace-nowrap">🌿 Qui a Sáb</span>
+                        <span className="font-black text-[10.5px] uppercase text-emerald-950 mt-0.5 whitespace-nowrap">(2 Noites)</span>
+                      </div>
+                      <span className="text-[10px] bg-slate-950 text-amber-300 font-black px-2 py-0.5 rounded-md whitespace-nowrap shrink-0">10% OFF</span>
                     </div>
-                    <span className="text-[10px] text-slate-600 font-bold block">
-                      Check-in Qui 09h ➔ Sáb 12h
-                    </span>
-                    <div className="pt-1 border-t border-black/10 flex items-center justify-between text-xs font-black">
-                      <span className="text-emerald-950">R$ 522 <span className="text-[10px] text-slate-500 font-bold">ind.</span></span>
-                      <span className="text-emerald-950">R$ 702 <span className="text-[10px] text-slate-500 font-bold">casal</span></span>
+                    <div className="pt-2 border-t border-slate-950/15 flex items-center justify-between text-xs font-black">
+                      <span className="text-slate-950">R$ 522 <span className="text-[10.5px] text-slate-900 font-extrabold">ind.</span></span>
+                      <span className="text-slate-950">R$ 702 <span className="text-[10.5px] text-slate-900 font-extrabold">casal</span></span>
                     </div>
                   </button>
 
@@ -1155,22 +1155,22 @@ function ChaleSelectorInner({
                     type="button"
                     onClick={() => handleSelectStayPreset('combo-2n-sab-seg')}
                     className={cn(
-                      "p-3 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-1.5",
+                      "p-3.5 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-2",
                       isComboSabSegActive
                         ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 font-black shadow-md scale-[1.02]"
-                        : "bg-white text-slate-900 border-slate-200 hover:border-amber-400 hover:bg-amber-50/50"
+                        : "bg-white text-slate-950 border-slate-300 hover:border-amber-400 hover:bg-amber-50/50"
                     )}
                   >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-black text-xs uppercase">☀️ Sáb a Seg (2 Noites)</span>
-                      <span className="text-[9px] bg-slate-950 text-amber-300 font-black px-1.5 py-0.5 rounded">10% OFF</span>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex flex-col leading-tight">
+                        <span className="font-black text-xs uppercase text-slate-950 whitespace-nowrap">☀️ Sáb a Seg</span>
+                        <span className="font-black text-[10.5px] uppercase text-emerald-950 mt-0.5 whitespace-nowrap">(2 Noites)</span>
+                      </div>
+                      <span className="text-[10px] bg-slate-950 text-amber-300 font-black px-2 py-0.5 rounded-md whitespace-nowrap shrink-0">10% OFF</span>
                     </div>
-                    <span className="text-[10px] text-slate-600 font-bold block">
-                      Check-in Sáb 14h ➔ Seg 12h (Domingo Day Use até 17h)
-                    </span>
-                    <div className="pt-1 border-t border-black/10 flex items-center justify-between text-xs font-black">
-                      <span className="text-emerald-950">R$ 531 <span className="text-[10px] text-slate-500 font-bold">ind.</span></span>
-                      <span className="text-emerald-950">R$ 711 <span className="text-[10px] text-slate-500 font-bold">casal</span></span>
+                    <div className="pt-2 border-t border-slate-950/15 flex items-center justify-between text-xs font-black">
+                      <span className="text-slate-950">R$ 531 <span className="text-[10.5px] text-slate-900 font-extrabold">ind.</span></span>
+                      <span className="text-slate-950">R$ 711 <span className="text-[10.5px] text-slate-900 font-extrabold">casal</span></span>
                     </div>
                   </button>
 
@@ -1179,22 +1179,22 @@ function ChaleSelectorInner({
                     type="button"
                     onClick={() => handleSelectStayPreset('combo-3n-qui-dom')}
                     className={cn(
-                      "p-3 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-1.5",
+                      "p-3.5 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-2",
                       isComboQuiDomActive
                         ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 font-black shadow-md scale-[1.02]"
-                        : "bg-white text-slate-900 border-slate-200 hover:border-amber-400 hover:bg-amber-50/50"
+                        : "bg-white text-slate-950 border-slate-300 hover:border-amber-400 hover:bg-amber-50/50"
                     )}
                   >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-black text-xs uppercase">🌴 Qui a Dom (3 Noites)</span>
-                      <span className="text-[9px] bg-slate-950 text-amber-300 font-black px-1.5 py-0.5 rounded">10% OFF</span>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex flex-col leading-tight">
+                        <span className="font-black text-xs uppercase text-slate-950 whitespace-nowrap">🌴 Qui a Dom</span>
+                        <span className="font-black text-[10.5px] uppercase text-emerald-950 mt-0.5 whitespace-nowrap">(3 Noites)</span>
+                      </div>
+                      <span className="text-[10px] bg-slate-950 text-amber-300 font-black px-2 py-0.5 rounded-md whitespace-nowrap shrink-0">10% OFF</span>
                     </div>
-                    <span className="text-[10px] text-slate-600 font-bold block">
-                      Check-in Qui 09h ➔ Dom 12h (Day use parque até 17h)
-                    </span>
-                    <div className="pt-1 border-t border-black/10 flex items-center justify-between text-xs font-black">
-                      <span className="text-emerald-950">R$ 855 <span className="text-[10px] text-slate-500 font-bold">ind.</span></span>
-                      <span className="text-emerald-950">R$ 1.125 <span className="text-[10px] text-slate-500 font-bold">casal</span></span>
+                    <div className="pt-2 border-t border-slate-950/15 flex items-center justify-between text-xs font-black">
+                      <span className="text-slate-950">R$ 855 <span className="text-[10.5px] text-slate-900 font-extrabold">ind.</span></span>
+                      <span className="text-slate-950">R$ 1.125 <span className="text-[10.5px] text-slate-900 font-extrabold">casal</span></span>
                     </div>
                   </button>
 
@@ -1203,22 +1203,22 @@ function ChaleSelectorInner({
                     type="button"
                     onClick={() => handleSelectStayPreset('combo-3n-sex-seg')}
                     className={cn(
-                      "p-3 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-1.5",
+                      "p-3.5 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-2",
                       isComboSexSegActive
                         ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 font-black shadow-md scale-[1.02]"
-                        : "bg-white text-slate-900 border-slate-200 hover:border-amber-400 hover:bg-amber-50/50"
+                        : "bg-white text-slate-950 border-slate-300 hover:border-amber-400 hover:bg-amber-50/50"
                     )}
                   >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-black text-xs uppercase">🚀 Sex a Seg (3 Noites)</span>
-                      <span className="text-[9px] bg-slate-950 text-amber-300 font-black px-1.5 py-0.5 rounded">10% OFF</span>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex flex-col leading-tight">
+                        <span className="font-black text-xs uppercase text-slate-950 whitespace-nowrap">🚀 Sex a Seg</span>
+                        <span className="font-black text-[10.5px] uppercase text-emerald-950 mt-0.5 whitespace-nowrap">(3 Noites)</span>
+                      </div>
+                      <span className="text-[10px] bg-slate-950 text-amber-300 font-black px-2 py-0.5 rounded-md whitespace-nowrap shrink-0">10% OFF</span>
                     </div>
-                    <span className="text-[10px] text-slate-600 font-bold block">
-                      Check-in Sex 14h ➔ Seg 12h
-                    </span>
-                    <div className="pt-1 border-t border-black/10 flex items-center justify-between text-xs font-black">
-                      <span className="text-emerald-950">R$ 837 <span className="text-[10px] text-slate-500 font-bold">ind.</span></span>
-                      <span className="text-emerald-950">R$ 1.107 <span className="text-[10px] text-slate-500 font-bold">casal</span></span>
+                    <div className="pt-2 border-t border-slate-950/15 flex items-center justify-between text-xs font-black">
+                      <span className="text-slate-950">R$ 837 <span className="text-[10.5px] text-slate-900 font-extrabold">ind.</span></span>
+                      <span className="text-slate-950">R$ 1.107 <span className="text-[10.5px] text-slate-900 font-extrabold">casal</span></span>
                     </div>
                   </button>
 
@@ -1227,22 +1227,22 @@ function ChaleSelectorInner({
                     type="button"
                     onClick={() => handleSelectStayPreset('combo-4n-qui-seg')}
                     className={cn(
-                      "p-3 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-1.5",
+                      "p-3.5 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-2",
                       isComboQuiSegActive
                         ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 font-black shadow-md scale-[1.02]"
-                        : "bg-white text-slate-900 border-slate-200 hover:border-amber-400 hover:bg-amber-50/50"
+                        : "bg-white text-slate-950 border-slate-300 hover:border-amber-400 hover:bg-amber-50/50"
                     )}
                   >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-black text-xs uppercase">👑 Qui a Seg (4 Noites)</span>
-                      <span className="text-[9px] bg-slate-950 text-amber-300 font-black px-1.5 py-0.5 rounded">10% OFF</span>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex flex-col leading-tight">
+                        <span className="font-black text-xs uppercase text-slate-950 whitespace-nowrap">👑 Qui a Seg</span>
+                        <span className="font-black text-[10.5px] uppercase text-emerald-950 mt-0.5 whitespace-nowrap">(4 Noites)</span>
+                      </div>
+                      <span className="text-[10px] bg-slate-950 text-amber-300 font-black px-2 py-0.5 rounded-md whitespace-nowrap shrink-0">10% OFF</span>
                     </div>
-                    <span className="text-[10px] text-slate-600 font-bold block">
-                      Check-in Qui 09h ➔ Seg 12h (Maior Estadia)
-                    </span>
-                    <div className="pt-1 border-t border-black/10 flex items-center justify-between text-xs font-black">
-                      <span className="text-emerald-950">R$ 1.053 <span className="text-[10px] text-slate-500 font-bold">ind.</span></span>
-                      <span className="text-emerald-950">R$ 1.413 <span className="text-[10px] text-slate-500 font-bold">casal</span></span>
+                    <div className="pt-2 border-t border-slate-950/15 flex items-center justify-between text-xs font-black">
+                      <span className="text-slate-950">R$ 1.053 <span className="text-[10.5px] text-slate-900 font-extrabold">ind.</span></span>
+                      <span className="text-slate-950">R$ 1.413 <span className="text-[10.5px] text-slate-900 font-extrabold">casal</span></span>
                     </div>
                   </button>
                 </div>
@@ -1259,7 +1259,7 @@ function ChaleSelectorInner({
                   <button
                     type="button"
                     onClick={() => setShortcutCategory(null)}
-                    className="text-[10px] font-black uppercase text-slate-600 hover:text-slate-950 bg-white hover:bg-slate-100 border border-slate-300 px-2.5 py-1 rounded-lg cursor-pointer transition-all shadow-2xs"
+                    className="text-[10px] font-black uppercase text-slate-800 hover:text-slate-950 bg-white hover:bg-slate-100 border border-slate-300 px-2.5 py-1 rounded-lg cursor-pointer transition-all shadow-2xs"
                   >
                     ✕ Fechar Expansão
                   </button>
@@ -1271,19 +1271,16 @@ function ChaleSelectorInner({
                     type="button"
                     onClick={() => handleSelectStayPreset('diaria-qui-sex')}
                     className={cn(
-                      "p-3 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-1.5",
+                      "p-3.5 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-2",
                       inDay === 4 && outDay === 5 && diffNights === 1
                         ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 font-black shadow-md scale-[1.02]"
-                        : "bg-white text-slate-900 border-slate-200 hover:border-amber-400 hover:bg-amber-50/50"
+                        : "bg-white text-slate-950 border-slate-300 hover:border-amber-400 hover:bg-amber-50/50"
                     )}
                   >
-                    <span className="font-black text-xs uppercase">📅 Quinta a Sexta</span>
-                    <span className="text-[10px] text-slate-600 font-bold block">
-                      Check-in Qui 09h ➔ Sex 12h
-                    </span>
-                    <div className="pt-1 border-t border-black/10 flex items-center justify-between text-xs font-black">
-                      <span className="text-emerald-950">R$ 240 <span className="text-[10px] text-slate-500 font-bold">ind.</span></span>
-                      <span className="text-emerald-950">R$ 340 <span className="text-[10px] text-slate-500 font-bold">casal</span></span>
+                    <span className="font-black text-xs uppercase text-slate-950 whitespace-nowrap">📅 Quinta a Sexta</span>
+                    <div className="pt-2 border-t border-slate-950/15 flex items-center justify-between text-xs font-black">
+                      <span className="text-slate-950">R$ 240 <span className="text-[10.5px] text-slate-900 font-extrabold">ind.</span></span>
+                      <span className="text-slate-950">R$ 340 <span className="text-[10.5px] text-slate-900 font-extrabold">casal</span></span>
                     </div>
                   </button>
 
@@ -1292,19 +1289,16 @@ function ChaleSelectorInner({
                     type="button"
                     onClick={() => handleSelectStayPreset('diaria-sex-sab')}
                     className={cn(
-                      "p-3 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-1.5",
+                      "p-3.5 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-2",
                       isDiariaSexSabActive
                         ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 font-black shadow-md scale-[1.02]"
-                        : "bg-white text-slate-900 border-slate-200 hover:border-amber-400 hover:bg-amber-50/50"
+                        : "bg-white text-slate-950 border-slate-300 hover:border-amber-400 hover:bg-amber-50/50"
                     )}
                   >
-                    <span className="font-black text-xs uppercase">📅 Sexta a Sábado</span>
-                    <span className="text-[10px] text-slate-600 font-bold block">
-                      Check-in Sex 14h ➔ Sáb 12h
-                    </span>
-                    <div className="pt-1 border-t border-black/10 flex items-center justify-between text-xs font-black">
-                      <span className="text-emerald-950">R$ 340 <span className="text-[10px] text-slate-500 font-bold">ind.</span></span>
-                      <span className="text-emerald-950">R$ 440 <span className="text-[10px] text-slate-500 font-bold">casal</span></span>
+                    <span className="font-black text-xs uppercase text-slate-950 whitespace-nowrap">📅 Sexta a Sábado</span>
+                    <div className="pt-2 border-t border-slate-950/15 flex items-center justify-between text-xs font-black">
+                      <span className="text-slate-950">R$ 340 <span className="text-[10.5px] text-slate-900 font-extrabold">ind.</span></span>
+                      <span className="text-slate-950">R$ 440 <span className="text-[10.5px] text-slate-900 font-extrabold">casal</span></span>
                     </div>
                   </button>
 
@@ -1313,19 +1307,16 @@ function ChaleSelectorInner({
                     type="button"
                     onClick={() => handleSelectStayPreset('diaria-sab-dom')}
                     className={cn(
-                      "p-3 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-1.5",
+                      "p-3.5 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-2",
                       isDiariaSabDomActive
                         ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 font-black shadow-md scale-[1.02]"
-                        : "bg-white text-slate-900 border-slate-200 hover:border-amber-400 hover:bg-amber-50/50"
+                        : "bg-white text-slate-950 border-slate-300 hover:border-amber-400 hover:bg-amber-50/50"
                     )}
                   >
-                    <span className="font-black text-xs uppercase">☀️ Sábado a Domingo</span>
-                    <span className="text-[10px] text-slate-600 font-bold block">
-                      Check-in Sáb 14h ➔ Dom 12h (Day use parque até 17h)
-                    </span>
-                    <div className="pt-1 border-t border-black/10 flex items-center justify-between text-xs font-black">
-                      <span className="text-emerald-950">R$ 370 <span className="text-[10px] text-slate-500 font-bold">ind.</span></span>
-                      <span className="text-emerald-950">R$ 470 <span className="text-[10px] text-slate-500 font-bold">casal</span></span>
+                    <span className="font-black text-xs uppercase text-slate-950 whitespace-nowrap">☀️ Sábado a Domingo</span>
+                    <div className="pt-2 border-t border-slate-950/15 flex items-center justify-between text-xs font-black">
+                      <span className="text-slate-950">R$ 370 <span className="text-[10.5px] text-slate-900 font-extrabold">ind.</span></span>
+                      <span className="text-slate-950">R$ 470 <span className="text-[10.5px] text-slate-900 font-extrabold">casal</span></span>
                     </div>
                   </button>
 
@@ -1334,19 +1325,16 @@ function ChaleSelectorInner({
                     type="button"
                     onClick={() => handleSelectStayPreset('diaria-dom-seg')}
                     className={cn(
-                      "p-3 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-1.5",
+                      "p-3.5 rounded-2xl border-2 text-left transition-all cursor-pointer shadow-xs select-none flex flex-col justify-between gap-2",
                       inDay === 0 && outDay === 1 && diffNights === 1
                         ? "bg-amber-400 text-slate-950 border-amber-500 ring-2 ring-amber-300 font-black shadow-md scale-[1.02]"
-                        : "bg-white text-slate-900 border-slate-200 hover:border-amber-400 hover:bg-amber-50/50"
+                        : "bg-white text-slate-950 border-slate-300 hover:border-amber-400 hover:bg-amber-50/50"
                     )}
                   >
-                    <span className="font-black text-xs uppercase">🌙 Domingo a Segunda</span>
-                    <span className="text-[10px] text-slate-600 font-bold block">
-                      Check-in Dom 14h ➔ Seg 12h
-                    </span>
-                    <div className="pt-1 border-t border-black/10 flex items-center justify-between text-xs font-black">
-                      <span className="text-emerald-950">R$ 220 <span className="text-[10px] text-slate-500 font-bold">ind.</span></span>
-                      <span className="text-emerald-950">R$ 320 <span className="text-[10px] text-slate-500 font-bold">casal</span></span>
+                    <span className="font-black text-xs uppercase text-slate-950 whitespace-nowrap">🌙 Domingo a Segunda</span>
+                    <div className="pt-2 border-t border-slate-950/15 flex items-center justify-between text-xs font-black">
+                      <span className="text-slate-950">R$ 220 <span className="text-[10.5px] text-slate-900 font-extrabold">ind.</span></span>
+                      <span className="text-slate-950">R$ 320 <span className="text-[10.5px] text-slate-900 font-extrabold">casal</span></span>
                     </div>
                   </button>
                 </div>
@@ -1534,7 +1522,7 @@ function ChaleSelectorInner({
                         <span className="text-[10.5px] font-black uppercase text-slate-700 block">
                           Modalidade de Ocupação:
                         </span>
-                        <span className="text-[9.5px] text-slate-500 font-bold block mt-0.5">
+                        <span className="text-[9.5px] text-slate-800 font-bold block mt-0.5">
                           {isChaleCasal ? 'Acomoda até 2 adultos' : 'Acomoda 1 adulto'}
                         </span>
                       </div>
