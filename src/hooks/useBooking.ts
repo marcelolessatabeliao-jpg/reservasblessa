@@ -281,10 +281,13 @@ export function useBooking() {
       : (booking.camping.peopleCount || 0);
     const campingTotal = payingCampers * getPrice('camping_per_person', CAMPING_PRICE_PER_PERSON);
 
-    // Demais serviços têm 10% de desconto online; chalés já têm a regra oficial (10% nos combos de 2+ noites, 0% nas diárias avulsas)
+    // Demais serviços têm 10% de desconto online; chalés em combo já possuem 10% OFF e diárias avulsas também recebem 10% OFF para pagamento via site no resumo
     const otherGross = Math.round((entriesTotal + kiosksTotal + quadsTotal + additionalsTotal + campingTotal) * 100) / 100;
     const otherDiscount = otherGross > 0 ? Math.round(otherGross * 0.10 * 100) / 100 : 0;
-    const chaleDiscount = Math.max(0, Math.round((chaleGrossTotal - chaleTotal) * 100) / 100);
+    const chaleSiteNet = chaleGrossTotal > chaleTotal
+      ? chaleTotal
+      : Math.round(chaleGrossTotal * 0.90 * 100) / 100;
+    const chaleDiscount = Math.max(0, Math.round((chaleGrossTotal - chaleSiteNet) * 100) / 100);
 
     const subtotal = Math.round((otherGross + chaleGrossTotal) * 100) / 100;
     const onlineDiscount = Math.round((otherDiscount + chaleDiscount) * 100) / 100;
@@ -295,7 +298,7 @@ export function useBooking() {
       kiosksTotal, 
       quadsTotal, 
       additionalsTotal, 
-      chaleTotal,
+      chaleTotal: chaleSiteNet,
       campingTotal,
       subtotal, 
       onlineDiscount, 

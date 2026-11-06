@@ -248,10 +248,13 @@ export function BookingOverview({
           booking.chale.chaleIds,
           booking.chale.childrenAges
         );
+        const chaleSiteNet = chaleGross > chalePrice
+          ? chalePrice
+          : Math.round(chaleGross * 0.90 * 100) / 100;
         items.push({
           product_id: chaletsCount > 1 ? `Chalés (${chaletsCount} unidades): ${pkg.title}` : `Chalé: ${pkg.title}`,
           quantity: 1,
-          unit_price: chalePrice,
+          unit_price: chaleSiteNet,
           metadata: {
             package_type: pkg.id,
             package_title: pkg.title,
@@ -269,7 +272,7 @@ export function BookingOverview({
             check_out_date: booking.chale.checkOutDate ? format(booking.chale.checkOutDate, 'yyyy-MM-dd') : null,
             check_out_time: '12:00',
             chale_gross_price: chaleGross,
-            chale_net_price: chalePrice,
+            chale_net_price: chaleSiteNet,
             include_sunday_day_use: !!booking.chale.includeSundayDayUse
           }
         });
@@ -743,6 +746,10 @@ export function BookingOverview({
             booking.chale.childrenAges
           );
 
+          const chaleSiteNet = chaleGrossPrice > chalePrice
+            ? chalePrice
+            : Math.round(chaleGrossPrice * 0.90 * 100) / 100;
+
           return (
             <div className="pb-5 border-b border-emerald-200">
               <h4 className="font-black text-emerald-950 mb-3 uppercase tracking-widest text-[11px] sm:text-xs flex items-center gap-1.5">
@@ -837,15 +844,9 @@ export function BookingOverview({
                 <div className="flex justify-between font-black text-emerald-950 pt-2.5 mt-2 border-t border-emerald-200 text-sm items-center">
                   <span>Subtotal Hospedagem</span>
                   <div className="text-right flex items-center gap-2">
-                    {chaleGrossPrice > chalePrice ? (
-                      <>
-                        <span className="text-xs text-slate-400 line-through font-bold">{formatCurrency(chaleGrossPrice)}</span>
-                        <span className="text-emerald-900 font-black">{formatCurrency(chalePrice)}</span>
-                        <span className="text-[10px] bg-amber-100 text-amber-900 font-black px-1.5 py-0.5 rounded border border-amber-300">10% OFF</span>
-                      </>
-                    ) : (
-                      <span className="text-emerald-900 font-black">{formatCurrency(chalePrice)}</span>
-                    )}
+                    <span className="text-xs text-slate-400 line-through font-bold">{formatCurrency(chaleGrossPrice)}</span>
+                    <span className="text-emerald-900 font-black">{formatCurrency(chaleSiteNet)}</span>
+                    <span className="text-[10px] bg-amber-100 text-amber-900 font-black px-1.5 py-0.5 rounded border border-amber-300">10% OFF</span>
                   </div>
                 </div>
               </div>
