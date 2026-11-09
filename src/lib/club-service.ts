@@ -363,45 +363,50 @@ export const normalizeClubDatabaseState = (
     (m) => !DEFAULT_CLUB_MODALITIES.some((def) => def.code === m.code || def.id === m.id)
   );
 
-  const normalizedSubscriptions = (parsed.subscriptions || []).map((sub) => ({
-    ...sub,
-    members: (sub.members || []).map((m) => {
-      let frontUrl = m.frontCardUrl;
-      let backUrl = m.backCardUrl;
+  const normalizedSubscriptions = (parsed.subscriptions || []).map((sub) => {
+    const isLabcard = sub.origin === 'IMPORT_LABCARD' || sub.id.startsWith('sub-labcard-');
+    return {
+      ...sub,
+      status: isLabcard ? ('PENDING_TRANSFER' as SubscriptionStatus) : sub.status,
+      members: (sub.members || []).map((m) => {
+        let frontUrl = m.frontCardUrl;
+        let backUrl = m.backCardUrl;
 
-      if (m.modalityCode === 'ADULTO' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/18.png' || frontUrl === '/cards/17.png')) {
-        frontUrl = '/cards/44.png';
-      } else if (m.modalityCode === 'ESTUDANTE' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/7.png')) {
-        frontUrl = '/cards/6.png';
-      } else if (m.modalityCode === 'PROFESSOR' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/2.png')) {
-        frontUrl = '/cards/3.png';
-      } else if (m.modalityCode === 'SERVIDOR' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/9.png')) {
-        frontUrl = '/cards/10.png';
-      } else if (m.modalityCode === 'KIDS' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/37.png')) {
-        frontUrl = '/cards/38.png';
-      } else if (m.modalityCode === 'IDOSO_60' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/25.png')) {
-        frontUrl = '/cards/26.png';
-      } else if (m.modalityCode === 'PCD_TEA' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/34.png')) {
-        frontUrl = '/cards/35.png';
-      }
+        if (m.modalityCode === 'ADULTO' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/18.png' || frontUrl === '/cards/17.png')) {
+          frontUrl = '/cards/44.png';
+        } else if (m.modalityCode === 'ESTUDANTE' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/7.png')) {
+          frontUrl = '/cards/6.png';
+        } else if (m.modalityCode === 'PROFESSOR' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/2.png')) {
+          frontUrl = '/cards/3.png';
+        } else if (m.modalityCode === 'SERVIDOR' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/9.png')) {
+          frontUrl = '/cards/10.png';
+        } else if (m.modalityCode === 'KIDS' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/37.png')) {
+          frontUrl = '/cards/38.png';
+        } else if (m.modalityCode === 'IDOSO_60' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/25.png')) {
+          frontUrl = '/cards/26.png';
+        } else if (m.modalityCode === 'PCD_TEA' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/34.png')) {
+          frontUrl = '/cards/35.png';
+        }
 
-      if (m.modalityCode === 'KIDS' || m.modalityCode === 'IDOSO_60') {
-        backUrl = '/cards/39.png';
-      } else if (isOutdatedCardUrl(backUrl)) {
-        backUrl = '/cards/24.png';
-      }
+        if (m.modalityCode === 'KIDS' || m.modalityCode === 'IDOSO_60') {
+          backUrl = '/cards/39.png';
+        } else if (isOutdatedCardUrl(backUrl)) {
+          backUrl = '/cards/24.png';
+        }
 
-      return {
-        ...m,
-        frontCardUrl: frontUrl || '/cards/44.png',
-        backCardUrl: backUrl || '/cards/24.png',
-      };
-    }),
-    invoices: Array.isArray(sub.invoices) ? sub.invoices : [],
-    attachments: Array.isArray(sub.attachments) ? sub.attachments : [],
-    visits: Array.isArray(sub.visits) ? sub.visits : [],
-    additionalServices: Array.isArray(sub.additionalServices) ? sub.additionalServices : [],
-  }));
+        return {
+          ...m,
+          status: isLabcard ? ('PENDING_TRANSFER' as SubscriptionStatus) : m.status,
+          frontCardUrl: frontUrl || '/cards/44.png',
+          backCardUrl: backUrl || '/cards/24.png',
+        };
+      }),
+      invoices: Array.isArray(sub.invoices) ? sub.invoices : [],
+      attachments: Array.isArray(sub.attachments) ? sub.attachments : [],
+      visits: Array.isArray(sub.visits) ? sub.visits : [],
+      additionalServices: Array.isArray(sub.additionalServices) ? sub.additionalServices : [],
+    };
+  });
 
   const hasLatestContractFormat = parsed.contractTemplates?.every(
     (t) =>
@@ -505,6 +510,18 @@ export const fetchClubState = async (): Promise<ClubDatabaseState> => {
         }
       });
       remoteSubs.forEach((s) => subsMap.set(s.id, s));
+
+      // Garantir status PENDING_TRANSFER para todos os registros alimentados da planilha Labcard
+      subsMap.forEach((sub) => {
+        if (sub.origin === 'IMPORT_LABCARD' || sub.id.startsWith('sub-labcard-')) {
+          sub.status = 'PENDING_TRANSFER';
+          if (sub.members) {
+            sub.members.forEach((m) => {
+              m.status = 'PENDING_TRANSFER';
+            });
+          }
+        }
+      });
 
       const mergedState: Partial<ClubDatabaseState> = {
         ...remote,

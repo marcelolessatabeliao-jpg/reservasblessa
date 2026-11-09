@@ -1,5 +1,11 @@
 export type BillingCycle = 'MONTHLY' | 'ANNUAL';
-export type SubscriptionStatus = 'ACTIVE' | 'PENDING' | 'OVERDUE' | 'INACTIVE' | 'CANCELLED' | 'PROSPECT' | 'ARCHIVED_PROSPECT';
+export type SubscriptionStatus =
+  | 'ACTIVE'
+  | 'PENDING'
+  | 'PENDING_TRANSFER'
+  | 'OVERDUE'
+  | 'INACTIVE'
+  | 'CANCELLED';
 export type ClubPaymentMethod = 'PIX' | 'CREDIT_CARD' | 'DEBIT_CARD' | 'BOLETO' | 'COURTESY' | 'LOCAL';
 export type ContractTemplateType = 'ADESAO_PF' | 'TERMOS_SITE' | 'FAMILY_PUBLICIDADE';
 

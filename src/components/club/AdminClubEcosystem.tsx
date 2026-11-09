@@ -667,8 +667,12 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       if (originFilter !== 'ALL' && sub.origin !== originFilter) {
         return false;
       }
-      if (subStatusFilter !== 'ALL' && sub.status !== subStatusFilter) {
-        return false;
+      if (subStatusFilter !== 'ALL') {
+        if (subStatusFilter === 'PENDING') {
+          if (sub.status !== 'PENDING' && sub.status !== 'PENDING_TRANSFER') return false;
+        } else if (sub.status !== subStatusFilter) {
+          return false;
+        }
       }
       if (!subSearch.trim()) return true;
       const q = subSearch.toLowerCase();
@@ -1908,16 +1912,15 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     )}
                   </div>
 
-                  {/* Submenus: Inativos, Pendentes, Prospect, Prospect Arquivados, Cancelados, Via site */}
+                  {/* Submenus: Inativos, Pendentes p/ Transferência, Pendentes, Cancelados, Via site */}
                   {[
                     { label: 'Inativos', status: 'INACTIVE', origin: 'ALL' as const },
-                    { label: 'Pendentes', status: 'PENDING', origin: 'ALL' as const },
-                    { label: 'Prospect', status: 'PROSPECT', origin: 'ALL' as const },
                     {
-                      label: 'Prospect Arquivados',
-                      status: 'ARCHIVED_PROSPECT',
+                      label: 'Pendentes p/ Transferência',
+                      status: 'PENDING_TRANSFER',
                       origin: 'ALL' as const,
                     },
+                    { label: 'Pendentes', status: 'PENDING', origin: 'ALL' as const },
                     { label: 'Cancelados', status: 'CANCELLED', origin: 'ALL' as const },
                     { label: 'Via site', status: 'ALL', origin: 'SITE' as const },
                   ].map((item) => (
@@ -2902,6 +2905,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     className={`rounded-xl border-2 p-3.5 flex items-center justify-between gap-3 ${
                       subscription.status === 'ACTIVE'
                         ? 'border-emerald-500 bg-emerald-50/60'
+                        : subscription.status === 'PENDING_TRANSFER'
+                        ? 'border-amber-400 bg-amber-50/60'
                         : 'border-rose-400 bg-rose-50/60'
                     }`}
                   >
@@ -2911,11 +2916,15 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           className={
                             subscription.status === 'ACTIVE'
                               ? 'bg-emerald-600 text-white text-[10px]'
+                              : subscription.status === 'PENDING_TRANSFER'
+                              ? 'bg-amber-600 text-white text-[10px]'
                               : 'bg-rose-600 text-white text-[10px]'
                           }
                         >
                           {subscription.status === 'ACTIVE'
                             ? 'ATIVO • LIBERADO'
+                            : subscription.status === 'PENDING_TRANSFER'
+                            ? 'PENDENTE P/ TRANSFERÊNCIA'
                             : 'INATIVO / AGUARDANDO'}
                         </Badge>
                         <Badge variant="outline" className="text-[10px] font-bold">
@@ -3174,7 +3183,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         {/* =====================================================================
             TAB 2: CLIENTES (PF) & EMPRESAS (PJ)
             Suporta todos os filtros do menu Clientes e Empresas:
-            Cadastrados | Inativos | Pendentes | Prospect | Prospect Arquivados |
+            Cadastrados | Ativos | Inativos | Pendentes p/ Transferência | Pendentes |
             Cancelados | Via site
         ===================================================================== */}
         <TabsContent value="associados" className="space-y-4">
@@ -3262,9 +3271,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     { id: 'ALL', label: 'Cadastrados (Todos)' },
                     { id: 'ACTIVE', label: 'Ativos' },
                     { id: 'INACTIVE', label: 'Inativos' },
+                    { id: 'PENDING_TRANSFER', label: 'Pendentes p/ Transferência' },
                     { id: 'PENDING', label: 'Pendentes' },
-                    { id: 'PROSPECT', label: 'Prospect' },
-                    { id: 'ARCHIVED_PROSPECT', label: 'Prospect Arquivados' },
                     { id: 'CANCELLED', label: 'Cancelados' },
                   ] as const
                 ).map((st) => (
@@ -3455,13 +3463,23 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           </td>
                           <td className="py-3 px-4 border-r border-slate-200 text-center">
                             <span
-                              className={`inline-block px-2.5 py-0.5 rounded font-black text-[11px] lowercase ${
+                              className={`inline-block px-2.5 py-0.5 rounded font-black text-[11px] whitespace-nowrap ${
                                 sub.status === 'ACTIVE'
-                                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                                  : 'bg-rose-100 text-rose-800 border border-rose-300'
+                                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 lowercase'
+                                  : sub.status === 'PENDING_TRANSFER'
+                                  ? 'bg-amber-100 text-amber-900 border border-amber-300 font-bold'
+                                  : sub.status === 'PENDING'
+                                  ? 'bg-amber-100 text-amber-800 border border-amber-300 lowercase'
+                                  : 'bg-rose-100 text-rose-800 border border-rose-300 lowercase'
                               }`}
                             >
-                              {sub.status === 'ACTIVE' ? 'ativo' : 'inativo'}
+                              {sub.status === 'ACTIVE'
+                                ? 'ativo'
+                                : sub.status === 'PENDING_TRANSFER'
+                                ? 'pendente para transferência'
+                                : sub.status === 'PENDING'
+                                ? 'pendente'
+                                : 'inativo'}
                             </span>
                           </td>
                           <td className="py-3 px-4 text-right">
@@ -6641,6 +6659,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     className={`rounded-2xl border-2 p-4 flex items-center justify-between gap-3 ${
                       subscription.status === 'ACTIVE'
                         ? 'border-emerald-500 bg-emerald-50/50'
+                        : subscription.status === 'PENDING_TRANSFER'
+                        ? 'border-amber-400 bg-amber-50/50'
                         : 'border-rose-400 bg-rose-50/50'
                     }`}
                   >
@@ -6650,11 +6670,15 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           className={
                             subscription.status === 'ACTIVE'
                               ? 'bg-emerald-600 text-white'
+                              : subscription.status === 'PENDING_TRANSFER'
+                              ? 'bg-amber-600 text-white'
                               : 'bg-rose-600 text-white'
                           }
                         >
                           {subscription.status === 'ACTIVE'
                             ? 'STATUS: ATIVO (LIBERADO)'
+                            : subscription.status === 'PENDING_TRANSFER'
+                            ? 'STATUS: PENDENTE P/ TRANSFERÊNCIA'
                             : 'STATUS: INATIVO'}
                         </Badge>
                         <Badge variant="outline" className="text-xs font-bold">
@@ -6757,12 +6781,16 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     className={`text-[11px] sm:text-xs py-1 ${
                       selectedSubForDetail.status === 'ACTIVE'
                         ? 'bg-emerald-600 text-white'
+                        : selectedSubForDetail.status === 'PENDING_TRANSFER'
+                        ? 'bg-amber-600 text-white'
                         : 'bg-rose-600 text-white'
                     }`}
                   >
                     STATUS ATUAL:{' '}
                     {selectedSubForDetail.status === 'ACTIVE'
                       ? 'ATIVO (LIBERADO)'
+                      : selectedSubForDetail.status === 'PENDING_TRANSFER'
+                      ? 'PENDENTE PARA TRANSFERÊNCIA'
                       : 'INATIVO (AGUARDANDO PAGTO)'}
                   </Badge>
                   <Button
@@ -7560,11 +7588,15 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                             className={`text-xs font-black uppercase px-2.5 py-1 rounded ${
                               situacaoLiberar === 'SIM' && situacaoInativar === 'NAO'
                                 ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                : selectedSubForDetail?.status === 'PENDING_TRANSFER'
+                                ? 'bg-amber-100 text-amber-900 border border-amber-300'
                                 : 'bg-rose-100 text-rose-800 border border-rose-300'
                             }`}
                           >
                             {situacaoLiberar === 'SIM' && situacaoInativar === 'NAO'
                               ? 'ATIVO'
+                              : selectedSubForDetail?.status === 'PENDING_TRANSFER'
+                              ? 'PENDENTE P/ TRANSFERÊNCIA'
                               : 'INATIVO'}
                           </span>
                         </div>
