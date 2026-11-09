@@ -80,31 +80,59 @@ export function SpecialPlansSection() {
             <strong>Plano Mensal Recorrente</strong> diretamente no plano escolhido.
           </p>
 
-          <div className="inline-flex items-center bg-white p-1.5 rounded-2xl border-2 border-emerald-600/30 shadow-md mt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl mx-auto pt-2 text-left">
+            {/* Opção Anual */}
             <button
               type="button"
               onClick={() => setBillingCycle('ANNUAL')}
-              className={`px-5 py-2.5 rounded-xl font-black text-xs sm:text-sm transition-all flex items-center gap-2 ${
+              className={`relative p-4 rounded-2xl border-2 transition-all text-left ${
                 billingCycle === 'ANNUAL'
-                  ? 'bg-emerald-700 text-white shadow'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'border-emerald-600 bg-white shadow-lg ring-2 ring-emerald-600/20'
+                  : 'border-slate-200 bg-white/80 hover:border-slate-300 shadow-sm'
               }`}
             >
-              <span>Plano Anual (Até 12x)</span>
-              <span className="bg-amber-400 text-emerald-950 text-[10px] px-2 py-0.5 rounded-full font-black">
-                10% OFF
-              </span>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-black text-slate-900 flex items-center gap-1.5">
+                  ⭐ Plano Anual (Até 12x)
+                </span>
+                <span className="bg-amber-400 text-emerald-950 text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase shadow-xs">
+                  10% OFF • Mais Econômico
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 mt-1 leading-snug">
+                Economia garantida no valor anual. Parcele em <strong>até 12x no cartão</strong> ou pague à vista no PIX.
+              </p>
+              <div className="mt-2.5 flex items-center gap-1.5 text-xs font-bold text-emerald-800">
+                <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span>10% de desconto aplicado • 12 meses garantidos</span>
+              </div>
             </button>
+
+            {/* Opção Mensal */}
             <button
               type="button"
               onClick={() => setBillingCycle('MONTHLY')}
-              className={`px-5 py-2.5 rounded-xl font-black text-xs sm:text-sm transition-all ${
+              className={`relative p-4 rounded-2xl border-2 transition-all text-left ${
                 billingCycle === 'MONTHLY'
-                  ? 'bg-emerald-700 text-white shadow'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'border-emerald-600 bg-white shadow-lg ring-2 ring-emerald-600/20'
+                  : 'border-slate-200 bg-white/80 hover:border-slate-300 shadow-sm'
               }`}
             >
-              Plano Mensal Recorrente
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-black text-slate-900 flex items-center gap-1.5">
+                  📅 Plano Mensal Recorrente
+                </span>
+                <span className="bg-slate-200 text-slate-700 text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase">
+                  Flexibilidade
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 mt-1 leading-snug">
+                Assinatura mensal recorrente no cartão ou boleto/pix. Flexibilidade mês a mês para sua família.
+              </p>
+              <div className="mt-2.5 flex items-center gap-1.5 text-xs font-bold text-slate-700">
+                <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span>Cobrança mês a mês sem fidelidade de 1 ano</span>
+              </div>
             </button>
           </div>
         </div>
@@ -173,36 +201,44 @@ export function SpecialPlansSection() {
 
             {/* Coluna Direita: Montador Interativo + Preço e Aderir */}
             <div className="lg:col-span-7 bg-white text-slate-900 rounded-2xl p-5 sm:p-7 shadow-xl border border-slate-100 space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
-                <div className="flex items-center gap-2">
-                  <SlidersHorizontal className="w-4 h-4 text-emerald-700" />
-                  <span className="font-black text-sm uppercase tracking-wide text-slate-900">
-                    Selecione os integrantes da sua família:
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <SlidersHorizontal className="w-4 h-4 text-emerald-700" />
+                    <span className="font-black text-sm uppercase tracking-wide text-slate-900">
+                      Integrantes da Família:
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-slate-500 font-medium">
+                    Escolha o ciclo de cobrança do grupo:
                   </span>
                 </div>
 
-                <div className="inline-flex bg-slate-100 p-1 rounded-xl text-xs font-bold">
-                  <button
-                    type="button"
-                    onClick={() => setBillingCycle('MONTHLY')}
-                    className={`px-3 py-1 rounded-lg transition-all ${
-                      billingCycle === 'MONTHLY'
-                        ? 'bg-white text-slate-900 shadow-sm font-black'
-                        : 'text-slate-500'
-                    }`}
-                  >
-                    Mensal
-                  </button>
+                <div className="grid grid-cols-2 gap-1.5 bg-slate-100 p-1.5 rounded-2xl w-full sm:w-auto">
                   <button
                     type="button"
                     onClick={() => setBillingCycle('ANNUAL')}
-                    className={`px-3 py-1 rounded-lg transition-all ${
+                    className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 ${
                       billingCycle === 'ANNUAL'
-                        ? 'bg-emerald-700 text-white shadow-sm font-black'
-                        : 'text-slate-500'
+                        ? 'bg-emerald-700 text-white shadow-md'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
                     }`}
                   >
-                    Anual 10% OFF
+                    <span>⭐ Anual</span>
+                    <span className="bg-amber-400 text-emerald-950 text-[9px] px-1.5 py-0.5 rounded font-black">
+                      10% OFF
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBillingCycle('MONTHLY')}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 ${
+                      billingCycle === 'MONTHLY'
+                        ? 'bg-emerald-700 text-white shadow-md'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                    }`}
+                  >
+                    <span>📅 Mensal</span>
                   </button>
                 </div>
               </div>
@@ -217,17 +253,17 @@ export function SpecialPlansSection() {
                   },
                   {
                     code: 'ESTUDANTE',
-                    label: 'Estudante (50% OFF)',
+                    label: 'Estudante (10% OFF)',
                     price: billingCycle === 'ANNUAL' ? 'R$ 22,50/mês' : 'R$ 25,00/mês',
                   },
                   {
                     code: 'PROFESSOR',
-                    label: 'Professor (50% OFF)',
+                    label: 'Professor (10% OFF)',
                     price: billingCycle === 'ANNUAL' ? 'R$ 22,50/mês' : 'R$ 25,00/mês',
                   },
                   {
                     code: 'SERVIDOR',
-                    label: 'Servidor Público (50% OFF)',
+                    label: 'Servidor Público (10% OFF)',
                     price: billingCycle === 'ANNUAL' ? 'R$ 22,50/mês' : 'R$ 25,00/mês',
                   },
                   {

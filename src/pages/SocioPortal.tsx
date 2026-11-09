@@ -298,15 +298,6 @@ const SocioPortal: React.FC = () => {
                 <MessageCircle className="w-3.5 h-3.5 mr-1.5" /> Dúvidas no WhatsApp
               </Button>
             </a>
-            <Link to="/verificar">
-              <Button
-                variant="outline"
-                size="sm"
-                className="border-slate-700 bg-slate-800/70 text-slate-200 hover:bg-slate-800 text-xs"
-              >
-                <QrCode className="w-3.5 h-3.5 mr-1.5" /> Validar QR Code
-              </Button>
-            </Link>
             {subscription && (
               <Button
                 variant="ghost"
@@ -528,7 +519,11 @@ const SocioPortal: React.FC = () => {
                           </p>
                         </div>
                       </div>
-                      <Link to="/verificar" className="shrink-0 w-full md:w-auto">
+                      <Link
+                        to={`/verificar/${encodeURIComponent(subscription.members[0]?.qrToken || subscription.members[0]?.cardNumber || '')}`}
+                        target="_blank"
+                        className="shrink-0 w-full md:w-auto"
+                      >
                         <Button
                           size="sm"
                           variant="outline"

@@ -293,7 +293,7 @@ export const DEFAULT_CLUB_MODALITIES: ClubModality[] = [
     contractType: 'ADESAO_PF',
     active: true,
     emoji: '🎓',
-    badgeText: '50% OFF'
+    badgeText: '10% OFF'
   },
   {
     id: 'mod-professor-pass',
@@ -322,7 +322,7 @@ export const DEFAULT_CLUB_MODALITIES: ClubModality[] = [
     contractType: 'ADESAO_PF',
     active: true,
     emoji: '📚',
-    badgeText: '50% OFF'
+    badgeText: '10% OFF'
   },
   {
     id: 'mod-servidor-pass',
@@ -351,7 +351,7 @@ export const DEFAULT_CLUB_MODALITIES: ClubModality[] = [
     contractType: 'ADESAO_PF',
     active: true,
     emoji: '🏛️',
-    badgeText: '50% OFF'
+    badgeText: '10% OFF'
   },
   {
     id: 'mod-lessa-kids',

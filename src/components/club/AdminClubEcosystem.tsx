@@ -248,6 +248,15 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
   const [editingDepModalityMemberId, setEditingDepModalityMemberId] = useState<string | null>(null);
   const [targetNewModalityCode, setTargetNewModalityCode] = useState('');
 
+  // Modal de Validação de Carteirinha (QR Code / Portaria) via menu Clientes
+  const [isQrValidatorModalOpen, setIsQrValidatorModalOpen] = useState(false);
+  const [qrValidatorQuery, setQrValidatorQuery] = useState('');
+  const [qrValidatorResult, setQrValidatorResult] = useState<{
+    subscription: ClubSubscription;
+    member: ClubMember;
+  } | null>(null);
+  const [qrValidatorSearched, setQrValidatorSearched] = useState(false);
+
   const [visitDateInput, setVisitDateInput] = useState(
     () => new Date().toISOString().split('T')[0]
   );
@@ -486,6 +495,51 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
   const persist = async (next: ClubDatabaseState) => {
     const saved = await saveClubState(next);
     setState(saved);
+  };
+
+  const handleExecuteQrSearch = (customQuery?: string) => {
+    const q = (customQuery !== undefined ? customQuery : qrValidatorQuery).trim();
+    if (!state || !q) return;
+    const matches = findMemberOrSubscriptionByQuery(state, q);
+    if (matches.length > 0) {
+      setQrValidatorResult(matches[0]);
+    } else {
+      setQrValidatorResult(null);
+    }
+    setQrValidatorSearched(true);
+  };
+
+  const handleRegisterQrCheckin = async (sub: ClubSubscription, member: ClubMember) => {
+    if (!state) return;
+    const today = new Date().toISOString().split('T')[0];
+    const nowTime = new Date().toTimeString().slice(0, 5);
+    const existingVisits = sub.visits || [];
+
+    const newVisit: ClubVisitRecord = {
+      id: `vis_${Date.now()}`,
+      date: today,
+      time: nowTime,
+      memberName: member.fullName,
+      cardNumber: member.cardNumber,
+      source: 'QR_SCAN',
+      notes: 'Entrada autorizada na Portaria / Recepção Balneário Lessa',
+    };
+    const updatedSub: ClubSubscription = {
+      ...sub,
+      visits: [newVisit, ...existingVisits],
+    };
+    const nextState: ClubDatabaseState = {
+      ...state,
+      subscriptions: state.subscriptions.map((s) =>
+        s.id === updatedSub.id ? updatedSub : s
+      ),
+    };
+    await persist(nextState);
+    setQrValidatorResult({ subscription: updatedSub, member });
+    toast({
+      title: 'Entrada Confirmada com Sucesso!',
+      description: `${member.fullName} — Check-in registrado em ${formatDateBR(today)} às ${nowTime}.`,
+    });
   };
 
   // Computed metrics (matching Labcard Dashboard)
@@ -1821,6 +1875,25 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                       <span>{item.label}</span>
                     </button>
                   ))}
+
+                  <div className="border-t border-white/20 my-1 pt-1">
+                    <button
+                      type="button"
+                      onMouseEnter={() => setOpenSubMenu(null)}
+                      onClick={() => {
+                        setIsQrValidatorModalOpen(true);
+                        setQrValidatorQuery('');
+                        setQrValidatorResult(null);
+                        setQrValidatorSearched(false);
+                        setOpenMenu(null);
+                        setOpenSubMenu(null);
+                      }}
+                      className="w-full px-4 py-2 text-left bg-emerald-800/80 hover:bg-emerald-700 flex items-center gap-2 text-white font-bold"
+                    >
+                      <QrCode className="w-4 h-4 text-amber-300" />
+                      <span>Validar Carteirinha (QR Code)</span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -12127,6 +12200,197 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
               >
                 Salvar Modelo de Contrato
               </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL: VALIDAR CARTEIRINHA (PORTARIA / QR CODE) */}
+      <Dialog
+        open={isQrValidatorModalOpen}
+        onOpenChange={(open) => {
+          setIsQrValidatorModalOpen(open);
+          if (!open) {
+            setQrValidatorQuery('');
+            setQrValidatorResult(null);
+            setQrValidatorSearched(false);
+          }
+        }}
+      >
+        <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto p-6 space-y-4">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
+              <QrCode className="w-5 h-5 text-emerald-700" />
+              <span>Validador de Carteirinha Oficial (Portaria / QR Code)</span>
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+            <p className="text-xs text-slate-600 font-medium">
+              Aponte o leitor de QR Code ou digite o <strong>Número da Carteirinha</strong>, <strong>Código de Verificação</strong> ou <strong>CPF</strong> do associado para autenticar o acesso e registrar a entrada.
+            </p>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleExecuteQrSearch();
+              }}
+              className="flex gap-2"
+            >
+              <Input
+                placeholder="Ex: LESSA-CLUB-ADULTO-1234, CPF ou Código do QR..."
+                value={qrValidatorQuery}
+                onChange={(e) => setQrValidatorQuery(e.target.value)}
+                className="bg-white border-slate-300 font-semibold text-sm"
+                autoFocus
+              />
+              <Button
+                type="submit"
+                className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-5 shrink-0"
+              >
+                <Search className="w-4 h-4 mr-1.5" />
+                Buscar
+              </Button>
+            </form>
+          </div>
+
+          {qrValidatorSearched && !qrValidatorResult && (
+            <div className="bg-rose-50 border border-rose-200 text-rose-800 rounded-xl p-4 text-center space-y-1">
+              <div className="flex items-center justify-center gap-2 font-bold text-sm">
+                <XCircle className="w-5 h-5 text-rose-600" />
+                <span>Carteirinha não encontrada</span>
+              </div>
+              <p className="text-xs text-rose-600">
+                Nenhum titular ou dependente foi localizado com o termo digitado. Verifique os dígitos e tente novamente.
+              </p>
+            </div>
+          )}
+
+          {qrValidatorResult && (
+            <div className="space-y-4 pt-1">
+              {/* Status do Plano */}
+              <div
+                className={`p-4 rounded-xl border flex items-center justify-between gap-3 ${
+                  qrValidatorResult.subscription.status === 'ACTIVE'
+                    ? 'bg-emerald-50 border-emerald-300 text-emerald-950'
+                    : 'bg-amber-50 border-amber-300 text-amber-950'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  {qrValidatorResult.subscription.status === 'ACTIVE' ? (
+                    <CheckCircle2 className="w-8 h-8 text-emerald-600 shrink-0" />
+                  ) : (
+                    <AlertTriangle className="w-8 h-8 text-amber-600 shrink-0" />
+                  )}
+                  <div>
+                    <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                      Situação Cadastral
+                    </div>
+                    <div className="text-base font-black">
+                      {qrValidatorResult.subscription.status === 'ACTIVE'
+                        ? '✅ PLANO ATIVO — ACESSO LIBERADO'
+                        : `⚠️ PLANO ${qrValidatorResult.subscription.status} — VERIFICAR FINANCEIRO`}
+                    </div>
+                  </div>
+                </div>
+
+                <Badge
+                  className={`font-black text-xs px-3 py-1 ${
+                    qrValidatorResult.subscription.status === 'ACTIVE'
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-amber-500 text-white'
+                  }`}
+                >
+                  {qrValidatorResult.subscription.status === 'ACTIVE' ? 'LIBERADO' : 'PENDENTE'}
+                </Badge>
+              </div>
+
+              {/* Informações do Membro e Titular */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs bg-white border border-slate-200 rounded-xl p-4">
+                <div>
+                  <span className="text-slate-400 font-bold block uppercase text-[10px]">
+                    Nome Completo
+                  </span>
+                  <span className="font-black text-sm text-slate-900">
+                    {qrValidatorResult.member.fullName}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-bold block uppercase text-[10px]">
+                    Categoria / Modalidade
+                  </span>
+                  <span className="font-bold text-slate-800">
+                    {qrValidatorResult.member.role === 'HOLDER'
+                      ? 'Titular do Plano'
+                      : 'Dependente Familiar'}{' '}
+                    • {qrValidatorResult.member.modalityCode}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-bold block uppercase text-[10px]">
+                    Número da Carteirinha
+                  </span>
+                  <span className="font-mono font-bold text-slate-800">
+                    {qrValidatorResult.member.cardNumber || '—'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-bold block uppercase text-[10px]">
+                    CPF
+                  </span>
+                  <span className="font-mono font-semibold text-slate-700">
+                    {qrValidatorResult.member.cpf || 'Não informado'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-bold block uppercase text-[10px]">
+                    Validade do Acesso
+                  </span>
+                  <span className="font-bold text-slate-800">
+                    {qrValidatorResult.subscription.expiresAt
+                      ? formatDateBR(qrValidatorResult.subscription.expiresAt)
+                      : '31/12/2026'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-bold block uppercase text-[10px]">
+                    Titular do Contrato
+                  </span>
+                  <span className="font-semibold text-slate-700">
+                    {qrValidatorResult.subscription.holder.fullName} ({qrValidatorResult.subscription.holder.phone || 'Sem fone'})
+                  </span>
+                </div>
+              </div>
+
+              {/* Preview Visual da Carteirinha Oficial */}
+              <div className="bg-slate-900 rounded-xl p-3 flex justify-center">
+                <ClubMemberCardView
+                  member={qrValidatorResult.member}
+                  subscription={qrValidatorResult.subscription}
+                  modalities={state?.modalities}
+                  scale={0.85}
+                />
+              </div>
+
+              {/* Botão de Registro de Entrada / Check-in */}
+              <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                <span className="text-xs text-slate-500">
+                  Total de acessos registrados:{' '}
+                  <strong>{qrValidatorResult.subscription.visits?.length || 0}</strong>
+                </span>
+                <Button
+                  type="button"
+                  onClick={() =>
+                    handleRegisterQrCheckin(
+                      qrValidatorResult.subscription,
+                      qrValidatorResult.member
+                    )
+                  }
+                  className="bg-emerald-700 hover:bg-emerald-800 text-white font-black"
+                >
+                  <CheckCircle2 className="w-4 h-4 mr-1.5" />
+                  Registrar Entrada na Portaria (Check-in)
+                </Button>
+              </div>
             </div>
           )}
         </DialogContent>

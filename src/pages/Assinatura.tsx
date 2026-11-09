@@ -38,8 +38,8 @@ export default function Assinatura() {
       a: 'Não! No Balneário Lessa, crianças de até 11 anos, idosos com 60 anos ou mais e pessoas com deficiência (PCD & TEA) possuem ACESSO LIVRE e GRATUITO. Eles não precisam de assinatura e entram gratuitamente acompanhando o titular sócio.'
     },
     {
-      q: 'Quem tem direito ao Lessa Pass com 50% de desconto?',
-      a: 'Professores, Servidores Públicos e Estudantes têm direito ao Lessa Pass com 50% de desconto (a partir de apenas R$ 22,50/mês no plano anual). Basta comprovar o vínculo na hora do cadastro ou envio da documentação.'
+      q: 'Quem tem direito ao Lessa Pass com 10% de desconto?',
+      a: 'Professores, Servidores Públicos e Estudantes têm direito ao Lessa Pass com 10% de desconto (a partir de apenas R$ 22,50/mês no plano anual). Basta comprovar o vínculo na hora do cadastro ou envio da documentação.'
     },
     {
       q: 'Como acesso o balneário após assinar?',
@@ -86,25 +86,7 @@ export default function Assinatura() {
               </div>
             </a>
 
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              <Link to="/planos" className="hidden md:inline-flex">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="border-amber-300/60 bg-amber-400/15 text-amber-200 hover:bg-amber-400 hover:text-emerald-950 font-black text-xs rounded-xl"
-                >
-                  Ver Planos / Aderir
-                </Button>
-              </Link>
-              <Link to="/verificar" className="hidden sm:inline-flex">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="border-white/25 bg-white/10 text-white hover:bg-white/20 font-bold text-xs rounded-xl"
-                >
-                  <QrCode className="w-3.5 h-3.5 mr-1.5" /> Validar Cartão
-                </Button>
-              </Link>
+            <div className="flex items-center gap-2">
               <Link to="/socio">
                 <Button
                   size="sm"

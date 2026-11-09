@@ -166,40 +166,38 @@ const VerificarCarteirinha: React.FC = () => {
       </header>
 
       <div className="container mx-auto px-4 pt-8 max-w-4xl">
-        {/* Search Box */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl mb-8">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-              <QrCode className="w-5 h-5" />
+        {/* Tela Privada: Orientação para Leitura do QR Code pelo Celular */}
+        {!initialQuery && !matchedMember && (
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 sm:p-12 shadow-2xl text-center space-y-5 max-w-xl mx-auto my-8">
+            <div className="w-20 h-20 rounded-3xl bg-emerald-500/10 border-2 border-emerald-500/30 flex items-center justify-center text-emerald-400 mx-auto">
+              <QrCode className="w-10 h-10 animate-pulse" />
             </div>
-            <div>
-              <h1 className="text-lg md:text-xl font-black text-white">
-                Consulta Rápida de Carteirinha / QR Code
+            <div className="space-y-2">
+              <h1 className="text-2xl font-black text-white">
+                Validação de Acesso via QR Code
               </h1>
-              <p className="text-xs text-slate-400">
-                Digite o Nº da Carteirinha (ex: 1212253001), CPF ou Nome do Associado para validar o acesso na portaria
+              <p className="text-sm text-slate-300 leading-relaxed">
+                Aponte a <strong>câmera do seu celular</strong> para o QR Code presente na carteirinha física ou digital do associado para validar os dados e liberar o acesso na portaria.
               </p>
             </div>
-          </div>
-
-          <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <Input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Nº do Cartão, CPF ou Nome completo..."
-                className="pl-10 bg-slate-950 border-slate-700 text-white h-12 text-base"
-              />
+            <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 text-xs text-slate-400 text-left space-y-2">
+              <div className="flex items-center gap-2 text-amber-400 font-bold">
+                <ShieldCheck className="w-4 h-4" />
+                <span>Privacidade & Segurança dos Associados:</span>
+              </div>
+              <p>
+                Por proteção de dados pessoais (LGPD), a consulta manual direta fica disponível exclusivamente para a recepção e administração autenticada no <strong>Painel Lessa Club &gt; Clientes &gt; Validar Carteirinha</strong>.
+              </p>
             </div>
-            <Button
-              type="submit"
-              className="h-12 px-8 bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
-            >
-              Verificar Acesso
-            </Button>
-          </form>
-        </div>
+            <div className="pt-2">
+              <Link to="/assinatura">
+                <Button variant="outline" className="border-slate-700 text-slate-300 hover:bg-slate-800">
+                  <ArrowLeft className="w-4 h-4 mr-2" /> Voltar ao Início
+                </Button>
+              </Link>
+            </div>
+          </div>
+        )}
 
         {loading && (
           <div className="text-center py-12 text-slate-400">Carregando base de associados...</div>

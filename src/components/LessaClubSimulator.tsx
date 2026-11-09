@@ -199,9 +199,9 @@ export function LessaClubSimulator() {
             <div className="grid grid-cols-1 gap-3">
               {[
                 { key: 'adult', label: 'Lessa Club', price: 44.91, prefix: 'a partir de', emoji: '🎟️', badge: null, color: 'bg-gradient-to-br from-sun/10 to-sun/30 border-sun/40 shadow-sun/5' },
-                { key: 'student', label: 'Estudante', price: 22.50, prefix: 'a partir de', emoji: '🎓', badge: '50% OFF', color: 'bg-sun/5 border-sun/10' },
-                { key: 'teacher', label: 'Professor', price: 22.50, prefix: 'a partir de', emoji: '📚', badge: '50% OFF', color: 'bg-green-600/5 border-green-600/10' },
-                { key: 'server', label: 'Servidor', price: 22.50, prefix: 'a partir de', emoji: '🏛️', badge: '50% OFF', color: 'bg-primary/5 border-primary/10' },
+                { key: 'student', label: 'Estudante', price: 22.50, prefix: 'a partir de', emoji: '🎓', badge: '10% OFF', color: 'bg-sun/5 border-sun/10' },
+                { key: 'teacher', label: 'Professor', price: 22.50, prefix: 'a partir de', emoji: '📚', badge: '10% OFF', color: 'bg-green-600/5 border-green-600/10' },
+                { key: 'server', label: 'Servidor', price: 22.50, prefix: 'a partir de', emoji: '🏛️', badge: '10% OFF', color: 'bg-primary/5 border-primary/10' },
               ].map((item) => (
                 <div key={item.key} className={`flex items-center p-3 sm:p-4 rounded-2xl border shadow-sm transition-colors gap-3 ${item.color}`}>
                   {/* Icon */}
