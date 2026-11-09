@@ -605,15 +605,23 @@ export default function Admin() {
     let count = 0;
 
     (bookings || []).forEach((b: any) => {
-      if (b && b.id && !seenIds.has(b.id)) count++;
+      if (b && b.id) {
+        const isSeen = seenIds.has(b.id) || (b.confirmation_code && seenIds.has(b.confirmation_code));
+        if (!isSeen) count++;
+      }
     });
 
     (orders || []).forEach((o: any) => {
-      if (o && o.id && !seenIds.has(o.id)) {
-        const isLinked = (bookings || []).some(
-          (b: any) => b.id === o.id || (b.confirmation_code && b.confirmation_code === o.confirmation_code)
-        );
-        if (!isLinked) count++;
+      if (o && o.id) {
+        const isSeen = seenIds.has(o.id) || (o.confirmation_code && seenIds.has(o.confirmation_code));
+        if (!isSeen) {
+          const isLinked = (bookings || []).some(
+            (b: any) =>
+              b.id === o.id ||
+              (b.confirmation_code && o.confirmation_code && b.confirmation_code === o.confirmation_code)
+          );
+          if (!isLinked) count++;
+        }
       }
     });
 
@@ -3220,7 +3228,37 @@ export default function Admin() {
                     isAllowedDay={isAllowedDay}
                   />
 
+                  {agendaMovementsCount > 0 && (
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-rose-50 border border-rose-200/80 rounded-2xl px-4 py-2.5 shadow-sm">
+                      <div className="flex items-center gap-2">
+                        <span className="relative flex h-2.5 w-2.5">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-600"></span>
+                        </span>
+                        <span className="text-xs font-bold text-rose-950">
+                          {agendaMovementsCount} {agendaMovementsCount === 1 ? 'nova reserva não visualizada' : 'novas reservas não visualizadas'}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => {
+                          const allIds = [
+                            ...(bookings || []).flatMap((b: any) => [b.id, b.confirmation_code]),
+                            ...(orders || []).flatMap((o: any) => [o.id, o.confirmation_code]),
+                          ].filter(Boolean);
+                          markAllReservationsAsSeen(allIds);
+                          toast({ title: "Todas as reservas foram marcadas como vistas!" });
+                        }}
+                        className="text-xs font-black text-rose-700 hover:text-rose-900 underline self-end sm:self-auto transition-colors"
+                      >
+                        Zerar notificações (Marcar todas como vistas)
+                      </button>
+                    </div>
+                  )}
+
                   <BookingTable  
+                      onViewBooking={(id, code) => {
+                        markReservationAsSeen([id, code].filter(Boolean) as string[]);
+                      }}
                       bookings={[...bookings, ...(orders || []).map(o => ({...o, is_order: true}))].filter(b => {
                         const bDate = b.visit_date || (typeof b.created_at === 'string' ? b.created_at.split('T')[0] : '');
                         const today = format(new Date(), 'yyyy-MM-dd');

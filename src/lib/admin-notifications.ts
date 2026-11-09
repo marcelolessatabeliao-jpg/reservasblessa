@@ -13,11 +13,18 @@ export const getSeenReservationIds = (): Set<string> => {
   }
 };
 
-export const markReservationAsSeen = (id: string) => {
-  if (!id || typeof window === 'undefined') return;
+export const markReservationAsSeen = (idOrIds: string | string[]) => {
+  if (!idOrIds || typeof window === 'undefined') return;
+  const list = Array.isArray(idOrIds) ? idOrIds : [idOrIds];
   const set = getSeenReservationIds();
-  if (!set.has(id)) {
-    set.add(id);
+  let changed = false;
+  list.forEach((id) => {
+    if (id && !set.has(id)) {
+      set.add(id);
+      changed = true;
+    }
+  });
+  if (changed) {
     try {
       localStorage.setItem(SEEN_RESERVATIONS_KEY, JSON.stringify(Array.from(set)));
       window.dispatchEvent(new CustomEvent('admin_notifications_updated'));

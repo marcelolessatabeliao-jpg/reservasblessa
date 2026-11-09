@@ -100,7 +100,7 @@ interface BookingTableProps {
   kioskReservations?: any[];
   quadReservations?: any[];
   totalQuads?: number;
-  onViewBooking?: (id: string) => void;
+  onViewBooking?: (id: string, confirmationCode?: string) => void;
 }
 
 const STATUS_CONFIG: Record<
@@ -215,6 +215,13 @@ export function BookingTable({
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [shareData, setShareData] = useState<any>(null);
   const [customerEditData, setCustomerEditData] = useState({ name: '', phone: '', cpf: '' });
+
+  useEffect(() => {
+    if (expandedId && onViewBooking) {
+      const found = bookings.find((b) => b.id === expandedId);
+      onViewBooking(expandedId, found?.confirmation_code);
+    }
+  }, [expandedId, onViewBooking, bookings]);
 
   if (bookings.length === 0) {
     return (
@@ -342,7 +349,7 @@ export function BookingTable({
                   onClick={() => {
                     const next = expanded ? null : booking.id;
                     setExpandedId(next);
-                    if (next && onViewBooking) onViewBooking(booking.id);
+                    if (next && onViewBooking) onViewBooking(booking.id, booking.confirmation_code);
                   }}
                 >
                   <div className="flex flex-col">
@@ -890,7 +897,7 @@ export function BookingTable({
                       onClick={() => {
                         const next = expanded ? null : booking.id;
                         setExpandedId(next);
-                        if (next && onViewBooking) onViewBooking(booking.id);
+                        if (next && onViewBooking) onViewBooking(booking.id, booking.confirmation_code);
                       }}
                       className={cn(
                         "group transition-all cursor-pointer duration-300 overflow-hidden",
