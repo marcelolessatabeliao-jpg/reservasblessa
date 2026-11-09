@@ -335,6 +335,19 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
   const [reportPlanCode, setReportPlanCode] = useState<string>('TODOS');
   const [reportCategory, setReportCategory] = useState<'TODOS' | 'TITULARES' | 'DEPENDENTES'>('TODOS');
   const [reportStatus, setReportStatus] = useState<'TODOS' | 'ACTIVE' | 'INACTIVE' | 'OVERDUE'>('TODOS');
+  const [reportCity, setReportCity] = useState<string>('TODAS');
+  const [reportCourtesy, setReportCourtesy] = useState<'TODOS' | 'CORTESIA' | 'PAGO'>('TODOS');
+  const [reportSearchQuery, setReportSearchQuery] = useState<string>('');
+
+  const uniqueReportCities = useMemo(() => {
+    if (!state?.subscriptions) return [];
+    const set = new Set<string>();
+    state.subscriptions.forEach((s) => {
+      const city = (s.addressCity || '').trim();
+      if (city) set.add(city);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  }, [state?.subscriptions]);
 
   // Adicionais e Serviços do Balneário
   const [editingCatalogService, setEditingCatalogService] = useState<{
@@ -871,18 +884,38 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       if (reportStartDate && sub.startDate < reportStartDate) return false;
       if (reportEndDate && sub.startDate > reportEndDate) return false;
 
-      // 2. Status
+      // 2. Cidade
+      if (reportCity !== 'TODAS') {
+        const subCity = (sub.addressCity || '').trim().toLowerCase();
+        if (subCity !== reportCity.trim().toLowerCase()) return false;
+      }
+
+      // 3. Status
       if (reportStatus === 'ACTIVE' && sub.status !== 'ACTIVE') return false;
       if (reportStatus === 'INACTIVE' && sub.status === 'ACTIVE') return false;
       if (reportStatus === 'OVERDUE' && sub.status !== 'OVERDUE') return false;
 
-      // 3. Plano
+      // 4. Plano
       if (reportPlanCode !== 'TODOS') {
         const hasPlan = sub.members.some((m) => m.modalityCode === reportPlanCode);
         if (!hasPlan) return false;
       }
 
-      // 4. Faixa Etária
+      // 5. Cortesia
+      const subIsCourtesy =
+        sub.paymentMethod === 'COURTESY' ||
+        sub.monthlyEquivalent === 0 ||
+        sub.totalContractValue === 0;
+      if (reportCourtesy === 'CORTESIA' && !subIsCourtesy) return false;
+      if (reportCourtesy === 'PAGO' && subIsCourtesy) return false;
+
+      // 6. Categoria (Titulares vs Dependentes)
+      if (reportCategory === 'DEPENDENTES') {
+        const hasDeps = sub.members.some((m) => m.role === 'DEPENDENTE');
+        if (!hasDeps) return false;
+      }
+
+      // 7. Faixa Etária
       if (reportAgeGroup !== 'TODOS') {
         const matchesAge = sub.members.some((m) => {
           const age = getAgeFromBirthDate(m.birthDate);
@@ -900,18 +933,111 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     });
   };
 
+  const getFilteredReportMembers = () => {
+    if (!state?.subscriptions) return [];
+    const results: { member: ClubMember; sub: ClubSubscription; isCourtesy: boolean }[] = [];
+    const q = reportSearchQuery.trim().toLowerCase();
+
+    state.subscriptions.forEach((sub) => {
+      // 1. Período
+      if (reportStartDate && sub.startDate < reportStartDate) return;
+      if (reportEndDate && sub.startDate > reportEndDate) return;
+
+      // 2. Cidade
+      if (reportCity !== 'TODAS') {
+        const subCity = (sub.addressCity || '').trim().toLowerCase();
+        if (subCity !== reportCity.trim().toLowerCase()) return;
+      }
+
+      // 3. Status
+      if (reportStatus === 'ACTIVE' && sub.status !== 'ACTIVE') return;
+      if (reportStatus === 'INACTIVE' && sub.status === 'ACTIVE') return;
+      if (reportStatus === 'OVERDUE' && sub.status !== 'OVERDUE') return;
+
+      const subIsCourtesy =
+        sub.paymentMethod === 'COURTESY' ||
+        sub.monthlyEquivalent === 0 ||
+        sub.totalContractValue === 0;
+
+      (sub.members || []).forEach((m) => {
+        // 4. Titulares vs Dependentes
+        if (reportCategory === 'TITULARES' && m.role !== 'TITULAR') return;
+        if (reportCategory === 'DEPENDENTES' && m.role !== 'DEPENDENTE') return;
+
+        // 5. Plano
+        if (reportPlanCode !== 'TODOS' && m.modalityCode !== reportPlanCode) return;
+
+        // 6. Cortesia
+        const memberIsCourtesy =
+          subIsCourtesy ||
+          m.monthlyValue === 0 ||
+          m.modalityCode === 'KIDS' ||
+          m.modalityCode === 'IDOSO_60' ||
+          m.modalityCode === 'PCD_TEA';
+
+        if (reportCourtesy === 'CORTESIA' && !memberIsCourtesy) return;
+        if (reportCourtesy === 'PAGO' && memberIsCourtesy) return;
+
+        // 7. Faixa Etária
+        if (reportAgeGroup !== 'TODOS') {
+          const age = getAgeFromBirthDate(m.birthDate);
+          if (age >= 0) {
+            if (reportAgeGroup === 'KIDS' && age > 12) return;
+            if (reportAgeGroup === 'TEENS' && (age < 13 || age > 17)) return;
+            if (reportAgeGroup === 'ADULTS' && (age < 18 || age > 59)) return;
+            if (reportAgeGroup === 'SENIORS' && age < 60) return;
+          }
+        }
+
+        // 8. Busca textual rápida no relatório
+        if (q) {
+          const matchName = (m.fullName || '').toLowerCase().includes(q);
+          const matchCpf = cleanDigits(m.cpf || '').includes(cleanDigits(q));
+          const matchCard = (m.cardNumber || '').toLowerCase().includes(q);
+          const matchSub = (sub.holderName || '').toLowerCase().includes(q);
+          if (!matchName && !matchCpf && !matchCard && !matchSub) return;
+        }
+
+        results.push({
+          member: m,
+          sub,
+          isCourtesy: memberIsCourtesy,
+        });
+      });
+    });
+
+    return results;
+  };
+
   const handleExportReportXlsx = (reportType: string) => {
     if (!state) return;
     let rows: Record<string, any>[] = [];
-    if (reportType === 'CLIENTES' || reportType === 'EMPRESAS') {
+    if (reportType === 'CLIENTES') {
+      const members = getFilteredReportMembers();
+      rows = members.map(({ member, sub, isCourtesy }) => ({
+        Cartao: member.cardNumber,
+        Tipo: member.role === 'TITULAR' ? 'Titular' : 'Dependente',
+        Nome: member.fullName,
+        CPF: member.cpf || sub.holderCpf,
+        Telefone: member.phone || sub.holderPhone,
+        Email: sub.holderEmail || '',
+        Plano: member.modalityName || sub.planSummaryLabel,
+        Cidade: sub.addressCity || 'Ariquemes',
+        UF: sub.addressState || 'RO',
+        Cortesia: isCourtesy ? 'SIM (Gratuidade Oficial)' : 'NÃO (Plano Pago)',
+        Valor: isCourtesy ? 0 : member.monthlyValue,
+        Status: member.status || sub.status,
+        Origem: sub.origin || 'SITE',
+        TitularVinculado: member.role === 'DEPENDENTE' ? sub.holderName : '-',
+        DataAdesao: formatDateBR(sub.startDate || sub.createdAt),
+      }));
+    } else if (reportType === 'EMPRESAS') {
       const baseFiltered = getFilteredReportSubscriptions();
-      const targetSubs = baseFiltered.filter((s) =>
-        reportType === 'EMPRESAS' ? s.personType === 'PJ' : s.personType === 'PF'
-      );
+      const targetSubs = baseFiltered.filter((s) => s.personType === 'PJ');
       rows = targetSubs.map((s) => ({
         Cartao: s.subscriptionCode,
-        Titular: s.holderName,
-        CPF_CNPJ: s.holderCpf,
+        Empresa: s.holderName,
+        CNPJ: s.holderCpf,
         Telefone: s.holderPhone,
         Email: s.holderEmail || '',
         Plano: s.planSummaryLabel,
@@ -4818,6 +4944,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   reportAgeGroup !== 'TODOS' ||
                   reportPlanCode !== 'TODOS' ||
                   reportCategory !== 'TODOS' ||
+                  reportCity !== 'TODAS' ||
+                  reportCourtesy !== 'TODOS' ||
                   reportStatus !== 'TODOS') && (
                   <Button
                     type="button"
@@ -4829,7 +4957,10 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                       setReportAgeGroup('TODOS');
                       setReportPlanCode('TODOS');
                       setReportCategory('TODOS');
+                      setReportCity('TODAS');
+                      setReportCourtesy('TODOS');
                       setReportStatus('TODOS');
+                      setReportSearchQuery('');
                     }}
                     className="text-xs font-bold text-rose-700 hover:bg-rose-50 h-7 px-2"
                   >
@@ -4838,8 +4969,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 )}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-3 text-xs">
-                {/* Data Início */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 text-xs">
+                {/* 1. Data Início */}
                 <div>
                   <Label className="text-[11px] font-bold text-slate-600">Período De:</Label>
                   <Input
@@ -4850,7 +4981,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   />
                 </div>
 
-                {/* Data Fim */}
+                {/* 2. Data Fim */}
                 <div>
                   <Label className="text-[11px] font-bold text-slate-600">Período Até:</Label>
                   <Input
@@ -4861,23 +4992,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   />
                 </div>
 
-                {/* Idades / Faixa Etária */}
-                <div>
-                  <Label className="text-[11px] font-bold text-slate-600">Faixa Etária / Idade:</Label>
-                  <select
-                    value={reportAgeGroup}
-                    onChange={(e) => setReportAgeGroup(e.target.value as any)}
-                    className="w-full h-8 rounded-md border border-slate-300 px-2 text-xs font-bold bg-white mt-1"
-                  >
-                    <option value="TODOS">Todas as Idades</option>
-                    <option value="KIDS">Crianças (0 a 12 anos)</option>
-                    <option value="TEENS">Adolescentes (13 a 17 anos)</option>
-                    <option value="ADULTS">Adultos (18 a 59 anos)</option>
-                    <option value="SENIORS">Idosos (60+ anos)</option>
-                  </select>
-                </div>
-
-                {/* Planos */}
+                {/* 3. Planos */}
                 <div>
                   <Label className="text-[11px] font-bold text-slate-600">Plano:</Label>
                   <select
@@ -4894,21 +5009,52 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   </select>
                 </div>
 
-                {/* Categoria */}
+                {/* 4. Cidades */}
                 <div>
-                  <Label className="text-[11px] font-bold text-slate-600">Categoria:</Label>
+                  <Label className="text-[11px] font-bold text-slate-600">Cidade:</Label>
+                  <select
+                    value={reportCity}
+                    onChange={(e) => setReportCity(e.target.value)}
+                    className="w-full h-8 rounded-md border border-slate-300 px-2 text-xs font-bold bg-white mt-1"
+                  >
+                    <option value="TODAS">Todas as Cidades</option>
+                    {uniqueReportCities.map((cidade) => (
+                      <option key={cidade} value={cidade}>
+                        📍 {cidade}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* 5. Cortesia */}
+                <div>
+                  <Label className="text-[11px] font-bold text-slate-600">Cortesia / Isento:</Label>
+                  <select
+                    value={reportCourtesy}
+                    onChange={(e) => setReportCourtesy(e.target.value as any)}
+                    className="w-full h-8 rounded-md border border-slate-300 px-2 text-xs font-bold bg-white mt-1"
+                  >
+                    <option value="TODOS">Todos (Pagos e Cortesias)</option>
+                    <option value="CORTESIA">🎁 Apenas Cortesias / Gratuidades</option>
+                    <option value="PAGO">💳 Apenas Planos Pagos</option>
+                  </select>
+                </div>
+
+                {/* 6. Categoria (Titulares e Dependentes) */}
+                <div>
+                  <Label className="text-[11px] font-bold text-slate-600">Tipo de Membro:</Label>
                   <select
                     value={reportCategory}
                     onChange={(e) => setReportCategory(e.target.value as any)}
                     className="w-full h-8 rounded-md border border-slate-300 px-2 text-xs font-bold bg-white mt-1"
                   >
                     <option value="TODOS">Titulares + Dependentes</option>
-                    <option value="TITULARES">Apenas Titulares</option>
-                    <option value="DEPENDENTES">Apenas Dependentes</option>
+                    <option value="TITULARES">👑 Apenas Titulares</option>
+                    <option value="DEPENDENTES">👥 Apenas Dependentes</option>
                   </select>
                 </div>
 
-                {/* Status */}
+                {/* 7. Status */}
                 <div>
                   <Label className="text-[11px] font-bold text-slate-600">Status:</Label>
                   <select
@@ -4918,6 +5064,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   >
                     <option value="TODOS">Todos os Status</option>
                     <option value="ACTIVE">Ativos / Adimplentes</option>
+                    <option value="PENDING_TRANSFER">Pendente Transferência</option>
                     <option value="INACTIVE">Inativos</option>
                     <option value="OVERDUE">Inadimplentes / Vencidos</option>
                   </select>
@@ -4964,7 +5111,254 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   ))}
                 </div>
 
-                {clientReportSubFilter === 'POR_CIDADES' ? (
+                {clientReportSubFilter === 'LISTAGEM' ? (
+                  <div className="space-y-4">
+                    {/* Cabeçalho da Listagem com Estatísticas e Busca Rápida */}
+                    <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm space-y-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <Users className="w-5 h-5 text-emerald-800" />
+                            <h4 className="font-black text-base text-slate-900">
+                              Listagem Geral de Associados (Titulares & Dependentes)
+                            </h4>
+                          </div>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            Filtros aplicados por planos, datas, cidades, cortesia e categoria (titulares/dependentes).
+                          </p>
+                        </div>
+
+                        {/* Estatísticas resumidas em badges */}
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {(() => {
+                            const members = getFilteredReportMembers();
+                            const titularCount = members.filter((m) => m.member.role === 'TITULAR').length;
+                            const depCount = members.filter((m) => m.member.role === 'DEPENDENTE').length;
+                            const courtesyCount = members.filter((m) => m.isCourtesy).length;
+                            const paidCount = members.length - courtesyCount;
+                            return (
+                              <>
+                                <Badge className="bg-emerald-800 text-white font-bold text-xs py-1 px-2.5">
+                                  Total: {members.length} associados
+                                </Badge>
+                                <Badge variant="outline" className="text-xs font-bold border-emerald-300 text-emerald-900 bg-emerald-50">
+                                  👑 {titularCount} Titulares
+                                </Badge>
+                                <Badge variant="outline" className="text-xs font-bold border-sky-300 text-sky-900 bg-sky-50">
+                                  👥 {depCount} Dependentes
+                                </Badge>
+                                <Badge variant="outline" className="text-xs font-bold border-amber-300 text-amber-900 bg-amber-50">
+                                  🎁 {courtesyCount} Cortesias
+                                </Badge>
+                                <Badge variant="outline" className="text-xs font-bold border-slate-300 text-slate-700 bg-slate-50">
+                                  💳 {paidCount} Pagos
+                                </Badge>
+                              </>
+                            );
+                          })()}
+                        </div>
+                      </div>
+
+                      {/* Busca Rápida na Listagem */}
+                      <div className="relative">
+                        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <Input
+                          placeholder="Buscar nesta listagem por nome, CPF ou número da carteirinha..."
+                          value={reportSearchQuery}
+                          onChange={(e) => setReportSearchQuery(e.target.value)}
+                          className="pl-9 h-9 text-xs bg-slate-50 border-slate-200"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Tabela Completa de Associados */}
+                    {(() => {
+                      const filteredMembers = getFilteredReportMembers();
+
+                      if (filteredMembers.length === 0) {
+                        return (
+                          <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-slate-200 p-6 space-y-3">
+                            <Users className="w-10 h-10 text-slate-300 mx-auto" />
+                            <div className="text-sm font-bold text-slate-700">
+                              Nenhum associado encontrado para os filtros selecionados.
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setReportStartDate('');
+                                setReportEndDate('');
+                                setReportAgeGroup('TODOS');
+                                setReportPlanCode('TODOS');
+                                setReportCategory('TODOS');
+                                setReportCity('TODAS');
+                                setReportCourtesy('TODOS');
+                                setReportStatus('TODOS');
+                                setReportSearchQuery('');
+                              }}
+                              className="text-xs font-bold text-emerald-800"
+                            >
+                              Limpar Filtros e Ver Todos
+                            </Button>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-left text-xs">
+                              <thead className="bg-slate-100 text-slate-700 font-black uppercase text-[10px] tracking-wider border-b border-slate-200">
+                                <tr>
+                                  <th className="py-3 px-3">Nº Cartão</th>
+                                  <th className="py-3 px-3">Associado</th>
+                                  <th className="py-3 px-2">Tipo</th>
+                                  <th className="py-3 px-3">Plano / Categoria</th>
+                                  <th className="py-3 px-2">Cidade/UF</th>
+                                  <th className="py-3 px-2">Valor / Tipo</th>
+                                  <th className="py-3 px-2">Data Adesão</th>
+                                  <th className="py-3 px-2 text-center">Status</th>
+                                  <th className="py-3 px-3 text-right">Ações</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100 font-medium text-slate-800">
+                                {filteredMembers.map(({ member, sub, isCourtesy }) => {
+                                  const isTitular = member.role === 'TITULAR';
+                                  return (
+                                    <tr
+                                      key={`${sub.id}-${member.id}`}
+                                      className="hover:bg-emerald-50/40 transition-colors"
+                                    >
+                                      {/* 1. Nº Cartão */}
+                                      <td className="py-2.5 px-3 font-mono font-bold text-slate-900">
+                                        {member.cardNumber}
+                                      </td>
+
+                                      {/* 2. Associado (Nome + CPF + Telefone) */}
+                                      <td className="py-2.5 px-3">
+                                        <div className="flex items-center gap-2">
+                                          {member.photoUrl ? (
+                                            <img
+                                              src={member.photoUrl}
+                                              alt={member.fullName}
+                                              className="w-8 h-8 rounded-full object-cover border border-slate-200 shrink-0"
+                                            />
+                                          ) : (
+                                            <div
+                                              className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-xs shrink-0 ${
+                                                isTitular
+                                                  ? 'bg-emerald-100 text-emerald-800'
+                                                  : 'bg-sky-100 text-sky-800'
+                                              }`}
+                                            >
+                                              {member.fullName.charAt(0)}
+                                            </div>
+                                          )}
+                                          <div>
+                                            <span className="font-bold text-slate-900 block leading-tight">
+                                              {member.fullName}
+                                            </span>
+                                            <div className="text-[10px] text-slate-500 flex items-center gap-2 mt-0.5">
+                                              {member.cpf && <span>CPF: {member.cpf}</span>}
+                                              {member.phone && <span>Tel: {member.phone}</span>}
+                                              {!isTitular && (
+                                                <span className="text-emerald-700 font-semibold">
+                                                  (Titular: {sub.holderName})
+                                                </span>
+                                              )}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </td>
+
+                                      {/* 3. Tipo (Titular / Dependente) */}
+                                      <td className="py-2.5 px-2">
+                                        <Badge
+                                          className={
+                                            isTitular
+                                              ? 'bg-emerald-800 text-white font-black text-[10px]'
+                                              : 'bg-sky-700 text-white font-bold text-[10px]'
+                                          }
+                                        >
+                                          {isTitular ? 'TITULAR' : 'DEPENDENTE'}
+                                        </Badge>
+                                      </td>
+
+                                      {/* 4. Plano */}
+                                      <td className="py-2.5 px-3">
+                                        <span className="font-bold text-slate-800 block text-[11px]">
+                                          {member.modalityName || sub.planSummaryLabel}
+                                        </span>
+                                        <span className="text-[10px] text-slate-500">
+                                          {sub.billingCycle === 'ANNUAL' ? 'Plano Anual' : 'Plano Mensal'}
+                                        </span>
+                                      </td>
+
+                                      {/* 5. Cidade/UF */}
+                                      <td className="py-2.5 px-2 text-[11px] font-semibold text-slate-700">
+                                        {sub.addressCity ? `${sub.addressCity}/${sub.addressState || 'RO'}` : 'Ariquemes/RO'}
+                                      </td>
+
+                                      {/* 6. Valor / Cortesia */}
+                                      <td className="py-2.5 px-2">
+                                        {isCourtesy ? (
+                                          <Badge className="bg-amber-100 text-amber-900 border border-amber-300 font-bold text-[10px]">
+                                            🎁 Cortesia / Isento
+                                          </Badge>
+                                        ) : (
+                                          <span className="font-black text-slate-900 text-xs">
+                                            {formatCurrency(member.monthlyValue || sub.monthlyEquivalent)}
+                                            <span className="text-[10px] text-slate-500 font-normal">/mês</span>
+                                          </span>
+                                        )}
+                                      </td>
+
+                                      {/* 7. Data Cadastro */}
+                                      <td className="py-2.5 px-2 text-[11px] text-slate-600 font-mono">
+                                        {formatDateBR(sub.startDate || sub.createdAt)}
+                                      </td>
+
+                                      {/* 8. Status */}
+                                      <td className="py-2.5 px-2 text-center">
+                                        <Badge
+                                          className={
+                                            (member.status || sub.status) === 'ACTIVE'
+                                              ? 'bg-emerald-600 text-white font-bold text-[10px]'
+                                              : (member.status || sub.status) === 'PENDING_TRANSFER'
+                                              ? 'bg-amber-600 text-white font-bold text-[10px]'
+                                              : 'bg-rose-600 text-white font-bold text-[10px]'
+                                          }
+                                        >
+                                          {(member.status || sub.status) === 'ACTIVE'
+                                            ? 'ATIVO'
+                                            : (member.status || sub.status) === 'PENDING_TRANSFER'
+                                            ? 'PENDENTE TRANSF.'
+                                            : 'INATIVO'}
+                                        </Badge>
+                                      </td>
+
+                                      {/* 9. Ações */}
+                                      <td className="py-2.5 px-3 text-right">
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => setSelectedSubForDetail(sub)}
+                                          className="h-7 px-2.5 text-xs font-bold hover:bg-emerald-50 hover:text-emerald-800"
+                                        >
+                                          Abrir Ficha
+                                        </Button>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                ) : clientReportSubFilter === 'POR_CIDADES' ? (
                   <div className="space-y-2">
                     <h4 className="font-black text-sm text-slate-900">
                       Relatório de Clientes por Cidades
