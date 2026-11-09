@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
@@ -17,6 +17,10 @@ import { WHATSAPP_NUMBER } from '@/lib/booking-types';
 
 export default function Assinatura() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, []);
 
   const toggleFaq = (index: number) => {
     setOpenFaq(prev => prev === index ? null : index);
@@ -217,13 +221,18 @@ export default function Assinatura() {
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
             <Button
-              asChild
               size="lg"
-              className="w-full sm:w-auto bg-amber-400 hover:bg-amber-300 text-emerald-950 font-black text-base h-14 px-8 rounded-2xl shadow-xl"
+              onClick={() => {
+                const el = document.getElementById('simulador') || document.getElementById('vitrine-planos');
+                if (el) {
+                  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                } else {
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+              }}
+              className="w-full sm:w-auto bg-amber-400 hover:bg-amber-300 text-emerald-950 font-black text-base h-14 px-8 rounded-2xl shadow-xl transition-all cursor-pointer"
             >
-              <a href="#simulador">
-                SIMULAR MINHA FAMÍLIA AGORA
-              </a>
+              SIMULAR MINHA FAMÍLIA AGORA
             </Button>
             <Button
               asChild

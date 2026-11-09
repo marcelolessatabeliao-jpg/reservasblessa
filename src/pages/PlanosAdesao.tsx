@@ -1194,7 +1194,7 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
             {/* ===============================================================
                 SUPER DESTAQUE: PLANO FAMÍLIA PERSONALIZADO (FULL-WIDTH PREMIUM)
             =============================================================== */}
-            <div className="relative rounded-3xl bg-gradient-to-br from-emerald-950 via-[#072e1d] to-slate-950 text-white p-6 sm:p-8 shadow-2xl border-2 border-amber-400/80 ring-8 ring-amber-400/10 overflow-hidden">
+            <div id="simulador" className="relative rounded-3xl bg-gradient-to-br from-emerald-950 via-[#072e1d] to-slate-950 text-white p-6 sm:p-8 shadow-2xl border-2 border-amber-400/80 ring-8 ring-amber-400/10 overflow-hidden scroll-mt-24">
               {/* Brilho decorativo */}
               <div className="absolute -top-24 -right-24 w-72 h-72 bg-amber-400/15 blur-3xl rounded-full pointer-events-none" />
               <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-emerald-500/15 blur-3xl rounded-full pointer-events-none" />

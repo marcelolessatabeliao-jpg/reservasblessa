@@ -1,5 +1,6 @@
+import { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 // Version: 1.1.2 - Premium Modal Update
 import { Toaster } from "@/components/ui/toaster";
@@ -18,6 +19,23 @@ import { MetaPixel } from "@/components/MetaPixel";
 
 const queryClient = new QueryClient();
 
+function ScrollToTop() {
+  const { pathname, hash } = useLocation();
+
+  useEffect(() => {
+    if (!hash) {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    } else {
+      const element = document.getElementById(hash.replace('#', ''));
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+  }, [pathname, hash]);
+
+  return null;
+}
+
 // Detectar se o acesso está vindo de um subdomínio de assinatura (ex: assinatura.balneario.com.br ou assinatura.balneariolessa.com.br)
 const isAssinaturaSubdomain = typeof window !== 'undefined' && (
   window.location.hostname.toLowerCase().startsWith('assinatura.') ||
@@ -30,6 +48,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <ScrollToTop />
         <MetaPixel />
         <Routes>
           <Route path="/" element={isAssinaturaSubdomain ? <Assinatura /> : <Index />} />
