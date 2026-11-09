@@ -20,24 +20,13 @@ import {
   Upload,
   FileCheck,
   AlertTriangle,
-  ZoomIn,
-  Maximize2,
   ChevronDown,
   ChevronUp,
-  Shield,
-  Info,
-  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import logo from '@/assets/logo.png';
 import {
@@ -280,14 +269,6 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
   // Ciclo geral e por card
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('ANNUAL');
   const [cardCycleMap, setCardCycleMap] = useState<Record<string, BillingCycle>>({});
-
-  // Modal para ampliação de carteirinha (Frente e Verso com textos 100% nítidos e legíveis)
-  const [zoomCardModal, setZoomCardModal] = useState<{
-    open: boolean;
-    title: string;
-    frontUrl: string;
-    backUrl?: string;
-  } | null>(null);
 
   // Controle de abas de benefícios e documentação (fechadas por padrão para melhor visualização dos planos)
   const [expandedBenefitsMap, setExpandedBenefitsMap] = useState<Record<string, boolean>>({});
@@ -1554,33 +1535,12 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                               </div>
                             </div>
                           )}
-                          <div
-                            onClick={() =>
-                              setZoomCardModal({
-                                open: true,
-                                title: card.title,
-                                frontUrl: card.cardImage,
-                                backUrl: card.backCardUrl || (card.modalityCode === 'KIDS' || card.modalityCode === 'IDOSO_60' ? '/cards/39.png' : '/cards/24.png'),
-                              })
-                            }
-                            className="group relative aspect-[1.586/1] w-full rounded-xl overflow-hidden shadow-sm bg-transparent cursor-pointer flex items-center justify-center transition-all hover:ring-2 hover:ring-emerald-500"
-                            title="Clique para ver a carteirinha em alta resolução"
-                          >
+                          <div className="relative aspect-[1.586/1] w-full rounded-xl overflow-hidden shadow-sm bg-transparent flex items-center justify-center">
                             <img
                               src={card.cardImage}
                               alt={card.title}
-                              className="w-full h-full object-cover rounded-xl select-none transition-transform duration-200 group-hover:scale-[1.02]"
+                              className="w-full h-full object-cover rounded-xl select-none"
                             />
-                            {/* Overlay sutil ao passar o mouse */}
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 text-white">
-                              <ZoomIn className="w-5 h-5 text-amber-300 drop-shadow" />
-                              <span className="text-xs font-black drop-shadow tracking-wide">
-                                Clique para ampliar
-                              </span>
-                              <span className="text-[10px] text-slate-200 font-medium">
-                                Frente e Verso legíveis
-                              </span>
-                            </div>
                           </div>
                         </div>
 
@@ -3711,95 +3671,6 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
             </div>
           </div>
         )}
-
-        {/* ===============================================================
-            MODAL DE ZOOM EM ALTA DEFINIÇÃO DA CARTEIRINHA (FRENTE E VERSO)
-            GARANTE 100% DE NITIDEZ E LEGIBILIDADE DOS TEXTOS DO CARTÃO
-        =============================================================== */}
-        <Dialog
-          open={!!zoomCardModal?.open}
-          onOpenChange={(open) => {
-            if (!open) setZoomCardModal(null);
-          }}
-        >
-          <DialogContent className="max-w-4xl w-[95vw] p-0 overflow-hidden bg-slate-950 border border-slate-800 text-white rounded-2xl shadow-2xl">
-            <div className="p-4 sm:p-5 border-b border-slate-800/80 bg-slate-900/60 flex items-center justify-between">
-              <div>
-                <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider block">
-                  Carteirinha Oficial Balneário Lessa
-                </span>
-                <DialogTitle className="text-lg sm:text-xl font-black text-white mt-0.5">
-                  {zoomCardModal?.title}
-                </DialogTitle>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setZoomCardModal(null)}
-                className="text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg h-9 w-9 p-0"
-              >
-                <X className="w-5 h-5" />
-              </Button>
-            </div>
-
-            <div className="p-4 sm:p-6 space-y-6 max-h-[82vh] overflow-y-auto">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-                {/* Frente */}
-                <div className="space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-black uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-                      <Sparkles className="w-4 h-4 text-emerald-400" /> Frente do Cartão
-                    </span>
-                    <Badge className="bg-emerald-900/80 text-emerald-300 border border-emerald-500/40 text-[10px]">
-                      Alta Definição
-                    </Badge>
-                  </div>
-                  <div className="rounded-xl overflow-hidden border-2 border-emerald-500/40 shadow-2xl bg-black">
-                    {zoomCardModal?.frontUrl && (
-                      <img
-                        src={zoomCardModal.frontUrl}
-                        alt={`Frente ${zoomCardModal.title}`}
-                        className="w-full h-auto object-contain block"
-                      />
-                    )}
-                  </div>
-                </div>
-
-                {/* Verso */}
-                <div className="space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-black uppercase tracking-wider text-teal-400 flex items-center gap-1.5">
-                      <Shield className="w-4 h-4 text-teal-400" /> Verso com Regulamento
-                    </span>
-                    <Badge className="bg-teal-900/80 text-teal-300 border border-teal-500/40 text-[10px]">
-                      Regulamento e Termos
-                    </Badge>
-                  </div>
-                  <div className="rounded-xl overflow-hidden border-2 border-teal-500/40 shadow-2xl bg-black">
-                    {zoomCardModal?.backUrl && (
-                      <img
-                        src={zoomCardModal.backUrl}
-                        alt={`Verso ${zoomCardModal.title}`}
-                        className="w-full h-auto object-contain block"
-                      />
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Dica de nitidez e uso */}
-              <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 text-xs text-slate-300 flex items-start gap-3">
-                <Info className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-                <div className="leading-relaxed">
-                  <span className="font-black text-white block">
-                    Garantia de Impressão e Legibilidade Balneário Lessa:
-                  </span>
-                  Todos os textos, versículo bíblico, dados cadastrais e o QR Code são impressos em tecnologia PVC de alta resolução e também disponibilizados digitalmente no seu aplicativo de sócio.
-                </div>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
       </div>
     </div>
   );
