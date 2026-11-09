@@ -1625,25 +1625,6 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                               </button>
                             </div>
 
-                            {/* Banner de Simulação Ativa - Deixa cristalino o valor simulado */}
-                            <div
-                              className={`py-1.5 px-3 rounded-lg text-[11px] font-bold flex items-center justify-between border ${
-                                activeCycle === 'ANNUAL'
-                                  ? 'bg-emerald-50 border-emerald-300 text-emerald-950'
-                                  : 'bg-slate-50 border-slate-200 text-slate-800'
-                              }`}
-                            >
-                              <span>
-                                {activeCycle === 'ANNUAL'
-                                  ? '⭐ Simulação Anual (10% OFF):'
-                                  : '📅 Simulação Mensal:'}
-                              </span>
-                              <span className="font-black text-right">
-                                {activeCycle === 'ANNUAL'
-                                  ? `12x de ${formatCurrency(displayInstallment)} (${formatCurrency(displayAnnual)} à vista)`
-                                  : `${formatCurrency(displayMonthly)}/mês`}
-                              </span>
-                            </div>
                           </div>
                         ) : (
                           <div className="px-5 pt-3">
