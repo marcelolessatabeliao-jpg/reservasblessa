@@ -673,6 +673,14 @@ export const CustomFamilyCheckoutModal: React.FC<CustomFamilyCheckoutModalProps>
               </div>
             </div>
 
+            {/* Aviso Profissional de Assinatura */}
+            <div className="text-[11px] text-slate-600 bg-slate-50 rounded-xl p-3 border border-slate-200 leading-relaxed flex items-start gap-2">
+              <span className="text-emerald-700 text-sm">ℹ️</span>
+              <div>
+                <strong className="text-slate-800">Modalidade de Assinatura:</strong> Os planos Lessa Club constituem uma assinatura contínua com mensalidade regular para garantia e manutenção do acesso ilimitado e benefícios de associado, devidas mensalmente independentemente da frequência de uso ou visitação ao balneário.
+              </div>
+            </div>
+
             {/* Escolha do Meio de Pagamento */}
             {pricingSummary.monthlyTotal > 0 && (
               <div className="space-y-2.5">

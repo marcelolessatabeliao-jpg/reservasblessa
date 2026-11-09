@@ -2737,9 +2737,12 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                   <div className="text-[11px] text-amber-300">
                     * As carteirinhas digitais serão geradas e personalizadas ao final da adesão.
                   </div>
+                  <div className="text-[11px] text-slate-300/95 leading-relaxed pt-1.5 border-t border-slate-800">
+                    <span className="text-emerald-400 font-bold">ℹ️ Modalidade de Assinatura:</span> Os planos do Lessa Club constituem uma assinatura contínua com mensalidades regulares para garantia de acesso ilimitado e manutenção dos benefícios de associado, devidas mensalmente independentemente da frequência de uso ou visitação ao balneário.
+                  </div>
                 </div>
 
-                <div className="text-right">
+                <div className="text-right sm:self-center shrink-0">
                   <span className="text-[10px] uppercase text-slate-400 block font-bold">
                     Valor Final da Assinatura
                   </span>
@@ -3110,6 +3113,16 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                 )}
               </div>
             )}
+
+            {/* AVISO PROFISSIONAL SOBRE A ASSINATURA */}
+            <div className="bg-amber-50/90 border border-amber-300 rounded-2xl p-4 text-xs text-amber-950 space-y-1">
+              <strong className="text-amber-900 flex items-center gap-1.5 font-black uppercase tracking-wide">
+                <span>ℹ️</span> Informação Importante sobre a Assinatura:
+              </strong>
+              <p className="leading-relaxed text-slate-700">
+                Os planos do Lessa Club constituem uma <strong>assinatura contínua com mensalidade regular</strong> para garantia do seu acesso ilimitado e manutenção ativa de todos os benefícios de associado. As mensalidades são devidas mensalmente durante a vigência do contrato, <strong>independentemente da frequência de comparecimento ou utilização do balneário</strong>.
+              </p>
+            </div>
 
             {/* VISUALIZAÇÃO DO CONTRATO ORGANIZADO COM ESPAÇAMENTO ENTRE CLÁUSULAS */}
             <div
