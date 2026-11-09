@@ -67,7 +67,7 @@ import { exportToExcel, exportToPDF, exportMultiSheetExcel } from '@/utils/expor
 import { KIOSKS } from '@/lib/admin-constants';
 
 class ClubErrorBoundary extends React.Component<
-  { children: React.ReactNode },
+  { children: React.ReactNode; title?: string },
   { hasError: boolean; error: any }
 > {
   constructor(props: any) {
@@ -78,7 +78,7 @@ class ClubErrorBoundary extends React.Component<
     return { hasError: true, error };
   }
   componentDidCatch(error: any, errorInfo: any) {
-    console.error('ClubErrorBoundary caught error:', error, errorInfo);
+    console.error('TabErrorBoundary caught error:', error, errorInfo);
   }
   render() {
     if (this.state.hasError) {
@@ -88,7 +88,7 @@ class ClubErrorBoundary extends React.Component<
             ⚠️
           </div>
           <h3 className="text-lg font-black text-slate-900">
-            Ocorreu uma instabilidade ao carregar os dados do Lessa Club
+            {this.props.title || 'Ocorreu uma instabilidade ao carregar este módulo'}
           </h3>
           <p className="text-xs text-slate-500 max-w-md mx-auto">
             {this.state.error?.message || 'Erro ao sincronizar dados locais.'}
@@ -101,7 +101,7 @@ class ClubErrorBoundary extends React.Component<
             }}
             className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs px-6"
           >
-            Recarregar Módulo Lessa Club
+            Recarregar Módulo
           </Button>
         </div>
       );
@@ -109,6 +109,7 @@ class ClubErrorBoundary extends React.Component<
     return this.props.children;
   }
 }
+const AdminTabErrorBoundary = ClubErrorBoundary;
 
 const QUAD_TIMES = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00'];
 const PAYMENT_METHODS = [
@@ -666,11 +667,11 @@ export default function Admin() {
   const [isUpdatingQuad, setIsUpdatingQuad] = useState(false);
 
 
-  const normalizeString = (str: string) => 
-    str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const normalizeString = (str: any) => 
+    String(str || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
-  const normalizePhone = (phone: string | null | undefined) => 
-    (phone || '').replace(/\D/g, '');
+  const normalizePhone = (phone: any) => 
+    String(phone || '').replace(/\D/g, '');
 
   const matchDate = (d1: any, d2: any) => {
     if (!d1 || !d2) return false;
@@ -3215,7 +3216,8 @@ export default function Admin() {
           )}>
              {activeTab === 'painel' && renderDashboard()}
                                        {activeTab === 'reservas' && (
-               <div className="space-y-4">
+                <AdminTabErrorBoundary title="Ocorreu uma instabilidade ao carregar a Agenda">
+                <div className="space-y-4">
                   <AgendaHeader 
                     agendaSubTab={agendaSubTab}
                     setAgendaSubTab={setAgendaSubTab as any}
@@ -3260,21 +3262,22 @@ export default function Admin() {
                         markReservationAsSeen([id, code].filter(Boolean) as string[]);
                       }}
                       bookings={[...bookings, ...(orders || []).map(o => ({...o, is_order: true}))].filter(b => {
+                        if (!b) return false;
                         const bDate = b.visit_date || (typeof b.created_at === 'string' ? b.created_at.split('T')[0] : '');
                         const today = format(new Date(), 'yyyy-MM-dd');
-                        const searchLower = search.toLowerCase().replace(/^#/, '');
-                        const bCode = (b.confirmation_code || '').toLowerCase();
+                        const searchLower = String(search || '').toLowerCase().replace(/^#/, '');
+                        const bCode = String(b.confirmation_code || '').toLowerCase();
                         const bIdShort = (typeof b.id === 'string' ? b.id.replace(/-/g, '').slice(0, 8) : '').toLowerCase();
                         const matchesSearch = !search || 
-                          (b.name || b.customer_name || '').toLowerCase().includes(searchLower) ||
-                          (b.phone || b.customer_phone || '').includes(searchLower) ||
+                          String(b.name || b.customer_name || '').toLowerCase().includes(searchLower) ||
+                          String(b.phone || b.customer_phone || '').includes(searchLower) ||
                           bCode.includes(searchLower) ||
                           bIdShort.includes(searchLower);
                         const matchesStatus = statusFilter === 'all' || 
                           (statusFilter === 'pending' && (!b.status || b.status.toLowerCase() === 'pending' || b.status.toLowerCase() === 'awaiting_payment' || b.status.toLowerCase() === 'waiting_local')) ||
                           (b.status && b.status.toLowerCase() === statusFilter.toLowerCase());
                         let matchesDate = true;
-                        if (filterDate) { matchesDate = bDate && bDate.startsWith(filterDate); } 
+                        if (filterDate) { matchesDate = Boolean(bDate && bDate.startsWith(filterDate)); } 
                         else if (!search) {
                           if (agendaSubTab === 'hoje') matchesDate = bDate === today;
                           else if (agendaSubTab === 'futuras') matchesDate = bDate > today;
@@ -3376,6 +3379,7 @@ export default function Admin() {
                       totalQuads={totalQuads}
                   />
                </div>
+               </AdminTabErrorBoundary>
              )}
              {activeTab === 'quiosques' && renderKioskTab()}
              {activeTab === 'chales' && (

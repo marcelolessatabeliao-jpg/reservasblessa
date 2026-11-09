@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 
 import { createPortal } from "react-dom";
 import { format, parseISO, isToday, isBefore, startOfDay } from "date-fns";
@@ -49,6 +49,26 @@ import { VoucherShareDialog } from "./VoucherShareDialog";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { formatProductDisplayName } from "@/utils/product-utils";
+
+const parseSafeDate = (val: any): Date => {
+  if (!val) return new Date();
+  try {
+    const d = typeof val === "string" ? parseISO(val) : val;
+    if (d instanceof Date && !isNaN(d.getTime())) return d;
+    return new Date();
+  } catch {
+    return new Date();
+  }
+};
+
+const formatSafeDate = (val: any, formatStr: string, options?: any): string => {
+  const d = parseSafeDate(val);
+  try {
+    return format(d, formatStr, options);
+  } catch {
+    return "--/--/----";
+  }
+};
 
 interface Booking {
   id: string;
@@ -216,12 +236,14 @@ export function BookingTable({
   const [shareData, setShareData] = useState<any>(null);
   const [customerEditData, setCustomerEditData] = useState({ name: '', phone: '', cpf: '' });
 
+  const seenExpandedRef = useRef<Set<string>>(new Set());
   useEffect(() => {
-    if (expandedId && onViewBooking) {
+    if (expandedId && onViewBooking && !seenExpandedRef.current.has(expandedId)) {
+      seenExpandedRef.current.add(expandedId);
       const found = bookings.find((b) => b.id === expandedId);
-      onViewBooking(expandedId, found?.confirmation_code);
+      onViewBooking(expandedId, found?.confirmation_code || undefined);
     }
-  }, [expandedId, onViewBooking, bookings]);
+  }, [expandedId, onViewBooking]);
 
   if (bookings.length === 0) {
     return (
@@ -326,8 +348,8 @@ export function BookingTable({
             const config = getStatusConfig(booking);
             const StatusIcon = config.icon;
             const expanded = expandedId === booking.id;
-            const bookingDate = parseISO(
-              booking.visit_date || new Date().toISOString(),
+            const bookingDate = parseSafeDate(
+              booking.visit_date || booking.created_at,
             );
             const childrenCount = Array.isArray(booking.children)
               ? booking.children.length
@@ -579,8 +601,8 @@ export function BookingTable({
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                           <Button
                                           onClick={() => {
-                                            const phone = (booking.phone || "").replace(/\D/g, "");
-                                            const code = booking.id?.replace(/-/g, '').slice(0, 8).toUpperCase() || "";
+                                            const phone = String(booking.phone || "").replace(/\D/g, "");
+                                            const code = booking.id ? String(booking.id).replace(/-/g, '').slice(0, 8).toUpperCase() : "";
                                             const itemsList = booking.order_items?.map((item: any) => {
                                               const unitPrice = item.unit_price ?? (item.total_price / (item.quantity || 1));
                                               const displayName = formatProductDisplayName(item.product_id, unitPrice, item.product_name);
@@ -590,7 +612,7 @@ export function BookingTable({
                                               }
                                               return `* ${item.quantity}x ${displayForMsg}`;
                                             }).join('\n') || "";
-                                            const dateStr = format(parseISO(booking.visit_date || new Date().toISOString()), "dd/MM/yyyy", { locale: ptBR });
+                                            const dateStr = formatSafeDate(booking.visit_date || booking.created_at, "dd/MM/yyyy", { locale: ptBR });
                                             
                                             setShareData({ booking, phone, dateStr, itemsList, code });
                                             setShareDialogOpen(true);
@@ -881,8 +903,8 @@ export function BookingTable({
                 const config = getStatusConfig(booking);
                 const StatusIcon = config.icon;
 
-                const bookingDate = parseISO(
-                  booking.visit_date || new Date().toISOString(),
+                const bookingDate = parseSafeDate(
+                  booking.visit_date || booking.created_at,
                 );
                 const childrenCount = Array.isArray(booking.children)
                   ? booking.children.length
@@ -1452,8 +1474,8 @@ export function BookingTable({
                                         <Button
                                           onClick={(e) => {
                                             e.stopPropagation();
-                                            const phone = ((booking as any).customer_phone || (booking as any).phone || "").replace(/\D/g, "");
-                                            const code = (booking as any).id?.replace(/-/g, '').slice(0, 8).toUpperCase() || "";
+                                            const phone = String((booking as any).customer_phone || (booking as any).phone || "").replace(/\D/g, "");
+                                            const code = (booking as any).id ? String((booking as any).id).replace(/-/g, '').slice(0, 8).toUpperCase() : "";
                                             const itemsList = booking.order_items?.map((item: any) => {
                                                const unitPrice = item.unit_price ?? (item.total_price / (item.quantity || 1));
                                                const displayName = formatProductDisplayName(item.product_id, unitPrice, item.product_name);
@@ -1463,7 +1485,7 @@ export function BookingTable({
                                                }
                                                return `* ${item.quantity}x ${displayForMsg}`;
                                              }).join('\n') || "";
-                                            const dateStr = format(parseISO(booking.visit_date || new Date().toISOString()), "dd/MM/yyyy", { locale: ptBR });
+                                            const dateStr = formatSafeDate(booking.visit_date || booking.created_at, "dd/MM/yyyy", { locale: ptBR });
                                             
                                             setShareData({ booking, phone, dateStr, itemsList, code });
                                             setShareDialogOpen(true);

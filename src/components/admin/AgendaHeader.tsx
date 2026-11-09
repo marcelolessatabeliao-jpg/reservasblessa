@@ -32,6 +32,16 @@ export const AgendaHeader: React.FC<AgendaHeaderProps> = ({
   setStatusFilter,
   isAllowedDay,
 }) => {
+  const safeFilterDate = React.useMemo(() => {
+    if (!filterDate) return undefined;
+    try {
+      const d = parseISO(filterDate);
+      return d instanceof Date && !isNaN(d.getTime()) ? d : undefined;
+    } catch {
+      return undefined;
+    }
+  }, [filterDate]);
+
   return (
     <div className="flex flex-row items-center gap-2 bg-emerald-900/5 p-2 rounded-xl border border-emerald-100 shadow-sm w-full mb-6 overflow-x-auto no-scrollbar">
       
@@ -73,13 +83,13 @@ export const AgendaHeader: React.FC<AgendaHeaderProps> = ({
       <div className="flex items-center gap-1 shrink-0">
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="outline" className={cn("h-10 px-2 rounded-lg bg-white shadow-sm border border-emerald-100 font-bold text-emerald-900 text-[10px] gap-1", !filterDate && "text-slate-400")}>
+            <Button variant="outline" className={cn("h-10 px-2 rounded-lg bg-white shadow-sm border border-emerald-100 font-bold text-emerald-900 text-[10px] gap-1", !safeFilterDate && "text-slate-400")}>
               <CalendarIcon className="w-3.5 h-3.5" />
-              <span className="hidden lg:inline">{filterDate ? format(parseISO(filterDate), 'dd/MM/yyyy', { locale: ptBR }) : "Data"}</span>
+              <span className="hidden lg:inline">{safeFilterDate ? format(safeFilterDate, 'dd/MM/yyyy', { locale: ptBR }) : "Data"}</span>
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0 rounded-2xl overflow-hidden border-2 border-emerald-100 shadow-2xl" align="end">
-            <Calendar mode="single" selected={filterDate ? parseISO(filterDate) : undefined} onSelect={d => setFilterDate(d ? format(d, 'yyyy-MM-dd') : '')} locale={ptBR} disabled={(date) => !isAllowedDay(date)} />
+            <Calendar mode="single" selected={safeFilterDate} onSelect={d => setFilterDate(d ? format(d, 'yyyy-MM-dd') : '')} locale={ptBR} disabled={(date) => !isAllowedDay(date)} />
           </PopoverContent>
         </Popover>
 
