@@ -44,6 +44,7 @@ import {
   saveClubState,
   createClubSubscription,
   generateAsaasChargeForClubInvoice,
+  generateAllAsaasInvoicesForSubscription,
   processClubCreditCardPayment,
   checkClubInvoicePaymentStatus,
   markClubInvoicePaid,
@@ -837,6 +838,17 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
               : 'PIX'
           );
           setPixCharge(charge);
+
+          if (billingCycle === 'MONTHLY' && res.subscription.invoices.length > 1) {
+            generateAllAsaasInvoicesForSubscription(
+              res.subscription,
+              paymentMethod === 'CREDIT_CARD'
+                ? 'CREDIT_CARD'
+                : paymentMethod === 'DEBIT_CARD'
+                ? 'DEBIT_CARD'
+                : 'PIX'
+            ).catch((e) => console.warn('[PlanosAdesao] Background all invoices sync warning:', e));
+          }
         } catch (chargeErr) {
           console.warn('Asaas charge warning:', chargeErr);
         }

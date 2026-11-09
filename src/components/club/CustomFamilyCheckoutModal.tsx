@@ -42,6 +42,7 @@ import {
   getMemberAccessMessage,
   isValidCpf,
   generateAsaasChargeForClubInvoice,
+  generateAllAsaasInvoicesForSubscription,
   checkClubInvoicePaymentStatus,
   renderSubscriptionContractHtml,
   compressImageFile,
@@ -478,6 +479,13 @@ export const CustomFamilyCheckoutModal: React.FC<CustomFamilyCheckoutModalProps>
           paymentMethod === 'CREDIT_CARD' ? 'CREDIT_CARD' : 'PIX'
         );
         setAsaasPayment(charge);
+
+        if (billingCycle === 'MONTHLY' && subscription.invoices.length > 1) {
+          generateAllAsaasInvoicesForSubscription(
+            subscription,
+            paymentMethod === 'CREDIT_CARD' ? 'CREDIT_CARD' : 'PIX'
+          ).catch((e) => console.warn('[ClubCheckout] Background Asaas invoices sync:', e));
+        }
       } catch (payErr: any) {
         console.warn('[ClubCheckout] Asaas charge warning:', payErr);
         setAsaasError(

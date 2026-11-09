@@ -925,6 +925,63 @@ export const generateAsaasChargeForClubInvoice = async (
   };
 };
 
+export const generateAllAsaasInvoicesForSubscription = async (
+  subscription: ClubSubscription,
+  billingType: 'PIX' | 'CREDIT_CARD' | 'DEBIT_CARD' = 'PIX'
+): Promise<ClubDatabaseState> => {
+  const state = await fetchClubState();
+  const subIdx = state.subscriptions.findIndex((s) => s.id === subscription.id);
+  if (subIdx < 0) return state;
+
+  const targetSub = state.subscriptions[subIdx];
+  const invoicesToGenerate = targetSub.invoices.filter((inv) => !inv.asaasPaymentId && inv.amount > 0);
+
+  for (const inv of invoicesToGenerate) {
+    try {
+      const loginUser = targetSub.holderEmail || targetSub.holderCpf;
+      const loginPass = getBirthDatePassword(targetSub.holderBirthDate);
+      const portalUrl =
+        typeof window !== 'undefined'
+          ? `${window.location.origin}/socio`
+          : 'https://balneariolessa.com.br/socio';
+
+      const asaasDescription = [
+        `Lessa Club (${targetSub.subscriptionCode}) - ${inv.description || targetSub.planSummaryLabel}`,
+        `🔐 Portal do Sócio: ${portalUrl}`,
+        `👤 Usuário: ${loginUser}`,
+        `🔑 Senha: ${loginPass} (sua data de nascimento)`,
+      ].join('\n');
+
+      const { data, error } = await supabase.functions.invoke('create-payment', {
+        body: {
+          orderId: inv.id,
+          name: targetSub.holderName,
+          email: targetSub.holderEmail || 'socio@balneariolessa.com.br',
+          phone: cleanDigits(targetSub.holderPhone),
+          cpf: cleanDigits(targetSub.holderCpf),
+          billingType: billingType === 'CREDIT_CARD' || billingType === 'DEBIT_CARD' ? 'UNDEFINED' : billingType,
+          value: inv.amount,
+          dueDate: inv.dueDate,
+          description: asaasDescription,
+        },
+      });
+
+      if (!error && data?.success && data.data) {
+        inv.asaasPaymentId = data.data.paymentId;
+        inv.invoiceUrl = data.data.invoiceUrl;
+        if (data.data.pix) {
+          inv.pixPayload = data.data.pix.payload;
+          inv.pixQrCode = data.data.pix.encodedImage;
+        }
+      }
+    } catch (err) {
+      console.warn(`[ClubService] Error generating Asaas charge for invoice ${inv.id}:`, err);
+    }
+  }
+
+  return saveClubState(state);
+};
+
 export const processClubCreditCardPayment = async (
   subscription: ClubSubscription,
   invoice: ClubInvoice,

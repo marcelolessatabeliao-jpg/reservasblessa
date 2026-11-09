@@ -52,6 +52,7 @@ import {
   formatCurrency,
   formatDateBR,
   generateAsaasChargeForClubInvoice,
+  generateAllAsaasInvoicesForSubscription,
   checkClubInvoicePaymentStatus,
   renderSubscriptionContractHtml,
   cleanDigits,
@@ -170,7 +171,7 @@ const SocioPortal: React.FC = () => {
     if (nextPayableInvoice && invoice.id !== nextPayableInvoice.id) {
       toast({
         title: 'Parcela bloqueada',
-        description: `Por favor, efetue primeiro o pagamento da parcela ${nextPayableInvoice.installmentNumber}.`,
+        description: `Por favor, efetue primeiro o pagamento da parcela ${nextPayableInvoice.installmentNumber}. A liberação para pagamento é realizada a cada mês para não pular mensalidades.`,
         variant: 'destructive',
       });
       return;
@@ -728,7 +729,7 @@ const SocioPortal: React.FC = () => {
                             {!isPaid && !isCurrentPayable && (
                               <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl">
                                 <Lock className="w-3.5 h-3.5 text-slate-400" />
-                                <span>Liberado após quitação da parcela {nextPayableInvoice?.installmentNumber || 'anterior'}</span>
+                                <span>Liberado a cada mês (após quitação da parcela {nextPayableInvoice?.installmentNumber || 'anterior'})</span>
                               </div>
                             )}
                           </div>
