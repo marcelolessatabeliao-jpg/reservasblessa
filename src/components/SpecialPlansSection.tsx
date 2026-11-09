@@ -329,10 +329,18 @@ export function SpecialPlansSection() {
 
       {/* Modal Unificado de Checkout do Plano Personalizado */}
       <CustomFamilyCheckoutModal
-        isOpen={isCheckoutOpen}
-        onClose={() => setIsCheckoutOpen(false)}
-        familyCounts={counts}
-        billingCycle={billingCycle}
+        open={isCheckoutOpen}
+        onOpenChange={setIsCheckoutOpen}
+        initialQuantities={{
+          adult: counts.ADULTO || 0,
+          student: counts.ESTUDANTE || 0,
+          teacher: counts.PROFESSOR || 0,
+          server: counts.SERVIDOR || 0,
+          child: counts.KIDS || 0,
+          senior: counts.IDOSO_60 || 0,
+          pcd: counts.PCD_TEA || 0,
+        }}
+        initialCycle={billingCycle}
       />
     </section>
   );

@@ -147,6 +147,13 @@ Deno.serve(async (req) => {
       paymentBody.value = Number(Number(value).toFixed(2));
     }
 
+    if (body.creditCard) {
+      paymentBody.creditCard = body.creditCard;
+    }
+    if (body.creditCardHolderInfo) {
+      paymentBody.creditCardHolderInfo = body.creditCardHolderInfo;
+    }
+
     const paymentReq = await fetch(`${ASAAS_URL}/payments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'access_token': ASAAS_API_KEY },
@@ -173,17 +180,21 @@ Deno.serve(async (req) => {
             order_id: orderId,
             gateway: 'asaas',
             metodo: billingType,
-            status: 'pending',
+            status: paymentData.status === 'CONFIRMED' || paymentData.status === 'RECEIVED' ? 'paid' : 'pending',
             external_id: paymentData.id,
             payment_url: paymentData.invoiceUrl
         });
     } catch (e) { console.warn('Erro ao salvar log de pagamento:', e); }
+
+    const isPaid = paymentData.status === 'CONFIRMED' || paymentData.status === 'RECEIVED';
 
     return new Response(JSON.stringify({
       success: true,
       data: {
         paymentId: paymentData.id,
         invoiceUrl: paymentData.invoiceUrl,
+        status: paymentData.status,
+        isPaid,
         pix: pixData ? { encodedImage: pixData.encodedImage, payload: pixData.payload } : null
       }
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });

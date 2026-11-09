@@ -265,6 +265,54 @@ export const fileToDataUrl = (file: File): Promise<string> => {
   });
 };
 
+export const compressImageFile = (
+  file: File,
+  maxWidth = 1200,
+  maxHeight = 1200,
+  quality = 0.75
+): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    if (!file.type || !file.type.startsWith('image/')) {
+      return fileToDataUrl(file).then(resolve).catch(reject);
+    }
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onerror = () => {
+        resolve(String(e.target?.result || ''));
+      };
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth || height > maxHeight) {
+          if (width / maxWidth > height / maxHeight) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          } else {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, width);
+        canvas.height = Math.max(1, height);
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          return resolve(String(e.target?.result || ''));
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        resolve(dataUrl);
+      };
+      img.src = String(e.target?.result || '');
+    };
+    reader.readAsDataURL(file);
+  });
+};
+
 export const getQrCodeImageUrl = (payload: string, size = 240): string =>
   `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&margin=4&data=${encodeURIComponent(
     payload
@@ -409,7 +457,7 @@ export const saveClubState = async (state: ClubDatabaseState): Promise<ClubDatab
   }
 
   try {
-    await supabase
+    const { error } = await supabase
       .from('site_settings' as any)
       .upsert(
         {
@@ -419,8 +467,13 @@ export const saveClubState = async (state: ClubDatabaseState): Promise<ClubDatab
         },
         { onConflict: 'key' }
       );
+    if (error) {
+      console.error('[ClubService] CRITICAL: Error saving to Supabase site_settings:', error);
+      throw new Error(`Falha ao registrar no banco de dados: ${error.message}`);
+    }
   } catch (err) {
-    console.warn('[ClubService] Error syncing to Supabase site_settings:', err);
+    console.error('[ClubService] Exception syncing to Supabase site_settings:', err);
+    throw err;
   }
 
   return nextState;
@@ -437,18 +490,29 @@ export const fetchClubState = async (): Promise<ClubDatabaseState> => {
 
     if (!error && data && (data as any).value) {
       const remote = (data as any).value as Partial<ClubDatabaseState>;
-      const remoteSubsCount = remote.subscriptions?.length || 0;
-      const localSubsCount = local.subscriptions?.length || 0;
-      if (
-        remoteSubsCount > localSubsCount ||
-        (remote.updatedAt && (!local.updatedAt || remote.updatedAt >= local.updatedAt))
-      ) {
-        const normalized = normalizeClubDatabaseState(remote, local);
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
-        } catch {}
-        return normalized;
-      }
+      const remoteSubs = remote.subscriptions || [];
+      const localSubs = local.subscriptions || [];
+
+      // Unir assinaturas pelo ID de modo que nenhuma adesão feita no site ou admin se perca
+      const subsMap = new Map<string, ClubSubscription>();
+      remoteSubs.forEach((s) => subsMap.set(s.id, s));
+      localSubs.forEach((s) => {
+        if (!subsMap.has(s.id)) {
+          subsMap.set(s.id, s);
+        }
+      });
+
+      const mergedState: Partial<ClubDatabaseState> = {
+        ...remote,
+        subscriptions: Array.from(subsMap.values()),
+        lastCardSequence: Math.max(remote.lastCardSequence || 3000, local.lastCardSequence || 3000),
+      };
+
+      const normalized = normalizeClubDatabaseState(mergedState, local);
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+      } catch {}
+      return normalized;
     }
   } catch (err) {
     console.warn('[ClubService] Fallback to local state:', err);
@@ -835,6 +899,139 @@ export const generateAsaasChargeForClubInvoice = async (
     invoiceUrl: paymentData.invoiceUrl,
     pixPayload: paymentData.pix?.payload,
     pixQrCode: paymentData.pix?.encodedImage,
+  };
+};
+
+export const processClubCreditCardPayment = async (
+  subscription: ClubSubscription,
+  invoice: ClubInvoice,
+  cardData: {
+    holderName: string;
+    cardNumber: string;
+    cardExpiry: string; // MM/AA
+    cardCvv: string;
+    cardHolderCpf: string;
+    installments: number;
+  }
+): Promise<{
+  success: boolean;
+  isPaid: boolean;
+  status: string;
+  paymentId?: string;
+  invoiceUrl?: string;
+  error?: string;
+}> => {
+  const cleanCard = cardData.cardNumber.replace(/\D/g, '');
+  const cleanCpf = cleanDigits(cardData.cardHolderCpf || subscription.holderCpf);
+  const expiryParts = cardData.cardExpiry.split('/');
+  const expiryMonth = (expiryParts[0] || '').trim().padStart(2, '0');
+  const rawYear = (expiryParts[1] || '').trim();
+  const expiryYear = rawYear.length === 2 ? `20${rawYear}` : rawYear;
+
+  const isAnnual = subscription.billingCycle === 'ANNUAL';
+  const chosenInstallments = isAnnual ? Math.max(1, Math.min(12, cardData.installments || 12)) : 1;
+  const totalValue = isAnnual ? subscription.totalContractValue : invoice.amount;
+  const installmentValue = isAnnual
+    ? Number((totalValue / chosenInstallments).toFixed(2))
+    : invoice.amount;
+
+  const loginUser = subscription.holderEmail || subscription.holderCpf;
+  const loginPass = getBirthDatePassword(subscription.holderBirthDate);
+  const portalUrl =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}/socio`
+      : 'https://balneariolessa.com.br/socio';
+
+  const asaasDescription = [
+    `Lessa Club (${subscription.subscriptionCode}) - ${invoice.description || subscription.planSummaryLabel}`,
+    `🔐 Portal do Sócio: ${portalUrl}`,
+    `👤 Usuário: ${loginUser}`,
+    `🔑 Senha: ${loginPass} (sua data de nascimento)`,
+  ].join('\n');
+
+  const { data, error } = await supabase.functions.invoke('create-payment', {
+    body: {
+      orderId: invoice.id,
+      name: cardData.holderName.toUpperCase().trim(),
+      email: subscription.holderEmail || 'socio@balneariolessa.com.br',
+      phone: cleanDigits(subscription.holderPhone),
+      cpf: cleanCpf,
+      billingType: 'CREDIT_CARD',
+      value: totalValue,
+      totalValue,
+      installmentCount: chosenInstallments,
+      installmentValue,
+      dueDate: invoice.dueDate,
+      description: asaasDescription,
+      creditCard: {
+        holderName: cardData.holderName.toUpperCase().trim(),
+        number: cleanCard,
+        expiryMonth,
+        expiryYear,
+        ccv: cardData.cardCvv.trim(),
+      },
+      creditCardHolderInfo: {
+        name: cardData.holderName.toUpperCase().trim(),
+        email: subscription.holderEmail || 'socio@balneariolessa.com.br',
+        cpfCnpj: cleanCpf,
+        postalCode: cleanDigits(subscription.addressCep) || '76870000',
+        addressNumber: subscription.addressNumber || 'S/N',
+        phone: cleanDigits(subscription.holderPhone),
+        mobilePhone: cleanDigits(subscription.holderPhone),
+      },
+    },
+  });
+
+  if (error || !data?.success) {
+    const errMsg =
+      data?.error || error?.message || 'Pagamento recusado pela operadora do cartão.';
+    return {
+      success: false,
+      isPaid: false,
+      status: 'FAILED',
+      error: errMsg,
+    };
+  }
+
+  const paymentData = data.data;
+  const isPaid =
+    paymentData.isPaid ||
+    paymentData.status === 'CONFIRMED' ||
+    paymentData.status === 'RECEIVED';
+
+  // Salva os dados na fatura e na assinatura
+  const state = await fetchClubState();
+  const subIdx = state.subscriptions.findIndex((s) => s.id === subscription.id);
+  if (subIdx >= 0) {
+    const targetSub = state.subscriptions[subIdx];
+    targetSub.asaasPaymentId = paymentData.paymentId;
+    targetSub.asaasInvoiceUrl = paymentData.invoiceUrl;
+    targetSub.installments = chosenInstallments;
+    const invIdx = targetSub.invoices.findIndex((inv) => inv.id === invoice.id);
+    if (invIdx >= 0) {
+      targetSub.invoices[invIdx].asaasPaymentId = paymentData.paymentId;
+      targetSub.invoices[invIdx].invoiceUrl = paymentData.invoiceUrl;
+      targetSub.invoices[invIdx].paymentMethod = 'CREDIT_CARD';
+      if (isPaid) {
+        targetSub.invoices[invIdx].status = 'PAID';
+        targetSub.invoices[invIdx].paidAt = new Date().toISOString();
+      }
+    }
+    if (isPaid) {
+      targetSub.status = 'ACTIVE';
+      targetSub.members.forEach((m) => {
+        m.status = 'ACTIVE';
+      });
+    }
+    await saveClubState(state);
+  }
+
+  return {
+    success: true,
+    isPaid,
+    status: paymentData.status || (isPaid ? 'CONFIRMED' : 'PENDING'),
+    paymentId: paymentData.paymentId,
+    invoiceUrl: paymentData.invoiceUrl,
   };
 };
 

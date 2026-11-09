@@ -44,6 +44,7 @@ import {
   generateAsaasChargeForClubInvoice,
   checkClubInvoicePaymentStatus,
   renderSubscriptionContractHtml,
+  compressImageFile,
   type CreateSubscriptionMemberInput,
 } from '@/lib/club-service';
 import { ClubMemberCardView } from './ClubMemberCardView';
@@ -254,27 +255,26 @@ export const CustomFamilyCheckoutModal: React.FC<CustomFamilyCheckoutModalProps>
     }
   };
 
-  const handleFileUpload = (
+  const handleFileUpload = async (
     idx: number,
     field: 'photoUrl' | 'documentProofUrl',
     file?: File
   ) => {
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        setMembersList((prev) => {
-          const copy = [...prev];
-          copy[idx] = {
-            ...copy[idx],
-            [field]: reader.result as string,
-            ...(field === 'documentProofUrl' ? { documentProofName: file.name } : {}),
-          };
-          return copy;
-        });
-      }
-    };
-    reader.readAsDataURL(file);
+    try {
+      const dataUrl = await compressImageFile(file);
+      setMembersList((prev) => {
+        const copy = [...prev];
+        copy[idx] = {
+          ...copy[idx],
+          [field]: dataUrl,
+          ...(field === 'documentProofUrl' ? { documentProofName: file.name } : {}),
+        };
+        return copy;
+      });
+    } catch (e) {
+      console.warn('Erro ao processar imagem:', e);
+    }
   };
 
   const validateMembersStep = () => {

@@ -57,63 +57,68 @@ export default function Assinatura() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-100/80 via-emerald-50 to-teal-100/80 bg-fixed text-foreground font-body selection:bg-emerald-200">
-      {/* 1. TOP ANNOUNCEMENT BAR */}
-      <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-emerald-950 text-emerald-100 text-[11px] sm:text-xs py-2 px-3 text-center font-bold border-b border-emerald-800/60 sticky top-0 z-50 shadow-md">
-        <div className="container mx-auto flex items-center justify-center gap-2 flex-wrap">
-          <span className="bg-amber-400 text-emerald-950 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">
-            Tabela 2026
-          </span>
-          <span>
-            Garanta o preço atual assinando o <strong>Plano Anual parcelado em até 12x no cartão</strong>. Novos valores entrarão em vigência a partir de <strong>2027</strong>!
-          </span>
-        </div>
-      </div>
-
-      {/* 2. NAVBAR */}
-      <header className="bg-primary/95 backdrop-blur-md border-b border-primary-foreground/10 sticky top-[33px] sm:top-[33px] z-40 shadow-md">
-        <div className="container mx-auto px-4 h-16 sm:h-20 flex items-center justify-between gap-2">
-          <a href="/" className="flex items-center gap-3">
-            <img src={logo} alt="Balneário Lessa" className="h-9 sm:h-12 w-auto drop-shadow-sm" />
-            <div>
-              <span className="font-display font-black text-xl sm:text-2xl text-white block leading-none tracking-wide">
-                Lessa Club
-              </span>
-              <span className="text-[9px] sm:text-[10px] uppercase font-black tracking-widest text-amber-300 block mt-1">
-                Clube de Vantagens & Sócios
-              </span>
-            </div>
-          </a>
-
-          <div className="flex items-center gap-2">
-            <Link to="/planos">
-              <Button
-                variant="outline"
-                size="sm"
-                className="border-amber-300/60 bg-amber-400/15 text-amber-200 hover:bg-amber-400 hover:text-emerald-950 font-black text-xs rounded-xl"
-              >
-                Ver Planos / Aderir
-              </Button>
-            </Link>
-            <Link to="/verificar">
-              <Button
-                variant="outline"
-                size="sm"
-                className="hidden sm:inline-flex border-white/25 bg-white/10 text-white hover:bg-white/20 font-bold text-xs rounded-xl"
-              >
-                <QrCode className="w-3.5 h-3.5 mr-1.5" /> Validar Cartão
-              </Button>
-            </Link>
-            <Link to="/socio">
-              <Button
-                size="sm"
-                className="bg-amber-400 hover:bg-amber-300 text-emerald-950 font-black text-xs sm:text-sm rounded-xl shadow"
-              >
-                <CreditCard className="w-4 h-4 mr-1.5" /> Área do Sócio / Carteirinha
-              </Button>
-            </Link>
+      {/* 1 & 2. STICKY HEADER COM ANNOUNCEMENT BAR E NAVBAR UNIFICADAS */}
+      <div className="sticky top-0 z-40 shadow-md">
+        {/* TOP ANNOUNCEMENT BAR */}
+        <div className="bg-gradient-to-r from-emerald-950 via-emerald-900 to-emerald-950 text-emerald-100 text-[11px] sm:text-xs py-2 px-3 text-center font-bold border-b border-emerald-800/60">
+          <div className="container mx-auto flex items-center justify-center gap-2 flex-wrap">
+            <span className="bg-amber-400 text-emerald-950 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">
+              Tabela 2026
+            </span>
+            <span>
+              Garanta o preço atual assinando o <strong>Plano Anual parcelado em até 12x no cartão</strong>. Novos valores entrarão em vigência a partir de <strong>2027</strong>!
+            </span>
           </div>
         </div>
-      </header>
+
+        {/* NAVBAR */}
+        <header className="bg-primary/95 backdrop-blur-md border-b border-primary-foreground/10">
+          <div className="container mx-auto px-3 sm:px-4 h-16 sm:h-20 flex items-center justify-between gap-2">
+            <a href="/" className="flex items-center gap-2 sm:gap-3 shrink-0">
+              <img src={logo} alt="Balneário Lessa" className="h-8 sm:h-12 w-auto drop-shadow-sm" />
+              <div>
+                <span className="font-display font-black text-lg sm:text-2xl text-white block leading-none tracking-wide">
+                  Lessa Club
+                </span>
+                <span className="hidden sm:block text-[9px] sm:text-[10px] uppercase font-black tracking-widest text-amber-300 mt-1">
+                  Clube de Vantagens & Sócios
+                </span>
+              </div>
+            </a>
+
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <Link to="/planos" className="hidden md:inline-flex">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-amber-300/60 bg-amber-400/15 text-amber-200 hover:bg-amber-400 hover:text-emerald-950 font-black text-xs rounded-xl"
+                >
+                  Ver Planos / Aderir
+                </Button>
+              </Link>
+              <Link to="/verificar" className="hidden sm:inline-flex">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-white/25 bg-white/10 text-white hover:bg-white/20 font-bold text-xs rounded-xl"
+                >
+                  <QrCode className="w-3.5 h-3.5 mr-1.5" /> Validar Cartão
+                </Button>
+              </Link>
+              <Link to="/socio">
+                <Button
+                  size="sm"
+                  className="bg-amber-400 hover:bg-amber-300 text-emerald-950 font-black text-xs sm:text-sm rounded-xl shadow h-9 px-3 sm:px-4"
+                >
+                  <CreditCard className="w-4 h-4 mr-1 sm:mr-1.5 shrink-0" />
+                  <span className="hidden sm:inline">Área do Sócio / Carteirinha</span>
+                  <span className="sm:hidden">Área do Sócio</span>
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </header>
+      </div>
 
       {/* 3. VITRINE DE CARDS DE PLANOS COM FLUXO (PLANO -> CADASTRO -> TERMOS -> PAGAMENTO) */}
       <div id="vitrine-planos" className="pt-4">

@@ -55,6 +55,7 @@ import {
   saveClubState,
   createClubSubscription,
   generateAsaasChargeForClubInvoice,
+  processClubCreditCardPayment,
   checkClubInvoicePaymentStatus,
   markClubInvoicePaid,
   getQrCodeImageUrl,
@@ -66,16 +67,11 @@ import {
   getMemberAccessMessage,
   isValidCpf,
   cleanDigits,
+  compressImageFile,
 } from '@/lib/club-service';
 import { ClubMemberCardView } from '@/components/club/ClubMemberCardView';
 
-const fileToDataUrl = (file: File): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
+const fileToDataUrl = compressImageFile;
 
 interface CatalogPlanCard {
   id: string;
@@ -946,30 +942,57 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
 
     setCheckingPayment(true);
     try {
-      const nextState = await markClubInvoicePaid(
-        createdSub.id,
-        createdInvoice.id,
-        paymentMethod
+      const result = await processClubCreditCardPayment(
+        createdSub,
+        createdInvoice,
+        {
+          holderName: cardHolderName,
+          cardNumber: cleanCardNum,
+          cardExpiry,
+          cardCvv,
+          cardHolderCpf,
+          installments,
+        }
       );
-      setState(nextState);
-      const updatedSub = nextState.subscriptions.find(
-        (s) => s.id === createdSub.id
-      );
-      if (updatedSub) {
-        setCreatedSub(updatedSub);
-        setCreatedInvoice(updatedSub.invoices[0] || createdInvoice);
+
+      if (result.success && result.isPaid) {
+        const nextState = await fetchClubState();
+        setState(nextState);
+        const updatedSub = nextState.subscriptions.find(
+          (s) => s.id === createdSub.id
+        );
+        if (updatedSub) {
+          setCreatedSub(updatedSub);
+          setCreatedInvoice(updatedSub.invoices[0] || createdInvoice);
+        }
+        toast({
+          title: 'Pagamento Aprovado • PLANO ATIVO!',
+          description:
+            'Sua assinatura e carteirinhas foram ativadas com sucesso! A edição das fotos e download já estão liberados abaixo.',
+        });
+      } else {
+        toast({
+          title: 'Pagamento não autorizado',
+          description:
+            result.error ||
+            'Não foi possível debitar o valor no cartão informado. Verifique os dados, validade, CVV ou limite disponível e tente novamente.',
+          variant: 'destructive',
+        });
       }
+    } catch (err: any) {
       toast({
-        title: 'Pagamento Aprovado • PLANO ATIVO!',
+        title: 'Erro ao processar cartão',
         description:
-          'Sua assinatura foi ativada com sucesso! A edição das carteirinhas (Foto 3x4 e Download PNG) já está liberada abaixo.',
+          err?.message ||
+          'Falha na comunicação com a operadora de cartão. Tente novamente ou utilize o PIX.',
+        variant: 'destructive',
       });
     } finally {
       setCheckingPayment(false);
     }
   };
 
-  // Verificar / Confirmar pagamento PIX e Ativar Assinatura
+  // Verificar pagamento PIX no sistema bancário
   const handleVerifyPaymentNow = async () => {
     if (!createdSub || !createdInvoice) return;
     setCheckingPayment(true);
@@ -981,32 +1004,28 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
       if (paid) {
         const updated = await fetchClubState();
         const sub = updated.subscriptions.find((s) => s.id === createdSub.id);
-        if (sub) setCreatedSub(sub);
+        if (sub) {
+          setCreatedSub(sub);
+          setCreatedInvoice(sub.invoices[0] || createdInvoice);
+        }
         toast({
           title: 'Pagamento Confirmado • PLANO ATIVO!',
           description: 'Todas as carteirinhas da sua família estão ATIVAS e liberadas para edição!',
         });
       } else {
-        // Caso o webhook Asaas não esteja online no ambiente local, permite confirmar e ativar
-        const nextState = await markClubInvoicePaid(
-          createdSub.id,
-          createdInvoice.id,
-          paymentMethod
-        );
-        setState(nextState);
-        const updatedSub = nextState.subscriptions.find(
-          (s) => s.id === createdSub.id
-        );
-        if (updatedSub) {
-          setCreatedSub(updatedSub);
-          setCreatedInvoice(updatedSub.invoices[0] || createdInvoice);
-        }
         toast({
-          title: 'Pagamento Identificado • PLANO ATIVO!',
+          title: 'Pagamento ainda não identificado',
           description:
-            'Status alterado para ATIVO! A edição de fotos e download das carteirinhas foi liberada abaixo.',
+            'Ainda não identificamos a compensação do seu PIX no sistema bancário. Se já realizou a transferência, aguarde cerca de 30 a 60 segundos e tente novamente.',
+          variant: 'destructive',
         });
       }
+    } catch (err: any) {
+      toast({
+        title: 'Falha ao consultar pagamento',
+        description: err?.message || 'Tente novamente em instantes.',
+        variant: 'destructive',
+      });
     } finally {
       setCheckingPayment(false);
     }
@@ -3133,7 +3152,7 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
               <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-100 pb-5">
                 <div className="space-y-1.5">
                   <div
-                    className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider shadow-sm ${
+                    className={`inline-flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider shadow-sm text-center whitespace-normal leading-tight ${
                       createdSub.status === 'ACTIVE'
                         ? 'bg-emerald-600 text-white'
                         : 'bg-rose-600 text-white animate-pulse'
@@ -3471,18 +3490,20 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                         <Button
                           type="submit"
                           disabled={checkingPayment}
-                          className="w-full sm:w-auto h-12 px-8 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm uppercase tracking-wide shadow-lg"
+                          className="w-full sm:w-auto min-h-[48px] h-auto py-3 px-4 sm:px-8 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs sm:text-sm uppercase tracking-wide shadow-lg whitespace-normal text-center leading-snug"
                         >
-                          <CreditCard className="w-4 h-4 mr-2" />
-                          {checkingPayment
-                            ? 'Processando Cartão...'
-                            : createdSub.billingCycle === 'ANNUAL'
-                            ? `Pagar ${installments}x de ${formatCurrency(
-                                Number((createdSub.totalContractValue / installments).toFixed(2))
-                              )} e Ativar Assinatura`
-                            : `Cadastrar Cartão (${formatCurrency(
-                                createdSub.monthlyEquivalent
-                              )}/mês) e Ativar Assinatura`}
+                          <CreditCard className="w-4 h-4 mr-2 shrink-0 inline" />
+                          <span>
+                            {checkingPayment
+                              ? 'Processando Cartão...'
+                              : createdSub.billingCycle === 'ANNUAL'
+                              ? `Pagar ${installments}x de ${formatCurrency(
+                                  Number((createdSub.totalContractValue / installments).toFixed(2))
+                                )} e Ativar`
+                              : `Cadastrar Cartão (${formatCurrency(
+                                  createdSub.monthlyEquivalent
+                                )}/mês) e Ativar`}
+                          </span>
                         </Button>
                       </div>
                     </form>
@@ -3546,14 +3567,14 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                         <Button
                           onClick={handleVerifyPaymentNow}
                           disabled={checkingPayment}
-                          className="h-12 px-8 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-wide shadow-md"
+                          className="min-h-[48px] h-auto py-3 px-4 sm:px-8 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-wide shadow-md whitespace-normal text-center leading-snug text-xs sm:text-sm"
                         >
                           <RefreshCw
-                            className={`w-4 h-4 mr-2 ${
+                            className={`w-4 h-4 mr-2 shrink-0 ${
                               checkingPayment ? 'animate-spin' : ''
                             }`}
                           />
-                          Já realizei o pagamento PIX • Ativar Minha Assinatura
+                          Já realizei o pagamento PIX • Verificar e Ativar Assinatura
                         </Button>
                       </div>
                     </div>

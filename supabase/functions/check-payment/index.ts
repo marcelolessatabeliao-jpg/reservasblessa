@@ -11,8 +11,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { orderId } = await req.json()
-    if (!orderId) throw new Error('OrderId é obrigatório')
+    const { orderId, paymentId } = await req.json()
+    if (!orderId && !paymentId) throw new Error('OrderId ou PaymentId é obrigatório')
 
     const ASAAS_API_KEY = Deno.env.get('ASAAS_API_KEY');
     if (!ASAAS_API_KEY) throw new Error('A variável ASAAS_API_KEY não foi configurada.');
@@ -26,18 +26,28 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
     )
 
-    // 1. Buscar o external_id do pagamento
-    const { data: payData, error: payError } = await supabaseAdmin
-      .from('payments')
-      .select('external_id, status')
-      .eq('order_id', orderId)
-      .eq('gateway', 'asaas')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
+    let externalId = paymentId;
+    let payStatus = 'pending';
 
-    if (payError) throw payError
-    if (!payData?.external_id) {
+    if (!externalId && orderId) {
+      // 1. Buscar o external_id do pagamento
+      const { data: payData, error: payError } = await supabaseAdmin
+        .from('payments')
+        .select('external_id, status')
+        .eq('order_id', orderId)
+        .eq('gateway', 'asaas')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (payError) throw payError
+      if (payData?.external_id) {
+        externalId = payData.external_id;
+        payStatus = payData.status;
+      }
+    }
+
+    if (!externalId) {
        return new Response(JSON.stringify({ 
          success: false, 
          error: 'Nenhum pagamento Asaas encontrado para este pedido.' 
@@ -45,7 +55,7 @@ Deno.serve(async (req) => {
     }
 
     // 2. Consultar Asaas
-    const response = await fetch(`${ASAAS_URL}/payments/${payData.external_id}`, {
+    const response = await fetch(`${ASAAS_URL}/payments/${externalId}`, {
       headers: { 'access_token': ASAAS_API_KEY }
     })
 
@@ -58,27 +68,28 @@ Deno.serve(async (req) => {
     const isPaid = asaasStatus === 'RECEIVED' || asaasStatus === 'CONFIRMED';
 
     let updated = false;
-    if (isPaid && payData.status !== 'paid') {
-      // 3. Atualizar no Supabase
-      const { error: updError } = await supabaseAdmin
-        .from('orders')
-        .update({ status: 'paid', updated_at: new Date().toISOString() })
-        .eq('id', orderId)
+    if (isPaid && payStatus !== 'paid' && orderId) {
+      try {
+        await supabaseAdmin
+          .from('orders')
+          .update({ status: 'paid', updated_at: new Date().toISOString() })
+          .eq('id', orderId);
 
-      if (updError) throw updError
+        if (externalId) {
+          await supabaseAdmin
+            .from('payments')
+            .update({ status: 'paid', updated_at: new Date().toISOString() })
+            .eq('external_id', externalId);
+        }
 
-      await supabaseAdmin
-        .from('payments')
-        .update({ status: 'paid', updated_at: new Date().toISOString() })
-        .eq('external_id', payData.external_id)
-        
-      // Buscar booking_id para atualizar reserva também
-      const { data: orderData } = await supabaseAdmin.from('orders').select('booking_id').eq('id', orderId).single();
-      if (orderData?.booking_id) {
-         await supabaseAdmin.from('bookings').update({ status: 'paid' }).eq('id', orderData.booking_id);
+        const { data: orderData } = await supabaseAdmin.from('orders').select('booking_id').eq('id', orderId).maybeSingle();
+        if (orderData?.booking_id) {
+          await supabaseAdmin.from('bookings').update({ status: 'paid' }).eq('id', orderData.booking_id);
+        }
+        updated = true;
+      } catch (errDb) {
+        console.warn('Non-fatal db sync in check-payment:', errDb);
       }
-
-      updated = true;
     }
 
     return new Response(JSON.stringify({ 
