@@ -97,7 +97,7 @@ const CATALOG_PLANS: CatalogPlanCard[] = [
     title: 'Lessa Club',
     subtitle: 'Plano Individual ou Familiar (Escolha a quantidade de pessoas)',
     modalityCode: 'ADULTO',
-    cardImage: '/cards/44.png',
+    cardImage: '/cards/17.png',
     backCardUrl: '/cards/24.png',
     monthlyPrice: 49.9,
     annualPrice: 538.92,
@@ -120,7 +120,7 @@ const CATALOG_PLANS: CatalogPlanCard[] = [
     title: 'Lessa Student Pass',
     subtitle: 'Meia-Assinatura para Estudantes (10% OFF)',
     modalityCode: 'ESTUDANTE',
-    cardImage: '/cards/6.png',
+    cardImage: '/cards/7.png',
     backCardUrl: '/cards/24.png',
     monthlyPrice: 25.0,
     annualPrice: 270.0,
@@ -141,7 +141,7 @@ const CATALOG_PLANS: CatalogPlanCard[] = [
     title: 'Lessa Professor Pass',
     subtitle: 'Meia-Assinatura para Professores (10% OFF)',
     modalityCode: 'PROFESSOR',
-    cardImage: '/cards/3.png',
+    cardImage: '/cards/2.png',
     backCardUrl: '/cards/24.png',
     monthlyPrice: 25.0,
     annualPrice: 270.0,
@@ -162,7 +162,7 @@ const CATALOG_PLANS: CatalogPlanCard[] = [
     title: 'Lessa Servidor Pass',
     subtitle: 'Meia-Assinatura para Servidores Públicos (10% OFF)',
     modalityCode: 'SERVIDOR',
-    cardImage: '/cards/10.png',
+    cardImage: '/cards/9.png',
     backCardUrl: '/cards/24.png',
     monthlyPrice: 25.0,
     annualPrice: 270.0,
@@ -183,7 +183,7 @@ const CATALOG_PLANS: CatalogPlanCard[] = [
     title: 'Lessa Inclusão - PCD e TEA',
     subtitle: 'Gratuidade Oficial para Pessoas com Deficiência e Autismo (TEA)',
     modalityCode: 'PCD_TEA',
-    cardImage: '/cards/35.png',
+    cardImage: '/cards/34.png',
     backCardUrl: '/cards/24.png',
     monthlyPrice: 0.0,
     annualPrice: 0.0,
@@ -203,7 +203,7 @@ const CATALOG_PLANS: CatalogPlanCard[] = [
     title: 'Lessa Vitalício 60+',
     subtitle: 'Gratuidade Oficial para Idosos a partir de 60 anos',
     modalityCode: 'IDOSO_60',
-    cardImage: '/cards/26.png',
+    cardImage: '/cards/25.png',
     backCardUrl: '/cards/39.png',
     monthlyPrice: 0.0,
     annualPrice: 0.0,
@@ -223,7 +223,7 @@ const CATALOG_PLANS: CatalogPlanCard[] = [
     title: 'Lessa Kids',
     subtitle: 'Gratuidade Oficial para Crianças de 0 a 11 anos',
     modalityCode: 'KIDS',
-    cardImage: '/cards/38.png',
+    cardImage: '/cards/37.png',
     backCardUrl: '/cards/39.png',
     monthlyPrice: 0.0,
     annualPrice: 0.0,
@@ -1077,10 +1077,10 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
         </header>
       )}
 
-      <div className="container mx-auto px-4 pt-6 max-w-6xl">
+      <div className="w-full max-w-[1400px] mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-6">
         {/* BARRA SUPERIOR DE 4 ETAPAS (Exibida no topo quando step > 1: Cadastro, Termos, Pagamento) */}
         {step > 1 && (
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-2 max-w-3xl mx-auto mb-8">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-2 max-w-4xl mx-auto mb-8">
             <div className="grid grid-cols-4 gap-2">
               {[
                 { num: 1, label: 'Plano' },
@@ -1118,7 +1118,7 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
             PASSO 1: PLANOS (SUPER DESTAQUE NO PLANO PERSONALIZADO + DEMAIS PLANOS + GRATUIDADES)
         ===================================================================== */}
         {step === 1 && (
-          <div className="space-y-10">
+          <div className="space-y-8 sm:space-y-10">
             <div className="text-center space-y-3 max-w-2xl mx-auto">
               <h2 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight">
                 Escolha ou Personalize seu Plano Lessa Club
@@ -1128,73 +1128,48 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                 <strong>Plano Mensal</strong> diretamente no plano escolhido.
               </p>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl mx-auto pt-2 text-left">
-                {/* Opção Anual */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setBillingCycle('ANNUAL');
-                    setCardCycleMap({});
-                  }}
-                  className={`relative p-4 rounded-2xl border-2 transition-all text-left ${
-                    billingCycle === 'ANNUAL'
-                      ? 'border-emerald-600 bg-emerald-50/80 shadow-lg ring-2 ring-emerald-600/20'
-                      : 'border-slate-200 bg-white hover:border-slate-300 shadow-sm'
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-black text-slate-900 flex items-center gap-1.5">
-                      ⭐ Plano Anual (Até 12x)
+              {/* Chave de Ciclo (Anual com 10% OFF vs Mensal Recorrente) - Modo anterior solicitado */}
+              <div className="pt-2 flex justify-center">
+                <div className="inline-flex bg-white p-1 rounded-2xl border-2 border-emerald-950/20 shadow-md">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBillingCycle('ANNUAL');
+                      setCardCycleMap({});
+                    }}
+                    className={`px-5 sm:px-7 py-2.5 rounded-xl font-black text-xs sm:text-sm transition-all flex items-center gap-2 ${
+                      billingCycle === 'ANNUAL'
+                        ? 'bg-[#005200] text-white shadow'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <span>Plano Anual (Até 12x)</span>
+                    <span className="bg-amber-400 text-emerald-950 text-[10px] px-2 py-0.5 rounded-full font-black">
+                      10% OFF
                     </span>
-                    <span className="bg-amber-400 text-emerald-950 text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase shadow-xs">
-                      10% OFF • Mais Econômico
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-600 mt-1 leading-snug">
-                    Economia garantida no valor anual. Parcele em <strong>até 12x no cartão</strong> ou pague à vista no PIX.
-                  </p>
-                  <div className="mt-2.5 flex items-center gap-1.5 text-xs font-bold text-emerald-800">
-                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                    <span>10% de desconto aplicado • 12 meses de acesso garantido</span>
-                  </div>
-                </button>
-
-                {/* Opção Mensal */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setBillingCycle('MONTHLY');
-                    setCardCycleMap({});
-                  }}
-                  className={`relative p-4 rounded-2xl border-2 transition-all text-left ${
-                    billingCycle === 'MONTHLY'
-                      ? 'border-emerald-600 bg-emerald-50/80 shadow-lg ring-2 ring-emerald-600/20'
-                      : 'border-slate-200 bg-white hover:border-slate-300 shadow-sm'
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-black text-slate-900 flex items-center gap-1.5">
-                      📅 Plano Mensal Recorrente
-                    </span>
-                    <span className="bg-slate-200 text-slate-700 text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase">
-                      Flexibilidade
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-600 mt-1 leading-snug">
-                    Assinatura mensal recorrente no cartão ou boleto/pix. Flexibilidade mês a mês para sua família.
-                  </p>
-                  <div className="mt-2.5 flex items-center gap-1.5 text-xs font-bold text-slate-700">
-                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                    <span>Cobrança mês a mês sem fidelidade de 1 ano</span>
-                  </div>
-                </button>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBillingCycle('MONTHLY');
+                      setCardCycleMap({});
+                    }}
+                    className={`px-4 sm:px-6 py-2.5 rounded-xl font-black text-xs sm:text-sm transition-all ${
+                      billingCycle === 'MONTHLY'
+                        ? 'bg-[#005200] text-white shadow'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Plano Mensal Recorrente
+                  </button>
+                </div>
               </div>
             </div>
 
             {/* ===============================================================
                 SUPER DESTAQUE: PLANO FAMÍLIA PERSONALIZADO (FULL-WIDTH PREMIUM)
             =============================================================== */}
-            <div id="simulador" className="relative rounded-3xl bg-gradient-to-br from-emerald-950 via-[#072e1d] to-slate-950 text-white p-6 sm:p-8 shadow-2xl border-2 border-amber-400/80 ring-8 ring-amber-400/10 overflow-hidden scroll-mt-24">
+            <div id="simulador" className="relative rounded-3xl bg-gradient-to-br from-emerald-950 via-[#072e1d] to-slate-950 text-white p-6 sm:p-8 lg:p-10 shadow-2xl border-2 border-amber-400/80 ring-8 ring-amber-400/10 overflow-hidden scroll-mt-24">
               {/* Brilho decorativo */}
               <div className="absolute -top-24 -right-24 w-72 h-72 bg-amber-400/15 blur-3xl rounded-full pointer-events-none" />
               <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-emerald-500/15 blur-3xl rounded-full pointer-events-none" />
@@ -1218,20 +1193,20 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                     Sua família tem perfis diferentes? Aqui você <strong>não precisa fazer assinaturas separadas</strong>! Combine <strong>Adulto Integral + Estudante + Professor + Servidor + Crianças Kids + Idosos 60+ + PCD/TEA</strong> em um único contrato e pagamento.
                   </p>
 
-                  {/* Preview das artes das carteirinhas empilhadas */}
+                  {/* Preview das artes das carteirinhas empilhadas com fotos de exemplo */}
                   <div className="flex items-center gap-3 pt-1">
                     <img
-                      src="/cards/44.png"
+                      src="/cards/17.png"
                       alt="Lessa Club"
                       className="w-28 sm:w-32 rounded-xl border-2 border-amber-400/60 shadow-lg"
                     />
                     <img
-                      src="/cards/6.png"
+                      src="/cards/7.png"
                       alt="Student Pass"
                       className="w-24 sm:w-28 rounded-xl border border-white/20 shadow-md -ml-6 mt-3"
                     />
                     <img
-                      src="/cards/38.png"
+                      src="/cards/37.png"
                       alt="Lessa Kids"
                       className="w-24 sm:w-28 rounded-xl border border-white/20 shadow-md -ml-6 -mt-2"
                     />
@@ -1965,7 +1940,7 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
         {step === 2 && (
           <form
             onSubmit={handleProceedToTerms}
-            className="max-w-4xl mx-auto bg-white rounded-3xl border border-slate-200 shadow-lg p-6 sm:p-8 space-y-6"
+            className="max-w-5xl mx-auto bg-white rounded-3xl border border-slate-200 shadow-lg p-6 sm:p-8 space-y-6"
           >
             {/* Barra Azul Escura "Cadastre-se" idêntica à referência */}
             <div className="bg-[#111c2d] text-white rounded-xl px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -2815,7 +2790,7 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
             PASSO 3: TERMOS E CONDIÇÕES / CONTRATO AUTOMÁTICO
         ===================================================================== */}
         {step === 3 && (
-          <div className="max-w-4xl mx-auto bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-lg space-y-6">
+          <div className="max-w-5xl mx-auto bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-lg space-y-6">
             <div className="bg-[#111c2d] text-white rounded-xl px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h2 className="font-black text-lg">Termos e Contrato de Adesão</h2>

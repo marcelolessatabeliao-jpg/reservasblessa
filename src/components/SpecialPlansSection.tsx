@@ -69,7 +69,7 @@ export function SpecialPlansSection() {
 
   return (
     <section id="especiais" className="py-12 sm:py-20 bg-transparent">
-      <div className="container px-4">
+      <div className="container max-w-7xl px-4">
         {/* Cabeçalho da Seção */}
         <div className="text-center space-y-3 max-w-3xl mx-auto mb-10">
           <h2 className="text-3xl sm:text-5xl font-black text-slate-900 tracking-tight leading-tight">
@@ -80,60 +80,34 @@ export function SpecialPlansSection() {
             <strong>Plano Mensal Recorrente</strong> diretamente no plano escolhido.
           </p>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl mx-auto pt-2 text-left">
-            {/* Opção Anual */}
-            <button
-              type="button"
-              onClick={() => setBillingCycle('ANNUAL')}
-              className={`relative p-4 rounded-2xl border-2 transition-all text-left ${
-                billingCycle === 'ANNUAL'
-                  ? 'border-emerald-600 bg-white shadow-lg ring-2 ring-emerald-600/20'
-                  : 'border-slate-200 bg-white/80 hover:border-slate-300 shadow-sm'
-              }`}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-sm font-black text-slate-900 flex items-center gap-1.5">
-                  ⭐ Plano Anual (Até 12x)
+          <div className="pt-2 flex justify-center">
+            <div className="inline-flex bg-white p-1 rounded-2xl border-2 border-emerald-950/20 shadow-md">
+              <button
+                type="button"
+                onClick={() => setBillingCycle('ANNUAL')}
+                className={`px-5 sm:px-7 py-2.5 rounded-xl font-black text-xs sm:text-sm transition-all flex items-center gap-2 ${
+                  billingCycle === 'ANNUAL'
+                    ? 'bg-[#005200] text-white shadow'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <span>Plano Anual (Até 12x)</span>
+                <span className="bg-amber-400 text-emerald-950 text-[10px] px-2 py-0.5 rounded-full font-black">
+                  10% OFF
                 </span>
-                <span className="bg-amber-400 text-emerald-950 text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase shadow-xs">
-                  10% OFF • Mais Econômico
-                </span>
-              </div>
-              <p className="text-xs text-slate-600 mt-1 leading-snug">
-                Economia garantida no valor anual. Parcele em <strong>até 12x no cartão</strong> ou pague à vista no PIX.
-              </p>
-              <div className="mt-2.5 flex items-center gap-1.5 text-xs font-bold text-emerald-800">
-                <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                <span>10% de desconto aplicado • 12 meses garantidos</span>
-              </div>
-            </button>
-
-            {/* Opção Mensal */}
-            <button
-              type="button"
-              onClick={() => setBillingCycle('MONTHLY')}
-              className={`relative p-4 rounded-2xl border-2 transition-all text-left ${
-                billingCycle === 'MONTHLY'
-                  ? 'border-emerald-600 bg-white shadow-lg ring-2 ring-emerald-600/20'
-                  : 'border-slate-200 bg-white/80 hover:border-slate-300 shadow-sm'
-              }`}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-sm font-black text-slate-900 flex items-center gap-1.5">
-                  📅 Plano Mensal Recorrente
-                </span>
-                <span className="bg-slate-200 text-slate-700 text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase">
-                  Flexibilidade
-                </span>
-              </div>
-              <p className="text-xs text-slate-600 mt-1 leading-snug">
-                Assinatura mensal recorrente no cartão ou boleto/pix. Flexibilidade mês a mês para sua família.
-              </p>
-              <div className="mt-2.5 flex items-center gap-1.5 text-xs font-bold text-slate-700">
-                <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                <span>Cobrança mês a mês sem fidelidade de 1 ano</span>
-              </div>
-            </button>
+              </button>
+              <button
+                type="button"
+                onClick={() => setBillingCycle('MONTHLY')}
+                className={`px-4 sm:px-6 py-2.5 rounded-xl font-black text-xs sm:text-sm transition-all ${
+                  billingCycle === 'MONTHLY'
+                    ? 'bg-[#005200] text-white shadow'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Plano Mensal Recorrente
+              </button>
+            </div>
           </div>
         </div>
 
