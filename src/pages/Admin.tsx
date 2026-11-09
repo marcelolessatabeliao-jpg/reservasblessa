@@ -476,28 +476,6 @@ export default function Admin() {
     }
   }, []);
 
-  const agendaMovementsCount = useMemo(() => {
-    const now = Date.now();
-    const TWO_DAYS_MS = 48 * 60 * 60 * 1000;
-    let count = 0;
-
-    (bookings || []).forEach((b: any) => {
-      const isPending = b.status === 'pending';
-      const createdMs = b.created_at ? new Date(b.created_at).getTime() : 0;
-      const isRecent = createdMs > 0 && now - createdMs < TWO_DAYS_MS;
-      if (isPending || isRecent) count++;
-    });
-
-    (orders || []).forEach((o: any) => {
-      const isPending = o.status === 'pending';
-      const createdMs = o.created_at ? new Date(o.created_at).getTime() : 0;
-      const isRecent = createdMs > 0 && now - createdMs < TWO_DAYS_MS;
-      if (isPending || isRecent) count++;
-    });
-
-    return count;
-  }, [bookings, orders]);
-
   const repairKioskAssignments = async () => {
     setIsSyncingData(true);
     try {
@@ -604,6 +582,29 @@ export default function Admin() {
   const [quadReservations, setQuadReservations] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
   const [credits, setCredits] = useState<any[]>([]);
+
+  const agendaMovementsCount = useMemo(() => {
+    const now = Date.now();
+    const TWO_DAYS_MS = 48 * 60 * 60 * 1000;
+    let count = 0;
+
+    (bookings || []).forEach((b: any) => {
+      const isPending = b.status === 'pending';
+      const createdMs = b.created_at ? new Date(b.created_at).getTime() : 0;
+      const isRecent = createdMs > 0 && now - createdMs < TWO_DAYS_MS;
+      if (isPending || isRecent) count++;
+    });
+
+    (orders || []).forEach((o: any) => {
+      const isPending = o.status === 'pending';
+      const createdMs = o.created_at ? new Date(o.created_at).getTime() : 0;
+      const isRecent = createdMs > 0 && now - createdMs < TWO_DAYS_MS;
+      if (isPending || isRecent) count++;
+    });
+
+    return count;
+  }, [bookings, orders]);
+
   const [targetDate, setTargetDate] = useState<Date>(new Date());
   const [totalQuads, setTotalQuads] = useState<number>(2);
   const [disableFutebolSabao, setDisableFutebolSabao] = useState(false);
