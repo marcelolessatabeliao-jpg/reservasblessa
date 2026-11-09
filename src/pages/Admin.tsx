@@ -34,6 +34,17 @@ import { AdminDashboardTab } from '@/components/admin/AdminDashboardTab';
 import { AdminRelatoriosTab } from '@/components/admin/AdminRelatoriosTab';
 import { AdminClubEcosystem } from '@/components/club/AdminClubEcosystem';
 import { fetchClubState } from '@/lib/club-service';
+import {
+  getSeenReservationIds,
+  markReservationAsSeen,
+  markAllReservationsAsSeen,
+  getSeenClubSubIds,
+  markClubSubAsSeen,
+  markAllClubSubsAsSeen,
+  initializeReservationBaselineIfNeeded,
+  initializeClubBaselineIfNeeded,
+  initializeNotificationBaselineIfNeeded,
+} from '@/lib/admin-notifications';
 import { AdminChaleTab } from '@/components/admin/AdminChaleTab';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { cn } from "@/lib/utils";
@@ -447,25 +458,27 @@ export default function Admin() {
   const [agendaSubTab, setAgendaSubTab] = useState<'hoje' | 'futuras' | 'historico'>('hoje');
   const [isSyncingData, setIsSyncingData] = useState(false);
   const [clubMovementsCount, setClubMovementsCount] = useState(0);
+  const [notificationsRefreshTrigger, setNotificationsRefreshTrigger] = useState(0);
+
+  useEffect(() => {
+    const handler = () => {
+      setNotificationsRefreshTrigger((v) => v + 1);
+    };
+    window.addEventListener('admin_notifications_updated', handler);
+    return () => window.removeEventListener('admin_notifications_updated', handler);
+  }, []);
 
   const refreshClubNotifications = useCallback(async () => {
     try {
       const clubState = await fetchClubState();
-      const now = Date.now();
-      const TWO_DAYS_MS = 48 * 60 * 60 * 1000;
+      const subIds = (clubState.subscriptions || []).map((s) => s.id);
+      initializeClubBaselineIfNeeded(subIds);
+
+      const seenClubIds = getSeenClubSubIds();
       let count = 0;
 
       (clubState.subscriptions || []).forEach((sub) => {
-        const createdAtMs = sub.createdAt ? new Date(sub.createdAt).getTime() : 0;
-        const isRecent = createdAtMs > 0 && now - createdAtMs < TWO_DAYS_MS;
-        const isPending = sub.status === 'PENDING';
-        const hasRecentPendingInvoice = (sub.invoices || []).some((inv) => {
-          if (inv.status !== 'PENDING') return false;
-          const invDate = inv.dueDate ? new Date(inv.dueDate).getTime() : 0;
-          return Math.abs(now - invDate) < TWO_DAYS_MS;
-        });
-
-        if (isPending || isRecent || hasRecentPendingInvoice) {
+        if (sub && sub.id && !seenClubIds.has(sub.id)) {
           count++;
         }
       });
@@ -475,6 +488,10 @@ export default function Admin() {
       console.warn('Erro ao carregar notificações do Lessa Club:', err);
     }
   }, []);
+
+  useEffect(() => {
+    refreshClubNotifications();
+  }, [refreshClubNotifications, notificationsRefreshTrigger]);
 
   const repairKioskAssignments = async () => {
     setIsSyncingData(true);
@@ -584,26 +601,24 @@ export default function Admin() {
   const [credits, setCredits] = useState<any[]>([]);
 
   const agendaMovementsCount = useMemo(() => {
-    const now = Date.now();
-    const TWO_DAYS_MS = 48 * 60 * 60 * 1000;
+    const seenIds = getSeenReservationIds();
     let count = 0;
 
     (bookings || []).forEach((b: any) => {
-      const isPending = b.status === 'pending';
-      const createdMs = b.created_at ? new Date(b.created_at).getTime() : 0;
-      const isRecent = createdMs > 0 && now - createdMs < TWO_DAYS_MS;
-      if (isPending || isRecent) count++;
+      if (b && b.id && !seenIds.has(b.id)) count++;
     });
 
     (orders || []).forEach((o: any) => {
-      const isPending = o.status === 'pending';
-      const createdMs = o.created_at ? new Date(o.created_at).getTime() : 0;
-      const isRecent = createdMs > 0 && now - createdMs < TWO_DAYS_MS;
-      if (isPending || isRecent) count++;
+      if (o && o.id && !seenIds.has(o.id)) {
+        const isLinked = (bookings || []).some(
+          (b: any) => b.id === o.id || (b.confirmation_code && b.confirmation_code === o.confirmation_code)
+        );
+        if (!isLinked) count++;
+      }
     });
 
     return count;
-  }, [bookings, orders]);
+  }, [bookings, orders, notificationsRefreshTrigger]);
 
   const [targetDate, setTargetDate] = useState<Date>(new Date());
   const [totalQuads, setTotalQuads] = useState<number>(2);
@@ -986,6 +1001,12 @@ export default function Admin() {
       setKioskReservations(parsedKiosks);
       setQuadReservations(parsedQuads);
       setOrders(orderData || []);
+      
+      const allCurrentResIds: string[] = [
+        ...(flattenedBks || []).map((b: any) => b.id),
+        ...(orderData || []).map((o: any) => o.id),
+      ].filter(Boolean);
+      initializeReservationBaselineIfNeeded(allCurrentResIds);
       
       // Calculate totals for dashboard
       let tAdults = 0;
@@ -3123,25 +3144,18 @@ export default function Admin() {
                     <span>Quadriciclos</span>
                  </button>
                  <button onClick={() => setActiveTab('reservas')} className={cn(
-                   "relative py-2.5 px-2 rounded-xl lg:rounded-2xl lg:px-4 text-[10px] lg:text-[13px] font-black flex flex-col lg:flex-row items-center justify-center gap-1 lg:gap-2 transition-all",
-                   activeTab === 'reservas' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
-                 )}>
-                    <div className="relative flex items-center justify-center">
-                      <CalendarCheck className="w-4 h-4" />
-                      {agendaMovementsCount > 0 && (
-                        <span className="absolute -top-2 -right-2.5 flex h-3.5 min-w-3.5 px-1 items-center justify-center rounded-full bg-rose-500 text-[9px] font-black text-white shadow-sm ring-2 ring-slate-900 animate-pulse">
-                          {agendaMovementsCount > 99 ? '99+' : agendaMovementsCount}
-                        </span>
-                      )}
-                    </div>
-                    <span>Agenda</span>
-                    {agendaMovementsCount > 0 && (
-                      <span className="hidden lg:inline-flex ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] bg-rose-500/25 text-rose-200 border border-rose-400/30">
-                        {agendaMovementsCount}
-                      </span>
-                    )}
-                 </button>
-                 <button onClick={() => setActiveTab('vendas')} className={cn(
+                    "relative py-2.5 px-2 rounded-xl lg:rounded-2xl lg:px-4 text-[10px] lg:text-[13px] font-black flex flex-col lg:flex-row items-center justify-center gap-1 lg:gap-2 transition-all",
+                    activeTab === 'reservas' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
+                  )}>
+                     <CalendarCheck className="w-4 h-4" />
+                     <span>Agenda</span>
+                     {agendaMovementsCount > 0 && (
+                       <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-rose-600 text-white text-[10px] font-black shadow-md border-2 border-slate-900 pointer-events-none z-20">
+                         {agendaMovementsCount > 99 ? '99+' : agendaMovementsCount}
+                       </span>
+                     )}
+                  </button>
+                  <button onClick={() => setActiveTab('vendas')} className={cn(
                    "py-2.5 px-2 rounded-xl lg:rounded-2xl lg:px-4 text-[10px] lg:text-[13px] font-black flex flex-col lg:flex-row items-center justify-center gap-1 lg:gap-2 transition-all",
                    activeTab === 'vendas' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
                  )}>
@@ -3173,26 +3187,19 @@ export default function Admin() {
                     <span>Bloqueios</span>
                  </button>
                  <button onClick={() => setActiveTab('clube')} className={cn(
-                   "relative py-2.5 px-2 rounded-xl lg:rounded-2xl lg:px-4 text-[10px] lg:text-[13px] font-black flex flex-col lg:flex-row items-center justify-center gap-1 lg:gap-2 transition-all",
-                   activeTab === 'clube' ? "bg-amber-500 text-amber-950 shadow-md" : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30"
-                 )}>
-                    <div className="relative flex items-center justify-center">
-                      <CreditCard className="w-4 h-4" />
-                      {clubMovementsCount > 0 && (
-                        <span className="absolute -top-2 -right-2.5 flex h-3.5 min-w-3.5 px-1 items-center justify-center rounded-full bg-rose-500 text-[9px] font-black text-white shadow-sm ring-2 ring-slate-900 animate-pulse">
-                          {clubMovementsCount > 99 ? '99+' : clubMovementsCount}
-                        </span>
-                      )}
-                    </div>
-                    <span>Lessa Club</span>
-                    {clubMovementsCount > 0 && (
-                      <span className="hidden lg:inline-flex ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] bg-amber-400 text-amber-950 font-black shadow-sm animate-pulse">
-                        {clubMovementsCount}
-                      </span>
-                    )}
-                 </button>
-              </div>
-           </div>
+                    "relative py-2.5 px-2 rounded-xl lg:rounded-2xl lg:px-4 text-[10px] lg:text-[13px] font-black flex flex-col lg:flex-row items-center justify-center gap-1 lg:gap-2 transition-all",
+                    activeTab === 'clube' ? "bg-amber-500 text-amber-950 shadow-md" : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30"
+                  )}>
+                     <CreditCard className="w-4 h-4" />
+                     <span>Lessa Club</span>
+                     {clubMovementsCount > 0 && (
+                       <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-rose-600 text-white text-[10px] font-black shadow-md border-2 border-slate-900 pointer-events-none z-20">
+                         {clubMovementsCount > 99 ? '99+' : clubMovementsCount}
+                       </span>
+                     )}
+                  </button>
+               </div>
+            </div>
 {/* CONTENT AREA WITH GRADIENT BACKGROUND */}
           <div className={cn(
             "min-h-[500px] md:min-h-[600px] bg-white/40 backdrop-blur-md rounded-2xl md:rounded-[2rem] border border-white/60 shadow-premium",

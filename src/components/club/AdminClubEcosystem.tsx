@@ -101,6 +101,11 @@ import {
   fetchAddressByCep,
 } from '@/lib/club-service';
 import {
+  getSeenClubSubIds,
+  markClubSubAsSeen,
+  markAllClubSubsAsSeen,
+} from '@/lib/admin-notifications';
+import {
   ClubMemberCardView,
   MultiCardPrintSheet,
 } from '@/components/club/ClubMemberCardView';
@@ -216,6 +221,22 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
   // Estado para exclusão segura de clientes (com confirmação)
   const [clientToDelete, setClientToDelete] = useState<ClubSubscription | null>(null);
+
+  const [clubNotificationsTrigger, setClubNotificationsTrigger] = useState(0);
+  useEffect(() => {
+    const handler = () => setClubNotificationsTrigger((v) => v + 1);
+    window.addEventListener('admin_notifications_updated', handler);
+    return () => window.removeEventListener('admin_notifications_updated', handler);
+  }, []);
+
+  const seenClubSubIds = useMemo(() => {
+    return getSeenClubSubIds();
+  }, [clubNotificationsTrigger]);
+
+  const unseenClubCount = useMemo(() => {
+    if (!state?.subscriptions) return 0;
+    return state.subscriptions.filter((s) => s && s.id && !seenClubSubIds.has(s.id)).length;
+  }, [state?.subscriptions, seenClubSubIds]);
 
   // Dados reais da Empresa Balneário Lessa (Matching Imagem DADOS PESSOAIS)
   const [companyProfile, setCompanyProfile] = useState({
@@ -991,6 +1012,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       setSelectedClientInvoiceIdsForDelete([]);
       setEditingClientInvoiceId(null);
       setShowFaturaAvulsaForm(false);
+      markClubSubAsSeen(selectedSubForDetail.id);
       if (typeof window !== 'undefined') {
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
@@ -3302,6 +3324,30 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
               </div>
             </div>
 
+            {unseenClubCount > 0 && (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-rose-50 border border-rose-200/80 rounded-2xl px-4 py-2.5 shadow-sm mb-4">
+                <div className="flex items-center gap-2">
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-600"></span>
+                  </span>
+                  <span className="text-xs font-bold text-rose-950">
+                    {unseenClubCount} {unseenClubCount === 1 ? 'novo associado cadastrado não visualizado' : 'novos associados cadastrados não visualizados'}
+                  </span>
+                </div>
+                <button
+                  onClick={() => {
+                    const allIds = (state?.subscriptions || []).map((s) => s.id);
+                    markAllClubSubsAsSeen(allIds);
+                    toast({ title: "Todos os associados foram marcados como vistos!" });
+                  }}
+                  className="text-xs font-black text-rose-700 hover:text-rose-900 underline self-end sm:self-auto transition-colors"
+                >
+                  Zerar notificações (Marcar todos como vistos)
+                </button>
+              </div>
+            )}
+
             {filteredSubscriptions.length === 0 ? (
               <div className="text-center py-12 text-slate-500 space-y-3">
                 <p>Nenhum registro encontrado para o filtro selecionado.</p>
@@ -3375,8 +3421,13 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                             }}
                             className="py-3 px-4 border-r border-slate-200 cursor-pointer"
                           >
-                            <div className="font-black text-slate-900 hover:text-emerald-800 uppercase">
-                              {sub.holderName}
+                            <div className="font-black text-slate-900 hover:text-emerald-800 uppercase flex items-center gap-2">
+                              <span>{sub.holderName}</span>
+                              {!seenClubSubIds.has(sub.id) && (
+                                <span className="px-1.5 py-0.5 rounded-full text-[9px] font-black bg-rose-600 text-white uppercase tracking-wider animate-pulse">
+                                  Novo
+                                </span>
+                              )}
                             </div>
                             <div className="text-[11px] text-slate-500">
                               {sub.planSummaryLabel} •{' '}

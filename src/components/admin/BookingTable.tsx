@@ -100,6 +100,7 @@ interface BookingTableProps {
   kioskReservations?: any[];
   quadReservations?: any[];
   totalQuads?: number;
+  onViewBooking?: (id: string) => void;
 }
 
 const STATUS_CONFIG: Record<
@@ -202,6 +203,7 @@ export function BookingTable({
   kioskReservations = [],
   quadReservations = [],
   totalQuads = 3,
+  onViewBooking,
 }: BookingTableProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
@@ -337,7 +339,11 @@ export function BookingTable({
               >
                 <div
                   className="flex items-center justify-between"
-                  onClick={() => setExpandedId(expanded ? null : booking.id)}
+                  onClick={() => {
+                    const next = expanded ? null : booking.id;
+                    setExpandedId(next);
+                    if (next && onViewBooking) onViewBooking(booking.id);
+                  }}
                 >
                   <div className="flex flex-col">
                     <div className="flex items-center gap-1.5 mb-1">
@@ -881,9 +887,11 @@ export function BookingTable({
                 return (
                   <React.Fragment key={booking.id}>
                     <tr
-                      onClick={() =>
-                        setExpandedId(expanded ? null : booking.id)
-                      }
+                      onClick={() => {
+                        const next = expanded ? null : booking.id;
+                        setExpandedId(next);
+                        if (next && onViewBooking) onViewBooking(booking.id);
+                      }}
                       className={cn(
                         "group transition-all cursor-pointer duration-300 overflow-hidden",
                         isSelected
