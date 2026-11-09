@@ -297,7 +297,7 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
 
   // Contadores do Card "Plano Família Personalizado"
   const [customCounts, setCustomCounts] = useState<Record<string, number>>({
-    ADULTO: 1,
+    ADULTO: 0,
     ESTUDANTE: 0,
     PROFESSOR: 0,
     SERVIDOR: 0,

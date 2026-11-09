@@ -12,7 +12,7 @@ export function SpecialPlansSection() {
 
   // Contadores por perfil
   const [counts, setCounts] = useState<Record<string, number>>({
-    ADULTO: 1,
+    ADULTO: 0,
     ESTUDANTE: 0,
     PROFESSOR: 0,
     SERVIDOR: 0,
