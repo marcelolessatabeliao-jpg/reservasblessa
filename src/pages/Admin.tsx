@@ -33,6 +33,7 @@ import { AdminCreditsTab } from '@/components/admin/AdminCreditsTab';
 import { AdminDashboardTab } from '@/components/admin/AdminDashboardTab';
 import { AdminRelatoriosTab } from '@/components/admin/AdminRelatoriosTab';
 import { AdminClubEcosystem } from '@/components/club/AdminClubEcosystem';
+import { fetchClubState } from '@/lib/club-service';
 import { AdminChaleTab } from '@/components/admin/AdminChaleTab';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { cn } from "@/lib/utils";
@@ -445,6 +446,57 @@ export default function Admin() {
   const [isCapacityUnlocked, setIsCapacityUnlocked] = useState(false);
   const [agendaSubTab, setAgendaSubTab] = useState<'hoje' | 'futuras' | 'historico'>('hoje');
   const [isSyncingData, setIsSyncingData] = useState(false);
+  const [clubMovementsCount, setClubMovementsCount] = useState(0);
+
+  const refreshClubNotifications = useCallback(async () => {
+    try {
+      const clubState = await fetchClubState();
+      const now = Date.now();
+      const TWO_DAYS_MS = 48 * 60 * 60 * 1000;
+      let count = 0;
+
+      (clubState.subscriptions || []).forEach((sub) => {
+        const createdAtMs = sub.createdAt ? new Date(sub.createdAt).getTime() : 0;
+        const isRecent = createdAtMs > 0 && now - createdAtMs < TWO_DAYS_MS;
+        const isPending = sub.status === 'PENDING';
+        const hasRecentPendingInvoice = (sub.invoices || []).some((inv) => {
+          if (inv.status !== 'PENDING') return false;
+          const invDate = inv.dueDate ? new Date(inv.dueDate).getTime() : 0;
+          return Math.abs(now - invDate) < TWO_DAYS_MS;
+        });
+
+        if (isPending || isRecent || hasRecentPendingInvoice) {
+          count++;
+        }
+      });
+
+      setClubMovementsCount(count);
+    } catch (err) {
+      console.warn('Erro ao carregar notificações do Lessa Club:', err);
+    }
+  }, []);
+
+  const agendaMovementsCount = useMemo(() => {
+    const now = Date.now();
+    const TWO_DAYS_MS = 48 * 60 * 60 * 1000;
+    let count = 0;
+
+    (bookings || []).forEach((b: any) => {
+      const isPending = b.status === 'pending';
+      const createdMs = b.created_at ? new Date(b.created_at).getTime() : 0;
+      const isRecent = createdMs > 0 && now - createdMs < TWO_DAYS_MS;
+      if (isPending || isRecent) count++;
+    });
+
+    (orders || []).forEach((o: any) => {
+      const isPending = o.status === 'pending';
+      const createdMs = o.created_at ? new Date(o.created_at).getTime() : 0;
+      const isRecent = createdMs > 0 && now - createdMs < TWO_DAYS_MS;
+      if (isPending || isRecent) count++;
+    });
+
+    return count;
+  }, [bookings, orders]);
 
   const repairKioskAssignments = async () => {
     setIsSyncingData(true);
@@ -999,6 +1051,7 @@ export default function Admin() {
 
     console.log("[Admin] Setting up initial data and subscriptions...");
     fetchData();
+    refreshClubNotifications();
 
     const channel = supabase.channel("admin_db_changes")
       .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, (payload) => {
@@ -1017,18 +1070,20 @@ export default function Admin() {
         }
       });
 
-    // Fallback: Refresh data and sync payments every 5 minutes
+    // Fallback: Refresh data and sync payments every 5 minutes (club notifications every 30s)
     const pollInterval = setInterval(() => {
       console.log("[Admin] Periodic sync...");
       fetchData();
       syncAllPendingPayments();
-    }, 5 * 60 * 1000);
+      refreshClubNotifications();
+    }, 30 * 1000);
 
     // Sync when window regains focus
     const handleFocus = () => {
       console.log("[Admin] Window focused, syncing data...");
       fetchData();
       syncAllPendingPayments();
+      refreshClubNotifications();
     };
     window.addEventListener('focus', handleFocus);
 
@@ -1038,7 +1093,7 @@ export default function Admin() {
       clearInterval(pollInterval);
       window.removeEventListener('focus', handleFocus);
     };
-  }, [token, fetchData, syncAllPendingPayments]);
+  }, [token, fetchData, syncAllPendingPayments, refreshClubNotifications]);
 
   // --- ACTIONS ---
   const handleLogout = () => {
@@ -3067,11 +3122,23 @@ export default function Admin() {
                     <span>Quadriciclos</span>
                  </button>
                  <button onClick={() => setActiveTab('reservas')} className={cn(
-                   "py-2.5 px-2 rounded-xl lg:rounded-2xl lg:px-4 text-[10px] lg:text-[13px] font-black flex flex-col lg:flex-row items-center justify-center gap-1 lg:gap-2 transition-all",
+                   "relative py-2.5 px-2 rounded-xl lg:rounded-2xl lg:px-4 text-[10px] lg:text-[13px] font-black flex flex-col lg:flex-row items-center justify-center gap-1 lg:gap-2 transition-all",
                    activeTab === 'reservas' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
                  )}>
-                    <CalendarCheck className="w-4 h-4" />
+                    <div className="relative flex items-center justify-center">
+                      <CalendarCheck className="w-4 h-4" />
+                      {agendaMovementsCount > 0 && (
+                        <span className="absolute -top-2 -right-2.5 flex h-3.5 min-w-3.5 px-1 items-center justify-center rounded-full bg-rose-500 text-[9px] font-black text-white shadow-sm ring-2 ring-slate-900 animate-pulse">
+                          {agendaMovementsCount > 99 ? '99+' : agendaMovementsCount}
+                        </span>
+                      )}
+                    </div>
                     <span>Agenda</span>
+                    {agendaMovementsCount > 0 && (
+                      <span className="hidden lg:inline-flex ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] bg-rose-500/25 text-rose-200 border border-rose-400/30">
+                        {agendaMovementsCount}
+                      </span>
+                    )}
                  </button>
                  <button onClick={() => setActiveTab('vendas')} className={cn(
                    "py-2.5 px-2 rounded-xl lg:rounded-2xl lg:px-4 text-[10px] lg:text-[13px] font-black flex flex-col lg:flex-row items-center justify-center gap-1 lg:gap-2 transition-all",
@@ -3105,11 +3172,23 @@ export default function Admin() {
                     <span>Bloqueios</span>
                  </button>
                  <button onClick={() => setActiveTab('clube')} className={cn(
-                   "py-2.5 px-2 rounded-xl lg:rounded-2xl lg:px-4 text-[10px] lg:text-[13px] font-black flex flex-col lg:flex-row items-center justify-center gap-1 lg:gap-2 transition-all",
+                   "relative py-2.5 px-2 rounded-xl lg:rounded-2xl lg:px-4 text-[10px] lg:text-[13px] font-black flex flex-col lg:flex-row items-center justify-center gap-1 lg:gap-2 transition-all",
                    activeTab === 'clube' ? "bg-amber-500 text-amber-950 shadow-md" : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30"
                  )}>
-                    <CreditCard className="w-4 h-4" />
+                    <div className="relative flex items-center justify-center">
+                      <CreditCard className="w-4 h-4" />
+                      {clubMovementsCount > 0 && (
+                        <span className="absolute -top-2 -right-2.5 flex h-3.5 min-w-3.5 px-1 items-center justify-center rounded-full bg-rose-500 text-[9px] font-black text-white shadow-sm ring-2 ring-slate-900 animate-pulse">
+                          {clubMovementsCount > 99 ? '99+' : clubMovementsCount}
+                        </span>
+                      )}
+                    </div>
                     <span>Lessa Club</span>
+                    {clubMovementsCount > 0 && (
+                      <span className="hidden lg:inline-flex ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] bg-amber-400 text-amber-950 font-black shadow-sm animate-pulse">
+                        {clubMovementsCount}
+                      </span>
+                    )}
                  </button>
               </div>
            </div>

@@ -98,6 +98,7 @@ import {
   formatBirthDate,
   getMemberAccessMessage,
   updateAsaasPaymentDueDate,
+  fetchAddressByCep,
 } from '@/lib/club-service';
 import {
   ClubMemberCardView,
@@ -1220,9 +1221,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     const digits = rawCep.replace(/\D/g, '');
     if (digits.length !== 8) return;
     try {
-      const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
-      const data = await res.json();
-      if (!data.erro) {
+      const data = await fetchAddressByCep(digits);
+      if (data) {
         setStreet(data.logradouro || '');
         setNeighborhood(data.bairro || '');
         setCity(data.localidade || 'Ariquemes');
@@ -6983,36 +6983,42 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         </Label>
                         <Input
                           value={editClientData.addressCep}
-                          onChange={(e) =>
-                            setEditClientData({
-                              ...editClientData,
-                              addressCep: e.target.value,
-                            })
-                          }
+                          onChange={async (e) => {
+                            const val = e.target.value;
+                            setEditClientData((prev) => ({
+                              ...prev,
+                              addressCep: val,
+                            }));
+                            const digits = val.replace(/\D/g, '');
+                            if (digits.length === 8) {
+                              const d = await fetchAddressByCep(digits);
+                              if (d) {
+                                setEditClientData((prev) => ({
+                                  ...prev,
+                                  addressStreet: d.logradouro || prev.addressStreet,
+                                  addressNeighborhood: d.bairro || prev.addressNeighborhood,
+                                  addressCity: d.localidade || prev.addressCity,
+                                  addressState: d.uf || prev.addressState,
+                                }));
+                              }
+                            }
+                          }}
                           onBlur={async () => {
                             const digits = editClientData.addressCep.replace(
                               /\D/g,
                               ''
                             );
                             if (digits.length !== 8) return;
-                            try {
-                              const res = await fetch(
-                                `https://viacep.com.br/ws/${digits}/json/`
-                              );
-                              const d = await res.json();
-                              if (!d.erro) {
-                                setEditClientData((prev) => ({
-                                  ...prev,
-                                  addressStreet:
-                                    d.logradouro || prev.addressStreet,
-                                  addressNeighborhood:
-                                    d.bairro || prev.addressNeighborhood,
-                                  addressCity:
-                                    d.localidade || prev.addressCity,
-                                  addressState: d.uf || prev.addressState,
-                                }));
-                              }
-                            } catch {}
+                            const d = await fetchAddressByCep(digits);
+                            if (d) {
+                              setEditClientData((prev) => ({
+                                ...prev,
+                                addressStreet: d.logradouro || prev.addressStreet,
+                                addressNeighborhood: d.bairro || prev.addressNeighborhood,
+                                addressCity: d.localidade || prev.addressCity,
+                                addressState: d.uf || prev.addressState,
+                              }));
+                            }
                           }}
                           placeholder="00000-000"
                           className="mt-1"

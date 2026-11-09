@@ -45,6 +45,7 @@ import {
   checkClubInvoicePaymentStatus,
   renderSubscriptionContractHtml,
   compressImageFile,
+  fetchAddressByCep,
   type CreateSubscriptionMemberInput,
 } from '@/lib/club-service';
 import { ClubMemberCardView } from './ClubMemberCardView';
@@ -172,17 +173,21 @@ export const CustomFamilyCheckoutModal: React.FC<CustomFamilyCheckoutModalProps>
   }, [holderName, holderCpf, holderRg, holderBirthDate, holderSex, holderPhone]);
 
   // Busca automática de CEP
-  const handleCepBlur = async () => {
-    const clean = cep.replace(/\D/g, '');
+  const handleCepLookup = async (inputCep?: string) => {
+    const raw = typeof inputCep === 'string' ? inputCep : cep;
+    const clean = raw.replace(/\D/g, '');
     if (clean.length !== 8) return;
     try {
-      const res = await fetch(`https://viacep.com.br/ws/${clean}/json/`);
-      const data = await res.json();
-      if (!data.erro) {
-        if (data.logradouro) setStreet(data.logradouro);
-        if (data.bairro) setNeighborhood(data.bairro);
-        if (data.localidade) setCity(data.localidade);
-        if (data.uf) setStateUf(data.uf);
+      const result = await fetchAddressByCep(clean);
+      if (result) {
+        if (result.logradouro) setStreet(result.logradouro);
+        if (result.bairro) setNeighborhood(result.bairro);
+        if (result.localidade) setCity(result.localidade);
+        if (result.uf) setStateUf(result.uf);
+        toast({
+          title: 'Endereço localizado via CEP!',
+          description: `${result.logradouro || 'Rua'}, ${result.bairro || 'Bairro'} — ${result.localidade}/${result.uf}`,
+        });
       }
     } catch {}
   };
@@ -821,8 +826,14 @@ export const CustomFamilyCheckoutModal: React.FC<CustomFamilyCheckoutModalProps>
                   <Label className="text-xs font-bold">CEP</Label>
                   <Input
                     value={cep}
-                    onChange={(e) => setCep(e.target.value)}
-                    onBlur={handleCepBlur}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setCep(val);
+                      if (val.replace(/\D/g, '').length === 8) {
+                        handleCepLookup(val);
+                      }
+                    }}
+                    onBlur={() => handleCepLookup(cep)}
                     placeholder="76870-000"
                     className="bg-white"
                   />

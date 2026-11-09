@@ -25,6 +25,8 @@ import {
   AlertCircle,
   ShieldCheck,
   Users,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -65,6 +67,7 @@ const SocioPortal: React.FC = () => {
   const [state, setState] = useState<ClubDatabaseState | null>(null);
   const [loginInput, setLoginInput] = useState(initialCpfOrCard);
   const [passwordInput, setPasswordInput] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [subscription, setSubscription] = useState<ClubSubscription | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedInvoiceForPix, setSelectedInvoiceForPix] = useState<ClubInvoice | null>(null);
@@ -121,7 +124,7 @@ const SocioPortal: React.FC = () => {
       if (!isValid) {
         toast({
           title: 'Senha incorreta',
-          description: 'Sua senha é a sua data de nascimento com 8 dígitos (ex: 05051998).',
+          description: 'A senha informada não confere. Verifique seus dados e tente novamente.',
           variant: 'destructive',
         });
         return;
@@ -348,24 +351,26 @@ const SocioPortal: React.FC = () => {
               </div>
 
               <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-bold uppercase text-slate-700 block">
-                    Senha (Data de Nascimento)
-                  </label>
-                  <span className="text-[10px] text-emerald-700 font-bold">Ex: 05051998</span>
+                <label className="text-xs font-bold uppercase text-slate-700 block mb-1.5">
+                  Senha
+                </label>
+                <div className="relative">
+                  <Input
+                    type={showPassword ? 'text' : 'password'}
+                    value={passwordInput}
+                    onChange={(e) => setPasswordInput(e.target.value)}
+                    placeholder="Digite sua senha"
+                    className="h-12 text-base pr-11"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none p-1 transition-colors"
+                    title={showPassword ? 'Ocultar senha' : 'Ver senha'}
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
                 </div>
-                <Input
-                  type="password"
-                  inputMode="numeric"
-                  maxLength={10}
-                  value={passwordInput}
-                  onChange={(e) => setPasswordInput(e.target.value)}
-                  placeholder="Digite sua data de nascimento (DDMMAAAA)"
-                  className="h-12 text-base"
-                />
-                <p className="text-[11px] text-slate-500 mt-1">
-                  💡 Sua senha padrão são os 8 dígitos da sua data de nascimento (ex: 05/05/1998 = <strong>05051998</strong>).
-                </p>
               </div>
               <Button
                 type="submit"

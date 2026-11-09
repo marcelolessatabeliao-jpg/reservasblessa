@@ -322,13 +322,14 @@ export const getQrCodeImageUrl = (payload: string, size = 240): string =>
 const isOutdatedCardUrl = (url?: string) =>
   !url ||
   [
+    '/cards/2.png',
+    '/cards/7.png',
+    '/cards/9.png',
+    '/cards/37.png',
+    '/cards/25.png',
+    '/cards/34.png',
+    '/cards/17.png',
     '/cards/18.png',
-    '/cards/6.png',
-    '/cards/3.png',
-    '/cards/10.png',
-    '/cards/38.png',
-    '/cards/26.png',
-    '/cards/35.png',
     '/cards/4.png',
     '/cards/15.png',
     '/cards/16.png',
@@ -367,20 +368,20 @@ export const normalizeClubDatabaseState = (
       let frontUrl = m.frontCardUrl;
       let backUrl = m.backCardUrl;
 
-      if (m.modalityCode === 'ADULTO' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/18.png')) {
+      if (m.modalityCode === 'ADULTO' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/18.png' || frontUrl === '/cards/17.png')) {
         frontUrl = '/cards/44.png';
-      } else if (m.modalityCode === 'ESTUDANTE' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/6.png')) {
-        frontUrl = '/cards/7.png';
-      } else if (m.modalityCode === 'PROFESSOR' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/3.png')) {
-        frontUrl = '/cards/2.png';
-      } else if (m.modalityCode === 'SERVIDOR' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/10.png')) {
-        frontUrl = '/cards/9.png';
-      } else if (m.modalityCode === 'KIDS' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/38.png')) {
-        frontUrl = '/cards/37.png';
-      } else if (m.modalityCode === 'IDOSO_60' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/26.png')) {
-        frontUrl = '/cards/25.png';
-      } else if (m.modalityCode === 'PCD_TEA' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/35.png')) {
-        frontUrl = '/cards/34.png';
+      } else if (m.modalityCode === 'ESTUDANTE' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/7.png')) {
+        frontUrl = '/cards/6.png';
+      } else if (m.modalityCode === 'PROFESSOR' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/2.png')) {
+        frontUrl = '/cards/3.png';
+      } else if (m.modalityCode === 'SERVIDOR' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/9.png')) {
+        frontUrl = '/cards/10.png';
+      } else if (m.modalityCode === 'KIDS' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/37.png')) {
+        frontUrl = '/cards/38.png';
+      } else if (m.modalityCode === 'IDOSO_60' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/25.png')) {
+        frontUrl = '/cards/26.png';
+      } else if (m.modalityCode === 'PCD_TEA' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/34.png')) {
+        frontUrl = '/cards/35.png';
       }
 
       if (m.modalityCode === 'KIDS' || m.modalityCode === 'IDOSO_60') {
@@ -1343,4 +1344,51 @@ export const getMemberAccessMessage = (sub: ClubSubscription): { message: string
   const whatsappUrl = `https://wa.me/${fullPhone}?text=${encodeURIComponent(message)}`;
 
   return { message, whatsappUrl, loginUser, password };
+};
+
+// ============================================================================
+// BUSCA ROBUSTA DE CEP (ViaCEP + Fallback BrasilAPI)
+// ============================================================================
+export interface CepAddressResult {
+  logradouro: string;
+  bairro: string;
+  localidade: string;
+  uf: string;
+}
+
+export const fetchAddressByCep = async (rawCep: string): Promise<CepAddressResult | null> => {
+  const digits = (rawCep || '').replace(/\D/g, '');
+  if (digits.length !== 8) return null;
+
+  try {
+    const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
+    const data = await res.json();
+    if (data && !data.erro) {
+      return {
+        logradouro: data.logradouro || '',
+        bairro: data.bairro || '',
+        localidade: data.localidade || 'Ariquemes',
+        uf: data.uf || 'RO',
+      };
+    }
+  } catch (err) {
+    console.warn('[CEP] ViaCEP falhou, tentando fallback BrasilAPI...', err);
+  }
+
+  try {
+    const res = await fetch(`https://brasilapi.com.br/api/cep/v1/${digits}`);
+    const data = await res.json();
+    if (data && !data.errors) {
+      return {
+        logradouro: data.street || '',
+        bairro: data.neighborhood || '',
+        localidade: data.city || 'Ariquemes',
+        uf: data.state || 'RO',
+      };
+    }
+  } catch (err) {
+    console.warn('[CEP] BrasilAPI também falhou:', err);
+  }
+
+  return null;
 };

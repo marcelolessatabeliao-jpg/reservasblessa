@@ -68,6 +68,7 @@ import {
   isValidCpf,
   cleanDigits,
   compressImageFile,
+  fetchAddressByCep,
 } from '@/lib/club-service';
 import { ClubMemberCardView } from '@/components/club/ClubMemberCardView';
 
@@ -96,7 +97,7 @@ const CATALOG_PLANS: CatalogPlanCard[] = [
     title: 'Lessa Club',
     subtitle: 'Plano Individual ou Familiar (Escolha a quantidade de pessoas)',
     modalityCode: 'ADULTO',
-    cardImage: '/cards/17.png',
+    cardImage: '/cards/44.png',
     backCardUrl: '/cards/24.png',
     monthlyPrice: 49.9,
     annualPrice: 538.92,
@@ -119,7 +120,7 @@ const CATALOG_PLANS: CatalogPlanCard[] = [
     title: 'Lessa Student Pass',
     subtitle: 'Meia-Assinatura para Estudantes (50% OFF)',
     modalityCode: 'ESTUDANTE',
-    cardImage: '/cards/7.png',
+    cardImage: '/cards/6.png',
     backCardUrl: '/cards/24.png',
     monthlyPrice: 25.0,
     annualPrice: 270.0,
@@ -140,7 +141,7 @@ const CATALOG_PLANS: CatalogPlanCard[] = [
     title: 'Lessa Professor Pass',
     subtitle: 'Meia-Assinatura para Professores (50% OFF)',
     modalityCode: 'PROFESSOR',
-    cardImage: '/cards/2.png',
+    cardImage: '/cards/3.png',
     backCardUrl: '/cards/24.png',
     monthlyPrice: 25.0,
     annualPrice: 270.0,
@@ -161,7 +162,7 @@ const CATALOG_PLANS: CatalogPlanCard[] = [
     title: 'Lessa Servidor Pass',
     subtitle: 'Meia-Assinatura para Servidores Públicos (50% OFF)',
     modalityCode: 'SERVIDOR',
-    cardImage: '/cards/9.png',
+    cardImage: '/cards/10.png',
     backCardUrl: '/cards/24.png',
     monthlyPrice: 25.0,
     annualPrice: 270.0,
@@ -182,7 +183,7 @@ const CATALOG_PLANS: CatalogPlanCard[] = [
     title: 'Lessa Inclusão - PCD e TEA',
     subtitle: 'Gratuidade Oficial para Pessoas com Deficiência e Autismo (TEA)',
     modalityCode: 'PCD_TEA',
-    cardImage: '/cards/34.png',
+    cardImage: '/cards/35.png',
     backCardUrl: '/cards/24.png',
     monthlyPrice: 0.0,
     annualPrice: 0.0,
@@ -202,7 +203,7 @@ const CATALOG_PLANS: CatalogPlanCard[] = [
     title: 'Lessa Vitalício 60+',
     subtitle: 'Gratuidade Oficial para Idosos a partir de 60 anos',
     modalityCode: 'IDOSO_60',
-    cardImage: '/cards/25.png',
+    cardImage: '/cards/26.png',
     backCardUrl: '/cards/39.png',
     monthlyPrice: 0.0,
     annualPrice: 0.0,
@@ -222,7 +223,7 @@ const CATALOG_PLANS: CatalogPlanCard[] = [
     title: 'Lessa Kids',
     subtitle: 'Gratuidade Oficial para Crianças de 0 a 11 anos',
     modalityCode: 'KIDS',
-    cardImage: '/cards/37.png',
+    cardImage: '/cards/38.png',
     backCardUrl: '/cards/39.png',
     monthlyPrice: 0.0,
     annualPrice: 0.0,
@@ -545,17 +546,21 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
   };
 
   // Busca automática de CEP
-  const handleCepBlur = async () => {
-    const digits = addressCep.replace(/\D/g, '');
+  const handleCepLookup = async (inputCep?: string) => {
+    const raw = typeof inputCep === 'string' ? inputCep : addressCep;
+    const digits = raw.replace(/\D/g, '');
     if (digits.length !== 8) return;
     try {
-      const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
-      const data = await res.json();
-      if (!data.erro) {
-        setAddressStreet(data.logradouro || '');
-        setAddressNeighborhood(data.bairro || '');
-        setAddressCity(data.localidade || 'Ariquemes');
-        setAddressState(data.uf || 'RO');
+      const result = await fetchAddressByCep(digits);
+      if (result) {
+        if (result.logradouro) setAddressStreet(result.logradouro);
+        if (result.bairro) setAddressNeighborhood(result.bairro);
+        if (result.localidade) setAddressCity(result.localidade);
+        if (result.uf) setAddressState(result.uf);
+        toast({
+          title: 'Endereço localizado!',
+          description: `${result.logradouro || 'Rua'}, ${result.bairro || 'Bairro'} — ${result.localidade}/${result.uf}`,
+        });
       }
     } catch {}
   };
@@ -1197,17 +1202,17 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                   {/* Preview das artes das carteirinhas empilhadas */}
                   <div className="flex items-center gap-3 pt-1">
                     <img
-                      src="/cards/17.png"
+                      src="/cards/44.png"
                       alt="Lessa Club"
                       className="w-28 sm:w-32 rounded-xl border-2 border-amber-400/60 shadow-lg"
                     />
                     <img
-                      src="/cards/7.png"
+                      src="/cards/6.png"
                       alt="Student Pass"
                       className="w-24 sm:w-28 rounded-xl border border-white/20 shadow-md -ml-6 mt-3"
                     />
                     <img
-                      src="/cards/37.png"
+                      src="/cards/38.png"
                       alt="Lessa Kids"
                       className="w-24 sm:w-28 rounded-xl border border-white/20 shadow-md -ml-6 -mt-2"
                     />
@@ -2279,8 +2284,14 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                 </Label>
                 <Input
                   value={addressCep}
-                  onChange={(e) => setAddressCep(e.target.value)}
-                  onBlur={handleCepBlur}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setAddressCep(val);
+                    if (val.replace(/\D/g, '').length === 8) {
+                      handleCepLookup(val);
+                    }
+                  }}
+                  onBlur={() => handleCepLookup(addressCep)}
                   placeholder="76870-000"
                   className="h-11 bg-white border-slate-300"
                 />
