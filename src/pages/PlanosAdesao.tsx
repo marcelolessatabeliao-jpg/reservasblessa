@@ -405,12 +405,6 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
     [holderModalityCode, activeModalities]
   );
 
-  // No plano anual não há opção de débito (apenas PIX integral ou Cartão de Crédito 12x)
-  useEffect(() => {
-    if (billingCycle === 'ANNUAL' && paymentMethod === 'DEBIT_CARD') {
-      setPaymentMethod('PIX');
-    }
-  }, [billingCycle, paymentMethod]);
 
   const pricingSummary = useMemo(() => {
     const holderMonthly =
@@ -763,7 +757,7 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
       const isFree = pricingSummary.totalMonthlyEquivalent === 0;
       const chosenInstallments =
         billingCycle === 'ANNUAL'
-          ? paymentMethod === 'PIX'
+          ? paymentMethod === 'PIX' || paymentMethod === 'DEBIT_CARD'
             ? 1
             : installments
           : 12;
@@ -1016,6 +1010,32 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
       setCheckingPayment(false);
     }
   };
+
+  // Polling automático para detecção de pagamento no Passo 4
+  useEffect(() => {
+    if (step !== 4 || !createdSub || createdSub.status === 'ACTIVE' || !createdInvoice) return;
+    const interval = setInterval(async () => {
+      try {
+        const paid = await checkClubInvoicePaymentStatus(createdSub.id, createdInvoice.id);
+        if (paid) {
+          const nextState = await fetchClubState();
+          setState(nextState);
+          const updatedSub = nextState.subscriptions.find((s) => s.id === createdSub.id);
+          if (updatedSub) {
+            setCreatedSub(updatedSub);
+            setCreatedInvoice(updatedSub.invoices[0] || createdInvoice);
+          }
+          toast({
+            title: 'Pagamento Confirmado • PLANO ATIVO!',
+            description: 'Todas as carteirinhas da sua família estão ATIVAS e liberadas para edição!',
+          });
+        }
+      } catch (e) {
+        console.warn('[PlanosAdesao] Polling check-payment warning:', e);
+      }
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [step, createdSub, createdInvoice, toast]);
 
   // Preço do Banner Destaque "Plano Família Personalizado"
   const customActiveCycle = getCardCycle('custom-family');
@@ -2776,7 +2796,7 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                   <Label className="text-xs font-black uppercase text-emerald-950 block">
                     {billingCycle === 'ANNUAL'
-                      ? '1. Escolha o Meio de Pagamento do Plano Anual (Sem Débito no Plano Anual):'
+                      ? '1. Escolha o Meio de Pagamento do Plano Anual:'
                       : '1. Escolha o Meio de Pagamento do Plano Mensal (12 Cobranças Mensais Recorrentes):'}
                   </Label>
                   <span className="text-[11px] font-semibold text-emerald-800">
@@ -2787,12 +2807,12 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                 </div>
 
                 {billingCycle === 'ANNUAL' ? (
-                  /* PLANO ANUAL: APENAS PIX INTEGRAL OU CARTÃO DE CRÉDITO (1X A 12X SEM DÉBITO) */
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  /* PLANO ANUAL: PIX INTEGRAL, CRÉDITO 1X A 12X OU DÉBITO INTEGRAL */
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <button
                       type="button"
                       onClick={() => setPaymentMethod('PIX')}
-                      className={`p-4 rounded-xl border text-left transition-all flex items-center justify-between ${
+                      className={`p-3.5 rounded-xl border text-left transition-all flex items-center justify-between ${
                         paymentMethod === 'PIX'
                           ? 'bg-emerald-700 text-white border-emerald-700 font-bold shadow-md'
                           : 'bg-white border-slate-200 text-slate-700 hover:border-emerald-400'
@@ -2800,14 +2820,14 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                     >
                       <div>
                         <div className="text-sm font-black">
-                          PIX (Valor Integral Anual)
+                          PIX (Integral)
                         </div>
                         <div
-                          className={`text-xs mt-0.5 ${
+                          className={`text-[11px] mt-0.5 ${
                             paymentMethod === 'PIX' ? 'text-emerald-100' : 'text-slate-500'
                           }`}
                         >
-                          Pagamento único de{' '}
+                          Valor único de{' '}
                           <strong>{formatCurrency(pricingSummary.totalContractValue)}</strong> à vista
                         </div>
                       </div>
@@ -2817,7 +2837,7 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                     <button
                       type="button"
                       onClick={() => setPaymentMethod('CREDIT_CARD')}
-                      className={`p-4 rounded-xl border text-left transition-all flex items-center justify-between ${
+                      className={`p-3.5 rounded-xl border text-left transition-all flex items-center justify-between ${
                         paymentMethod === 'CREDIT_CARD'
                           ? 'bg-emerald-700 text-white border-emerald-700 font-bold shadow-md'
                           : 'bg-white border-slate-200 text-slate-700 hover:border-emerald-400'
@@ -2825,22 +2845,49 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                     >
                       <div>
                         <div className="text-sm font-black">
-                          Cartão de Crédito (1x até 12x)
+                          Cartão de Crédito (1x a 12x)
                         </div>
                         <div
-                          className={`text-xs mt-0.5 ${
+                          className={`text-[11px] mt-0.5 ${
                             paymentMethod === 'CREDIT_CARD'
                               ? 'text-emerald-100'
                               : 'text-slate-500'
                           }`}
                         >
-                          Valor integral ({formatCurrency(pricingSummary.totalContractValue)}) em{' '}
+                          Valor integral em{' '}
                           <strong>
                             {installments}x de{' '}
                             {formatCurrency(
                               Number((pricingSummary.totalContractValue / installments).toFixed(2))
                             )}
                           </strong>
+                        </div>
+                      </div>
+                      <CreditCard className="w-5 h-5 shrink-0 ml-2" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod('DEBIT_CARD')}
+                      className={`p-3.5 rounded-xl border text-left transition-all flex items-center justify-between ${
+                        paymentMethod === 'DEBIT_CARD'
+                          ? 'bg-emerald-700 text-white border-emerald-700 font-bold shadow-md'
+                          : 'bg-white border-slate-200 text-slate-700 hover:border-emerald-400'
+                      }`}
+                    >
+                      <div>
+                        <div className="text-sm font-black">
+                          Cartão de Débito (Integral)
+                        </div>
+                        <div
+                          className={`text-[11px] mt-0.5 ${
+                            paymentMethod === 'DEBIT_CARD'
+                              ? 'text-emerald-100'
+                              : 'text-slate-500'
+                          }`}
+                        >
+                          Valor único à vista:{' '}
+                          <strong>{formatCurrency(pricingSummary.totalContractValue)}</strong>
                         </div>
                       </div>
                       <CreditCard className="w-5 h-5 shrink-0 ml-2" />
@@ -3263,8 +3310,7 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                       >
                         <CreditCard className="w-3.5 h-3.5" /> Cartão de Crédito
                       </button>
-                      {createdSub.billingCycle === 'MONTHLY' && (
-                        <button
+                      <button
                           type="button"
                           onClick={() => setPaymentMethod('DEBIT_CARD')}
                           className={`px-3.5 py-2 rounded-lg text-xs font-black transition-all flex items-center gap-1.5 ${
@@ -3275,7 +3321,6 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                         >
                           <CreditCard className="w-3.5 h-3.5" /> Cartão de Débito
                         </button>
-                      )}
                       <button
                         type="button"
                         onClick={() => setPaymentMethod('PIX')}
@@ -3302,7 +3347,9 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                           <h4 className="font-black text-base text-slate-900">
                             Dados do{' '}
                             {paymentMethod === 'DEBIT_CARD'
-                              ? 'Cartão de Débito (Recorrência Mensal)'
+                              ? createdSub.billingCycle === 'ANNUAL'
+                                ? 'Cartão de Débito (Valor Integral Anual à Vista)'
+                                : 'Cartão de Débito (Recorrência Mensal)'
                               : 'Cartão de Crédito'}{' '}
                             para Ativar a Assinatura
                           </h4>
@@ -3463,6 +3510,10 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                           <span>
                             {checkingPayment
                               ? 'Processando Cartão...'
+                              : paymentMethod === 'DEBIT_CARD'
+                              ? createdSub.billingCycle === 'ANNUAL'
+                                ? `Pagar Valor Integral no Débito (${formatCurrency(createdSub.totalContractValue)}) e Ativar`
+                                : `Pagar 1ª Mensalidade no Débito (${formatCurrency(createdSub.monthlyEquivalent)}/mês) e Ativar`
                               : createdSub.billingCycle === 'ANNUAL'
                               ? `Pagar ${installments}x de ${formatCurrency(
                                   Number((createdSub.totalContractValue / installments).toFixed(2))
@@ -3473,6 +3524,19 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                           </span>
                         </Button>
                       </div>
+                        {createdInvoice?.invoiceUrl && (
+                          <div className="text-center pt-1">
+                            <a
+                              href={createdInvoice.invoiceUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs font-bold text-emerald-700 hover:text-emerald-900 underline inline-flex items-center gap-1.5"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                              Ou pagar diretamente na fatura oficial Asaas (com Débito Bancário / 3DS)
+                            </a>
+                          </div>
+                        )}
                     </form>
                   )}
 

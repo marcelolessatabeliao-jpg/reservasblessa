@@ -136,10 +136,10 @@ Deno.serve(async (req) => {
 
     if (isInstallment) {
       paymentBody.installmentCount = Number(installmentCount);
-      if (installmentValue) {
-        paymentBody.installmentValue = Number(Number(installmentValue).toFixed(2));
-      } else if (totalValue) {
+      if (totalValue) {
         paymentBody.totalValue = Number(Number(totalValue).toFixed(2));
+      } else if (installmentValue) {
+        paymentBody.installmentValue = Number(Number(installmentValue).toFixed(2));
       } else {
         paymentBody.installmentValue = Number(Number(value).toFixed(2));
       }

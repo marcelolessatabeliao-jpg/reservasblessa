@@ -702,8 +702,10 @@ export const createClubSubscription = async (
   // - Plano Anual + PIX: 1 cobrança integral à vista (valor total de 1 ano)
   // - Plano Anual + Cartão de Crédito: valor integral dividido em 1x até 12x no cartão de crédito
   // - Plano Mensal (PIX, Cartão de Crédito ou Cartão de Débito): 12 cobranças mensais recorrentes
-  const isAnnualPixFull =
-    !isFree && input.billingCycle === 'ANNUAL' && input.paymentMethod === 'PIX';
+  const isAnnualUpfrontFull =
+    !isFree &&
+    input.billingCycle === 'ANNUAL' &&
+    (input.paymentMethod === 'PIX' || input.paymentMethod === 'DEBIT_CARD');
 
   const chosenAnnualInstallments = Math.max(
     1,
@@ -712,7 +714,7 @@ export const createClubSubscription = async (
 
   const installmentsCount = isFree
     ? 1
-    : isAnnualPixFull
+    : isAnnualUpfrontFull
     ? 1
     : input.billingCycle === 'ANNUAL'
     ? chosenAnnualInstallments
@@ -735,7 +737,7 @@ export const createClubSubscription = async (
     const refMonth = `${String(dueObj.getMonth() + 1).padStart(2, '0')}/${dueObj.getFullYear()}`;
     const invoiceAmount = isFree
       ? 0
-      : isAnnualPixFull
+      : isAnnualUpfrontFull
       ? Number(totalContractValue.toFixed(2))
       : input.billingCycle === 'ANNUAL'
       ? annualCreditInstallmentValue
@@ -743,8 +745,8 @@ export const createClubSubscription = async (
 
     const descriptionLabel = isFree
       ? `Isenção / Gratuidade - ${planSummaryLabel}`
-      : isAnnualPixFull
-      ? `Pagamento Anual Integral à Vista (PIX) - ${planSummaryLabel}`
+      : isAnnualUpfrontFull
+      ? `Pagamento Anual Integral à Vista (${input.paymentMethod === 'DEBIT_CARD' ? 'Cartão de Débito' : 'PIX'}) - ${planSummaryLabel}`
       : input.billingCycle === 'ANNUAL'
       ? `Parcela ${i}/${installmentsCount} (Plano Anual no Cartão de Crédito) - ${planSummaryLabel}`
       : `Mensalidade Recorrente ${i}/12 - ${planSummaryLabel}`;

@@ -68,12 +68,15 @@ Deno.serve(async (req) => {
     const isPaid = asaasStatus === 'RECEIVED' || asaasStatus === 'CONFIRMED';
 
     let updated = false;
-    if (isPaid && payStatus !== 'paid' && orderId) {
+    if (isPaid) {
+      // Atualizar orders e payments
       try {
-        await supabaseAdmin
-          .from('orders')
-          .update({ status: 'paid', updated_at: new Date().toISOString() })
-          .eq('id', orderId);
+        if (orderId) {
+          await supabaseAdmin
+            .from('orders')
+            .update({ status: 'paid', updated_at: new Date().toISOString() })
+            .eq('id', orderId);
+        }
 
         if (externalId) {
           await supabaseAdmin
@@ -82,19 +85,82 @@ Deno.serve(async (req) => {
             .eq('external_id', externalId);
         }
 
-        const { data: orderData } = await supabaseAdmin.from('orders').select('booking_id').eq('id', orderId).maybeSingle();
-        if (orderData?.booking_id) {
-          await supabaseAdmin.from('bookings').update({ status: 'paid' }).eq('id', orderData.booking_id);
+        if (orderId) {
+          const { data: orderData } = await supabaseAdmin.from('orders').select('booking_id').eq('id', orderId).maybeSingle();
+          if (orderData?.booking_id) {
+            await supabaseAdmin.from('bookings').update({ status: 'paid' }).eq('id', orderData.booking_id);
+          }
         }
         updated = true;
       } catch (errDb) {
         console.warn('Non-fatal db sync in check-payment:', errDb);
+      }
+
+      // Sincronizar Lessa Club Ecosystem (Assinatura, Faturas e Membros)
+      try {
+        const { data: settingsRow } = await supabaseAdmin
+          .from('site_settings')
+          .select('value')
+          .eq('key', 'lessa_club_ecosystem_v1')
+          .maybeSingle();
+
+        if (settingsRow?.value) {
+          const clubState = settingsRow.value;
+          let clubUpdated = false;
+
+          for (const sub of (clubState.subscriptions || [])) {
+            let subInvoicePaid = false;
+            for (const inv of (sub.invoices || [])) {
+              const matches =
+                (orderId && inv.id === orderId) ||
+                (inv.asaasPaymentId && inv.asaasPaymentId === externalId);
+              const matchesSubUnified = orderId && orderId.startsWith(`unified_${sub.id}`);
+
+              if (matches || matchesSubUnified) {
+                if (inv.status !== 'PAID') {
+                  inv.status = 'PAID';
+                  inv.paidAt = new Date().toISOString();
+                  inv.asaasPaymentId = externalId;
+                  subInvoicePaid = true;
+                  clubUpdated = true;
+                }
+              }
+            }
+
+            const isSubTarget =
+              subInvoicePaid ||
+              (sub.asaasPaymentId && sub.asaasPaymentId === externalId) ||
+              (orderId && orderId.startsWith(`unified_${sub.id}`));
+
+            if (isSubTarget) {
+              const hasOverdue = (sub.invoices || []).some((i: any) => i.status === 'OVERDUE');
+              if (!hasOverdue) {
+                sub.status = 'ACTIVE';
+                (sub.members || []).forEach((m: any) => {
+                  m.status = 'ACTIVE';
+                });
+                sub.updatedAt = new Date().toISOString();
+                clubUpdated = true;
+              }
+            }
+          }
+
+          if (clubUpdated) {
+            await supabaseAdmin
+              .from('site_settings')
+              .update({ value: clubState, updated_at: new Date().toISOString() })
+              .eq('key', 'lessa_club_ecosystem_v1');
+          }
+        }
+      } catch (clubErr) {
+        console.warn('[check-payment] Error syncing club state:', clubErr);
       }
     }
 
     return new Response(JSON.stringify({ 
       success: true, 
       status: asaasStatus,
+      isPaid,
       updated,
       data: asaasData
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
