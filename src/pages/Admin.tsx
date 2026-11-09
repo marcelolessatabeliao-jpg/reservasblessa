@@ -3193,7 +3193,10 @@ export default function Admin() {
               </div>
            </div>
 {/* CONTENT AREA WITH GRADIENT BACKGROUND */}
-          <div className="min-h-[500px] md:min-h-[600px] bg-white/40 backdrop-blur-md rounded-2xl md:rounded-[2rem] p-4 md:p-8 border border-white/60 shadow-premium">
+          <div className={cn(
+            "min-h-[500px] md:min-h-[600px] bg-white/40 backdrop-blur-md rounded-2xl md:rounded-[2rem] border border-white/60 shadow-premium",
+            activeTab === 'clube' ? "p-2 sm:p-4 md:p-8" : "p-4 md:p-8"
+          )}>
              {activeTab === 'painel' && renderDashboard()}
                                        {activeTab === 'reservas' && (
                <div className="space-y-4">

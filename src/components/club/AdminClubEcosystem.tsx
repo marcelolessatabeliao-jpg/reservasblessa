@@ -1652,21 +1652,44 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
           setOpenSubMenu(null);
         }}
       >
-        <div className="px-4 py-2 flex flex-wrap items-center justify-between gap-2">
-          {/* Logo Balneário Lessa */}
-          <div
-            onClick={() => {
-              setActiveTab('dashboard');
-              setOpenMenu(null);
-              setOpenSubMenu(null);
-            }}
-            className="flex items-center gap-2.5 cursor-pointer py-1 pr-3"
-          >
-            <img src={logo} alt="Balneário Lessa" className="h-11 w-auto" />
+        <div className="px-3 sm:px-4 py-2 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+          {/* Logo Balneário Lessa + Título Mobile */}
+          <div className="flex items-center justify-between w-full md:w-auto">
+            <div
+              onClick={() => {
+                setActiveTab('dashboard');
+                setOpenMenu(null);
+                setOpenSubMenu(null);
+              }}
+              className="flex items-center gap-2 cursor-pointer py-1"
+            >
+              <img src={logo} alt="Balneário Lessa" className="h-8 sm:h-11 w-auto" />
+              <div className="md:hidden">
+                <span className="font-black text-xs block leading-tight text-white tracking-wide">
+                  Lessa Club
+                </span>
+                <span className="text-[9px] text-emerald-200 uppercase font-bold tracking-wider">
+                  Painel de Gestão
+                </span>
+              </div>
+            </div>
+
+            {/* Ações Rápidas no Topo Mobile */}
+            <div className="md:hidden flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setQuickSearchOpen(true)}
+                className="flex items-center gap-1 bg-black/30 hover:bg-black/50 text-white text-[11px] font-bold px-2.5 py-1.5 rounded-xl border border-white/20 transition-all"
+                title="Busca Rápida"
+              >
+                <Search className="w-3.5 h-3.5 text-amber-300" />
+                <span>Buscar</span>
+              </button>
+            </div>
           </div>
 
-          {/* 9 Ícones e Menus com Dropdown Verde Escuro */}
-          <div className="flex flex-wrap items-center gap-1 sm:gap-2 flex-1 justify-around">
+          {/* 9 Ícones e Menus: Grid 3x3 no Mobile / Flex no Desktop */}
+          <div className="grid grid-cols-3 sm:grid-cols-5 md:flex md:flex-wrap items-center gap-1 sm:gap-2 flex-1 justify-around w-full md:w-auto pt-1 md:pt-0 border-t border-white/10 md:border-none">
             {/* 1. DASHBOARD */}
             <div className="relative">
               <button
@@ -1679,14 +1702,14 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   setOpenMenu(null);
                   setOpenSubMenu(null);
                 }}
-                className={`flex flex-col items-center justify-center px-3 py-2 rounded-lg transition-colors ${
+                className={`w-full flex flex-col items-center justify-center px-2 py-1.5 sm:px-3 sm:py-2 rounded-xl transition-colors ${
                   activeTab === 'dashboard'
                     ? 'bg-black/25 text-white'
                     : 'hover:bg-white/10 text-white'
                 }`}
               >
-                <Home className="w-7 h-7 mb-1 stroke-[2.2]" />
-                <span className="text-xs font-bold tracking-tight">Dashboard</span>
+                <Home className="w-5 h-5 sm:w-7 sm:h-7 mb-0.5 sm:mb-1 stroke-[2.2]" />
+                <span className="text-[10px] sm:text-xs font-bold tracking-tight">Dashboard</span>
               </button>
             </div>
 
@@ -1703,7 +1726,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 onClick={() =>
                   setOpenMenu(openMenu === 'clientes' ? null : 'clientes')
                 }
-                className={`flex flex-col items-center justify-center px-3 py-2 rounded-lg transition-colors ${
+                className={`w-full flex flex-col items-center justify-center px-2 py-1.5 sm:px-3 sm:py-2 rounded-xl transition-colors ${
                   openMenu === 'clientes' ||
                   (activeTab === 'associados' && personFilter !== 'PJ')
                     ? 'bg-black/25 text-white'
@@ -1711,15 +1734,15 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 }`}
               >
                 <div className="flex items-center gap-1">
-                  <Users className="w-7 h-7 mb-1 stroke-[2.2]" />
-                  <ChevronDown className="w-3.5 h-3.5 opacity-80" />
+                  <Users className="w-5 h-5 sm:w-7 sm:h-7 mb-0.5 sm:mb-1 stroke-[2.2]" />
+                  <ChevronDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 opacity-80" />
                 </div>
-                <span className="text-xs font-bold tracking-tight">Clientes</span>
+                <span className="text-[10px] sm:text-xs font-bold tracking-tight">Clientes</span>
               </button>
 
               {openMenu === 'clientes' && (
                 <div
-                  className="absolute left-0 top-full mt-0.5 w-52 text-white rounded-b-lg shadow-2xl border border-emerald-800 py-2 z-50 text-xs font-semibold"
+                  className="absolute left-0 top-full mt-0.5 w-52 max-w-[calc(100vw-2rem)] text-white rounded-xl shadow-2xl border border-emerald-800 py-2 z-50 text-xs font-semibold"
                   style={{ backgroundColor: navThemeColor }}
                 >
                   {/* ▶ Cadastrar (Submenu cascata: . PF / . PJ) */}
@@ -1746,7 +1769,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
                     {openSubMenu === 'CLI_CADASTRAR' && (
                       <div
-                        className="absolute left-full top-0 w-44 text-white shadow-2xl border border-emerald-800 z-50 text-xs font-semibold divide-y divide-white/20"
+                        className="sm:absolute sm:left-full sm:top-0 relative left-0 top-0 w-full sm:w-44 text-white shadow-2xl border sm:border-emerald-800 border-white/20 z-50 text-xs font-semibold divide-y divide-white/20 bg-black/25 sm:bg-transparent rounded-lg sm:rounded-none mt-1 sm:mt-0"
                         style={{ backgroundColor: navThemeColor }}
                       >
                         <button
@@ -1807,7 +1830,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
                     {openSubMenu === 'CLI_CADASTRADOS' && (
                       <div
-                        className="absolute left-full top-0 w-44 text-white shadow-2xl border border-emerald-800 z-50 text-xs font-semibold divide-y divide-white/20"
+                        className="sm:absolute sm:left-full sm:top-0 relative left-0 top-0 w-full sm:w-44 text-white shadow-2xl border sm:border-emerald-800 border-white/20 z-50 text-xs font-semibold divide-y divide-white/20 bg-black/25 sm:bg-transparent rounded-lg sm:rounded-none mt-1 sm:mt-0"
                         style={{ backgroundColor: navThemeColor }}
                       >
                         <button
@@ -1911,7 +1934,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 onClick={() =>
                   setOpenMenu(openMenu === 'empresas' ? null : 'empresas')
                 }
-                className={`flex flex-col items-center justify-center px-3 py-2 rounded-lg transition-colors ${
+                className={`w-full flex flex-col items-center justify-center px-2 py-1.5 sm:px-3 sm:py-2 rounded-xl transition-colors ${
                   openMenu === 'empresas' ||
                   (activeTab === 'associados' && personFilter === 'PJ')
                     ? 'bg-black/25 text-white'
@@ -1919,15 +1942,15 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 }`}
               >
                 <div className="flex items-center gap-1">
-                  <Store className="w-7 h-7 mb-1 stroke-[2.2]" />
-                  <ChevronDown className="w-3.5 h-3.5 opacity-80" />
+                  <Store className="w-5 h-5 sm:w-7 sm:h-7 mb-0.5 sm:mb-1 stroke-[2.2]" />
+                  <ChevronDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 opacity-80" />
                 </div>
-                <span className="text-xs font-bold tracking-tight">Empresas</span>
+                <span className="text-[10px] sm:text-xs font-bold tracking-tight">Empresas</span>
               </button>
 
               {openMenu === 'empresas' && (
                 <div
-                  className="absolute left-0 top-full mt-0.5 w-48 text-white rounded-b-lg shadow-2xl border border-emerald-800 py-2 z-50 text-xs font-semibold"
+                  className="absolute right-0 sm:right-auto sm:left-0 top-full mt-0.5 w-48 max-w-[calc(100vw-2rem)] text-white rounded-xl shadow-2xl border border-emerald-800 py-2 z-50 text-xs font-semibold"
                   style={{ backgroundColor: navThemeColor }}
                 >
                   <button
@@ -2002,7 +2025,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 onClick={() =>
                   setOpenMenu(openMenu === 'consultores' ? null : 'consultores')
                 }
-                className={`flex flex-col items-center justify-center px-3 py-2 rounded-lg transition-colors ${
+                className={`w-full flex flex-col items-center justify-center px-2 py-1.5 sm:px-3 sm:py-2 rounded-xl transition-colors ${
                   openMenu === 'consultores' ||
                   (activeTab === 'consultores' &&
                     consultantRoleFilter === 'CONSULTOR')
@@ -2011,17 +2034,17 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 }`}
               >
                 <div className="flex items-center gap-1">
-                  <Briefcase className="w-7 h-7 mb-1 stroke-[2.2]" />
-                  <ChevronDown className="w-3.5 h-3.5 opacity-80" />
+                  <Briefcase className="w-5 h-5 sm:w-7 sm:h-7 mb-0.5 sm:mb-1 stroke-[2.2]" />
+                  <ChevronDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 opacity-80" />
                 </div>
-                <span className="text-xs font-bold tracking-tight">
+                <span className="text-[10px] sm:text-xs font-bold tracking-tight">
                   Consultores
                 </span>
               </button>
 
               {openMenu === 'consultores' && (
                 <div
-                  className="absolute left-0 top-full mt-0.5 w-48 text-white rounded-b-lg shadow-2xl border border-emerald-800 py-2 z-50 text-xs font-semibold"
+                  className="absolute left-0 top-full mt-0.5 w-48 max-w-[calc(100vw-2rem)] text-white rounded-xl shadow-2xl border border-emerald-800 py-2 z-50 text-xs font-semibold"
                   style={{ backgroundColor: navThemeColor }}
                 >
                   <button
@@ -2067,7 +2090,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 onClick={() =>
                   setOpenMenu(openMenu === 'influencer' ? null : 'influencer')
                 }
-                className={`flex flex-col items-center justify-center px-3 py-2 rounded-lg transition-colors ${
+                className={`w-full flex flex-col items-center justify-center px-2 py-1.5 sm:px-3 sm:py-2 rounded-xl transition-colors ${
                   openMenu === 'influencer' ||
                   (activeTab === 'consultores' &&
                     consultantRoleFilter === 'INFLUENCER')
@@ -2076,17 +2099,17 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 }`}
               >
                 <div className="flex items-center gap-1">
-                  <Sparkles className="w-7 h-7 mb-1 stroke-[2.2]" />
-                  <ChevronDown className="w-3.5 h-3.5 opacity-80" />
+                  <Sparkles className="w-5 h-5 sm:w-7 sm:h-7 mb-0.5 sm:mb-1 stroke-[2.2]" />
+                  <ChevronDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 opacity-80" />
                 </div>
-                <span className="text-xs font-bold tracking-tight">
+                <span className="text-[10px] sm:text-xs font-bold tracking-tight">
                   Influencer
                 </span>
               </button>
 
               {openMenu === 'influencer' && (
                 <div
-                  className="absolute left-0 top-full mt-0.5 w-48 text-white rounded-b-lg shadow-2xl border border-emerald-800 py-2 z-50 text-xs font-semibold"
+                  className="absolute left-1/2 -translate-x-1/2 sm:translate-x-0 sm:left-0 top-full mt-0.5 w-48 max-w-[calc(100vw-2rem)] text-white rounded-xl shadow-2xl border border-emerald-800 py-2 z-50 text-xs font-semibold"
                   style={{ backgroundColor: navThemeColor }}
                 >
                   <button
@@ -2145,22 +2168,22 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 onClick={() =>
                   setOpenMenu(openMenu === 'financas' ? null : 'financas')
                 }
-                className={`flex flex-col items-center justify-center px-3 py-2 rounded-lg transition-colors ${
+                className={`w-full flex flex-col items-center justify-center px-2 py-1.5 sm:px-3 sm:py-2 rounded-xl transition-colors ${
                   openMenu === 'financas' || activeTab === 'financeiro'
                     ? 'bg-black/25 text-white'
                     : 'hover:bg-white/10 text-white'
                 }`}
               >
                 <div className="flex items-center gap-1">
-                  <DollarSign className="w-7 h-7 mb-1 stroke-[2.5]" />
-                  <ChevronDown className="w-3.5 h-3.5 opacity-80" />
+                  <DollarSign className="w-5 h-5 sm:w-7 sm:h-7 mb-0.5 sm:mb-1 stroke-[2.5]" />
+                  <ChevronDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 opacity-80" />
                 </div>
-                <span className="text-xs font-bold tracking-tight">Finanças</span>
+                <span className="text-[10px] sm:text-xs font-bold tracking-tight">Finanças</span>
               </button>
 
               {openMenu === 'financas' && (
                 <div
-                  className="absolute left-0 top-full mt-0.5 w-60 text-white rounded-b-lg shadow-2xl border border-emerald-800 py-2 z-50 text-xs font-semibold"
+                  className="absolute right-0 sm:right-auto sm:left-0 top-full mt-0.5 w-60 max-w-[calc(100vw-2rem)] text-white rounded-xl shadow-2xl border border-emerald-800 py-2 z-50 text-xs font-semibold"
                   style={{ backgroundColor: navThemeColor }}
                 >
                   {(
@@ -2213,24 +2236,24 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 onClick={() =>
                   setOpenMenu(openMenu === 'relatorios' ? null : 'relatorios')
                 }
-                className={`flex flex-col items-center justify-center px-3 py-2 rounded-lg transition-colors ${
+                className={`w-full flex flex-col items-center justify-center px-2 py-1.5 sm:px-3 sm:py-2 rounded-xl transition-colors ${
                   openMenu === 'relatorios' || activeTab === 'relatorios'
                     ? 'bg-black/25 text-white'
                     : 'hover:bg-white/10 text-white'
                 }`}
               >
                 <div className="flex items-center gap-1">
-                  <BarChart3 className="w-7 h-7 mb-1 stroke-[2.2]" />
-                  <ChevronDown className="w-3.5 h-3.5 opacity-80" />
+                  <BarChart3 className="w-5 h-5 sm:w-7 sm:h-7 mb-0.5 sm:mb-1 stroke-[2.2]" />
+                  <ChevronDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 opacity-80" />
                 </div>
-                <span className="text-xs font-bold tracking-tight">
+                <span className="text-[10px] sm:text-xs font-bold tracking-tight">
                   Relatórios
                 </span>
               </button>
 
               {openMenu === 'relatorios' && (
                 <div
-                  className="absolute right-0 sm:left-0 top-full mt-0.5 w-48 text-white rounded-b-lg shadow-2xl border border-emerald-800 py-2 z-50 text-xs font-semibold"
+                  className="absolute left-0 top-full mt-0.5 w-52 max-w-[calc(100vw-2rem)] text-white rounded-xl shadow-2xl border border-emerald-800 py-2 z-50 text-xs font-semibold"
                   style={{ backgroundColor: navThemeColor }}
                 >
                   {(
@@ -2273,7 +2296,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                       {item.hasSub === 'REL_CLIENTES' &&
                         openSubMenu === 'REL_CLIENTES' && (
                           <div
-                            className="absolute left-full top-0 w-72 text-white shadow-2xl border border-emerald-800 z-50 text-xs font-semibold divide-y divide-white/25"
+                            className="sm:absolute sm:left-full sm:top-0 relative left-0 top-0 w-full sm:w-72 text-white shadow-2xl border sm:border-emerald-800 border-white/20 z-50 text-xs font-semibold divide-y divide-white/25 bg-black/25 sm:bg-transparent rounded-lg sm:rounded-none mt-1 sm:mt-0"
                             style={{ backgroundColor: navThemeColor }}
                           >
                             {(
@@ -2497,7 +2520,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 onClick={() =>
                   setOpenMenu(openMenu === 'config' ? null : 'config')
                 }
-                className={`flex flex-col items-center justify-center px-3 py-2 rounded-lg transition-colors ${
+                className={`w-full flex flex-col items-center justify-center px-2 py-1.5 sm:px-3 sm:py-2 rounded-xl transition-colors ${
                   openMenu === 'config' ||
                   activeTab === 'planos_contratos' ||
                   activeTab === 'impressao' ||
@@ -2507,15 +2530,15 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 }`}
               >
                 <div className="flex items-center gap-1">
-                  <Settings className="w-7 h-7 mb-1 stroke-[2.2]" />
-                  <ChevronDown className="w-3.5 h-3.5 opacity-80" />
+                  <Settings className="w-5 h-5 sm:w-7 sm:h-7 mb-0.5 sm:mb-1 stroke-[2.2]" />
+                  <ChevronDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 opacity-80" />
                 </div>
-                <span className="text-xs font-bold tracking-tight">Config.</span>
+                <span className="text-[10px] sm:text-xs font-bold tracking-tight">Config.</span>
               </button>
 
               {openMenu === 'config' && (
                 <div
-                  className="absolute right-0 top-full mt-0.5 w-60 text-white rounded-b-lg shadow-2xl border border-emerald-800 py-2 z-50 text-xs font-semibold"
+                  className="absolute left-1/2 -translate-x-1/2 sm:translate-x-0 sm:right-0 sm:left-auto top-full mt-0.5 w-60 max-w-[calc(100vw-2rem)] text-white rounded-xl shadow-2xl border border-emerald-800 py-2 z-50 text-xs font-semibold"
                   style={{ backgroundColor: navThemeColor }}
                 >
                   <button
@@ -2741,22 +2764,22 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 onClick={() =>
                   setOpenMenu(openMenu === 'perfil' ? null : 'perfil')
                 }
-                className={`flex flex-col items-center justify-center px-3 py-2 rounded-lg transition-colors ${
+                className={`w-full flex flex-col items-center justify-center px-2 py-1.5 sm:px-3 sm:py-2 rounded-xl transition-colors ${
                   openMenu === 'perfil' || activeTab === 'perfil'
                     ? 'bg-black/25 text-white'
                     : 'hover:bg-white/10 text-white'
                 }`}
               >
                 <div className="flex items-center gap-1">
-                  <User className="w-7 h-7 mb-1 stroke-[2.2]" />
-                  <ChevronDown className="w-3.5 h-3.5 opacity-80" />
+                  <User className="w-5 h-5 sm:w-7 sm:h-7 mb-0.5 sm:mb-1 stroke-[2.2]" />
+                  <ChevronDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 opacity-80" />
                 </div>
-                <span className="text-xs font-bold tracking-tight">Perfil</span>
+                <span className="text-[10px] sm:text-xs font-bold tracking-tight">Perfil</span>
               </button>
 
               {openMenu === 'perfil' && (
                 <div
-                  className="absolute right-0 top-full mt-0.5 w-48 text-white rounded-b-lg shadow-2xl border border-emerald-800 py-2 z-50 text-xs font-semibold"
+                  className="absolute right-0 top-full mt-0.5 w-48 max-w-[calc(100vw-2rem)] text-white rounded-xl shadow-2xl border border-emerald-800 py-2 z-50 text-xs font-semibold"
                   style={{ backgroundColor: navThemeColor }}
                 >
                   {(
@@ -2891,7 +2914,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         type="button"
         onClick={() => setQuickSearchOpen(true)}
         title="Busca rápida: Digite o nome, Nº. do CPF ou Nº. do Cartão do cliente"
-        className="fixed right-5 top-1/2 -translate-y-1/2 z-40 w-12 h-12 rounded-full bg-[#004d00] hover:bg-emerald-800 text-white shadow-2xl border-2 border-white flex items-center justify-center transition-transform hover:scale-105"
+        className="fixed bottom-6 right-4 sm:top-1/2 sm:bottom-auto sm:-translate-y-1/2 sm:right-5 z-40 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-[#004d00] hover:bg-emerald-800 text-white shadow-2xl border-2 border-white flex items-center justify-center transition-transform hover:scale-105"
       >
         <Search className="w-5 h-5" />
       </button>
@@ -3114,10 +3137,10 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
             Cancelados | Via site
         ===================================================================== */}
         <TabsContent value="associados" className="space-y-4">
-          <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+          <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 p-3.5 sm:p-6 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
               <div>
-                <h3 className="text-lg font-black text-slate-900">
+                <h3 className="text-base sm:text-lg font-black text-slate-900">
                   {personFilter === 'PJ'
                     ? `Empresas Conveniadas / Corporativas PJ (${filteredSubscriptions.length})`
                     : `Clientes - Cadastrados PF (${filteredSubscriptions.length})`}
@@ -3134,7 +3157,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     setPersonType(personFilter === 'PJ' ? 'PJ' : 'PF');
                     setNewSubModalOpen(true);
                   }}
-                  className="bg-[#004d00] hover:bg-emerald-900 text-white font-bold"
+                  className="bg-[#004d00] hover:bg-emerald-900 text-white font-bold w-full sm:w-auto"
                 >
                   <UserPlus className="w-4 h-4 mr-1.5" /> + Cadastrar{' '}
                   {personFilter === 'PJ' ? 'Empresa PJ' : 'Cliente PF'}
@@ -3191,7 +3214,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 />
               </div>
 
-              <div className="flex flex-wrap items-center gap-1.5">
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar sm:flex-wrap -mx-1 px-1">
                 {(
                   [
                     { id: 'ALL', label: 'Cadastrados (Todos)' },
@@ -3215,11 +3238,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                       setOriginFilter('ALL');
                       setSubStatusFilter(st.id);
                     }}
-                    className={
+                    className={`shrink-0 whitespace-nowrap text-xs ${
                       subStatusFilter === st.id && originFilter === 'ALL'
-                        ? 'bg-[#004d00] text-white text-xs'
-                        : 'text-xs'
-                    }
+                        ? 'bg-[#004d00] text-white font-bold'
+                        : ''
+                    }`}
                   >
                     {st.label}
                   </Button>
@@ -3231,11 +3254,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     setOriginFilter(originFilter === 'SITE' ? 'ALL' : 'SITE');
                     setSubStatusFilter('ALL');
                   }}
-                  className={
+                  className={`shrink-0 whitespace-nowrap text-xs ${
                     originFilter === 'SITE'
-                      ? 'bg-blue-700 text-white text-xs'
-                      : 'text-xs'
-                  }
+                      ? 'bg-blue-700 text-white font-bold'
+                      : ''
+                  }`}
                 >
                   Via site
                 </Button>
@@ -4057,9 +4080,9 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
             • Assinaturas Vencidas | • Baixas em Lote
         ===================================================================== */}
         <TabsContent value="financeiro" className="space-y-4">
-          <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-6">
+          <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 p-3.5 sm:p-6 shadow-sm space-y-4 sm:space-y-6">
             {/* Sub-barra de ferramentas de Finanças */}
-            <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-200 pb-4">
+            <div className="flex items-center gap-1.5 border-b border-slate-200 pb-3 overflow-x-auto no-scrollbar sm:flex-wrap -mx-1 px-1">
               {(
                 [
                   { id: 'FLUXO_CAIXA', label: 'Fluxo Caixa' },
@@ -4084,11 +4107,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   size="sm"
                   variant={financeSubView === tab.id ? 'default' : 'outline'}
                   onClick={() => setFinanceSubView(tab.id)}
-                  className={
+                  className={`shrink-0 whitespace-nowrap text-xs ${
                     financeSubView === tab.id
-                      ? 'bg-[#004d00] text-white font-bold text-xs'
-                      : 'text-xs'
-                  }
+                      ? 'bg-[#004d00] text-white font-bold'
+                      : ''
+                  }`}
                 >
                   {tab.label}
                 </Button>
@@ -4561,9 +4584,9 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
             ▶ Agenda | ▶ SMS's | ▶ Outros (6 sub-relatórios)
         ===================================================================== */}
         <TabsContent value="relatorios" className="space-y-4">
-          <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-5">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-4">
-              <div className="flex flex-wrap items-center gap-1.5">
+          <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 p-3.5 sm:p-6 shadow-sm space-y-4 sm:space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar sm:flex-wrap -mx-1 px-1">
                 {(
                   [
                     { id: 'CLIENTES', label: '▶ Clientes' },
@@ -4580,11 +4603,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     size="sm"
                     variant={reportSubView === r.id ? 'default' : 'outline'}
                     onClick={() => setReportSubView(r.id)}
-                    className={
+                    className={`shrink-0 whitespace-nowrap text-xs ${
                       reportSubView === r.id
-                        ? 'bg-[#004d00] text-white font-bold text-xs'
-                        : 'text-xs'
-                    }
+                        ? 'bg-[#004d00] text-white font-bold'
+                        : ''
+                    }`}
                   >
                     {r.label}
                   </Button>
@@ -4594,7 +4617,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
               <Button
                 size="sm"
                 onClick={() => handleExportReportXlsx(reportSubView)}
-                className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs"
+                className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs w-full sm:w-auto shrink-0 justify-center"
               >
                 <Download className="w-4 h-4 mr-1.5" /> Exportar Relatório Excel (.xlsx)
               </Button>
@@ -5392,8 +5415,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         </TabsContent>
 
         {/* TAB 5: CONFIG. (Config. Cartão | Planos | Adicionais | Contratos | Termo de Uso - Site | OUTROS...) */}
-        <TabsContent value="planos_contratos" className="space-y-6">
-          <div className="bg-white rounded-3xl border border-slate-200 p-4 shadow-sm flex flex-wrap items-center gap-2">
+        <TabsContent value="planos_contratos" className="space-y-4 sm:space-y-6">
+          <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 p-2.5 sm:p-4 shadow-sm flex items-center gap-1.5 overflow-x-auto no-scrollbar sm:flex-wrap -mx-1 px-1">
             {(
               [
                 { id: 'CONFIG_CARTAO', label: '• Config. Cartão' },
@@ -5414,11 +5437,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 size="sm"
                 variant={configSection === cfg.id ? 'default' : 'outline'}
                 onClick={() => setConfigSection(cfg.id)}
-                className={
+                className={`shrink-0 whitespace-nowrap text-xs ${
                   configSection === cfg.id
-                    ? 'bg-[#004d00] text-white font-bold text-xs'
-                    : 'text-xs'
-                }
+                    ? 'bg-[#004d00] text-white font-bold'
+                    : ''
+                }`}
               >
                 {cfg.label}
               </Button>
@@ -6138,8 +6161,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
         {/* TAB 7: PERFIL (Meus Dados | Acessos | Meu Plano | Minhas Faturas | Alterar Cor) */}
         <TabsContent value="perfil" className="space-y-4">
-          <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-5">
-            <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-4">
+          <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 p-3.5 sm:p-6 shadow-sm space-y-4 sm:space-y-5">
+            <div className="flex items-center gap-1.5 border-b border-slate-200 pb-3 overflow-x-auto no-scrollbar sm:flex-wrap -mx-1 px-1">
               {(
                 [
                   { id: 'MEUS_DADOS', label: '• Meus Dados' },
@@ -6154,11 +6177,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   size="sm"
                   variant={perfilSection === p.id ? 'default' : 'outline'}
                   onClick={() => setPerfilSection(p.id)}
-                  className={
+                  className={`shrink-0 whitespace-nowrap text-xs ${
                     perfilSection === p.id
-                      ? 'bg-[#004d00] text-white font-bold text-xs'
-                      : 'text-xs'
-                  }
+                      ? 'bg-[#004d00] text-white font-bold'
+                      : ''
+                  }`}
                 >
                   {p.label}
                 </Button>
@@ -6538,27 +6561,27 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
           9. Visualizar termos de uso e condições
       ===================================================================== */}
       {selectedSubForDetail && (
-        <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm relative pr-10 space-y-5">
-              {/* Aba Vertical Lateral Direita: CONTRATO DO CLIENTE (Idêntica à Imagem) */}
+        <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 p-3 sm:p-6 sm:pr-10 shadow-sm relative space-y-4 sm:space-y-5 overflow-hidden">
+              {/* Aba Vertical Lateral Direita: CONTRATO DO CLIENTE (Apenas em telas médias/grandes) */}
               <button
                 type="button"
                 onClick={() => setClientDetailTool('GERAR_CONTRATO')}
                 title="Abrir ou Imprimir Contrato do Cliente"
-                className="fixed right-0 top-1/3 z-50 bg-[#004d00] hover:bg-emerald-800 text-white font-black text-[11px] tracking-widest uppercase py-5 px-2 rounded-l-lg shadow-xl border-l border-y border-white/30"
+                className="hidden md:block fixed right-0 top-1/3 z-50 bg-[#004d00] hover:bg-emerald-800 text-white font-black text-[11px] tracking-widest uppercase py-5 px-2 rounded-l-lg shadow-xl border-l border-y border-white/30"
                 style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
               >
                 CONTRATO DO CLIENTE
               </button>
 
-              {/* CABEÇALHO DADOS PESSOAIS - Nº Cartão: 1212253000 */}
-              <div className="border-b border-slate-200 pb-3 flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-baseline gap-2 flex-wrap">
-                  <h2 className="text-2xl font-normal text-slate-800 tracking-tight uppercase">
+              {/* CABEÇALHO DADOS PESSOAIS - Nº Cartão */}
+              <div className="border-b border-slate-200 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2">
+                  <h2 className="text-xl sm:text-2xl font-normal text-slate-800 tracking-tight uppercase">
                     {clientDetailTool === 'FINANCEIRO_CLIENTE'
                       ? 'PERFIL FINANCEIRO'
                       : 'DADOS PESSOAIS'}
                   </h2>
-                  <span className="text-sm font-medium text-slate-600">
+                  <span className="text-xs sm:text-sm font-medium text-slate-600 break-words">
                     - Nº Cartão: <strong>{selectedSubForDetail.subscriptionCode}</strong> (
                     <span className="underline font-bold text-slate-800">
                       {selectedSubForDetail.holderName}
@@ -6568,11 +6591,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge
-                    className={
+                    className={`text-[11px] sm:text-xs py-1 ${
                       selectedSubForDetail.status === 'ACTIVE'
                         ? 'bg-emerald-600 text-white'
                         : 'bg-rose-600 text-white'
-                    }
+                    }`}
                   >
                     STATUS ATUAL:{' '}
                     {selectedSubForDetail.status === 'ACTIVE'
@@ -6584,16 +6607,42 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     size="sm"
                     variant="outline"
                     onClick={() => setSelectedSubForDetail(null)}
-                    className="h-8 border-slate-300 text-slate-700 hover:bg-slate-100 font-bold text-xs"
+                    className="h-8 border-slate-300 text-slate-700 hover:bg-slate-100 font-bold text-xs w-full sm:w-auto"
                   >
                     ← Voltar para Lista de Clientes
                   </Button>
                 </div>
               </div>
 
-              {/* BARRA DE BOTÕES DE ÍCONES VERDES ESCUROS (IDÊNTICA À IMAGEM ENVIADA) */}
+              {/* BARRA DE BOTÕES DE ÍCONES VERDES ESCUROS (COM SUPORTE MOBILE E DESKTOP) */}
               <div className="space-y-2">
-                <div className="flex flex-wrap items-center gap-1.5">
+                {/* Seletor Rápido Mobile (Aparece apenas em celulares) */}
+                <div className="block sm:hidden">
+                  <label className="text-[11px] font-bold text-slate-600 uppercase mb-1 block">
+                    Navegar pelas Ferramentas do Cliente:
+                  </label>
+                  <select
+                    value={clientDetailTool}
+                    onChange={(e) => setClientDetailTool(e.target.value as any)}
+                    className="w-full h-10 rounded-lg border-2 border-emerald-800 bg-emerald-950 text-white font-bold text-xs px-3 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  >
+                    <option value="DADOS_CADASTRAIS">📝 Dados Pessoais e Cadastrais</option>
+                    <option value="CARTOES">💳 1. Gerar Cartões (Titular / Dependentes)</option>
+                    <option value="CADASTRAR_CARTAO_PAGTO">💼 2. Ativar no Cartão de Crédito</option>
+                    <option value="FINANCEIRO_CLIENTE">💲 Perfil Financeiro ($)</option>
+                    <option value="GERAR_CONTRATO">📄 3. Gerar Contrato / Imprimir</option>
+                    <option value="ANEXOS">📎 4. Anexos e Comprovantes</option>
+                    <option value="ADICIONAR_DEPENDENTES">👥 5. Adicionar Dependentes</option>
+                    <option value="AGENDA_VISITAS">📅 6. Agenda de Visitas</option>
+                    <option value="SERVICOS_ADICIONAIS">📋 7. Serviços Adicionais</option>
+                    <option value="LINK_ASSINATURA">✒️ 8. Link Assinatura Digital</option>
+                    <option value="TERMOS_USO">🔒 9. Termos de Uso</option>
+                    <option value="SMS_CLIENTE">💬 SMS / WhatsApp</option>
+                  </select>
+                </div>
+
+                {/* Carrossel de Botões / Grid de Botões */}
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 no-scrollbar max-w-full sm:flex-wrap -mx-1 px-1">
                   {(
                     [
                       {
@@ -6678,7 +6727,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         type="button"
                         title={btn.title}
                         onClick={() => setClientDetailTool(btn.id)}
-                        className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-bold transition-all shadow-sm border ${
+                        className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-bold transition-all shadow-sm border shrink-0 whitespace-nowrap ${
                           isActive
                             ? 'bg-emerald-950 text-white border-emerald-400 ring-2 ring-emerald-500/40 scale-[1.02]'
                             : 'bg-[#004d00] hover:bg-[#1a5c1a] text-white border-emerald-900'
@@ -6692,12 +6741,12 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 </div>
 
                 {/* FAIXA VENCIMENTO DO CARTÃO + CALENDÁRIO E CARTÃO PADRÃO (IDÊNTICO À IMAGEM) */}
-                <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 space-y-2.5">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 text-xs text-slate-700">
-                      <strong>Vencimento do cartão:</strong>
+                <div className="bg-slate-100 border border-slate-200 rounded-lg p-2.5 sm:p-3 space-y-2.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 text-xs text-slate-700 flex-wrap">
+                      <strong className="shrink-0">Vencimento do cartão:</strong>
                       {editingExpirationDate ? (
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           <Input
                             type="date"
                             value={selectedSubForDetail.endDate}
@@ -6728,19 +6777,19 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                 description: `Nova validade: ${formatDateBR(newEnd)}`,
                               });
                             }}
-                            className="h-8 text-xs w-40 bg-white"
+                            className="h-8 text-xs w-36 bg-white"
                           />
                           <Button
                             size="sm"
                             variant="ghost"
                             onClick={() => setEditingExpirationDate(false)}
-                            className="h-7 text-xs"
+                            className="h-7 text-xs px-2"
                           >
                             Fechar
                           </Button>
                         </div>
                       ) : (
-                        <>
+                        <div className="flex items-center gap-1.5">
                           <span>{formatDateBR(selectedSubForDetail.endDate)}</span>
                           <button
                             type="button"
@@ -6750,11 +6799,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           >
                             <Calendar className="w-3.5 h-3.5" />
                           </button>
-                        </>
+                        </div>
                       )}
                     </div>
 
-                    <span className="text-[11px] text-slate-500">
+                    <span className="text-[11px] text-slate-500 break-words">
                       Plano: <strong>{selectedSubForDetail.planSummaryLabel}</strong> • Valor:{' '}
                       <strong>{formatCurrency(selectedSubForDetail.monthlyEquivalent)}/mês</strong>
                     </span>
@@ -6762,9 +6811,9 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
                   <div
                     onClick={() => setClientDetailTool('CARTOES')}
-                    className="w-full bg-white border border-slate-300 rounded px-4 py-2 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider flex items-center justify-between cursor-pointer hover:bg-slate-50"
+                    className="w-full bg-white border border-slate-300 rounded px-3 sm:px-4 py-2 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider flex items-center justify-between cursor-pointer hover:bg-slate-50"
                   >
-                    <span className="w-4" />
+                    <span className="w-4 hidden sm:inline" />
                     <span>CARTÃO PADRÃO DESSE CLIENTE</span>
                     <ChevronDown className="w-4 h-4 text-slate-500" />
                   </div>
@@ -6778,23 +6827,23 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   Idêntico ao formulário DADOS PESSOAIS / ENDEREÇO / VEÍCULO do Labcard
               ===================================================================== */}
               {clientDetailTool === 'DADOS_CADASTRAIS' && (
-                <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-5 shadow-sm">
-                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
+                <div className="bg-white rounded-2xl border border-slate-200 p-3 sm:p-5 space-y-4 sm:space-y-5 shadow-sm">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
                     <div>
-                      <h3 className="text-base font-black text-slate-900 uppercase">
+                      <h3 className="text-sm sm:text-base font-black text-slate-900 uppercase">
                         Ficha Completa do Cliente Titular — Alteração de Dados
                       </h3>
                       <p className="text-xs text-slate-500">
                         Altere qualquer informação pessoal, endereço, veículo, consultor ou plano do cliente e clique em Salvar Alterações.
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
                       <Button
                         type="button"
                         size="sm"
                         variant="outline"
                         onClick={() => setClientDetailTool('FINANCEIRO_CLIENTE')}
-                        className="border-emerald-700 text-emerald-900 font-bold text-xs"
+                        className="border-emerald-700 text-emerald-900 font-bold text-xs w-full sm:w-auto justify-center"
                       >
                         <DollarSign className="w-3.5 h-3.5 mr-1 text-emerald-700" /> Abrir Perfil Financeiro
                       </Button>
@@ -6802,9 +6851,9 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         type="button"
                         size="sm"
                         onClick={handleSaveClientRegistrationEdits}
-                        className="bg-[#004d00] hover:bg-emerald-900 text-white font-black text-xs px-5"
+                        className="bg-[#004d00] hover:bg-emerald-900 text-white font-black text-xs px-4 sm:px-5 w-full sm:w-auto justify-center"
                       >
-                        <CheckCircle2 className="w-4 h-4 mr-1.5" /> SALVAR ALTERAÇÕES DO CADASTRO
+                        <CheckCircle2 className="w-4 h-4 mr-1.5" /> SALVAR ALTERAÇÕES
                       </Button>
                     </div>
                   </div>
@@ -7291,12 +7340,12 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   </div>
 
                   {/* SITUAÇÃO DO CADASTRO (LIBERAR / INATIVAR) — APENAS ABAIXO NA ABA DADOS PESSOAIS */}
-                  <div className="bg-slate-50 rounded-2xl border-2 border-slate-200 p-4 space-y-3 mt-2">
-                    <div className="border-b border-slate-200 pb-2 flex items-center justify-between">
+                  <div className="bg-slate-50 rounded-2xl border-2 border-slate-200 p-3 sm:p-4 space-y-3 mt-2">
+                    <div className="border-b border-slate-200 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                       <h3 className="text-xs font-black uppercase tracking-wider text-slate-700">
                         SITUAÇÃO DO CADASTRO (LIBERAR / INATIVAR)
                       </h3>
-                      <span className="text-xs text-slate-500">
+                      <span className="text-[11px] sm:text-xs text-slate-500">
                         CPF/CNPJ: <strong>{selectedSubForDetail.holderCpf}</strong> • Tel:{' '}
                         <strong>{selectedSubForDetail.holderPhone}</strong>
                       </span>
@@ -7304,7 +7353,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
                     <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
                       <div className="sm:col-span-4 flex items-center gap-2">
-                        <Label className="text-xs font-bold text-slate-600 w-16 text-right shrink-0">
+                        <Label className="text-xs font-bold text-slate-600 w-16 text-left sm:text-right shrink-0">
                           Liberar
                         </Label>
                         <select
@@ -7322,7 +7371,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                       </div>
 
                       <div className="sm:col-span-4 flex items-center gap-2">
-                        <Label className="text-xs font-bold text-slate-600 w-16 text-right shrink-0">
+                        <Label className="text-xs font-bold text-slate-600 w-16 text-left sm:text-right shrink-0">
                           Inativar
                         </Label>
                         <select
@@ -7339,7 +7388,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         </select>
                       </div>
 
-                      <div className="sm:col-span-4 flex items-center justify-between gap-2">
+                      <div className="sm:col-span-4 flex items-center justify-between gap-2 pt-1 sm:pt-0">
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-bold text-slate-600">
                             Status <span className="text-blue-600">?</span>
@@ -7367,7 +7416,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                 : 'INACTIVE';
                             handleToggleSubStatus(selectedSubForDetail, targetStatus);
                           }}
-                          className="bg-[#004d00] hover:bg-emerald-900 text-white font-black uppercase tracking-wider px-5 h-9 rounded-md shadow"
+                          className="bg-[#004d00] hover:bg-emerald-900 text-white font-black uppercase tracking-wider px-4 sm:px-5 h-9 rounded-md shadow shrink-0 text-xs"
                         >
                           SALVAR
                         </Button>
@@ -7379,9 +7428,9 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     <Button
                       type="button"
                       onClick={handleSaveClientRegistrationEdits}
-                      className="bg-[#004d00] hover:bg-emerald-900 text-white font-black uppercase tracking-wider px-8 h-11 shadow-md"
+                      className="w-full sm:w-auto bg-[#004d00] hover:bg-emerald-900 text-white font-black uppercase tracking-wider px-4 sm:px-8 h-12 sm:h-11 shadow-md text-xs sm:text-sm whitespace-normal text-center flex items-center justify-center"
                     >
-                      <CheckCircle2 className="w-4 h-4 mr-2" /> SALVAR TODAS AS ALTERAÇÕES DO CADASTRO
+                      <CheckCircle2 className="w-4 h-4 mr-2 shrink-0" /> SALVAR TODAS AS ALTERAÇÕES DO CADASTRO
                     </Button>
                   </div>
                 </div>
