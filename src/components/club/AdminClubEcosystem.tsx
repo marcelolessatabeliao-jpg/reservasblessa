@@ -126,7 +126,9 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
   const [subSearch, setSubSearch] = useState('');
   const [subStatusFilter, setSubStatusFilter] = useState<string>('ALL');
   const [personFilter, setPersonFilter] = useState<'ALL' | 'PF' | 'PJ'>('ALL');
-  const [originFilter, setOriginFilter] = useState<'ALL' | 'SITE' | 'ADMIN'>('ALL');
+  const [originFilter, setOriginFilter] = useState<'ALL' | 'SITE' | 'ADMIN' | 'IMPORT_LABCARD'>('ALL');
+  const [clientPage, setClientPage] = useState(1);
+  const [clientPageSize, setClientPageSize] = useState<number | 'ALL'>(50);
   const [empresaStatusFilter, setEmpresaStatusFilter] = useState<string>('ALL');
   const [selectedSubForDetail, setSelectedSubForDetail] =
     useState<ClubSubscription | null>(null);
@@ -662,6 +664,23 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       );
     });
   }, [state, subSearch, subStatusFilter, personFilter, originFilter]);
+
+  // Reset pagination when search or filters change
+  useEffect(() => {
+    setClientPage(1);
+  }, [subSearch, subStatusFilter, personFilter, originFilter]);
+
+  const totalClients = filteredSubscriptions.length;
+  const totalPages =
+    clientPageSize === 'ALL'
+      ? 1
+      : Math.max(1, Math.ceil(totalClients / clientPageSize));
+
+  const paginatedSubscriptions = useMemo(() => {
+    if (clientPageSize === 'ALL') return filteredSubscriptions;
+    const start = (clientPage - 1) * clientPageSize;
+    return filteredSubscriptions.slice(start, start + clientPageSize);
+  }, [filteredSubscriptions, clientPage, clientPageSize]);
 
   // Fluxo de Caixa consolidado (Faturas Pagas + Lançamentos Manuais Entrada/Saída)
   const cashFlowSummary = useMemo(() => {
@@ -3145,6 +3164,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     ? `Empresas Conveniadas / Corporativas PJ (${filteredSubscriptions.length})`
                     : `Clientes - Cadastrados PF (${filteredSubscriptions.length})`}
                   {originFilter === 'SITE' && ' — Via Site'}
+                  {originFilter === 'IMPORT_LABCARD' && ' — Base Labcard'}
                 </h3>
                 <p className="text-xs text-slate-500">
                   Listagem exclusiva de Titulares. Os dependentes ficam dentro do cadastro de cada titular ou podem ser localizados pesquisando por Nome, CPF ou Nº da Carteirinha.
@@ -3262,6 +3282,23 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 >
                   Via site
                 </Button>
+                <Button
+                  size="sm"
+                  variant={originFilter === 'IMPORT_LABCARD' ? 'default' : 'outline'}
+                  onClick={() => {
+                    setOriginFilter(
+                      originFilter === 'IMPORT_LABCARD' ? 'ALL' : 'IMPORT_LABCARD'
+                    );
+                    setSubStatusFilter('ALL');
+                  }}
+                  className={`shrink-0 whitespace-nowrap text-xs ${
+                    originFilter === 'IMPORT_LABCARD'
+                      ? 'bg-amber-700 text-white font-bold'
+                      : ''
+                  }`}
+                >
+                  🏷️ Base Labcard (2.657 sócios)
+                </Button>
               </div>
             </div>
 
@@ -3301,7 +3338,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 text-xs">
-                    {filteredSubscriptions.map((sub, idx) => {
+                    {paginatedSubscriptions.map((sub, idx) => {
                       const q = subSearch.trim().toLowerCase();
                       const qDigits = q.replace(/\D/g, '');
                       const matchedDependents = q
@@ -3440,6 +3477,81 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     })}
                   </tbody>
                 </table>
+              </div>
+            )}
+
+            {/* Controles de Paginação */}
+            {totalClients > 0 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 px-2 text-xs text-slate-600 border-t border-slate-100">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span>Exibir por página:</span>
+                  <select
+                    value={clientPageSize}
+                    onChange={(e) => {
+                      const val = e.target.value === 'ALL' ? 'ALL' : Number(e.target.value);
+                      setClientPageSize(val as any);
+                      setClientPage(1);
+                    }}
+                    className="h-8 border border-slate-300 rounded-lg px-2 bg-white text-slate-800 font-bold focus:ring-2 focus:ring-emerald-500 text-xs"
+                  >
+                    <option value={25}>25 sócios</option>
+                    <option value={50}>50 sócios</option>
+                    <option value={100}>100 sócios</option>
+                    <option value={200}>200 sócios</option>
+                    <option value="ALL">Mostrar Todos ({totalClients})</option>
+                  </select>
+                  <span className="text-slate-500 ml-1">
+                    Mostrando {clientPageSize === 'ALL' ? 1 : Math.min((clientPage - 1) * clientPageSize + 1, totalClients)} a{' '}
+                    {clientPageSize === 'ALL' ? totalClients : Math.min(clientPage * clientPageSize, totalClients)} de{' '}
+                    <strong className="text-slate-900 font-black">{totalClients}</strong> associados
+                  </span>
+                </div>
+
+                {clientPageSize !== 'ALL' && totalPages > 1 && (
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={clientPage <= 1}
+                      onClick={() => setClientPage(1)}
+                      className="h-8 px-2 text-xs font-bold"
+                      title="Primeira Página"
+                    >
+                      ««
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={clientPage <= 1}
+                      onClick={() => setClientPage((p) => Math.max(1, p - 1))}
+                      className="h-8 px-2.5 text-xs font-bold"
+                    >
+                      Anterior
+                    </Button>
+                    <span className="px-3 py-1 font-bold text-slate-700 bg-slate-100 rounded-lg">
+                      Página {clientPage} de {totalPages}
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={clientPage >= totalPages}
+                      onClick={() => setClientPage((p) => Math.min(totalPages, p + 1))}
+                      className="h-8 px-2.5 text-xs font-bold"
+                    >
+                      Próxima
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={clientPage >= totalPages}
+                      onClick={() => setClientPage(totalPages)}
+                      className="h-8 px-2 text-xs font-bold"
+                      title="Última Página"
+                    >
+                      »»
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </div>

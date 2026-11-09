@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { getLabcardSubscriptions } from './labcard-seed';
 import {
   DEFAULT_CLUB_MODALITIES,
   DEFAULT_CONTRACT_TEMPLATES,
@@ -116,7 +117,7 @@ export interface ClubDatabaseState {
 
 const getInitialState = (): ClubDatabaseState => ({
   modalities: DEFAULT_CLUB_MODALITIES,
-  subscriptions: [],
+  subscriptions: getLabcardSubscriptions(),
   consultants: [
     {
       id: 'cons-1',
@@ -133,7 +134,7 @@ const getInitialState = (): ClubDatabaseState => ({
   contractTemplates: DEFAULT_CONTRACT_TEMPLATES,
   cashEntries: [],
   catalogServices: DEFAULT_CATALOG_SERVICES,
-  lastCardSequence: 3000, // Sequência após 1212252999
+  lastCardSequence: 3015, // Sequência após 1212253014 (Labcard)
   updatedAt: new Date().toISOString(),
 });
 
@@ -493,20 +494,22 @@ export const fetchClubState = async (): Promise<ClubDatabaseState> => {
       const remote = (data as any).value as Partial<ClubDatabaseState>;
       const remoteSubs = remote.subscriptions || [];
       const localSubs = local.subscriptions || [];
+      const defaultLabcardSubs = getLabcardSubscriptions();
 
       // Unir assinaturas pelo ID de modo que nenhuma adesão feita no site ou admin se perca
       const subsMap = new Map<string, ClubSubscription>();
-      remoteSubs.forEach((s) => subsMap.set(s.id, s));
+      defaultLabcardSubs.forEach((s) => subsMap.set(s.id, s));
       localSubs.forEach((s) => {
         if (!subsMap.has(s.id)) {
           subsMap.set(s.id, s);
         }
       });
+      remoteSubs.forEach((s) => subsMap.set(s.id, s));
 
       const mergedState: Partial<ClubDatabaseState> = {
         ...remote,
         subscriptions: Array.from(subsMap.values()),
-        lastCardSequence: Math.max(remote.lastCardSequence || 3000, local.lastCardSequence || 3000),
+        lastCardSequence: Math.max(remote.lastCardSequence || 3015, local.lastCardSequence || 3015, 3015),
       };
 
       const normalized = normalizeClubDatabaseState(mergedState, local);
