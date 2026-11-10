@@ -511,13 +511,13 @@ export const fetchClubState = async (): Promise<ClubDatabaseState> => {
       });
       remoteSubs.forEach((s) => subsMap.set(s.id, s));
 
-      // Garantir status PENDING_TRANSFER para todos os registros alimentados da planilha Labcard
+      // Preservar status ATIVO quando houver vínculo de cartão ou faturamento efetivo, e PENDING_TRANSFER para os demais
       subsMap.forEach((sub) => {
-        if (sub.origin === 'IMPORT_LABCARD' || sub.id.startsWith('sub-labcard-')) {
+        if ((sub.origin === 'IMPORT_LABCARD' || sub.id.startsWith('sub-labcard-')) && sub.status !== 'ACTIVE') {
           sub.status = 'PENDING_TRANSFER';
           if (sub.members) {
             sub.members.forEach((m) => {
-              m.status = 'PENDING_TRANSFER';
+              if (m.status !== 'ACTIVE') m.status = 'PENDING_TRANSFER';
             });
           }
         }

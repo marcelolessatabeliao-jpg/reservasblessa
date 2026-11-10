@@ -96,6 +96,7 @@ export interface ClubInvoice {
   paymentMethod: ClubPaymentMethod;
   status: 'PAID' | 'PENDING' | 'OVERDUE' | 'CANCELLED';
   asaasPaymentId?: string;
+  boletoNumber?: string;
   invoiceUrl?: string;
   pixPayload?: string;
   pixQrCode?: string;
@@ -265,11 +266,13 @@ export interface ClubContractTemplate {
 export interface ClubCashEntry {
   id: string;
   type: 'IN' | 'OUT';
+  title?: string;
   category: string;
   description: string;
   amount: number;
   paymentMethod: string;
   date: string; // YYYY-MM-DD
+  registeredBy?: string;
   createdAt: string;
 }
 

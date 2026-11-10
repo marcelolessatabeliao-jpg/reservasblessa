@@ -113,6 +113,22 @@ import {
   MultiCardPrintSheet,
 } from '@/components/club/ClubMemberCardView';
 
+const MONTH_OPTIONS = [
+  { value: '2026-01', label: 'Janeiro/2026' },
+  { value: '2026-02', label: 'Fevereiro/2026' },
+  { value: '2026-03', label: 'Março/2026' },
+  { value: '2026-04', label: 'Abril/2026' },
+  { value: '2026-05', label: 'Maio/2026' },
+  { value: '2026-06', label: 'Junho/2026' },
+  { value: '2026-07', label: 'Julho/2026' },
+  { value: '2026-08', label: 'Agosto/2026' },
+  { value: '2026-09', label: 'Setembro/2026' },
+  { value: '2026-10', label: 'Outubro/2026' },
+  { value: '2026-11', label: 'Novembro/2026' },
+  { value: '2026-12', label: 'Dezembro/2026' },
+  { value: '2027-01', label: 'Janeiro/2027' },
+];
+
 interface AdminClubEcosystemProps {
   standalone?: boolean;
 }
@@ -390,12 +406,26 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
   // New Cash Entry (Entrada / Saída de Caixa)
   const [cashCategory, setCashCategory] = useState('Recepção / Mensalidade');
+  const [cashTitle, setCashTitle] = useState('');
   const [cashDescription, setCashDescription] = useState('');
   const [cashAmount, setCashAmount] = useState('');
   const [cashMethod, setCashMethod] = useState('PIX');
+  const [cashRegisteredBy, setCashRegisteredBy] = useState('Admin Lessa');
   const [cashDate, setCashDate] = useState(
     () => new Date().toISOString().split('T')[0]
   );
+  const [isCashEntryModalOpen, setIsCashEntryModalOpen] = useState(false);
+  const [cashEntryModalType, setCashEntryModalType] = useState<'IN' | 'OUT'>('OUT');
+  const [cashEntryStartDate, setCashEntryStartDate] = useState('2026-11-10');
+  const [cashEntryEndDate, setCashEntryEndDate] = useState('2026-11-10');
+  const [selectedCashEntryIds, setSelectedCashEntryIds] = useState<string[]>([]);
+
+  // Filtros específicos de Finanças (Screenshots Labcard)
+  const [faturamentoMonth, setFaturamentoMonth] = useState('2026-11');
+  const [mensalidadesStartDate, setMensalidadesStartDate] = useState('2026-11-01');
+  const [mensalidadesEndDate, setMensalidadesEndDate] = useState('2026-11-30');
+  const [mensalidadesPaidFilter, setMensalidadesPaidFilter] = useState<'UNPAID' | 'PAID'>('UNPAID');
+  const [vencidasMonth, setVencidasMonth] = useState('2026-06');
 
   // Relatórios sub-views (matching Labcard Relatórios dropdown & cascading submenus)
   const [openSubMenu, setOpenSubMenu] = useState<string | null>(null);
@@ -959,6 +989,207 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     };
   }, [state, cashFlowStartDate, cashFlowEndDate, cashFlowFilterMode]);
 
+  // 1. Faturamento Mensal Previsto (Screenshot 2)
+  const faturamentoPrevistoComputed = useMemo(() => {
+    if (!state) {
+      return {
+        totalBoletos: 0,
+        totalRecebido: 0,
+        totalPendente: 0,
+        totalGeral: 0,
+        rows: [] as Array<{
+          name: string;
+          cpf: string;
+          plan: string;
+          amount: number;
+          installmentDate: string;
+          status: 'PAID' | 'PENDING';
+        }>,
+      };
+    }
+    const rows: Array<{
+      name: string;
+      cpf: string;
+      plan: string;
+      amount: number;
+      installmentDate: string;
+      status: 'PAID' | 'PENDING';
+    }> = [];
+
+    const monthParts = faturamentoMonth.split('-');
+    const refMonthShort = `${monthParts[1]}/${monthParts[0]}`;
+
+    for (const sub of state.subscriptions || []) {
+      for (const inv of sub.invoices || []) {
+        const invDue = inv.dueDate || '';
+        const matchDue = invDue.startsWith(faturamentoMonth);
+        const matchRef = inv.referenceMonth && inv.referenceMonth.includes(refMonthShort);
+        if (matchDue || matchRef) {
+          rows.push({
+            name: sub.holderName,
+            cpf: sub.holderCpf,
+            plan: sub.planSummaryLabel || inv.description || 'Lessa Club',
+            amount: inv.amount,
+            installmentDate: invDue,
+            status: inv.status === 'PAID' ? 'PAID' : 'PENDING',
+          });
+        }
+      }
+    }
+
+    const totalBoletos = rows.length;
+    const totalRecebido = rows
+      .filter((r) => r.status === 'PAID')
+      .reduce((sum, r) => sum + r.amount, 0);
+    const totalPendente = rows
+      .filter((r) => r.status === 'PENDING')
+      .reduce((sum, r) => sum + r.amount, 0);
+    const totalGeral = totalRecebido + totalPendente;
+
+    return {
+      totalBoletos,
+      totalRecebido,
+      totalPendente,
+      totalGeral,
+      rows,
+    };
+  }, [state, faturamentoMonth]);
+
+  // 2. Mensalidades com Filtro de Data e Rádios PAGOS / NÃO PAGOS (Screenshot 3)
+  const mensalidadesComputed = useMemo(() => {
+    if (!state) {
+      return {
+        total: 0,
+        rows: [] as Array<{
+          cardCode: string;
+          name: string;
+          boleto: string;
+          plan: string;
+          amount: number;
+          installment: string;
+          dueDate: string;
+        }>,
+      };
+    }
+    const rows: Array<{
+      cardCode: string;
+      name: string;
+      boleto: string;
+      plan: string;
+      amount: number;
+      installment: string;
+      dueDate: string;
+    }> = [];
+
+    for (const sub of state.subscriptions || []) {
+      for (const inv of sub.invoices || []) {
+        if (!inv.dueDate) continue;
+        if (mensalidadesStartDate && inv.dueDate < mensalidadesStartDate) continue;
+        if (mensalidadesEndDate && inv.dueDate > mensalidadesEndDate) continue;
+
+        const isPaid = inv.status === 'PAID';
+        if (mensalidadesPaidFilter === 'PAID' && !isPaid) continue;
+        if (mensalidadesPaidFilter === 'UNPAID' && isPaid) continue;
+
+        rows.push({
+          cardCode: sub.subscriptionCode || '—',
+          name: sub.holderName,
+          boleto: inv.boletoNumber || inv.asaasPaymentId || inv.id.replace(/\D/g, '') || '—',
+          plan: sub.planSummaryLabel || inv.description || 'Lessa Club',
+          amount: inv.amount,
+          installment: `${inv.installmentNumber || 11} de ${inv.totalInstallments || 12}`,
+          dueDate: inv.dueDate,
+        });
+      }
+    }
+
+    const total = rows.reduce((sum, r) => sum + r.amount, 0);
+    return {
+      total,
+      rows,
+    };
+  }, [state, mensalidadesStartDate, mensalidadesEndDate, mensalidadesPaidFilter]);
+
+  // 3. Cobranças Vencidas Por Mês (Screenshot 4)
+  const vencidasPorMesComputed = useMemo(() => {
+    if (!state) return [];
+    const rows: Array<{
+      name: string;
+      cardCode: string;
+      dueDate: string;
+      dueDay: number;
+      amount: number;
+      phone: string;
+      email: string;
+    }> = [];
+
+    const monthParts = vencidasMonth.split('-');
+    const refMonthShort = `${monthParts[1]}/${monthParts[0]}`;
+
+    for (const sub of state.subscriptions || []) {
+      for (const inv of sub.invoices || []) {
+        const invDue = inv.dueDate || '';
+        const matchMonth = invDue.startsWith(vencidasMonth) || (inv.referenceMonth && inv.referenceMonth.includes(refMonthShort));
+        const isOverdue = inv.status === 'OVERDUE' || (inv.status === 'PENDING' && invDue < '2026-11-10');
+
+        if (matchMonth && isOverdue) {
+          const dueDayNum = parseInt(invDue.split('-')[2] || '1', 10);
+          rows.push({
+            name: sub.holderName,
+            cardCode: sub.subscriptionCode || '—',
+            dueDate: invDue,
+            dueDay: dueDayNum || 1,
+            amount: inv.amount,
+            phone: sub.holderPhone || '—',
+            email: sub.holderEmail || '—',
+          });
+        }
+      }
+    }
+
+    return rows;
+  }, [state, vencidasMonth]);
+
+  // 4. Assinaturas Ativas e Vencidas com Vínculo a Cartões (Screenshot 5)
+  const assinaturasAtivasVencidasComputed = useMemo(() => {
+    if (!state) return [];
+    const isActiveTab = financeSubView === 'ASSINATURAS_ATIVAS';
+
+    return (state.subscriptions || []).filter((sub) => {
+      if (isActiveTab) {
+        return sub.status === 'ACTIVE' || sub.status === 'PENDING_TRANSFER';
+      } else {
+        return sub.status === 'EXPIRED' || sub.status === 'INACTIVE' || sub.status === 'OVERDUE';
+      }
+    }).map((sub) => {
+      const cardStr = sub.registeredCard?.last4Digits
+        ? `****${sub.registeredCard.last4Digits}`
+        : '****';
+      return {
+        cardCode: sub.subscriptionCode || '—',
+        name: sub.holderName,
+        plan: sub.planSummaryLabel,
+        amount: sub.monthlyEquivalent,
+        card: cardStr,
+        status: isActiveTab ? 'ACTIVE' : sub.status,
+        createdAt: sub.createdAt ? sub.createdAt.split('T')[0] : '2026-04-30',
+        dueDate: sub.endDate || '2026-12-30',
+      };
+    });
+  }, [state, financeSubView]);
+
+  // 5. Entradas e Saídas Avulsas de Caixa (Screenshot 1)
+  const cashEntriesListComputed = useMemo(() => {
+    if (!state) return [];
+    const targetType = financeSubView === 'ENTRADA_CAIXA' ? 'IN' : 'OUT';
+    return (state.cashEntries || []).filter((entry) => {
+      if (entry.type !== targetType) return false;
+      if (cashEntryStartDate && entry.date < cashEntryStartDate) return false;
+      if (cashEntryEndDate && entry.date > cashEntryEndDate) return false;
+      return true;
+    });
+  }, [state, financeSubView, cashEntryStartDate, cashEntryEndDate]);
+
   // Atualização instantânea ao clicar em Dashboard
   const handleRefreshDashboard = async () => {
     setActiveTab('dashboard');
@@ -1015,6 +1246,58 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
           ? 'Entrada de Caixa registrada!'
           : 'Saída de Caixa registrada!',
       description: `${newEntry.description} — ${formatCurrency(newEntry.amount)}`,
+    });
+  };
+
+  const handleSaveCashEntryModal = async () => {
+    if (!state) return;
+    const val = Number(cashAmount.replace(',', '.'));
+    if (!cashDescription.trim() || !val || val <= 0) {
+      toast({
+        title: 'Preencha a descrição e o valor',
+        description: 'Informe uma descrição e um valor maior que zero.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    const newEntry: ClubCashEntry = {
+      id: `cash_${Date.now()}`,
+      type: cashEntryModalType,
+      title: cashTitle.trim() || (cashEntryModalType === 'IN' ? 'Entrada Avulsa' : 'Saída Operacional'),
+      category: cashCategory || (cashEntryModalType === 'IN' ? 'Entrada Recepção' : 'Despesa Operacional'),
+      description: cashDescription.trim(),
+      amount: val,
+      paymentMethod: cashMethod,
+      date: cashDate || new Date().toISOString().split('T')[0],
+      registeredBy: cashRegisteredBy.trim() || 'Admin Lessa',
+      createdAt: new Date().toISOString(),
+    };
+    const nextState: ClubDatabaseState = {
+      ...state,
+      cashEntries: [newEntry, ...(state.cashEntries || [])],
+    };
+    await persist(nextState);
+    setIsCashEntryModalOpen(false);
+    setCashTitle('');
+    setCashDescription('');
+    setCashAmount('');
+    toast({
+      title: cashEntryModalType === 'IN' ? 'Entrada de Caixa registrada!' : 'Saída de Caixa registrada!',
+      description: `${newEntry.title} — ${formatCurrency(newEntry.amount)}`,
+    });
+  };
+
+  const handleDeleteSelectedCashEntries = async () => {
+    if (!state || selectedCashEntryIds.length === 0) return;
+    const remaining = (state.cashEntries || []).filter(
+      (e) => !selectedCashEntryIds.includes(e.id)
+    );
+    const nextState = { ...state, cashEntries: remaining };
+    await persist(nextState);
+    setSelectedCashEntryIds([]);
+    toast({
+      title: 'Registros excluídos',
+      description: 'As movimentações de caixa selecionadas foram excluídas com sucesso.',
     });
   };
 
@@ -5228,455 +5511,888 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
               </div>
             )}
 
-            {/* 1.1 ENTRADA DE CAIXA / SAÍDA DE CAIXA (Lançamentos Manuais Avulsos) */}
+            {/* 1.1 ENTRADA DE CAIXA / SAÍDA DE CAIXA (Screenshot 1 do usuário) */}
             {(financeSubView === 'ENTRADA_CAIXA' ||
               financeSubView === 'SAIDA_CAIXA') && (
-              <div className="space-y-5">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-between">
-                    <div>
-                      <span className="text-xs font-bold text-emerald-700 block">
-                        Total de Entradas
-                      </span>
-                      <span className="text-2xl font-black text-emerald-950">
-                        {formatCurrency(cashFlowSummary.totalIn)}
-                      </span>
-                    </div>
-                    <TrendingUp className="w-8 h-8 text-emerald-600" />
+              <div className="space-y-4">
+                <h3 className="text-xl font-normal text-slate-800">
+                  {financeSubView === 'ENTRADA_CAIXA'
+                    ? 'Entrada de Caixa'
+                    : 'Saída de Caixa'}
+                </h3>
+
+                {/* Resumo de Caixa (Entrada de Mensalidades, Entrada de Caixa, Saída de Caixa, Saldo) */}
+                <div className="flex flex-wrap items-center gap-x-8 gap-y-2 text-xs py-1 border-b border-slate-100">
+                  <div>
+                    <span className="text-slate-600 block">
+                      Entrada de Mensalidades:
+                    </span>
+                    <span className="font-bold text-slate-900">
+                      {formatCurrency(cashFlowPanelData.mensalidadesTotal)}
+                    </span>
                   </div>
-                  <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 flex items-center justify-between">
-                    <div>
-                      <span className="text-xs font-bold text-rose-700 block">
-                        Total de Saídas
-                      </span>
-                      <span className="text-2xl font-black text-rose-950">
-                        {formatCurrency(cashFlowSummary.totalOut)}
-                      </span>
-                    </div>
-                    <TrendingDown className="w-8 h-8 text-rose-600" />
+                  <div>
+                    <span className="text-slate-600 block">
+                      Entrada de Caixa:
+                    </span>
+                    <span className="font-bold text-slate-900">
+                      {formatCurrency(cashFlowPanelData.entradasCaixaTotal)}
+                    </span>
                   </div>
-                  <div className="p-4 rounded-2xl bg-slate-900 text-white flex items-center justify-between">
-                    <div>
-                      <span className="text-xs font-bold text-emerald-300 block">
-                        Saldo Líquido em Caixa
-                      </span>
-                      <span className="text-2xl font-black">
-                        {formatCurrency(cashFlowSummary.balance)}
-                      </span>
-                    </div>
-                    <Wallet className="w-8 h-8 text-emerald-400" />
+                  <div>
+                    <span className="text-slate-600 block">
+                      Saída de Caixa:
+                    </span>
+                    <span className="font-bold text-slate-900">
+                      {formatCurrency(cashFlowPanelData.saidasCaixaTotal)}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-600 block">Saldo:</span>
+                    <span className="font-bold text-slate-900">
+                      {formatCurrency(cashFlowPanelData.saldo)}
+                    </span>
                   </div>
                 </div>
 
-                {/* Formulário de Lançamento de Entrada ou Saída */}
-                <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
-                  <h4 className="text-sm font-black uppercase text-slate-800">
-                    {financeSubView === 'SAIDA_CAIXA'
-                      ? 'Registrar Nova Saída de Caixa (Despesa / Pagamento)'
-                      : 'Registrar Nova Entrada / Movimentação de Caixa'}
-                  </h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
-                    <div className="sm:col-span-4">
-                      <Label className="text-xs font-bold">Descrição *</Label>
-                      <Input
-                        value={cashDescription}
-                        onChange={(e) => setCashDescription(e.target.value)}
-                        placeholder="Ex: Recebimento avulso / Impressão de cartões..."
-                        className="bg-white mt-1"
-                      />
-                    </div>
-                    <div className="sm:col-span-2">
-                      <Label className="text-xs font-bold">Valor (R$) *</Label>
+                {/* Filtro de Datas com botão Buscar */}
+                <div className="space-y-2 pt-1">
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-slate-700">
+                    <span>Entre:</span>
+                    <input
+                      type="date"
+                      value={cashEntryStartDate}
+                      onChange={(e) => setCashEntryStartDate(e.target.value)}
+                      className="h-8 px-2 rounded border border-slate-300 text-xs bg-white font-mono"
+                    />
+                    <span>e:</span>
+                    <input
+                      type="date"
+                      value={cashEntryEndDate}
+                      onChange={(e) => setCashEntryEndDate(e.target.value)}
+                      className="h-8 px-2 rounded border border-slate-300 text-xs bg-white font-mono"
+                    />
+                  </div>
+                  <div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 px-8 text-xs font-medium border-slate-300 text-slate-700 hover:bg-slate-100"
+                    >
+                      Buscar
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Botões de Ação: ADICIONAR / EXCLUIR */}
+                <div className="flex flex-wrap items-center gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCashEntryModalType(
+                        financeSubView === 'ENTRADA_CAIXA' ? 'IN' : 'OUT'
+                      );
+                      setIsCashEntryModalOpen(true);
+                    }}
+                    className="bg-[#1e70bf] hover:bg-[#185d9f] text-white text-xs font-bold px-4 py-2 rounded uppercase shadow-sm transition-colors"
+                  >
+                    {financeSubView === 'ENTRADA_CAIXA'
+                      ? 'ADICIONAR ENTRADA'
+                      : 'ADICIONAR SAÍDA'}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleDeleteSelectedCashEntries}
+                    disabled={selectedCashEntryIds.length === 0}
+                    className="bg-[#d9534f] hover:bg-[#c9302c] text-white text-xs font-bold px-4 py-2 rounded uppercase shadow-sm transition-colors disabled:opacity-50"
+                  >
+                    {financeSubView === 'ENTRADA_CAIXA'
+                      ? 'EXCLUIR ENTRADA'
+                      : 'EXCLUIR SAÍDA'}
+                  </button>
+                </div>
+
+                {/* Tabela de Lançamentos de Caixa com Cabeçalho Verde Escuro */}
+                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-[#004d00] text-white text-[11px] font-bold">
+                        <th className="py-2.5 px-3 w-16">#ID</th>
+                        <th className="py-2.5 px-3">Titulo</th>
+                        <th className="py-2.5 px-3">Descrição</th>
+                        <th className="py-2.5 px-3">Valor</th>
+                        <th className="py-2.5 px-3">
+                          {financeSubView === 'ENTRADA_CAIXA'
+                            ? 'DT Entrada'
+                            : 'DT Saida'}
+                        </th>
+                        <th className="py-2.5 px-3">Registrado dia</th>
+                        <th className="py-2.5 px-3">Por</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {cashEntriesListComputed.length === 0 ? (
+                        <tr>
+                          <td
+                            colSpan={7}
+                            className="py-8 text-center text-slate-400"
+                          >
+                            Nenhum registro encontrado para a data selecionada.
+                          </td>
+                        </tr>
+                      ) : (
+                        cashEntriesListComputed.map((entry, idx) => {
+                          const isChecked = selectedCashEntryIds.includes(
+                            entry.id
+                          );
+                          return (
+                            <tr
+                              key={entry.id}
+                              className={`${
+                                idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'
+                              } hover:bg-emerald-50/50 transition-colors`}
+                            >
+                              <td className="py-2 px-3 font-mono font-bold text-slate-800">
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setSelectedCashEntryIds((prev) => [
+                                          ...prev,
+                                          entry.id,
+                                        ]);
+                                      } else {
+                                        setSelectedCashEntryIds((prev) =>
+                                          prev.filter((id) => id !== entry.id)
+                                        );
+                                      }
+                                    }}
+                                    className="w-3.5 h-3.5 rounded border-slate-300 text-[#004d00] focus:ring-[#004d00]"
+                                  />
+                                  <span>#{idx + 101}</span>
+                                </label>
+                              </td>
+                              <td className="py-2 px-3 font-bold text-slate-900">
+                                {entry.title || entry.category || 'Movimentação'}
+                              </td>
+                              <td className="py-2 px-3 text-slate-700">
+                                {entry.description}
+                              </td>
+                              <td className="py-2 px-3 font-black text-slate-900">
+                                {formatCurrency(entry.amount)}
+                              </td>
+                              <td className="py-2 px-3 text-slate-700">
+                                {formatDateBR(entry.date)}
+                              </td>
+                              <td className="py-2 px-3 text-slate-600">
+                                {formatDateBR(entry.createdAt || entry.date)}
+                              </td>
+                              <td className="py-2 px-3 text-slate-600">
+                                {entry.registeredBy || 'Admin Lessa'}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Botão Imprimir */}
+                <div className="pt-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => window.print()}
+                    className="h-8 px-4 text-xs font-bold border-slate-300 text-slate-800 hover:bg-slate-100 uppercase"
+                  >
+                    IMPRIMIR
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Modal Dialog para ADICIONAR ENTRADA / SAÍDA DE CAIXA */}
+            <Dialog
+              open={isCashEntryModalOpen}
+              onOpenChange={setIsCashEntryModalOpen}
+            >
+              <DialogContent className="max-w-md bg-white">
+                <DialogHeader>
+                  <DialogTitle className="text-base font-bold text-slate-900">
+                    {cashEntryModalType === 'IN'
+                      ? 'Adicionar Entrada de Caixa'
+                      : 'Adicionar Saída de Caixa'}
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3 py-2 text-xs">
+                  <div>
+                    <Label className="text-xs font-bold text-slate-700">
+                      Título *
+                    </Label>
+                    <Input
+                      value={cashTitle}
+                      onChange={(e) => setCashTitle(e.target.value)}
+                      placeholder={
+                        cashEntryModalType === 'IN'
+                          ? 'Ex: Recebimento Avulso'
+                          : 'Ex: Manutenção da Piscina'
+                      }
+                      className="mt-1 h-9 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs font-bold text-slate-700">
+                      Descrição Detalhada *
+                    </Label>
+                    <Input
+                      value={cashDescription}
+                      onChange={(e) => setCashDescription(e.target.value)}
+                      placeholder="Ex: Compra de cloro / Pagamento de serviço..."
+                      className="mt-1 h-9 text-xs"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs font-bold text-slate-700">
+                        Valor (R$) *
+                      </Label>
                       <Input
                         value={cashAmount}
                         onChange={(e) => setCashAmount(e.target.value)}
                         placeholder="0,00"
-                        className="bg-white mt-1"
+                        className="mt-1 h-9 text-xs"
                       />
                     </div>
-                    <div className="sm:col-span-2">
-                      <Label className="text-xs font-bold">Meio</Label>
+                    <div>
+                      <Label className="text-xs font-bold text-slate-700">
+                        Meio de Pagamento
+                      </Label>
                       <select
                         value={cashMethod}
                         onChange={(e) => setCashMethod(e.target.value)}
-                        className="w-full h-10 rounded-md border border-slate-300 px-2 text-xs font-bold bg-white mt-1"
+                        className="w-full h-9 rounded-md border border-slate-300 px-2 text-xs font-medium bg-white mt-1"
                       >
                         <option value="PIX">PIX</option>
                         <option value="DINHEIRO">Dinheiro</option>
                         <option value="CARTAO">Cartão</option>
+                        <option value="BOLETO">Boleto</option>
                       </select>
                     </div>
-                    <div className="sm:col-span-2">
-                      <Label className="text-xs font-bold">Data</Label>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs font-bold text-slate-700">
+                        Data da Movimentação
+                      </Label>
                       <Input
                         type="date"
                         value={cashDate}
                         onChange={(e) => setCashDate(e.target.value)}
-                        className="bg-white mt-1"
+                        className="mt-1 h-9 text-xs"
                       />
                     </div>
-                    <div className="sm:col-span-2 flex gap-1.5">
-                      {financeSubView !== 'SAIDA_CAIXA' && (
-                        <Button
-                          type="button"
-                          onClick={() => handleAddCashEntry('IN')}
-                          className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs"
-                        >
-                          + Entrada
-                        </Button>
-                      )}
-                      {financeSubView !== 'ENTRADA_CAIXA' && (
-                        <Button
-                          type="button"
-                          onClick={() => handleAddCashEntry('OUT')}
-                          className="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs"
-                        >
-                          - Saída
-                        </Button>
-                      )}
+                    <div>
+                      <Label className="text-xs font-bold text-slate-700">
+                        Registrado Por
+                      </Label>
+                      <Input
+                        value={cashRegisteredBy}
+                        onChange={(e) => setCashRegisteredBy(e.target.value)}
+                        placeholder="Admin Lessa"
+                        className="mt-1 h-9 text-xs"
+                      />
                     </div>
                   </div>
                 </div>
+                <DialogFooter className="flex justify-end gap-2 pt-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setIsCashEntryModalOpen(false)}
+                    className="h-8 text-xs font-bold"
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleSaveCashEntryModal}
+                    className="h-8 bg-[#004d00] hover:bg-emerald-900 text-white text-xs font-bold"
+                  >
+                    Salvar Movimentação
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
 
-                <div className="space-y-2">
-                  {cashFlowSummary.entries
-                    .filter((e) =>
-                      financeSubView === 'ENTRADA_CAIXA'
-                        ? e.type === 'IN'
-                        : financeSubView === 'SAIDA_CAIXA'
-                        ? e.type === 'OUT'
-                        : true
-                    )
-                    .map((entry) => (
-                      <div
-                        key={entry.id}
-                        className="p-3.5 rounded-xl border border-slate-200 flex items-center justify-between bg-white text-xs"
-                      >
-                        <div className="flex items-center gap-3">
-                          <Badge
-                            className={
-                              entry.type === 'IN'
-                                ? 'bg-emerald-600 text-white'
-                                : 'bg-rose-600 text-white'
-                            }
-                          >
-                            {entry.type === 'IN' ? 'ENTRADA' : 'SAÍDA'}
-                          </Badge>
-                          <div>
-                            <div className="font-bold text-slate-900">
-                              {entry.description}
-                            </div>
-                            <div className="text-slate-500">
-                              {formatDateBR(entry.date)} • {entry.category} •{' '}
-                              {entry.paymentMethod}
-                            </div>
-                          </div>
-                        </div>
-                        <span
-                          className={`font-black text-sm ${
-                            entry.type === 'IN'
-                              ? 'text-emerald-700'
-                              : 'text-rose-700'
-                          }`}
-                        >
-                          {entry.type === 'IN' ? '+' : '-'}{' '}
-                          {formatCurrency(entry.amount)}
-                        </span>
-                      </div>
-                    ))}
-                </div>
-              </div>
-            )}
-
-            {/* 2. FATURAMENTO MENSAL PREVISTO */}
+            {/* 2. FATURAMENTO MENSAL PREVISTO (Screenshot 2 do usuário) */}
             {financeSubView === 'FATURAMENTO_PREVISTO' && (
               <div className="space-y-4">
-                <div className="p-5 rounded-2xl bg-emerald-950 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                  <div>
-                    <span className="text-xs font-bold uppercase text-emerald-300 block">
-                      Receita Mensal Recorrente Prevista (Assinaturas Ativas)
-                    </span>
-                    <span className="text-3xl font-black">
-                      {formatCurrency(
-                        state.subscriptions
-                          .filter((s) => s.status === 'ACTIVE')
-                          .reduce((acc, s) => acc + s.monthlyEquivalent, 0)
-                      )}
-                      /mês
+                <h3 className="text-xl font-normal text-slate-800">
+                  Relatório de Faturamentos Previstos
+                </h3>
+
+                {/* Filtro Mês/Ano com botão Filtrar */}
+                <div className="flex flex-wrap items-center gap-3 py-1">
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
+                    <span>Mês/Ano</span>
+                    <select
+                      value={faturamentoMonth}
+                      onChange={(e) => setFaturamentoMonth(e.target.value)}
+                      className="h-8 px-3 rounded border border-slate-300 bg-white text-xs font-medium"
+                    >
+                      {MONTH_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <Button
+                    size="sm"
+                    className="h-8 px-4 bg-[#1e70bf] hover:bg-[#185d9f] text-white text-xs font-medium"
+                  >
+                    Filtrar
+                  </Button>
+                </div>
+
+                {/* 4 Cards de Totais (Idênticos à Screenshot 2) */}
+                <div className="flex flex-wrap items-center gap-3 py-1">
+                  <div className="px-3.5 py-1.5 rounded-lg bg-[#e8f4fc] border border-[#b9ddf8] text-[#0d6efd] text-xs font-semibold flex items-center gap-1.5">
+                    <span>📄 Total de Boletos:</span>
+                    <span className="font-bold">
+                      {faturamentoPrevistoComputed.totalBoletos}
                     </span>
                   </div>
-                  <div className="text-right">
-                    <span className="text-xs text-emerald-300 block">
-                      Projeção Anualizada (12 meses)
-                    </span>
-                    <span className="text-xl font-black text-amber-300">
+                  <div className="px-3.5 py-1.5 rounded-lg bg-[#eaf8ee] border border-[#bce6c6] text-[#198754] text-xs font-semibold flex items-center gap-1.5">
+                    <span>💰 Total Recebido:</span>
+                    <span className="font-bold">
                       {formatCurrency(
-                        state.subscriptions
-                          .filter((s) => s.status === 'ACTIVE')
-                          .reduce((acc, s) => acc + s.monthlyEquivalent * 12, 0)
+                        faturamentoPrevistoComputed.totalRecebido
                       )}
                     </span>
                   </div>
+                  <div className="px-3.5 py-1.5 rounded-lg bg-[#fef8e7] border border-[#fde09e] text-[#d97706] text-xs font-semibold flex items-center gap-1.5">
+                    <span>⏳ Total Pendente:</span>
+                    <span className="font-bold">
+                      {formatCurrency(
+                        faturamentoPrevistoComputed.totalPendente
+                      )}
+                    </span>
+                  </div>
+                  <div className="px-3.5 py-1.5 rounded-lg bg-[#f1f3f5] border border-[#dee2e6] text-[#495057] text-xs font-semibold flex items-center gap-1.5">
+                    <span>📊 Total Geral:</span>
+                    <span className="font-bold">
+                      {formatCurrency(faturamentoPrevistoComputed.totalGeral)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Tabela com Cabeçalho Verde Escuro */}
+                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-[#004d00] text-white text-[11px] font-bold">
+                        <th className="py-2.5 px-3">Nome</th>
+                        <th className="py-2.5 px-3">CPF</th>
+                        <th className="py-2.5 px-3">Plano</th>
+                        <th className="py-2.5 px-3">Valor</th>
+                        <th className="py-2.5 px-3">Parcela</th>
+                        <th className="py-2.5 px-3">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {faturamentoPrevistoComputed.rows.length === 0 ? (
+                        <tr>
+                          <td
+                            colSpan={6}
+                            className="py-8 text-center text-slate-400"
+                          >
+                            Nenhum faturamento previsto para o mês selecionado.
+                          </td>
+                        </tr>
+                      ) : (
+                        faturamentoPrevistoComputed.rows.map((row, idx) => (
+                          <tr
+                            key={`${row.cpf}_${idx}`}
+                            className={`${
+                              idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'
+                            } hover:bg-emerald-50/50 transition-colors`}
+                          >
+                            <td className="py-2 px-3 font-bold text-slate-900">
+                              {row.name}
+                            </td>
+                            <td className="py-2 px-3 font-mono text-slate-700">
+                              {row.cpf}
+                            </td>
+                            <td className="py-2 px-3 text-slate-700">
+                              {row.plan}
+                            </td>
+                            <td className="py-2 px-3 font-bold text-slate-900">
+                              {formatCurrency(row.amount)}
+                            </td>
+                            <td className="py-2 px-3 font-mono text-slate-700">
+                              {formatDateBR(row.installmentDate)}
+                            </td>
+                            <td className="py-2 px-3">
+                              {row.status === 'PAID' ? (
+                                <span className="px-2.5 py-0.5 rounded text-[11px] font-bold bg-[#d4edda] text-[#155724]">
+                                  Paga
+                                </span>
+                              ) : (
+                                <span className="px-2.5 py-0.5 rounded text-[11px] font-bold bg-[#fff3cd] text-[#856404]">
+                                  Pendente
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Botão Imprimir */}
+                <div className="pt-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => window.print()}
+                    className="h-8 px-4 text-xs font-bold border-slate-300 text-slate-800 hover:bg-slate-100 uppercase"
+                  >
+                    IMPRIMIR
+                  </Button>
                 </div>
               </div>
             )}
 
-            {/* 3. ASSINATURAS ATIVAS vs ASSINATURAS VENCIDAS */}
-            {(financeSubView === 'ASSINATURAS_ATIVAS' ||
-              financeSubView === 'ASSINATURAS_VENCIDAS') && (
-              <div className="space-y-3">
-                <h4 className="font-black text-sm text-slate-900 uppercase">
-                  {financeSubView === 'ASSINATURAS_ATIVAS'
-                    ? 'Relação Financeira de Assinaturas Ativas'
-                    : 'Relação de Assinaturas Vencidas / Inativas'}
-                </h4>
-                {state.subscriptions
-                  .filter((s) =>
-                    financeSubView === 'ASSINATURAS_ATIVAS'
-                      ? s.status === 'ACTIVE'
-                      : s.status !== 'ACTIVE'
-                  )
-                  .map((sub) => (
-                    <div
-                      key={sub.id}
-                      className="p-4 rounded-xl border border-slate-200 flex items-center justify-between bg-slate-50"
+            {/* 3. MENSALIDADES (Screenshot 3 do usuário) */}
+            {financeSubView === 'MENSALIDADES' && (
+              <div className="space-y-4">
+                <h3 className="text-xl font-normal text-slate-800">
+                  Faturas &gt; Total {formatCurrency(mensalidadesComputed.total)}
+                </h3>
+
+                {/* Filtro Entre / e / Rádios PAGOS e NÃO PAGOS / Buscar */}
+                <div className="space-y-2 py-1">
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-slate-700">
+                    <span>Entre:</span>
+                    <input
+                      type="date"
+                      value={mensalidadesStartDate}
+                      onChange={(e) => setMensalidadesStartDate(e.target.value)}
+                      className="h-8 px-2 rounded border border-slate-300 text-xs bg-white font-mono"
+                    />
+                    <span>e:</span>
+                    <input
+                      type="date"
+                      value={mensalidadesEndDate}
+                      onChange={(e) => setMensalidadesEndDate(e.target.value)}
+                      className="h-8 px-2 rounded border border-slate-300 text-xs bg-white font-mono"
+                    />
+                  </div>
+                  <div className="flex items-center gap-6 text-xs font-bold text-slate-800">
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <span>PAGOS:</span>
+                      <input
+                        type="radio"
+                        name="mensalidadesPaidOption"
+                        checked={mensalidadesPaidFilter === 'PAID'}
+                        onChange={() => setMensalidadesPaidFilter('PAID')}
+                        className="text-emerald-700 focus:ring-emerald-600"
+                      />
+                    </label>
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <span>NÃO PAGOS:</span>
+                      <input
+                        type="radio"
+                        name="mensalidadesPaidOption"
+                        checked={mensalidadesPaidFilter === 'UNPAID'}
+                        onChange={() => setMensalidadesPaidFilter('UNPAID')}
+                        className="text-emerald-700 focus:ring-emerald-600"
+                      />
+                    </label>
+                  </div>
+                  <div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 px-8 text-xs font-medium border-slate-300 text-slate-700 hover:bg-slate-100"
                     >
-                      <div>
-                        <div className="font-black text-sm text-slate-900">
-                          {sub.holderName} (#{sub.subscriptionCode})
-                        </div>
-                        <div className="text-xs text-slate-600">
-                          {sub.planSummaryLabel} • CPF: {sub.holderCpf}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-black text-emerald-800">
-                          {formatCurrency(sub.monthlyEquivalent)}/mês
-                        </span>
-                        <Button
-                          size="sm"
-                          onClick={() => {
-                            setClientDetailTool('FINANCEIRO_CLIENTE');
-                            setSelectedSubForDetail(sub);
-                          }}
-                          className="bg-[#004d00] hover:bg-emerald-900 text-white font-bold text-xs"
-                        >
-                          <DollarSign className="w-3.5 h-3.5 mr-1" /> Perfil Financeiro
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setClientDetailTool('DADOS_CADASTRAIS');
-                            setSelectedSubForDetail(sub);
-                          }}
-                          className="text-xs font-bold"
-                        >
-                          Cadastro
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                      Buscar
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Tabela com Cabeçalho Verde Escuro */}
+                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-[#004d00] text-white text-[11px] font-bold">
+                        <th className="py-2.5 px-3">Nº Card</th>
+                        <th className="py-2.5 px-3">Nome</th>
+                        <th className="py-2.5 px-3">Boleto</th>
+                        <th className="py-2.5 px-3">Plano</th>
+                        <th className="py-2.5 px-3">Valor</th>
+                        <th className="py-2.5 px-3">Parcela</th>
+                        <th className="py-2.5 px-3">Vencimento</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {mensalidadesComputed.rows.length === 0 ? (
+                        <tr>
+                          <td
+                            colSpan={7}
+                            className="py-8 text-center text-slate-400"
+                          >
+                            Nenhuma fatura encontrada para os filtros selecionados.
+                          </td>
+                        </tr>
+                      ) : (
+                        mensalidadesComputed.rows.map((row, idx) => (
+                          <tr
+                            key={`${row.cardCode}_${row.boleto}_${idx}`}
+                            className={`${
+                              idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'
+                            } hover:bg-emerald-50/50 transition-colors`}
+                          >
+                            <td className="py-2 px-3 font-mono font-bold text-slate-800">
+                              {row.cardCode}
+                            </td>
+                            <td className="py-2 px-3 font-bold text-slate-900">
+                              {row.name}
+                            </td>
+                            <td className="py-2 px-3 font-mono text-slate-700">
+                              {row.boleto}
+                            </td>
+                            <td className="py-2 px-3 text-slate-700">
+                              {row.plan}
+                            </td>
+                            <td className="py-2 px-3 font-black text-slate-900">
+                              {formatCurrency(row.amount)}
+                            </td>
+                            <td className="py-2 px-3 text-slate-700 font-mono">
+                              {row.installment}
+                            </td>
+                            <td className="py-2 px-3 text-slate-700 font-mono">
+                              {formatDateBR(row.dueDate)}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Botão Imprimir */}
+                <div className="pt-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => window.print()}
+                    className="h-8 px-4 text-xs font-bold border-slate-300 text-slate-800 hover:bg-slate-100 uppercase"
+                  >
+                    IMPRIMIR
+                  </Button>
+                </div>
               </div>
             )}
 
-            {/* 4. MENSALIDADES / COBRANÇAS VENCIDAS POR MÊS / BAIXAS EM LOTE */}
-            {(financeSubView === 'MENSALIDADES' ||
-              financeSubView === 'VENCIDAS_POR_MES' ||
-              financeSubView === 'BAIXAS_EM_LOTE') && (
+            {/* 4. COBRANÇAS VENCIDAS POR MÊS (Screenshot 4 do usuário) */}
+            {financeSubView === 'VENCIDAS_POR_MES' && (
+              <div className="space-y-4">
+                {/* Banner Azul Escuro de Relatório */}
+                <div className="bg-[#1c5ba6] text-white p-4 rounded-xl flex items-center gap-3 shadow-sm">
+                  <FileText className="w-6 h-6 text-white shrink-0" />
+                  <div>
+                    <h3 className="text-base font-bold text-white leading-tight">
+                      Relatório de Cobranças em Atraso
+                    </h3>
+                    <p className="text-xs text-blue-100">
+                      Visualização mensal de cobranças vencidas
+                    </p>
+                  </div>
+                </div>
+
+                {/* Filtro Mês / Ano */}
+                <div className="flex flex-wrap items-center gap-3 py-1">
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
+                    <span>Mês / Ano</span>
+                    <select
+                      value={vencidasMonth}
+                      onChange={(e) => setVencidasMonth(e.target.value)}
+                      className="h-8 px-3 rounded border border-slate-300 bg-white text-xs font-medium"
+                    >
+                      {MONTH_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <Button
+                    size="sm"
+                    className="h-8 px-4 bg-[#1e70bf] hover:bg-[#185d9f] text-white text-xs font-medium flex items-center gap-1.5"
+                  >
+                    <Filter className="w-3.5 h-3.5" /> Filtrar
+                  </Button>
+                </div>
+
+                {/* Tabela com Cabeçalho Claro e Badge Vermelho na Parcela */}
+                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-200 text-slate-800 text-[11px] font-bold">
+                        <th className="py-2.5 px-3">Nome</th>
+                        <th className="py-2.5 px-3">Cartão</th>
+                        <th className="py-2.5 px-3">Parcela</th>
+                        <th className="py-2.5 px-3">Dia do Vencimento</th>
+                        <th className="py-2.5 px-3">Valor</th>
+                        <th className="py-2.5 px-3">Contato</th>
+                        <th className="py-2.5 px-3">Email</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {vencidasPorMesComputed.length === 0 ? (
+                        <tr>
+                          <td
+                            colSpan={7}
+                            className="py-8 text-center text-slate-400"
+                          >
+                            Nenhuma cobrança em atraso encontrada para o mês selecionado.
+                          </td>
+                        </tr>
+                      ) : (
+                        vencidasPorMesComputed.map((row, idx) => (
+                          <tr
+                            key={`${row.cardCode}_${row.dueDate}_${idx}`}
+                            className={`${
+                              idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'
+                            } hover:bg-rose-50/40 transition-colors`}
+                          >
+                            <td className="py-2 px-3 font-bold text-slate-900">
+                              {row.name}
+                            </td>
+                            <td className="py-2 px-3 font-mono text-slate-700">
+                              {row.cardCode}
+                            </td>
+                            <td className="py-2 px-3">
+                              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#c92a2a] text-white">
+                                {formatDateBR(row.dueDate)}
+                              </span>
+                            </td>
+                            <td className="py-2 px-3 font-mono text-center text-slate-700">
+                              {row.dueDay}
+                            </td>
+                            <td className="py-2 px-3 font-black text-slate-900">
+                              {formatCurrency(row.amount)}
+                            </td>
+                            <td className="py-2 px-3 text-slate-700 font-mono">
+                              {row.phone}
+                            </td>
+                            <td className="py-2 px-3 text-slate-600">
+                              {row.email}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Botão Imprimir */}
+                <div className="pt-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => window.print()}
+                    className="h-8 px-4 text-xs font-bold border-slate-300 text-slate-800 hover:bg-slate-100 uppercase"
+                  >
+                    IMPRIMIR
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* 5. ASSINATURAS ATIVAS & ASSINATURAS VENCIDAS (Screenshot 5 do usuário) */}
+            {(financeSubView === 'ASSINATURAS_ATIVAS' ||
+              financeSubView === 'ASSINATURAS_VENCIDAS') && (
+              <div className="space-y-4">
+                <h3 className="text-xl font-normal text-slate-800">
+                  {financeSubView === 'ASSINATURAS_ATIVAS'
+                    ? 'Assinaturas Ativas'
+                    : 'Assinaturas Vencidas'}
+                </h3>
+
+                {/* Tabela com Cabeçalho Verde Escuro e Coluna Cartão (ex: ****5439 ou ****) */}
+                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-[#004d00] text-white text-[11px] font-bold">
+                        <th className="py-2.5 px-3">Nº Card</th>
+                        <th className="py-2.5 px-3">Nome</th>
+                        <th className="py-2.5 px-3">Plano</th>
+                        <th className="py-2.5 px-3">Valor</th>
+                        <th className="py-2.5 px-3">Cartão</th>
+                        <th className="py-2.5 px-3">Status</th>
+                        <th className="py-2.5 px-3">Data de Criação</th>
+                        <th className="py-2.5 px-3">Vencimento</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {assinaturasAtivasVencidasComputed.length === 0 ? (
+                        <tr>
+                          <td
+                            colSpan={8}
+                            className="py-8 text-center text-slate-400"
+                          >
+                            Nenhuma assinatura encontrada nesta categoria.
+                          </td>
+                        </tr>
+                      ) : (
+                        assinaturasAtivasVencidasComputed.map((row, idx) => (
+                          <tr
+                            key={`${row.cardCode}_${idx}`}
+                            className={`${
+                              idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'
+                            } hover:bg-emerald-50/50 transition-colors`}
+                          >
+                            <td className="py-2 px-3 font-mono font-bold text-slate-800">
+                              {row.cardCode}
+                            </td>
+                            <td className="py-2 px-3 font-bold text-slate-900">
+                              {row.name}
+                            </td>
+                            <td className="py-2 px-3 text-slate-700">
+                              {row.plan}
+                            </td>
+                            <td className="py-2 px-3 font-black text-slate-900">
+                              {formatCurrency(row.amount)}
+                            </td>
+                            <td className="py-2 px-3 font-mono font-bold text-slate-800">
+                              {row.card}
+                            </td>
+                            <td className="py-2 px-3 font-mono text-[11px] font-semibold text-slate-800">
+                              {row.status}
+                            </td>
+                            <td className="py-2 px-3 text-slate-700 font-mono">
+                              {formatDateBR(row.createdAt)}
+                            </td>
+                            <td className="py-2 px-3 text-slate-700 font-mono">
+                              {formatDateBR(row.dueDate)}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Botão Imprimir */}
+                <div className="pt-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => window.print()}
+                    className="h-8 px-4 text-xs font-bold border-slate-300 text-slate-800 hover:bg-slate-100 uppercase"
+                  >
+                    IMPRIMIR
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* 6. BAIXAS EM LOTE (Ferramenta de Liquidação em Massa) */}
+            {financeSubView === 'BAIXAS_EM_LOTE' && (
               <div className="space-y-4">
                 <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                   <div>
                     <h3 className="text-base font-black text-slate-900">
-                      {financeSubView === 'VENCIDAS_POR_MES'
-                        ? 'Cobranças Vencidas / Pendentes Por Mês'
-                        : financeSubView === 'BAIXAS_EM_LOTE'
-                        ? 'Baixas em Lote de Mensalidades'
-                        : 'Controle Geral de Mensalidades e PIX Asaas'}
+                      Baixas em Lote de Mensalidades
                     </h3>
                     <p className="text-xs text-slate-500">
-                      Selecione faturas para dar baixa em lote, clique em "Perfil Financeiro" para abrir o carnê completo do cliente, ou clique em "Dar Baixa Manual".
+                      Selecione faturas pendentes para dar baixa manual de uma só vez.
                     </p>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2">
-                    {selectedInvoiceKeys.length > 0 && (
-                      <Button
-                        size="sm"
-                        onClick={handleBatchSettleInvoices}
-                        className="bg-[#004d00] hover:bg-emerald-900 text-white font-bold"
-                      >
-                        <CheckCircle2 className="w-4 h-4 mr-1.5" /> Confirmar Baixa em Lote (
-                        {selectedInvoiceKeys.length})
-                      </Button>
-                    )}
-                    {(['ALL', 'PENDING', 'PAID', 'OVERDUE'] as const).map(
-                      (st) => (
-                        <Button
-                          key={st}
-                          size="sm"
-                          variant={
-                            invoiceStatusFilter === st ? 'default' : 'outline'
-                          }
-                          onClick={() => setInvoiceStatusFilter(st)}
-                        >
-                          {st === 'ALL'
-                            ? 'Todas'
-                            : st === 'PENDING'
-                            ? 'Pendentes'
-                            : st === 'PAID'
-                            ? 'Pagas'
-                            : 'Vencidas'}
-                        </Button>
-                      )
-                    )}
-                  </div>
+                  {selectedInvoiceKeys.length > 0 && (
+                    <Button
+                      size="sm"
+                      onClick={handleBatchSettleInvoices}
+                      className="bg-[#004d00] hover:bg-emerald-900 text-white font-bold"
+                    >
+                      <CheckCircle2 className="w-4 h-4 mr-1.5" /> Confirmar Baixa em Lote ({selectedInvoiceKeys.length})
+                    </Button>
+                  )}
                 </div>
 
                 <div className="space-y-2.5">
                   {allInvoicesWithSub
-                    .filter(({ invoice }) => {
-                      if (
-                        financeSubView === 'VENCIDAS_POR_MES' &&
-                        invoice.status === 'PAID'
-                      ) {
-                        return false;
-                      }
-                      if (
-                        financeSubView === 'BAIXAS_EM_LOTE' &&
-                        invoice.status === 'PAID'
-                      ) {
-                        return false;
-                      }
-                      return (
-                        invoiceStatusFilter === 'ALL' ||
-                        invoice.status === invoiceStatusFilter
-                      );
-                    })
+                    .filter(({ invoice }) => invoice.status !== 'PAID')
                     .map(({ invoice, subscription }) => {
                       const key = `${subscription.id}::${invoice.id}`;
                       const isSelected = selectedInvoiceKeys.includes(key);
-                      const isPaid = invoice.status === 'PAID';
                       return (
                         <div
                           key={key}
                           className="rounded-2xl border border-slate-200 p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 bg-slate-50/60"
                         >
                           <div className="flex items-center gap-3">
-                            {!isPaid && (
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setSelectedInvoiceKeys((prev) => [
-                                      ...prev,
-                                      key,
-                                    ]);
-                                  } else {
-                                    setSelectedInvoiceKeys((prev) =>
-                                      prev.filter((k) => k !== key)
-                                    );
-                                  }
-                                }}
-                                className="w-4 h-4 rounded border-slate-300 text-emerald-600"
-                              />
-                            )}
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedInvoiceKeys((prev) => [
+                                    ...prev,
+                                    key,
+                                  ]);
+                                } else {
+                                  setSelectedInvoiceKeys((prev) =>
+                                    prev.filter((k) => k !== key)
+                                  );
+                                }
+                              }}
+                              className="w-4 h-4 rounded border-slate-300 text-emerald-600"
+                            />
                             <div>
                               <div className="font-bold text-sm text-slate-900 flex items-center gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setClientDetailTool('FINANCEIRO_CLIENTE');
-                                    setSelectedSubForDetail(subscription);
-                                  }}
-                                  className="hover:underline hover:text-emerald-800 text-left font-black"
-                                >
-                                  {subscription.holderName}
-                                </button>
-                                <Badge
-                                  className={
-                                    isPaid
-                                      ? 'bg-emerald-600 text-white'
-                                      : 'bg-amber-500 text-white'
-                                  }
-                                >
-                                  {isPaid ? 'PAGA' : 'PENDENTE'}
+                                <span>{subscription.holderName}</span>
+                                <Badge className="bg-amber-500 text-white">
+                                  PENDENTE
                                 </Badge>
                               </div>
                               <div className="text-xs text-slate-500">
-                                {invoice.description} • Ref:{' '}
-                                <strong>{invoice.referenceMonth}</strong> • Vencimento:{' '}
-                                <strong>{formatDateBR(invoice.dueDate)}</strong> • CPF:{' '}
-                                {subscription.holderCpf}
+                                {invoice.description} • Ref: {invoice.referenceMonth} • Vencimento: {formatDateBR(invoice.dueDate)} • CPF: {subscription.holderCpf}
                               </div>
                             </div>
                           </div>
 
-                          <div className="flex flex-wrap items-center gap-2">
+                          <div className="flex items-center gap-2">
                             <span className="font-black text-slate-900 mr-2">
                               {formatCurrency(invoice.amount)}
                             </span>
                             <Button
                               size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                setClientDetailTool('FINANCEIRO_CLIENTE');
-                                setSelectedSubForDetail(subscription);
+                              onClick={async () => {
+                                const next = await markClubInvoicePaid(
+                                  subscription.id,
+                                  invoice.id,
+                                  'LOCAL'
+                                );
+                                setState(next);
+                                toast({
+                                  title: 'Fatura baixada com sucesso!',
+                                  description: `Assinatura de ${subscription.holderName} ativada.`,
+                                });
                               }}
-                              className="border-emerald-600 text-emerald-900 font-bold text-xs"
+                              className="bg-[#004d00] hover:bg-emerald-900 text-white font-bold text-xs"
                             >
-                              <DollarSign className="w-3.5 h-3.5 mr-1 text-emerald-700" />{' '}
-                              Perfil Financeiro
+                              Dar Baixa Manual
                             </Button>
-                            {!isPaid && (
-                              <>
-                                <Button
-                                  size="sm"
-                                  onClick={async () => {
-                                    const next = await markClubInvoicePaid(
-                                      subscription.id,
-                                      invoice.id,
-                                      'LOCAL'
-                                    );
-                                    setState(next);
-                                    toast({
-                                      title: 'Fatura baixada com sucesso!',
-                                      description: `Assinatura de ${subscription.holderName} ativada.`,
-                                    });
-                                  }}
-                                  className="bg-[#004d00] hover:bg-emerald-900 text-white font-bold text-xs"
-                                >
-                                  Dar Baixa Manual
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={async () => {
-                                    try {
-                                      const charge =
-                                        await generateAsaasChargeForClubInvoice(
-                                          subscription,
-                                          invoice,
-                                          'PIX'
-                                        );
-                                      if (charge.invoiceUrl) {
-                                        window.open(charge.invoiceUrl, '_blank');
-                                      }
-                                    } catch (err: any) {
-                                      toast({
-                                        title: 'Erro ao gerar link Asaas',
-                                        description: err?.message,
-                                        variant: 'destructive',
-                                      });
-                                    }
-                                  }}
-                                  className="text-xs"
-                                >
-                                  Gerar PIX Asaas
-                                </Button>
-                              </>
-                            )}
                           </div>
                         </div>
                       );
