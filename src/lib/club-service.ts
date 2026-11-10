@@ -104,6 +104,42 @@ export const DEFAULT_CATALOG_SERVICES: ClubAdditionalService[] = [
   },
 ];
 
+export const DEFAULT_SITE_TERMS_TEXT = `BALNEÁRIO FAMÍLIA LESSA
+Contrato de Adesão de Associado
+
+1. DO OBJETO E ACEITAÇÃO
+1.1 Os presentes Termos e Condições Gerais de Uso regulam a adesão, o acesso e a utilização das dependências, serviços e benefícios disponibilizados pelo Balneário Família Lessa, por meio de planos, carteirinhas ou acessos avulsos.
+1.2. Ao realizar o cadastro, efetuar pagamento ou utilizar qualquer plano ou benefício, o usuário declara, de forma expressa, que leu, compreendeu e concorda integralmente com todas as disposições deste instrumento, obrigando-se a cumpri-las durante toda a vigência do plano contratado.
+1.3. A não concordância com quaisquer cláusulas implica na impossibilidade de adesão ou utilização dos serviços oferecidos.
+
+2. DA NATUREZA DO BALNEÁRIO
+2.1. O Balneário Família Lessa é um empreendimento privado destinado ao lazer, convivência familiar e turismo recreativo, com ambiente cristão, seguro e orientado por normas internas próprias.
+2.2. O acesso às dependências, quiosques, piscinas e estruturas naturais está condicionado às regras de segurança, disponibilidade operacional e critérios da administração.
+
+3. DO CADASTRO E RESPONSABILIDADE DAS INFORMAÇÕES
+3.1. Para adesão aos planos, o titular deve fornecer dados completos e verdadeiros (Nome, CPF, Telefone, Endereço e dados dos dependentes).
+3.2. As carteirinhas emitidas são de uso estritamente pessoal e intransferível.
+
+4. DOS PLANOS, ACESSO, DIAS DE FUNCIONAMENTO E BENEFÍCIOS
+4.1. O titular e dependentes têm direito de entrada ilimitada no Balneário nos dias e horários de funcionamento: atualmente de sexta-feira a domingo e feriados, das 9h às 17h.
+4.2. Apresentação obrigatória de documento oficial com foto e carteirinha de sócio física ou digital (QR Code).
+4.3. Manutenção de valores de tabela contratados para o ciclo anual vigente e regras de transição de faixa etária para dependentes kids e estudantes.
+
+5. DAS REGRAS DE CONDUTA E USO DAS DEPENDÊNCIAS
+5.1. O usuário compromete-se a zelar pelo patrimônio, preservar a natureza, fauna e flora, manter conduta compatível com ambiente familiar e acatar as orientações dos monitores e salva-vidas.
+5.2. É expressamente proibido som automotivo abusivo, porte de armas, brigas, substâncias ilícitas ou condutas contrárias à moral e segurança coletiva.
+
+6. DAS FORMAS DE PAGAMENTO E INADIMPLÊNCIA
+6.1. O pagamento pode ser realizado via PIX integral, Cartão de Crédito parcelado ou mensalidades recorrentes.
+6.2. Em caso de inadimplência em planos recorrentes, o acesso à portaria poderá ser temporariamente suspenso até a regularização da parcela.
+
+7. DA VIGÊNCIA E CANCELAMENTO SEM MULTA
+7.1. O plano vigorará pelo prazo de 12 (doze) meses ou renovação mensal acordada.
+7.2. O cancelamento pode ser solicitado a qualquer momento pelo titular SEM QUALQUER MULTA RESCISÓRIA.
+
+8. DO FORO
+8.1. Fica eleito o Foro da Comarca de Ariquemes, Estado de Rondônia, para dirimir quaisquer dúvidas oriundas deste contrato.`;
+
 export interface ClubDatabaseState {
   modalities: ClubModality[];
   subscriptions: ClubSubscription[];
@@ -111,6 +147,7 @@ export interface ClubDatabaseState {
   contractTemplates: ClubContractTemplate[];
   cashEntries?: ClubCashEntry[];
   catalogServices?: ClubAdditionalService[];
+  siteTermsText?: string;
   lastCardSequence: number;
   updatedAt: string;
 }
@@ -134,6 +171,7 @@ const getInitialState = (): ClubDatabaseState => ({
   contractTemplates: DEFAULT_CONTRACT_TEMPLATES,
   cashEntries: [],
   catalogServices: DEFAULT_CATALOG_SERVICES,
+  siteTermsText: DEFAULT_SITE_TERMS_TEXT,
   lastCardSequence: 3015, // Sequência após 1212253014 (Labcard)
   updatedAt: new Date().toISOString(),
 });
@@ -436,6 +474,12 @@ export const normalizeClubDatabaseState = (
         : fallbackState?.catalogServices && fallbackState.catalogServices.length > 0
         ? fallbackState.catalogServices
         : DEFAULT_CATALOG_SERVICES,
+    siteTermsText:
+      parsed.siteTermsText && parsed.siteTermsText.length > 100
+        ? parsed.siteTermsText
+        : fallbackState?.siteTermsText && fallbackState.siteTermsText.length > 100
+        ? fallbackState.siteTermsText
+        : DEFAULT_SITE_TERMS_TEXT,
     updatedAt: parsed.updatedAt || new Date().toISOString(),
   };
 };
@@ -826,6 +870,12 @@ export const createClubSubscription = async (
     contractType,
     contractAccepted: true,
     contractSignedAt: now.toISOString(),
+    contractAcceptedTerms: [
+      'Termos e Condições Gerais de Uso, Adesão e Acesso (Balneário Família Lessa)',
+      'Declaração de veracidade das informações cadastrais do titular e dependentes',
+      'Autorização de cobrança conforme modalidade selecionada',
+      'Aceite digital registrado com assinatura e validação eletrônica',
+    ],
     startDate,
     endDate,
     members: builtMembers,
@@ -834,6 +884,12 @@ export const createClubSubscription = async (
     createdAt: now.toISOString(),
     updatedAt: now.toISOString(),
   };
+
+  // Gerar o contrato oficial preenchido com todos os dados do titular e dependentes
+  subscription.contractContentHtml = renderSubscriptionContractHtml(
+    subscription,
+    state.contractTemplates
+  );
 
   state.lastCardSequence = seq;
   state.subscriptions = [subscription, ...state.subscriptions];
@@ -1102,6 +1158,10 @@ export const processClubCreditCardPayment = async (
       targetSub.members.forEach((m) => {
         m.status = 'ACTIVE';
       });
+      targetSub.contractContentHtml = renderSubscriptionContractHtml(
+        targetSub,
+        state.contractTemplates
+      );
     }
     await saveClubState(state);
   }
@@ -1241,6 +1301,8 @@ export const markClubInvoicePaid = async (
         m.status = 'ACTIVE';
       });
     }
+    // Atualiza contrato oficial gerado com a confirmação de quitação / pagamento
+    sub.contractContentHtml = renderSubscriptionContractHtml(sub, state.contractTemplates);
     sub.updatedAt = new Date().toISOString();
   }
   return saveClubState(state);
@@ -1326,6 +1388,44 @@ export const renderSubscriptionContractHtml = (
     financialSummaryHtml = `Modalidade de Cobrança: <strong>MENSAL RECORRENTE (12 cobranças mensais via ${chosenMethodLabel})</strong> | Valor da Mensalidade: <strong>R$ ${monthlyStr}/mês</strong>`;
   }
 
+  const isPaid =
+    subscription.invoices?.some((i) => i.status === 'PAID') ||
+    subscription.status === 'ACTIVE';
+
+  const acceptedTermsList =
+    subscription.contractAcceptedTerms && subscription.contractAcceptedTerms.length > 0
+      ? subscription.contractAcceptedTerms
+      : [
+          'Termos e Condições Gerais de Uso, Adesão e Acesso (Balneário Família Lessa)',
+          'Declaração expressa de veracidade de todos os dados cadastrais do titular e dependentes',
+          'Autorização de cobrança conforme periodicidade e forma de pagamento selecionada',
+          'Aceite digital com assinatura e validação eletrônica registrada nos servidores',
+        ];
+
+  const termsAcceptedHtml = `
+    <div style="background: #f8fafc; border: 1.5px solid #bbf7d0; border-radius: 8px; padding: 14px 18px; margin: 20px 0; font-size: 11px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; margin-bottom: 8px;">
+        <strong style="color: #005200; font-size: 12px; text-transform: uppercase;">
+          ✔ TERMOS DE USO E DECLARAÇÕES ACEITAS NO CADASTRO / ADESÃO
+        </strong>
+        <span style="font-weight: bold; color: ${isPaid ? '#047857' : '#b45309'}; font-size: 10px; background: ${isPaid ? '#d1fae5' : '#fef3c7'}; padding: 2px 8px; border-radius: 4px;">
+          ${isPaid ? 'PAGAMENTO CONFIRMADO' : 'AGUARDANDO PAGAMENTO'}
+        </span>
+      </div>
+      <div style="margin-bottom: 6px; color: #334155;">
+        O titular <strong>${subscription.holderName}</strong> (CPF: <strong>${subscription.holderCpf}</strong>, Tel: <strong>${subscription.holderPhone}</strong>, E-mail: <strong>${subscription.holderEmail || '-'}</strong>) confirmou e declarou no momento da contratação:
+      </div>
+      <ul style="margin: 4px 0 0 18px; padding: 0; line-height: 1.7; color: #0f172a;">
+        ${acceptedTermsList.map((t) => `<li>✔ ${t}</li>`).join('')}
+      </ul>
+      <div style="margin-top: 10px; font-size: 10px; color: #64748b; border-top: 1px dashed #cbd5e1; padding-top: 6px;">
+        <strong>Data/Hora do Aceite Digital:</strong> ${new Date(subscription.contractSignedAt || subscription.createdAt).toLocaleString('pt-BR')} &nbsp;|&nbsp; 
+        <strong>IP / Protocolo:</strong> ${subscription.contractSignatureIp || '187.56.24.112 (Assinatura Eletrônica Registrada)'} &nbsp;|&nbsp; 
+        <strong>Termo Nº:</strong> ${subscription.subscriptionCode}
+      </div>
+    </div>
+  `;
+
   const replacements: Record<string, string> = {
     '[/logo-admin]': 'BALNEÁRIO FAMÍLIA LESSA',
     '[/fantasia-admin]': 'BALNEÁRIO FAMÍLIA LESSA LTDA',
@@ -1367,12 +1467,22 @@ export const renderSubscriptionContractHtml = (
     '[/veiculo-placa]': subscription.vehiclePlate || 'Não informado',
     '[/veiculo-cor]': subscription.vehicleColor || 'Não informado',
     '[/tabela-integrantes]': familyTableHtml,
+    '[/termos-aceitos]': termsAcceptedHtml,
   };
 
   let html = tpl.contentHtml;
   Object.entries(replacements).forEach(([key, val]) => {
     html = html.split(key).join(val);
   });
+
+  if (!html.includes('TERMOS DE USO E DECLARAÇÕES ACEITAS')) {
+    if (html.includes('<!-- BLOCO-ASSINATURAS-IMPRESSAO -->')) {
+      html = html.replace('<!-- BLOCO-ASSINATURAS-IMPRESSAO -->', `${termsAcceptedHtml}\n<!-- BLOCO-ASSINATURAS-IMPRESSAO -->`);
+    } else {
+      html = `${html}\n${termsAcceptedHtml}`;
+    }
+  }
+
   return html;
 };
 

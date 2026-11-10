@@ -19,6 +19,7 @@ import {
   Camera,
   Upload,
   FileCheck,
+  FileText,
   AlertTriangle,
   ChevronDown,
   ChevronUp,
@@ -3248,11 +3249,43 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                   </p>
                 </div>
 
-                <Link to={`/socio?cpf=${encodeURIComponent(createdSub.holderCpf)}`}>
-                  <Button className="bg-slate-900 hover:bg-slate-800 text-white font-bold">
-                    Acessar Área do Sócio (/socio) <ExternalLink className="w-4 h-4 ml-1.5" />
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      const win = window.open('', '_blank', 'width=900,height=800');
+                      if (!win) return;
+                      win.document.write(`
+                        <html>
+                          <head>
+                            <title>Contrato de Adesão - ${createdSub.holderName}</title>
+                            <style>
+                              body { font-family: Arial, sans-serif; padding: 28px; color: #0f172a; }
+                              @media print { .no-print { display: none !important; } }
+                            </style>
+                          </head>
+                          <body>
+                            <div class="no-print" style="margin-bottom:16px; text-align:right;">
+                              <button onclick="window.print()" style="background:#005200; color:#fff; border:none; padding:8px 18px; border-radius:6px; font-weight:bold; cursor:pointer;">
+                                Imprimir / Salvar em PDF
+                              </button>
+                            </div>
+                            ${createdSub.contractContentHtml || previewContractHtml}
+                          </body>
+                        </html>
+                      `);
+                      win.document.close();
+                    }}
+                    className="font-bold border-emerald-700 text-emerald-800 hover:bg-emerald-50 text-xs"
+                  >
+                    <FileText className="w-4 h-4 mr-1.5" /> Ver / Imprimir Contrato Assinado
                   </Button>
-                </Link>
+                  <Link to={`/socio?cpf=${encodeURIComponent(createdSub.holderCpf)}`}>
+                    <Button className="bg-slate-900 hover:bg-slate-800 text-white font-bold">
+                      Acessar Área do Sócio (/socio) <ExternalLink className="w-4 h-4 ml-1.5" />
+                    </Button>
+                  </Link>
+                </div>
               </div>
 
               {/* CARD DE DADOS DE ACESSO AO PORTAL DO SÓCIO (LOGIN = EMAIL, SENHA = DATA DE NASCIMENTO) */}

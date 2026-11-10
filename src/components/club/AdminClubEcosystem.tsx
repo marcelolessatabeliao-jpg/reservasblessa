@@ -46,6 +46,19 @@ import {
   EyeOff,
   Filter,
   AlertTriangle,
+  Code,
+  Save,
+  Undo,
+  Redo,
+  ListOrdered,
+  List,
+  Outdent,
+  Indent,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  AlignJustify,
+  Maximize2,
 } from 'lucide-react';
 import logo from '@/assets/logo.png';
 import { Button } from '@/components/ui/button';
@@ -81,6 +94,7 @@ import {
 } from '@/lib/club-types';
 import {
   ClubDatabaseState,
+  DEFAULT_SITE_TERMS_TEXT,
   fetchClubState,
   saveClubState,
   createClubSubscription,
@@ -488,9 +502,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     | 'ALTERAR_COR'
   >('MEUS_DADOS');
   const [navThemeColor, setNavThemeColor] = useState<string>('#004d00');
-  const [siteTermsText, setSiteTermsText] = useState<string>(
-    'TERMO DE USO E ADESÃO ONLINE — BALNEÁRIO E RESERVA LESSA CLUB\n1. Ao aderir aos planos pelo portal oficial, o titular declara estar ciente das regras de uso do Balneário Lessa.\n2. O cartão de sócio ficará ativo imediatamente após a confirmação do pagamento (PIX ou Cartão).'
-  );
+  const [siteTermsText, setSiteTermsText] = useState<string>(DEFAULT_SITE_TERMS_TEXT);
+  const [isSiteTermsSourceMode, setIsSiteTermsSourceMode] = useState<boolean>(false);
   const [smsTemplate, setSmsTemplate] = useState(
     'Olá {NOME}, sua carteirinha Lessa Club (#{CARTAO}) está com mensalidade em aberto. Regularize pelo Portal do Sócio!'
   );
@@ -569,9 +582,43 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
   useEffect(() => {
     fetchClubState().then((loaded) => {
       setState(loaded);
+      if (loaded.siteTermsText && loaded.siteTermsText.length > 50) {
+        setSiteTermsText(loaded.siteTermsText);
+      } else {
+        setSiteTermsText(DEFAULT_SITE_TERMS_TEXT);
+      }
       setLoading(false);
     });
   }, []);
+
+  useEffect(() => {
+    if (state?.siteTermsText && state.siteTermsText.length > 50) {
+      setSiteTermsText(state.siteTermsText);
+    }
+  }, [state?.siteTermsText]);
+
+  const handleSaveSiteTerms = async () => {
+    if (!state) return;
+    try {
+      const nextState: ClubDatabaseState = {
+        ...state,
+        siteTermsText: siteTermsText || DEFAULT_SITE_TERMS_TEXT,
+        updatedAt: new Date().toISOString(),
+      };
+      await persist(nextState);
+      toast({
+        title: 'Termo de Uso salvo com sucesso!',
+        description: 'O texto foi atualizado e está vigente para o site e contratos.',
+      });
+    } catch (err) {
+      console.error(err);
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao salvar Termo de Uso',
+        description: 'Não foi possível salvar o texto.',
+      });
+    }
+  };
 
   const persist = async (next: ClubDatabaseState) => {
     const saved = await saveClubState(next);
@@ -7678,36 +7725,352 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
             </div>
           )}
 
-          {configSection === 'TERMO_USO_SITE' && (
-            <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
-              <div className="flex items-center justify-between">
+          {(configSection === 'TERMO_USO_SITE' || configSection === 'CONTRATOS') && (
+            <div className="space-y-6">
+              <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                  <div>
+                    <h2 className="text-2xl font-normal text-slate-800 tracking-tight">
+                      Termo de Uso
+                    </h2>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Edição e gestão do Termo de Uso e Adesão Oficial do Balneário Família Lessa.
+                    </p>
+                  </div>
+                </div>
+
+                {/* BARRA DE FERRAMENTAS ESTILO CKEDITOR / RICH TEXT (Idêntica à Imagem 1) */}
+                <div className="border border-slate-300 rounded-lg bg-[#f8fafc] overflow-hidden shadow-sm">
+                  {/* Linha 1: Código-Fonte, Ações e Formulários */}
+                  <div className="flex flex-wrap items-center gap-1 p-1.5 border-b border-slate-200 bg-[#f1f5f9] text-slate-700 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setIsSiteTermsSourceMode(!isSiteTermsSourceMode)}
+                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded border text-xs font-semibold transition-colors ${
+                        isSiteTermsSourceMode
+                          ? 'bg-emerald-700 text-white border-emerald-800'
+                          : 'bg-white hover:bg-slate-100 border-slate-300 text-slate-700'
+                      }`}
+                      title="Alternar Código-Fonte / Visualização"
+                    >
+                      <Code className="w-3.5 h-3.5" />
+                      <span>Código-Fonte</span>
+                    </button>
+                    <div className="h-4 w-px bg-slate-300 mx-1" />
+                    <button
+                      type="button"
+                      onClick={handleSaveSiteTerms}
+                      className="p-1 hover:bg-white rounded border border-transparent hover:border-slate-300 text-slate-700"
+                      title="Salvar"
+                    >
+                      <Save className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => window.print()}
+                      className="p-1 hover:bg-white rounded border border-transparent hover:border-slate-300 text-slate-700"
+                      title="Imprimir"
+                    >
+                      <Printer className="w-3.5 h-3.5" />
+                    </button>
+                    <div className="h-4 w-px bg-slate-300 mx-1" />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(siteTermsText);
+                        toast({ title: 'Texto copiado para a área de transferência!' });
+                      }}
+                      className="p-1 hover:bg-white rounded border border-transparent hover:border-slate-300 text-slate-700"
+                      title="Copiar"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => document.execCommand('undo')}
+                      className="p-1 hover:bg-white rounded border border-transparent hover:border-slate-300 text-slate-700"
+                      title="Desfazer"
+                    >
+                      <Undo className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => document.execCommand('redo')}
+                      className="p-1 hover:bg-white rounded border border-transparent hover:border-slate-300 text-slate-700"
+                      title="Refazer"
+                    >
+                      <Redo className="w-3.5 h-3.5" />
+                    </button>
+                    <div className="h-4 w-px bg-slate-300 mx-1" />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const q = prompt('Buscar termo no texto:');
+                        if (q) window.find && window.find(q);
+                      }}
+                      className="p-1 hover:bg-white rounded border border-transparent hover:border-slate-300 text-slate-700"
+                      title="Localizar"
+                    >
+                      <Search className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => document.execCommand('selectAll')}
+                      className="p-1 hover:bg-white rounded border border-transparent hover:border-slate-300 text-slate-700"
+                      title="Selecionar Tudo"
+                    >
+                      <CheckSquare className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  {/* Linha 2: B, I, U, S, Alinhamentos, Listas */}
+                  <div className="flex flex-wrap items-center gap-1 p-1.5 border-b border-slate-200 bg-[#f8fafc] text-slate-700 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => document.execCommand('bold')}
+                      className="px-2 py-0.5 hover:bg-white rounded font-bold border border-transparent hover:border-slate-300"
+                      title="Negrito"
+                    >
+                      B
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => document.execCommand('italic')}
+                      className="px-2 py-0.5 hover:bg-white rounded italic font-serif border border-transparent hover:border-slate-300"
+                      title="Itálico"
+                    >
+                      I
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => document.execCommand('underline')}
+                      className="px-2 py-0.5 hover:bg-white rounded underline border border-transparent hover:border-slate-300"
+                      title="Sublinhado"
+                    >
+                      U
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => document.execCommand('strikeThrough')}
+                      className="px-2 py-0.5 hover:bg-white rounded line-through border border-transparent hover:border-slate-300"
+                      title="Tachado"
+                    >
+                      S
+                    </button>
+                    <span className="px-1 text-[11px] text-slate-400">|</span>
+                    <button
+                      type="button"
+                      onClick={() => document.execCommand('insertOrderedList')}
+                      className="p-1 hover:bg-white rounded border border-transparent hover:border-slate-300"
+                      title="Lista Numerada"
+                    >
+                      <ListOrdered className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => document.execCommand('insertUnorderedList')}
+                      className="p-1 hover:bg-white rounded border border-transparent hover:border-slate-300"
+                      title="Lista com Marcadores"
+                    >
+                      <List className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => document.execCommand('outdent')}
+                      className="p-1 hover:bg-white rounded border border-transparent hover:border-slate-300"
+                      title="Diminuir Recuo"
+                    >
+                      <Outdent className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => document.execCommand('indent')}
+                      className="p-1 hover:bg-white rounded border border-transparent hover:border-slate-300"
+                      title="Aumentar Recuo"
+                    >
+                      <Indent className="w-3.5 h-3.5" />
+                    </button>
+                    <span className="px-1 text-[11px] text-slate-400">|</span>
+                    <button
+                      type="button"
+                      onClick={() => document.execCommand('justifyLeft')}
+                      className="p-1 hover:bg-white rounded border border-transparent hover:border-slate-300"
+                      title="Alinhar à Esquerda"
+                    >
+                      <AlignLeft className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => document.execCommand('justifyCenter')}
+                      className="p-1 hover:bg-white rounded border border-transparent hover:border-slate-300"
+                      title="Centralizar"
+                    >
+                      <AlignCenter className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => document.execCommand('justifyRight')}
+                      className="p-1 hover:bg-white rounded border border-transparent hover:border-slate-300"
+                      title="Alinhar à Direita"
+                    >
+                      <AlignRight className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => document.execCommand('justifyFull')}
+                      className="p-1 hover:bg-white rounded border border-transparent hover:border-slate-300"
+                      title="Justificar"
+                    >
+                      <AlignJustify className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  {/* Linha 3: Selects Estilo, Formatação, Fonte, Tamanho */}
+                  <div className="flex flex-wrap items-center gap-2 p-1.5 bg-[#f1f5f9] text-slate-700 text-xs">
+                    <select
+                      className="h-7 text-xs px-2 rounded border border-slate-300 bg-white"
+                      defaultValue="Estilo"
+                    >
+                      <option value="Estilo">Estilo</option>
+                      <option value="normal">Normal</option>
+                      <option value="destaque">Destaque</option>
+                    </select>
+                    <select
+                      className="h-7 text-xs px-2 rounded border border-slate-300 bg-white"
+                      defaultValue="Formatação"
+                    >
+                      <option value="Formatação">Formatação</option>
+                      <option value="p">Parágrafo</option>
+                      <option value="h1">Título 1</option>
+                      <option value="h2">Título 2</option>
+                      <option value="h3">Título 3</option>
+                    </select>
+                    <select
+                      className="h-7 text-xs px-2 rounded border border-slate-300 bg-white"
+                      defaultValue="Fonte"
+                    >
+                      <option value="Fonte">Fonte</option>
+                      <option value="Arial">Arial</option>
+                      <option value="Times New Roman">Times New Roman</option>
+                      <option value="Verdana">Verdana</option>
+                      <option value="Courier New">Courier New</option>
+                    </select>
+                    <select
+                      className="h-7 text-xs px-2 rounded border border-slate-300 bg-white"
+                      defaultValue="Tamanho"
+                    >
+                      <option value="Tamanho">Tamanho</option>
+                      <option value="11px">11 px</option>
+                      <option value="12px">12 px</option>
+                      <option value="13px">13.5 px</option>
+                      <option value="14px">14 px</option>
+                      <option value="16px">16 px</option>
+                      <option value="18px">18 px</option>
+                    </select>
+                    <div className="h-4 w-px bg-slate-300 mx-1" />
+                    <button
+                      type="button"
+                      className="p-1 hover:bg-white rounded border border-transparent hover:border-slate-300 text-slate-800 font-bold"
+                      title="Cor do Texto"
+                    >
+                      <span className="border-b-2 border-red-500 px-0.5">A</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="p-1 hover:bg-white rounded border border-transparent hover:border-slate-300 text-slate-800 font-bold"
+                      title="Cor de Fundo"
+                    >
+                      <span className="bg-amber-200 px-1 rounded">A</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsSiteTermsSourceMode(!isSiteTermsSourceMode)}
+                      className="p-1 hover:bg-white rounded border border-transparent hover:border-slate-300 text-slate-700 ml-auto"
+                      title="Maximizar Editor"
+                    >
+                      <Maximize2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  {/* Canvas do Documento (Visual ou Código-Fonte) */}
+                  <div className="p-3 bg-white">
+                    {isSiteTermsSourceMode ? (
+                      <textarea
+                        value={siteTermsText}
+                        onChange={(e) => setSiteTermsText(e.target.value)}
+                        className="w-full min-h-[480px] p-4 font-mono text-xs text-slate-800 border border-slate-300 rounded bg-slate-50 focus:outline-none focus:ring-1 focus:ring-emerald-700 leading-relaxed"
+                        placeholder="Insira o texto ou HTML oficial dos termos de uso..."
+                      />
+                    ) : (
+                      <textarea
+                        value={siteTermsText}
+                        onChange={(e) => setSiteTermsText(e.target.value)}
+                        className="w-full min-h-[480px] p-6 font-sans text-[13.5px] leading-relaxed text-slate-900 border border-slate-300 rounded bg-white focus:outline-none focus:ring-1 focus:ring-emerald-700 resize-y whitespace-pre-wrap"
+                        placeholder="Texto oficial dos Termos de Uso..."
+                      />
+                    )}
+                  </div>
+                </div>
+
+                {/* Botão SALVAR idêntico à Imagem 1 (embaixo à esquerda) */}
+                <div className="pt-2 flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={handleSaveSiteTerms}
+                    className="px-6 py-2 border border-slate-400 bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-800 text-xs font-semibold rounded shadow-sm tracking-wide transition-all"
+                  >
+                    SALVAR
+                  </button>
+                  <Button
+                    size="sm"
+                    onClick={handleSaveSiteTerms}
+                    className="bg-[#004d00] hover:bg-emerald-900 text-white font-bold text-xs"
+                  >
+                    <Save className="w-4 h-4 mr-1.5" /> Salvar e Aplicar em Todo o Sistema
+                  </Button>
+                </div>
+              </div>
+
+              {/* MODELOS OFICIAIS DE CONTRATOS (Preenchimento Dinâmico - Imagem 3) */}
+              <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
                 <div>
                   <h3 className="text-lg font-black text-slate-900">
-                    Termo de Uso - Site (/planos)
+                    Modelos Oficiais de Contratos (Preenchimento Dinâmico)
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Texto apresentado no momento do aceite digital no portal público de planos.
+                    Estes 3 contratos ficam disponíveis automaticamente no perfil do associado com os dados do titular, tabela de dependentes e veículo.
                   </p>
                 </div>
-                <Button
-                  size="sm"
-                  onClick={() =>
-                    toast({
-                      title: 'Termo de Uso do Site salvo!',
-                      description: 'Atualizado com sucesso.',
-                    })
-                  }
-                  className="bg-[#004d00] hover:bg-emerald-900 text-white font-bold"
-                >
-                  Salvar Termo de Uso
-                </Button>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {(state.contractTemplates || []).map((tpl) => (
+                    <div
+                      key={tpl.id}
+                      className="rounded-2xl border border-slate-200 p-5 bg-slate-50 flex flex-col justify-between gap-4"
+                    >
+                      <div>
+                        <Badge variant="outline" className="mb-2">
+                          {tpl.id}
+                        </Badge>
+                        <h4 className="font-black text-slate-900 text-sm">
+                          {tpl.title}
+                        </h4>
+                        <p className="text-xs text-slate-500 mt-1">
+                          {tpl.description}
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setEditingContract(tpl)}
+                        className="w-full font-bold"
+                      >
+                        <FileText className="w-3.5 h-3.5 mr-1.5" /> Editar Cláusulas
+                      </Button>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <Textarea
-                rows={7}
-                value={siteTermsText}
-                onChange={(e) => setSiteTermsText(e.target.value)}
-                className="font-mono text-xs"
-              />
             </div>
           )}
 
@@ -8178,45 +8541,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
             </div>
           )}
 
-          <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
-            <div>
-              <h3 className="text-lg font-black text-slate-900">
-                Modelos Oficiais de Contratos (Preenchimento Dinâmico)
-              </h3>
-              <p className="text-xs text-slate-500">
-                Estes 3 contratos ficam disponíveis automaticamente no perfil do associado com os dados do titular, tabela de dependentes e veículo.
-              </p>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {state.contractTemplates.map((tpl) => (
-                <div
-                  key={tpl.id}
-                  className="rounded-2xl border border-slate-200 p-5 bg-slate-50 flex flex-col justify-between gap-4"
-                >
-                  <div>
-                    <Badge variant="outline" className="mb-2">
-                      {tpl.id}
-                    </Badge>
-                    <h4 className="font-black text-slate-900 text-sm">
-                      {tpl.title}
-                    </h4>
-                    <p className="text-xs text-slate-500 mt-1">
-                      {tpl.description}
-                    </p>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setEditingContract(tpl)}
-                    className="w-full font-bold"
-                  >
-                    <FileText className="w-3.5 h-3.5 mr-1.5" /> Editar Cláusulas
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </div>
         </TabsContent>
 
         {/* TAB 6: IMPORTAR DA LABCARD */}
@@ -8532,6 +8857,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     <a href="/verificar" target="_blank" rel="noreferrer">
                       <Button size="sm" variant="outline" className="text-xs font-bold">
                         Validador QR (/verificar)
+                      </Button>
+                    </a>
+                    <a href="/consultor" target="_blank" rel="noreferrer">
+                      <Button size="sm" variant="outline" className="text-xs font-bold">
+                        Portal do Consultor (/consultor)
                       </Button>
                     </a>
                   </div>

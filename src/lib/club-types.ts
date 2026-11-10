@@ -186,6 +186,8 @@ export interface ClubSubscription {
   contractAccepted: boolean;
   contractSignedAt: string;
   contractSignatureIp?: string;
+  contractContentHtml?: string;
+  contractAcceptedTerms?: string[];
   startDate: string; // YYYY-MM-DD
   endDate: string; // YYYY-MM-DD
   members: ClubMember[];
