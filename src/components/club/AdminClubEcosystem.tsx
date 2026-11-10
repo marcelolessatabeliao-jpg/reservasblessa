@@ -76,6 +76,8 @@ import {
   ClubSubscription,
   ClubVisitRecord,
   ContractTemplateType,
+  ALL_CONSULTANT_PLANS,
+  ConsultantPlanPermission,
 } from '@/lib/club-types';
 import {
   ClubDatabaseState,
@@ -88,6 +90,7 @@ import {
   getQrCodeImageUrl,
   renderSubscriptionContractHtml,
   findMemberOrSubscriptionByQuery,
+  scoreSearchMatch,
   formatCurrency,
   formatDateBR,
   fileToDataUrl,
@@ -327,6 +330,18 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     creditCard: true,
     recurrence: true,
   });
+
+  // Modal Permissão de Planos (Screenshot 4 do usuário)
+  const [selectedConsultantForPlans, setSelectedConsultantForPlans] = useState<ClubConsultant | null>(null);
+  const [draftAllowedPlans, setDraftAllowedPlans] = useState<string[]>([]);
+
+  // Modal Contabilidade & Vendas Pagas do Consultor
+  const [selectedConsultantForAccounting, setSelectedConsultantForAccounting] = useState<ClubConsultant | null>(null);
+
+  // Ferramentas Fluxo de Caixa (Screenshot 5 do usuário)
+  const [cashFlowStartDate, setCashFlowStartDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [cashFlowEndDate, setCashFlowEndDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [cashFlowFilterMode, setCashFlowFilterMode] = useState<'ALL' | 'MANUAL' | 'AUTO'>('ALL');
 
   // Filtros Avançados de Relatórios (Datas, Idades, Planos, Categoria, Status)
   const [reportStartDate, setReportStartDate] = useState('');
@@ -671,9 +686,10 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
   }, [state]);
 
   // Filtered subscriptions (supports Clientes PF, Empresas PJ, Status, Via Site)
+  // Ordena do mais recente primeiro com data do cadastro e busca inteligente que prioriza quem começa pelo nome
   const filteredSubscriptions = useMemo(() => {
     if (!state) return [];
-    return (state.subscriptions || []).filter((sub) => {
+    const baseList = (state.subscriptions || []).filter((sub) => {
       if (personFilter !== 'ALL' && sub.personType !== personFilter) {
         return false;
       }
@@ -688,18 +704,43 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         }
       }
       if (!subSearch.trim()) return true;
-      const q = subSearch.toLowerCase();
+      const q = subSearch.toLowerCase().trim();
       const digits = q.replace(/\D/g, '');
       return (
-        (sub.holderName || '').toLowerCase().includes(q) ||
-        (digits && (sub.holderCpf || '').replace(/\D/g, '').includes(digits)) ||
+        scoreSearchMatch(sub.holderName || '', q) > 0 ||
+        (digits.length >= 3 && (sub.holderCpf || '').replace(/\D/g, '').includes(digits)) ||
         (sub.members || []).some(
           (m) =>
-            (m.fullName || '').toLowerCase().includes(q) ||
+            scoreSearchMatch(m.fullName || '', q) > 0 ||
             (m.cardNumber || '').includes(q) ||
-            (digits && (m.cpf || '').replace(/\D/g, '').includes(digits))
+            (digits.length >= 3 && (m.cpf || '').replace(/\D/g, '').includes(digits))
         )
       );
+    });
+
+    if (subSearch.trim()) {
+      const q = subSearch.toLowerCase().trim();
+      return [...baseList].sort((a, b) => {
+        const scoreA = Math.max(
+          scoreSearchMatch(a.holderName || '', q),
+          ...(a.members || []).map((m) => scoreSearchMatch(m.fullName || '', q))
+        );
+        const scoreB = Math.max(
+          scoreSearchMatch(b.holderName || '', q),
+          ...(b.members || []).map((m) => scoreSearchMatch(m.fullName || '', q))
+        );
+        if (scoreB !== scoreA) return scoreB - scoreA;
+        const dateA = new Date(a.createdAt || a.startDate || 0).getTime();
+        const dateB = new Date(b.createdAt || b.startDate || 0).getTime();
+        return dateB - dateA;
+      });
+    }
+
+    // Padrão: Mais recente primeiro com data do cadastro!
+    return [...baseList].sort((a, b) => {
+      const dateA = new Date(a.createdAt || a.startDate || 0).getTime();
+      const dateB = new Date(b.createdAt || b.startDate || 0).getTime();
+      return dateB - dateA;
     });
   }, [state, subSearch, subStatusFilter, personFilter, originFilter]);
 
@@ -756,6 +797,187 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       balance: Number((totalIn - totalOut).toFixed(2)),
     };
   }, [state]);
+
+  // Ferramentas completas de Fluxo de Caixa (Idêntico ao painel Labcard - Screenshot 5)
+  const cashFlowPanelData = useMemo(() => {
+    if (!state) {
+      return {
+        rows: [] as Array<{
+          id: string;
+          cardCode: string;
+          holderName: string;
+          hasBoleto: boolean;
+          boletoUrl?: string;
+          boletoId?: string;
+          planName: string;
+          amount: number;
+          paymentType: string;
+          installment: string;
+          dueDate: string;
+          paidDate: string;
+          obs: string;
+          isAuto: boolean;
+          isManual: boolean;
+          isCashEntry: boolean;
+          type: 'IN' | 'OUT';
+        }>,
+        manualBaixasTotal: 0,
+        autoBaixasTotal: 0,
+        mensalidadesTotal: 0,
+        entradasCaixaTotal: 0,
+        saidasCaixaTotal: 0,
+        saldo: 0,
+      };
+    }
+
+    interface CashFlowRow {
+      id: string;
+      cardCode: string;
+      holderName: string;
+      hasBoleto: boolean;
+      boletoUrl?: string;
+      boletoId?: string;
+      planName: string;
+      amount: number;
+      paymentType: string;
+      installment: string;
+      dueDate: string;
+      paidDate: string;
+      obs: string;
+      isAuto: boolean;
+      isManual: boolean;
+      isCashEntry: boolean;
+      type: 'IN' | 'OUT';
+    }
+
+    const rows: CashFlowRow[] = [];
+
+    // 1. Mensalidades / Faturas pagas dos associados
+    for (const sub of state.subscriptions || []) {
+      for (const inv of sub.invoices || []) {
+        if (inv.status === 'PAID' && inv.amount > 0) {
+          const paidDateStr = (inv.paidAt || inv.dueDate || inv.createdAt || '').split('T')[0];
+          const isAuto = Boolean(inv.asaasPaymentId);
+          const isManual = !isAuto;
+
+          rows.push({
+            id: inv.id,
+            cardCode: sub.subscriptionCode || inv.subscriptionCode || '—',
+            holderName: sub.holderName || inv.holderName || '—',
+            hasBoleto: Boolean(inv.invoiceUrl || inv.asaasPaymentId),
+            boletoUrl: inv.invoiceUrl,
+            boletoId: inv.asaasPaymentId,
+            planName: sub.planSummaryLabel || inv.description || 'Lessa Club',
+            amount: inv.amount,
+            paymentType: inv.paymentMethod || (isAuto ? 'Gateway Asaas' : 'Balcão / Manual'),
+            installment: `${inv.installmentNumber || 1}/${inv.totalInstallments || 1}`,
+            dueDate: inv.dueDate || '—',
+            paidDate: paidDateStr,
+            obs: inv.description || (isAuto ? 'Baixa Automática (Gateway)' : 'Baixa Manual no Balcão'),
+            isAuto,
+            isManual,
+            isCashEntry: false,
+            type: 'IN',
+          });
+        }
+      }
+    }
+
+    // 2. Lançamentos avulsos de caixa (Entradas e Saídas)
+    for (const entry of state.cashEntries || []) {
+      rows.push({
+        id: entry.id,
+        cardCode: 'CAIXA',
+        holderName: entry.category || 'Movimentação Avulsa',
+        hasBoleto: false,
+        planName: entry.description,
+        amount: entry.amount,
+        paymentType: entry.paymentMethod,
+        installment: '1/1',
+        dueDate: entry.date,
+        paidDate: entry.date,
+        obs: entry.type === 'IN' ? 'Entrada Avulsa de Caixa' : 'Saída Avulsa de Caixa (Despesa)',
+        isAuto: false,
+        isManual: true,
+        isCashEntry: true,
+        type: entry.type,
+      });
+    }
+
+    // Filtro por data (cashFlowStartDate a cashFlowEndDate)
+    const filteredByDate = rows.filter((r) => {
+      if (!r.paidDate) return true;
+      if (cashFlowStartDate && r.paidDate < cashFlowStartDate) return false;
+      if (cashFlowEndDate && r.paidDate > cashFlowEndDate) return false;
+      return true;
+    });
+
+    let manualBaixasTotal = 0;
+    let autoBaixasTotal = 0;
+    let mensalidadesTotal = 0;
+    let entradasCaixaTotal = 0;
+    let saidasCaixaTotal = 0;
+
+    for (const r of filteredByDate) {
+      if (r.type === 'IN') {
+        if (!r.isCashEntry) {
+          mensalidadesTotal += r.amount;
+        } else {
+          entradasCaixaTotal += r.amount;
+        }
+
+        if (r.isManual) {
+          manualBaixasTotal += r.amount;
+        }
+        if (r.isAuto) {
+          autoBaixasTotal += r.amount;
+        }
+      } else if (r.type === 'OUT') {
+        saidasCaixaTotal += r.amount;
+      }
+    }
+
+    const totalEntradas = mensalidadesTotal + entradasCaixaTotal;
+    const saldo = totalEntradas - saidasCaixaTotal;
+
+    const finalRows = filteredByDate.filter((r) => {
+      if (cashFlowFilterMode === 'MANUAL') return r.isManual && r.type === 'IN';
+      if (cashFlowFilterMode === 'AUTO') return r.isAuto && r.type === 'IN';
+      return true;
+    });
+
+    finalRows.sort((a, b) => (b.paidDate || '').localeCompare(a.paidDate || ''));
+
+    return {
+      rows: finalRows,
+      manualBaixasTotal,
+      autoBaixasTotal,
+      mensalidadesTotal,
+      entradasCaixaTotal,
+      saidasCaixaTotal,
+      saldo,
+    };
+  }, [state, cashFlowStartDate, cashFlowEndDate, cashFlowFilterMode]);
+
+  // Atualização instantânea ao clicar em Dashboard
+  const handleRefreshDashboard = async () => {
+    setActiveTab('dashboard');
+    setOpenMenu(null);
+    setOpenSubMenu(null);
+    setLoading(true);
+    try {
+      const reloaded = await fetchClubState();
+      setState(reloaded);
+      toast({
+        title: 'Painel Atualizado',
+        description: 'Dashboard e dados do Lessa Club atualizados com sucesso.',
+      });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleAddCashEntry = async (type: 'IN' | 'OUT') => {
     if (!state) return;
@@ -1827,12 +2049,9 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
           {/* Logo Balneário Lessa + Título Mobile */}
           <div className="flex items-center justify-between w-full md:w-auto">
             <div
-              onClick={() => {
-                setActiveTab('dashboard');
-                setOpenMenu(null);
-                setOpenSubMenu(null);
-              }}
+              onClick={handleRefreshDashboard}
               className="flex items-center gap-2 cursor-pointer py-1"
+              title="Ir para o Dashboard e Atualizar"
             >
               <img src={logo} alt="Balneário Lessa" className="h-8 sm:h-11 w-auto" />
               <div className="md:hidden">
@@ -1865,10 +2084,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
             <div className="relative">
               <button
                 type="button"
-                onClick={() => {
-                  setActiveTab('dashboard');
-                  setOpenMenu(null);
-                }}
+                onClick={handleRefreshDashboard}
                 onMouseEnter={() => {
                   setOpenMenu(null);
                   setOpenSubMenu(null);
@@ -1878,6 +2094,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     ? 'bg-black/25 text-white'
                     : 'hover:bg-white/10 text-white'
                 }`}
+                title="Dashboard (Clique para Atualizar)"
               >
                 <Home className="w-5 h-5 sm:w-7 sm:h-7 mb-0.5 sm:mb-1 stroke-[2.2]" />
                 <span className="text-[10px] sm:text-xs font-bold tracking-tight">Dashboard</span>
@@ -3319,7 +3536,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 <h3 className="text-base sm:text-lg font-black text-slate-900">
                   {personFilter === 'PJ'
                     ? `Empresas Conveniadas / Corporativas PJ (${filteredSubscriptions.length})`
-                    : `Clientes - Cadastrados PF (${filteredSubscriptions.length})`}
+                    : `Clientes - Cadastrados`}
                   {originFilter === 'SITE' && ' — Via Site'}
                   {originFilter === 'IMPORT_LABCARD' && ' — Base Labcard'}
                 </h3>
@@ -3345,39 +3562,39 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
             {/* SELETOR DE PESSOA FÍSICA (PF) vs EMPRESA (PJ) */}
             <div className="flex flex-wrap items-center gap-2 bg-slate-100 p-1.5 rounded-xl border border-slate-200 w-fit">
               <span className="text-xs font-bold text-slate-500 px-2">Tipo de Cliente:</span>
-              <Button
+              <button
                 type="button"
-                size="sm"
-                variant={personFilter === 'ALL' ? 'default' : 'ghost'}
                 onClick={() => setPersonFilter('ALL')}
-                className={`h-7 text-xs font-bold ${
-                  personFilter === 'ALL' ? 'bg-[#004d00] text-white shadow-sm' : 'text-slate-700 hover:bg-white'
+                className={`h-7 px-3 rounded-md text-xs font-bold transition-colors ${
+                  personFilter === 'ALL'
+                    ? 'bg-[#004d00] text-white hover:bg-[#003800] shadow-sm'
+                    : 'text-slate-700 bg-transparent hover:bg-slate-200 hover:text-slate-900 border border-transparent'
                 }`}
               >
                 Todos
-              </Button>
-              <Button
+              </button>
+              <button
                 type="button"
-                size="sm"
-                variant={personFilter === 'PF' ? 'default' : 'ghost'}
                 onClick={() => setPersonFilter('PF')}
-                className={`h-7 text-xs font-bold ${
-                  personFilter === 'PF' ? 'bg-[#004d00] text-white shadow-sm' : 'text-slate-700 hover:bg-white'
+                className={`h-7 px-3 rounded-md text-xs font-bold transition-colors ${
+                  personFilter === 'PF'
+                    ? 'bg-[#004d00] text-white hover:bg-[#003800] shadow-sm'
+                    : 'text-slate-700 bg-transparent hover:bg-slate-200 hover:text-slate-900 border border-transparent'
                 }`}
               >
                 PF (Pessoa Física)
-              </Button>
-              <Button
+              </button>
+              <button
                 type="button"
-                size="sm"
-                variant={personFilter === 'PJ' ? 'default' : 'ghost'}
                 onClick={() => setPersonFilter('PJ')}
-                className={`h-7 text-xs font-bold ${
-                  personFilter === 'PJ' ? 'bg-[#004d00] text-white shadow-sm' : 'text-slate-700 hover:bg-white'
+                className={`h-7 px-3 rounded-md text-xs font-bold transition-colors ${
+                  personFilter === 'PJ'
+                    ? 'bg-[#004d00] text-white hover:bg-[#003800] shadow-sm'
+                    : 'text-slate-700 bg-transparent hover:bg-slate-200 hover:text-slate-900 border border-transparent'
                 }`}
               >
                 PJ (Empresas)
-              </Button>
+              </button>
             </div>
 
             <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
@@ -3513,7 +3730,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         Status
                       </th>
                       <th className="py-3 px-4 text-right">
-                        Opções do Cadastro & Financeiro
+                        Opções do Cadastro
                       </th>
                     </tr>
                   </thead>
@@ -3568,6 +3785,12 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                               {sub.billingCycle === 'ANNUAL' ? 'Anual' : 'Mensal'} (
                               {formatCurrency(sub.monthlyEquivalent)}/mês)
                             </div>
+                            <div className="text-[10px] text-emerald-800 font-bold flex items-center gap-1 mt-0.5">
+                              <span>Data do Cadastro:</span>
+                              <span className="font-semibold text-slate-800">
+                                {formatDateBR(sub.createdAt || sub.startDate)}
+                              </span>
+                            </div>
                             {matchedDependents.length > 0 && (
                               <div className="mt-1 flex flex-wrap gap-1">
                                 {matchedDependents.map((dep) => (
@@ -3609,62 +3832,17 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                             </span>
                           </td>
                           <td className="py-3 px-4 text-right">
-                            <div className="flex flex-wrap items-center justify-end gap-1.5">
+                            <div className="flex items-center justify-end">
                               <Button
                                 size="sm"
                                 onClick={() => {
                                   setClientDetailTool('DADOS_CADASTRAIS');
                                   setSelectedSubForDetail(sub);
                                 }}
-                                className="h-8 bg-[#004d00] hover:bg-emerald-900 text-white font-bold text-xs px-3"
+                                className="h-8 bg-[#004d00] hover:bg-emerald-900 text-white font-bold text-xs px-3 shadow-sm"
                               >
-                                <Edit3 className="w-3.5 h-3.5 mr-1.5" /> Entrar no Cadastro
+                                <Edit3 className="w-3.5 h-3.5 mr-1.5" /> Ver Cadastro
                               </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                  setClientDetailTool('FINANCEIRO_CLIENTE');
-                                  setSelectedSubForDetail(sub);
-                                }}
-                                className="h-8 border-emerald-700 text-emerald-900 hover:bg-emerald-50 font-bold text-xs px-2.5"
-                                title="Abrir Perfil Financeiro do Cliente"
-                              >
-                                <DollarSign className="w-3.5 h-3.5 mr-1 text-emerald-700" />{' '}
-                                Financeiro
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                  setClientDetailTool('CARTOES');
-                                  setSelectedSubForDetail(sub);
-                                }}
-                                className="h-8 text-xs px-2.5 font-semibold"
-                                title="Ver Carteirinhas do Titular e Dependentes"
-                              >
-                                <CreditCard className="w-3.5 h-3.5 mr-1 text-emerald-700" />{' '}
-                                Cartões
-                              </Button>
-                              {sub.status !== 'ACTIVE' ? (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleToggleSubStatus(sub, 'ACTIVE')}
-                                  className="h-8 border-emerald-500 text-emerald-800 hover:bg-emerald-50 font-bold text-xs px-2.5"
-                                >
-                                  Liberar
-                                </Button>
-                              ) : (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleToggleSubStatus(sub, 'INACTIVE')}
-                                  className="h-8 border-rose-300 text-rose-700 hover:bg-rose-50 font-bold text-xs px-2.5"
-                                >
-                                  Inativar
-                                </Button>
-                              )}
                             </div>
                           </td>
                         </tr>
@@ -4044,12 +4222,31 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                       s.influencerName?.toLowerCase() === cons.name.toLowerCase() ||
                       s.consultantCode?.toLowerCase() === cons.referralCode.toLowerCase()
                   );
-                  const salesCount = linkedSubs.length;
-                  const totalVolume = linkedSubs.reduce((acc, s) => acc + (s.totalContractValue || 0), 0);
+                  const leadsCount = linkedSubs.length; // Quantas pessoas aderiram
+
+                  // Contabilidade de vendas: APENAS APÓS PAGAMENTO EFETIVO DO PLANO
+                  const paidSubs = linkedSubs.filter(
+                    (s) => s.status === 'ACTIVE' || (s.invoices || []).some((inv) => inv.status === 'PAID')
+                  );
+                  const paidCount = paidSubs.length;
+                  const totalPaidVolume = paidSubs.reduce(
+                    (acc, s) => acc + (s.totalContractValue || (s.monthlyEquivalent * 12) || 0),
+                    0
+                  );
+
+                  const totalPaidCommission = paidSubs.reduce((acc, s) => {
+                    const planVal = s.totalContractValue || (s.monthlyEquivalent * 12) || 0;
+                    if (cons.commissionType === 'FIXED') {
+                      return acc + (cons.commissionValue || 0);
+                    }
+                    const pct = cons.commissionPercent || cons.commissionValue || 10;
+                    return acc + (planVal * pct) / 100;
+                  }, 0);
+
                   const commissionText =
                     cons.commissionType === 'FIXED'
-                      ? `R$ ${(cons.commissionValue || 0).toFixed(2)} por venda`
-                      : `${cons.commissionPercent || cons.commissionValue || 10}% sobre contratos`;
+                      ? `R$ ${(cons.commissionValue || 0).toFixed(2)} por venda paga`
+                      : `${cons.commissionPercent || cons.commissionValue || 10}% sobre contratos pagos`;
 
                   return (
                     <div
@@ -4091,23 +4288,65 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                             Tel: <strong>{cons.phone || '—'}</strong> • CPF: {cons.cpf}
                           </p>
                           <p>
-                            Comissão: <strong className="text-emerald-900">{commissionText}</strong>
+                            Comissão Configurada: <strong className="text-emerald-900">{commissionText}</strong>
                             {cons.commissionRecurring && ' (Recorrente)'}
                           </p>
-                          <p className="text-slate-500 text-[11px] pt-1">
-                            Vendas Rastreadas: <strong>{salesCount} contratos</strong> • Volume: <strong>{formatCurrency(totalVolume)}</strong>
-                          </p>
+                          <div className="mt-2.5 pt-2 border-t border-slate-200 grid grid-cols-2 gap-1.5 text-[11px]">
+                            <div className="bg-white p-2 rounded-lg border border-slate-200">
+                              <span className="text-slate-500 block">Acessos Link / QR:</span>
+                              <strong className="text-slate-900 text-xs">{cons.clicksCount || 0} acessos</strong>
+                            </div>
+                            <div className="bg-white p-2 rounded-lg border border-slate-200">
+                              <span className="text-slate-500 block">Pessoas Aderiram:</span>
+                              <strong className="text-slate-900 text-xs">{leadsCount} cadastros</strong>
+                            </div>
+                            <div className="bg-emerald-50 p-2 rounded-lg border border-emerald-200">
+                              <span className="text-emerald-800 block">Vendas Pagas:</span>
+                              <strong className="text-emerald-950 text-xs">{paidCount} confirmadas</strong>
+                            </div>
+                            <div className="bg-emerald-50 p-2 rounded-lg border border-emerald-200">
+                              <span className="text-emerald-800 block">Comissão Efetiva:</span>
+                              <strong className="text-emerald-900 text-xs">{formatCurrency(totalPaidCommission)}</strong>
+                            </div>
+                          </div>
                         </div>
                       </div>
 
                       <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-200">
-                        <Button
-                          size="sm"
-                          onClick={() => setSelectedConsultantForLink(cons)}
-                          className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs h-8"
-                        >
-                          <QrCode className="w-3.5 h-3.5 mr-1" /> Gerar Link & QR Code
-                        </Button>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <Button
+                            size="sm"
+                            onClick={() => setSelectedConsultantForLink(cons)}
+                            className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs h-8"
+                          >
+                            <QrCode className="w-3.5 h-3.5 mr-1" /> Gerar Link & QR Code
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedConsultantForPlans(cons);
+                              setDraftAllowedPlans(
+                                cons.allowedPlanCodes && cons.allowedPlanCodes.length > 0
+                                  ? cons.allowedPlanCodes
+                                  : ALL_CONSULTANT_PLANS.map((p) => p.code)
+                              );
+                            }}
+                            className="border-slate-300 text-slate-800 hover:bg-slate-100 font-bold text-xs h-8"
+                            title="Selecionar quais planos devem aparecer para este vendedor"
+                          >
+                            <Settings className="w-3.5 h-3.5 mr-1 text-slate-600" /> Permissão de Planos
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setSelectedConsultantForAccounting(cons)}
+                            className="border-emerald-600 text-emerald-900 hover:bg-emerald-50 font-bold text-xs h-8"
+                            title="Ver Vendas Pagas e Comissões"
+                          >
+                            <DollarSign className="w-3.5 h-3.5 mr-1 text-emerald-700" /> Contabilidade ({paidCount})
+                          </Button>
+                        </div>
 
                         <div className="flex items-center gap-1.5">
                           <Button
@@ -4296,6 +4535,369 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
               })()}
             </DialogContent>
           </Dialog>
+
+          {/* =====================================================================
+              MODAL PERMISSÃO DE PLANOS (IDÊNTICO À SCREENSHOT 4 DO USUÁRIO)
+          ===================================================================== */}
+          <Dialog
+            open={!!selectedConsultantForPlans}
+            onOpenChange={(open) => !open && setSelectedConsultantForPlans(null)}
+          >
+            <DialogContent className="max-w-4xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+              {selectedConsultantForPlans && (
+                <div className="space-y-4">
+                  <DialogHeader className="border-b pb-2">
+                    <DialogTitle className="text-lg font-black text-slate-900 uppercase flex items-center gap-2">
+                      <span>PERMISSÃO DE PLANOS</span>
+                      <ChevronDown className="w-5 h-5 text-slate-500" />
+                    </DialogTitle>
+                    <p className="text-xs text-slate-600">
+                      Configure quais planos devem aparecer no link e QR Code de vendas para:{' '}
+                      <strong className="text-emerald-900">{selectedConsultantForPlans.name}</strong>{' '}
+                      (Código: {selectedConsultantForPlans.referralCode})
+                    </p>
+                  </DialogHeader>
+
+                  {/* Botões de Ação Rápida no Topo (Screenshot 4) */}
+                  <div className="flex items-center justify-between py-1">
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => setDraftAllowedPlans([])}
+                      className="bg-red-600 hover:bg-red-700 text-white font-black text-xs uppercase px-4 h-8 rounded"
+                    >
+                      REMOVER TODOS
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() =>
+                        setDraftAllowedPlans(ALL_CONSULTANT_PLANS.map((p) => p.code))
+                      }
+                      className="bg-[#008000] hover:bg-emerald-700 text-white font-black text-xs uppercase px-4 h-8 rounded"
+                    >
+                      ADD TODOS
+                    </Button>
+                  </div>
+
+                  {/* Duas Tabelas Lado a Lado (PLANOS PERMITIDOS vs TODOS OS PLANOS) */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Coluna 1: PLANOS PERMITIDOS */}
+                    <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                      <div className="bg-slate-100 px-3 py-2 border-b border-slate-200">
+                        <span className="font-black text-xs uppercase tracking-wide text-slate-800">
+                          PLANOS PERMITIDOS ({draftAllowedPlans.length})
+                        </span>
+                      </div>
+                      <div className="max-h-96 overflow-y-auto">
+                        <table className="w-full text-left border-collapse text-xs">
+                          <thead>
+                            <tr className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold">
+                              <th className="py-2 px-3">Plano</th>
+                              <th className="py-2 px-3 text-right">Ação</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {ALL_CONSULTANT_PLANS.filter((p) =>
+                              draftAllowedPlans.includes(p.code)
+                            ).map((p) => (
+                              <tr key={p.code} className="hover:bg-slate-50">
+                                <td className="py-2 px-3 font-semibold text-slate-800 flex items-center gap-1.5">
+                                  <span className="text-[10px] text-slate-400">▶</span>
+                                  <span>{p.name}</span>
+                                </td>
+                                <td className="py-2 px-3 text-right">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setDraftAllowedPlans((prev) =>
+                                        prev.filter((c) => c !== p.code)
+                                      )
+                                    }
+                                    className="bg-red-600 hover:bg-red-700 text-white text-[11px] font-bold px-3 py-1 rounded"
+                                  >
+                                    Remover
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                            {draftAllowedPlans.length === 0 && (
+                              <tr>
+                                <td
+                                  colSpan={2}
+                                  className="py-8 text-center text-slate-400 text-xs italic"
+                                >
+                                  Nenhum plano liberado. Clique em "Add" ao lado ou "ADD TODOS".
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Coluna 2: TODOS OS PLANOS / DISPONÍVEIS */}
+                    <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                      <div className="bg-slate-100 px-3 py-2 border-b border-slate-200">
+                        <span className="font-black text-xs uppercase tracking-wide text-slate-800">
+                          TODOS OS PLANOS ({ALL_CONSULTANT_PLANS.length - draftAllowedPlans.length} disponíveis)
+                        </span>
+                      </div>
+                      <div className="max-h-96 overflow-y-auto">
+                        <table className="w-full text-left border-collapse text-xs">
+                          <thead>
+                            <tr className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold">
+                              <th className="py-2 px-3">Plano</th>
+                              <th className="py-2 px-3 text-right">Ação</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {ALL_CONSULTANT_PLANS.filter(
+                              (p) => !draftAllowedPlans.includes(p.code)
+                            ).map((p) => (
+                              <tr key={p.code} className="hover:bg-slate-50">
+                                <td className="py-2 px-3 font-semibold text-slate-800 flex items-center gap-1.5">
+                                  <span className="text-[10px] text-slate-400">▶</span>
+                                  <span>{p.name}</span>
+                                </td>
+                                <td className="py-2 px-3 text-right">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setDraftAllowedPlans((prev) => [...prev, p.code])
+                                    }
+                                    className="bg-[#008000] hover:bg-emerald-700 text-white text-[11px] font-bold px-3.5 py-1 rounded"
+                                  >
+                                    Add
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                            {ALL_CONSULTANT_PLANS.filter(
+                              (p) => !draftAllowedPlans.includes(p.code)
+                            ).length === 0 && (
+                              <tr>
+                                <td
+                                  colSpan={2}
+                                  className="py-8 text-center text-emerald-700 font-bold text-xs"
+                                >
+                                  ✓ Todos os planos já estão liberados para este vendedor!
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+
+                  <DialogFooter className="pt-2 border-t">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setSelectedConsultantForPlans(null)}
+                      className="text-xs"
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={async () => {
+                        if (!state || !selectedConsultantForPlans) return;
+                        const updated = (state.consultants || []).map((c) =>
+                          c.id === selectedConsultantForPlans.id
+                            ? { ...c, allowedPlanCodes: draftAllowedPlans }
+                            : c
+                        );
+                        await persist({ ...state, consultants: updated });
+                        setSelectedConsultantForPlans(null);
+                        toast({
+                          title: 'Permissões de Planos Atualizadas!',
+                          description: `Planos configurados com sucesso para ${selectedConsultantForPlans.name}.`,
+                        });
+                      }}
+                      className="bg-[#004d00] hover:bg-emerald-900 text-white font-bold text-xs"
+                    >
+                      Salvar Permissões de Planos
+                    </Button>
+                  </DialogFooter>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
+
+          {/* =====================================================================
+              MODAL CONTABILIDADE & VENDAS PAGAS DO CONSULTOR / INFLUENCER
+          ===================================================================== */}
+          <Dialog
+            open={!!selectedConsultantForAccounting}
+            onOpenChange={(open) => !open && setSelectedConsultantForAccounting(null)}
+          >
+            <DialogContent className="max-w-3xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+              {selectedConsultantForAccounting && (() => {
+                const linkedSubs = (state?.subscriptions || []).filter(
+                  (s) =>
+                    s.consultantName?.toLowerCase() ===
+                      selectedConsultantForAccounting.name.toLowerCase() ||
+                    s.influencerName?.toLowerCase() ===
+                      selectedConsultantForAccounting.name.toLowerCase() ||
+                    s.consultantCode?.toLowerCase() ===
+                      selectedConsultantForAccounting.referralCode.toLowerCase()
+                );
+
+                const paidSubs = linkedSubs.filter(
+                  (s) => s.status === 'ACTIVE' || (s.invoices || []).some((inv) => inv.status === 'PAID')
+                );
+
+                const pendingSubs = linkedSubs.filter((s) => !paidSubs.includes(s));
+
+                const totalPaidVolume = paidSubs.reduce(
+                  (acc, s) => acc + (s.totalContractValue || (s.monthlyEquivalent * 12) || 0),
+                  0
+                );
+
+                const totalPaidCommission = paidSubs.reduce((acc, s) => {
+                  const planVal = s.totalContractValue || (s.monthlyEquivalent * 12) || 0;
+                  if (selectedConsultantForAccounting.commissionType === 'FIXED') {
+                    return acc + (selectedConsultantForAccounting.commissionValue || 0);
+                  }
+                  const pct =
+                    selectedConsultantForAccounting.commissionPercent ||
+                    selectedConsultantForAccounting.commissionValue ||
+                    10;
+                  return acc + (planVal * pct) / 100;
+                }, 0);
+
+                return (
+                  <div className="space-y-4">
+                    <DialogHeader className="border-b pb-2">
+                      <DialogTitle className="text-base font-black text-slate-900 uppercase">
+                        Contabilidade de Vendas Pagas & Comissões
+                      </DialogTitle>
+                      <p className="text-xs text-slate-600">
+                        {selectedConsultantForAccounting.role === 'INFLUENCER' ? 'Influencer' : 'Consultor'}:{' '}
+                        <strong className="text-emerald-900">{selectedConsultantForAccounting.name}</strong>{' '}
+                        (Código: {selectedConsultantForAccounting.referralCode})
+                      </p>
+                    </DialogHeader>
+
+                    {/* Resumo Financeiro */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                      <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                        <span className="text-slate-500 block">Acessos Link / QR</span>
+                        <strong className="text-slate-900 text-lg block">
+                          {selectedConsultantForAccounting.clicksCount || 0}
+                        </strong>
+                      </div>
+                      <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                        <span className="text-slate-500 block">Pessoas que Aderiram</span>
+                        <strong className="text-slate-900 text-lg block">
+                          {linkedSubs.length}
+                        </strong>
+                      </div>
+                      <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200">
+                        <span className="text-emerald-800 block">Vendas Efetivamente Pagas</span>
+                        <strong className="text-emerald-950 text-lg block">
+                          {paidSubs.length}
+                        </strong>
+                      </div>
+                      <div className="p-3 rounded-xl bg-[#004d00] text-white">
+                        <span className="text-emerald-300 block">Comissão Total a Pagar</span>
+                        <strong className="text-white text-lg block">
+                          {formatCurrency(totalPaidCommission)}
+                        </strong>
+                      </div>
+                    </div>
+
+                    {/* Tabela de Vendas Pagas */}
+                    <div>
+                      <h4 className="text-xs font-black text-slate-800 uppercase mb-2">
+                        Vendas Confirmadas (Pagamento Efetivado)
+                      </h4>
+                      {paidSubs.length === 0 ? (
+                        <div className="p-6 text-center text-slate-400 text-xs border border-dashed rounded-xl">
+                          Nenhuma venda confirmada com pagamento efetivo até o momento.
+                        </div>
+                      ) : (
+                        <div className="overflow-x-auto border border-slate-200 rounded-xl">
+                          <table className="w-full text-left border-collapse text-xs">
+                            <thead>
+                              <tr className="bg-[#004d00] text-white font-bold text-[11px]">
+                                <th className="py-2 px-3">Cliente</th>
+                                <th className="py-2 px-3">Data Pgto</th>
+                                <th className="py-2 px-3">Plano Contratado</th>
+                                <th className="py-2 px-3">Valor do Plano</th>
+                                <th className="py-2 px-3">Comissão</th>
+                                <th className="py-2 px-3 text-center">Status</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {paidSubs.map((sub) => {
+                                const planVal =
+                                  sub.totalContractValue || (sub.monthlyEquivalent * 12) || 0;
+                                const comVal =
+                                  selectedConsultantForAccounting.commissionType === 'FIXED'
+                                    ? selectedConsultantForAccounting.commissionValue || 0
+                                    : (planVal *
+                                        (selectedConsultantForAccounting.commissionPercent || 10)) /
+                                      100;
+                                const paidInv = (sub.invoices || []).find((i) => i.status === 'PAID');
+                                const dtPg = paidInv?.paidAt || sub.createdAt;
+
+                                return (
+                                  <tr key={sub.id} className="hover:bg-slate-50">
+                                    <td className="py-2 px-3 font-bold text-slate-900">
+                                      {sub.holderName}
+                                    </td>
+                                    <td className="py-2 px-3 text-slate-600">
+                                      {formatDateBR(dtPg)}
+                                    </td>
+                                    <td className="py-2 px-3 text-slate-700">
+                                      {sub.planSummaryLabel}
+                                    </td>
+                                    <td className="py-2 px-3 font-semibold text-slate-900">
+                                      {formatCurrency(planVal)}
+                                    </td>
+                                    <td className="py-2 px-3 font-black text-emerald-800">
+                                      {formatCurrency(comVal)}
+                                    </td>
+                                    <td className="py-2 px-3 text-center">
+                                      <span className="inline-block px-2 py-0.5 rounded font-black text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                        PAGO
+                                      </span>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+
+                    {pendingSubs.length > 0 && (
+                      <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900">
+                        <span className="font-bold">⚠️ {pendingSubs.length} adesão(ões) com pagamento pendente:</span>
+                        <p className="text-[11px] text-amber-800 mt-0.5">
+                          A contabilidade e liberação da comissão ocorre somente após a liquidação do pagamento pelo cliente.
+                        </p>
+                      </div>
+                    )}
+
+                    <DialogFooter className="pt-2 border-t">
+                      <Button
+                        type="button"
+                        onClick={() => setSelectedConsultantForAccounting(null)}
+                        className="bg-[#004d00] hover:bg-emerald-900 text-white text-xs font-bold"
+                      >
+                        Fechar Extrato
+                      </Button>
+                    </DialogFooter>
+                  </div>
+                );
+              })()}
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         {/* =====================================================================
@@ -4425,9 +5027,209 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
               ))}
             </div>
 
-            {/* 1. FLUXO DE CAIXA / ENTRADA DE CAIXA / SAÍDA DE CAIXA */}
-            {(financeSubView === 'FLUXO_CAIXA' ||
-              financeSubView === 'ENTRADA_CAIXA' ||
+            {/* 1. FLUXO DE CAIXA (IDÊNTICO À SCREENSHOT 5 DO USUÁRIO) */}
+            {financeSubView === 'FLUXO_CAIXA' && (
+              <div className="space-y-4">
+                {/* Botões Superiores: BAIXAS MANUAIS e BAIXAS AUTOMÁTICAS (Screenshot 5) */}
+                <div className="flex flex-wrap items-center justify-center gap-4 py-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCashFlowFilterMode(
+                        cashFlowFilterMode === 'MANUAL' ? 'ALL' : 'MANUAL'
+                      )
+                    }
+                    className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all shadow-sm ${
+                      cashFlowFilterMode === 'MANUAL'
+                        ? 'bg-[#9ed2f6] text-[#002b4d] ring-2 ring-[#0066cc]'
+                        : 'bg-[#c2e7ff] hover:bg-[#aedaff] text-[#003865]'
+                    }`}
+                  >
+                    <Eye className="w-4 h-4 text-[#003865]" />
+                    <span>
+                      BAIXAS MANUAIS: {formatCurrency(cashFlowPanelData.manualBaixasTotal)}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCashFlowFilterMode(
+                        cashFlowFilterMode === 'AUTO' ? 'ALL' : 'AUTO'
+                      )
+                    }
+                    className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all shadow-sm ${
+                      cashFlowFilterMode === 'AUTO'
+                        ? 'bg-[#b6f0bf] text-[#053b13] ring-2 ring-[#0f8b30]'
+                        : 'bg-[#d3f9d8] hover:bg-[#c1f5c8] text-[#0a4d1a]'
+                    }`}
+                  >
+                    <Eye className="w-4 h-4 text-[#0a4d1a]" />
+                    <span>
+                      BAIXAS AUTOMÁTICAS {formatCurrency(cashFlowPanelData.autoBaixasTotal)}
+                    </span>
+                  </button>
+                </div>
+
+                {/* 4 Totais Centrais (Screenshot 5) */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center py-2 border-y border-slate-100">
+                  <div>
+                    <span className="text-xs text-slate-600 block">
+                      Entrada de Mensalidades:
+                    </span>
+                    <span className="text-sm font-bold text-slate-900">
+                      {formatCurrency(cashFlowPanelData.mensalidadesTotal)}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-slate-600 block">
+                      Entrada de Caixa:
+                    </span>
+                    <span className="text-sm font-bold text-slate-900">
+                      {formatCurrency(cashFlowPanelData.entradasCaixaTotal)}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-slate-600 block">
+                      Saída de Caixa:
+                    </span>
+                    <span className="text-sm font-bold text-slate-900">
+                      {formatCurrency(cashFlowPanelData.saidasCaixaTotal)}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-slate-600 block">
+                      Saldo:
+                    </span>
+                    <span className="text-sm font-bold text-slate-900">
+                      {formatCurrency(cashFlowPanelData.saldo)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Filtro de Datas com Buscar (Screenshot 5) */}
+                <div className="flex flex-col items-center justify-center gap-2 py-2">
+                  <div className="flex flex-wrap items-center justify-center gap-2 text-xs font-semibold text-slate-700">
+                    <span>Entre:</span>
+                    <input
+                      type="date"
+                      value={cashFlowStartDate}
+                      onChange={(e) => setCashFlowStartDate(e.target.value)}
+                      className="h-8 px-2 rounded border border-slate-300 text-xs bg-white font-mono"
+                    />
+                    <span>e:</span>
+                    <input
+                      type="date"
+                      value={cashFlowEndDate}
+                      onChange={(e) => setCashFlowEndDate(e.target.value)}
+                      className="h-8 px-2 rounded border border-slate-300 text-xs bg-white font-mono"
+                    />
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 px-8 text-xs font-bold border-slate-300 text-slate-700 hover:bg-slate-100"
+                  >
+                    Buscar
+                  </Button>
+                </div>
+
+                {/* Tabela Idêntica à Screenshot 5 com Cabeçalho Verde */}
+                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-[#004d00] text-white text-[11px] font-bold">
+                        <th className="py-2.5 px-3">Nº Card</th>
+                        <th className="py-2.5 px-3">Nome</th>
+                        <th className="py-2.5 px-3 text-center">Boleto</th>
+                        <th className="py-2.5 px-3">Plano</th>
+                        <th className="py-2.5 px-3">Valor</th>
+                        <th className="py-2.5 px-3">Tipo de PG</th>
+                        <th className="py-2.5 px-3 text-center">Parcela</th>
+                        <th className="py-2.5 px-3">Vencimento</th>
+                        <th className="py-2.5 px-3">DT PG</th>
+                        <th className="py-2.5 px-3">OBS</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {cashFlowPanelData.rows.length === 0 ? (
+                        <tr>
+                          <td colSpan={10} className="py-8 text-center text-slate-400">
+                            Nenhuma baixa encontrada para o período selecionado.
+                          </td>
+                        </tr>
+                      ) : (
+                        cashFlowPanelData.rows.map((row, idx) => (
+                          <tr
+                            key={`${row.id}_${idx}`}
+                            className={`${
+                              idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'
+                            } hover:bg-emerald-50/50 transition-colors`}
+                          >
+                            <td className="py-2 px-3 font-mono font-bold text-slate-800">
+                              {row.cardCode}
+                            </td>
+                            <td className="py-2 px-3 font-bold text-slate-900">
+                              {row.holderName}
+                            </td>
+                            <td className="py-2 px-3 text-center">
+                              {row.hasBoleto && row.boletoUrl ? (
+                                <a
+                                  href={row.boletoUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-emerald-700 hover:underline font-bold inline-flex items-center gap-1"
+                                >
+                                  <FileText className="w-3.5 h-3.5" /> Ver
+                                </a>
+                              ) : (
+                                <span className="text-slate-400">—</span>
+                              )}
+                            </td>
+                            <td className="py-2 px-3 text-slate-700">
+                              {row.planName}
+                            </td>
+                            <td className="py-2 px-3 font-black text-slate-900">
+                              {formatCurrency(row.amount)}
+                            </td>
+                            <td className="py-2 px-3 font-medium text-slate-700">
+                              {row.paymentType}
+                            </td>
+                            <td className="py-2 px-3 text-center font-mono">
+                              {row.installment}
+                            </td>
+                            <td className="py-2 px-3 text-slate-600">
+                              {formatDateBR(row.dueDate)}
+                            </td>
+                            <td className="py-2 px-3 font-semibold text-emerald-800">
+                              {formatDateBR(row.paidDate)}
+                            </td>
+                            <td className="py-2 px-3 text-slate-600 text-[11px]">
+                              {row.obs}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Botão Imprimir no Canto Inferior Esquerdo (Screenshot 5) */}
+                <div className="pt-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => window.print()}
+                    className="h-8 px-4 text-xs font-bold border-slate-300 text-slate-800 hover:bg-slate-100 uppercase"
+                  >
+                    IMPRIMIR
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* 1.1 ENTRADA DE CAIXA / SAÍDA DE CAIXA (Lançamentos Manuais Avulsos) */}
+            {(financeSubView === 'ENTRADA_CAIXA' ||
               financeSubView === 'SAIDA_CAIXA') && (
               <div className="space-y-5">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

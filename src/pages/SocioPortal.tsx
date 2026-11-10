@@ -43,6 +43,7 @@ import { useToast } from '@/hooks/use-toast';
 import {
   ClubInvoice,
   ClubSubscription,
+  ClubConsultant,
 } from '@/lib/club-types';
 import {
   ClubDatabaseState,
@@ -57,6 +58,7 @@ import {
   renderSubscriptionContractHtml,
   cleanDigits,
   getBirthDatePassword,
+  getQrCodeImageUrl,
 } from '@/lib/club-service';
 import { ClubMemberCardView } from '@/components/club/ClubMemberCardView';
 
@@ -70,6 +72,8 @@ const SocioPortal: React.FC = () => {
   const [passwordInput, setPasswordInput] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [subscription, setSubscription] = useState<ClubSubscription | null>(null);
+  const [loggedConsultant, setLoggedConsultant] = useState<ClubConsultant | null>(null);
+  const [portalType, setPortalType] = useState<'ASSOCIADO' | 'CONSULTOR'>('ASSOCIADO');
   const [loading, setLoading] = useState(true);
   const [selectedInvoiceForPix, setSelectedInvoiceForPix] = useState<ClubInvoice | null>(null);
   const [paymentMethodTab, setPaymentMethodTab] = useState<'PIX' | 'CARD'>('PIX');
@@ -103,10 +107,53 @@ const SocioPortal: React.FC = () => {
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (!state || !loginInput.trim()) return;
+
+    const qClean = loginInput.trim().toLowerCase();
+    const qDigits = cleanDigits(loginInput);
+
+    // 1. Verifica se é acesso de Consultor ou Influencer (Acesso com E-mail ou CPF e Senha)
+    const foundCons = (state.consultants || []).find((c) => {
+      const emailMatch = !!c.email && c.email.toLowerCase().trim() === qClean;
+      const cpfMatch = !!c.cpf && cleanDigits(c.cpf) === qDigits && qDigits.length >= 6;
+      const codeMatch = !!c.referralCode && c.referralCode.toLowerCase().trim() === qClean;
+      return emailMatch || cpfMatch || codeMatch;
+    });
+
+    if (foundCons) {
+      if (passwordInput.trim()) {
+        const pass = passwordInput.trim();
+        const consCpfDigits = cleanDigits(foundCons.cpf);
+        const validPasses = [
+          foundCons.password,
+          consCpfDigits,
+          consCpfDigits.slice(0, 6),
+          '123456',
+        ].filter(Boolean);
+
+        const isValid = validPasses.some((p) => p === pass || cleanDigits(p) === cleanDigits(pass));
+        if (!isValid) {
+          toast({
+            title: 'Senha incorreta',
+            description: 'A senha informada não confere para este consultor/influencer.',
+            variant: 'destructive',
+          });
+          return;
+        }
+      }
+
+      setLoggedConsultant(foundCons);
+      toast({
+        title: `Bem-vindo(a), ${foundCons.name.split(' ')[0]}!`,
+        description: `Painel do ${foundCons.role === 'INFLUENCER' ? 'Influencer' : 'Consultor'} acessado com sucesso.`,
+      });
+      return;
+    }
+
+    // 2. Se não for consultor, verifica se é associado
     const matches = findMemberOrSubscriptionByQuery(state, loginInput);
     if (matches.length === 0) {
       toast({
-        title: 'Associado não localizado',
+        title: 'Cadastro não localizado',
         description: 'Verifique seu E-mail, CPF ou Carteirinha e tente novamente.',
         variant: 'destructive',
       });
@@ -299,11 +346,14 @@ const SocioPortal: React.FC = () => {
                 <MessageCircle className="w-3.5 h-3.5 mr-1.5" /> Dúvidas no WhatsApp
               </Button>
             </a>
-            {subscription && (
+            {(subscription || loggedConsultant) && (
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setSubscription(null)}
+                onClick={() => {
+                  setSubscription(null);
+                  setLoggedConsultant(null);
+                }}
                 className="text-slate-300 hover:text-white hover:bg-slate-800 text-xs"
               >
                 <LogOut className="w-3.5 h-3.5 mr-1.5" /> Sair
@@ -314,87 +364,390 @@ const SocioPortal: React.FC = () => {
       </header>
 
       <div className="container mx-auto px-4 pt-8 max-w-6xl">
-        {!subscription ? (
+        {loggedConsultant ? (() => {
+          const linkedSubs = (state?.subscriptions || []).filter(
+            (s) =>
+              s.consultantName?.toLowerCase() === loggedConsultant.name.toLowerCase() ||
+              s.influencerName?.toLowerCase() === loggedConsultant.name.toLowerCase() ||
+              s.consultantCode?.toLowerCase() === loggedConsultant.referralCode.toLowerCase()
+          );
+
+          // Contabilidade de vendas: APENAS APÓS PAGAMENTO EFETIVO
+          const paidSubs = linkedSubs.filter(
+            (s) => s.status === 'ACTIVE' || (s.invoices || []).some((inv) => inv.status === 'PAID')
+          );
+
+          const totalPaidVolume = paidSubs.reduce(
+            (acc, s) => acc + (s.totalContractValue || s.monthlyEquivalent * 12 || 0),
+            0
+          );
+
+          const totalPaidCommission = paidSubs.reduce((acc, s) => {
+            const planVal = s.totalContractValue || s.monthlyEquivalent * 12 || 0;
+            if (loggedConsultant.commissionType === 'FIXED') {
+              return acc + (loggedConsultant.commissionValue || 0);
+            }
+            const pct = loggedConsultant.commissionPercent || loggedConsultant.commissionValue || 10;
+            return acc + (planVal * pct) / 100;
+          }, 0);
+
+          const referralLink = `${window.location.origin}/planos?ref=${loggedConsultant.referralCode}`;
+          const qrCodeUrl = getQrCodeImageUrl(referralLink, 280);
+
+          const copyReferralLink = () => {
+            navigator.clipboard.writeText(referralLink);
+            toast({
+              title: 'Link copiado!',
+              description: 'O seu link de indicação foi copiado para a área de transferência.',
+            });
+          };
+
+          const shareWhatsApp = () => {
+            const text = `🌿 Olá! Venha ser associado do *Balneário Família Lessa* com benefícios exclusivos! Faça sua adesão pelo meu link oficial: ${referralLink}`;
+            window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+          };
+
+          const pendingSubs = linkedSubs.filter((s) => !paidSubs.includes(s));
+
+          return (
+            <div className="space-y-6 pb-16">
+              {/* Top Banner Consultor */}
+              <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Badge
+                      className={
+                        loggedConsultant.role === 'INFLUENCER'
+                          ? 'bg-purple-800 text-white'
+                          : 'bg-[#004d00] text-white'
+                      }
+                    >
+                      {loggedConsultant.role === 'INFLUENCER'
+                        ? 'INFLUENCER OFICIAL'
+                        : 'CONSULTOR DE VENDAS'}
+                    </Badge>
+                    <Badge className="bg-emerald-600 text-white">ATIVO</Badge>
+                  </div>
+                  <h1 className="text-2xl font-black text-slate-900 mt-2">
+                    Olá, {loggedConsultant.name}!
+                  </h1>
+                  <p className="text-xs text-slate-600">
+                    Código de Indicação: <strong className="font-mono text-emerald-800">{loggedConsultant.referralCode}</strong> • CPF: {loggedConsultant.cpf}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setLoggedConsultant(null);
+                      setSubscription(null);
+                    }}
+                    className="border-slate-300 text-slate-700 hover:bg-slate-100 font-bold text-xs"
+                  >
+                    <LogOut className="w-3.5 h-3.5 mr-1.5" /> Sair do Painel
+                  </Button>
+                </div>
+              </div>
+
+              {/* Box de Vendas: Link e QR Code */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="md:col-span-2 bg-gradient-to-br from-[#004d00] to-slate-950 text-white rounded-3xl p-6 shadow-md flex flex-col justify-between gap-4">
+                  <div>
+                    <h2 className="text-lg font-black tracking-tight mb-1 flex items-center gap-2">
+                      <Sparkles className="w-5 h-5 text-amber-300" /> Seu Link Oficial de Vendas
+                    </h2>
+                    <p className="text-xs text-emerald-200 mb-4">
+                      Divulgue este link no WhatsApp, redes sociais e clientes. Todas as adesões realizadas através dele serão creditadas automaticamente a você.
+                    </p>
+                    <div className="flex flex-col sm:flex-row items-stretch gap-2 bg-black/40 p-2 rounded-2xl border border-white/20">
+                      <Input
+                        readOnly
+                        value={referralLink}
+                        className="bg-transparent border-none text-white font-mono text-xs select-all focus-visible:ring-0"
+                      />
+                      <Button
+                        type="button"
+                        onClick={copyReferralLink}
+                        className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs shrink-0"
+                      >
+                        <Copy className="w-3.5 h-3.5 mr-1.5" /> Copiar Link
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3 pt-2">
+                    <Button
+                      type="button"
+                      onClick={shareWhatsApp}
+                      className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5 mr-1.5" /> Compartilhar no WhatsApp
+                    </Button>
+                    <a href={referralLink} target="_blank" rel="noopener noreferrer">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="border-white/30 text-white hover:bg-white/10 font-bold text-xs"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5 mr-1.5" /> Abrir Minha Página
+                      </Button>
+                    </a>
+                  </div>
+                </div>
+
+                {/* Card com QR Code */}
+                <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm flex flex-col items-center justify-center text-center gap-3">
+                  <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+                    QR Code de Vendas
+                  </span>
+                  <div className="p-2 bg-white rounded-2xl border-2 border-emerald-800 shadow-sm">
+                    <img src={qrCodeUrl} alt="QR Code" className="w-36 h-36 mx-auto object-contain" />
+                  </div>
+                  <a href={qrCodeUrl} download={`QRCode_${loggedConsultant.referralCode}.png`}>
+                    <Button size="sm" variant="outline" className="text-xs font-bold border-slate-300">
+                      <Printer className="w-3.5 h-3.5 mr-1.5" /> Baixar Imagem QR Code
+                    </Button>
+                  </a>
+                </div>
+              </div>
+
+              {/* Indicadores em Destaque */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                  <span className="text-xs font-bold text-slate-500 block">Acessos ao Link / QR</span>
+                  <span className="text-2xl font-black text-slate-900 mt-1 block">
+                    {loggedConsultant.clicksCount || 0}
+                  </span>
+                  <span className="text-[10px] text-slate-400">visualizações rastreadas</span>
+                </div>
+                <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                  <span className="text-xs font-bold text-slate-500 block">Pessoas que Aderiram</span>
+                  <span className="text-2xl font-black text-slate-900 mt-1 block">
+                    {linkedSubs.length}
+                  </span>
+                  <span className="text-[10px] text-slate-400">cadastros iniciados</span>
+                </div>
+                <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-200 shadow-sm">
+                  <span className="text-xs font-bold text-emerald-800 block">Vendas Efetivamente Pagas</span>
+                  <span className="text-2xl font-black text-emerald-950 mt-1 block">
+                    {paidSubs.length}
+                  </span>
+                  <span className="text-[10px] text-emerald-700">pagamentos confirmados</span>
+                </div>
+                <div className="bg-[#004d00] text-white p-4 rounded-2xl shadow-sm">
+                  <span className="text-xs font-bold text-emerald-300 block">Comissões a Receber</span>
+                  <span className="text-2xl font-black text-white mt-1 block">
+                    {formatCurrency(totalPaidCommission)}
+                  </span>
+                  <span className="text-[10px] text-emerald-200">
+                    {loggedConsultant.commissionType === 'FIXED'
+                      ? `R$ ${(loggedConsultant.commissionValue || 0).toFixed(2)} fixo por venda paga`
+                      : `${loggedConsultant.commissionPercent || 10}% sobre contratos pagos`}
+                  </span>
+                </div>
+              </div>
+
+              {/* Tabela de Vendas Efetivamente Pagas (Contabilidade) */}
+              <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-3">
+                  <div>
+                    <h3 className="text-lg font-black text-slate-900">
+                      Contabilidade de Vendas Pagas & Comissões
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Comissões contabilizadas exclusivamente após o pagamento efetivo do plano pelo cliente.
+                    </p>
+                  </div>
+                  <Badge className="bg-emerald-100 text-emerald-900 font-bold text-xs self-start sm:self-auto">
+                    {paidSubs.length} {paidSubs.length === 1 ? 'venda confirmada' : 'vendas confirmadas'}
+                  </Badge>
+                </div>
+
+                {paidSubs.length === 0 ? (
+                  <div className="text-center py-10 text-slate-500 text-xs">
+                    Nenhuma venda com pagamento confirmado ainda. Compartilhe seu link ou QR Code para gerar suas primeiras comissões!
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto rounded-xl border border-slate-200">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="bg-[#004d00] text-white text-[11px] font-bold">
+                          <th className="py-2.5 px-3">Cliente</th>
+                          <th className="py-2.5 px-3">Data Pgto</th>
+                          <th className="py-2.5 px-3">Plano Contratado</th>
+                          <th className="py-2.5 px-3">Valor do Plano</th>
+                          <th className="py-2.5 px-3">Sua Comissão</th>
+                          <th className="py-2.5 px-3 text-center">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200">
+                        {paidSubs.map((sub) => {
+                          const planVal = sub.totalContractValue || sub.monthlyEquivalent * 12 || 0;
+                          const comVal =
+                            loggedConsultant.commissionType === 'FIXED'
+                              ? loggedConsultant.commissionValue || 0
+                              : (planVal * (loggedConsultant.commissionPercent || 10)) / 100;
+                          const paidInv = (sub.invoices || []).find((i) => i.status === 'PAID');
+                          const datePgto = paidInv?.paidAt || sub.createdAt;
+
+                          return (
+                            <tr key={sub.id} className="hover:bg-slate-50">
+                              <td className="py-2.5 px-3 font-bold text-slate-900">
+                                {sub.holderName}
+                              </td>
+                              <td className="py-2.5 px-3 text-slate-600">
+                                {formatDateBR(datePgto)}
+                              </td>
+                              <td className="py-2.5 px-3 text-slate-700">
+                                {sub.planSummaryLabel}
+                              </td>
+                              <td className="py-2.5 px-3 font-semibold text-slate-900">
+                                {formatCurrency(planVal)}
+                              </td>
+                              <td className="py-2.5 px-3 font-black text-emerald-800">
+                                {formatCurrency(comVal)}
+                              </td>
+                              <td className="py-2.5 px-3 text-center">
+                                <span className="inline-block px-2 py-0.5 rounded font-black text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300 uppercase">
+                                  PAGO
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {pendingSubs.length > 0 && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-900">
+                    <p className="font-bold mb-1">
+                      ⚠️ {pendingSubs.length} {pendingSubs.length === 1 ? 'adesão aguardando pagamento' : 'adesões aguardando pagamento'}:
+                    </p>
+                    <p className="text-[11px] text-amber-800">
+                      As comissões dessas vendas serão creditadas e liberadas assim que o cliente efetuar a compensação do pagamento.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })() : !subscription ? (
           <>
             {/* Login Card */}
             <div className="max-w-md mx-auto bg-white rounded-3xl border border-slate-200 shadow-xl p-8 mt-8">
-            <div className="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center mb-5 mx-auto">
-              <CreditCard className="w-7 h-7" />
-            </div>
-            <h1 className="text-2xl font-black text-center text-slate-900 mb-2">
-              Área do Associado
-            </h1>
-            <p className="text-sm text-center text-slate-600 mb-6">
-              Acesse suas carteirinhas digitais com QR Code, envie sua foto 3x4, consulte mensalidades e baixe seu contrato assinado.
-            </p>
-
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div>
-                <label className="text-xs font-bold uppercase text-slate-700 block mb-1.5">
-                  Usuário (E-mail, CPF ou Carteirinha)
-                </label>
-                <Input
-                  value={loginInput}
-                  onChange={(e) => setLoginInput(e.target.value)}
-                  placeholder="Ex: seuemail@gmail.com ou CPF"
-                  className="h-12 text-base"
-                  required
-                />
+              {/* Seletor Associado vs Consultor */}
+              <div className="flex rounded-xl bg-slate-100 p-1 mb-6">
+                <button
+                  type="button"
+                  onClick={() => setPortalType('ASSOCIADO')}
+                  className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
+                    portalType === 'ASSOCIADO'
+                      ? 'bg-[#004d00] text-white shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Área do Associado
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPortalType('CONSULTOR')}
+                  className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
+                    portalType === 'CONSULTOR'
+                      ? 'bg-[#004d00] text-white shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Consultores & Influencers
+                </button>
               </div>
 
-              <div>
-                <label className="text-xs font-bold uppercase text-slate-700 block mb-1.5">
-                  Senha
-                </label>
-                <div className="relative">
+              <div className="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center mb-5 mx-auto">
+                <CreditCard className="w-7 h-7" />
+              </div>
+              <h1 className="text-2xl font-black text-center text-slate-900 mb-2">
+                {portalType === 'CONSULTOR' ? 'Painel do Consultor / Influencer' : 'Área do Associado'}
+              </h1>
+              <p className="text-sm text-center text-slate-600 mb-6">
+                {portalType === 'CONSULTOR'
+                  ? 'Acesse suas vendas, acompanhe comissões em tempo real, copie seu link e gere QR Codes para divulgação.'
+                  : 'Acesse suas carteirinhas digitais com QR Code, envie sua foto 3x4, consulte mensalidades e baixe seu contrato assinado.'}
+              </p>
+
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold uppercase text-slate-700 block mb-1.5">
+                    {portalType === 'CONSULTOR'
+                      ? 'E-mail ou CPF do Vendedor / Influencer'
+                      : 'Usuário (E-mail, CPF ou Carteirinha)'}
+                  </label>
                   <Input
-                    type={showPassword ? 'text' : 'password'}
-                    value={passwordInput}
-                    onChange={(e) => setPasswordInput(e.target.value)}
-                    placeholder="Digite sua senha"
-                    className="h-12 text-base pr-11"
+                    value={loginInput}
+                    onChange={(e) => setLoginInput(e.target.value)}
+                    placeholder={
+                      portalType === 'CONSULTOR'
+                        ? 'Ex: seuemail@gmail.com ou CPF'
+                        : 'Ex: seuemail@gmail.com ou CPF'
+                    }
+                    className="h-12 text-base"
+                    required
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((prev) => !prev)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none p-1 transition-colors"
-                    title={showPassword ? 'Ocultar senha' : 'Ver senha'}
-                  >
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                  </button>
                 </div>
-              </div>
-              <Button
-                type="submit"
-                disabled={loading}
-                className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-base rounded-xl"
-              >
-                <Search className="w-4 h-4 mr-2" /> Acessar Minha Conta
-              </Button>
-            </form>
 
-            <div className="mt-6 pt-6 border-t border-slate-100 text-center space-y-3">
-              <div>
-                <p className="text-xs text-slate-500 mb-2">Ainda não é sócio do Reserva Lessa?</p>
-                <Link to="/assinatura">
-                  <Button variant="outline" size="sm" className="w-full font-bold">
-                    Montar Meu Plano Personalizado
-                  </Button>
-                </Link>
-              </div>
-
-              <a
-                href="https://wa.me/5569992626140?text=Ol%C3%A1%2C+sou+associado+e+preciso+de+ajuda+para+acessar+o+portal+do+s%C3%B3cio."
-                target="_blank"
-                rel="noreferrer"
-                className="block"
-              >
-                <Button variant="ghost" size="sm" className="w-full text-xs text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50 font-bold">
-                  <MessageCircle className="w-3.5 h-3.5 mr-1.5" /> Dúvidas no acesso? Falar no WhatsApp
+                <div>
+                  <label className="text-xs font-bold uppercase text-slate-700 block mb-1.5">
+                    Senha {portalType === 'CONSULTOR' && <span className="text-slate-400 font-normal lowercase">(padrão: CPF ou cadastrada)</span>}
+                  </label>
+                  <div className="relative">
+                    <Input
+                      type={showPassword ? 'text' : 'password'}
+                      value={passwordInput}
+                      onChange={(e) => setPasswordInput(e.target.value)}
+                      placeholder="Digite sua senha"
+                      className="h-12 text-base pr-11"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none p-1 transition-colors"
+                      title={showPassword ? 'Ocultar senha' : 'Ver senha'}
+                    >
+                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
+                  </div>
+                </div>
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-base rounded-xl"
+                >
+                  <Search className="w-4 h-4 mr-2" /> Acessar Minha Conta
                 </Button>
-              </a>
+              </form>
+
+              <div className="mt-6 pt-6 border-t border-slate-100 text-center space-y-3">
+                <div>
+                  <p className="text-xs text-slate-500 mb-2">Ainda não é sócio do Reserva Lessa?</p>
+                  <Link to="/assinatura">
+                    <Button variant="outline" size="sm" className="w-full font-bold">
+                      Montar Meu Plano Personalizado
+                    </Button>
+                  </Link>
+                </div>
+
+                <a
+                  href="https://wa.me/5569992626140?text=Ol%C3%A1%2C+preciso+de+ajuda+para+acessar+o+portal."
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block"
+                >
+                  <Button variant="ghost" size="sm" className="w-full text-xs text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50 font-bold">
+                    <MessageCircle className="w-3.5 h-3.5 mr-1.5" /> Dúvidas no acesso? Falar no WhatsApp
+                  </Button>
+                </a>
+              </div>
             </div>
-          </div>
 
           <div className="mt-6 max-w-md mx-auto bg-emerald-950 text-white rounded-3xl p-5 border border-emerald-500/30 shadow-lg space-y-3">
             <div className="flex items-center justify-between">

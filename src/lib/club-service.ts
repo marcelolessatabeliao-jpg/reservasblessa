@@ -1377,8 +1377,43 @@ export const renderSubscriptionContractHtml = (
 };
 
 // ============================================================================
+// ============================================================================
 // BUSCA RÁPIDA (LUPA FLUTUANTE / PORTARIA / QR CODE)
 // ============================================================================
+export const scoreSearchMatch = (
+  text: string,
+  query: string
+): number => {
+  const t = text.trim().toLowerCase();
+  const q = query.trim().toLowerCase();
+  if (!t || !q) return 0;
+  if (t === q) return 1000;
+  if (t.startsWith(q)) return 950;
+
+  const tWords = t.split(/\s+/).filter(Boolean);
+  const qWords = q.split(/\s+/).filter(Boolean);
+
+  if (qWords.length === 1) {
+    const qw = qWords[0];
+    // Primeiro nome começa exatamente com a busca (Ex: "Maria Clara" ao buscar "maria")
+    if (tWords[0]?.startsWith(qw)) return 850;
+    // Sobrenome começa com a busca (Ex: "Ana Maria" ao buscar "maria")
+    if (tWords.slice(1).some((w) => w.startsWith(qw))) return 700;
+    // Subtermo no texto
+    if (t.includes(qw)) return 400;
+    return 0;
+  }
+
+  // Múltiplas palavras (Ex: "Maria Silva")
+  const matchesFirst = tWords[0]?.startsWith(qWords[0]);
+  const allPrefixes = qWords.every((qw) => tWords.some((tw) => tw.startsWith(qw)));
+  if (matchesFirst && allPrefixes) return 900;
+  if (allPrefixes) return 800;
+  if (t.includes(q)) return 500;
+
+  return 0;
+};
+
 export const findMemberOrSubscriptionByQuery = (
   state: ClubDatabaseState,
   query: string
@@ -1387,25 +1422,97 @@ export const findMemberOrSubscriptionByQuery = (
   const qDigits = cleanDigits(query);
   if (!q) return [];
 
-  const results: Array<{ member: ClubMember; subscription: ClubSubscription }> = [];
-  for (const sub of state.subscriptions) {
-    for (const member of sub.members) {
-      const matchName = member.fullName.toLowerCase().includes(q) || sub.holderName.toLowerCase().includes(q);
-      const matchEmail = !!sub.holderEmail && sub.holderEmail.toLowerCase().trim() === q;
-      const matchCard =
-        member.cardNumber.toLowerCase().includes(q) ||
-        member.qrToken.toLowerCase() === q ||
-        sub.subscriptionCode.toLowerCase().includes(q);
-      const matchCpf =
-        qDigits.length >= 3 &&
-        (cleanDigits(member.cpf).includes(qDigits) || cleanDigits(sub.holderCpf).includes(qDigits));
+  const scoredResults: Array<{
+    member: ClubMember;
+    subscription: ClubSubscription;
+    score: number;
+    createdAt: number;
+  }> = [];
 
-      if (matchName || matchCard || matchCpf || matchEmail) {
-        results.push({ member, subscription: sub });
+  for (const sub of state.subscriptions) {
+    const subCreatedTime = new Date(sub.createdAt || sub.startDate || 0).getTime();
+    for (const member of sub.members) {
+      let maxScore = 0;
+
+      // 1. Prioridade por Nome (Primeiro nome > Sobrenome > Substring)
+      const nameScore = Math.max(
+        scoreSearchMatch(member.fullName, q),
+        scoreSearchMatch(sub.holderName, q)
+      );
+      if (nameScore > maxScore) maxScore = nameScore;
+
+      // 2. Email exato ou prefixo
+      if (sub.holderEmail) {
+        const em = sub.holderEmail.toLowerCase().trim();
+        if (em === q) maxScore = Math.max(maxScore, 920);
+        else if (em.startsWith(q)) maxScore = Math.max(maxScore, 800);
+        else if (em.includes(q)) maxScore = Math.max(maxScore, 300);
+      }
+
+      // 3. Carteirinha / Código
+      const cardNum = member.cardNumber.toLowerCase();
+      const code = sub.subscriptionCode.toLowerCase();
+      const qrTok = member.qrToken.toLowerCase();
+      if (cardNum === q || code === q || qrTok === q) {
+        maxScore = Math.max(maxScore, 980);
+      } else if (cardNum.startsWith(q) || code.startsWith(q)) {
+        maxScore = Math.max(maxScore, 850);
+      } else if (cardNum.includes(q) || code.includes(q)) {
+        maxScore = Math.max(maxScore, 400);
+      }
+
+      // 4. CPF
+      if (qDigits.length >= 3) {
+        const memberCpf = cleanDigits(member.cpf);
+        const holderCpf = cleanDigits(sub.holderCpf);
+        if (memberCpf === qDigits || holderCpf === qDigits) {
+          maxScore = Math.max(maxScore, 980);
+        } else if (memberCpf.startsWith(qDigits) || holderCpf.startsWith(qDigits)) {
+          maxScore = Math.max(maxScore, 860);
+        } else if (memberCpf.includes(qDigits) || holderCpf.includes(qDigits)) {
+          maxScore = Math.max(maxScore, 450);
+        }
+      }
+
+      if (maxScore > 0) {
+        scoredResults.push({
+          member,
+          subscription: sub,
+          score: maxScore,
+          createdAt: subCreatedTime,
+        });
       }
     }
   }
-  return results;
+
+  // Ordenar pelo score mais alto (quem começa com o nome primeiro), e em caso de empate, pelo cadastro mais recente
+  scoredResults.sort((a, b) => {
+    if (b.score !== a.score) {
+      return b.score - a.score;
+    }
+    return b.createdAt - a.createdAt;
+  });
+
+  return scoredResults.map(({ member, subscription }) => ({ member, subscription }));
+};
+
+export const trackConsultantClick = async (consultantIdOrCode: string): Promise<void> => {
+  if (!consultantIdOrCode) return;
+  try {
+    const current = await fetchClubState();
+    const updated = (current.consultants || []).map((c) => {
+      if (
+        c.id === consultantIdOrCode ||
+        c.referralCode.toLowerCase() === consultantIdOrCode.toLowerCase()
+      ) {
+        return { ...c, clicksCount: (c.clicksCount || 0) + 1 };
+      }
+      return c;
+    });
+    await saveClubState({ ...current, consultants: updated });
+  } catch (err) {
+    console.error('Erro ao registrar clique do consultor:', err);
+  }
 };
 
 // ============================================================================

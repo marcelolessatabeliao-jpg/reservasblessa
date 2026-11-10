@@ -217,8 +217,42 @@ export interface ClubConsultant {
   };
   referralCode: string;
   status: 'ACTIVE' | 'PENDING' | 'INACTIVE';
+  password?: string;
+  allowedPlanCodes?: string[];
+  clicksCount?: number;
   createdAt: string;
 }
+
+export interface ConsultantPlanPermission {
+  code: string;
+  name: string;
+  cycle: 'MENSAL' | 'ANUAL';
+}
+
+export const ALL_CONSULTANT_PLANS: ConsultantPlanPermission[] = [
+  { code: 'LESSA_CLUB', name: 'Lessa Club', cycle: 'MENSAL' },
+  { code: 'LESSA_CLUB_2', name: 'Lessa Club (2 pessoas)', cycle: 'MENSAL' },
+  { code: 'LESSA_CLUB_3', name: 'Lessa Club (3 pessoas)', cycle: 'MENSAL' },
+  { code: 'LESSA_CLUB_4', name: 'Lessa Club (4 pessoas)', cycle: 'MENSAL' },
+  { code: 'LESSA_CLUB_5', name: 'Lessa Club (5 pessoas)', cycle: 'MENSAL' },
+  { code: 'SERVIDOR_PASS_MENSAL', name: 'Lessa Servidor Pass (Mensal)', cycle: 'MENSAL' },
+  { code: 'STUDENT_PASS_MENSAL', name: 'Lessa Student Pass (Mensal)', cycle: 'MENSAL' },
+  { code: 'PROFESSOR_PASS_MENSAL', name: 'Lessa Professor Pass (Mensal)', cycle: 'MENSAL' },
+  { code: 'INCLUSAO_PCD_TEA', name: 'Lessa Inclusão - PDC e TEA', cycle: 'MENSAL' },
+  { code: 'PARCEIRO', name: 'Lessa Parceiro', cycle: 'MENSAL' },
+  { code: 'KIDS', name: 'Lessa Kids', cycle: 'MENSAL' },
+  { code: 'VITALICIO_60', name: 'Lessa Vitalicio 60+', cycle: 'ANUAL' },
+  { code: 'FAMILY_PUBLICIDADE', name: 'Lessa Family Publicidade', cycle: 'MENSAL' },
+  { code: 'DUO_CLUB', name: 'Lessa Duo Club', cycle: 'MENSAL' },
+  { code: 'SERVIDOR_PASS_ANUAL', name: 'Lessa Servidor Pass (Anual)', cycle: 'ANUAL' },
+  { code: 'PROFESSOR_PASS_ANUAL', name: 'Lessa Professor Pass (Anual)', cycle: 'ANUAL' },
+  { code: 'STUDENT_PASS_ANUAL', name: 'Lessa Student Pass (Anual)', cycle: 'ANUAL' },
+  { code: 'LESSA_CLUB_ANUAL', name: 'Lessa Club (Anual)', cycle: 'ANUAL' },
+  { code: 'LESSA_CLUB_2_ANUAL', name: 'Lessa Club - 2 pessoas (Anual)', cycle: 'ANUAL' },
+  { code: 'LESSA_CLUB_3_ANUAL', name: 'Lessa Club - 3 pessoas (Anual)', cycle: 'ANUAL' },
+  { code: 'LESSA_CLUB_4_ANUAL', name: 'Lessa Club - 4 pessoas (Anual)', cycle: 'ANUAL' },
+  { code: 'LESSA_CLUB_5_ANUAL', name: 'Lessa Club - 5 pessoas (Anual)', cycle: 'ANUAL' },
+];
 
 export interface ClubContractTemplate {
   id: ContractTemplateType;

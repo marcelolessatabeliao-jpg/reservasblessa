@@ -57,6 +57,8 @@ const App = () => (
           <Route path="/planos" element={<PlanosAdesaoPage />} />
           <Route path="/aderir" element={<PlanosAdesaoPage />} />
           <Route path="/socio" element={<SocioPortal />} />
+          <Route path="/consultor" element={<SocioPortal />} />
+          <Route path="/influencer" element={<SocioPortal />} />
           <Route path="/verificar" element={<VerificarCarteirinha />} />
           <Route path="/verificar/:codigo" element={<VerificarCarteirinha />} />
           <Route path="/clube-admin" element={<AdminClubEcosystem standalone />} />

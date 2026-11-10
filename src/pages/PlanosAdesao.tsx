@@ -59,6 +59,7 @@ import {
   cleanDigits,
   compressImageFile,
   fetchAddressByCep,
+  trackConsultantClick,
 } from '@/lib/club-service';
 import { ClubMemberCardView } from '@/components/club/ClubMemberCardView';
 
@@ -267,6 +268,17 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
     );
   }, [urlRef, state]);
 
+  // Rastreamento de acessos ao link ou QR Code do consultor/influencer
+  useEffect(() => {
+    if (matchedConsultant && urlRef) {
+      const sessionKey = `tracked_ref_view_${matchedConsultant.id}`;
+      if (!sessionStorage.getItem(sessionKey)) {
+        sessionStorage.setItem(sessionKey, '1');
+        trackConsultantClick(matchedConsultant.id);
+      }
+    }
+  }, [matchedConsultant, urlRef]);
+
   // Ciclo geral e por card
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('ANNUAL');
   const [cardCycleMap, setCardCycleMap] = useState<Record<string, BillingCycle>>({});
@@ -356,11 +368,29 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
   }, [urlPlan]);
 
   // Sempre garante lista de modalidades (mesmo antes do fetch terminar)
+  // Se o consultor/influencer possuir permissão específica de planos configurada, exibe apenas os liberados para ele
   const activeModalities: ClubModality[] = useMemo(() => {
-    return state?.modalities && state.modalities.length > 0
-      ? state.modalities
-      : DEFAULT_CLUB_MODALITIES;
-  }, [state]);
+    const list =
+      state?.modalities && state.modalities.length > 0
+        ? state.modalities
+        : DEFAULT_CLUB_MODALITIES;
+
+    if (matchedConsultant?.allowedPlanCodes && matchedConsultant.allowedPlanCodes.length > 0) {
+      const allowed = matchedConsultant.allowedPlanCodes.map((c) => c.toUpperCase());
+      const filtered = list.filter((m) => {
+        return allowed.some(
+          (code) =>
+            m.code.toUpperCase() === code ||
+            m.id.toUpperCase() === code ||
+            m.name.toUpperCase().includes(code) ||
+            code.includes(m.name.toUpperCase())
+        );
+      });
+      return filtered.length > 0 ? filtered : list;
+    }
+
+    return list;
+  }, [state, matchedConsultant]);
 
   const findModality = (code: string): ClubModality => {
     return (
