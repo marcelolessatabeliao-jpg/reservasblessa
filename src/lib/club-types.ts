@@ -102,6 +102,9 @@ export interface ClubInvoice {
   pixPayload?: string;
   pixQrCode?: string;
   description?: string;
+  carneGroup?: number;
+  invoiceKind?: 'MENSALIDADE' | 'ADESAO' | 'AVULSA';
+  asaasSubscriptionId?: string;
   createdAt: string;
 }
 

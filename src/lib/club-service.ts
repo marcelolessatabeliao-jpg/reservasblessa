@@ -1225,14 +1225,20 @@ export const generateAsaasChargeForClubInvoice = async (
 
 export const generateAllAsaasInvoicesForSubscription = async (
   subscription: ClubSubscription,
-  billingType: 'PIX' | 'CREDIT_CARD' | 'DEBIT_CARD' = 'PIX'
+  billingType: 'PIX' | 'CREDIT_CARD' | 'DEBIT_CARD' | 'BOLETO' = 'PIX',
+  invoiceIds?: string[]
 ): Promise<ClubDatabaseState> => {
   const state = await fetchClubState();
   const subIdx = state.subscriptions.findIndex((s) => s.id === subscription.id);
   if (subIdx < 0) return state;
 
   const targetSub = state.subscriptions[subIdx];
-  const invoicesToGenerate = targetSub.invoices.filter((inv) => !inv.asaasPaymentId && inv.amount > 0);
+  const invoicesToGenerate = targetSub.invoices.filter((inv) => {
+    if (invoiceIds && invoiceIds.length > 0) {
+      return invoiceIds.includes(inv.id) && inv.amount > 0 && inv.status !== 'PAID' && inv.status !== 'CANCELLED';
+    }
+    return !inv.asaasPaymentId && inv.amount > 0 && inv.status !== 'PAID' && inv.status !== 'CANCELLED';
+  });
 
   for (const inv of invoicesToGenerate) {
     try {
@@ -1278,6 +1284,134 @@ export const generateAllAsaasInvoicesForSubscription = async (
   }
 
   return saveClubState(state);
+};
+
+export interface EmitCarneMonthlyChargesParams {
+  subscriptionId: string;
+  invoiceIds: string[];
+  billingType?: 'PIX' | 'BOLETO' | 'UNDEFINED' | 'CREDIT_CARD' | 'DEBIT_CARD';
+  firstDueDate?: string;
+  dueDay?: number;
+  equalizedAmount?: number;
+  activateCardRecurrence?: boolean;
+  cardLast4?: string;
+}
+
+export const emitCarneMonthlyChargesInAsaas = async (
+  params: EmitCarneMonthlyChargesParams
+): Promise<{
+  state: ClubDatabaseState;
+  generatedCount: number;
+  failedCount: number;
+  firstError?: string;
+}> => {
+  const state = await fetchClubState();
+  const subIdx = state.subscriptions.findIndex((s) => s.id === params.subscriptionId);
+  if (subIdx < 0) {
+    throw new Error('Assinatura do associado não encontrada.');
+  }
+
+  const targetSub = state.subscriptions[subIdx];
+  const baseDate = params.firstDueDate ? new Date(`${params.firstDueDate}T12:00:00`) : new Date();
+  const fixedDay = params.dueDay || baseDate.getDate() || targetSub.dueDay || 10;
+
+  const eligibleInvoices = targetSub.invoices.filter((inv) =>
+    params.invoiceIds.includes(inv.id)
+  );
+
+  let generatedCount = 0;
+  let failedCount = 0;
+  let firstError: string | undefined;
+
+  const asaasBillingType =
+    !params.billingType || params.billingType === 'CREDIT_CARD' || params.billingType === 'DEBIT_CARD'
+      ? 'UNDEFINED'
+      : params.billingType;
+
+  const loginUser = targetSub.holderEmail || targetSub.holderCpf;
+  const loginPass = getBirthDatePassword(targetSub.holderBirthDate);
+  const portalUrl =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}/socio`
+      : 'https://balneariolessa.com.br/socio';
+
+  for (let idx = 0; idx < eligibleInvoices.length; idx++) {
+    const inv = eligibleInvoices[idx];
+    // Atualiza datas subsequentes com dia fixo e valor equalizado caso informado
+    const due = new Date(baseDate.getFullYear(), baseDate.getMonth() + idx, 1);
+    const maxDayOfMonth = new Date(due.getFullYear(), due.getMonth() + 1, 0).getDate();
+    due.setDate(Math.min(fixedDay, maxDayOfMonth));
+    const yyyy = due.getFullYear();
+    const mm = String(due.getMonth() + 1).padStart(2, '0');
+    const dd = String(due.getDate()).padStart(2, '0');
+    inv.dueDate = `${yyyy}-${mm}-${dd}`;
+    inv.referenceMonth = `${mm}/${yyyy}`;
+
+    if (typeof params.equalizedAmount === 'number' && Number.isFinite(params.equalizedAmount) && params.equalizedAmount > 0) {
+      inv.amount = Number(params.equalizedAmount.toFixed(2));
+    }
+
+    if (params.activateCardRecurrence && params.cardLast4) {
+      inv.paymentMethod = targetSub.registeredCard?.cardType === 'DEBIT' ? 'DEBIT_CARD' : 'CREDIT_CARD';
+    }
+
+    if (inv.amount <= 0) {
+      failedCount++;
+      if (!firstError) firstError = 'Parcelas com valor R$ 0,00 não podem ser emitidas no Asaas.';
+      continue;
+    }
+
+    try {
+      const asaasDescription = [
+        `Lessa Club (${targetSub.subscriptionCode}) - ${inv.description || 'Mensalidade'} (${inv.installmentNumber}/${inv.totalInstallments})`,
+        params.activateCardRecurrence && params.cardLast4 ? `💳 Recorrência Cartão •••• ${params.cardLast4}` : '',
+        `🔐 Portal do Sócio: ${portalUrl}`,
+        `👤 Usuário: ${loginUser}`,
+        `🔑 Senha: ${loginPass}`,
+      ]
+        .filter(Boolean)
+        .join('\n');
+
+      const { data, error } = await supabase.functions.invoke('create-payment', {
+        body: {
+          orderId: inv.id,
+          name: targetSub.holderName,
+          email: targetSub.holderEmail || 'socio@balneariolessa.com.br',
+          phone: cleanDigits(targetSub.holderPhone),
+          cpf: cleanDigits(targetSub.holderCpf),
+          billingType: asaasBillingType,
+          value: inv.amount,
+          dueDate: inv.dueDate,
+          description: asaasDescription,
+        },
+      });
+
+      if (!error && data?.success && data.data) {
+        inv.asaasPaymentId = data.data.paymentId;
+        inv.invoiceUrl = data.data.invoiceUrl;
+        if (data.data.pix) {
+          inv.pixPayload = data.data.pix.payload;
+          inv.pixQrCode = data.data.pix.encodedImage;
+        }
+        generatedCount++;
+      } else {
+        failedCount++;
+        if (!firstError) {
+          firstError = data?.error || error?.message || 'Falha ao gerar cobrança no Asaas.';
+        }
+      }
+    } catch (err: any) {
+      failedCount++;
+      if (!firstError) {
+        firstError = err?.message || 'Erro de comunicação com Asaas.';
+      }
+    }
+  }
+
+  targetSub.dueDay = fixedDay;
+  targetSub.updatedAt = new Date().toISOString();
+  const saved = await saveClubState(state);
+  return { state: saved, generatedCount, failedCount, firstError };
 };
 
 export const processClubCreditCardPayment = async (

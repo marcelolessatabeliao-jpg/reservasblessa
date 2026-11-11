@@ -103,6 +103,7 @@ import {
   markClubInvoicePaid,
   generateAsaasChargeForClubInvoice,
   generateUnifiedPaymentLink,
+  emitCarneMonthlyChargesInAsaas,
   getQrCodeImageUrl,
   renderSubscriptionContractHtml,
   findMemberOrSubscriptionByQuery,
@@ -225,8 +226,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     planSummaryLabel: '',
   });
 
-  // Perfil Financeiro do Cliente states (matching Labcard Perfil financeiro screenshot)
-  const [selectedCarneNumber, setSelectedCarneNumber] = useState('1');
+  // Perfil Financeiro do Cliente states
+  const [selectedCarneNumber, setSelectedCarneNumber] = useState('ALL');
   const [selectedClientInvoiceIdsForDelete, setSelectedClientInvoiceIdsForDelete] =
     useState<string[]>([]);
   const [editingClientInvoiceId, setEditingClientInvoiceId] = useState<
@@ -236,11 +237,13 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
   const [editInvAmount, setEditInvAmount] = useState('');
   const [editInvDesc, setEditInvDesc] = useState('');
   const [showFaturaAvulsaForm, setShowFaturaAvulsaForm] = useState(false);
-  const [avulsaDesc, setAvulsaDesc] = useState('Mensalidade / Taxa Avulsa');
-  const [avulsaAmount, setAvulsaAmount] = useState('49.90');
+  const [avulsaDesc, setAvulsaDesc] = useState('');
+  const [avulsaAmount, setAvulsaAmount] = useState('');
   const [avulsaDueDate, setAvulsaDueDate] = useState(
     () => new Date().toISOString().split('T')[0]
   );
+  const [avulsaEmitAsaas, setAvulsaEmitAsaas] = useState(true);
+  const [avulsaLoading, setAvulsaLoading] = useState(false);
 
   // Modal para Visualizar / Gerar Cobrança PIX da Parcela (Botão Azul QR Code da Tabela)
   const [selectedInvoiceForPixModal, setSelectedInvoiceForPixModal] =
@@ -252,14 +255,40 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
   const [unifiedCardLoading, setUnifiedCardLoading] = useState(false);
   const [unifiedCardUrl, setUnifiedCardUrl] = useState('');
 
-  // Modal para GERAR CARNÊ / + ADD CARNÊ
+  // Modal para + ADD CARNÊ (Adicionar novo carnê baseado na soma dos planos)
   const [carneModalOpen, setCarneModalOpen] = useState(false);
   const [carneInstallmentCount, setCarneInstallmentCount] = useState<number>(12);
-  const [carneInstallmentValue, setCarneInstallmentValue] = useState<string>('49.90');
-  const [carneFirstDueDate, setCarneFirstDueDate] = useState<string>(
+  const [carneInstallmentValue, setCarneInstallmentValue] = useState<string>('0.00');
+  const [carneAdhesionDueDate, setCarneAdhesionDueDate] = useState<string>(
     () => new Date().toISOString().split('T')[0]
   );
+  const [carneFirstDueDate, setCarneFirstDueDate] = useState<string>(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() + 1);
+    return d.toISOString().split('T')[0];
+  });
   const [carneDescription, setCarneDescription] = useState('Mensalidade');
+  const [carneRecurrenceMode, setCarneRecurrenceMode] = useState<'NONE' | 'REGISTERED_CARD'>('NONE');
+  const [carneEmitAsaasOnCreate, setCarneEmitAsaasOnCreate] = useState(false);
+  const [carneCreateLoading, setCarneCreateLoading] = useState(false);
+
+  // Modal para GERAR CARNÊ (Botão inferior -> emitir cobranças mensais no Asaas)
+  const [gerarCarneAsaasModalOpen, setGerarCarneAsaasModalOpen] = useState(false);
+  const [gerarCarneAsaasCount, setGerarCarneAsaasCount] = useState<number>(12);
+  const [gerarCarneAsaasFirstDue, setGerarCarneAsaasFirstDue] = useState<string>(
+    () => new Date().toISOString().split('T')[0]
+  );
+  const [gerarCarneAsaasDueDay, setGerarCarneAsaasDueDay] = useState<number>(10);
+  const [gerarCarneAsaasRecurrence, setGerarCarneAsaasRecurrence] = useState<'NONE' | 'REGISTERED_CARD'>('NONE');
+  const [gerarCarneAsaasBillingType, setGerarCarneAsaasBillingType] = useState<'UNDEFINED' | 'BOLETO' | 'PIX'>('UNDEFINED');
+  const [gerarCarneAsaasLoading, setGerarCarneAsaasLoading] = useState(false);
+
+  // Modal de Confirmação Obrigatória para Exclusão / Estorno de Parcelas
+  const [invoiceDeleteConfirm, setInvoiceDeleteConfirm] = useState<
+    | null
+    | { mode: 'BULK'; invoices: ClubInvoice[] }
+    | { mode: 'SINGLE'; invoice: ClubInvoice }
+  >(null);
 
   // Estado para exclusão segura de clientes (com confirmação)
   const [clientToDelete, setClientToDelete] = useState<ClubSubscription | null>(null);
@@ -1761,9 +1790,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       situacaoLiberar === 'SIM' && situacaoInativar === 'NAO'
         ? 'ACTIVE'
         : 'INACTIVE';
+    const parsedEditMonthly = Number(String(editClientData.monthlyEquivalent).replace(',', '.'));
     const monthlyVal =
-      Number(editClientData.monthlyEquivalent) ||
-      selectedSubForDetail.monthlyEquivalent;
+      Number.isFinite(parsedEditMonthly) && parsedEditMonthly >= 0
+        ? parsedEditMonthly
+        : selectedSubForDetail.monthlyEquivalent;
     const updatedSub: ClubSubscription = {
       ...selectedSubForDetail,
       status: targetStatus,
@@ -1834,35 +1865,106 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     });
   };
 
+  const getSubscriptionPlanBreakdown = (sub: ClubSubscription) => {
+    const members = Array.isArray(sub.members) ? sub.members : [];
+    const items = members.map((m) => {
+      const mod = (state?.modalities || []).find(
+        (md) => md.code === m.modalityCode || md.name === m.modalityName
+      );
+      let monthly = 0;
+      if (typeof m.monthlyValue === 'number' && Number.isFinite(m.monthlyValue) && m.monthlyValue >= 0) {
+        monthly = m.monthlyValue;
+      } else if (mod && !mod.isFreeTier) {
+        monthly =
+          sub.billingCycle === 'ANNUAL'
+            ? Number(mod.annualInstallment ?? mod.monthlyPrice) || 0
+            : Number(mod.monthlyPrice) || 0;
+      }
+      return {
+        memberId: m.id,
+        role: m.role,
+        fullName: m.fullName,
+        modalityName: m.modalityName || m.planCycleLabel || 'Plano',
+        monthlyValue: Number(monthly.toFixed(2)),
+      };
+    });
+    const sumFromMembers = Number(
+      items.reduce((acc, item) => acc + item.monthlyValue, 0).toFixed(2)
+    );
+    const fallbackTotal =
+      typeof sub.monthlyEquivalent === 'number' && Number.isFinite(sub.monthlyEquivalent) && sub.monthlyEquivalent >= 0
+        ? Number(sub.monthlyEquivalent.toFixed(2))
+        : 0;
+    return {
+      items,
+      total: items.length > 0 ? sumFromMembers : fallbackTotal,
+    };
+  };
+
+  const getSubscriptionPlanMonthlyTotal = (sub: ClubSubscription): number => {
+    return getSubscriptionPlanBreakdown(sub).total;
+  };
+
+  const buildSafeMonthlyDueDate = (baseDate: Date, monthOffset: number, preferredDay: number): Date => {
+    const candidateMonth = new Date(baseDate.getFullYear(), baseDate.getMonth() + monthOffset, 1, 12, 0, 0);
+    const lastDay = new Date(candidateMonth.getFullYear(), candidateMonth.getMonth() + 1, 0).getDate();
+    candidateMonth.setDate(Math.min(Math.max(1, preferredDay), lastDay));
+    return candidateMonth;
+  };
+
   const handleGenerateNewCarneForClient = async (
     sub: ClubSubscription,
     count = 12,
     customValue?: number,
-    firstDueDateStr?: string,
+    firstMonthlyDueDateStr?: string,
     desc = 'Mensalidade',
-    mode: 'append' | 'replace' = 'append'
+    mode: 'append' | 'replace' = 'append',
+    options?: {
+      adhesionDueDateStr?: string;
+      recurrenceMode?: 'NONE' | 'REGISTERED_CARD';
+      emitInAsaas?: boolean;
+    }
   ) => {
     if (!state) return;
-    const baseDate = firstDueDateStr
-      ? new Date(`${firstDueDateStr}T12:00:00`)
-      : new Date();
+    const planCalculatedVal = getSubscriptionPlanMonthlyTotal(sub);
     const monthlyVal =
-      customValue !== undefined ? customValue : sub.monthlyEquivalent || 49.9;
-    const startIndex = mode === 'append' ? sub.invoices.length : 0;
-    const totalInst = mode === 'append' ? startIndex + count : count;
+      typeof customValue === 'number' && Number.isFinite(customValue) && customValue >= 0
+        ? Number(customValue.toFixed(2))
+        : planCalculatedVal;
 
+    const todayStr = new Date().toISOString().split('T')[0];
+    const adhesionDate = new Date(`${options?.adhesionDueDateStr || firstMonthlyDueDateStr || todayStr}T12:00:00`);
+    const firstMonthlyDate = new Date(`${firstMonthlyDueDateStr || todayStr}T12:00:00`);
+    const existingGroups = (sub.invoices || []).map((i) => Number(i.carneGroup) || 1);
+    const nextCarneGroup = existingGroups.length > 0 && mode === 'append' ? Math.max(...existingGroups) + 1 : 1;
+
+    const startIndex = mode === 'append' ? sub.invoices.length : 0;
+    const totalInst = count;
+    const hasRegisteredCard = Boolean(sub.registeredCard?.last4Digits);
+    const useCardRecurrence = options?.recurrenceMode === 'REGISTERED_CARD' && hasRegisteredCard;
+    const invPaymentMethod: ClubPaymentMethod = useCardRecurrence
+      ? sub.registeredCard?.cardType === 'DEBIT'
+        ? 'DEBIT_CARD'
+        : 'CREDIT_CARD'
+      : sub.paymentMethod;
+
+    const nowIso = new Date().toISOString();
     const newInvoices: ClubInvoice[] = Array.from({ length: count }, (_, idx) => {
-      const due = new Date(
-        baseDate.getFullYear(),
-        baseDate.getMonth() + idx,
-        sub.dueDay || baseDate.getDate()
-      );
+      const due =
+        idx === 0 && options?.adhesionDueDateStr
+          ? adhesionDate
+          : buildSafeMonthlyDueDate(
+              firstMonthlyDate,
+              options?.adhesionDueDateStr ? Math.max(0, idx - 1) : idx,
+              firstMonthlyDate.getDate() || sub.dueDay || 10
+            );
       const yyyy = due.getFullYear();
       const mm = String(due.getMonth() + 1).padStart(2, '0');
       const dd = String(due.getDate()).padStart(2, '0');
-      const installmentNum = startIndex + idx + 1;
+      const installmentNum = idx + 1;
+      const isAdhesionFirst = idx === 0 && Boolean(options?.adhesionDueDateStr);
       return {
-        id: `inv_${Date.now()}_${installmentNum}`,
+        id: `inv_${Date.now()}_${startIndex + installmentNum}`,
         subscriptionId: sub.id,
         subscriptionCode: sub.subscriptionCode,
         holderName: sub.holderName,
@@ -1873,10 +1975,12 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         referenceMonth: `${mm}/${yyyy}`,
         amount: monthlyVal,
         dueDate: `${yyyy}-${mm}-${dd}`,
-        paymentMethod: sub.paymentMethod,
+        paymentMethod: invPaymentMethod,
         status: 'PENDING',
-        description: desc,
-        createdAt: new Date().toISOString(),
+        description: isAdhesionFirst ? `${desc} (Adesão / 1ª Parcela)` : desc,
+        carneGroup: nextCarneGroup,
+        invoiceKind: isAdhesionFirst ? 'ADESAO' : 'MENSALIDADE',
+        createdAt: nowIso,
       };
     });
 
@@ -1884,7 +1988,14 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       mode === 'append' ? [...sub.invoices, ...newInvoices] : newInvoices;
     const updatedSub: ClubSubscription = {
       ...sub,
+      monthlyEquivalent: monthlyVal,
+      totalContractValue:
+        sub.billingCycle === 'ANNUAL'
+          ? Number((monthlyVal * 12).toFixed(2))
+          : monthlyVal,
+      paymentMethod: useCardRecurrence ? invPaymentMethod : sub.paymentMethod,
       invoices: finalInvoices,
+      updatedAt: nowIso,
     };
     const nextState: ClubDatabaseState = {
       ...state,
@@ -1893,10 +2004,43 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       ),
     };
     setSelectedSubForDetail(updatedSub);
+    setSelectedCarneNumber(String(nextCarneGroup));
     await persist(nextState);
+
+    if (options?.emitInAsaas && monthlyVal > 0) {
+      try {
+        const res = await emitCarneMonthlyChargesInAsaas({
+          subscriptionId: updatedSub.id,
+          invoiceIds: newInvoices.map((i) => i.id),
+          billingType: useCardRecurrence ? 'UNDEFINED' : 'UNDEFINED',
+          firstDueDate: newInvoices[0]?.dueDate,
+          dueDay: firstMonthlyDate.getDate() || sub.dueDay || 10,
+          activateCardRecurrence: useCardRecurrence,
+          cardLast4: sub.registeredCard?.last4Digits,
+        });
+        setState(res.state);
+        const syncedSub = res.state.subscriptions.find((s) => s.id === updatedSub.id);
+        if (syncedSub) {
+          setSelectedSubForDetail(syncedSub);
+        }
+        toast({
+          title: `Carnê ${nextCarneGroup} criado e enviado ao Asaas!`,
+          description: `${res.generatedCount} cobrança(s) emitida(s) de ${formatCurrency(monthlyVal)}${res.failedCount > 0 ? ` (${res.failedCount} não emitidas: ${res.firstError || 'verifique os dados'})` : ''}.`,
+        });
+        return syncedSub || updatedSub;
+      } catch (err: any) {
+        toast({
+          title: `Carnê ${nextCarneGroup} salvo localmente`,
+          description: `Não foi possível emitir no Asaas agora: ${err?.message || 'verifique o CPF/integração'}. Use "GERAR CARNÊ" depois para emitir no Asaas.`,
+          variant: 'destructive',
+        });
+        return updatedSub;
+      }
+    }
+
     toast({
-      title: 'Carnê gerado com sucesso!',
-      description: `${count} parcelas de ${formatCurrency(monthlyVal)} para ${sub.holderName}.`,
+      title: `Carnê ${nextCarneGroup} gerado com sucesso!`,
+      description: `${count} parcelas de ${formatCurrency(monthlyVal)} adicionadas para ${sub.holderName}.`,
     });
     return updatedSub;
   };
@@ -10407,25 +10551,67 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   • Barra inferior azul-clara:
                     [FATURA AVULSA] [GERAR CARNÊ] [TODOS EM CARTÃO (Link único)] [CARNÊ SIMPLES]
               ===================================================================== */}
-              {clientDetailTool === 'FINANCEIRO_CLIENTE' && (
+              {clientDetailTool === 'FINANCEIRO_CLIENTE' && (() => {
+                const planBreakdown = getSubscriptionPlanBreakdown(selectedSubForDetail);
+                const allInvoices = selectedSubForDetail.invoices || [];
+                const availableCarneGroups = Array.from(
+                  new Set(allInvoices.map((inv) => String(Number(inv.carneGroup) || 1)))
+                ).sort((a, b) => Number(a) - Number(b));
+                const filteredInvoices =
+                  selectedCarneNumber === 'ALL'
+                    ? allInvoices
+                    : allInvoices.filter(
+                        (inv) => String(Number(inv.carneGroup) || 1) === selectedCarneNumber
+                      );
+
+                return (
                 <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-4 shadow-sm">
                   {/* Título Perfil financeiro - NOME DO CLIENTE */}
-                  <div className="border-b border-slate-200 pb-2">
+                  <div className="border-b border-slate-200 pb-2 flex flex-wrap items-center justify-between gap-2">
                     <h3 className="text-xl font-normal text-slate-700">
                       Perfil financeiro -{' '}
                       <span className="underline font-semibold text-slate-900 uppercase">
                         {selectedSubForDetail.holderName}
                       </span>
                     </h3>
+                    <div className="text-xs font-bold text-slate-600 bg-slate-100 border border-slate-200 rounded-lg px-3 py-1.5">
+                      Soma dos planos selecionados:{' '}
+                      <span className="text-[#004d00] font-black">
+                        {formatCurrency(planBreakdown.total)}/mês
+                      </span>
+                    </div>
                   </div>
 
                   {/* Faixa verde-clara superior com botões ADD CARNÊ e VOLTAR */}
-                  <div className="bg-[#dff0d8] border border-[#d6e9c6] rounded-md py-3 px-4 flex items-center justify-center gap-3">
+                  <div className="bg-[#dff0d8] border border-[#d6e9c6] rounded-md py-3 px-4 flex flex-wrap items-center justify-center gap-3">
                     <button
                       type="button"
-                      onClick={() =>
-                        handleGenerateNewCarneForClient(selectedSubForDetail)
-                      }
+                      onClick={() => {
+                        const calcTotal = getSubscriptionPlanMonthlyTotal(selectedSubForDetail);
+                        const todayIso = new Date().toISOString().split('T')[0];
+                        const nextMonthDate = new Date();
+                        nextMonthDate.setMonth(nextMonthDate.getMonth() + 1);
+                        const preferredDay = selectedSubForDetail.dueDay || nextMonthDate.getDate();
+                        const maxD = new Date(nextMonthDate.getFullYear(), nextMonthDate.getMonth() + 1, 0).getDate();
+                        nextMonthDate.setDate(Math.min(preferredDay, maxD));
+
+                        setCarneInstallmentValue(calcTotal.toFixed(2));
+                        setCarneAdhesionDueDate(todayIso);
+                        setCarneFirstDueDate(nextMonthDate.toISOString().split('T')[0]);
+                        setCarneInstallmentCount(selectedSubForDetail.installments || 12);
+                        setCarneDescription(
+                          selectedSubForDetail.planSummaryLabel
+                            ? `Mensalidade - ${selectedSubForDetail.planSummaryLabel}`
+                            : 'Mensalidade'
+                        );
+                        setCarneRecurrenceMode(
+                          selectedSubForDetail.registeredCard?.last4Digits
+                            ? 'REGISTERED_CARD'
+                            : 'NONE'
+                        );
+                        setCarneEmitAsaasOnCreate(false);
+                        setCarneModalOpen(true);
+                      }}
                       className="bg-[#004d00] hover:bg-emerald-900 text-white font-bold text-xs uppercase px-4 py-2 rounded shadow-sm flex items-center gap-1.5"
                     >
                       <Plus className="w-3.5 h-3.5" /> ADD CARNÊ
@@ -10450,15 +10636,28 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         onChange={(e) => setSelectedCarneNumber(e.target.value)}
                         className="h-9 w-56 rounded border border-slate-300 px-3 text-xs font-semibold bg-white text-slate-800"
                       >
-                        <option value="1">Carnê 1</option>
+                        <option value="ALL">Todos os Carnês ({allInvoices.length})</option>
+                        {availableCarneGroups.map((grp) => {
+                          const cnt = allInvoices.filter(
+                            (inv) => String(Number(inv.carneGroup) || 1) === grp
+                          ).length;
+                          return (
+                            <option key={grp} value={grp}>
+                              Carnê {grp} ({cnt} parcelas)
+                            </option>
+                          );
+                        })}
                       </select>
                     </div>
                     <button
                       type="button"
                       onClick={() =>
                         toast({
-                          title: 'Carnê 1 carregado',
-                          description: `Exibindo ${selectedSubForDetail.invoices.length} parcelas do cliente.`,
+                          title:
+                            selectedCarneNumber === 'ALL'
+                              ? 'Todos os carnês carregados'
+                              : `Carnê ${selectedCarneNumber} carregado`,
+                          description: `Exibindo ${filteredInvoices.length} parcela(s) do cliente.`,
                         })
                       }
                       className="h-9 bg-[#004d00] hover:bg-emerald-900 text-white font-bold text-xs uppercase px-4 rounded shadow-sm"
@@ -10517,6 +10716,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         <Input
                           type="number"
                           step="0.01"
+                          min="0"
                           value={editInvAmount}
                           onChange={(e) => setEditInvAmount(e.target.value)}
                           className="h-8 text-xs bg-white mt-1"
@@ -10529,7 +10729,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                             (inv) => inv.id === editingClientInvoiceId
                           );
                           const newDueDate = editInvDueDate || targetInv?.dueDate || '';
-                          const newAmount = Number(editInvAmount) || targetInv?.amount || 0;
+                          const parsedEditAmt = Number(String(editInvAmount).replace(',', '.'));
+                          const newAmount =
+                            Number.isFinite(parsedEditAmt) && parsedEditAmt >= 0
+                              ? Number(parsedEditAmt.toFixed(2))
+                              : targetInv?.amount ?? 0;
 
                           let asaasSyncSuccess = false;
                           let asaasErrorMsg = '';
@@ -10559,6 +10763,9 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                     description:
                                       editInvDesc.trim() || inv.description,
                                     dueDate: newDueDate,
+                                    referenceMonth: newDueDate
+                                      ? `${newDueDate.slice(5, 7)}/${newDueDate.slice(0, 4)}`
+                                      : inv.referenceMonth,
                                     amount: newAmount,
                                   }
                                 : inv
@@ -10592,116 +10799,17 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                             toast({ title: 'Parcela atualizada com sucesso!' });
                           }
                         }}
-                        className="h-8 bg-[#004d00] text-white text-xs font-bold"
+                        className="h-8 bg-[#004d00] hover:bg-emerald-900 text-white text-xs font-bold"
                       >
                         Salvar Parcela
                       </Button>
                       <Button
                         size="sm"
-                        variant="ghost"
+                        variant="outline"
                         onClick={() => setEditingClientInvoiceId(null)}
-                        className="h-8 text-xs"
+                        className="h-8 text-xs text-slate-700 hover:bg-slate-100"
                       >
                         Cancelar
-                      </Button>
-                    </div>
-                  )}
-
-                  {/* Formulário inline para FATURA AVULSA */}
-                  {showFaturaAvulsaForm && (
-                    <div className="bg-sky-50 border border-sky-200 rounded-xl p-3.5 flex flex-wrap items-end gap-3">
-                      <div className="flex-1 min-w-[180px]">
-                        <Label className="text-xs font-bold text-sky-950">
-                          Descrição da Fatura Avulsa
-                        </Label>
-                        <Input
-                          value={avulsaDesc}
-                          onChange={(e) => setAvulsaDesc(e.target.value)}
-                          className="h-8 text-xs bg-white mt-1"
-                        />
-                      </div>
-                      <div className="w-36">
-                        <Label className="text-xs font-bold text-sky-950">
-                          Vencimento
-                        </Label>
-                        <Input
-                          type="date"
-                          value={avulsaDueDate}
-                          onChange={(e) => setAvulsaDueDate(e.target.value)}
-                          className="h-8 text-xs bg-white mt-1"
-                        />
-                      </div>
-                      <div className="w-32">
-                        <Label className="text-xs font-bold text-sky-950">
-                          Valor (R$)
-                        </Label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          value={avulsaAmount}
-                          onChange={(e) => setAvulsaAmount(e.target.value)}
-                          className="h-8 text-xs bg-white mt-1"
-                        />
-                      </div>
-                      <Button
-                        size="sm"
-                        onClick={async () => {
-                          const nextNum =
-                            selectedSubForDetail.invoices.length + 1;
-                          const newInv: ClubInvoice = {
-                            id: `inv_avulsa_${Date.now()}`,
-                            subscriptionId: selectedSubForDetail.id,
-                            subscriptionCode:
-                              selectedSubForDetail.subscriptionCode,
-                            holderName: selectedSubForDetail.holderName,
-                            holderCpf: selectedSubForDetail.holderCpf,
-                            holderPhone: selectedSubForDetail.holderPhone,
-                            installmentNumber: nextNum,
-                            totalInstallments: nextNum,
-                            referenceMonth: avulsaDueDate
-                              .slice(0, 7)
-                              .split('-')
-                              .reverse()
-                              .join('/'),
-                            amount: Number(avulsaAmount) || 49.9,
-                            dueDate: avulsaDueDate,
-                            paymentMethod: 'PIX',
-                            status: 'PENDING',
-                            description: avulsaDesc.trim() || 'Fatura Avulsa',
-                            createdAt: new Date().toISOString(),
-                          };
-                          const updatedSub: ClubSubscription = {
-                            ...selectedSubForDetail,
-                            invoices: [
-                              ...selectedSubForDetail.invoices,
-                              newInv,
-                            ],
-                          };
-                          const nextState: ClubDatabaseState = {
-                            ...state,
-                            subscriptions: (state.subscriptions || []).map((s) =>
-                              s.id === updatedSub.id ? updatedSub : s
-                            ),
-                          };
-                          setSelectedSubForDetail(updatedSub);
-                          await persist(nextState);
-                          setShowFaturaAvulsaForm(false);
-                          toast({
-                            title: 'Fatura Avulsa adicionada!',
-                            description: `${newInv.description} — ${formatCurrency(newInv.amount)}`,
-                          });
-                        }}
-                        className="h-8 bg-[#004d00] text-white text-xs font-bold"
-                      >
-                        + Lançar Fatura Avulsa
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => setShowFaturaAvulsaForm(false)}
-                        className="h-8 text-xs"
-                      >
-                        Fechar
                       </Button>
                     </div>
                   )}
@@ -10735,11 +10843,42 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           <th className="py-2.5 px-3 border-r border-emerald-800/80 text-center">
                             AÇÃO
                           </th>
-                          <th className="py-2.5 px-3 text-center">EXCLUIR</th>
+                          <th className="py-2.5 px-3 text-center">
+                            <div className="flex flex-col items-center gap-1">
+                              <span>EXCLUIR</span>
+                              <input
+                                type="checkbox"
+                                title="Selecionar/Desmarcar todas"
+                                checked={
+                                  filteredInvoices.length > 0 &&
+                                  filteredInvoices.every((inv) =>
+                                    selectedClientInvoiceIdsForDelete.includes(inv.id)
+                                  )
+                                }
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedClientInvoiceIdsForDelete(
+                                      filteredInvoices.map((inv) => inv.id)
+                                    );
+                                  } else {
+                                    setSelectedClientInvoiceIdsForDelete([]);
+                                  }
+                                }}
+                                className="w-3.5 h-3.5 rounded cursor-pointer"
+                              />
+                            </div>
+                          </th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-emerald-800/80">
-                        {selectedSubForDetail.invoices.map((inv, idx) => {
+                        {filteredInvoices.length === 0 ? (
+                          <tr>
+                            <td colSpan={9} className="py-6 text-center text-emerald-100/80 font-medium">
+                              Nenhuma parcela encontrada para este filtro. Clique em + ADD CARNÊ ou FATURA AVULSA para lançar cobranças.
+                            </td>
+                          </tr>
+                        ) : (
+                        filteredInvoices.map((inv, idx) => {
                           const isPaid = inv.status === 'PAID';
                           const todayIso = new Date()
                             .toISOString()
@@ -10765,7 +10904,24 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                 )}
                               </td>
                               <td className="py-2 px-3 border-r border-emerald-800/60">
-                                {inv.description || 'Mensalidade'}
+                                <div className="flex flex-col gap-0.5">
+                                  <span>{inv.description || 'Mensalidade'}</span>
+                                  <div className="flex flex-wrap items-center gap-1 text-[10px]">
+                                    <span className="bg-emerald-950/60 text-emerald-200 px-1.5 py-0.2 rounded">
+                                      Carnê {Number(inv.carneGroup) || 1}
+                                    </span>
+                                    {inv.invoiceKind === 'AVULSA' && (
+                                      <span className="bg-sky-500/30 text-sky-100 px-1.5 py-0.2 rounded font-semibold">
+                                        AVULSA
+                                      </span>
+                                    )}
+                                    {inv.asaasPaymentId && (
+                                      <span className="bg-emerald-400/20 text-emerald-200 px-1.5 py-0.2 rounded font-semibold">
+                                        Asaas ✓
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
                               </td>
                               <td className="py-2 px-3 border-r border-emerald-800/60 font-semibold">
                                 {inv.installmentNumber} /{' '}
@@ -10837,40 +10993,20 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                     <Printer className="w-3.5 h-3.5" />
                                   </button>
 
-                                  {/* 3. Botão Vermelho X (Estornar / Marcar Não Paga) */}
+                                  {/* 3. Botão Vermelho X (Estornar ou Excluir com confirmação obrigatória) */}
                                   <button
                                     type="button"
-                                    title="Estornar / Marcar parcela como NÃO PAGA"
-                                    onClick={async () => {
-                                      const updatedInvoices =
-                                        selectedSubForDetail.invoices.map((i) =>
-                                          i.id === inv.id
-                                            ? {
-                                                ...i,
-                                                status: 'PENDING' as const,
-                                                paidAt: undefined,
-                                              }
-                                            : i
-                                        );
-                                      const updatedSub: ClubSubscription = {
-                                        ...selectedSubForDetail,
-                                        invoices: updatedInvoices,
-                                      };
-                                      const nextState: ClubDatabaseState = {
-                                        ...state,
-                                        subscriptions: (state.subscriptions || []).map(
-                                          (s) =>
-                                            s.id === updatedSub.id
-                                              ? updatedSub
-                                              : s
-                                        ),
-                                      };
-                                      setSelectedSubForDetail(updatedSub);
-                                      await persist(nextState);
-                                      toast({
-                                        title: `Parcela ${inv.installmentNumber} marcada como NÃO PAGA.`,
-                                      });
-                                    }}
+                                    title={
+                                      isPaid
+                                        ? 'Estornar pagamento ou excluir parcela (com confirmação)'
+                                        : 'Excluir / cancelar parcela (com confirmação)'
+                                    }
+                                    onClick={() =>
+                                      setInvoiceDeleteConfirm({
+                                        mode: 'SINGLE',
+                                        invoice: inv,
+                                      })
+                                    }
                                     className="w-7 h-7 rounded bg-[#d9534f] hover:bg-rose-700 text-white flex items-center justify-center shadow-sm border border-white/20"
                                   >
                                     <X className="w-3.5 h-3.5" />
@@ -10879,8 +11015,21 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                   {/* 4. Botão Verde Check (Dar Baixa / PAGO) */}
                                   <button
                                     type="button"
-                                    title="Dar Baixa (Marcar como PAGO e liberar cliente)"
+                                    title={
+                                      isPaid
+                                        ? 'Parcela já quitada'
+                                        : 'Dar Baixa (Marcar como PAGO e liberar cliente)'
+                                    }
                                     onClick={async () => {
+                                      if (isPaid) {
+                                        toast({
+                                          title: `Parcela ${inv.installmentNumber} já está PAGA`,
+                                          description: inv.paidAt
+                                            ? `Recebida em ${formatDateBR(inv.paidAt)}.`
+                                            : undefined,
+                                        });
+                                        return;
+                                      }
                                       const next = await markClubInvoicePaid(
                                         selectedSubForDetail.id,
                                         inv.id,
@@ -10901,7 +11050,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                           'Recebimento registrado e cliente liberado.',
                                       });
                                     }}
-                                    className="w-7 h-7 rounded bg-[#5cb85c] hover:bg-emerald-500 text-white flex items-center justify-center shadow-sm border border-white/20"
+                                    className={`w-7 h-7 rounded ${
+                                      isPaid
+                                        ? 'bg-emerald-800/70 opacity-75'
+                                        : 'bg-[#5cb85c] hover:bg-emerald-500'
+                                    } text-white flex items-center justify-center shadow-sm border border-white/20`}
                                   >
                                     <Check className="w-3.5 h-3.5" />
                                   </button>
@@ -10909,7 +11062,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                   {/* 5. Botão Azul (PIX / Boleto Asaas da Parcela) */}
                                   <button
                                     type="button"
-                                    title="Visualizar / Gerar Cobrança PIX ou Boleto desta parcela"
+                                    title="Visualizar / Gerar Cobrança PIX, Boleto ou Cartão no Asaas"
                                     onClick={() => setSelectedInvoiceForPixModal(inv)}
                                     className="w-7 h-7 rounded bg-[#5bc0de] hover:bg-sky-500 text-white flex items-center justify-center shadow-sm border border-white/20"
                                   >
@@ -10938,15 +11091,21 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                               </td>
                             </tr>
                           );
-                        })}
+                        })
+                        )}
                       </tbody>
                     </table>
 
-                    {/* Rodapé da tabela com botão Excluir Selecionados */}
-                    <div className="bg-[#004d00] border-t border-emerald-800 px-3 py-2.5 flex justify-end">
+                    {/* Rodapé da tabela com botão Excluir Selecionados (sempre exige confirmação) */}
+                    <div className="bg-[#004d00] border-t border-emerald-800 px-3 py-2.5 flex items-center justify-between gap-2">
+                      <span className="text-[11px] text-emerald-100/80">
+                        {selectedClientInvoiceIdsForDelete.length > 0
+                          ? `${selectedClientInvoiceIdsForDelete.length} parcela(s) selecionada(s) para exclusão`
+                          : 'Marque na coluna EXCLUIR para remover parcelas em lote'}
+                      </span>
                       <button
                         type="button"
-                        onClick={async () => {
+                        onClick={() => {
                           if (selectedClientInvoiceIdsForDelete.length === 0) {
                             toast({
                               title: 'Selecione ao menos uma parcela na coluna EXCLUIR',
@@ -10954,33 +11113,17 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                             });
                             return;
                           }
-                          const remaining =
-                            selectedSubForDetail.invoices.filter(
-                              (i) =>
-                                !selectedClientInvoiceIdsForDelete.includes(
-                                  i.id
-                                )
-                            );
-                          const updatedSub: ClubSubscription = {
-                            ...selectedSubForDetail,
-                            invoices: remaining,
-                          };
-                          const nextState: ClubDatabaseState = {
-                            ...state,
-                            subscriptions: (state.subscriptions || []).map((s) =>
-                              s.id === updatedSub.id ? updatedSub : s
-                            ),
-                          };
-                          setSelectedSubForDetail(updatedSub);
-                          setSelectedClientInvoiceIdsForDelete([]);
-                          await persist(nextState);
-                          toast({
-                            title: 'Parcelas selecionadas excluídas!',
+                          const selectedInvs = selectedSubForDetail.invoices.filter((i) =>
+                            selectedClientInvoiceIdsForDelete.includes(i.id)
+                          );
+                          setInvoiceDeleteConfirm({
+                            mode: 'BULK',
+                            invoices: selectedInvs,
                           });
                         }}
-                        className="bg-slate-100 hover:bg-white text-slate-800 font-semibold text-xs px-3 py-1.5 rounded shadow-sm"
+                        className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-3.5 py-1.5 rounded shadow-sm flex items-center gap-1.5"
                       >
-                        Excluir Selecionados
+                        <Trash2 className="w-3.5 h-3.5" /> Excluir Selecionados
                       </button>
                     </div>
                   </div>
@@ -10989,9 +11132,13 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   <div className="bg-[#e8f4f8] border border-[#bce8f1] rounded-md p-3 flex flex-wrap items-center justify-center gap-3">
                     <button
                       type="button"
-                      onClick={() =>
-                        setShowFaturaAvulsaForm(!showFaturaAvulsaForm)
-                      }
+                      onClick={() => {
+                        setAvulsaDueDate(new Date().toISOString().split('T')[0]);
+                        setAvulsaAmount('');
+                        setAvulsaDesc('');
+                        setAvulsaEmitAsaas(true);
+                        setShowFaturaAvulsaForm(true);
+                      }}
                       className="bg-[#5bc0de] hover:bg-[#31b0d5] text-white font-bold text-xs uppercase px-4 py-2 rounded shadow-sm flex items-center gap-1.5"
                     >
                       <FileText className="w-3.5 h-3.5" /> FATURA AVULSA
@@ -11000,11 +11147,32 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     <button
                       type="button"
                       onClick={() => {
-                        setCarneInstallmentValue(
-                          String(selectedSubForDetail.monthlyEquivalent || 49.9)
+                        const eligible = filteredInvoices.filter(
+                          (inv) =>
+                            inv.status !== 'PAID' &&
+                            inv.status !== 'CANCELLED' &&
+                            !inv.asaasPaymentId &&
+                            inv.invoiceKind !== 'AVULSA' &&
+                            inv.invoiceKind !== 'ADESAO' &&
+                            inv.amount > 0
                         );
-                        setCarneInstallmentCount(12);
-                        setCarneModalOpen(true);
+                        const nextDue =
+                          eligible[0]?.dueDate ||
+                          filteredInvoices.find((i) => i.status !== 'PAID' && i.amount > 0)?.dueDate ||
+                          new Date().toISOString().split('T')[0];
+                        const parsedDue = new Date(`${nextDue}T12:00:00`);
+                        setGerarCarneAsaasCount(eligible.length > 0 ? eligible.length : 12);
+                        setGerarCarneAsaasFirstDue(nextDue);
+                        setGerarCarneAsaasDueDay(
+                          selectedSubForDetail.dueDay || parsedDue.getDate() || 10
+                        );
+                        setGerarCarneAsaasBillingType('UNDEFINED');
+                        setGerarCarneAsaasRecurrence(
+                          selectedSubForDetail.registeredCard?.last4Digits
+                            ? 'REGISTERED_CARD'
+                            : 'NONE'
+                        );
+                        setGerarCarneAsaasModalOpen(true);
                       }}
                       className="bg-[#5bc0de] hover:bg-[#31b0d5] text-white font-bold text-xs uppercase px-4 py-2 rounded shadow-sm flex items-center gap-1.5"
                     >
@@ -11025,7 +11193,10 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     <button
                       type="button"
                       onClick={() =>
-                        handlePrintCarneSimples(selectedSubForDetail)
+                        handlePrintCarneSimples({
+                          ...selectedSubForDetail,
+                          invoices: filteredInvoices,
+                        })
                       }
                       className="bg-[#5bc0de] hover:bg-[#31b0d5] text-white font-bold text-xs uppercase px-4 py-2 rounded shadow-sm flex items-center gap-1.5"
                     >
@@ -11033,7 +11204,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     </button>
                   </div>
                 </div>
-              )}
+                );
+              })()}
 
               {/* MODAL COBRANÇA PIX DA PARCELA INDIVIDUAL (BOTÃO AZUL QR CODE) */}
               <Dialog
@@ -11144,6 +11316,13 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                               type="button"
                               disabled={loadingRowPix}
                               onClick={async () => {
+                                if (selectedInvoiceForPixModal.amount <= 0) {
+                                  toast({
+                                    title: 'Parcela gratuita / isenta (R$ 0,00)',
+                                    description: 'Não é necessário emitir cobrança no Asaas para parcelas com valor R$ 0,00.',
+                                  });
+                                  return;
+                                }
                                 setLoadingRowPix(true);
                                 try {
                                   const charge = await generateAsaasChargeForClubInvoice(
@@ -11151,13 +11330,31 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                     selectedInvoiceForPixModal,
                                     'PIX'
                                   );
-                                  setSelectedInvoiceForPixModal({
+                                  const updatedInv: ClubInvoice = {
                                     ...selectedInvoiceForPixModal,
                                     asaasPaymentId: charge.paymentId,
                                     invoiceUrl: charge.invoiceUrl,
                                     pixPayload: charge.pixPayload,
                                     pixQrCode: charge.pixQrCode,
-                                  });
+                                  };
+                                  setSelectedInvoiceForPixModal(updatedInv);
+                                  const refreshedSub: ClubSubscription = {
+                                    ...selectedSubForDetail,
+                                    asaasPaymentId: charge.paymentId,
+                                    asaasInvoiceUrl: charge.invoiceUrl,
+                                    invoices: selectedSubForDetail.invoices.map((i) =>
+                                      i.id === updatedInv.id ? updatedInv : i
+                                    ),
+                                  };
+                                  setSelectedSubForDetail(refreshedSub);
+                                  if (state) {
+                                    setState({
+                                      ...state,
+                                      subscriptions: state.subscriptions.map((s) =>
+                                        s.id === refreshedSub.id ? refreshedSub : s
+                                      ),
+                                    });
+                                  }
                                   toast({
                                     title: 'Cobrança sincronizada com Asaas!',
                                     description: `Fatura online gerada com sucesso.`,
@@ -11201,103 +11398,113 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 </DialogContent>
               </Dialog>
 
-              {/* MODAL TODOS EM CARTÃO (LINK ÚNICO DE QUITAÇÃO) */}
+              {/* MODAL LINK DE CARTÃO / TODOS EM CARTÃO (LINK ÚNICO DE QUITAÇÃO) */}
               <Dialog
                 open={unifiedCardModalOpen}
                 onOpenChange={(o) => !o && setUnifiedCardModalOpen(false)}
               >
                 <DialogContent className="max-w-lg">
                   <DialogHeader>
-                    <DialogTitle className="text-base font-black text-slate-800 flex items-center gap-2">
+                    <DialogTitle className="text-lg font-black text-slate-800 text-center flex items-center justify-center gap-2">
                       <CreditCard className="w-5 h-5 text-emerald-700" />
-                      TODOS EM CARTÃO — Link Único de Quitação
+                      LINK DE CARTÃO
                     </DialogTitle>
                   </DialogHeader>
 
                   {(() => {
-                    const pending = selectedSubForDetail.invoices.filter((i) => i.status !== 'PAID');
+                    const pending = selectedSubForDetail.invoices.filter(
+                      (i) => i.status !== 'PAID' && i.status !== 'CANCELLED' && i.amount > 0
+                    );
                     const totalPendingVal = Number(
                       pending.reduce((acc, i) => acc + i.amount, 0).toFixed(2)
                     );
 
                     return (
                       <div className="space-y-4 py-1 text-xs">
+                        <div className="text-center space-y-2 border-b border-slate-200 pb-3">
+                          <p className="text-sm font-medium text-slate-800">
+                            Deseja transformar esse grupo de cobranças em um <strong>LINK DE CARTÃO</strong>?
+                          </p>
+                          <p className="text-[11px] text-red-600 leading-relaxed">
+                            Ps.: Obrigatoriamente, todas as parcelas incluídas no <strong>LINK DE CARTÃO</strong> deverão ter o mesmo valor, dias de vencimento iguais e meses subsequentes. Parcelas com diferentes valores serão somadas e unificadas em um link exclusivo para pagamento via cartão.
+                          </p>
+                        </div>
+
                         <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl space-y-1.5">
                           <div className="flex justify-between font-bold text-slate-700">
                             <span>Associado:</span>
                             <span>{selectedSubForDetail.holderName} (#{selectedSubForDetail.subscriptionCode})</span>
                           </div>
                           <div className="flex justify-between font-bold text-slate-700">
-                            <span>Parcelas Pendentes:</span>
-                            <span>{pending.length} parcelas</span>
+                            <span>Parcelas em aberto com valor:</span>
+                            <span>{pending.length} parcela(s)</span>
                           </div>
                           <div className="flex justify-between font-black text-sm text-emerald-900 border-t border-emerald-200 pt-1.5">
-                            <span>Valor Total a Quitar:</span>
+                            <span>Valor Total no Cartão:</span>
                             <span>{formatCurrency(totalPendingVal)}</span>
                           </div>
                         </div>
 
-                        {/* Simulação de Parcelamento em até 12x */}
-                        <div>
-                          <Label className="text-xs font-bold text-slate-700 mb-1.5 block">
-                            Simulação de Parcelamento no Cartão (Cliente paga tudo em 1 cobrança):
-                          </Label>
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 max-h-36 overflow-y-auto p-2 bg-slate-50 border border-slate-200 rounded-xl font-medium">
-                            {[1, 2, 3, 4, 5, 6, 8, 10, 12].map((x) => (
-                              <div key={x} className="bg-white p-1.5 rounded border border-slate-200 text-center">
-                                <span className="font-bold text-slate-800">{x}x</span> de{' '}
-                                <span className="text-emerald-700 font-bold">
-                                  {formatCurrency(totalPendingVal / x)}
-                                </span>
-                              </div>
-                            ))}
+                        {totalPendingVal > 0 && (
+                          <div>
+                            <Label className="text-xs font-bold text-slate-700 mb-1.5 block">
+                              Simulação de Parcelamento no Cartão (Cliente paga em 1 cobrança única):
+                            </Label>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 max-h-32 overflow-y-auto p-2 bg-slate-50 border border-slate-200 rounded-xl font-medium">
+                              {[1, 2, 3, 4, 5, 6, 8, 10, 12].map((x) => (
+                                <div key={x} className="bg-white p-1.5 rounded border border-slate-200 text-center">
+                                  <span className="font-bold text-slate-800">{x}x</span> de{' '}
+                                  <span className="text-emerald-700 font-bold">
+                                    {formatCurrency(totalPendingVal / x)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                        </div>
+                        )}
 
-                        {/* Botão de Gerar Link */}
                         {!unifiedCardUrl ? (
-                          <Button
-                            type="button"
-                            disabled={unifiedCardLoading || pending.length === 0}
-                            onClick={async () => {
-                              setUnifiedCardLoading(true);
-                              try {
-                                const res = await generateUnifiedPaymentLink(
-                                  selectedSubForDetail,
-                                  pending,
-                                  'CREDIT_CARD'
-                                );
-                                setUnifiedCardUrl(res.invoiceUrl);
-                                toast({
-                                  title: 'Link de Quitação Unificado gerado!',
-                                  description: `Total: ${formatCurrency(totalPendingVal)} em até 12x.`,
-                                });
-                              } catch (err: any) {
-                                const fallbackOrigin =
-                                  typeof window !== 'undefined'
-                                    ? window.location.origin
-                                    : 'https://assinatura.balneariolessa.com.br';
-                                const fallbackUrl = `${fallbackOrigin}/socio?cpf=${encodeURIComponent(
-                                  selectedSubForDetail.holderCpf
-                                )}&cartao=${encodeURIComponent(
-                                  selectedSubForDetail.subscriptionCode
-                                )}`;
-                                setUnifiedCardUrl(fallbackUrl);
-                                toast({
-                                  title: 'Link Oficial Gerado!',
-                                  description: 'Link oficial do portal para quitação no cartão.',
-                                });
-                              } finally {
-                                setUnifiedCardLoading(false);
-                              }
-                            }}
-                            className="w-full bg-[#004d00] hover:bg-emerald-900 text-white font-bold text-xs h-10"
-                          >
-                            <Sparkles className="w-4 h-4 mr-1.5" />
-                            {unifiedCardLoading
-                              ? 'Gerando Link no Asaas...'
-                              : `Gerar Link Único (${formatCurrency(totalPendingVal)})`}
-                          </Button>
+                          <div className="flex items-center justify-center gap-3 pt-2 border-t border-slate-200">
+                            <Button
+                              type="button"
+                              onClick={() => setUnifiedCardModalOpen(false)}
+                              className="bg-[#d9534f] hover:bg-rose-700 text-white font-bold text-xs uppercase px-5 h-10"
+                            >
+                              FECHAR JANELA
+                            </Button>
+                            <Button
+                              type="button"
+                              disabled={unifiedCardLoading || pending.length === 0 || totalPendingVal <= 0}
+                              onClick={async () => {
+                                setUnifiedCardLoading(true);
+                                try {
+                                  const res = await generateUnifiedPaymentLink(
+                                    selectedSubForDetail,
+                                    pending,
+                                    'CREDIT_CARD'
+                                  );
+                                  setUnifiedCardUrl(res.invoiceUrl);
+                                  toast({
+                                    title: 'Link de Cartão gerado no Asaas!',
+                                    description: `Total: ${formatCurrency(totalPendingVal)} para pagamento via cartão.`,
+                                  });
+                                } catch (err: any) {
+                                  toast({
+                                    title: 'Não foi possível gerar o link no Asaas',
+                                    description: err?.message || 'Verifique o CPF do cliente e a integração Asaas.',
+                                    variant: 'destructive',
+                                  });
+                                } finally {
+                                  setUnifiedCardLoading(false);
+                                }
+                              }}
+                              className="bg-[#5cb85c] hover:bg-emerald-600 text-white font-bold text-xs uppercase px-5 h-10"
+                            >
+                              {unifiedCardLoading
+                                ? 'GERANDO LINK...'
+                                : 'GERAR LINK DE CARTÃO!'}
+                            </Button>
+                          </div>
                         ) : (
                           <div className="space-y-3 p-3 bg-emerald-50 border border-emerald-300 rounded-xl">
                             <Label className="text-xs font-bold text-emerald-950">
@@ -11324,13 +11531,13 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                 rel="noreferrer"
                                 className="flex-1"
                               >
-                                <Button type="button" variant="outline" className="w-full text-xs font-bold bg-white h-9">
+                                <Button type="button" variant="outline" className="w-full text-xs font-bold bg-white text-slate-800 hover:bg-slate-100 h-9">
                                   <ExternalLink className="w-3.5 h-3.5 mr-1.5" /> Abrir Pagamento
                                 </Button>
                               </a>
                               <a
                                 href={`https://wa.me/55${selectedSubForDetail.holderPhone.replace(/\D/g, '')}?text=${encodeURIComponent(
-                                  `Olá ${selectedSubForDetail.holderName}! Segue o link exclusivo para quitar todas as suas ${pending.length} mensalidades do Balneário Lessa Club no cartão de crédito em até 12x: ${unifiedCardUrl}`
+                                  `Olá ${selectedSubForDetail.holderName}! Segue o link exclusivo para pagar seu plano do Balneário Lessa Club via cartão de crédito (${pending.length} parcela(s), Total: ${formatCurrency(totalPendingVal)}): ${unifiedCardUrl}`
                                 )}`}
                                 target="_blank"
                                 rel="noreferrer"
@@ -11344,43 +11551,314 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           </div>
                         )}
 
-                        {/* Baixar todas de uma vez */}
-                        <div className="pt-2 border-t border-slate-200 flex justify-between items-center">
-                          <span className="text-[11px] text-slate-500">
-                            Cliente já pagou na recepção / maquininha?
-                          </span>
+                        {pending.length > 0 && (
+                          <div className="pt-2 border-t border-slate-200 flex justify-between items-center">
+                            <span className="text-[11px] text-slate-500">
+                              Cliente já pagou na recepção / maquininha?
+                            </span>
+                            <Button
+                              type="button"
+                              size="sm"
+                              onClick={async () => {
+                                const nowIso = new Date().toISOString();
+                                const updatedInvoices = selectedSubForDetail.invoices.map((inv) =>
+                                  inv.status !== 'CANCELLED'
+                                    ? {
+                                        ...inv,
+                                        status: 'PAID' as const,
+                                        paidAt: inv.paidAt || nowIso,
+                                      }
+                                    : inv
+                                );
+                                const updatedSub: ClubSubscription = {
+                                  ...selectedSubForDetail,
+                                  status: 'ACTIVE',
+                                  invoices: updatedInvoices,
+                                };
+                                const nextState: ClubDatabaseState = {
+                                  ...state!,
+                                  subscriptions: state!.subscriptions.map((s) =>
+                                    s.id === updatedSub.id ? updatedSub : s
+                                  ),
+                                };
+                                setSelectedSubForDetail(updatedSub);
+                                await persist(nextState);
+                                setUnifiedCardModalOpen(false);
+                                toast({
+                                  title: 'Todas as parcelas baixadas como PAGO!',
+                                  description: `${pending.length} parcelas quitadas e cliente ATIVO.`,
+                                });
+                              }}
+                              className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs"
+                            >
+                              <Check className="w-3.5 h-3.5 mr-1" /> Dar Baixa em Todas
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </DialogContent>
+              </Dialog>
+
+              {/* MODAL ADICIONAR NOVO CARNÊ (+ ADD CARNÊ — SOMA DOS PLANOS ESCOLHIDOS) */}
+              <Dialog
+                open={carneModalOpen}
+                onOpenChange={(o) => !o && setCarneModalOpen(false)}
+              >
+                <DialogContent className="max-w-lg max-h-[92vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle className="text-lg font-black text-slate-800 text-center uppercase tracking-tight">
+                      ADICIONAR NOVO CARNÊ
+                    </DialogTitle>
+                  </DialogHeader>
+
+                  {(() => {
+                    const breakdown = getSubscriptionPlanBreakdown(selectedSubForDetail);
+                    const parsedVal = Number(String(carneInstallmentValue).replace(',', '.'));
+                    const effectiveVal =
+                      Number.isFinite(parsedVal) && parsedVal >= 0 ? parsedVal : breakdown.total;
+
+                    return (
+                      <div className="space-y-4 py-1 text-xs">
+                        {/* Resumo dinâmico dos planos selecionados no cadastro */}
+                        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl space-y-1.5">
+                          <div className="font-bold text-emerald-950 flex items-center justify-between">
+                            <span>Planos Selecionados no Cadastro:</span>
+                            <span className="text-sm font-black text-[#004d00]">
+                              Total: {formatCurrency(breakdown.total)}/mês
+                            </span>
+                          </div>
+                          {breakdown.items.length > 0 && (
+                            <div className="space-y-0.5 text-[11px] text-slate-700 border-t border-emerald-200 pt-1.5">
+                              {breakdown.items.map((item) => (
+                                <div key={item.memberId} className="flex justify-between gap-2">
+                                  <span className="truncate">
+                                    <strong>{item.role === 'TITULAR' ? 'Titular' : 'Dep.'}:</strong> {item.fullName} — {item.modalityName}
+                                  </span>
+                                  <span className="font-bold shrink-0">{formatCurrency(item.monthlyValue)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="space-y-3">
+                          <div className="space-y-1">
+                            <Label className="text-xs font-bold text-slate-800">
+                              Data do 1º vencimento (Adesão):
+                            </Label>
+                            <Input
+                              type="date"
+                              value={carneAdhesionDueDate}
+                              onChange={(e) => setCarneAdhesionDueDate(e.target.value)}
+                              className="h-9 text-xs bg-white"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <Label className="text-xs font-bold text-slate-800">
+                              1ª mensalidade (Demais parcelas):
+                            </Label>
+                            <Input
+                              type="date"
+                              value={carneFirstDueDate}
+                              onChange={(e) => setCarneFirstDueDate(e.target.value)}
+                              className="h-9 text-xs bg-white"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <Label className="text-xs font-bold text-slate-800">
+                                Número TOTAL de parcelas:
+                              </Label>
+                              <Input
+                                type="number"
+                                min="1"
+                                max="36"
+                                value={carneInstallmentCount}
+                                onChange={(e) =>
+                                  setCarneInstallmentCount(
+                                    Math.max(1, Math.min(36, Number(e.target.value) || 12))
+                                  )
+                                }
+                                className="h-9 text-xs bg-white font-bold"
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <Label className="text-xs font-bold text-slate-800">
+                                Valor de cada parcela (R$):
+                              </Label>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={carneInstallmentValue}
+                                onChange={(e) => setCarneInstallmentValue(e.target.value)}
+                                className="h-9 text-xs bg-white font-bold"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <Label className="text-xs font-bold text-slate-800">Descrição / Plano:</Label>
+                            <Input
+                              value={carneDescription}
+                              onChange={(e) => setCarneDescription(e.target.value)}
+                              placeholder="Mensalidade"
+                              className="h-9 text-xs bg-white"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between">
+                              <Label className="text-xs font-bold text-slate-800">
+                                Recorrência? (Assinatura em Cartão)
+                              </Label>
+                              {!selectedSubForDetail.registeredCard && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setCarneModalOpen(false);
+                                    setClientDetailTool('CADASTRAR_CARTAO_PAGTO');
+                                  }}
+                                  className="text-[11px] font-bold text-emerald-700 hover:underline"
+                                >
+                                  + Cadastrar Cartão agora
+                                </button>
+                              )}
+                            </div>
+                            <select
+                              value={carneRecurrenceMode}
+                              onChange={(e) =>
+                                setCarneRecurrenceMode(
+                                  e.target.value === 'REGISTERED_CARD' ? 'REGISTERED_CARD' : 'NONE'
+                                )
+                              }
+                              className="w-full h-9 rounded-md border border-slate-300 px-3 text-xs font-semibold bg-white text-slate-700"
+                            >
+                              {selectedSubForDetail.registeredCard ? (
+                                <>
+                                  <option value="REGISTERED_CARD">
+                                    ATIVAR NO CARTÃO •••• {selectedSubForDetail.registeredCard.last4Digits} ({selectedSubForDetail.registeredCard.cardType === 'CREDIT' ? 'Crédito' : 'Débito'})
+                                  </option>
+                                  <option value="NONE">
+                                    Sem recorrência em cartão (Boleto / PIX mensal)
+                                  </option>
+                                </>
+                              ) : (
+                                <>
+                                  <option value="NONE">
+                                    CADASTRE UM CARTÃO PARA ATIVAR RECORRÊNCIA
+                                  </option>
+                                </>
+                              )}
+                            </select>
+                          </div>
+
+                          {effectiveVal > 0 && (
+                            <label className="flex items-center gap-2 p-2.5 bg-sky-50 border border-sky-200 rounded-lg cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={carneEmitAsaasOnCreate}
+                                onChange={(e) => setCarneEmitAsaasOnCreate(e.target.checked)}
+                                className="w-4 h-4 rounded"
+                              />
+                              <span className="text-xs font-semibold text-sky-950">
+                                Já emitir todas as cobranças mensais no Asaas agora
+                              </span>
+                            </label>
+                          )}
+                        </div>
+
+                        <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1 text-[11px] text-slate-600">
+                          <div>
+                            Total do Carnê: <strong>{carneInstallmentCount}x de {formatCurrency(effectiveVal)}</strong> = <strong>{formatCurrency(carneInstallmentCount * effectiveVal)}</strong>
+                          </div>
+                          <div>
+                            1ª parcela em <strong>{formatDateBR(carneAdhesionDueDate)}</strong> e mensalidades seguintes a partir de <strong>{formatDateBR(carneFirstDueDate)}</strong>.
+                          </div>
+                          {effectiveVal === 0 && (
+                            <div className="text-amber-700 font-semibold">
+                              Plano isento/gratuito (R$ 0,00): parcelas serão lançadas com valor zero e não geram boleto no Asaas.
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex flex-col gap-2 pt-2 border-t border-slate-200">
+                          <div className="flex items-center justify-center gap-3">
+                            <Button
+                              type="button"
+                              disabled={carneCreateLoading}
+                              onClick={() => setCarneModalOpen(false)}
+                              className="flex-1 bg-[#d9534f] hover:bg-rose-700 text-white font-bold text-xs uppercase h-10"
+                            >
+                              CANCELAR
+                            </Button>
+
+                            <Button
+                              type="button"
+                              disabled={carneCreateLoading}
+                              onClick={async () => {
+                                setCarneCreateLoading(true);
+                                try {
+                                  await handleGenerateNewCarneForClient(
+                                    selectedSubForDetail,
+                                    carneInstallmentCount,
+                                    effectiveVal,
+                                    carneFirstDueDate,
+                                    carneDescription.trim() || 'Mensalidade',
+                                    'append',
+                                    {
+                                      adhesionDueDateStr: carneAdhesionDueDate,
+                                      recurrenceMode: carneRecurrenceMode,
+                                      emitInAsaas: carneEmitAsaasOnCreate,
+                                    }
+                                  );
+                                  setCarneModalOpen(false);
+                                } finally {
+                                  setCarneCreateLoading(false);
+                                }
+                              }}
+                              className="flex-1 bg-[#5cb85c] hover:bg-emerald-600 text-white font-bold text-xs uppercase h-10"
+                            >
+                              {carneCreateLoading ? 'GERANDO...' : 'GERAR'}
+                            </Button>
+                          </div>
+
                           <Button
                             type="button"
-                            size="sm"
+                            variant="outline"
+                            disabled={carneCreateLoading}
                             onClick={async () => {
-                              const nowIso = new Date().toISOString();
-                              const updatedInvoices = selectedSubForDetail.invoices.map((inv) => ({
-                                ...inv,
-                                status: 'PAID' as const,
-                                paidAt: inv.paidAt || nowIso,
-                              }));
-                              const updatedSub: ClubSubscription = {
-                                ...selectedSubForDetail,
-                                status: 'ACTIVE',
-                                invoices: updatedInvoices,
-                              };
-                              const nextState: ClubDatabaseState = {
-                                ...state!,
-                                subscriptions: state!.subscriptions.map((s) =>
-                                  s.id === updatedSub.id ? updatedSub : s
-                                ),
-                              };
-                              setSelectedSubForDetail(updatedSub);
-                              await persist(nextState);
-                              setUnifiedCardModalOpen(false);
-                              toast({
-                                title: 'Todas as parcelas baixadas como PAGO!',
-                                description: `${pending.length} parcelas quitadas e cliente ATIVO.`,
-                              });
+                              setCarneCreateLoading(true);
+                              try {
+                                const updated = await handleGenerateNewCarneForClient(
+                                  selectedSubForDetail,
+                                  carneInstallmentCount,
+                                  effectiveVal,
+                                  carneFirstDueDate,
+                                  carneDescription.trim() || 'Mensalidade',
+                                  'append',
+                                  {
+                                    adhesionDueDateStr: carneAdhesionDueDate,
+                                    recurrenceMode: carneRecurrenceMode,
+                                    emitInAsaas: carneEmitAsaasOnCreate,
+                                  }
+                                );
+                                setCarneModalOpen(false);
+                                if (updated) {
+                                  handlePrintCarneSimples(updated);
+                                }
+                              } finally {
+                                setCarneCreateLoading(false);
+                              }
                             }}
-                            className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs"
+                            className="w-full text-xs font-bold h-9 border-slate-300 text-slate-800 hover:bg-slate-100"
                           >
-                            <Check className="w-3.5 h-3.5 mr-1" /> Dar Baixa em Todas
+                            <Printer className="w-4 h-4 mr-1.5" /> Gerar e Imprimir Carnê Simples Agora
                           </Button>
                         </div>
                       </div>
@@ -11389,122 +11867,607 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 </DialogContent>
               </Dialog>
 
-              {/* MODAL GERAR CARNÊ / + ADD CARNÊ */}
+              {/* MODAL GERAR FATURA AVULSA (BOTÃO INFERIOR FATURA AVULSA) */}
               <Dialog
-                open={carneModalOpen}
-                onOpenChange={(o) => !o && setCarneModalOpen(false)}
+                open={showFaturaAvulsaForm}
+                onOpenChange={(o) => !o && setShowFaturaAvulsaForm(false)}
               >
                 <DialogContent className="max-w-md">
                   <DialogHeader>
-                    <DialogTitle className="text-base font-black text-slate-800 flex items-center gap-2">
-                      <Receipt className="w-5 h-5 text-emerald-700" />
-                      Gerar Carnê de Parcelas — {selectedSubForDetail.holderName}
+                    <DialogTitle className="text-lg font-bold text-slate-800 text-center uppercase">
+                      GERAR FATURA AVULSA
                     </DialogTitle>
                   </DialogHeader>
 
                   <div className="space-y-4 py-1 text-xs">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <Label className="text-xs font-bold text-slate-700">Qtd. de Parcelas</Label>
-                        <Input
-                          type="number"
-                          min="1"
-                          max="24"
-                          value={carneInstallmentCount}
-                          onChange={(e) =>
-                            setCarneInstallmentCount(
-                              Math.max(1, Math.min(24, Number(e.target.value) || 12))
-                            )
-                          }
-                          className="h-9 text-xs bg-white font-bold"
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <Label className="text-xs font-bold text-slate-700">Valor da Parcela (R$)</Label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          value={carneInstallmentValue}
-                          onChange={(e) => setCarneInstallmentValue(e.target.value)}
-                          className="h-9 text-xs bg-white font-bold"
-                        />
-                      </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-bold text-slate-700">Vencimento:</Label>
+                      <Input
+                        type="date"
+                        value={avulsaDueDate}
+                        onChange={(e) => setAvulsaDueDate(e.target.value)}
+                        className="h-10 text-xs bg-white"
+                      />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <Label className="text-xs font-bold text-slate-700">Primeiro Vencimento</Label>
-                        <Input
-                          type="date"
-                          value={carneFirstDueDate}
-                          onChange={(e) => setCarneFirstDueDate(e.target.value)}
-                          className="h-9 text-xs bg-white"
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <Label className="text-xs font-bold text-slate-700">Descrição</Label>
-                        <Input
-                          value={carneDescription}
-                          onChange={(e) => setCarneDescription(e.target.value)}
-                          placeholder="Mensalidade"
-                          className="h-9 text-xs bg-white"
-                        />
-                      </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-bold text-slate-700">Valor:</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="Ex.: 45,00"
+                        value={avulsaAmount}
+                        onChange={(e) => setAvulsaAmount(e.target.value)}
+                        className="h-10 text-xs bg-white font-bold"
+                      />
                     </div>
 
-                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1 text-[11px] text-slate-600">
-                      <div>
-                        Total do Carnê: <strong>{carneInstallmentCount}x de {formatCurrency(Number(carneInstallmentValue) || 49.9)}</strong> = <strong>{formatCurrency(carneInstallmentCount * (Number(carneInstallmentValue) || 49.9))}</strong>
-                      </div>
-                      <div>
-                        As parcelas terão vencimento mensal consecutivo iniciando em <strong>{formatDateBR(carneFirstDueDate)}</strong>.
-                      </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-bold text-slate-700">Descrição:</Label>
+                      <Input
+                        placeholder="Ex.: Taxa de reemissão de..."
+                        value={avulsaDesc}
+                        onChange={(e) => setAvulsaDesc(e.target.value)}
+                        className="h-10 text-xs bg-white"
+                      />
                     </div>
 
-                    <div className="flex flex-col gap-2 pt-2 border-t border-slate-200">
+                    <label className="flex items-center gap-2 p-2.5 bg-sky-50 border border-sky-200 rounded-lg cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={avulsaEmitAsaas}
+                        onChange={(e) => setAvulsaEmitAsaas(e.target.checked)}
+                        className="w-4 h-4 rounded"
+                      />
+                      <span className="text-xs font-semibold text-sky-950">
+                        Emitir cobrança PIX / Link no Asaas imediatamente
+                      </span>
+                    </label>
+
+                    <div className="flex items-center justify-center gap-3 pt-2 border-t border-slate-200">
                       <Button
                         type="button"
-                        onClick={async () => {
-                          const updated = await handleGenerateNewCarneForClient(
-                            selectedSubForDetail,
-                            carneInstallmentCount,
-                            Number(carneInstallmentValue) || 49.9,
-                            carneFirstDueDate,
-                            carneDescription.trim() || 'Mensalidade',
-                            'append'
-                          );
-                          setCarneModalOpen(false);
-                        }}
-                        className="w-full bg-[#004d00] hover:bg-emerald-900 text-white font-bold text-xs h-10"
+                        disabled={avulsaLoading}
+                        onClick={() => setShowFaturaAvulsaForm(false)}
+                        className="bg-[#d9534f] hover:bg-rose-700 text-white font-bold text-xs uppercase px-5 h-10"
                       >
-                        <Plus className="w-4 h-4 mr-1.5" /> Adicionar {carneInstallmentCount} Parcelas ao Cadastro
+                        FECHAR JANELA
                       </Button>
 
                       <Button
                         type="button"
-                        variant="outline"
+                        disabled={avulsaLoading}
                         onClick={async () => {
-                          const updated = await handleGenerateNewCarneForClient(
-                            selectedSubForDetail,
-                            carneInstallmentCount,
-                            Number(carneInstallmentValue) || 49.9,
-                            carneFirstDueDate,
-                            carneDescription.trim() || 'Mensalidade',
-                            'append'
-                          );
-                          setCarneModalOpen(false);
-                          if (updated) {
-                            handlePrintCarneSimples(updated);
+                          const parsedAmount = Number(String(avulsaAmount).replace(',', '.'));
+                          if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+                            toast({
+                              title: 'Informe um valor válido',
+                              description: 'Digite o valor da fatura avulsa maior que R$ 0,00.',
+                              variant: 'destructive',
+                            });
+                            return;
+                          }
+                          if (!avulsaDueDate) {
+                            toast({
+                              title: 'Informe a data de vencimento',
+                              variant: 'destructive',
+                            });
+                            return;
+                          }
+
+                          setAvulsaLoading(true);
+                          try {
+                            const nextNum = selectedSubForDetail.invoices.length + 1;
+                            const newInv: ClubInvoice = {
+                              id: `inv_avulsa_${Date.now()}`,
+                              subscriptionId: selectedSubForDetail.id,
+                              subscriptionCode: selectedSubForDetail.subscriptionCode,
+                              holderName: selectedSubForDetail.holderName,
+                              holderCpf: selectedSubForDetail.holderCpf,
+                              holderPhone: selectedSubForDetail.holderPhone,
+                              installmentNumber: nextNum,
+                              totalInstallments: nextNum,
+                              referenceMonth: avulsaDueDate
+                                .slice(0, 7)
+                                .split('-')
+                                .reverse()
+                                .join('/'),
+                              amount: Number(parsedAmount.toFixed(2)),
+                              dueDate: avulsaDueDate,
+                              paymentMethod: 'PIX',
+                              status: 'PENDING',
+                              description: avulsaDesc.trim() || 'Fatura Avulsa',
+                              carneGroup:
+                                selectedCarneNumber !== 'ALL' ? Number(selectedCarneNumber) || 1 : 1,
+                              invoiceKind: 'AVULSA',
+                              createdAt: new Date().toISOString(),
+                            };
+
+                            const updatedSub: ClubSubscription = {
+                              ...selectedSubForDetail,
+                              invoices: [...selectedSubForDetail.invoices, newInv],
+                              updatedAt: new Date().toISOString(),
+                            };
+                            const nextState: ClubDatabaseState = {
+                              ...state!,
+                              subscriptions: (state!.subscriptions || []).map((s) =>
+                                s.id === updatedSub.id ? updatedSub : s
+                              ),
+                            };
+                            setSelectedSubForDetail(updatedSub);
+                            await persist(nextState);
+
+                            if (avulsaEmitAsaas) {
+                              try {
+                                const charge = await generateAsaasChargeForClubInvoice(
+                                  updatedSub,
+                                  newInv,
+                                  'PIX'
+                                );
+                                const syncedInv: ClubInvoice = {
+                                  ...newInv,
+                                  asaasPaymentId: charge.paymentId,
+                                  invoiceUrl: charge.invoiceUrl,
+                                  pixPayload: charge.pixPayload,
+                                  pixQrCode: charge.pixQrCode,
+                                };
+                                const syncedSub: ClubSubscription = {
+                                  ...updatedSub,
+                                  invoices: updatedSub.invoices.map((i) =>
+                                    i.id === syncedInv.id ? syncedInv : i
+                                  ),
+                                };
+                                setSelectedSubForDetail(syncedSub);
+                                setState({
+                                  ...nextState,
+                                  subscriptions: nextState.subscriptions.map((s) =>
+                                    s.id === syncedSub.id ? syncedSub : s
+                                  ),
+                                });
+                                toast({
+                                  title: 'Fatura Avulsa lançada e emitida no Asaas!',
+                                  description: `${newInv.description} — ${formatCurrency(newInv.amount)}`,
+                                });
+                              } catch (err: any) {
+                                toast({
+                                  title: 'Fatura Avulsa salva localmente',
+                                  description: `Aviso Asaas: ${err?.message || 'verifique os dados do cliente'}`,
+                                  variant: 'destructive',
+                                });
+                              }
+                            } else {
+                              toast({
+                                title: 'Fatura Avulsa adicionada!',
+                                description: `${newInv.description} — ${formatCurrency(newInv.amount)}`,
+                              });
+                            }
+                            setShowFaturaAvulsaForm(false);
+                          } finally {
+                            setAvulsaLoading(false);
                           }
                         }}
-                        className="w-full text-xs font-bold h-10 border-slate-300"
+                        className="bg-[#5cb85c] hover:bg-emerald-600 text-white font-bold text-xs uppercase px-5 h-10"
                       >
-                        <Printer className="w-4 h-4 mr-1.5" /> Gerar e Imprimir Carnê Simples Agora
+                        {avulsaLoading ? 'GERANDO...' : 'GERAR AVULSA!'}
                       </Button>
                     </div>
                   </div>
+                </DialogContent>
+              </Dialog>
+
+              {/* MODAL GERAR CARNÊ NO ASAAS (BOTÃO INFERIOR GERAR CARNÊ) */}
+              <Dialog
+                open={gerarCarneAsaasModalOpen}
+                onOpenChange={(o) => !o && setGerarCarneAsaasModalOpen(false)}
+              >
+                <DialogContent className="max-w-lg max-h-[92vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle className="text-lg font-bold text-slate-800 text-center uppercase">
+                      CARNÊ
+                    </DialogTitle>
+                  </DialogHeader>
+
+                  {(() => {
+                    const baseInvoices =
+                      selectedCarneNumber === 'ALL'
+                        ? selectedSubForDetail.invoices
+                        : selectedSubForDetail.invoices.filter(
+                            (inv) => String(Number(inv.carneGroup) || 1) === selectedCarneNumber
+                          );
+
+                    // Exclui já emitidas no Asaas, pagas, canceladas, avulsas e adesões
+                    const eligibleInvoices = baseInvoices.filter(
+                      (inv) =>
+                        inv.status !== 'PAID' &&
+                        inv.status !== 'CANCELLED' &&
+                        !inv.asaasPaymentId &&
+                        inv.invoiceKind !== 'AVULSA' &&
+                        inv.invoiceKind !== 'ADESAO' &&
+                        inv.amount > 0
+                    );
+                    const totalEligible = Number(
+                      eligibleInvoices.reduce((acc, inv) => acc + inv.amount, 0).toFixed(2)
+                    );
+                    const targetInvoices = eligibleInvoices.slice(0, gerarCarneAsaasCount);
+                    const targetTotal = Number(
+                      targetInvoices.reduce((acc, inv) => acc + inv.amount, 0).toFixed(2)
+                    );
+                    const equalizedValue =
+                      targetInvoices.length > 0
+                        ? Number((targetTotal / targetInvoices.length).toFixed(2))
+                        : getSubscriptionPlanMonthlyTotal(selectedSubForDetail);
+
+                    return (
+                      <div className="space-y-4 py-1 text-xs">
+                        <div className="text-center space-y-2 border-b border-slate-200 pb-3">
+                          <p className="text-sm font-medium text-slate-800">
+                            Deseja transformar esse grupo de cobranças em um <strong>CARNÊ</strong> no Asaas?
+                          </p>
+                          <p className="text-[11px] text-red-600 leading-relaxed">
+                            Ps.: Obrigatoriamente, todas as parcelas incluídas no <strong>CARNÊ</strong> deverão ter o mesmo valor, dias de vencimento iguais e meses subsequentes.
+                            <br />
+                            Parcelas com diferentes valores serão somadas e divididas igualmente!
+                            <br />
+                            Como data base de vencimento, será usada a próxima cobrança a vencer (Faturas que já tiveram cobranças emitidas, avulsas e adesões não serão inclusas).
+                          </p>
+                        </div>
+
+                        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl space-y-1">
+                          <div className="flex justify-between font-bold text-slate-700">
+                            <span>Parcelas elegíveis em aberto (sem emissão Asaas):</span>
+                            <span>{eligibleInvoices.length} parcela(s)</span>
+                          </div>
+                          <div className="flex justify-between font-bold text-slate-700">
+                            <span>Serão emitidas no Asaas agora:</span>
+                            <span className="text-[#004d00]">
+                              {targetInvoices.length}x de {formatCurrency(equalizedValue)}
+                            </span>
+                          </div>
+                          {eligibleInvoices.length === 0 && (
+                            <div className="text-[11px] text-amber-800 font-semibold pt-1">
+                              Nenhuma parcela mensal pendente sem cobrança Asaas (ou plano isento R$ 0,00). Utilize "+ ADD CARNÊ" para criar novas mensalidades primeiro.
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-xs font-bold text-slate-700">Nº Parcelas</Label>
+                            <Input
+                              type="number"
+                              min="1"
+                              max={Math.max(1, eligibleInvoices.length)}
+                              value={gerarCarneAsaasCount}
+                              onChange={(e) =>
+                                setGerarCarneAsaasCount(
+                                  Math.max(
+                                    1,
+                                    Math.min(
+                                      Math.max(1, eligibleInvoices.length),
+                                      Number(e.target.value) || 1
+                                    )
+                                  )
+                                )
+                              }
+                              className="h-9 text-xs bg-white font-bold"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <Label className="text-xs font-bold text-slate-700">1º Vencimento Base</Label>
+                            <Input
+                              type="date"
+                              value={gerarCarneAsaasFirstDue}
+                              onChange={(e) => {
+                                setGerarCarneAsaasFirstDue(e.target.value);
+                                const d = Number(e.target.value.split('-')[2]);
+                                if (d >= 1 && d <= 31) setGerarCarneAsaasDueDay(d);
+                              }}
+                              className="h-9 text-xs bg-white"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <Label className="text-xs font-bold text-slate-700">Dia Fixo Mensal</Label>
+                            <Input
+                              type="number"
+                              min="1"
+                              max="31"
+                              value={gerarCarneAsaasDueDay}
+                              onChange={(e) =>
+                                setGerarCarneAsaasDueDay(
+                                  Math.max(1, Math.min(31, Number(e.target.value) || 10))
+                                )
+                              }
+                              className="h-9 text-xs bg-white font-bold"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-xs font-bold text-slate-700">Forma de Cobrança no Asaas</Label>
+                            <select
+                              value={gerarCarneAsaasBillingType}
+                              onChange={(e) =>
+                                setGerarCarneAsaasBillingType(e.target.value as 'UNDEFINED' | 'BOLETO' | 'PIX')
+                              }
+                              className="w-full h-9 rounded-md border border-slate-300 px-3 text-xs font-semibold bg-white text-slate-800"
+                            >
+                              <option value="UNDEFINED">Boleto / PIX / Cartão (Cliente escolhe)</option>
+                              <option value="BOLETO">Carnê / Boleto Bancário</option>
+                              <option value="PIX">PIX Mensal com QR Code</option>
+                            </select>
+                          </div>
+
+                          <div className="space-y-1">
+                            <Label className="text-xs font-bold text-slate-700">Assinatura em Cartão?</Label>
+                            <select
+                              value={gerarCarneAsaasRecurrence}
+                              onChange={(e) =>
+                                setGerarCarneAsaasRecurrence(
+                                  e.target.value === 'REGISTERED_CARD' ? 'REGISTERED_CARD' : 'NONE'
+                                )
+                              }
+                              className="w-full h-9 rounded-md border border-slate-300 px-3 text-xs font-semibold bg-white text-slate-800"
+                            >
+                              {selectedSubForDetail.registeredCard ? (
+                                <>
+                                  <option value="REGISTERED_CARD">
+                                    Ativar no Cartão •••• {selectedSubForDetail.registeredCard.last4Digits}
+                                  </option>
+                                  <option value="NONE">Cobrança comum sem vínculo em cartão</option>
+                                </>
+                              ) : (
+                                <option value="NONE">Sem cartão cadastrado (Ir à aba Cartão p/ ativar)</option>
+                              )}
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-center gap-3 pt-2 border-t border-slate-200">
+                          <Button
+                            type="button"
+                            disabled={gerarCarneAsaasLoading}
+                            onClick={() => setGerarCarneAsaasModalOpen(false)}
+                            className="bg-[#d9534f] hover:bg-rose-700 text-white font-bold text-xs uppercase px-5 h-10"
+                          >
+                            FECHAR JANELA
+                          </Button>
+
+                          <Button
+                            type="button"
+                            disabled={
+                              gerarCarneAsaasLoading ||
+                              targetInvoices.length === 0 ||
+                              totalEligible <= 0
+                            }
+                            onClick={async () => {
+                              setGerarCarneAsaasLoading(true);
+                              try {
+                                const res = await emitCarneMonthlyChargesInAsaas({
+                                  subscriptionId: selectedSubForDetail.id,
+                                  invoiceIds: targetInvoices.map((i) => i.id),
+                                  billingType: gerarCarneAsaasBillingType,
+                                  firstDueDate: gerarCarneAsaasFirstDue,
+                                  dueDay: gerarCarneAsaasDueDay,
+                                  equalizedAmount: equalizedValue,
+                                  activateCardRecurrence: gerarCarneAsaasRecurrence === 'REGISTERED_CARD',
+                                  cardLast4: selectedSubForDetail.registeredCard?.last4Digits,
+                                });
+                                setState(res.state);
+                                const updated = res.state.subscriptions.find(
+                                  (s) => s.id === selectedSubForDetail.id
+                                );
+                                if (updated) {
+                                  setSelectedSubForDetail(updated);
+                                }
+                                setGerarCarneAsaasModalOpen(false);
+                                toast({
+                                  title: `Carnê gerado no Asaas!`,
+                                  description: `${res.generatedCount} cobrança(s) emitida(s) de ${formatCurrency(equalizedValue)}${res.failedCount > 0 ? ` (${res.failedCount} falha(s): ${res.firstError || ''})` : ''}.`,
+                                  variant: res.generatedCount === 0 ? 'destructive' : 'default',
+                                });
+                              } catch (err: any) {
+                                toast({
+                                  title: 'Erro ao gerar Carnê no Asaas',
+                                  description: err?.message || 'Verifique os dados do associado e tente novamente.',
+                                  variant: 'destructive',
+                                });
+                              } finally {
+                                setGerarCarneAsaasLoading(false);
+                              }
+                            }}
+                            className="bg-[#5cb85c] hover:bg-emerald-600 text-white font-bold text-xs uppercase px-5 h-10"
+                          >
+                            {gerarCarneAsaasLoading ? 'EMITINDO NO ASAAS...' : 'GERAR CARNÊ!'}
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </DialogContent>
+              </Dialog>
+
+              {/* MODAL OBRIGATÓRIO DE CONFIRMAÇÃO DE EXCLUSÃO / ESTORNO DE PARCELA(S) */}
+              <Dialog
+                open={!!invoiceDeleteConfirm}
+                onOpenChange={(o) => !o && setInvoiceDeleteConfirm(null)}
+              >
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle className="text-base font-black text-red-700 flex items-center gap-2">
+                      <AlertTriangle className="w-5 h-5 text-red-600" />
+                      {invoiceDeleteConfirm?.mode === 'BULK'
+                        ? 'Confirmar Exclusão de Parcelas'
+                        : 'Confirmar Exclusão / Estorno da Parcela'}
+                    </DialogTitle>
+                  </DialogHeader>
+
+                  {invoiceDeleteConfirm && (
+                    <div className="space-y-4 py-1 text-xs">
+                      {invoiceDeleteConfirm.mode === 'BULK' ? (
+                        <>
+                          <div className="p-3 bg-red-50 border border-red-200 rounded-xl space-y-1.5 text-slate-800">
+                            <p>
+                              Você está prestes a <strong>excluir permanentemente {invoiceDeleteConfirm.invoices.length} parcela(s)</strong> do perfil financeiro de <strong>{selectedSubForDetail.holderName}</strong>.
+                            </p>
+                            <p className="font-bold text-red-800">
+                              Valor somado selecionado:{' '}
+                              {formatCurrency(
+                                invoiceDeleteConfirm.invoices.reduce((acc, i) => acc + i.amount, 0)
+                              )}
+                            </p>
+                            {invoiceDeleteConfirm.invoices.some((i) => i.status === 'PAID') && (
+                              <p className="text-amber-800 font-semibold">
+                                Atenção: há parcela(s) já marcada(s) como PAGO nesta seleção.
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => setInvoiceDeleteConfirm(null)}
+                              className="h-9 text-xs font-bold text-slate-800 hover:bg-slate-100"
+                            >
+                              Cancelar
+                            </Button>
+                            <Button
+                              type="button"
+                              onClick={async () => {
+                                const idsToRemove = new Set(
+                                  invoiceDeleteConfirm.invoices.map((i) => i.id)
+                                );
+                                const remaining = selectedSubForDetail.invoices.filter(
+                                  (i) => !idsToRemove.has(i.id)
+                                );
+                                const updatedSub: ClubSubscription = {
+                                  ...selectedSubForDetail,
+                                  invoices: remaining,
+                                };
+                                const nextState: ClubDatabaseState = {
+                                  ...state!,
+                                  subscriptions: (state!.subscriptions || []).map((s) =>
+                                    s.id === updatedSub.id ? updatedSub : s
+                                  ),
+                                };
+                                setSelectedSubForDetail(updatedSub);
+                                setSelectedClientInvoiceIdsForDelete([]);
+                                setInvoiceDeleteConfirm(null);
+                                await persist(nextState);
+                                toast({
+                                  title: `${idsToRemove.size} parcela(s) excluída(s) com sucesso!`,
+                                });
+                              }}
+                              className="h-9 bg-red-600 hover:bg-red-700 text-white text-xs font-bold"
+                            >
+                              <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Confirmar Exclusão
+                            </Button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="p-3 bg-red-50 border border-red-200 rounded-xl space-y-1 text-slate-800">
+                            <div>
+                              <strong>Parcela:</strong> {invoiceDeleteConfirm.invoice.installmentNumber}/
+                              {invoiceDeleteConfirm.invoice.totalInstallments} —{' '}
+                              {invoiceDeleteConfirm.invoice.description || 'Mensalidade'}
+                            </div>
+                            <div>
+                              <strong>Vencimento:</strong> {formatDateBR(invoiceDeleteConfirm.invoice.dueDate)} •{' '}
+                              <strong>Valor:</strong> {formatCurrency(invoiceDeleteConfirm.invoice.amount)}
+                            </div>
+                            <div>
+                              <strong>Status atual:</strong>{' '}
+                              {invoiceDeleteConfirm.invoice.status === 'PAID' ? 'PAGO' : 'NÃO PAGA'}
+                            </div>
+                          </div>
+
+                          <div className="flex flex-col gap-2 pt-2 border-t border-slate-200">
+                            {invoiceDeleteConfirm.invoice.status === 'PAID' && (
+                              <Button
+                                type="button"
+                                onClick={async () => {
+                                  const target = invoiceDeleteConfirm.invoice;
+                                  const updatedInvoices = selectedSubForDetail.invoices.map((i) =>
+                                    i.id === target.id
+                                      ? {
+                                          ...i,
+                                          status: 'PENDING' as const,
+                                          paidAt: undefined,
+                                        }
+                                      : i
+                                  );
+                                  const updatedSub: ClubSubscription = {
+                                    ...selectedSubForDetail,
+                                    invoices: updatedInvoices,
+                                  };
+                                  const nextState: ClubDatabaseState = {
+                                    ...state!,
+                                    subscriptions: (state!.subscriptions || []).map((s) =>
+                                      s.id === updatedSub.id ? updatedSub : s
+                                    ),
+                                  };
+                                  setSelectedSubForDetail(updatedSub);
+                                  setInvoiceDeleteConfirm(null);
+                                  await persist(nextState);
+                                  toast({
+                                    title: `Pagamento da parcela ${target.installmentNumber} estornado para NÃO PAGA.`,
+                                  });
+                                }}
+                                className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs h-9"
+                              >
+                                Estornar Pagamento (Marcar como NÃO PAGA)
+                              </Button>
+                            )}
+
+                            <Button
+                              type="button"
+                              onClick={async () => {
+                                const target = invoiceDeleteConfirm.invoice;
+                                const remaining = selectedSubForDetail.invoices.filter(
+                                  (i) => i.id !== target.id
+                                );
+                                const updatedSub: ClubSubscription = {
+                                  ...selectedSubForDetail,
+                                  invoices: remaining,
+                                };
+                                const nextState: ClubDatabaseState = {
+                                  ...state!,
+                                  subscriptions: (state!.subscriptions || []).map((s) =>
+                                    s.id === updatedSub.id ? updatedSub : s
+                                  ),
+                                };
+                                setSelectedSubForDetail(updatedSub);
+                                setSelectedClientInvoiceIdsForDelete((prev) =>
+                                  prev.filter((id) => id !== target.id)
+                                );
+                                setInvoiceDeleteConfirm(null);
+                                await persist(nextState);
+                                toast({
+                                  title: `Parcela ${target.installmentNumber} excluída do cadastro!`,
+                                });
+                              }}
+                              className="w-full bg-red-600 hover:bg-red-700 text-white font-bold text-xs h-9"
+                            >
+                              <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Excluir Parcela Permanentemente
+                            </Button>
+
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => setInvoiceDeleteConfirm(null)}
+                              className="w-full text-xs font-bold h-9 text-slate-800 hover:bg-slate-100"
+                            >
+                              Cancelar
+                            </Button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </DialogContent>
               </Dialog>
 
