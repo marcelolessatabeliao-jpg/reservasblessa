@@ -62,6 +62,7 @@ import {
   generateAllAsaasInvoicesForSubscription,
   checkClubInvoicePaymentStatus,
   renderSubscriptionContractHtml,
+  printDocumentHtml,
   cleanDigits,
   getBirthDatePassword,
   getQrCodeImageUrl,
@@ -424,28 +425,7 @@ const SocioPortal: React.FC = () => {
   const handlePrintContract = () => {
     if (!state || !subscription) return;
     const html = renderSubscriptionContractHtml(subscription, state.contractTemplates);
-    const win = window.open('', '_blank', 'width=900,height=800');
-    if (!win) return;
-    win.document.write(`
-      <html>
-        <head>
-          <title>Contrato Lessa Club - ${subscription.holderName}</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 32px; color: #0f172a; }
-            @media print { .no-print { display: none; } }
-          </style>
-        </head>
-        <body>
-          <div class="no-print" style="margin-bottom:20px; text-align:right;">
-            <button onclick="window.print()" style="padding:10px 20px; background:#059669; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">
-              Imprimir / Salvar em PDF
-            </button>
-          </div>
-          ${html}
-        </body>
-      </html>
-    `);
-    win.document.close();
+    printDocumentHtml(`Contrato Lessa Club - ${subscription.holderName}`, html);
   };
 
   return (

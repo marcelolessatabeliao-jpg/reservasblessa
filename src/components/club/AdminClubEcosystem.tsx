@@ -106,6 +106,8 @@ import {
   emitCarneMonthlyChargesInAsaas,
   getQrCodeImageUrl,
   renderSubscriptionContractHtml,
+  renderSiteTermsHtml,
+  printDocumentHtml,
   findMemberOrSubscriptionByQuery,
   scoreSearchMatch,
   formatCurrency,
@@ -2556,28 +2558,59 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
   const handlePrintContract = (sub: ClubSubscription) => {
     if (!state) return;
     const html = renderSubscriptionContractHtml(sub, state.contractTemplates);
-    const win = window.open('', '_blank', 'width=900,height=800');
-    if (!win) return;
-    win.document.write(`
-      <html>
-        <head>
-          <title>Contrato Lessa Club - ${sub.holderName}</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 32px; color: #0f172a; }
-            @media print { .no-print { display: none !important; } }
-          </style>
-        </head>
-        <body>
-          <div class="no-print" style="margin-bottom:16px; text-align:right;">
-            <button onclick="window.print()" style="padding:10px 18px; background:#059669; color:#fff; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">
-              Imprimir Contrato Assinado / Salvar PDF
-            </button>
-          </div>
-          ${html}
-        </body>
-      </html>
-    `);
-    win.document.close();
+    const printed = printDocumentHtml(`Contrato Lessa Club - ${sub.holderName}`, html);
+    if (!printed) {
+      toast({
+        title: 'Não foi possível abrir a impressão',
+        description: 'Verifique se o navegador bloqueou a janela de impressão.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // Print Complete Terms of Use + Full Signed Contract + Legal Electronic Signature Declaration
+  const handlePrintCompleteTermsAndContract = (sub: ClubSubscription) => {
+    if (!state) return;
+    const termsHtml = renderSiteTermsHtml(sub, state.contractTemplates, siteTermsText);
+    const contractHtml = renderSubscriptionContractHtml(sub, state.contractTemplates);
+    const signedAtStr = new Date(sub.contractSignedAt || sub.createdAt).toLocaleString('pt-BR');
+
+    const fullBodyHtml = `
+      <h2 style="color:#005200; border-bottom:2px solid #005200; padding-bottom:8px; font-size:18px; margin-top:0;">
+        BALNEÁRIO FAMÍLIA LESSA LTDA — TERMOS DE USO COMPLETOS E CONTRATO DE ADESÃO
+      </h2>
+      <div style="background:#f8fafc; border:1px solid #cbd5e1; padding:14px; border-radius:8px; margin-bottom:16px; font-size:12px;">
+        <strong>CNPJ:</strong> 46.891.134/0001-40 • <strong>Endereço:</strong> Via Araras, Setor 09, Ariquemes/RO • <strong>WhatsApp:</strong> (69) 99262-6140<br />
+        <strong>Associado Titular:</strong> ${sub.holderName} • <strong>CPF:</strong> ${sub.holderCpf} • <strong>Telefone:</strong> ${sub.holderPhone || '—'} • <strong>Cartão:</strong> #${sub.subscriptionCode}<br />
+        <strong>Plano Contratado:</strong> ${sub.planSummaryLabel} • <strong>Data da Adesão:</strong> ${formatDateBR(sub.startDate)} • <strong>Status do Aceite:</strong> ${sub.contractAccepted ? `ACEITO E ASSINADO ELETRONICAMENTE EM ${signedAtStr}` : 'PENDENTE DE ASSINATURA DIGITAL'}
+      </div>
+      <div style="background:#ecfdf5; border:1.5px solid #86efac; padding:14px; border-radius:8px; margin-bottom:20px; font-size:12px; color:#065f46; line-height:1.6;">
+        <strong>VALIDADE JURÍDICA DO ACEITE ELETRÔNICO E ASSINATURA DIGITAL (MP Nº 2.200-2/2001, ART. 10, § 2º • LEI Nº 14.063/2020 • CÓDIGO CIVIL ARTS. 104, 107, 219 E 422):</strong><br />
+        O aceite digital destes Termos de Uso e do Contrato de Adesão, validado eletronicamente pelo próprio usuário titular com seus dados cadastrais e registro de data/hora e protocolo em servidor, constitui <strong>assinatura eletrônica legalmente válida, autêntica e vinculante, com a exata mesma validade jurídica e força probatória de uma assinatura presencial de próprio punho</strong>.
+      </div>
+      <h3 style="color:#005200; margin-top:8px; margin-bottom:12px; font-size:14px; text-transform:uppercase; border-bottom:1px solid #bbf7d0; padding-bottom:4px;">
+        PARTE I — REGULAMENTO INTERNO E TERMOS DE USO COMPLETOS (TODAS AS CLÁUSULAS)
+      </h3>
+      <div>${termsHtml}</div>
+      <div class="page-break">
+        <h3 style="color:#005200; margin-top:0; margin-bottom:12px; font-size:14px; text-transform:uppercase; border-bottom:1px solid #bbf7d0; padding-bottom:4px;">
+          PARTE II — CONTRATO OFICIAL DE ADESÃO COMPLETO DO ASSOCIADO
+        </h3>
+        ${contractHtml}
+      </div>
+    `;
+
+    const printed = printDocumentHtml(
+      `Termos Completos e Contrato Lessa Club - ${sub.holderName}`,
+      fullBodyHtml
+    );
+    if (!printed) {
+      toast({
+        title: 'Não foi possível abrir a impressão',
+        description: 'Verifique se o navegador bloqueou a janela de impressão.',
+        variant: 'destructive',
+      });
+    }
   };
 
   // Import CSV/Excel from Labcard
@@ -14804,155 +14837,98 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   OPÇÃO 9: VISUALIZAR TERMOS DE USO E CONDIÇÕES
               ===================================================================== */}
               {clientDetailTool === 'TERMOS_USO' && (
-                <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-4">
+                <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-5">
                   <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
                     <div>
                       <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
                         <Lock className="w-5 h-5 text-emerald-700" />
-                        9. Termos de Uso e Regulamento Interno Aceitos pelo Cliente
+                        9. Termos de Uso Completos e Contrato Oficial Aceitos pelo Cliente
                       </h3>
                       <p className="text-xs text-slate-500">
                         Status do Aceite:{' '}
                         <strong>
                           {selectedSubForDetail.contractAccepted
-                            ? `ACEITO E ASSINADO DIGITALMENTE EM ${formatDateBR(
-                                selectedSubForDetail.contractSignedAt
-                              )}`
+                            ? `ACEITO E ASSINADO DIGITALMENTE EM ${new Date(
+                                selectedSubForDetail.contractSignedAt || selectedSubForDetail.createdAt
+                              ).toLocaleString('pt-BR')}`
                             : 'PENDENTE DE ASSINATURA DIGITAL'}
-                        </strong> • Titular: <strong>{selectedSubForDetail.holderName}</strong> (Cartão #{selectedSubForDetail.subscriptionCode})
+                        </strong>{' '}
+                        • Titular: <strong>{selectedSubForDetail.holderName}</strong> (Cartão #{selectedSubForDetail.subscriptionCode})
                       </p>
                     </div>
 
                     <div className="flex items-center gap-2">
                       <Button
+                        type="button"
                         size="sm"
-                        onClick={() => {
-                          const printWin = window.open('', '_blank');
-                          if (printWin) {
-                            printWin.document.write(`
-                              <!DOCTYPE html>
-                              <html>
-                                <head>
-                                  <meta charset="utf-8" />
-                                  <title>Termos de Uso e Regulamento - Balneário Família Lessa</title>
-                                  <style>
-                                    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 40px; color: #1e293b; font-size: 13px; line-height: 1.6; }
-                                    h2 { color: #005200; border-bottom: 2px solid #005200; padding-bottom: 8px; font-size: 18px; margin-top: 0; }
-                                    h3 { color: #005200; margin-top: 24px; font-size: 14px; text-transform: uppercase; }
-                                    .header-box { background: #f8fafc; border: 1px solid #cbd5e1; padding: 14px; border-radius: 8px; margin-bottom: 24px; font-size: 12px; }
-                                    .clause-title { font-weight: bold; color: #0f172a; margin-top: 16px; margin-bottom: 6px; font-size: 13px; }
-                                    p { margin: 6px 0; }
-                                    strong { color: #0f172a; }
-                                  </style>
-                                </head>
-                                <body>
-                                  <h2>BALNEÁRIO FAMÍLIA LESSA LTDA — TERMOS E REGULAMENTO OFICIAL</h2>
-                                  <div class="header-box">
-                                    <strong>CNPJ:</strong> 46.891.134/0001-40 • <strong>Local:</strong> Linha C-65, KM 07, Zona Rural, Ariquemes/RO<br />
-                                    <strong>Associado Titular:</strong> ${selectedSubForDetail.holderName} • <strong>CPF:</strong> ${selectedSubForDetail.holderCpf} • <strong>Cartão:</strong> #${selectedSubForDetail.subscriptionCode}<br />
-                                    <strong>Plano:</strong> ${selectedSubForDetail.planSummaryLabel} • <strong>Adesão:</strong> ${formatDateBR(selectedSubForDetail.startDate)}
-                                  </div>
-                                  <div>
-                                    ${(
-                                      state.contractTemplates.find(
-                                        (t) => t.id === 'TERMOS_SITE'
-                                      )?.contentHtml || ''
-                                    )
-                                      .replace(/\[\/nome-pf\]/g, selectedSubForDetail.holderName.toUpperCase())
-                                      .replace(/\[\/cpf-pf\]/g, selectedSubForDetail.holderCpf)
-                                      .replace(/\[\/rg-pf\]/g, selectedSubForDetail.holderRg || '—')
-                                      .replace(/\[\/plano-pf\]/g, selectedSubForDetail.planSummaryLabel)
-                                      .replace(/\[\/data-cadastro-extenso\]/g, formatDateExtensoBR(selectedSubForDetail.startDate))
-                                      || siteTermsText}
-                                  </div>
-                                </body>
-                              </html>
-                            `);
-                            printWin.document.close();
-                            printWin.focus();
-                            printWin.print();
-                          }
-                        }}
-                        className="bg-[#004d00] hover:bg-emerald-900 text-white font-bold text-xs"
+                        onClick={() => handlePrintCompleteTermsAndContract(selectedSubForDetail)}
+                        className="bg-[#004d00] hover:bg-emerald-900 text-white font-bold text-xs cursor-pointer"
                       >
                         <Printer className="w-3.5 h-3.5 mr-1.5" /> Imprimir Termos Completos
                       </Button>
                     </div>
                   </div>
 
-                  {/* DOCUMENTO COMPLETO E ESTRUTURADO PARA LEITURA INTEGRAL DO CLIENTE */}
-                  <div className="p-6 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 leading-relaxed max-h-[550px] overflow-y-auto space-y-4">
-                    <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-lg text-emerald-950 font-medium">
-                      ℹ️ O cliente pode tirar todas as dúvidas consultando as cláusulas abaixo sobre admissão, horários (sexta a domingo e feriados das 9h às 17h), gratuidade kids (idade limite), entrada ilimitada, conduta e cancelamento sem multa.
+                  {/* DESTAQUE DE VALIDADE JURÍDICA DA ASSINATURA ELETRÔNICA */}
+                  <div className="bg-emerald-50 border-2 border-emerald-300 rounded-xl p-4 text-xs text-emerald-950 space-y-1.5">
+                    <div className="font-black text-emerald-900 flex items-center gap-1.5 uppercase tracking-wide">
+                      <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0" />
+                      Validade Jurídica da Assinatura Eletrônica (Equivalente à Assinatura Presencial)
                     </div>
+                    <p className="leading-relaxed text-slate-800">
+                      Com pleno respaldo na legislação brasileira vigente — <strong>Medida Provisória nº 2.200-2/2001 (art. 10, § 2º)</strong>, <strong>Lei Federal nº 14.063/2020</strong> e <strong>artigos 104, 107, 219 e 422 do Código Civil Brasileiro</strong> — o aceite eletrônico dos Termos de Uso e do Contrato de Adesão validado pelo próprio usuário titular possui <strong>plena força jurídica, autenticidade e validade vinculante equivalente a uma assinatura presencial de próprio punho em documento físico</strong>.
+                    </p>
+                    <p className="text-[11px] text-emerald-800 font-semibold pt-0.5">
+                      Registro de Auditoria: Titular {selectedSubForDetail.holderName} (CPF: {selectedSubForDetail.holderCpf}) • Aceite:{' '}
+                      {selectedSubForDetail.contractAccepted
+                        ? new Date(selectedSubForDetail.contractSignedAt || selectedSubForDetail.createdAt).toLocaleString('pt-BR')
+                        : 'Aguardando confirmação'}{' '}
+                      • Protocolo/IP: {selectedSubForDetail.contractSignatureIp || 'Assinatura Eletrônica Registrada'}
+                    </p>
+                  </div>
 
-                    <div className="space-y-4 font-normal">
-                      <div>
-                        <h4 className="font-bold text-sm text-[#005200] border-b border-slate-200 pb-1 mb-2">
-                          1. DO OBJETO E ACEITAÇÃO
-                        </h4>
-                        <p>1.1. Os presentes Termos e Condições Gerais de Uso regulam a adesão, o acesso e a utilização das dependências, serviços e benefícios disponibilizados pelo Balneário Família Lessa, por meio de planos, carteirinhas ou acessos avulsos.</p>
-                        <p>1.2. Ao realizar o cadastro, efetuar pagamento ou utilizar qualquer plano ou benefício, o titular declara ter lido, compreendido e aceito integralmente todas as disposições deste regulamento.</p>
-                        <p>1.3. A não concordância com quaisquer cláusulas implica na impossibilidade de adesão ou utilização dos serviços oferecidos.</p>
-                      </div>
-
-                      <div>
-                        <h4 className="font-bold text-sm text-[#005200] border-b border-slate-200 pb-1 mb-2">
-                          2. DA NATUREZA DO BALNEÁRIO
-                        </h4>
-                        <p>2.1. O Balneário Família Lessa é um empreendimento privado destinado ao lazer, convivência familiar e turismo recreativo, com ambiente cristão, seguro e orientado por normas internas próprias.</p>
-                        <p>2.2. O acesso às áreas, estruturas e atrações está condicionado às regras internas, disponibilidade operacional, condições climáticas, manutenção e critérios de segurança definidos pela administração.</p>
-                      </div>
-
-                      <div>
-                        <h4 className="font-bold text-sm text-[#005200] border-b border-slate-200 pb-1 mb-2">
-                          3. DO CADASTRO E RESPONSABILIDADE DAS INFORMAÇÕES
-                        </h4>
-                        <p>3.1. Para adesão aos planos, o usuário deverá fornecer informações completas, verídicas e atualizadas, responsabilizando-se civil e criminalmente pela veracidade dos dados prestados.</p>
-                        <p>3.2. O plano e as carteirinhas emitidas são de uso pessoal e intransferível, respeitando-se os limites e condições contratadas para titular e dependentes.</p>
-                      </div>
-
-                      <div>
-                        <h4 className="font-bold text-sm text-[#005200] border-b border-slate-200 pb-1 mb-2">
-                          4. DOS PLANOS, ACESSO, DIAS DE FUNCIONAMENTO E BENEFÍCIOS
-                        </h4>
-                        <p>4.1. O CONTRATANTE e seus dependentes vinculados terão direito à entrada no Balneário durante o período de vigência, exclusivamente nos dias e horários regulares de funcionamento: <strong>atualmente de sexta-feira a domingo e feriados, das 9h (nove horas) às 17h (dezessete horas)</strong>.</p>
-                        <p>4.2. O acesso ao Balneário é condicionado à apresentação de documento oficial com foto e carteirinha de sócio (física ou digital com QR Code).</p>
-                        <p>4.3. <strong>TRANSIÇÃO DE DEPENDENTES E GRATUIDADE KIDS:</strong> Crianças cadastradas em modalidades gratuitas (0 a 5 anos) ou convênios especiais mantêm o benefício até atingirem a idade limite estipulada. Ao completar a idade limite, o titular deverá atualizar o cadastro, passando o dependente para a categoria correspondente (Estudante ou Adulto pagante).</p>
-                        <p>4.4. <strong>MANUTENÇÃO DE VALORES:</strong> Os planos contratados na modalidade anual até 31 de dezembro de 2026 têm garantia de manutenção do valor durante toda a vigência regular de 1 (um) ano, aplicando-se reajustes periódicos somente em 2027 ou futuras renovações.</p>
-                      </div>
-
-                      <div>
-                        <h4 className="font-bold text-sm text-[#005200] border-b border-slate-200 pb-1 mb-2">
-                          5. DAS REGRAS DE CONDUTA E USO DAS DEPENDÊNCIAS
-                        </h4>
-                        <p>5.1. O usuário compromete-se a zelar pelo patrimônio, preservar a natureza, manter conduta compatível com ambiente familiar e acatar as orientações dos monitores e salva-vidas.</p>
-                        <p>5.2. É expressamente vedado: o uso inadequado das instalações, brigas, som excessivo, armas, substâncias ilícitas ou condutas contrárias aos bons costumes e segurança coletiva.</p>
-                      </div>
-
-                      <div>
-                        <h4 className="font-bold text-sm text-[#005200] border-b border-slate-200 pb-1 mb-2">
-                          6. DAS FORMAS DE PAGAMENTO E INADIMPLÊNCIA
-                        </h4>
-                        <p>6.1. O pagamento pode ser realizado via PIX integral, Cartão de Crédito (em até 12x para planos anuais) ou parcelas recorrentes mensais.</p>
-                        <p>6.2. Em caso de inadimplência em planos recorrentes, o acesso à portaria poderá ser temporariamente suspenso até a regularização da parcela em atraso.</p>
-                      </div>
-
-                      <div>
-                        <h4 className="font-bold text-sm text-[#005200] border-b border-slate-200 pb-1 mb-2">
-                          7. DA VIGÊNCIA E CANCELAMENTO SEM MULTA
-                        </h4>
-                        <p>7.1. O plano vigorará pelo prazo contratado de 1 (um) ano para planos anuais ou renovações mensais para planos recorrentes.</p>
-                        <p>7.2. <strong>O cancelamento pode ser solicitado a qualquer momento pelo titular SEM MULTA RESCISÓRIA</strong>, não havendo restituição retroativa de períodos já usufruídos.</p>
-                      </div>
-
-                      <div>
-                        <h4 className="font-bold text-sm text-[#005200] border-b border-slate-200 pb-1 mb-2">
-                          8. DO FORO
-                        </h4>
-                        <p>8.1. Fica eleito o Foro da Comarca de Ariquemes, Estado de Rondônia, para dirimir eventuais controvérsias decorrentes destes Termos de Uso.</p>
-                      </div>
+                  {/* PARTE 1: TERMOS DE USO E REGULAMENTO INTERNO COMPLETOS (TODAS AS 14 CLÁUSULAS) */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-black uppercase tracking-wider text-emerald-900">
+                        Parte I — Termos de Uso e Regulamento Interno Completos (Todas as Cláusulas)
+                      </h4>
+                      <span className="text-[11px] text-slate-500 font-semibold">
+                        Cláusulas 1 a 14 integrais
+                      </span>
                     </div>
+                    <div
+                      className="p-6 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 leading-relaxed max-h-[520px] overflow-y-auto prose max-w-none"
+                      dangerouslySetInnerHTML={{
+                        __html: renderSiteTermsHtml(
+                          selectedSubForDetail,
+                          state.contractTemplates,
+                          siteTermsText
+                        ),
+                      }}
+                    />
+                  </div>
+
+                  {/* PARTE 2: CONTRATO OFICIAL COMPLETO PREENCHIDO COM DADOS DO CLIENTE E DEPENDENTES */}
+                  <div className="space-y-2 pt-2 border-t border-slate-200">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <h4 className="text-xs font-black uppercase tracking-wider text-emerald-900 flex items-center gap-1.5">
+                        <FileText className="w-4 h-4 text-emerald-700" />
+                        Parte II — Contrato Oficial Completo de Adesão ({selectedSubForDetail.holderName})
+                      </h4>
+                      <span className="text-[11px] text-slate-500 font-semibold">
+                        Dados cadastrais, integrantes, aceite e assinaturas
+                      </span>
+                    </div>
+                    <div
+                      className="p-6 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 leading-relaxed max-h-[600px] overflow-y-auto prose max-w-none"
+                      dangerouslySetInnerHTML={{
+                        __html: renderSubscriptionContractHtml(
+                          selectedSubForDetail,
+                          state.contractTemplates
+                        ),
+                      }}
+                    />
                   </div>
                 </div>
               )}

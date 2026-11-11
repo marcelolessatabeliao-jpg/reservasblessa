@@ -3324,6 +3324,16 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
               dangerouslySetInnerHTML={{ __html: previewContractHtml }}
             />
 
+            <div className="bg-emerald-50 border border-emerald-300 rounded-2xl p-4 text-xs text-emerald-950 space-y-1">
+              <strong className="text-emerald-900 font-black uppercase tracking-wide flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0" />
+                Validade Jurídica da Assinatura Eletrônica (Igual à Assinatura Presencial):
+              </strong>
+              <p className="leading-relaxed text-slate-700">
+                Nos termos da <strong>Medida Provisória nº 2.200-2/2001 (art. 10, § 2º)</strong>, da <strong>Lei Federal nº 14.063/2020</strong> e dos <strong>arts. 104, 107, 219 e 422 do Código Civil Brasileiro</strong>, o aceite eletrônico validado por você abaixo constitui <strong>assinatura eletrônica legalmente válida</strong>, com a exata mesma validade e força obrigatória de uma <strong>assinatura presencial</strong>.
+              </p>
+            </div>
+
             <label className="flex items-start gap-3 p-4 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer">
               <input
                 type="checkbox"
@@ -3332,7 +3342,7 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                 className="mt-1 w-4 h-4 rounded border-slate-300 text-emerald-600"
               />
               <span className="text-xs sm:text-sm text-slate-700 font-medium">
-                Li e aceito os <strong>Termos e Condições e o Contrato de Adesão Lessa Club</strong> acima.
+                Li e aceito integralmente os <strong>Termos e Condições e o Contrato de Adesão Lessa Club</strong> acima, ciente de que esta validação eletrônica equivale legalmente à minha assinatura presencial.
               </span>
             </label>
 

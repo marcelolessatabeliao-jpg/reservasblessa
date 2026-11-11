@@ -1249,7 +1249,7 @@ export const CustomFamilyCheckoutModal: React.FC<CustomFamilyCheckoutModalProps>
                     Contrato de Adesão de Associado • Validade Jurídica Plena
                   </h4>
                   <p className="text-xs text-emerald-100/90 leading-tight">
-                    Conforme o Código Civil Brasileiro e a MP 2.200-2/2001, o aceite eletrônico possui força de assinatura física e gera obrigação contratual válida.
+                    Com respaldo na <strong>Medida Provisória nº 2.200-2/2001 (art. 10, § 2º)</strong>, na <strong>Lei nº 14.063/2020</strong> e no <strong>Código Civil Brasileiro</strong>, o aceite eletrônico validado pelo usuário constitui assinatura eletrônica com a mesma validade jurídica da <strong>assinatura presencial</strong>.
                   </p>
                 </div>
               </div>

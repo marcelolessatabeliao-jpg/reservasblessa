@@ -295,41 +295,68 @@ export const DEFAULT_CATALOG_SERVICES: ClubAdditionalService[] = [
   },
 ];
 
-export const DEFAULT_SITE_TERMS_TEXT = `BALNEÁRIO FAMÍLIA LESSA
-Contrato de Adesão de Associado
+export const DEFAULT_SITE_TERMS_TEXT = `BALNEÁRIO FAMÍLIA LESSA LTDA
+Contrato de Adesão, Termos e Condições Gerais de Uso, Adesão e Acesso
+CNPJ: 46.891.134/0001-40 • Via Araras, Setor 09, Ariquemes/RO • WhatsApp: (69) 99262-6140
 
 1. DO OBJETO E ACEITAÇÃO
-1.1 Os presentes Termos e Condições Gerais de Uso regulam a adesão, o acesso e a utilização das dependências, serviços e benefícios disponibilizados pelo Balneário Família Lessa, por meio de planos, carteirinhas ou acessos avulsos.
-1.2. Ao realizar o cadastro, efetuar pagamento ou utilizar qualquer plano ou benefício, o usuário declara, de forma expressa, que leu, compreendeu e concorda integralmente com todas as disposições deste instrumento, obrigando-se a cumpri-las durante toda a vigência do plano contratado.
+1.1. Os presentes Termos e Condições Gerais de Uso regulam a adesão, o acesso, a permanência e a utilização das dependências, atrações, estruturas naturais, serviços e benefícios disponibilizados pelo Balneário Família Lessa, por meio de planos (Lessa Club), carteirinhas ou acessos avulsos.
+1.2. Ao realizar o cadastro, efetuar pagamento ou utilizar qualquer plano ou benefício, seja presencialmente ou através do portal online, o usuário declara, de forma expressa, que leu, compreendeu e concorda integralmente com todas as disposições deste instrumento, obrigando-se a cumpri-las durante toda a vigência do plano contratado.
 1.3. A não concordância com quaisquer cláusulas implica na impossibilidade de adesão ou utilização dos serviços oferecidos.
 
-2. DA NATUREZA DO BALNEÁRIO
+2. DA NATUREZA DO BALNEÁRIO E HORÁRIOS DE FUNCIONAMENTO
 2.1. O Balneário Família Lessa é um empreendimento privado destinado ao lazer, convivência familiar e turismo recreativo, com ambiente cristão, seguro e orientado por normas internas próprias.
-2.2. O acesso às dependências, quiosques, piscinas e estruturas naturais está condicionado às regras de segurança, disponibilidade operacional e critérios da administração.
+2.2. O Balneário funciona regularmente de sexta-feira a domingo e feriados, das 9h (nove horas) às 17h (dezessete horas).
+2.3. O acesso às áreas, estruturas e atrações está condicionado às regras internas, disponibilidade operacional, condições climáticas, manutenção, segurança e critérios definidos pela administração, sem que eventuais ajustes ou interdições gerem direito a abatimento, restituição ou indenização financeira.
 
-3. DO CADASTRO E RESPONSABILIDADE DAS INFORMAÇÕES
-3.1. Para adesão aos planos, o titular deve fornecer dados completos e verdadeiros (Nome, CPF, Telefone, Endereço e dados dos dependentes).
-3.2. As carteirinhas emitidas são de uso estritamente pessoal e intransferível.
+3. DO CADASTRO, CARTEIRINHA E RESPONSABILIDADE DAS INFORMAÇÕES
+3.1. Para adesão aos planos, o usuário deverá fornecer informações completas, verídicas e atualizadas (Nome, CPF, Data de Nascimento, Telefone, E-mail, Endereço e dados dos dependentes), responsabilizando-se civil e criminalmente pela veracidade dos dados prestados.
+3.2. O Balneário Família Lessa não se responsabiliza por prejuízos decorrentes de informações incorretas, incompletas ou falsas fornecidas pelo usuário.
+3.3. A carteirinha emitida (física, digital ou QR Code) é de uso estritamente pessoal e intransferível, respeitando-se os limites e condições contratadas para titular e dependentes. Na portaria, documento oficial com foto poderá ser exigido a qualquer momento. O uso indevido por terceiros enseja suspensão ou cancelamento imediato por fraude.
 
-4. DOS PLANOS, ACESSO, DIAS DE FUNCIONAMENTO E BENEFÍCIOS
-4.1. O titular e dependentes têm direito de entrada ilimitada no Balneário nos dias e horários de funcionamento: atualmente de sexta-feira a domingo e feriados, das 9h às 17h.
-4.2. Apresentação obrigatória de documento oficial com foto e carteirinha de sócio física ou digital (QR Code).
-4.3. Manutenção de valores de tabela contratados para o ciclo anual vigente e regras de transição de faixa etária para dependentes kids e estudantes.
+4. DOS PLANOS, CATEGORIAS, ACESSO E BENEFÍCIOS
+4.1. As condições comerciais, valores, benefícios, quantidade de acessos, vigência e regras específicas variam conforme o plano contratado no ato da adesão.
+4.2. Quando previsto no plano contratado, o CONTRATANTE e seus dependentes vinculados terão direito à entrada ilimitada no Balneário durante a vigência, exclusivamente nos dias e horários regulares de funcionamento (sexta-feira a domingo e feriados, das 9h às 17h).
+4.3. Lessa Kids, Estudante, Professor, Servidor, 60+ e Inclusão PCD/TEA exigem comprovação documental individualizada e periódica (RG/Certidão, comprovante escolar/funcional ou laudo médico/CIPTEA), devendo o titular manter os documentos atualizados. Ao completar a idade limite no Lessa Kids, o dependente passa automaticamente à categoria compatível vigente.
+4.4. A expressão "entrada ilimitada" refere-se exclusivamente à quantidade de acessos do associado em dias normais de funcionamento, não abrangendo serviços cobrados à parte, dias fechados, eventos privados ou autorização para ingresso de terceiros.
+4.5. MANUTENÇÃO E ATUALIZAÇÃO DE VALORES: Os planos na modalidade anual contratados ou renovados até 31 de dezembro de 2026 têm garantia de manutenção do valor contratado durante toda a vigência regular de 1 (um) ano, aplicando-se eventuais reajustes periódicos somente a partir de janeiro de 2027 ou em futuras renovações.
 
-5. DAS REGRAS DE CONDUTA E USO DAS DEPENDÊNCIAS
-5.1. O usuário compromete-se a zelar pelo patrimônio, preservar a natureza, fauna e flora, manter conduta compatível com ambiente familiar e acatar as orientações dos monitores e salva-vidas.
-5.2. É expressamente proibido som automotivo abusivo, porte de armas, brigas, substâncias ilícitas ou condutas contrárias à moral e segurança coletiva.
+5. DAS REGRAS DE CONDUTA, SEGURANÇA E MEIO AMBIENTE
+5.1. O usuário compromete-se a zelar pelo patrimônio, preservar a natureza, fauna e flora, descartar resíduos nas lixeiras seletivas, manter conduta compatível com ambiente familiar cristão e acatar as orientações dos monitores e salva-vidas.
+5.2. É expressamente vedado: som automotivo ou caixas de som abusivas, porte de armas, substâncias ilícitas, recipientes/garrafas de vidro nas áreas de água e piscinas, brigas ou condutas contrárias à moral e segurança coletiva.
+5.3. Crianças menores de 12 anos devem obrigatoriamente permanecer acompanhadas e sob supervisão visual direta de seus pais ou responsáveis legais durante todo o período nas águas.
 
-6. DAS FORMAS DE PAGAMENTO E INADIMPLÊNCIA
-6.1. O pagamento pode ser realizado via PIX integral, Cartão de Crédito parcelado ou mensalidades recorrentes.
-6.2. Em caso de inadimplência em planos recorrentes, o acesso à portaria poderá ser temporariamente suspenso até a regularização da parcela.
+6. DAS RESPONSABILIDADES, RISCOS E ISENÇÕES
+6.1. O usuário declara ciência de que atividades de lazer, recreação, piscinas naturais, cachoeiras e contato com a natureza envolvem riscos inerentes, assumindo integral responsabilidade por seus atos e pelos atos de seus dependentes e convidados.
+6.2. O Balneário Família Lessa não se responsabiliza por perdas, extravios, furtos ou danos a bens pessoais ou veículos, tampouco por acidentes decorrentes de imprudência, negligência, imperícia ou descumprimento das normas de segurança.
 
-7. DA VIGÊNCIA E CANCELAMENTO SEM MULTA
-7.1. O plano vigorará pelo prazo de 12 (doze) meses ou renovação mensal acordada.
-7.2. O cancelamento pode ser solicitado a qualquer momento pelo titular SEM QUALQUER MULTA RESCISÓRIA.
+7. DOS SERVIÇOS INCLUSOS E NÃO INCLUSOS NOS PLANOS
+7.1. A assinatura garante a entrada livre e uso das piscinas, cachoeiras, áreas verdes, campos de esporte e áreas comuns de descanso.
+7.2. Não estão inclusos nos planos, sendo cobrados separadamente conforme tabela vigente: a) Consumos no restaurante, café colonial, lanchonetes, porções e bebidas; b) Trilhas de quadriciclo; c) Pesca esportiva (pesque e solte); d) Aluguel de equipamentos ou atividades recreativas opcionais; e) Locação exclusiva de quiosques com churrasqueira.
 
-8. DO FORO
-8.1. Fica eleito o Foro da Comarca de Ariquemes, Estado de Rondônia, para dirimir quaisquer dúvidas oriundas deste contrato.`;
+8. DOS PAGAMENTOS, VIGÊNCIA, CANCELAMENTO E AUSÊNCIA DE FIDELIDADE
+8.1. O pagamento pode ser realizado via PIX integral, Cartão de Crédito (em até 12x para planos anuais) ou mensalidades recorrentes, iniciando-se a vigência regular após a confirmação do pagamento e validação documental quando obrigatória.
+8.2. CANCELAMENTO SEM FIDELIDADE: O plano contratado não possui cláusula de fidelidade, podendo o titular solicitar o cancelamento a qualquer momento pelo WhatsApp Oficial (69) 99262-6140, SEM MULTA RESCISÓRIA e sem cobrança de parcelas futuras após a efetivação do cancelamento.
+8.3. Para efetivar o cancelamento, o titular deve estar em dia com as mensalidades vencidas até a data do pedido. O não uso das dependências ou benefícios não isenta o pagamento das mensalidades enquanto o plano estiver ativo. Em caso de inadimplência superior a 5 dias, o acesso à portaria poderá ser temporariamente suspenso até a quitação da parcela.
+
+9. DA SUSPENSÃO OU CANCELAMENTO DO ACESSO
+9.1. O Balneário poderá suspender ou cancelar o acesso do usuário, sem direito a reembolso, em caso de descumprimento destes Termos, uso indevido da carteirinha por terceiros, fraude cadastral/documental ou conduta incompatível com a segurança coletiva.
+
+10. DAS ALTERAÇÕES CONTRATUAIS
+10.1. O Balneário Família Lessa poderá atualizar os presentes Termos, sendo as novas condições aplicáveis a partir de sua publicação nos canais oficiais e Portal do Sócio.
+
+11. DA AUTORIZAÇÃO DE USO DE IMAGEM
+11.1. Mediante o aceite deste Termo, o CONTRATANTE autoriza, de forma gratuita e para fins institucionais, promocionais e de divulgação das atividades do Balneário Família Lessa, o registro e uso de sua imagem e voz e de seus dependentes captadas durante o lazer, em quaisquer meios físicos ou digitais, sem ônus ou indenização.
+
+12. DA LEI APLICÁVEL E FORO
+12.1. Este instrumento é regido pelas leis da República Federativa do Brasil. Fica eleito o Foro da Comarca de Ariquemes, Estado de Rondônia, para dirimir quaisquer controvérsias oriundas deste contrato.
+
+13. CONTATO
+13.1. E-mail: balneario.lessa@gmail.com | WhatsApp: (69) 99262-6140 | Instagram: @balneariolessa
+
+14. DA VALIDADE JURÍDICA DO ACEITE ELETRÔNICO E ASSINATURA DIGITAL
+14.1. As partes declaram e reconhecem expressamente, com respaldo na Medida Provisória nº 2.200-2/2001 (art. 10, § 2º), na Lei Federal nº 14.063/2020 e nos artigos 104, 107, 219 e 422 do Código Civil Brasileiro, que o aceite digital destes Termos de Uso e do Contrato de Adesão, validado pelo próprio usuário titular no sistema, constitui assinatura eletrônica plenamente válida, autêntica e vinculante.
+14.2. O aceite eletrônico registrado com os dados cadastrais do titular (Nome, CPF, Data de Nascimento, Telefone e E-mail), carimbo de data/hora e protocolo em servidor possui todos os efeitos jurídicos e probatórios equivalentes a uma assinatura presencial de próprio punho em documento físico, dispensando assinatura em papel ou reconhecimento de firma.`;
 
 export interface ClubDatabaseState {
   modalities: ClubModality[];
@@ -658,10 +685,26 @@ export const normalizeClubDatabaseState = (
 
   const hasLatestContractFormat = parsed.contractTemplates?.every(
     (t) =>
-      (t.contentHtml?.includes('[/resumo-financeiro-contrato]') &&
+      ((t.contentHtml?.includes('[/resumo-financeiro-contrato]') &&
         t.contentHtml?.includes('BLOCO-ASSINATURAS-IMPRESSAO')) ||
-      t.id === 'TERMOS_SITE'
+        t.id === 'TERMOS_SITE') &&
+      t.contentHtml?.includes('2.200-2/2001')
   );
+
+  const rawSiteTerms =
+    parsed.siteTermsText && parsed.siteTermsText.length > 100
+      ? parsed.siteTermsText
+      : fallbackState?.siteTermsText && fallbackState.siteTermsText.length > 100
+      ? fallbackState.siteTermsText
+      : '';
+
+  const normalizedSiteTerms = !rawSiteTerms
+    ? DEFAULT_SITE_TERMS_TEXT
+    : rawSiteTerms.includes('2.200-2/2001')
+    ? rawSiteTerms
+    : !rawSiteTerms.includes('9. ')
+    ? DEFAULT_SITE_TERMS_TEXT
+    : `${rawSiteTerms}\n\n14. DA VALIDADE JURÍDICA DO ACEITE ELETRÔNICO E ASSINATURA DIGITAL\n14.1. As partes declaram e reconhecem expressamente, com respaldo na Medida Provisória nº 2.200-2/2001 (art. 10, § 2º), na Lei Federal nº 14.063/2020 e nos artigos 104, 107, 219 e 422 do Código Civil Brasileiro, que o aceite digital destes Termos de Uso e do Contrato de Adesão, validado pelo próprio usuário titular no sistema, constitui assinatura eletrônica plenamente válida, produzindo os mesmos efeitos jurídicos de uma assinatura presencial de próprio punho.`;
 
   return {
     modalities: [...mergedModalities, ...customModalities].map((m) => ({
@@ -684,12 +727,7 @@ export const normalizeClubDatabaseState = (
         : fallbackState?.catalogServices && fallbackState.catalogServices.length > 0
         ? fallbackState.catalogServices
         : DEFAULT_CATALOG_SERVICES,
-    siteTermsText:
-      parsed.siteTermsText && parsed.siteTermsText.length > 100
-        ? parsed.siteTermsText
-        : fallbackState?.siteTermsText && fallbackState.siteTermsText.length > 100
-        ? fallbackState.siteTermsText
-        : DEFAULT_SITE_TERMS_TEXT,
+    siteTermsText: normalizedSiteTerms,
     updatedAt: parsed.updatedAt || new Date().toISOString(),
   };
 };
@@ -1926,6 +1964,10 @@ export const renderSubscriptionContractHtml = (
       <ul style="margin: 4px 0 0 18px; padding: 0; line-height: 1.7; color: #0f172a;">
         ${acceptedTermsList.map((t) => `<li>✔ ${t}</li>`).join('')}
       </ul>
+      <div style="margin-top: 10px; background: #ecfdf5; border: 1px solid #86efac; border-radius: 6px; padding: 8px 10px; color: #065f46; line-height: 1.55;">
+        <strong>RESPALDO LEGAL DA ASSINATURA ELETRÔNICA (MP Nº 2.200-2/2001, ART. 10, § 2º • LEI Nº 14.063/2020 • CÓDIGO CIVIL ARTS. 104, 107 E 219):</strong>
+        O aceite eletrônico manifestado e validado pelo próprio titular neste sistema constitui <strong>assinatura eletrônica legalmente válida, autêntica e vinculante</strong>, produzindo os exatos mesmos efeitos jurídicos e probatórios de uma <strong>assinatura presencial em documento físico</strong>.
+      </div>
       <div style="margin-top: 10px; font-size: 10px; color: #64748b; border-top: 1px dashed #cbd5e1; padding-top: 6px;">
         <strong>Data/Hora do Aceite Digital:</strong> ${new Date(subscription.contractSignedAt || subscription.createdAt).toLocaleString('pt-BR')} &nbsp;|&nbsp; 
         <strong>IP / Protocolo:</strong> ${subscription.contractSignatureIp || '187.56.24.112 (Assinatura Eletrônica Registrada)'} &nbsp;|&nbsp; 
@@ -1992,6 +2034,120 @@ export const renderSubscriptionContractHtml = (
   }
 
   return html;
+};
+
+/**
+ * Renderiza o Regulamento Interno / Termos de Uso completo (todas as 14 cláusulas)
+ * com os dados do associado titular preenchidos.
+ */
+export const renderSiteTermsHtml = (
+  subscription: ClubSubscription,
+  templates: ClubContractTemplate[] = DEFAULT_CONTRACT_TEMPLATES,
+  fallbackSiteTermsText?: string
+): string => {
+  const defaultTermsTpl = DEFAULT_CONTRACT_TEMPLATES.find((t) => t.id === 'TERMOS_SITE');
+  const rawTplHtml =
+    templates.find((t) => t.id === 'TERMOS_SITE')?.contentHtml ||
+    defaultTermsTpl?.contentHtml ||
+    '';
+
+  if (rawTplHtml.trim()) {
+    return rawTplHtml
+      .replace(/\[\/nome-pf\]/g, subscription.holderName.toUpperCase())
+      .replace(/\[\/cpf-pf\]/g, subscription.holderCpf || '—')
+      .replace(/\[\/rg-pf\]/g, subscription.holderRg || '—')
+      .replace(/\[\/plano-pf\]/g, subscription.planSummaryLabel || 'Lessa Club')
+      .replace(/\[\/card-pf\]/g, subscription.subscriptionCode || '—')
+      .replace(/\[\/data-cadastro-extenso\]/g, formatDateExtenso(subscription.startDate || subscription.createdAt));
+  }
+
+  const plainText = (fallbackSiteTermsText || DEFAULT_SITE_TERMS_TEXT)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\n/g, '<br/>');
+  return `<div style="font-family: Arial, sans-serif; line-height: 1.75; color: #1e293b;">${plainText}</div>`;
+};
+
+/**
+ * Imprime documento HTML completo em nova janela (ou iframe oculto caso pop-up esteja bloqueado).
+ */
+export const printDocumentHtml = (title: string, bodyHtml: string): boolean => {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return false;
+
+  const fullHtml = `<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <title>${title}</title>
+    <style>
+      @page { size: A4; margin: 15mm; }
+      body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; padding: 28px 36px; color: #0f172a; font-size: 13px; line-height: 1.65; background: #ffffff; }
+      h1, h2 { color: #005200; margin-top: 0; }
+      table { width: 100%; border-collapse: collapse; }
+      .page-break { page-break-before: always; margin-top: 32px; padding-top: 24px; border-top: 2px dashed #cbd5e1; }
+      @media print {
+        .no-print { display: none !important; }
+        body { padding: 0; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="no-print" style="margin-bottom:20px; display:flex; flex-wrap:wrap; gap:10px; justify-content:space-between; align-items:center; background:#f8fafc; border:1px solid #cbd5e1; padding:12px 16px; border-radius:10px;">
+      <span style="font-size:12px; color:#334155; font-weight:700;">Documento Oficial — Balneário Família Lessa LTDA</span>
+      <button onclick="window.print()" style="padding:10px 20px; background:#005200; color:#ffffff; border:none; border-radius:8px; font-weight:700; font-size:13px; cursor:pointer;">
+        Imprimir / Salvar em PDF
+      </button>
+    </div>
+    ${bodyHtml}
+  </body>
+</html>`;
+
+  const win = window.open('', '_blank', 'width=980,height=860');
+  if (win) {
+    win.document.open();
+    win.document.write(fullHtml);
+    win.document.close();
+    win.focus();
+    setTimeout(() => {
+      try {
+        win.focus();
+        win.print();
+      } catch {
+        // O botão Imprimir / Salvar em PDF permanece disponível na janela aberta
+      }
+    }, 350);
+    return true;
+  }
+
+  // Fallback via iframe oculto caso o navegador bloqueie pop-ups
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.right = '0';
+  iframe.style.bottom = '0';
+  iframe.style.width = '0';
+  iframe.style.height = '0';
+  iframe.style.border = '0';
+  iframe.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(iframe);
+
+  const iframeDoc = iframe.contentWindow?.document;
+  if (!iframeDoc || !iframe.contentWindow) {
+    iframe.remove();
+    return false;
+  }
+  iframeDoc.open();
+  iframeDoc.write(fullHtml);
+  iframeDoc.close();
+  setTimeout(() => {
+    try {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+    } finally {
+      setTimeout(() => iframe.remove(), 2500);
+    }
+  }, 350);
+  return true;
 };
 
 // ============================================================================

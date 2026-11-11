@@ -756,9 +756,15 @@ export const DEFAULT_CONTRACT_TEMPLATES: ClubContractTemplate[] = [
     <div>Este termo é regido pelas leis da República Federativa do Brasil. Fica eleito o foro da comarca de Ariquemes/RO, onde está localizado o Balneário Família Lessa, para dirimir quaisquer controvérsias.</div>
   </div>
 
-  <div style="margin-bottom: 24px;">
+  <div style="margin-bottom: 18px;">
     <strong style="color: #0f172a; font-size: 14px; display: block; margin-bottom: 6px;">13. CONTATO</strong>
     <div>Email: balneario.lessa@gmail.com | WhatsApp: (69) 99262-6140 | Instagram: @balneariolessa</div>
+  </div>
+
+  <div style="margin-bottom: 24px; background: #ecfdf5; border: 1px solid #86efac; border-radius: 8px; padding: 14px;">
+    <strong style="color: #065f46; font-size: 14px; display: block; margin-bottom: 6px;">14. DA VALIDADE JURÍDICA DO ACEITE ELETRÔNICO E ASSINATURA DIGITAL</strong>
+    <div style="margin-bottom: 6px;">14.1. As partes reconhecem expressamente, com pleno respaldo na legislação brasileira vigente — em especial na <strong>Medida Provisória nº 2.200-2/2001 (art. 10, § 2º)</strong>, na <strong>Lei Federal nº 14.063/2020</strong> e nos <strong>artigos 104, 107, 219 e 422 do Código Civil Brasileiro</strong> — que o aceite eletrônico manifestado e validado pelo próprio CONTRATANTE no sistema do Balneário Família Lessa constitui <strong>assinatura eletrônica plenamente válida, autêntica e vinculante</strong>.</div>
+    <div>14.2. O aceite eletrônico registrado com os dados de identificação do titular (Nome, CPF, Data de Nascimento, Telefone e E-mail), carimbo de data/hora e protocolo de registro produz <strong>todos os efeitos jurídicos e probatórios equivalentes a uma assinatura presencial de próprio punho em documento físico</strong>, dispensando assinatura em papel ou reconhecimento de firma em cartório para sua plena eficácia e exigibilidade contratual.</div>
   </div>
 
   <hr style="margin: 24px 0; border-color: #cbd5e1;" />
@@ -768,12 +774,12 @@ export const DEFAULT_CONTRACT_TEMPLATES: ClubContractTemplate[] = [
       DECLARAÇÃO DE CIÊNCIA, ACEITE E ASSINATURAS DO CONTRATO
     </h4>
     <div style="margin-bottom: 10px;">
-      Declaro que li, compreendi e aceito integralmente os Termos e Condições Gerais de Uso do Balneário Família Lessa.
+      Declaro que li, compreendi e aceito integralmente os Termos e Condições Gerais de Uso do Balneário Família Lessa, reconhecendo que a validação eletrônica deste instrumento pelo próprio usuário possui plena força legal e equivalência jurídica a uma <strong>assinatura presencial</strong>, nos termos da Medida Provisória nº 2.200-2/2001 (art. 10, § 2º), Lei nº 14.063/2020 e Código Civil Brasileiro.
     </div>
     <div style="margin-bottom: 16px;">
       Local e data: <strong>Ariquemes/RO, [/data-cadastro-extenso]</strong> &nbsp;|&nbsp; Emissão: <strong>[/dataAtualExt-admin]</strong><br/>
       <span style="font-size: 11px; color: #059669; font-weight: bold;">
-        ✔ Aceite e assinatura eletrônica registrados em [/data-assinatura-iso] (Termo Nº [/card-pf])
+        ✔ Aceite e assinatura eletrônica validada pelo titular em [/data-assinatura-iso] — Equivale legalmente à assinatura presencial (Termo Nº [/card-pf])
       </span>
     </div>
 
@@ -918,13 +924,18 @@ export const DEFAULT_CONTRACT_TEMPLATES: ClubContractTemplate[] = [
     Fica eleito o Foro da Comarca de Ariquemes, Estado de Rondônia, com exclusão de qualquer outro, por mais privilegiado que seja, para dirimir eventuais dúvidas ou controvérsias decorrentes deste contrato.
   </div>
 
+  <div style="margin-bottom: 18px; background: #ecfdf5; border: 1px solid #86efac; border-radius: 8px; padding: 12px;">
+    <strong>CLÁUSULA 10 — DA VALIDADE JURÍDICA DO ACEITE ELETRÔNICO E ASSINATURA DIGITAL</strong><br/>
+    Com respaldo na <strong>Medida Provisória nº 2.200-2/2001 (art. 10, § 2º)</strong>, na <strong>Lei Federal nº 14.063/2020</strong> e nos <strong>artigos 104, 107 e 219 do Código Civil Brasileiro</strong>, as partes reconhecem que o aceite eletrônico validado pelo próprio Permutante/Titular no portal constitui assinatura eletrônica válida, com plena eficácia jurídica equivalente à assinatura presencial.
+  </div>
+
   <hr style="margin: 24px 0; border-color: #cbd5e1;" />
   <!-- BLOCO-ASSINATURAS-IMPRESSAO -->
   <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 20px; page-break-inside: avoid;">
     <div style="margin-bottom: 16px;">
       Local e data: <strong>Ariquemes/RO, [/data-cadastro-extenso]</strong>.<br/>
       <span style="font-size: 11px; color: #059669; font-weight: bold;">
-        ✔ Contrato registrado e assinado em [/data-assinatura-iso] (Termo Nº [/card-pf])
+        ✔ Aceite e assinatura eletrônica validada pelo titular em [/data-assinatura-iso] — Equivale legalmente à assinatura presencial (MP nº 2.200-2/2001 e Lei nº 14.063/2020 • Termo Nº [/card-pf])
       </span>
     </div>
 
@@ -984,69 +995,101 @@ export const DEFAULT_CONTRACT_TEMPLATES: ClubContractTemplate[] = [
   {
     id: 'TERMOS_SITE',
     title: 'Termos e Condições Gerais de Uso, Adesão e Acesso (Site & Portal)',
-    description: 'Regulamento interno oficial completo para leitura de associados e consulta presencial/online.',
+    description: 'Regulamento interno oficial completo com todas as 14 cláusulas para leitura de associados e consulta presencial/online.',
     updatedAt: new Date().toISOString(),
     contentHtml: `
 <div style="font-family: Arial, sans-serif; color: #1e293b; line-height: 1.8; font-size: 13.5px;">
   <div style="border-bottom: 2px solid #005200; padding-bottom: 12px; margin-bottom: 20px;">
     <h2 style="color: #005200; margin: 0 0 6px 0; font-size: 20px; font-weight: 900;">BALNEÁRIO FAMÍLIA LESSA LTDA</h2>
-    <h3 style="color: #334155; margin: 0; font-size: 15px; font-weight: bold;">REGULAMENTO INTERNO, TERMOS E CONDIÇÕES GERAIS DE USO E ADESÃO</h3>
+    <h3 style="color: #334155; margin: 0; font-size: 15px; font-weight: bold;">REGULAMENTO INTERNO, TERMOS E CONDIÇÕES GERAIS DE USO, ADESÃO E ACESSO</h3>
     <div style="font-size: 11px; color: #64748b; margin-top: 4px;">CNPJ: 46.891.134/0001-40 • Via Araras, Setor 09, Ariquemes/RO • WhatsApp: (69) 99262-6140</div>
   </div>
 
-  <div style="margin-bottom: 18px;">
-    <strong style="color: #005200; font-size: 14px; display: block; margin-bottom: 4px;">1. DO OBJETO E ACEITAÇÃO INTEGRAL</strong>
-    <div>1.1. Os presentes Termos e Condições Gerais de Uso regulam o acesso, a permanência e a utilização das dependências, atrações, estruturas naturais e serviços do Balneário Família Lessa, bem como a adesão aos planos de associados (Lessa Club), modalidades de meia-entrada e gratuidades.</div>
-    <div>1.2. O ato de adesão, seja presencial ou através do portal online, bem como a simples entrada no parque, implica na aceitação irrestrita e automática de todas as normas deste regulamento.</div>
+  <div style="margin-bottom: 16px;">
+    <strong style="color: #005200; font-size: 14px; display: block; margin-bottom: 4px;">1. DO OBJETO E ACEITAÇÃO</strong>
+    <div>1.1. Os presentes Termos e Condições Gerais de Uso regulam a adesão, o acesso, a permanência e a utilização das dependências, atrações, estruturas naturais, serviços e benefícios disponibilizados pelo Balneário Família Lessa, por meio de planos (Lessa Club), carteirinhas ou acessos avulsos.</div>
+    <div>1.2. Ao realizar o cadastro, efetuar pagamento ou utilizar qualquer plano ou benefício, seja presencialmente ou através do portal online, o usuário declara, de forma expressa, que leu, compreendeu e concorda integralmente com todas as disposições deste instrumento, obrigando-se a cumpri-las durante toda a vigência do plano contratado.</div>
+    <div>1.3. A não concordância com quaisquer cláusulas implica na impossibilidade de adesão ou utilização dos serviços oferecidos.</div>
   </div>
 
-  <div style="margin-bottom: 18px;">
-    <strong style="color: #005200; font-size: 14px; display: block; margin-bottom: 4px;">2. HORÁRIOS, DIAS DE FUNCIONAMENTO E ACESSO</strong>
-    <div>2.1. O Balneário Família Lessa funciona regularmente às <strong>sextas-feiras, sábados, domingos e feriados, das 9h às 17h</strong>.</div>
-    <div>2.2. A administração reserva-se o direito de fechar ou alterar os horários por motivo de força maior, condições climáticas adversas, manutenções emergenciais ou eventos previamente agendados, sem que isso gere direito a restituição ou indenização financeira.</div>
+  <div style="margin-bottom: 16px;">
+    <strong style="color: #005200; font-size: 14px; display: block; margin-bottom: 4px;">2. DA NATUREZA DO BALNEÁRIO E HORÁRIOS DE FUNCIONAMENTO</strong>
+    <div>2.1. O Balneário Família Lessa é um empreendimento privado destinado ao lazer, convivência familiar e turismo recreativo, com ambiente cristão, seguro e orientado por normas internas próprias.</div>
+    <div>2.2. O Balneário funciona regularmente de <strong>sexta-feira a domingo e feriados, das 9h (nove horas) às 17h (dezessete horas)</strong>.</div>
+    <div>2.3. O acesso às áreas, estruturas e atrações está condicionado às regras internas, disponibilidade operacional, condições climáticas, manutenções emergenciais, eventos internos ou critérios de segurança definidos pela administração, sem que eventuais alterações gerem direito a restituição, abatimento ou indenização financeira.</div>
   </div>
 
-  <div style="margin-bottom: 18px;">
-    <strong style="color: #005200; font-size: 14px; display: block; margin-bottom: 4px;">3. CARTEIRINHA, QR CODE E USO PESSOAL E INTRANSFERÍVEL</strong>
-    <div>3.1. A carteirinha de associado (seja em cartão PVC, cartão digital no smartphone ou QR Code) é de uso <strong>estritamente pessoal e intransferível</strong>. É expressamente proibido emprestar, ceder ou repassar o cartão ou QR Code para terceiros.</div>
-    <div>3.2. Na portaria de acesso, a apresentação de documento de identificação com foto poderá ser solicitada a qualquer momento para conferência facial e validação do titular ou dependente. O uso indevido por terceiros enseja o cancelamento imediato do plano por fraude.</div>
+  <div style="margin-bottom: 16px;">
+    <strong style="color: #005200; font-size: 14px; display: block; margin-bottom: 4px;">3. DO CADASTRO, CARTEIRINHA E RESPONSABILIDADE DAS INFORMAÇÕES</strong>
+    <div>3.1. Para adesão aos planos, o usuário deverá fornecer informações completas, verídicas e atualizadas, responsabilizando-se civil e criminalmente pela veracidade dos dados prestados.</div>
+    <div>3.2. O Balneário Família Lessa não se responsabiliza por prejuízos decorrentes de informações incorretas, incompletas ou falsas fornecidas pelo usuário.</div>
+    <div>3.3. A carteirinha de associado (física, digital ou QR Code) é de uso <strong>estritamente pessoal e intransferível</strong>, salvo quando expressamente previsto para dependentes vinculados em planos familiares, respeitando-se os limites e condições contratadas. Na portaria, documento oficial com foto poderá ser exigido a qualquer momento. O uso indevido por terceiros enseja suspensão ou cancelamento imediato por fraude.</div>
   </div>
 
-  <div style="margin-bottom: 18px;">
-    <strong style="color: #005200; font-size: 14px; display: block; margin-bottom: 4px;">4. CATEGORIAS DE BENEFÍCIOS, GRATUIDADES E TRANSIÇÃO DE IDADE</strong>
-    <div>4.1. <strong>Lessa Kids (Gratuidade por Faixa Etária):</strong> Concedido a crianças conforme a faixa etária vigente do balneário. Fica estabelecido que, ao completar a idade limite (aniversário que encerra o período de isenção), o dependente perde automaticamente a condição de gratuidade, passando à condição de pagante na categoria compatível (Estudante ou Integral).</div>
-    <div>4.2. <strong>Lessa Estudante e Lessa Professor:</strong> Destinados exclusivamente a estudantes e professores comprovadamente matriculados ou em exercício, mediante apresentação periódica de declaração/comprovante escolar ou carteira estudantil oficial.</div>
-    <div>4.3. <strong>Lessa 60+ (Melhor Idade):</strong> Destinado a idosos com 60 anos completos ou mais, comprovados mediante documento de identidade oficial.</div>
-    <div>4.4. <strong>Lessa Inclusão PCD e TEA:</strong> Concede gratuidade à pessoa com deficiência e/ou Transtorno do Espectro Autista com direito a 1 (um) acompanhante, mediante apresentação de laudo médico ou carteirinha CIPTEA/PCD.</div>
-    <div>4.5. <strong>Controle e Renovação de Documentos:</strong> O Balneário mantém cadastro individualizado de cada dependente com controle de expiração de laudos, documentos e idades, devendo o titular manter as comprovações sempre atualizadas.</div>
+  <div style="margin-bottom: 16px;">
+    <strong style="color: #005200; font-size: 14px; display: block; margin-bottom: 4px;">4. DOS PLANOS, CATEGORIAS, ACESSO E BENEFÍCIOS</strong>
+    <div>4.1. As condições comerciais, valores, benefícios, quantidade de acessos, vigência e regras específicas variam conforme o plano contratado no ato da adesão.</div>
+    <div>4.2. Quando previsto no plano contratado, o CONTRATANTE e seus dependentes vinculados terão direito à entrada ilimitada no Balneário durante a vigência, exclusivamente nos dias e horários regulares de funcionamento (sexta a domingo e feriados, das 9h às 17h).</div>
+    <div>4.3. <strong>Lessa Kids, Estudante, Professor, Servidor, 60+ e Inclusão PCD/TEA:</strong> Planos gratuitos ou com desconto exigem comprovação documental individualizada e periódica (RG/Certidão, comprovante escolar/funcional ou laudo médico/CIPTEA), devendo o titular manter os documentos atualizados. Ao completar a idade limite no Lessa Kids, o dependente passa à categoria compatível vigente.</div>
+    <div>4.4. Nos planos que concedem meia-entrada, gratuidade ou condições especiais, o benefício limita-se às regras específicas da modalidade. A expressão ‘entrada ilimitada’ refere-se exclusivamente aos acessos do associado em dias normais de abertura, não abrangendo serviços cobrados à parte, dias fechados, eventos privados ou ingresso de terceiros.</div>
+    <div>4.5. <strong>MANUTENÇÃO E ATUALIZAÇÃO DE VALORES:</strong> Os planos na modalidade anual contratados ou renovados até 31 de dezembro de 2026 têm garantia de manutenção do valor contratado durante toda a vigência regular de 1 (um) ano, aplicando-se eventuais reajustes periódicos a partir de janeiro de 2027 ou em renovações futuras.</div>
   </div>
 
-  <div style="margin-bottom: 18px;">
-    <strong style="color: #005200; font-size: 14px; display: block; margin-bottom: 4px;">5. SERVIÇOS INCLUSOS E SERVIÇOS COBRADOS À PARTE</strong>
-    <div>5.1. A assinatura do plano garante a entrada livre e o uso das piscinas naturais, cachoeiras, áreas verdes, campos de esporte e espaços comuns de descanso.</div>
-    <div>5.2. <strong>NÃO estão inclusos no plano</strong> e serão cobrados à parte conforme tabela vigente: restaurante, lanchonetes, porções e bebidas, passeios e trilhas de quadriciclo, pesque-e-solte (pesca esportiva) e locações exclusivas de quiosques reservados com antecedência.</div>
+  <div style="margin-bottom: 16px;">
+    <strong style="color: #005200; font-size: 14px; display: block; margin-bottom: 4px;">5. DAS REGRAS DE CONDUTA, SEGURANÇA E MEIO AMBIENTE</strong>
+    <div>5.1. O usuário compromete-se a respeitar integralmente as normas internas, zelar pelo patrimônio, preservar a fauna e a flora, descartar resíduos nas lixeiras seletivas, manter conduta compatível com ambiente familiar cristão e acatar as orientações dos monitores e salva-vidas.</div>
+    <div>5.2. É expressamente vedado: a) O uso inadequado das instalações ou som automotivo/caixas de som em volume abusivo; b) A prática de atos ilícitos, ofensivos, agressivos, brigas ou condutas contrárias à moral e aos bons costumes; c) A entrada com porte de armas, substâncias ilícitas, recipientes, copos ou garrafas de vidro nas bordas e interiores das águas/piscinas; d) Qualquer conduta que coloque em risco a integridade física, moral ou patrimonial de terceiros.</div>
+    <div>5.3. Crianças menores de 12 anos devem permanecer acompanhadas e sob supervisão visual direta de seus pais ou responsáveis legais durante todo o período de permanência nas águas.</div>
   </div>
 
-  <div style="margin-bottom: 18px;">
-    <strong style="color: #005200; font-size: 14px; display: block; margin-bottom: 4px;">6. REGRAS DE SEGURANÇA, CONVIVÊNCIA E MEIO AMBIENTE</strong>
-    <div>6.1. O Balneário Família Lessa preza por um ambiente familiar, tranquilo e respeitoso. Não é permitido som automotivo ou caixas de som em volume que perturbe os demais visitantes.</div>
-    <div>6.2. É expressamente proibido o uso de recipientes, copos e garrafas de vidro nas bordas e interiores das águas e piscinas naturais para evitar acidentes.</div>
-    <div>6.3. Crianças menores de 12 anos devem obrigatoriamente estar acompanhadas e sob a supervisão visual direta de seus pais ou responsáveis durante todo o período de permanência nas águas.</div>
-    <div>6.4. Preservação da fauna e flora: recolha sempre o lixo produzido e descarte nas lixeiras seletivas distribuídas pelo parque.</div>
+  <div style="margin-bottom: 16px;">
+    <strong style="color: #005200; font-size: 14px; display: block; margin-bottom: 4px;">6. DAS RESPONSABILIDADES, RISCOS E ISENÇÕES</strong>
+    <div>6.1. O usuário declara ciência de que atividades de lazer, recreação, piscinas naturais, cachoeiras e contato com a natureza envolvem riscos inerentes, assumindo integral responsabilidade por seus atos, bem como pelos atos de seus dependentes e convidados.</div>
+    <div>6.2. O Balneário Família Lessa não se responsabiliza por perdas, extravios, furtos ou danos a bens pessoais ou veículos no estacionamento, tampouco por acidentes decorrentes de imprudência, negligência, imperícia ou descumprimento das normas de segurança.</div>
   </div>
 
-  <div style="margin-bottom: 18px;">
-    <strong style="color: #005200; font-size: 14px; display: block; margin-bottom: 4px;">7. MODALIDADES DE COBRANÇA, PAGAMENTO E AUSÊNCIA DE FIDELIDADE</strong>
-    <div>7.1. <strong>Plano Anual:</strong> Pagamento integral à vista via PIX ou valor integral parcelado em até 12x no Cartão de Crédito. Garante a manutenção dos valores vigentes até o término do período de 12 meses.</div>
-    <div>7.2. <strong>Plano Mensal Recorrente:</strong> 12 mensalidades sucessivas cobradas via cartão de crédito, débito ou PIX mensal.</div>
-    <div>7.3. <strong>Cancelamento sem Fidelidade:</strong> O associado pode solicitar o cancelamento a qualquer momento, sem multa rescisória, desde que esteja em dia com as mensalidades vencidas até a data da solicitação.</div>
-    <div>7.4. Em caso de atraso superior a 5 dias, o acesso na portaria ficará temporariamente bloqueado até a quitação da pendência.</div>
+  <div style="margin-bottom: 16px;">
+    <strong style="color: #005200; font-size: 14px; display: block; margin-bottom: 4px;">7. DOS SERVIÇOS INCLUSOS E SERVIÇOS NÃO INCLUSOS NOS PLANOS</strong>
+    <div>7.1. A assinatura garante livre entrada e uso das piscinas, cachoeiras, áreas verdes, campos de esporte e áreas comuns abertas do parque nos dias de funcionamento.</div>
+    <div>7.2. <strong>NÃO estão inclusos nos planos</strong>, sendo cobrados separadamente conforme tabela vigente no momento da utilização: a) Consumos no restaurante, café colonial, lanchonetes, porções e bebidas; b) Trilhas de quadriciclo; c) Pesca esportiva (pesque e solte); d) Aluguel de equipamentos, utensílios ou atividades recreativas opcionais; e) Locação privativa/exclusiva de quiosques com churrasqueira.</div>
   </div>
 
-  <div style="margin-bottom: 18px;">
-    <strong style="color: #005200; font-size: 14px; display: block; margin-bottom: 4px;">8. USO DE IMAGEM E DISPOSIÇÕES FINAIS</strong>
-    <div>8.1. Ao frequentar o balneário, o associado autoriza o uso institucional de eventuais fotos ou gravações coletivas de lazer nas redes sociais e materiais informativos do Balneário Lessa.</div>
-    <div>8.2. Fica eleito o Foro da Comarca de Ariquemes/RO para dirimir quaisquer controvérsias oriundas do presente regulamento.</div>
+  <div style="margin-bottom: 16px;">
+    <strong style="color: #005200; font-size: 14px; display: block; margin-bottom: 4px;">8. DOS PAGAMENTOS, VIGÊNCIA, CANCELAMENTO E AUSÊNCIA DE FIDELIDADE</strong>
+    <div>8.1. O pagamento pode ser realizado via PIX integral, Cartão de Crédito (em até 12x nos planos anuais) ou mensalidades recorrentes, iniciando-se a vigência regular após a confirmação do pagamento e eventual validação documental obrigatória do plano.</div>
+    <div>8.2. <strong>CANCELAMENTO E AUSÊNCIA DE FIDELIDADE:</strong> O plano contratado não possui cláusula de fidelidade, podendo o CONTRATANTE solicitar o cancelamento a qualquer momento pelo canal oficial WhatsApp (69) 99262-6140, sem cobrança de multa rescisória e sem obrigação de pagamento de parcelas futuras após a efetivação do cancelamento.</div>
+    <div>8.3. Para que o cancelamento seja efetivado, o CONTRATANTE deverá estar em dia com todas as mensalidades vencidas até a data da solicitação. O não uso das dependências, atrações ou benefícios não isenta o CONTRATANTE do pagamento das mensalidades enquanto o plano permanecer ativo. Em caso de inadimplência superior a 5 dias, o acesso na portaria poderá ser temporariamente suspenso até a quitação da pendência.</div>
+  </div>
+
+  <div style="margin-bottom: 16px;">
+    <strong style="color: #005200; font-size: 14px; display: block; margin-bottom: 4px;">9. DA SUSPENSÃO OU CANCELAMENTO DO ACESSO</strong>
+    <div>9.1. O Balneário poderá suspender ou cancelar o acesso do usuário, sem direito a reembolso, nas hipóteses de: a) Descumprimento destes Termos; b) Uso indevido da carteirinha, repasse a terceiros ou tentativa de fraude cadastral/documental; c) Conduta incompatível com as normas, valores e segurança coletiva do Balneário.</div>
+  </div>
+
+  <div style="margin-bottom: 16px;">
+    <strong style="color: #005200; font-size: 14px; display: block; margin-bottom: 4px;">10. DAS ALTERAÇÕES CONTRATUAIS</strong>
+    <div>10.1. O Balneário Família Lessa poderá atualizar os presentes Termos de Uso, sendo as novas disposições aplicáveis a partir de sua publicação nos canais oficiais e no Portal do Associado.</div>
+  </div>
+
+  <div style="margin-bottom: 16px;">
+    <strong style="color: #005200; font-size: 14px; display: block; margin-bottom: 4px;">11. DA AUTORIZAÇÃO DE USO DE IMAGEM</strong>
+    <div>11.1. Mediante o aceite do presente instrumento, o CONTRATANTE autoriza, de forma gratuita e para fins institucionais, promocionais e de divulgação das atividades do Balneário Família Lessa em quaisquer meios de comunicação físicos ou digitais, o registro e uso de imagens e voz suas e de seus dependentes captados durante a utilização das dependências, sem ônus ou geração de direito a indenização.</div>
+  </div>
+
+  <div style="margin-bottom: 16px;">
+    <strong style="color: #005200; font-size: 14px; display: block; margin-bottom: 4px;">12. DA LEI APLICÁVEL E FORO</strong>
+    <div>12.1. Este instrumento é regido pelas leis da República Federativa do Brasil. Fica eleito o Foro da Comarca de Ariquemes, Estado de Rondônia, para dirimir quaisquer controvérsias oriundas deste contrato.</div>
+  </div>
+
+  <div style="margin-bottom: 16px;">
+    <strong style="color: #005200; font-size: 14px; display: block; margin-bottom: 4px;">13. CANAIS DE ATENDIMENTO E CONTATO</strong>
+    <div>13.1. E-mail: balneario.lessa@gmail.com | WhatsApp Oficial: (69) 99262-6140 | Instagram: @balneariolessa | Endereço: Via Araras, Setor 09, Ariquemes/RO.</div>
+  </div>
+
+  <div style="margin-bottom: 16px; background: #ecfdf5; border: 1.5px solid #86efac; border-radius: 10px; padding: 14px;">
+    <strong style="color: #065f46; font-size: 14px; display: block; margin-bottom: 6px;">14. DA VALIDADE JURÍDICA DO ACEITE ELETRÔNICO E ASSINATURA DIGITAL</strong>
+    <div style="margin-bottom: 6px;">14.1. As partes declaram e reconhecem expressamente, com respaldo na <strong>Medida Provisória nº 2.200-2/2001 (art. 10, § 2º)</strong>, na <strong>Lei Federal nº 14.063/2020</strong> e nos <strong>artigos 104, 107, 219 e 422 do Código Civil Brasileiro</strong>, que o aceite digital destes Termos de Uso e do Contrato de Adesão, validado eletronicamente pelo próprio usuário titular, constitui <strong>assinatura eletrônica plenamente válida, legítima e vinculante</strong>.</div>
+    <div>14.2. A manifestação eletrônica de concordância registrada com os dados cadastrais do titular (Nome completo, CPF, Data de Nascimento, Telefone e E-mail), data/hora e protocolo nos servidores do Balneário Família Lessa possui <strong>a mesma força legal, autenticidade e validade probatória de uma assinatura presencial de próprio punho em documento físico</strong>.</div>
   </div>
 </div>
 `
