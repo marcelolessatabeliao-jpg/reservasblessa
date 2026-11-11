@@ -21,6 +21,197 @@ import {
 const STORAGE_KEY = 'lessa_club_ecosystem_v1';
 const SUPABASE_SETTINGS_KEY = 'lessa_club_ecosystem_v1';
 
+// Cache em memória para abertura instantânea do painel e evitar bloqueio de tela
+let memoryClubState: ClubDatabaseState | null = null;
+
+export interface PlanDocumentRule {
+  requiresDocument: boolean;
+  title: string;
+  summary: string;
+  acceptedDocs: string[];
+}
+
+export const getPlanDocumentRule = (
+  modalityCode?: string,
+  modalityName?: string
+): PlanDocumentRule => {
+  const code = (modalityCode || '').toUpperCase().trim();
+  const name = (modalityName || '').toLowerCase();
+
+  if (code === 'IDOSO_60' || name.includes('vitalício') || name.includes('vitalicio') || name.includes('60+')) {
+    return {
+      requiresDocument: true,
+      title: 'Documento Comprobatório de Idade (60+ anos)',
+      summary:
+        'Para aprovar a isenção do plano Lessa Vitalício 60+, é obrigatório anexar documento oficial que comprove idade mínima de 60 anos.',
+      acceptedDocs: [
+        'RG (frente e verso) legível',
+        'CNH (Carteira Nacional de Habilitação)',
+        'Outro documento oficial com foto e data de nascimento',
+      ],
+    };
+  }
+
+  if (code === 'KIDS' || name.includes('kids')) {
+    return {
+      requiresDocument: true,
+      title: 'Documento Comprobatório da Criança (até 11 anos)',
+      summary:
+        'Para aprovar a isenção do plano Lessa Kids, é obrigatório anexar documento oficial que comprove a idade da criança (até 11 anos).',
+      acceptedDocs: [
+        'Certidão de Nascimento',
+        'RG ou CPF da criança com data de nascimento',
+        'Outro documento oficial que comprove idade até 11 anos',
+      ],
+    };
+  }
+
+  if (code === 'PCD_TEA' || name.includes('inclus') || name.includes('pcd') || name.includes('tea')) {
+    return {
+      requiresDocument: true,
+      title: 'Laudo Médico / CIPTEA / Carteira PCD',
+      summary:
+        'Para aprovar o plano Lessa Inclusão (PCD / TEA), é obrigatório anexar documento médico ou carteira oficial de identificação.',
+      acceptedDocs: [
+        'Laudo Médico com CID atualizado',
+        'Carteira de Identificação da Pessoa com TEA (CIPTEA)',
+        'Carteira PCD oficial ou comprovante BPC',
+      ],
+    };
+  }
+
+  if (code === 'ESTUDANTE' || name.includes('student') || name.includes('estudante')) {
+    return {
+      requiresDocument: true,
+      title: 'Comprovante de Matrícula ou Carteirinha Estudantil',
+      summary:
+        'Para aprovar o benefício do plano Lessa Student Pass, é obrigatório anexar comprovação de matrícula ou carteirinha estudantil ativa.',
+      acceptedDocs: [
+        'Declaração de Matrícula atualizada (escola, curso técnico ou faculdade)',
+        'Carteirinha Estudantil vigente (DNE, UNE, UBES ou instituição de ensino)',
+        'Comprovante de frequência ou boleto escolar recente',
+      ],
+    };
+  }
+
+  if (code === 'PROFESSOR' || name.includes('professor')) {
+    return {
+      requiresDocument: true,
+      title: 'Comprovante de Docência / Holerite / Carteira Funcional',
+      summary:
+        'Para aprovar o benefício do plano Lessa Professor Pass, é obrigatório anexar comprovação de atuação como professor(a).',
+      acceptedDocs: [
+        'Holerite / Contracheque recente constando cargo de Professor(a)',
+        'Declaração da instituição de ensino ou portaria de nomeação',
+        'Carteira Funcional de Professor / registro em secretaria de educação',
+      ],
+    };
+  }
+
+  if (code === 'SERVIDOR' || name.includes('servidor')) {
+    return {
+      requiresDocument: true,
+      title: 'Comprovante de Vínculo Público / Funcional',
+      summary:
+        'Para aprovar o benefício do plano Lessa Servidor Pass, é obrigatório anexar comprovação de vínculo como servidor(a) público(a).',
+      acceptedDocs: [
+        'Holerite / Contracheque recente de órgão público (municipal, estadual ou federal)',
+        'Portaria de nomeação, termo de posse ou declaração do RH do órgão',
+        'Crachá ou Carteira Funcional de Servidor Público',
+      ],
+    };
+  }
+
+  return {
+    requiresDocument: false,
+    title: '',
+    summary: '',
+    acceptedDocs: [],
+  };
+};
+
+export const memberHasProofDocument = (
+  member?: Partial<ClubMember> | null,
+  sub?: Partial<ClubSubscription> | null
+): boolean => {
+  if (!member) return false;
+  if (member.documentVerified) return true;
+  if (member.documentProofUrl && member.documentProofUrl.trim().length > 0) return true;
+  if (Array.isArray(member.attachments) && member.attachments.some((a) => Boolean(a?.dataUrl))) {
+    return true;
+  }
+  if (sub?.attachments && member.id) {
+    const matched = sub.attachments.some(
+      (att) =>
+        att.title?.includes(member.id!) ||
+        att.notes?.includes(member.id!)
+    );
+    if (matched) return true;
+  }
+  return false;
+};
+
+export const isMemberBlockedForMissingDoc = (
+  member?: Partial<ClubMember> | null,
+  sub?: Partial<ClubSubscription> | null
+): boolean => {
+  if (!member) return false;
+  if (sub && (sub.origin === 'IMPORT_LABCARD' || sub.id?.startsWith('sub-labcard-'))) {
+    return false;
+  }
+  const rule = getPlanDocumentRule(member.modalityCode, member.modalityName);
+  if (!rule.requiresDocument) return false;
+  return !memberHasProofDocument(member, sub);
+};
+
+const tryPersistLocalState = (state: ClubDatabaseState) => {
+  try {
+    // Otimiza cache local omitindo registros intocados do seed Labcard (que já vêm do bundle em ms),
+    // mantendo cadastros do site, admin, alterações manuais, consultores e modelos de contrato abaixo da cota de 5MB.
+    const compactSubs = state.subscriptions.filter((s) => {
+      if (!s.id.startsWith('sub-labcard-')) return true;
+      const hasEdits =
+        s.status === 'ACTIVE' ||
+        (s.invoices && s.invoices.length > 0) ||
+        (s.attachments && s.attachments.length > 0) ||
+        (s.visits && s.visits.length > 0) ||
+        (s.members && s.members.some((m) => Boolean(m.photoUrl || m.documentProofUrl || m.documentVerified)));
+      return hasEdits;
+    });
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        ...state,
+        subscriptions: compactSubs,
+      })
+    );
+  } catch (e) {
+    console.warn('[ClubService] localStorage quota warning:', e);
+    try {
+      const strippedSubs = state.subscriptions
+        .filter((s) => !s.id.startsWith('sub-labcard-'))
+        .map((s) => ({
+          ...s,
+          contractContentHtml: undefined,
+          attachments: [],
+          members: s.members.map((m) => ({
+            ...m,
+            photoUrl: '',
+            documentProofUrl: m.documentProofUrl ? 'HAS_DOC_REMOTE' : '',
+            attachments: [],
+          })),
+        }));
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+          ...state,
+          subscriptions: strippedSubs,
+        })
+      );
+    } catch {}
+  }
+};
+
 export const DEFAULT_CATALOG_SERVICES: ClubAdditionalService[] = [
   {
     id: 'prod-1',
@@ -403,42 +594,61 @@ export const normalizeClubDatabaseState = (
 
   const normalizedSubscriptions = (parsed.subscriptions || []).map((sub) => {
     const isLabcard = sub.origin === 'IMPORT_LABCARD' || sub.id.startsWith('sub-labcard-');
+    const normalizedMembers = (sub.members || []).map((m) => {
+      let frontUrl = m.frontCardUrl;
+      let backUrl = m.backCardUrl;
+
+      if (m.modalityCode === 'ADULTO' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/18.png' || frontUrl === '/cards/17.png')) {
+        frontUrl = '/cards/44.png';
+      } else if (m.modalityCode === 'ESTUDANTE' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/7.png')) {
+        frontUrl = '/cards/6.png';
+      } else if (m.modalityCode === 'PROFESSOR' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/2.png')) {
+        frontUrl = '/cards/3.png';
+      } else if (m.modalityCode === 'SERVIDOR' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/9.png')) {
+        frontUrl = '/cards/10.png';
+      } else if (m.modalityCode === 'KIDS' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/37.png')) {
+        frontUrl = '/cards/38.png';
+      } else if (m.modalityCode === 'IDOSO_60' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/25.png')) {
+        frontUrl = '/cards/26.png';
+      } else if (m.modalityCode === 'PCD_TEA' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/34.png')) {
+        frontUrl = '/cards/35.png';
+      }
+
+      if (m.modalityCode === 'KIDS' || m.modalityCode === 'IDOSO_60') {
+        backUrl = '/cards/39.png';
+      } else if (isOutdatedCardUrl(backUrl)) {
+        backUrl = '/cards/24.png';
+      }
+
+      const missingRequiredDoc =
+        !isLabcard &&
+        getPlanDocumentRule(m.modalityCode, m.modalityName).requiresDocument &&
+        !memberHasProofDocument(m, sub);
+
+      const resolvedStatus: SubscriptionStatus = isLabcard
+        ? ('PENDING_TRANSFER' as SubscriptionStatus)
+        : missingRequiredDoc
+        ? 'INACTIVE'
+        : m.status;
+
+      return {
+        ...m,
+        status: resolvedStatus,
+        frontCardUrl: frontUrl || '/cards/44.png',
+        backCardUrl: backUrl || '/cards/24.png',
+      };
+    });
+
+    const resolvedSubStatus: SubscriptionStatus = isLabcard
+      ? ('PENDING_TRANSFER' as SubscriptionStatus)
+      : normalizedMembers.length > 0 && normalizedMembers.every((m) => m.status === 'INACTIVE')
+      ? 'INACTIVE'
+      : sub.status;
+
     return {
       ...sub,
-      status: isLabcard ? ('PENDING_TRANSFER' as SubscriptionStatus) : sub.status,
-      members: (sub.members || []).map((m) => {
-        let frontUrl = m.frontCardUrl;
-        let backUrl = m.backCardUrl;
-
-        if (m.modalityCode === 'ADULTO' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/18.png' || frontUrl === '/cards/17.png')) {
-          frontUrl = '/cards/44.png';
-        } else if (m.modalityCode === 'ESTUDANTE' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/7.png')) {
-          frontUrl = '/cards/6.png';
-        } else if (m.modalityCode === 'PROFESSOR' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/2.png')) {
-          frontUrl = '/cards/3.png';
-        } else if (m.modalityCode === 'SERVIDOR' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/9.png')) {
-          frontUrl = '/cards/10.png';
-        } else if (m.modalityCode === 'KIDS' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/37.png')) {
-          frontUrl = '/cards/38.png';
-        } else if (m.modalityCode === 'IDOSO_60' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/25.png')) {
-          frontUrl = '/cards/26.png';
-        } else if (m.modalityCode === 'PCD_TEA' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/34.png')) {
-          frontUrl = '/cards/35.png';
-        }
-
-        if (m.modalityCode === 'KIDS' || m.modalityCode === 'IDOSO_60') {
-          backUrl = '/cards/39.png';
-        } else if (isOutdatedCardUrl(backUrl)) {
-          backUrl = '/cards/24.png';
-        }
-
-        return {
-          ...m,
-          status: isLabcard ? ('PENDING_TRANSFER' as SubscriptionStatus) : m.status,
-          frontCardUrl: frontUrl || '/cards/44.png',
-          backCardUrl: backUrl || '/cards/24.png',
-        };
-      }),
+      status: resolvedSubStatus,
+      members: normalizedMembers,
       invoices: Array.isArray(sub.invoices) ? sub.invoices : [],
       attachments: Array.isArray(sub.attachments) ? sub.attachments : [],
       visits: Array.isArray(sub.visits) ? sub.visits : [],
@@ -484,15 +694,37 @@ export const normalizeClubDatabaseState = (
   };
 };
 
+export const getClubStateSync = (): ClubDatabaseState => {
+  if (memoryClubState) return memoryClubState;
+  const loaded = loadClubStateLocal();
+  memoryClubState = loaded;
+  return loaded;
+};
+
 export const loadClubStateLocal = (): ClubDatabaseState => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return getInitialState();
+    if (!raw) {
+      const init = getInitialState();
+      memoryClubState = init;
+      return init;
+    }
     const parsed = JSON.parse(raw) as Partial<ClubDatabaseState>;
-    return normalizeClubDatabaseState(parsed);
+    const defaultLabcardSubs = getLabcardSubscriptions();
+    const subsMap = new Map<string, ClubSubscription>();
+    defaultLabcardSubs.forEach((s) => subsMap.set(s.id, s));
+    (parsed.subscriptions || []).forEach((s) => subsMap.set(s.id, s));
+    const normalized = normalizeClubDatabaseState({
+      ...parsed,
+      subscriptions: Array.from(subsMap.values()),
+    });
+    memoryClubState = normalized;
+    return normalized;
   } catch (e) {
     console.error('[ClubService] Error reading local state:', e);
-    return getInitialState();
+    const init = getInitialState();
+    memoryClubState = init;
+    return init;
   }
 };
 
@@ -501,11 +733,8 @@ export const saveClubState = async (state: ClubDatabaseState): Promise<ClubDatab
     ...state,
     updatedAt: new Date().toISOString(),
   };
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(nextState));
-  } catch (e) {
-    console.warn('[ClubService] localStorage quota warning:', e);
-  }
+  memoryClubState = nextState;
+  tryPersistLocalState(nextState);
 
   try {
     const { error } = await supabase
@@ -531,7 +760,7 @@ export const saveClubState = async (state: ClubDatabaseState): Promise<ClubDatab
 };
 
 export const fetchClubState = async (): Promise<ClubDatabaseState> => {
-  const local = loadClubStateLocal();
+  const local = memoryClubState || loadClubStateLocal();
   try {
     const { data, error } = await supabase
       .from('site_settings' as any)
@@ -574,9 +803,8 @@ export const fetchClubState = async (): Promise<ClubDatabaseState> => {
       };
 
       const normalized = normalizeClubDatabaseState(mergedState, local);
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
-      } catch {}
+      memoryClubState = normalized;
+      tryPersistLocalState(normalized);
       return normalized;
     }
   } catch (err) {
@@ -821,13 +1049,27 @@ export const createClubSubscription = async (
     });
   }
 
-  const finalStatus: SubscriptionStatus =
-    input.status || (isFree ? 'ACTIVE' : 'INACTIVE');
+  const isFreePlan = monthlyEquivalent === 0 || input.paymentMethod === 'COURTESY';
+  const baseStatus: SubscriptionStatus =
+    input.status || (isFreePlan ? 'ACTIVE' : 'INACTIVE');
 
-  // Sincroniza status dos membros
+  // Sincroniza status individual dos membros:
+  // Planos que exigem comprovação ficam INATIVOS por integrante enquanto faltar o documento anexado.
   builtMembers.forEach((m) => {
-    m.status = finalStatus;
+    const needsDoc = isMemberBlockedForMissingDoc(m);
+    if (needsDoc) {
+      m.status = 'INACTIVE';
+    } else {
+      m.status = baseStatus;
+    }
   });
+
+  const finalStatus: SubscriptionStatus =
+    builtMembers.length > 0 && builtMembers.every((m) => m.status === 'INACTIVE')
+      ? 'INACTIVE'
+      : builtMembers[0]?.status === 'INACTIVE' && isFreePlan
+      ? 'INACTIVE'
+      : baseStatus;
 
   const hasPublicidade = builtMembers.some((m) => m.modalityCode === 'PUBLICIDADE');
   const contractType: ContractTemplateType =
@@ -932,7 +1174,7 @@ export const generateAsaasChargeForClubInvoice = async (
     `Lessa Club (${subscription.subscriptionCode}) - ${invoice.description || subscription.planSummaryLabel}`,
     `🔐 Portal do Sócio: ${portalUrl}`,
     `👤 Usuário: ${loginUser}`,
-    `🔑 Senha: ${loginPass} (sua data de nascimento)`,
+    `🔑 Senha: ${loginPass}`,
   ].join('\n');
 
   const { data, error } = await supabase.functions.invoke('create-payment', {
@@ -1005,7 +1247,7 @@ export const generateAllAsaasInvoicesForSubscription = async (
         `Lessa Club (${targetSub.subscriptionCode}) - ${inv.description || targetSub.planSummaryLabel}`,
         `🔐 Portal do Sócio: ${portalUrl}`,
         `👤 Usuário: ${loginUser}`,
-        `🔑 Senha: ${loginPass} (sua data de nascimento)`,
+        `🔑 Senha: ${loginPass}`,
       ].join('\n');
 
       const { data, error } = await supabase.functions.invoke('create-payment', {
@@ -1082,7 +1324,7 @@ export const processClubCreditCardPayment = async (
     `Lessa Club (${subscription.subscriptionCode}) - ${invoice.description || subscription.planSummaryLabel}`,
     `🔐 Portal do Sócio: ${portalUrl}`,
     `👤 Usuário: ${loginUser}`,
-    `🔑 Senha: ${loginPass} (sua data de nascimento)`,
+    `🔑 Senha: ${loginPass}`,
   ].join('\n');
 
   const { data, error } = await supabase.functions.invoke('create-payment', {
@@ -1154,10 +1396,12 @@ export const processClubCreditCardPayment = async (
       }
     }
     if (isPaid) {
-      targetSub.status = 'ACTIVE';
       targetSub.members.forEach((m) => {
-        m.status = 'ACTIVE';
+        m.status = isMemberBlockedForMissingDoc(m, targetSub) ? 'INACTIVE' : 'ACTIVE';
       });
+      targetSub.status = targetSub.members.every((m) => m.status === 'INACTIVE')
+        ? 'INACTIVE'
+        : 'ACTIVE';
       targetSub.contractContentHtml = renderSubscriptionContractHtml(
         targetSub,
         state.contractTemplates
@@ -1201,7 +1445,7 @@ export const generateUnifiedPaymentLink = async (
     `Lessa Club (${subscription.subscriptionCode}) - Quitação Unificada no Cartão (${invoices.length} parcelas)`,
     `🔐 Portal do Sócio: ${portalUrl}`,
     `👤 Usuário: ${loginUser}`,
-    `🔑 Senha: ${loginPass} (sua data de nascimento)`,
+    `🔑 Senha: ${loginPass}`,
   ].join('\n');
 
   const { data, error } = await supabase.functions.invoke('create-payment', {
@@ -1293,18 +1537,123 @@ export const markClubInvoicePaid = async (
       inv.paidAt = new Date().toISOString();
       if (method) inv.paymentMethod = method;
     }
-    // Se estava pendente ou vencida e não há mais faturas vencidas, ativa a assinatura e todas as carteirinhas
+    // Se estava pendente ou vencida e não há mais faturas vencidas, ativa a assinatura e carteirinhas com comprovação em dia
     const hasOverdue = sub.invoices.some((i) => i.status === 'OVERDUE');
     if (!hasOverdue) {
-      sub.status = 'ACTIVE';
       sub.members.forEach((m) => {
-        m.status = 'ACTIVE';
+        m.status = isMemberBlockedForMissingDoc(m, sub) ? 'INACTIVE' : 'ACTIVE';
       });
+      sub.status = sub.members.every((m) => m.status === 'INACTIVE')
+        ? 'INACTIVE'
+        : 'ACTIVE';
     }
     // Atualiza contrato oficial gerado com a confirmação de quitação / pagamento
     sub.contractContentHtml = renderSubscriptionContractHtml(sub, state.contractTemplates);
     sub.updatedAt = new Date().toISOString();
   }
+  return saveClubState(state);
+};
+
+export const attachMemberProofDocument = async (
+  subscriptionId: string,
+  memberId: string,
+  payload: {
+    dataUrl: string;
+    fileName: string;
+    mimeType?: string;
+    verifyImmediately?: boolean;
+  }
+): Promise<ClubDatabaseState> => {
+  const state = await fetchClubState();
+  const sub = state.subscriptions.find((s) => s.id === subscriptionId);
+  if (!sub) return state;
+
+  const member = sub.members.find((m) => m.id === memberId);
+  if (!member) return state;
+
+  const nowIso = new Date().toISOString();
+  member.documentProofUrl = payload.dataUrl;
+  member.documentProofName = payload.fileName;
+  if (payload.verifyImmediately) {
+    member.documentVerified = true;
+  }
+  const existingAtts = Array.isArray(member.attachments) ? member.attachments : [];
+  member.attachments = [
+    ...existingAtts,
+    {
+      id: `att_doc_${Date.now()}`,
+      name: payload.fileName,
+      dataUrl: payload.dataUrl,
+      mimeType:
+        payload.mimeType ||
+        (payload.dataUrl.startsWith('data:image/') ? 'image/jpeg' : 'application/pdf'),
+      createdAt: nowIso,
+    },
+  ];
+
+  // Também registra na lista de anexos gerais da assinatura com identificação do integrante
+  const subAtts = Array.isArray(sub.attachments) ? sub.attachments : [];
+  sub.attachments = [
+    ...subAtts,
+    {
+      id: `sub_doc_${member.id}_${Date.now()}`,
+      title: `Comprovante [${member.role === 'TITULAR' ? 'Titular' : 'Dependente'}: ${member.fullName}] (${member.modalityName})`,
+      category: 'DOCUMENTO_COMPROBATORIO',
+      fileUrl: payload.dataUrl,
+      fileName: payload.fileName,
+      uploadedAt: nowIso,
+      notes: `MEMBER_ID:${member.id}`,
+    },
+  ];
+
+  // Libera status do integrante se o plano já estiver quitado ou for gratuito/isento
+  const canActivate =
+    sub.monthlyEquivalent === 0 ||
+    sub.paymentMethod === 'COURTESY' ||
+    sub.invoices.some((i) => i.status === 'PAID');
+
+  if (canActivate && !isMemberBlockedForMissingDoc(member, sub)) {
+    member.status = 'ACTIVE';
+    if (sub.members.some((m) => m.status === 'ACTIVE')) {
+      sub.status = 'ACTIVE';
+    }
+  }
+
+  sub.updatedAt = nowIso;
+  return saveClubState(state);
+};
+
+export const verifyMemberProofDocument = async (
+  subscriptionId: string,
+  memberId: string,
+  verified: boolean
+): Promise<ClubDatabaseState> => {
+  const state = await fetchClubState();
+  const sub = state.subscriptions.find((s) => s.id === subscriptionId);
+  if (!sub) return state;
+
+  const member = sub.members.find((m) => m.id === memberId);
+  if (!member) return state;
+
+  member.documentVerified = verified;
+  const blocked = isMemberBlockedForMissingDoc(member, sub);
+  const canActivate =
+    sub.monthlyEquivalent === 0 ||
+    sub.paymentMethod === 'COURTESY' ||
+    sub.invoices.some((i) => i.status === 'PAID');
+
+  if (blocked) {
+    member.status = 'INACTIVE';
+  } else if (canActivate) {
+    member.status = 'ACTIVE';
+  }
+
+  sub.status = sub.members.every((m) => m.status === 'INACTIVE')
+    ? 'INACTIVE'
+    : sub.members.some((m) => m.status === 'ACTIVE')
+    ? 'ACTIVE'
+    : sub.status;
+  sub.updatedAt = new Date().toISOString();
   return saveClubState(state);
 };
 
@@ -1633,7 +1982,7 @@ export const getMemberAccessMessage = (sub: ClubSubscription): { message: string
   const password = getBirthDatePassword(sub.holderBirthDate);
   const portalUrl = typeof window !== 'undefined' ? `${window.location.origin}/socio` : 'https://balneariolessa.com.br/socio';
 
-  const message = `🌿 *BALNEÁRIO FAMÍLIA LESSA — BEM-VINDO AO LESSA CLUB!* 🌿\n\nOlá, *${sub.holderName}*! Seu plano foi cadastrado com sucesso.\n\nVocê já pode acessar o Portal do Sócio para ver suas carteirinhas digitais com QR Code, enviar fotos e consultar seu contrato:\n\n🌐 *Portal do Sócio:* ${portalUrl}\n👤 *Usuário (Login):* ${loginUser}\n🔑 *Senha:* ${password} _(sua data de nascimento)_\n\nGuarde esses dados com carinho. Qualquer dúvida, estamos à disposição!`;
+  const message = `🌿 *BALNEÁRIO FAMÍLIA LESSA — BEM-VINDO AO LESSA CLUB!* 🌿\n\nOlá, *${sub.holderName}*! Seu plano foi cadastrado com sucesso.\n\nVocê já pode acessar o Portal do Sócio para ver suas carteirinhas digitais com QR Code, enviar fotos e consultar seu contrato:\n\n🌐 *Portal do Sócio:* ${portalUrl}\n👤 *Usuário (Login):* ${loginUser}\n🔑 *Senha:* ${password}\n\nGuarde esses dados com carinho. Qualquer dúvida, estamos à disposição!`;
 
   const phone = cleanDigits(sub.holderPhone);
   const fullPhone = phone.startsWith('55') ? phone : `55${phone}`;

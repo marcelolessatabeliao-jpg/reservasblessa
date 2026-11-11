@@ -61,6 +61,8 @@ import {
   compressImageFile,
   fetchAddressByCep,
   trackConsultantClick,
+  getPlanDocumentRule,
+  isMemberBlockedForMissingDoc,
 } from '@/lib/club-service';
 import { ClubMemberCardView } from '@/components/club/ClubMemberCardView';
 
@@ -613,25 +615,27 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
       return;
     }
 
-    // Validação de Documento Obrigatório para o Titular (PCD/TEA, Kids ou Vitalício 60+)
+    // Validação de Documento Obrigatório para o Titular (qualquer plano que exija comprovação)
+    const holderDocRule = getPlanDocumentRule(holderModality.code, holderModality.name);
     const isHolderFreeOrDoc =
       holderModality.isFreeTier ||
-      ['PCD_TEA', 'KIDS', 'IDOSO_60'].includes(holderModality.code);
+      holderModality.requiresDocument ||
+      holderDocRule.requiresDocument;
     if (isHolderFreeOrDoc && !holderDocAttachment) {
       toast({
-        title: 'Comprovante obrigatório pendente',
-        description: `Por favor, tire uma foto ou anexe o documento comprobatório para o plano ${holderModality.name} antes de prosseguir e ativar o plano.`,
+        title: `Comprovante obrigatório pendente (${holderModality.name})`,
+        description: `Por favor, tire uma foto ou anexe o documento comprobatório para o plano ${holderModality.name} antes de prosseguir e liberar a carteirinha.`,
         variant: 'destructive',
       });
       return;
     }
 
-    // Validação de Documento Obrigatório para Dependentes (PCD/TEA, Kids ou Vitalício 60+)
-    const depMissingDoc = dependentsDraft.find(
-      (d) =>
-        ['PCD_TEA', 'KIDS', 'IDOSO_60'].includes(d.modalityCode) &&
-        !d.docAttachment
-    );
+    // Validação de Documento Obrigatório para Dependentes (qualquer plano que exija comprovação)
+    const depMissingDoc = dependentsDraft.find((d) => {
+      const depMod = findModality(d.modalityCode);
+      const depRule = getPlanDocumentRule(d.modalityCode, depMod.name);
+      return (depMod.requiresDocument || depRule.requiresDocument) && !d.docAttachment;
+    });
     if (depMissingDoc) {
       const depMod = findModality(depMissingDoc.modalityCode);
       toast({
@@ -640,7 +644,7 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
         })`,
         description: `Por favor, tire uma foto ou anexe o documento comprobatório de ${
           depMissingDoc.fullName || 'dependente'
-        } (${depMod.name}) para ativar a gratuidade.`,
+        } (${depMod.name}) para liberar a carteirinha.`,
         variant: 'destructive',
       });
       return;
@@ -2013,55 +2017,48 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
               </Button>
             </div>
 
-            {/* COMPROVAÇÃO DE DOCUMENTO OBRIGATÓRIA DO TITULAR (PCD/TEA, KIDS OU VITALÍCIO 60+) */}
-            {(holderModality.isFreeTier ||
-              ['PCD_TEA', 'KIDS', 'IDOSO_60'].includes(holderModality.code)) && (
-              <div className="bg-amber-50/90 border-2 border-amber-300 rounded-2xl p-4 sm:p-5 space-y-3 shadow-sm">
-                <div className="flex items-start gap-2.5">
-                  <span className="text-2xl shrink-0">📄</span>
-                  <div>
-                    <h4 className="font-black text-sm text-amber-950 uppercase flex items-center gap-2">
-                      <span>Comprovante Obrigatório para Ativar o Plano ({holderModality.name})</span>
-                      <Badge className="bg-amber-400 text-amber-950 font-black text-[10px]">
-                        OBRIGATÓRIO
-                      </Badge>
-                    </h4>
-                    <p className="text-xs text-amber-900 mt-0.5 font-medium">
-                      Para ativar seu cadastro de gratuidade, é necessário anexar ou tirar uma foto do documento comprobatório no ato da inscrição.
-                    </p>
+            {/* COMPROVAÇÃO DE DOCUMENTO OBRIGATÓRIA DO TITULAR (PARA TODOS OS PLANOS COM EXIGÊNCIA DOCUMENTAL) */}
+            {(() => {
+              const holderRule = getPlanDocumentRule(holderModality.code, holderModality.name);
+              const showHolderDocBox =
+                holderModality.isFreeTier ||
+                holderModality.requiresDocument ||
+                holderRule.requiresDocument;
+              if (!showHolderDocBox) return null;
+              return (
+                <div className="bg-amber-50/90 border-2 border-amber-300 rounded-2xl p-4 sm:p-5 space-y-3 shadow-sm">
+                  <div className="flex items-start gap-2.5">
+                    <span className="text-2xl shrink-0">📄</span>
+                    <div>
+                      <h4 className="font-black text-sm text-amber-950 uppercase flex flex-wrap items-center gap-2">
+                        <span>Comprovante Obrigatório para Liberar o Plano ({holderModality.name})</span>
+                        <Badge className="bg-amber-400 text-amber-950 font-black text-[10px]">
+                          OBRIGATÓRIO
+                        </Badge>
+                      </h4>
+                      <p className="text-xs text-amber-900 mt-0.5 font-medium">
+                        {holderRule.summary ||
+                          'Para aprovar este cadastro e liberar a carteirinha do titular, é obrigatório anexar ou tirar foto do documento comprobatório. Sem a comprovação, a carteirinha permanecerá inativa e bloqueada.'}
+                      </p>
+                    </div>
                   </div>
-                </div>
 
-                {holderModality.code === 'PCD_TEA' && (
                   <div className="bg-white/90 p-3.5 rounded-xl border border-amber-200 text-xs text-slate-800 space-y-1.5 shadow-sm">
                     <strong className="text-amber-950 block text-xs">
-                      📄 Documentos aceitos para comprovação (basta 1):
+                      📄 {holderRule.title || 'Documentos aceitos para comprovação'} (basta 1):
                     </strong>
-                    <div className="font-semibold text-slate-700">✅ Laudo médico com CID</div>
-                    <div className="font-semibold text-slate-700">
-                      ✅ Carteira de Identificação da Pessoa com Deficiência
-                    </div>
-                    <div className="font-semibold text-slate-700">
-                      ✅ Carteira do Autista (municipal, estadual ou nacional)
-                    </div>
-                    <div className="font-semibold text-slate-700">
-                      ✅ Documento oficial que comprove a condição
-                    </div>
+                    {(holderRule.acceptedDocs.length > 0
+                      ? holderRule.acceptedDocs
+                      : [
+                          holderModality.documentLabel ||
+                            'Documento oficial com foto que comprove o benefício do plano selecionado',
+                        ]
+                    ).map((docDesc, dIdx) => (
+                      <div key={dIdx} className="font-semibold text-slate-700">
+                        ✅ {docDesc}
+                      </div>
+                    ))}
                   </div>
-                )}
-
-                {(holderModality.code === 'KIDS' || holderModality.code === 'IDOSO_60') && (
-                  <div className="bg-white/90 p-3.5 rounded-xl border border-amber-200 text-xs text-slate-800 space-y-1.5 shadow-sm">
-                    <strong className="text-amber-950 block text-xs">
-                      📄 Documento obrigatório para comprovação de idade:
-                    </strong>
-                    <div className="font-semibold text-slate-700">
-                      ✅ Foto que comprove a idade (ex: RG com foto, nome e nascimento ou{' '}
-                      {holderModality.code === 'KIDS' ? 'Certidão de Nascimento' : 'CNH oficial'})
-                      para que possa ativar o plano.
-                    </div>
-                  </div>
-                )}
 
                 {/* BOTÕES DE CAPTURA COM CÂMERA OU ANEXAR ARQUIVO */}
                 <div className="pt-1">
@@ -2169,7 +2166,8 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                   )}
                 </div>
               </div>
-            )}
+              );
+            })()}
 
             {/* GRADE DE CAMPOS DO TITULAR (EXATAMENTE COMO NA IMAGEM "Cadastre-se") */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2554,46 +2552,41 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                           </div>
                         </div>
 
-                        {/* COMPROVAÇÃO DE DOCUMENTO DO DEPENDENTE (PCD/TEA, KIDS OU IDOSO 60+) */}
-                        {['PCD_TEA', 'KIDS', 'IDOSO_60'].includes(dep.modalityCode) && (
-                          <div className="bg-amber-50/90 border border-amber-300 rounded-xl p-3.5 space-y-2.5 mt-2 shadow-sm">
-                            <div className="flex items-start justify-between gap-2">
-                              <div>
-                                <span className="font-black text-xs text-amber-950 uppercase flex items-center gap-1.5">
-                                  📄 Comprovante Obrigatório ({depMod.name})
-                                  <Badge className="bg-amber-400 text-amber-950 text-[9px] font-black">
-                                    OBRIGATÓRIO
-                                  </Badge>
-                                </span>
-                                <p className="text-[11px] text-amber-900 mt-0.5 font-medium">
-                                  Para ativar a gratuidade deste dependente, é necessário anexar ou tirar uma foto do documento.
-                                </p>
-                              </div>
-                            </div>
-
-                            {dep.modalityCode === 'PCD_TEA' && (
-                              <div className="bg-white/80 p-2.5 rounded-lg border border-amber-200 text-[11px] text-slate-800 space-y-1">
-                                <strong className="text-amber-950 block text-[11px]">
-                                  Documentos aceitos para comprovação (basta 1):
-                                </strong>
-                                <div>✅ Laudo médico com CID</div>
-                                <div>✅ Carteira de Identificação da Pessoa com Deficiência</div>
-                                <div>✅ Carteira do Autista (municipal, estadual ou nacional)</div>
-                                <div>✅ Documento oficial que comprove a condição</div>
-                              </div>
-                            )}
-
-                            {(dep.modalityCode === 'KIDS' || dep.modalityCode === 'IDOSO_60') && (
-                              <div className="bg-white/80 p-2.5 rounded-lg border border-amber-200 text-[11px] text-slate-800 space-y-1">
-                                <strong className="text-amber-950 block text-[11px]">
-                                  Documento obrigatório para comprovação de idade:
-                                </strong>
+                        {/* COMPROVAÇÃO DE DOCUMENTO DO DEPENDENTE (PARA TODOS OS PLANOS QUE EXIGEM COMPROVAÇÃO) */}
+                        {(() => {
+                          const depRule = getPlanDocumentRule(dep.modalityCode, depMod.name);
+                          if (!depMod.requiresDocument && !depRule.requiresDocument) return null;
+                          return (
+                            <div className="bg-amber-50/90 border border-amber-300 rounded-xl p-3.5 space-y-2.5 mt-2 shadow-sm">
+                              <div className="flex items-start justify-between gap-2">
                                 <div>
-                                  ✅ Foto que comprove a idade (ex: RG com foto, nome e data de nascimento ou{' '}
-                                  {dep.modalityCode === 'KIDS' ? 'Certidão de Nascimento' : 'CNH oficial'}).
+                                  <span className="font-black text-xs text-amber-950 uppercase flex items-center gap-1.5">
+                                    📄 Comprovante Obrigatório ({depMod.name})
+                                    <Badge className="bg-amber-400 text-amber-950 text-[9px] font-black">
+                                      OBRIGATÓRIO
+                                    </Badge>
+                                  </span>
+                                  <p className="text-[11px] text-amber-900 mt-0.5 font-medium">
+                                    {depRule.summary ||
+                                      'Para liberar a carteirinha deste dependente, é necessário anexar ou tirar uma foto do documento comprobatório.'}
+                                  </p>
                                 </div>
                               </div>
-                            )}
+
+                              <div className="bg-white/80 p-2.5 rounded-lg border border-amber-200 text-[11px] text-slate-800 space-y-1">
+                                <strong className="text-amber-950 block text-[11px]">
+                                  {depRule.title || 'Documentos aceitos para comprovação'} (basta 1):
+                                </strong>
+                                {(depRule.acceptedDocs.length > 0
+                                  ? depRule.acceptedDocs
+                                  : [
+                                      depMod.documentLabel ||
+                                        'Documento oficial com foto que comprove o benefício do plano selecionado',
+                                    ]
+                                ).map((docDesc, dIdx) => (
+                                  <div key={dIdx}>✅ {docDesc}</div>
+                                ))}
+                              </div>
 
                             <div>
                               {!dep.docAttachment ? (
@@ -2715,7 +2708,8 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                               )}
                             </div>
                           </div>
-                        )}
+                          );
+                        })()}
                       </div>
                     );
                   })}
@@ -3729,26 +3723,38 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                 {/* 1. CARTEIRINHA DO TITULAR PRINCIPAL */}
                 {createdSub.members
                   .filter((m) => m.role === 'TITULAR')
-                  .map((holderMember) => (
-                    <div key={holderMember.id} className="space-y-3">
-                      <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
-                        <Badge className="bg-emerald-800 text-white font-black">
-                          TITULAR
-                        </Badge>
-                        <h4 className="text-sm font-black uppercase tracking-wider text-slate-900">
-                          1. Carteirinha do Titular Responsável ({holderMember.fullName})
-                        </h4>
+                  .map((holderMember) => {
+                    const missingDoc = isMemberBlockedForMissingDoc(holderMember, createdSub);
+                    const lockedMember =
+                      createdSub.status !== 'ACTIVE' ||
+                      holderMember.status !== 'ACTIVE' ||
+                      missingDoc;
+                    return (
+                      <div key={holderMember.id} className="space-y-3">
+                        <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+                          <Badge className="bg-emerald-800 text-white font-black">
+                            TITULAR
+                          </Badge>
+                          <h4 className="text-sm font-black uppercase tracking-wider text-slate-900">
+                            1. Carteirinha do Titular Responsável ({holderMember.fullName})
+                          </h4>
+                        </div>
+                        <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                          <ClubMemberCardView
+                            member={holderMember}
+                            showBackSide={true}
+                            locked={lockedMember}
+                            lockReason={
+                              missingDoc
+                                ? 'Comprovação documental obrigatória pendente (anexe no Portal do Sócio)'
+                                : undefined
+                            }
+                            onUpdatePhoto={handleUpdateCardPhotoInStep4}
+                          />
+                        </div>
                       </div>
-                      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
-                        <ClubMemberCardView
-                          member={holderMember}
-                          showBackSide={true}
-                          locked={createdSub.status !== 'ACTIVE'}
-                          onUpdatePhoto={handleUpdateCardPhotoInStep4}
-                        />
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
 
                 {/* 2. CARTEIRINHAS DOS DEPENDENTES VINCULADOS */}
                 {createdSub.members.some((m) => m.role === 'DEPENDENTE') && (
@@ -3770,20 +3776,32 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                     <div className="space-y-6">
                       {createdSub.members
                         .filter((m) => m.role === 'DEPENDENTE')
-                        .map((depMember, depIdx) => (
-                          <div
-                            key={depMember.id}
-                            className="p-4 rounded-2xl bg-slate-50 border border-slate-200"
-                          >
-                            <ClubMemberCardView
-                              member={depMember}
-                              dependentIndex={depIdx + 1}
-                              showBackSide={true}
-                              locked={createdSub.status !== 'ACTIVE'}
-                              onUpdatePhoto={handleUpdateCardPhotoInStep4}
-                            />
-                          </div>
-                        ))}
+                        .map((depMember, depIdx) => {
+                          const missingDoc = isMemberBlockedForMissingDoc(depMember, createdSub);
+                          const lockedDep =
+                            createdSub.status !== 'ACTIVE' ||
+                            depMember.status !== 'ACTIVE' ||
+                            missingDoc;
+                          return (
+                            <div
+                              key={depMember.id}
+                              className="p-4 rounded-2xl bg-slate-50 border border-slate-200"
+                            >
+                              <ClubMemberCardView
+                                member={depMember}
+                                dependentIndex={depIdx + 1}
+                                showBackSide={true}
+                                locked={lockedDep}
+                                lockReason={
+                                  missingDoc
+                                    ? 'Comprovação documental obrigatória pendente (anexe no Portal do Sócio)'
+                                    : undefined
+                                }
+                                onUpdatePhoto={handleUpdateCardPhotoInStep4}
+                              />
+                            </div>
+                          );
+                        })}
                     </div>
                   </div>
                 )}

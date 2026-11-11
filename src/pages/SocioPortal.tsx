@@ -27,6 +27,9 @@ import {
   Users,
   Eye,
   EyeOff,
+  Camera,
+  Upload,
+  FileCheck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -42,6 +45,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import {
   ClubInvoice,
+  ClubMember,
   ClubSubscription,
   ClubConsultant,
 } from '@/lib/club-types';
@@ -59,6 +63,12 @@ import {
   cleanDigits,
   getBirthDatePassword,
   getQrCodeImageUrl,
+  getPlanDocumentRule,
+  memberHasProofDocument,
+  isMemberBlockedForMissingDoc,
+  attachMemberProofDocument,
+  compressImageFile,
+  fileToDataUrl,
 } from '@/lib/club-service';
 import { ClubMemberCardView } from '@/components/club/ClubMemberCardView';
 
@@ -208,6 +218,38 @@ const SocioPortal: React.FC = () => {
       title: 'Foto atualizada na carteirinha!',
       description: 'Sua carteirinha digital já está com a nova foto.',
     });
+  };
+
+  const [uploadingDocMemberId, setUploadingDocMemberId] = useState<string | null>(null);
+
+  const handleUploadMemberDocument = async (member: ClubMember, file: File) => {
+    if (!subscription) return;
+    setUploadingDocMemberId(member.id);
+    try {
+      const dataUrl = file.type.startsWith('image/')
+        ? await compressImageFile(file)
+        : await fileToDataUrl(file);
+      const saved = await attachMemberProofDocument(subscription.id, member.id, {
+        dataUrl,
+        fileName: file.name,
+        mimeType: file.type,
+      });
+      setState(saved);
+      const updatedSub = saved.subscriptions.find((s) => s.id === subscription.id);
+      if (updatedSub) setSubscription(updatedSub);
+      toast({
+        title: 'Comprovante enviado com sucesso!',
+        description: `Documento anexado para ${member.fullName}. Se o plano estiver em dia ou for gratuito, a carteirinha foi liberada!`,
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao anexar documento',
+        description: err?.message || 'Não foi possível enviar o arquivo. Tente novamente.',
+        variant: 'destructive',
+      });
+    } finally {
+      setUploadingDocMemberId(null);
+    }
   };
 
   const handleGeneratePixOrLink = async (
@@ -825,12 +867,23 @@ const SocioPortal: React.FC = () => {
 
               {/* Main Tabs */}
               <Tabs defaultValue="carteirinhas" className="space-y-6">
-                <TabsList className="grid grid-cols-2 sm:grid-cols-4 w-full max-w-3xl bg-slate-200/80 p-1 rounded-2xl h-auto sm:h-12 gap-1">
+                <TabsList className="grid grid-cols-2 sm:grid-cols-5 w-full max-w-4xl bg-slate-200/80 p-1 rounded-2xl h-auto sm:h-12 gap-1">
                   <TabsTrigger
                     value="carteirinhas"
                     className="rounded-xl font-bold text-xs md:text-sm data-[state=active]:bg-white data-[state=active]:text-emerald-700"
                   >
                     <CreditCard className="w-4 h-4 mr-1.5" /> Carteirinhas ({(subscription.members || []).length})
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="documentos"
+                    className="rounded-xl font-bold text-xs md:text-sm data-[state=active]:bg-white data-[state=active]:text-amber-700"
+                  >
+                    <FileCheck className="w-4 h-4 mr-1.5" /> Documentos
+                    {subscription.members.some((m) => isMemberBlockedForMissingDoc(m, subscription)) && (
+                      <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-black bg-rose-600 text-white">
+                        Pendente
+                      </span>
+                    )}
                   </TabsTrigger>
                   <TabsTrigger
                     value="faturas"
@@ -888,21 +941,45 @@ const SocioPortal: React.FC = () => {
                       </Link>
                     </div>
                   </div>
+                {subscription.members.some((m) => isMemberBlockedForMissingDoc(m, subscription)) && (
+                  <div className="bg-amber-50 border-2 border-amber-400 rounded-2xl p-5 space-y-2">
+                    <h4 className="font-black text-amber-950 text-sm sm:text-base flex items-center gap-2">
+                      <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
+                      Documentação Comprobatória Obrigatória Pendente
+                    </h4>
+                    <p className="text-xs text-amber-900">
+                      Integrantes com planos especiais/gratuidade que ainda não enviaram o documento comprobatório permanecem com a carteirinha <strong>INATIVA e bloqueada para edição/download</strong> até o envio da comprovação abaixo ou na aba <strong>"Documentos"</strong>:
+                    </p>
+                    <ul className="text-xs font-bold text-amber-950 list-disc pl-5 space-y-0.5">
+                      {subscription.members
+                        .filter((m) => isMemberBlockedForMissingDoc(m, subscription))
+                        .map((m) => {
+                          const r = getPlanDocumentRule(m.modalityCode, m.modalityName);
+                          return (
+                            <li key={m.id}>
+                              {m.fullName} ({m.modalityName}): {r.title}
+                            </li>
+                          );
+                        })}
+                    </ul>
+                  </div>
+                )}
+
                 {subscription.status !== 'ACTIVE' ? (
                   <div className="bg-rose-50 border-2 border-rose-300 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="space-y-1">
                       <h4 className="font-black text-rose-900 text-sm sm:text-base">
-                        🔒 Plano Inativo — Aguardando Confirmação de Pagamento
+                        🔒 Plano Inativo — Aguardando Pagamento ou Comprovação Documental
                       </h4>
                       <p className="text-xs text-rose-800">
-                        A edição da foto 3x4 e o download das carteirinhas só são liberados após a confirmação do pagamento da sua assinatura. Acesse a aba <strong>"Mensalidades"</strong> acima para realizar o pagamento ou aguarde a liberação pela recepção.
+                        A edição da foto 3x4 e o download das carteirinhas só são liberados após a confirmação do pagamento (aba <strong>"Mensalidades"</strong>) e envio dos documentos obrigatórios de cada integrante (aba <strong>"Documentos"</strong>).
                       </p>
                     </div>
                   </div>
                 ) : (
                   <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-center justify-between gap-4">
                     <div className="text-xs md:text-sm text-emerald-900">
-                      <strong>Plano Ativo e Liberado!</strong> Clique em <strong>"Enviar Foto"</strong> ou <strong>"Reposicionar / Enquadrar Perfil"</strong> em cada carteirinha abaixo para ajustar sua foto de perfil 3x4 e depois clique em <strong>"Baixar PNG Alta Resolução"</strong>.
+                      <strong>Plano Ativo e Liberado!</strong> Clique em <strong>"Enviar Foto"</strong> ou <strong>"Reposicionar / Enquadrar Perfil"</strong> em cada carteirinha liberada para ajustar sua foto de perfil 3x4 e baixar o PNG.
                     </div>
                   </div>
                 )}
@@ -921,19 +998,113 @@ const SocioPortal: React.FC = () => {
                   {subscription.members
                     .filter((m, idx) => m.role === 'TITULAR' || idx === 0)
                     .slice(0, 1)
-                    .map((member) => (
-                      <div
-                        key={member.id}
-                        className="bg-white rounded-3xl border-2 border-emerald-600/40 p-5 shadow-sm"
-                      >
-                        <ClubMemberCardView
-                          member={member}
-                          showBackSide={true}
-                          locked={subscription.status !== 'ACTIVE'}
-                          onUpdatePhoto={handleUpdateMemberPhoto}
-                        />
-                      </div>
-                    ))}
+                    .map((member) => {
+                      const docRule = getPlanDocumentRule(member.modalityCode, member.modalityName);
+                      const hasDoc = memberHasProofDocument(member, subscription);
+                      const missingDoc = isMemberBlockedForMissingDoc(member, subscription);
+                      const isLockedMember =
+                        subscription.status !== 'ACTIVE' ||
+                        member.status !== 'ACTIVE' ||
+                        missingDoc;
+                      return (
+                        <div
+                          key={member.id}
+                          className="bg-white rounded-3xl border-2 border-emerald-600/40 p-5 shadow-sm space-y-4"
+                        >
+                          <ClubMemberCardView
+                            member={member}
+                            showBackSide={true}
+                            locked={isLockedMember}
+                            lockReason={
+                              missingDoc
+                                ? `Falta anexar: ${docRule.title || 'comprovante do plano'}`
+                                : member.status !== 'ACTIVE' || subscription.status !== 'ACTIVE'
+                                ? 'Aguardando pagamento / liberação'
+                                : undefined
+                            }
+                            onUpdatePhoto={handleUpdateMemberPhoto}
+                          />
+
+                          {(docRule.requiresDocument || hasDoc) && (
+                            <div
+                              className={`rounded-2xl border p-4 space-y-2.5 ${
+                                missingDoc
+                                  ? 'bg-amber-50 border-amber-300'
+                                  : 'bg-emerald-50/70 border-emerald-200'
+                              }`}
+                            >
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <div className="text-xs font-black text-slate-900 flex items-center gap-2">
+                                  <FileCheck className={`w-4 h-4 ${missingDoc ? 'text-amber-600' : 'text-emerald-700'}`} />
+                                  <span>
+                                    Comprovação do Plano ({member.modalityName})
+                                  </span>
+                                  <Badge className={missingDoc ? 'bg-rose-600 text-white text-[10px]' : 'bg-emerald-600 text-white text-[10px]'}>
+                                    {missingDoc ? 'OBRIGATÓRIO ANEXAR' : 'DOCUMENTO ANEXADO'}
+                                  </Badge>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#004d00] hover:bg-emerald-900 text-white text-xs font-bold cursor-pointer">
+                                    <Upload className="w-3.5 h-3.5" />
+                                    {uploadingDocMemberId === member.id
+                                      ? 'Enviando...'
+                                      : hasDoc
+                                      ? 'Enviar Novo Comprovante'
+                                      : 'Importar / Anexar Documento'}
+                                    <input
+                                      type="file"
+                                      accept="image/*,.pdf"
+                                      className="hidden"
+                                      disabled={uploadingDocMemberId === member.id}
+                                      onChange={(e) => {
+                                        const f = e.target.files?.[0];
+                                        if (f) handleUploadMemberDocument(member, f);
+                                      }}
+                                    />
+                                  </label>
+                                </div>
+                              </div>
+                              {missingDoc && (
+                                <div className="text-[11px] text-amber-900 bg-white/90 rounded-xl p-2.5 border border-amber-200 space-y-1">
+                                  <div className="font-bold">Documentos aceitos para {member.modalityName}:</div>
+                                  {docRule.acceptedDocs.map((d, di) => (
+                                    <div key={di}>✅ {d}</div>
+                                  ))}
+                                </div>
+                              )}
+                              {hasDoc && member.documentProofUrl && (
+                                <div className="flex flex-wrap items-center gap-3 text-xs bg-white rounded-xl p-2.5 border border-emerald-200">
+                                  {member.documentProofUrl.startsWith('data:image/') && (
+                                    <img
+                                      src={member.documentProofUrl}
+                                      alt={member.documentProofName || 'Documento'}
+                                      className="w-12 h-12 object-cover rounded-lg border border-slate-200"
+                                    />
+                                  )}
+                                  <div className="flex-1 min-w-0">
+                                    <div className="font-bold text-slate-900 truncate">
+                                      {member.documentProofName || 'Documento comprobatório enviado'}
+                                    </div>
+                                    <div className="text-[11px] text-emerald-700 font-medium">
+                                      Comprovação anexada ao cadastro do titular
+                                    </div>
+                                  </div>
+                                  <a
+                                    href={member.documentProofUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    download={member.documentProofName || 'comprovante-titular'}
+                                    className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 hover:underline"
+                                  >
+                                    <ExternalLink className="w-3.5 h-3.5" /> Visualizar / Baixar
+                                  </a>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                 </div>
 
                 {/* SEÇÃO 2: CARTEIRINHAS DOS DEPENDENTES VINCULADOS */}
@@ -960,23 +1131,290 @@ const SocioPortal: React.FC = () => {
                     <div className="space-y-5">
                       {subscription.members
                         .filter((m, idx) => m.role === 'DEPENDENTE' && idx > 0)
-                        .map((member, depIdx) => (
-                          <div
-                            key={member.id}
-                            className="bg-white rounded-3xl border border-slate-200 p-5 shadow-sm"
-                          >
-                            <ClubMemberCardView
-                              member={member}
-                              dependentIndex={depIdx + 1}
-                              showBackSide={true}
-                              locked={subscription.status !== 'ACTIVE'}
-                              onUpdatePhoto={handleUpdateMemberPhoto}
-                            />
-                          </div>
-                        ))}
+                        .map((member, depIdx) => {
+                          const docRule = getPlanDocumentRule(member.modalityCode, member.modalityName);
+                          const hasDoc = memberHasProofDocument(member, subscription);
+                          const missingDoc = isMemberBlockedForMissingDoc(member, subscription);
+                          const isLockedDep =
+                            subscription.status !== 'ACTIVE' ||
+                            member.status !== 'ACTIVE' ||
+                            missingDoc;
+                          return (
+                            <div
+                              key={member.id}
+                              className="bg-white rounded-3xl border border-slate-200 p-5 shadow-sm space-y-4"
+                            >
+                              <ClubMemberCardView
+                                member={member}
+                                dependentIndex={depIdx + 1}
+                                showBackSide={true}
+                                locked={isLockedDep}
+                                lockReason={
+                                  missingDoc
+                                    ? `Falta anexar: ${docRule.title || 'comprovante do plano'}`
+                                    : member.status !== 'ACTIVE' || subscription.status !== 'ACTIVE'
+                                    ? 'Aguardando pagamento / liberação'
+                                    : undefined
+                                }
+                                onUpdatePhoto={handleUpdateMemberPhoto}
+                              />
+
+                              {(docRule.requiresDocument || hasDoc) && (
+                                <div
+                                  className={`rounded-2xl border p-4 space-y-2.5 ${
+                                    missingDoc
+                                      ? 'bg-amber-50 border-amber-300'
+                                      : 'bg-emerald-50/70 border-emerald-200'
+                                  }`}
+                                >
+                                  <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <div className="text-xs font-black text-slate-900 flex items-center gap-2">
+                                      <FileCheck className={`w-4 h-4 ${missingDoc ? 'text-amber-600' : 'text-emerald-700'}`} />
+                                      <span>Comprovação ({member.modalityName})</span>
+                                      <Badge className={missingDoc ? 'bg-rose-600 text-white text-[10px]' : 'bg-emerald-600 text-white text-[10px]'}>
+                                        {missingDoc ? 'OBRIGATÓRIO ANEXAR' : 'DOCUMENTO ANEXADO'}
+                                      </Badge>
+                                    </div>
+                                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#004d00] hover:bg-emerald-900 text-white text-xs font-bold cursor-pointer">
+                                      <Upload className="w-3.5 h-3.5" />
+                                      {uploadingDocMemberId === member.id
+                                        ? 'Enviando...'
+                                        : hasDoc
+                                        ? 'Enviar Novo Comprovante'
+                                        : 'Importar / Anexar Documento'}
+                                      <input
+                                        type="file"
+                                        accept="image/*,.pdf"
+                                        className="hidden"
+                                        disabled={uploadingDocMemberId === member.id}
+                                        onChange={(e) => {
+                                          const f = e.target.files?.[0];
+                                          if (f) handleUploadMemberDocument(member, f);
+                                        }}
+                                      />
+                                    </label>
+                                  </div>
+                                  {missingDoc && (
+                                    <div className="text-[11px] text-amber-900 bg-white/90 rounded-xl p-2.5 border border-amber-200 space-y-1">
+                                      <div className="font-bold">Documentos aceitos para {member.modalityName}:</div>
+                                      {docRule.acceptedDocs.map((d, di) => (
+                                        <div key={di}>✅ {d}</div>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {hasDoc && member.documentProofUrl && (
+                                    <div className="flex flex-wrap items-center gap-3 text-xs bg-white rounded-xl p-2.5 border border-emerald-200">
+                                      {member.documentProofUrl.startsWith('data:image/') && (
+                                        <img
+                                          src={member.documentProofUrl}
+                                          alt={member.documentProofName || 'Documento'}
+                                          className="w-12 h-12 object-cover rounded-lg border border-slate-200"
+                                        />
+                                      )}
+                                      <div className="flex-1 min-w-0">
+                                        <div className="font-bold text-slate-900 truncate">
+                                          {member.documentProofName || 'Documento comprobatório enviado'}
+                                        </div>
+                                        <div className="text-[11px] text-emerald-700 font-medium">
+                                          Comprovação anexada ao cadastro do dependente
+                                        </div>
+                                      </div>
+                                      <a
+                                        href={member.documentProofUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        download={member.documentProofName || 'comprovante-dependente'}
+                                        className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 hover:underline"
+                                      >
+                                        <ExternalLink className="w-3.5 h-3.5" /> Visualizar / Baixar
+                                      </a>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                     </div>
                   </div>
                 )}
+              </TabsContent>
+
+              {/* TAB DOCUMENTOS: VISUALIZAR JÁ ENVIADOS E IMPORTAR DOCUMENTOS PENDENTES POR PLANO */}
+              <TabsContent value="documentos" className="space-y-4">
+                <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-5">
+                  <div>
+                    <h3 className="text-lg font-black text-slate-900">
+                      Central de Documentos e Comprovações dos Planos
+                    </h3>
+                    <p className="text-xs text-slate-600 mt-1">
+                      Visualize os documentos já enviados pelo titular e dependentes ou importe os comprovantes obrigatórios pendentes para liberar suas carteirinhas.
+                    </p>
+                  </div>
+
+                  <div className="space-y-4">
+                    {subscription.members.map((member, mIdx) => {
+                      const docRule = getPlanDocumentRule(member.modalityCode, member.modalityName);
+                      const hasDoc = memberHasProofDocument(member, subscription);
+                      const missingDoc = isMemberBlockedForMissingDoc(member, subscription);
+                      const allDocs = [
+                        ...(member.documentProofUrl
+                          ? [
+                              {
+                                id: 'primary',
+                                name: member.documentProofName || 'Comprovante Principal',
+                                dataUrl: member.documentProofUrl,
+                                mimeType: member.documentProofUrl.startsWith('data:image/')
+                                  ? 'image/jpeg'
+                                  : 'application/pdf',
+                              },
+                            ]
+                          : []),
+                        ...(member.attachments || []).filter(
+                          (a) => a.dataUrl && a.dataUrl !== member.documentProofUrl
+                        ),
+                      ];
+
+                      return (
+                        <div
+                          key={member.id}
+                          className={`rounded-2xl border-2 p-4 sm:p-5 space-y-3 ${
+                            missingDoc
+                              ? 'border-amber-400 bg-amber-50/70'
+                              : 'border-slate-200 bg-slate-50/60'
+                          }`}
+                        >
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Badge className={member.role === 'TITULAR' ? 'bg-emerald-800 text-white' : 'bg-blue-700 text-white'}>
+                                  {member.role === 'TITULAR' ? 'TITULAR' : `DEPENDENTE #${mIdx}`}
+                                </Badge>
+                                <span className="font-black text-sm text-slate-900">
+                                  {member.fullName}
+                                </span>
+                                <Badge variant="outline" className="font-bold text-xs">
+                                  {member.modalityName}
+                                </Badge>
+                                <Badge className={missingDoc ? 'bg-rose-600 text-white text-[10px]' : member.status === 'ACTIVE' ? 'bg-emerald-600 text-white text-[10px]' : 'bg-slate-600 text-white text-[10px]'}>
+                                  {missingDoc
+                                    ? 'INATIVO (FALTA COMPROVAÇÃO)'
+                                    : hasDoc
+                                    ? 'COMPROVAÇÃO ENVIADA'
+                                    : docRule.requiresDocument
+                                    ? 'PENDENTE'
+                                    : 'NÃO EXIGE DOCUMENTO'}
+                                </Badge>
+                              </div>
+                              <div className="text-xs text-slate-600 mt-1">
+                                Cartão Nº <strong className="font-mono">{member.cardNumber}</strong> • CPF: {member.cpf || 'Não informado'}
+                              </div>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-2">
+                              <label className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#004d00] hover:bg-emerald-900 text-white text-xs font-black cursor-pointer shadow-sm">
+                                <Camera className="w-3.5 h-3.5" />
+                                Câmera
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  capture="environment"
+                                  className="hidden"
+                                  disabled={uploadingDocMemberId === member.id}
+                                  onChange={(e) => {
+                                    const f = e.target.files?.[0];
+                                    if (f) handleUploadMemberDocument(member, f);
+                                  }}
+                                />
+                              </label>
+                              <label className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 border border-slate-300 text-slate-900 text-xs font-black cursor-pointer shadow-sm">
+                                <Upload className="w-3.5 h-3.5" />
+                                {uploadingDocMemberId === member.id ? 'Importando...' : 'Importar Arquivo (Foto / PDF)'}
+                                <input
+                                  type="file"
+                                  accept="image/*,.pdf"
+                                  className="hidden"
+                                  disabled={uploadingDocMemberId === member.id}
+                                  onChange={(e) => {
+                                    const f = e.target.files?.[0];
+                                    if (f) handleUploadMemberDocument(member, f);
+                                  }}
+                                />
+                              </label>
+                            </div>
+                          </div>
+
+                          {docRule.requiresDocument && (
+                            <div className="bg-white rounded-xl p-3 border border-amber-200 text-xs text-slate-800 space-y-1">
+                              <div className="font-black text-amber-950">
+                                📄 {docRule.title} — Documentos necessários para {member.modalityName}:
+                              </div>
+                              <p className="text-[11px] text-slate-600">{docRule.summary}</p>
+                              <ul className="space-y-0.5 pt-1">
+                                {docRule.acceptedDocs.map((item, di) => (
+                                  <li key={di} className="font-semibold text-slate-800">
+                                    ✅ {item}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+
+                          {allDocs.length > 0 ? (
+                            <div className="space-y-2">
+                              <div className="text-xs font-bold text-slate-700">
+                                Documentos já enviados ({allDocs.length}):
+                              </div>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                {allDocs.map((doc) => (
+                                  <div
+                                    key={doc.id}
+                                    className="flex items-center justify-between gap-3 bg-white border border-emerald-200 rounded-xl p-2.5"
+                                  >
+                                    <div className="flex items-center gap-2.5 min-w-0">
+                                      {doc.dataUrl.startsWith('data:image/') ? (
+                                        <img
+                                          src={doc.dataUrl}
+                                          alt={doc.name}
+                                          className="w-11 h-11 object-cover rounded-lg border border-slate-200 shrink-0"
+                                        />
+                                      ) : (
+                                        <div className="w-11 h-11 rounded-lg bg-emerald-800 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                                          PDF
+                                        </div>
+                                      )}
+                                      <div className="min-w-0">
+                                        <div className="font-bold text-xs text-slate-900 truncate">
+                                          {doc.name}
+                                        </div>
+                                        <div className="text-[10px] text-emerald-700 font-semibold">
+                                          Anexado ao cadastro
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <a
+                                      href={doc.dataUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      download={doc.name}
+                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold shrink-0"
+                                    >
+                                      <ExternalLink className="w-3.5 h-3.5" /> Abrir
+                                    </a>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-xs text-slate-500 italic">
+                              Nenhum documento enviado ainda para este integrante.
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               </TabsContent>
 
               {/* TAB 2: FATURAS */}
@@ -1411,7 +1849,7 @@ const SocioPortal: React.FC = () => {
                       </div>
                       <div>
                         <strong className="text-sm font-black text-white block">Entradas Ilimitadas</strong>
-                        <p className="text-xs text-emerald-100">Acesse quantas vezes quiser durante todo o mês.</p>
+                        <p className="text-xs text-emerald-100">Acesse quantas vezes quiser durante todos os dias de funcionamento.</p>
                       </div>
                     </div>
 

@@ -47,6 +47,8 @@ import {
   renderSubscriptionContractHtml,
   compressImageFile,
   fetchAddressByCep,
+  getPlanDocumentRule,
+  isMemberBlockedForMissingDoc,
   type CreateSubscriptionMemberInput,
 } from '@/lib/club-service';
 import { ClubMemberCardView } from './ClubMemberCardView';
@@ -326,12 +328,13 @@ export const CustomFamilyCheckoutModal: React.FC<CustomFamilyCheckoutModalProps>
 
     for (let i = 0; i < membersList.length; i++) {
       const m = membersList[i];
-      const isReqDoc = ['PCD_TEA', 'KIDS', 'IDOSO_60'].includes(m.modalityCode);
+      const mod = DEFAULT_CLUB_MODALITIES.find((dm) => dm.code === m.modalityCode);
+      const docRule = getPlanDocumentRule(m.modalityCode, mod?.name);
+      const isReqDoc = Boolean(mod?.requiresDocument || docRule.requiresDocument);
       if (isReqDoc && !m.documentProofUrl) {
-        const mod = DEFAULT_CLUB_MODALITIES.find((dm) => dm.code === m.modalityCode);
         toast({
           title: `Comprovante obrigatório pendente (${m.fullName || (i === 0 ? 'Titular' : `Dependente #${i}`)})`,
-          description: `É obrigatório anexar ou tirar uma foto do documento comprobatório para o plano ${mod?.name || 'de gratuidade'} antes de ativar o cadastro.`,
+          description: `É obrigatório anexar ou tirar uma foto do documento comprobatório para o plano ${mod?.name || 'selecionado'} antes de liberar a carteirinha.`,
           variant: 'destructive',
         });
         return false;
@@ -1018,7 +1021,14 @@ export const CustomFamilyCheckoutModal: React.FC<CustomFamilyCheckoutModalProps>
                       </div>
                     </div>
 
-                    {memberItem.mod.requiresDocument && (
+                    {(memberItem.mod.requiresDocument ||
+                      getPlanDocumentRule(memberItem.modalityCode, memberItem.mod.name)
+                        .requiresDocument) && (() => {
+                      const docRule = getPlanDocumentRule(
+                        memberItem.modalityCode,
+                        memberItem.mod.name
+                      );
+                      return (
                       <div className="sm:col-span-2 bg-amber-50/90 p-3 rounded-xl border border-amber-300 space-y-2">
                         <div className="flex items-start justify-between gap-2">
                           <div>
@@ -1029,37 +1039,26 @@ export const CustomFamilyCheckoutModal: React.FC<CustomFamilyCheckoutModalProps>
                               </Badge>
                             </span>
                             <p className="text-[10px] text-amber-900 mt-0.5">
-                              Para ativar este cadastro, é necessário comprovar com documento no ato da inscrição.
+                              {docRule.summary ||
+                                'Para liberar a carteirinha deste integrante, é obrigatório anexar o documento comprobatório.'}
                             </p>
                           </div>
                         </div>
 
-                        {memberItem.modalityCode === 'PCD_TEA' && (
-                          <div className="bg-white/90 p-2.5 rounded-lg border border-amber-200 text-[11px] text-slate-800 space-y-0.5">
-                            <strong className="text-amber-950 block text-[11px]">
-                              Documentos aceitos para comprovação (basta 1):
-                            </strong>
-                            <div>✅ Laudo médico com CID</div>
-                            <div>✅ Carteira de Identificação da Pessoa com Deficiência</div>
-                            <div>✅ Carteira do Autista (municipal, estadual ou nacional)</div>
-                            <div>✅ Documento oficial que comprove a condição</div>
-                          </div>
-                        )}
-
-                        {(memberItem.modalityCode === 'KIDS' ||
-                          memberItem.modalityCode === 'IDOSO_60') && (
-                          <div className="bg-white/90 p-2.5 rounded-lg border border-amber-200 text-[11px] text-slate-800 space-y-0.5">
-                            <strong className="text-amber-950 block text-[11px]">
-                              Comprovação de idade obrigatória:
-                            </strong>
-                            <div>
-                              ✅ Foto que comprove a idade (ex: RG com foto, nome e nascimento ou{' '}
-                              {memberItem.modalityCode === 'KIDS'
-                                ? 'Certidão de Nascimento'
-                                : 'CNH oficial'}).
-                            </div>
-                          </div>
-                        )}
+                        <div className="bg-white/90 p-2.5 rounded-lg border border-amber-200 text-[11px] text-slate-800 space-y-0.5">
+                          <strong className="text-amber-950 block text-[11px]">
+                            {docRule.title || 'Documentos aceitos para comprovação'} (basta 1):
+                          </strong>
+                          {(docRule.acceptedDocs.length > 0
+                            ? docRule.acceptedDocs
+                            : [
+                                memberItem.mod.documentLabel ||
+                                  'Documento oficial com foto que comprove o benefício do plano',
+                              ]
+                          ).map((docDesc, dIdx) => (
+                            <div key={dIdx}>✅ {docDesc}</div>
+                          ))}
+                        </div>
 
                         <div>
                           {!memberItem.documentProofUrl ? (
@@ -1149,7 +1148,8 @@ export const CustomFamilyCheckoutModal: React.FC<CustomFamilyCheckoutModalProps>
                           )}
                         </div>
                       </div>
-                    )}
+                      );
+                    })()}
                   </div>
                 </div>
               ))}
@@ -1429,28 +1429,46 @@ export const CustomFamilyCheckoutModal: React.FC<CustomFamilyCheckoutModalProps>
             })()}
 
             <div className="space-y-6">
-              {createdSubscription.members.map((member) => (
-                <div
-                  key={member.id}
-                  className="p-4 rounded-2xl border border-slate-200 bg-slate-50/60 space-y-3"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-black text-sm text-emerald-950">
-                      {member.role}: {member.fullName} — {member.planCycleLabel}
-                    </span>
-                    <Badge
-                      className={
-                        member.status === 'ACTIVE'
-                          ? 'bg-emerald-600 text-white'
-                          : 'bg-amber-500 text-emerald-950'
+              {createdSubscription.members.map((member) => {
+                const missingDoc = isMemberBlockedForMissingDoc(member, createdSubscription);
+                const lockedMember =
+                  member.status !== 'ACTIVE' || missingDoc;
+                return (
+                  <div
+                    key={member.id}
+                    className="p-4 rounded-2xl border border-slate-200 bg-slate-50/60 space-y-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-black text-sm text-emerald-950">
+                        {member.role}: {member.fullName} — {member.planCycleLabel}
+                      </span>
+                      <Badge
+                        className={
+                          !lockedMember
+                            ? 'bg-emerald-600 text-white'
+                            : 'bg-amber-500 text-emerald-950'
+                        }
+                      >
+                        {!lockedMember
+                          ? 'ATIVA'
+                          : missingDoc
+                          ? 'INATIVA (FALTA COMPROVAÇÃO)'
+                          : 'AGUARDANDO COMPENSAÇÃO'}
+                      </Badge>
+                    </div>
+                    <ClubMemberCardView
+                      member={member}
+                      showBackSide={false}
+                      locked={lockedMember}
+                      lockReason={
+                        missingDoc
+                          ? 'Falta documento comprobatório obrigatório (anexe no Portal do Sócio)'
+                          : undefined
                       }
-                    >
-                      {member.status === 'ACTIVE' ? 'ATIVA' : 'AGUARDANDO COMPENSAÇÃO'}
-                    </Badge>
+                    />
                   </div>
-                  <ClubMemberCardView member={member} showBackSide={false} />
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}

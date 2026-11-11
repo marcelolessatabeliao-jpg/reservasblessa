@@ -66,6 +66,7 @@ export interface ClubMember {
   photoUrl?: string;
   documentProofUrl?: string;
   documentProofName?: string;
+  documentVerified?: boolean;
   cardNumber: string; // Ex: 1212252975
   holderCardNumber: string;
   qrToken: string;

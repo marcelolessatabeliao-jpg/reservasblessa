@@ -95,6 +95,7 @@ import {
 import {
   ClubDatabaseState,
   DEFAULT_SITE_TERMS_TEXT,
+  getClubStateSync,
   fetchClubState,
   saveClubState,
   createClubSubscription,
@@ -108,6 +109,7 @@ import {
   formatCurrency,
   formatDateBR,
   fileToDataUrl,
+  compressImageFile,
   isValidCpf,
   isValidCnpj,
   cleanDigits,
@@ -116,6 +118,11 @@ import {
   getMemberAccessMessage,
   updateAsaasPaymentDueDate,
   fetchAddressByCep,
+  getPlanDocumentRule,
+  memberHasProofDocument,
+  isMemberBlockedForMissingDoc,
+  attachMemberProofDocument,
+  verifyMemberProofDocument,
 } from '@/lib/club-service';
 import {
   getSeenClubSubIds,
@@ -151,8 +158,9 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
   standalone = false,
 }) => {
   const { toast } = useToast();
-  const [state, setState] = useState<ClubDatabaseState | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [state, setState] = useState<ClubDatabaseState | null>(() => getClubStateSync());
+  const [loading, setLoading] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [openMenu, setOpenMenu] = useState<string | null>(null);
 
@@ -580,15 +588,20 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     useState<ClubContractTemplate | null>(null);
 
   useEffect(() => {
-    fetchClubState().then((loaded) => {
-      setState(loaded);
-      if (loaded.siteTermsText && loaded.siteTermsText.length > 50) {
-        setSiteTermsText(loaded.siteTermsText);
-      } else {
-        setSiteTermsText(DEFAULT_SITE_TERMS_TEXT);
-      }
-      setLoading(false);
-    });
+    setIsSyncing(true);
+    fetchClubState()
+      .then((loaded) => {
+        setState(loaded);
+        if (loaded.siteTermsText && loaded.siteTermsText.length > 50) {
+          setSiteTermsText(loaded.siteTermsText);
+        } else {
+          setSiteTermsText(DEFAULT_SITE_TERMS_TEXT);
+        }
+      })
+      .finally(() => {
+        setLoading(false);
+        setIsSyncing(false);
+      });
   }, []);
 
   useEffect(() => {
@@ -1237,23 +1250,23 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     });
   }, [state, financeSubView, cashEntryStartDate, cashEntryEndDate]);
 
-  // Atualização instantânea ao clicar em Dashboard
+  // Atualização instantânea em segundo plano ao clicar em Dashboard (sem bloquear tela)
   const handleRefreshDashboard = async () => {
     setActiveTab('dashboard');
     setOpenMenu(null);
     setOpenSubMenu(null);
-    setLoading(true);
+    setIsSyncing(true);
     try {
       const reloaded = await fetchClubState();
       setState(reloaded);
       toast({
         title: 'Painel Atualizado',
-        description: 'Dashboard e dados do Lessa Club atualizados com sucesso.',
+        description: 'Dashboard e dados do Lessa Club sincronizados com sucesso.',
       });
     } catch (err) {
       console.error(err);
     } finally {
-      setLoading(false);
+      setIsSyncing(false);
     }
   };
 
@@ -2362,6 +2375,14 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
   return (
     <div className={standalone ? 'min-h-screen bg-slate-100 p-6' : 'space-y-6'}>
+      {isSyncing && (
+        <div className="flex items-center justify-end text-[11px] font-bold text-emerald-800 px-1">
+          <span className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            Sincronizando dados em segundo plano...
+          </span>
+        </div>
+      )}
       {/* =====================================================================
           BARRA DE NAVEGAÇÃO SUPERIOR VERDE ESCURA (IDÊNTICA ÀS IMAGENS ENVIADAS)
           Dashboard | Clientes ⌄ | Empresas ⌄ | Consultores ⌄ | Influencer ⌄ |
@@ -9457,9 +9478,27 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     </div>
                     <div className="sm:col-span-4">
                       <Label className="text-xs font-bold text-slate-700">
-                        Plano / Descrição do Contrato
+                        Plano Selecionado do Titular
                       </Label>
-                      <Input
+                      <div className="mt-1 h-10 px-3 rounded-md border border-emerald-300 bg-emerald-50 flex items-center justify-between text-xs font-black text-emerald-950">
+                        <span className="truncate">
+                          {selectedSubForDetail.members.find((m) => m.role === 'TITULAR')
+                            ?.modalityName ||
+                            selectedSubForDetail.members[0]?.modalityName ||
+                            'Não identificado'}
+                        </span>
+                        <Badge className="bg-emerald-700 text-white text-[10px] shrink-0 ml-2">
+                          TITULAR
+                        </Badge>
+                      </div>
+                    </div>
+
+                    <div className="sm:col-span-12">
+                      <Label className="text-xs font-bold text-slate-700">
+                        Plano / Descrição Completa do Contrato
+                      </Label>
+                      <Textarea
+                        rows={2}
                         value={editClientData.planSummaryLabel}
                         onChange={(e) =>
                           setEditClientData({
@@ -9467,8 +9506,81 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                             planSummaryLabel: e.target.value,
                           })
                         }
-                        className="mt-1"
+                        className="mt-1 font-semibold text-sm resize-y"
                       />
+                    </div>
+
+                    {/* COMPOSIÇÃO COMPLETA DA FICHA: NOME E PLANO DE CADA INTEGRANTE (TITULAR + DEPENDENTES) */}
+                    <div className="sm:col-span-12 rounded-xl border border-emerald-200 bg-emerald-50/50 p-3.5 space-y-2.5">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="text-xs font-black uppercase text-emerald-950 flex items-center gap-1.5">
+                          <Users className="w-4 h-4 text-emerald-700" />
+                          Integrantes da Assinatura ({selectedSubForDetail.members.length}): Nome e Plano de Cada Pessoa
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setClientDetailTool('ANEXOS')}
+                          className="h-7 text-[11px] font-bold border-emerald-600 text-emerald-900 bg-white"
+                        >
+                          <Paperclip className="w-3 h-3 mr-1" /> Ver / Anexar Documentos
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {selectedSubForDetail.members.map((m, idx) => {
+                          const docMissing = isMemberBlockedForMissingDoc(m, selectedSubForDetail);
+                          const hasDoc = memberHasProofDocument(m, selectedSubForDetail);
+                          const rule = getPlanDocumentRule(m.modalityCode, m.modalityName);
+                          return (
+                            <div
+                              key={m.id}
+                              className="bg-white rounded-lg border border-slate-200 p-2.5 flex flex-col gap-1 text-xs shadow-sm"
+                            >
+                              <div className="flex flex-wrap items-center justify-between gap-1">
+                                <span className="font-black text-slate-900">
+                                  {idx === 0 || m.role === 'TITULAR' ? '👑 TITULAR' : `👤 DEPENDENTE #${idx}`}:{' '}
+                                  {m.fullName}
+                                </span>
+                                <Badge
+                                  className={
+                                    m.status === 'ACTIVE' && !docMissing
+                                      ? 'bg-emerald-600 text-white text-[10px]'
+                                      : 'bg-rose-600 text-white text-[10px]'
+                                  }
+                                >
+                                  {docMissing
+                                    ? 'INATIVO (FALTA DOC)'
+                                    : m.status === 'ACTIVE'
+                                    ? 'ATIVO'
+                                    : m.status === 'PENDING_TRANSFER'
+                                    ? 'PEND. TRANSF.'
+                                    : 'INATIVO'}
+                                </Badge>
+                              </div>
+                              <div className="text-emerald-900 font-bold">
+                                Plano: {m.planCycleLabel || m.modalityName}
+                              </div>
+                              <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
+                                <span>
+                                  Cartão: <strong className="font-mono text-slate-700">{m.cardNumber}</strong> • CPF: {m.cpf || '-'}
+                                </span>
+                                {rule.requiresDocument && (
+                                  <span
+                                    className={
+                                      hasDoc
+                                        ? 'text-emerald-700 font-bold'
+                                        : 'text-rose-600 font-bold'
+                                    }
+                                  >
+                                    {hasDoc ? '✔ Doc. anexado' : '⚠ Sem doc. anexado'}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
 
                     <div className="sm:col-span-4">
@@ -9900,41 +10012,66 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
                   {selectedSubForDetail.members
                     .filter((m) => m.role === 'TITULAR')
-                    .map((holderMember) => (
-                      <div key={holderMember.id} className="space-y-2">
-                        <div className="flex items-center gap-2 border-b border-slate-200 pb-1.5">
-                          <Badge className="bg-emerald-800 text-white font-black">
-                            TITULAR
-                          </Badge>
-                          <h4 className="text-sm font-black uppercase tracking-wider text-slate-900">
-                            1. Carteirinha do Titular ({holderMember.fullName})
-                          </h4>
+                    .map((holderMember) => {
+                      const holderMissingDoc = isMemberBlockedForMissingDoc(
+                        holderMember,
+                        selectedSubForDetail
+                      );
+                      return (
+                        <div key={holderMember.id} className="space-y-2">
+                          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-1.5">
+                            <div className="flex items-center gap-2">
+                              <Badge className="bg-emerald-800 text-white font-black">
+                                TITULAR
+                              </Badge>
+                              <h4 className="text-sm font-black uppercase tracking-wider text-slate-900">
+                                1. Carteirinha do Titular ({holderMember.fullName})
+                              </h4>
+                            </div>
+                            {holderMissingDoc && (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setClientDetailTool('ANEXOS')}
+                                className="h-7 text-[11px] font-bold border-rose-400 text-rose-700 bg-rose-50 hover:bg-rose-100"
+                              >
+                                ⚠ Comprovante Pendente — Anexar/Aprovar
+                              </Button>
+                            )}
+                          </div>
+                          <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200">
+                            <ClubMemberCardView
+                              member={holderMember}
+                              showBackSide={true}
+                              locked={holderMissingDoc}
+                              lockReason={
+                                holderMissingDoc
+                                  ? `Falta documento comprobatório (${holderMember.modalityName})`
+                                  : undefined
+                              }
+                              onUpdatePhoto={async (memberId, dataUrl) => {
+                                const updatedSub: ClubSubscription = {
+                                  ...selectedSubForDetail,
+                                  members: selectedSubForDetail.members.map((m) =>
+                                    m.id === memberId ? { ...m, photoUrl: dataUrl } : m
+                                  ),
+                                };
+                                const nextState: ClubDatabaseState = {
+                                  ...state,
+                                  subscriptions: (state.subscriptions || []).map((s) =>
+                                    s.id === updatedSub.id ? updatedSub : s
+                                  ),
+                                };
+                                setSelectedSubForDetail(updatedSub);
+                                await persist(nextState);
+                                toast({ title: 'Foto 3x4 atualizada!' });
+                              }}
+                            />
+                          </div>
                         </div>
-                        <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200">
-                          <ClubMemberCardView
-                            member={holderMember}
-                            showBackSide={true}
-                            onUpdatePhoto={async (memberId, dataUrl) => {
-                              const updatedSub: ClubSubscription = {
-                                ...selectedSubForDetail,
-                                members: selectedSubForDetail.members.map((m) =>
-                                  m.id === memberId ? { ...m, photoUrl: dataUrl } : m
-                                ),
-                              };
-                              const nextState: ClubDatabaseState = {
-                                ...state,
-                                subscriptions: (state.subscriptions || []).map((s) =>
-                                  s.id === updatedSub.id ? updatedSub : s
-                                ),
-                              };
-                              setSelectedSubForDetail(updatedSub);
-                              await persist(nextState);
-                              toast({ title: 'Foto 3x4 atualizada!' });
-                            }}
-                          />
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
 
                   {selectedSubForDetail.members.some((m) => m.role === 'DEPENDENTE') && (
                     <div className="space-y-3 pt-2">
@@ -9966,37 +10103,65 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                       <div className="space-y-4">
                         {selectedSubForDetail.members
                           .filter((m) => m.role === 'DEPENDENTE')
-                          .map((depMember, depIdx) => (
-                            <div
-                              key={depMember.id}
-                              className="bg-slate-50 rounded-2xl p-4 border border-slate-200"
-                            >
-                              <ClubMemberCardView
-                                member={depMember}
-                                dependentIndex={depIdx + 1}
-                                showBackSide={true}
-                                onUpdatePhoto={async (memberId, dataUrl) => {
-                                  const updatedSub: ClubSubscription = {
-                                    ...selectedSubForDetail,
-                                    members: selectedSubForDetail.members.map((m) =>
-                                      m.id === memberId
-                                        ? { ...m, photoUrl: dataUrl }
-                                        : m
-                                    ),
-                                  };
-                                  const nextState: ClubDatabaseState = {
-                                    ...state,
-                                    subscriptions: (state.subscriptions || []).map((s) =>
-                                      s.id === updatedSub.id ? updatedSub : s
-                                    ),
-                                  };
-                                  setSelectedSubForDetail(updatedSub);
-                                  await persist(nextState);
-                                  toast({ title: 'Foto 3x4 atualizada!' });
-                                }}
-                              />
-                            </div>
-                          ))}
+                          .map((depMember, depIdx) => {
+                            const depMissingDoc = isMemberBlockedForMissingDoc(
+                              depMember,
+                              selectedSubForDetail
+                            );
+                            return (
+                              <div
+                                key={depMember.id}
+                                className="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-2"
+                              >
+                                {depMissingDoc && (
+                                  <div className="flex flex-wrap items-center justify-between gap-2 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2 text-xs text-rose-800">
+                                    <span className="font-bold">
+                                      ⚠ Carteirinha inativa/bloqueada: falta comprovação documental para {depMember.modalityName}.
+                                    </span>
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => setClientDetailTool('ANEXOS')}
+                                      className="h-7 text-[11px] font-bold border-rose-400 text-rose-700 bg-white"
+                                    >
+                                      Anexar / Aprovar na aba Anexos
+                                    </Button>
+                                  </div>
+                                )}
+                                <ClubMemberCardView
+                                  member={depMember}
+                                  dependentIndex={depIdx + 1}
+                                  showBackSide={true}
+                                  locked={depMissingDoc}
+                                  lockReason={
+                                    depMissingDoc
+                                      ? `Falta documento comprobatório (${depMember.modalityName})`
+                                      : undefined
+                                  }
+                                  onUpdatePhoto={async (memberId, dataUrl) => {
+                                    const updatedSub: ClubSubscription = {
+                                      ...selectedSubForDetail,
+                                      members: selectedSubForDetail.members.map((m) =>
+                                        m.id === memberId
+                                          ? { ...m, photoUrl: dataUrl }
+                                          : m
+                                      ),
+                                    };
+                                    const nextState: ClubDatabaseState = {
+                                      ...state,
+                                      subscriptions: (state.subscriptions || []).map((s) =>
+                                        s.id === updatedSub.id ? updatedSub : s
+                                      ),
+                                    };
+                                    setSelectedSubForDetail(updatedSub);
+                                    await persist(nextState);
+                                    toast({ title: 'Foto 3x4 atualizada!' });
+                                  }}
+                                />
+                              </div>
+                            );
+                          })}
                       </div>
                     </div>
                   )}
@@ -11501,16 +11666,27 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     </div>
                   )}
 
-                  {/* SEÇÃO EXTRA: DOCUMENTOS DOS DEPENDENTES (CERTIDÕES, LAUDOS, RG) */}
+                  {/* SEÇÃO EXTRA: DOCUMENTOS COMPROBATÓRIOS POR INTEGRANTE (TITULAR E DEPENDENTES) */}
                   <div className="pt-4 border-t border-slate-200 space-y-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div>
                         <h4 className="text-sm font-black text-slate-800 flex items-center gap-1.5 uppercase">
                           <Paperclip className="w-4 h-4 text-emerald-700" />
-                          Documentos dos Dependentes ({selectedSubForDetail.members.filter((m) => m.role === 'DEPENDENTE').reduce((acc, m) => acc + (m.attachments || []).length, 0)})
+                          Documentos Comprobatórios por Integrante — Titular e Dependentes (
+                          {selectedSubForDetail.members.reduce(
+                            (acc, m) =>
+                              acc +
+                              (m.attachments || []).length +
+                              (m.documentProofUrl &&
+                              !(m.attachments || []).some((a) => a.dataUrl === m.documentProofUrl)
+                                ? 1
+                                : 0),
+                            0
+                          )}
+                          )
                         </h4>
                         <p className="text-xs text-slate-500">
-                          Documentação comprobatória individual (RG, Certidão de Nascimento, Laudo PCD/TEA, Matrícula Estudantil).
+                          Documentação individual do Titular e Dependentes (RG/CNH para Vitalício 60+, Certidão/RG Kids, Laudo PCD/TEA, Matrícula Student, Professor e Servidor).
                         </p>
                       </div>
                       <Button
@@ -11524,86 +11700,184 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                       </Button>
                     </div>
 
-                    <div className="space-y-2">
-                      {selectedSubForDetail.members.filter((m) => m.role === 'DEPENDENTE').length === 0 ? (
-                        <p className="text-xs text-slate-400 italic">
-                          Nenhum dependente cadastrado neste plano.
-                        </p>
-                      ) : (
-                        selectedSubForDetail.members
-                          .filter((m) => m.role === 'DEPENDENTE')
-                          .map((dep) => (
-                            <div
-                              key={dep.id}
-                              className="p-3 rounded-xl border border-slate-200 bg-slate-50/80 space-y-2"
-                            >
-                              <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                                <div>
-                                  <strong>{dep.fullName}</strong> ({dep.modalityName}) • Cartão #{dep.cardNumber}
-                                  {dep.expirationDate && (
-                                    <span className="ml-2 font-semibold text-amber-800">
-                                      • Vencimento: {formatDateBR(dep.expirationDate)}
-                                    </span>
-                                  )}
-                                </div>
-                                <Label
-                                  htmlFor={`anexos-tab-upload-${dep.id}`}
-                                  className="inline-flex items-center px-2 py-1 rounded bg-[#004d00] hover:bg-emerald-800 text-white font-bold text-[11px] cursor-pointer"
+                    <div className="space-y-3">
+                      {selectedSubForDetail.members.map((memberItem, mIdx) => {
+                        const docRule = getPlanDocumentRule(
+                          memberItem.modalityCode,
+                          memberItem.modalityName
+                        );
+                        const hasDoc = memberHasProofDocument(memberItem, selectedSubForDetail);
+                        const missingDoc = isMemberBlockedForMissingDoc(
+                          memberItem,
+                          selectedSubForDetail
+                        );
+                        const combinedAttachments = [
+                          ...(memberItem.documentProofUrl &&
+                          !(memberItem.attachments || []).some(
+                            (a) => a.dataUrl === memberItem.documentProofUrl
+                          )
+                            ? [
+                                {
+                                  id: `primary_${memberItem.id}`,
+                                  name: memberItem.documentProofName || 'Documento Comprobatório',
+                                  dataUrl: memberItem.documentProofUrl,
+                                  mimeType: memberItem.documentProofUrl.startsWith('data:image/')
+                                    ? 'image/jpeg'
+                                    : 'application/pdf',
+                                  createdAt: memberItem.createdAt,
+                                },
+                              ]
+                            : []),
+                          ...(memberItem.attachments || []),
+                        ];
+
+                        return (
+                          <div
+                            key={memberItem.id}
+                            className={`p-3.5 rounded-xl border space-y-2.5 ${
+                              missingDoc
+                                ? 'border-amber-400 bg-amber-50/70'
+                                : 'border-slate-200 bg-slate-50/80'
+                            }`}
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <Badge
+                                  className={
+                                    memberItem.role === 'TITULAR' || mIdx === 0
+                                      ? 'bg-emerald-800 text-white text-[10px]'
+                                      : 'bg-blue-700 text-white text-[10px]'
+                                  }
                                 >
-                                  <Upload className="w-3 h-3 mr-1" /> + Anexar para {dep.fullName.split(' ')[0]}
+                                  {memberItem.role === 'TITULAR' || mIdx === 0
+                                    ? 'TITULAR'
+                                    : `DEP. #${mIdx}`}
+                                </Badge>
+                                <strong>{memberItem.fullName}</strong> ({memberItem.modalityName}) • Cartão #{memberItem.cardNumber}
+                                {docRule.requiresDocument && (
+                                  <Badge
+                                    className={
+                                      missingDoc
+                                        ? 'bg-rose-600 text-white text-[10px]'
+                                        : 'bg-emerald-600 text-white text-[10px]'
+                                    }
+                                  >
+                                    {missingDoc
+                                      ? 'INATIVO — FALTA COMPROVAÇÃO'
+                                      : memberItem.documentVerified
+                                      ? 'VALIDADO PELO ADMIN'
+                                      : 'COMPROVAÇÃO ANEXADA'}
+                                  </Badge>
+                                )}
+                                {memberItem.expirationDate && (
+                                  <span className="ml-1 font-semibold text-amber-800">
+                                    • Vencimento: {formatDateBR(memberItem.expirationDate)}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                {docRule.requiresDocument && (
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={memberItem.documentVerified ? 'outline' : 'default'}
+                                    onClick={async () => {
+                                      const saved = await verifyMemberProofDocument(
+                                        selectedSubForDetail.id,
+                                        memberItem.id,
+                                        !memberItem.documentVerified
+                                      );
+                                      setState(saved);
+                                      const refreshedSub = saved.subscriptions.find(
+                                        (s) => s.id === selectedSubForDetail.id
+                                      );
+                                      if (refreshedSub) setSelectedSubForDetail(refreshedSub);
+                                      toast({
+                                        title: !memberItem.documentVerified
+                                          ? 'Documento validado e carteirinha liberada!'
+                                          : 'Validação manual revogada.',
+                                      });
+                                    }}
+                                    className={
+                                      memberItem.documentVerified
+                                        ? 'h-7 text-[11px] font-bold border-emerald-600 text-emerald-800'
+                                        : 'h-7 text-[11px] font-bold bg-amber-600 hover:bg-amber-700 text-white'
+                                    }
+                                  >
+                                    <CheckCircle2 className="w-3 h-3 mr-1" />
+                                    {memberItem.documentVerified
+                                      ? 'Validado ✔'
+                                      : 'Validar / Liberar'}
+                                  </Button>
+                                )}
+                                <Label
+                                  htmlFor={`anexos-tab-upload-${memberItem.id}`}
+                                  className="inline-flex items-center px-2.5 py-1 rounded bg-[#004d00] hover:bg-emerald-800 text-white font-bold text-[11px] cursor-pointer"
+                                >
+                                  <Upload className="w-3 h-3 mr-1" /> + Anexar para {memberItem.fullName.split(' ')[0]}
                                 </Label>
                                 <input
-                                  id={`anexos-tab-upload-${dep.id}`}
+                                  id={`anexos-tab-upload-${memberItem.id}`}
                                   type="file"
                                   accept="image/*,.pdf,.doc,.docx"
                                   className="hidden"
                                   onChange={async (e) => {
                                     const file = e.target.files?.[0];
                                     if (!file) return;
-                                    const dataUrl = await fileToDataUrl(file);
-                                    const newAtt: ClubAttachment = {
-                                      id: `att_dep_${Date.now()}`,
-                                      name: `${dep.fullName.split(' ')[0]} - ${file.name}`,
-                                      mimeType: file.type || 'application/octet-stream',
-                                      dataUrl,
-                                      createdAt: new Date().toISOString(),
-                                    };
-                                    const updatedMembers = selectedSubForDetail.members.map((m) =>
-                                      m.id === dep.id
-                                        ? { ...m, attachments: [newAtt, ...(m.attachments || [])] }
-                                        : m
+                                    const dataUrl = file.type.startsWith('image/')
+                                      ? await compressImageFile(file)
+                                      : await fileToDataUrl(file);
+                                    const saved = await attachMemberProofDocument(
+                                      selectedSubForDetail.id,
+                                      memberItem.id,
+                                      {
+                                        dataUrl,
+                                        fileName: `${memberItem.fullName.split(' ')[0]} - ${file.name}`,
+                                        mimeType: file.type || 'application/octet-stream',
+                                      }
                                     );
-                                    const updatedSub: ClubSubscription = {
-                                      ...selectedSubForDetail,
-                                      members: updatedMembers,
-                                    };
-                                    const nextState: ClubDatabaseState = {
-                                      ...state,
-                                      subscriptions: (state.subscriptions || []).map((s) =>
-                                        s.id === updatedSub.id ? updatedSub : s
-                                      ),
-                                    };
-                                    setSelectedSubForDetail(updatedSub);
-                                    await persist(nextState);
+                                    setState(saved);
+                                    const refreshedSub = saved.subscriptions.find(
+                                      (s) => s.id === selectedSubForDetail.id
+                                    );
+                                    if (refreshedSub) setSelectedSubForDetail(refreshedSub);
                                     toast({
-                                      title: 'Documento anexado ao dependente!',
+                                      title: `Documento anexado para ${memberItem.fullName}!`,
                                       description: file.name,
                                     });
                                   }}
                                 />
                               </div>
+                            </div>
 
-                              {(dep.attachments || []).length === 0 ? (
-                                <p className="text-[11px] text-slate-400 italic">
-                                  Nenhum anexo para este dependente.
-                                </p>
-                              ) : (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                  {(dep.attachments || []).map((att) => (
-                                    <div
-                                      key={att.id}
-                                      className="bg-white p-2 rounded-lg border border-slate-200 flex items-center justify-between gap-2 text-xs"
-                                    >
+                            {missingDoc && docRule.requiresDocument && (
+                              <div className="bg-white/90 rounded-lg border border-amber-300 p-2 text-[11px] text-amber-950">
+                                <strong>Documentos aceitos ({memberItem.modalityName}):</strong>{' '}
+                                {docRule.acceptedDocs.join(' • ')}
+                              </div>
+                            )}
+
+                            {combinedAttachments.length === 0 ? (
+                              <p className="text-[11px] text-slate-400 italic">
+                                {hasDoc
+                                  ? 'Documento validado pelo administrador.'
+                                  : 'Nenhum documento anexado para este integrante.'}
+                              </p>
+                            ) : (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                {combinedAttachments.map((att) => (
+                                  <div
+                                    key={att.id}
+                                    className="bg-white p-2 rounded-lg border border-slate-200 flex items-center justify-between gap-2 text-xs"
+                                  >
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      {att.dataUrl?.startsWith('data:image/') && (
+                                        <img
+                                          src={att.dataUrl}
+                                          alt={att.name}
+                                          className="w-9 h-9 object-cover rounded border border-slate-200 shrink-0"
+                                        />
+                                      )}
                                       <div className="truncate">
                                         <div className="font-bold text-slate-800 truncate">
                                           {att.name}
@@ -11612,50 +11886,55 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                           {formatDateBR(att.createdAt)}
                                         </div>
                                       </div>
-                                      <div className="flex items-center gap-1 shrink-0">
-                                        <a href={att.dataUrl} download={att.name} target="_blank" rel="noreferrer">
-                                          <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]">
-                                            <Download className="w-3 h-3 mr-1" /> Baixar
-                                          </Button>
-                                        </a>
-                                        <Button
-                                          size="sm"
-                                          variant="ghost"
-                                          onClick={async () => {
-                                            const updatedMembers = selectedSubForDetail.members.map((m) =>
-                                              m.id === dep.id
-                                                ? {
-                                                    ...m,
-                                                    attachments: (m.attachments || []).filter((a) => a.id !== att.id),
-                                                  }
-                                                : m
-                                            );
-                                            const updatedSub: ClubSubscription = {
-                                              ...selectedSubForDetail,
-                                              members: updatedMembers,
-                                            };
-                                            const nextState: ClubDatabaseState = {
-                                              ...state,
-                                              subscriptions: (state.subscriptions || []).map((s) =>
-                                                s.id === updatedSub.id ? updatedSub : s
-                                              ),
-                                            };
-                                            setSelectedSubForDetail(updatedSub);
-                                            await persist(nextState);
-                                            toast({ title: 'Documento removido.' });
-                                          }}
-                                          className="h-7 w-7 p-0 text-rose-600 hover:bg-rose-50"
-                                        >
-                                          <Trash2 className="w-3.5 h-3.5" />
-                                        </Button>
-                                      </div>
                                     </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          ))
-                      )}
+                                    <div className="flex items-center gap-1 shrink-0">
+                                      <a href={att.dataUrl} download={att.name} target="_blank" rel="noreferrer">
+                                        <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]">
+                                          <Download className="w-3 h-3 mr-1" /> Baixar
+                                        </Button>
+                                      </a>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={async () => {
+                                          const updatedMembers = selectedSubForDetail.members.map((m) =>
+                                            m.id === memberItem.id
+                                              ? {
+                                                  ...m,
+                                                  documentProofUrl:
+                                                    m.documentProofUrl === att.dataUrl ? '' : m.documentProofUrl,
+                                                  documentProofName:
+                                                    m.documentProofUrl === att.dataUrl ? '' : m.documentProofName,
+                                                  attachments: (m.attachments || []).filter((a) => a.id !== att.id),
+                                                }
+                                              : m
+                                          );
+                                          const updatedSub: ClubSubscription = {
+                                            ...selectedSubForDetail,
+                                            members: updatedMembers,
+                                          };
+                                          const nextState: ClubDatabaseState = {
+                                            ...state,
+                                            subscriptions: (state.subscriptions || []).map((s) =>
+                                              s.id === updatedSub.id ? updatedSub : s
+                                            ),
+                                          };
+                                          setSelectedSubForDetail(updatedSub);
+                                          await persist(nextState);
+                                          toast({ title: 'Documento removido.' });
+                                        }}
+                                        className="h-7 w-7 p-0 text-rose-600 hover:bg-rose-50"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>

@@ -27,8 +27,18 @@ interface ClubMemberCardViewProps {
   onUpdatePhoto?: (memberId: string, photoDataUrl: string) => void;
   compact?: boolean;
   locked?: boolean;
+  lockReason?: string;
   dependentIndex?: number;
 }
+
+export const formatTwoFirstNames = (fullName?: string | null): string => {
+  const parts = String(fullName || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (parts.length <= 2) return parts.join(' ').toUpperCase();
+  return `${parts[0]} ${parts[1]}`.toUpperCase();
+};
 
 export const getVerificationUrl = (cardNumberOrToken: string) => {
   const origin = typeof window !== 'undefined' ? window.location.origin : 'https://balneariolessa.com.br';
@@ -46,6 +56,7 @@ export const ClubMemberCardView: React.FC<ClubMemberCardViewProps> = ({
   onUpdatePhoto,
   compact = false,
   locked = false,
+  lockReason,
   dependentIndex,
 }) => {
   const cardPairRef = useRef<HTMLDivElement>(null);
@@ -246,6 +257,17 @@ export const ClubMemberCardView: React.FC<ClubMemberCardViewProps> = ({
     .replace(/\s*\(.*?\)/g, '')
     .trim();
 
+  const cardDisplayName = formatTwoFirstNames(member.fullName);
+
+  const planFontSize =
+    cleanPlanName.length > 26
+      ? 'clamp(7px, 1.0vw, 10.5px)'
+      : cleanPlanName.length > 20
+      ? 'clamp(8px, 1.15vw, 12px)'
+      : cleanPlanName.length > 15
+      ? 'clamp(8.8px, 1.3vw, 13.5px)'
+      : 'clamp(10px, 1.55vw, 15.5px)';
+
   return (
     <div className="space-y-3">
       {/* CABEÇALHO DE IDENTIFICAÇÃO CLARA: TITULAR vs DEPENDENTE + STATUS ATIVO / INATIVO */}
@@ -293,7 +315,9 @@ export const ClubMemberCardView: React.FC<ClubMemberCardViewProps> = ({
           >
             {isCardActive
               ? '● PLANO ATIVO (LIBERADO)'
-              : '● PLANO INATIVO (AGUARDANDO PAGAMENTO)'}
+              : lockReason
+              ? `● PLANO INATIVO (${lockReason.toUpperCase()})`
+              : '● PLANO INATIVO (AGUARDANDO PAGAMENTO / COMPROVAÇÃO)'}
           </Badge>
         </div>
       )}
@@ -334,7 +358,9 @@ export const ClubMemberCardView: React.FC<ClubMemberCardViewProps> = ({
             <div className="flex items-center gap-2 bg-rose-50 border border-rose-200 text-rose-800 px-3 py-1.5 rounded-lg text-xs font-bold">
               <Lock className="w-3.5 h-3.5 text-rose-600 shrink-0" />
               <span>
-                Edição de foto e download bloqueados até a confirmação do pagamento (Plano Inativo)
+                {lockReason
+                  ? `Edição de foto e download bloqueados: ${lockReason}`
+                  : 'Edição de foto e download bloqueados até a confirmação do pagamento ou envio da comprovação (Plano Inativo)'}
               </span>
             </div>
           ) : (
@@ -640,44 +666,43 @@ export const ClubMemberCardView: React.FC<ClubMemberCardViewProps> = ({
               />
             </div>
 
-            {/* CAMPOS DINÂMICOS INFERIORES ORGANIZADOS EM GRADE 2x3 (NOME, CPF, Nº CARTÃO, VALIDADE, PLANO) */}
-            {/* LINHA 1: NOME DO ASSOCIADO (ESQUERDA) */}
+            {/* CAMPOS DINÂMICOS INFERIORES ORGANIZADOS EM GRADE 2x3 SEM SOBREPOSIÇÃO À FRASE */}
+            {/* LINHA 1: NOME DO ASSOCIADO (2 PRIMEIROS NOMES, ESQUERDA) */}
             <div
               style={{
                 position: 'absolute',
                 left: '4.8%',
-                top: '67.5%',
-                width: '54%',
+                top: '72.2%',
+                width: '51%',
                 zIndex: 10,
               }}
             >
               <div
                 style={{
-                  fontSize: 'clamp(7px, 1.1vw, 10px)',
+                  fontSize: 'clamp(6.5px, 1.0vw, 9.5px)',
                   color: 'rgba(255,255,255,0.85)',
                   fontWeight: 700,
-                  lineHeight: 1.1,
+                  lineHeight: 1.05,
                   letterSpacing: '0.04em',
                   textTransform: 'uppercase',
-                  marginBottom: '2px',
+                  marginBottom: '1px',
                 }}
               >
                 NOME
               </div>
               <div
                 style={{
-                  fontSize: 'clamp(11px, 2.1vw, 18px)',
+                  fontSize: 'clamp(10.5px, 1.9vw, 17px)',
                   color: '#ffffff',
                   fontWeight: 900,
                   lineHeight: 1.15,
                   textTransform: 'uppercase',
                   whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
                   textShadow: '0 2px 4px rgba(0,0,0,0.5)',
                 }}
+                title={member.fullName}
               >
-                {member.fullName}
+                {cardDisplayName}
               </div>
             </div>
 
@@ -685,28 +710,28 @@ export const ClubMemberCardView: React.FC<ClubMemberCardViewProps> = ({
             <div
               style={{
                 position: 'absolute',
-                left: '61.5%',
-                top: '67.5%',
-                width: '35%',
+                left: '57.5%',
+                top: '72.2%',
+                width: '39.5%',
                 zIndex: 10,
               }}
             >
               <div
                 style={{
-                  fontSize: 'clamp(7px, 1.1vw, 10px)',
+                  fontSize: 'clamp(6.5px, 1.0vw, 9.5px)',
                   color: 'rgba(255,255,255,0.85)',
                   fontWeight: 700,
-                  lineHeight: 1.1,
+                  lineHeight: 1.05,
                   letterSpacing: '0.04em',
                   textTransform: 'uppercase',
-                  marginBottom: '2px',
+                  marginBottom: '1px',
                 }}
               >
                 CPF
               </div>
               <div
                 style={{
-                  fontSize: 'clamp(11px, 1.9vw, 17px)',
+                  fontSize: 'clamp(10.5px, 1.8vw, 16.5px)',
                   color: '#ffffff',
                   fontWeight: 900,
                   lineHeight: 1.15,
@@ -724,31 +749,32 @@ export const ClubMemberCardView: React.FC<ClubMemberCardViewProps> = ({
               style={{
                 position: 'absolute',
                 left: '4.8%',
-                top: '81.5%',
-                width: '26%',
+                top: '85.2%',
+                width: '24%',
                 zIndex: 10,
               }}
             >
               <div
                 style={{
-                  fontSize: 'clamp(6.5px, 1.0vw, 9.5px)',
+                  fontSize: 'clamp(6px, 0.95vw, 9px)',
                   color: 'rgba(255,255,255,0.85)',
                   fontWeight: 700,
-                  lineHeight: 1.1,
+                  lineHeight: 1.05,
                   letterSpacing: '0.04em',
                   textTransform: 'uppercase',
-                  marginBottom: '2px',
+                  marginBottom: '1px',
                 }}
               >
                 Nº CARTÃO
               </div>
               <div
                 style={{
-                  fontSize: 'clamp(10.5px, 1.7vw, 16px)',
+                  fontSize: 'clamp(10px, 1.6vw, 15.5px)',
                   color: '#ffffff',
                   fontWeight: 900,
                   lineHeight: 1.15,
                   letterSpacing: '0.03em',
+                  whiteSpace: 'nowrap',
                   textShadow: '0 2px 4px rgba(0,0,0,0.5)',
                 }}
               >
@@ -760,32 +786,33 @@ export const ClubMemberCardView: React.FC<ClubMemberCardViewProps> = ({
             <div
               style={{
                 position: 'absolute',
-                left: '33%',
-                top: '81.5%',
-                width: '26%',
+                left: '31%',
+                top: '85.2%',
+                width: '24%',
                 zIndex: 10,
               }}
             >
               <div
                 style={{
-                  fontSize: 'clamp(6.5px, 1.0vw, 9.5px)',
+                  fontSize: 'clamp(6px, 0.95vw, 9px)',
                   color: 'rgba(255,255,255,0.85)',
                   fontWeight: 700,
-                  lineHeight: 1.1,
+                  lineHeight: 1.05,
                   letterSpacing: '0.04em',
                   textTransform: 'uppercase',
-                  marginBottom: '2px',
+                  marginBottom: '1px',
                 }}
               >
                 VALIDADE
               </div>
               <div
                 style={{
-                  fontSize: 'clamp(10.5px, 1.7vw, 16px)',
+                  fontSize: 'clamp(10px, 1.6vw, 15.5px)',
                   color: '#ffffff',
                   fontWeight: 900,
                   lineHeight: 1.15,
                   letterSpacing: '0.03em',
+                  whiteSpace: 'nowrap',
                   textShadow: '0 2px 4px rgba(0,0,0,0.5)',
                 }}
               >
@@ -793,39 +820,37 @@ export const ClubMemberCardView: React.FC<ClubMemberCardViewProps> = ({
               </div>
             </div>
 
-            {/* LINHA 2: PLANO (DIREITA COM DESTAQUE EM AMARELO) */}
+            {/* LINHA 2: PLANO (DIREITA COM DESTAQUE EM AMARELO - SEM CORTES) */}
             <div
               style={{
                 position: 'absolute',
-                left: '61.5%',
-                top: '81.5%',
-                width: '35%',
+                left: '57.5%',
+                top: '85.2%',
+                width: '40%',
                 zIndex: 10,
               }}
             >
               <div
                 style={{
-                  fontSize: 'clamp(6.5px, 1.0vw, 9.5px)',
+                  fontSize: 'clamp(6px, 0.95vw, 9px)',
                   color: '#fde047',
                   fontWeight: 800,
-                  lineHeight: 1.1,
+                  lineHeight: 1.05,
                   letterSpacing: '0.04em',
                   textTransform: 'uppercase',
-                  marginBottom: '2px',
+                  marginBottom: '1px',
                 }}
               >
                 PLANO
               </div>
               <div
                 style={{
-                  fontSize: 'clamp(10.5px, 1.7vw, 16px)',
+                  fontSize: planFontSize,
                   color: '#facc15',
                   fontWeight: 900,
                   lineHeight: 1.15,
                   textTransform: 'uppercase',
                   whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
                   textShadow: '0 2px 4px rgba(0,0,0,0.6)',
                 }}
                 title={cleanPlanName}
