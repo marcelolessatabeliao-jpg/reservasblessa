@@ -455,6 +455,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
   const [reportCity, setReportCity] = useState<string>('TODAS');
   const [reportCourtesy, setReportCourtesy] = useState<'TODOS' | 'CORTESIA' | 'PAGO'>('TODOS');
   const [reportSearchQuery, setReportSearchQuery] = useState<string>('');
+  const [deleteClientQuery, setDeleteClientQuery] = useState<string>('');
 
   const uniqueReportCities = useMemo(() => {
     if (!state?.subscriptions) return [];
@@ -8940,37 +8941,116 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
             ))}
           </div>
 
-          {configSection === 'EXCLUIR_CLIENTES' && (
+          {configSection === 'EXCLUIR_CLIENTES' && (() => {
+            const rawQuery = deleteClientQuery.trim();
+            const normText = (v: string) =>
+              String(v || '')
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '');
+            const qNorm = normText(rawQuery);
+            const qDigits = cleanDigits(rawQuery);
+            const matchingSubs = (state.subscriptions || []).filter((sub) => {
+              if (!rawQuery) return true;
+              const holderMatch =
+                normText(sub.holderName).includes(qNorm) ||
+                normText(sub.holderEmail || '').includes(qNorm) ||
+                (qDigits.length > 0 &&
+                  (cleanDigits(sub.holderCpf).includes(qDigits) ||
+                    cleanDigits(sub.subscriptionCode).includes(qDigits) ||
+                    cleanDigits(sub.holderCnpj || '').includes(qDigits)));
+              if (holderMatch) return true;
+              return (sub.members || []).some(
+                (m) =>
+                  normText(m.fullName).includes(qNorm) ||
+                  (qDigits.length > 0 &&
+                    (cleanDigits(m.cpf).includes(qDigits) ||
+                      cleanDigits(m.cardNumber).includes(qDigits)))
+              );
+            });
+            return (
             <div className="bg-white rounded-3xl border border-rose-200 p-6 shadow-sm space-y-4">
-              <h3 className="text-lg font-black text-rose-900">
-                Excluir Clientes / Cadastros de Teste
-              </h3>
-              <p className="text-xs text-slate-600">
-                Selecione um cadastro abaixo caso deseje removê-lo permanentemente da base:
-              </p>
-              <div className="space-y-2">
-                {(state.subscriptions || []).map((sub) => (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-lg font-black text-rose-900">
+                    Excluir Clientes / Cadastros de Teste
+                  </h3>
+                  <p className="text-xs text-slate-600">
+                    Busque pelo <strong>Nome (titular ou dependente), CPF ou Nº do Cartão</strong> antes de remover permanentemente:
+                  </p>
+                </div>
+                <Badge variant="outline" className="w-fit text-xs font-bold border-rose-200 text-rose-900 bg-rose-50">
+                  {matchingSubs.length} cadastro(s) encontrado(s)
+                </Badge>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-2">
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <Input
+                    value={deleteClientQuery}
+                    onChange={(e) => setDeleteClientQuery(e.target.value)}
+                    placeholder="Buscar por nome do titular, dependente, CPF (com ou sem pontos) ou Nº do cartão..."
+                    className="pl-9 h-10 text-xs bg-slate-50 border-slate-300"
+                  />
+                </div>
+                {deleteClientQuery && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setDeleteClientQuery('')}
+                    className="h-10 text-xs font-bold text-slate-800 hover:bg-slate-100 hover:text-slate-950"
+                  >
+                    Limpar busca
+                  </Button>
+                )}
+              </div>
+
+              <div className="space-y-2 max-h-[540px] overflow-y-auto pr-1">
+                {matchingSubs.slice(0, rawQuery ? 200 : 80).map((sub) => (
                   <div
                     key={sub.id}
-                    className="p-3.5 rounded-xl border border-slate-200 flex items-center justify-between bg-slate-50 text-xs"
+                    className="p-3.5 rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-50 text-xs"
                   >
-                    <div>
-                      <strong>{sub.holderName}</strong> (#{sub.subscriptionCode}) • CPF:{' '}
-                      {sub.holderCpf} • Status: <strong>{sub.status}</strong>
+                    <div className="space-y-0.5">
+                      <div>
+                        <strong>{sub.holderName}</strong> (#{sub.subscriptionCode}) • CPF:{' '}
+                        {sub.holderCpf || '—'} • Status: <strong>{sub.status}</strong>
+                      </div>
+                      {(sub.members || []).length > 1 && (
+                        <div className="text-[11px] text-slate-600">
+                          Dependentes:{' '}
+                          {(sub.members || [])
+                            .filter((m) => m.role === 'DEPENDENTE')
+                            .map((m) => `${m.fullName} (${m.cpf || '#' + m.cardNumber})`)
+                            .join(', ')}
+                        </div>
+                      )}
                     </div>
                     <Button
                       size="sm"
                       variant="destructive"
                       onClick={() => setClientToDelete(sub)}
-                      className="h-8 text-xs font-bold"
+                      className="h-8 text-xs font-bold shrink-0 cursor-pointer"
                     >
                       <Trash2 className="w-3.5 h-3.5 mr-1" /> Excluir
                     </Button>
                   </div>
                 ))}
+                {matchingSubs.length === 0 && (
+                  <div className="py-8 text-center text-xs text-slate-500 border border-dashed border-slate-200 rounded-xl">
+                    Nenhum cadastro encontrado para "{deleteClientQuery}".
+                  </div>
+                )}
+                {!rawQuery && matchingSubs.length > 80 && (
+                  <div className="py-2 text-center text-[11px] text-slate-500">
+                    Exibindo os primeiros 80 de {matchingSubs.length} cadastros. Use a busca acima para localizar qualquer cliente por Nome, CPF ou Cartão.
+                  </div>
+                )}
               </div>
             </div>
-          )}
+            );
+          })()}
 
           {/* MODAL DE CONFIRMAÇÃO DE EXCLUSÃO DE CLIENTE */}
           <Dialog open={!!clientToDelete} onOpenChange={(open) => !open && setClientToDelete(null)}>
@@ -9015,11 +9095,15 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   size="sm"
                   onClick={async () => {
                     if (!clientToDelete || !state) return;
+                    const nextDeletedIds = Array.from(
+                      new Set([...(state.deletedSubscriptionIds || []), clientToDelete.id])
+                    );
                     const nextState: ClubDatabaseState = {
                       ...state,
                       subscriptions: (state.subscriptions || []).filter(
                         (s) => s.id !== clientToDelete.id
                       ),
+                      deletedSubscriptionIds: nextDeletedIds,
                     };
                     await persist(nextState);
                     toast({

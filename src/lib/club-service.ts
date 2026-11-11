@@ -361,6 +361,7 @@ CNPJ: 46.891.134/0001-40 • Via Araras, Setor 09, Ariquemes/RO • WhatsApp: (6
 export interface ClubDatabaseState {
   modalities: ClubModality[];
   subscriptions: ClubSubscription[];
+  deletedSubscriptionIds?: string[];
   consultants: ClubConsultant[];
   contractTemplates: ClubContractTemplate[];
   cashEntries?: ClubCashEntry[];
@@ -373,6 +374,7 @@ export interface ClubDatabaseState {
 const getInitialState = (): ClubDatabaseState => ({
   modalities: DEFAULT_CLUB_MODALITIES,
   subscriptions: getLabcardSubscriptions(),
+  deletedSubscriptionIds: [],
   consultants: [
     {
       id: 'cons-1',
@@ -710,12 +712,23 @@ export const normalizeClubDatabaseState = (
     ? DEFAULT_SITE_TERMS_TEXT
     : `${rawSiteTerms}\n\n14. DA VALIDADE JURÍDICA DO ACEITE ELETRÔNICO E ASSINATURA DIGITAL\n14.1. As partes declaram e reconhecem expressamente, com respaldo na Medida Provisória nº 2.200-2/2001 (art. 10, § 2º), na Lei Federal nº 14.063/2020 e nos artigos 104, 107, 219 e 422 do Código Civil Brasileiro, que o aceite digital destes Termos de Uso e do Contrato de Adesão, validado pelo próprio usuário titular no sistema, constitui assinatura eletrônica plenamente válida, produzindo os mesmos efeitos jurídicos de uma assinatura presencial de próprio punho.`;
 
+  const mergedDeletedIds = Array.from(
+    new Set([
+      ...(Array.isArray(parsed.deletedSubscriptionIds) ? parsed.deletedSubscriptionIds : []),
+      ...(Array.isArray(fallbackState?.deletedSubscriptionIds)
+        ? fallbackState.deletedSubscriptionIds
+        : []),
+    ])
+  );
+  const deletedIdSet = new Set(mergedDeletedIds);
+
   return {
     modalities: [...mergedModalities, ...customModalities].map((m) => ({
       ...m,
       benefits: Array.isArray(m.benefits) ? m.benefits : [],
     })),
-    subscriptions: normalizedSubscriptions,
+    subscriptions: normalizedSubscriptions.filter((s) => !deletedIdSet.has(s.id)),
+    deletedSubscriptionIds: mergedDeletedIds,
     consultants: parsed.consultants?.length ? parsed.consultants : fallbackState?.consultants || getInitialState().consultants,
     contractTemplates:
       parsed.contractTemplates?.length && hasLatestContractFormat
@@ -752,10 +765,15 @@ export const loadClubStateLocal = (): ClubDatabaseState => {
       return init;
     }
     const parsed = JSON.parse(raw) as Partial<ClubDatabaseState>;
+    const deletedSet = new Set(parsed.deletedSubscriptionIds || []);
     const defaultLabcardSubs = getLabcardSubscriptions();
     const subsMap = new Map<string, ClubSubscription>();
-    defaultLabcardSubs.forEach((s) => subsMap.set(s.id, s));
-    (parsed.subscriptions || []).forEach((s) => subsMap.set(s.id, s));
+    defaultLabcardSubs.forEach((s) => {
+      if (!deletedSet.has(s.id)) subsMap.set(s.id, s);
+    });
+    (parsed.subscriptions || []).forEach((s) => {
+      if (!deletedSet.has(s.id)) subsMap.set(s.id, s);
+    });
     const normalized = normalizeClubDatabaseState({
       ...parsed,
       subscriptions: Array.from(subsMap.values()),
@@ -936,17 +954,25 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
       const remote = (data as any).value as Partial<ClubDatabaseState>;
       const remoteSubs = remote.subscriptions || [];
       const localSubs = local.subscriptions || [];
+      const deletedSet = new Set([
+        ...(remote.deletedSubscriptionIds || []),
+        ...(local.deletedSubscriptionIds || []),
+      ]);
       const defaultLabcardSubs = getLabcardSubscriptions();
 
-      // Unir assinaturas pelo ID de modo que nenhuma adesão feita no site ou admin se perca
+      // Unir assinaturas pelo ID preservando exclusões definitivas (`deletedSet`)
       const subsMap = new Map<string, ClubSubscription>();
-      defaultLabcardSubs.forEach((s) => subsMap.set(s.id, s));
+      defaultLabcardSubs.forEach((s) => {
+        if (!deletedSet.has(s.id)) subsMap.set(s.id, s);
+      });
       localSubs.forEach((s) => {
-        if (!subsMap.has(s.id)) {
+        if (!deletedSet.has(s.id) && !subsMap.has(s.id)) {
           subsMap.set(s.id, s);
         }
       });
-      remoteSubs.forEach((s) => subsMap.set(s.id, s));
+      remoteSubs.forEach((s) => {
+        if (!deletedSet.has(s.id)) subsMap.set(s.id, s);
+      });
 
       // Preservar pendente p/ transferência na base importada do Labcard salvo quando houver liberação manual explícita
       subsMap.forEach((sub) => {
