@@ -652,11 +652,12 @@ export const normalizeClubDatabaseState = (
         getPlanDocumentRule(m.modalityCode, m.modalityName).requiresDocument &&
         !memberHasProofDocument(m, sub);
 
-      const resolvedStatus: SubscriptionStatus = isLabcard
-        ? ('PENDING_TRANSFER' as SubscriptionStatus)
-        : missingRequiredDoc
-        ? 'INACTIVE'
-        : m.status;
+      const resolvedStatus: SubscriptionStatus =
+        isLabcard && !m.manualStatusOverride && !sub.manualStatusOverride
+          ? ('PENDING_TRANSFER' as SubscriptionStatus)
+          : missingRequiredDoc && !m.manualStatusOverride && !sub.manualStatusOverride
+          ? 'INACTIVE'
+          : m.status;
 
       return {
         ...m,
@@ -666,11 +667,14 @@ export const normalizeClubDatabaseState = (
       };
     });
 
-    const resolvedSubStatus: SubscriptionStatus = isLabcard
-      ? ('PENDING_TRANSFER' as SubscriptionStatus)
-      : normalizedMembers.length > 0 && normalizedMembers.every((m) => m.status === 'INACTIVE')
-      ? 'INACTIVE'
-      : sub.status;
+    const resolvedSubStatus: SubscriptionStatus =
+      isLabcard && !sub.manualStatusOverride
+        ? ('PENDING_TRANSFER' as SubscriptionStatus)
+        : normalizedMembers.length > 0 &&
+          normalizedMembers.every((m) => m.status === 'INACTIVE') &&
+          !sub.manualStatusOverride
+        ? 'INACTIVE'
+        : sub.status;
 
     return {
       ...sub,
@@ -766,6 +770,85 @@ export const loadClubStateLocal = (): ClubDatabaseState => {
   }
 };
 
+let cachedLabcardSeedMap: Map<string, ClubSubscription> | null = null;
+
+const getLabcardSeedMap = (): Map<string, ClubSubscription> => {
+  if (!cachedLabcardSeedMap) {
+    cachedLabcardSeedMap = new Map(getLabcardSubscriptions().map((s) => [s.id, s]));
+  }
+  return cachedLabcardSeedMap;
+};
+
+const isLabcardSubscriptionModified = (
+  sub: ClubSubscription,
+  seedSub?: ClubSubscription
+): boolean => {
+  if (!seedSub) return true;
+  if (sub.status !== 'PENDING_TRANSFER' || Boolean(sub.manualStatusOverride)) return true;
+  if (
+    sub.asaasCustomerId ||
+    sub.asaasSubscriptionId ||
+    sub.asaasPaymentId ||
+    sub.asaasInvoiceUrl
+  ) {
+    return true;
+  }
+  if (
+    (sub.attachments?.length || 0) > 0 ||
+    (sub.visits?.length || 0) > 0 ||
+    (sub.additionalServices?.length || 0) > 0
+  ) {
+    return true;
+  }
+  if (sub.updatedAt && seedSub.updatedAt && sub.updatedAt !== seedSub.updatedAt) {
+    return true;
+  }
+  if ((sub.invoices?.length || 0) !== (seedSub.invoices?.length || 0)) return true;
+  if ((sub.members?.length || 0) !== (seedSub.members?.length || 0)) return true;
+
+  for (let i = 0; i < (sub.members?.length || 0); i += 1) {
+    const m = sub.members[i];
+    const sm = seedSub.members?.[i];
+    if (!sm) return true;
+    if (
+      m.status !== 'PENDING_TRANSFER' ||
+      Boolean(m.manualStatusOverride) ||
+      Boolean(m.photoUrl) ||
+      Boolean(m.documentProofUrl) ||
+      Boolean(m.expirationDate) ||
+      (m.attachments?.length || 0) > 0
+    ) {
+      return true;
+    }
+  }
+  return false;
+};
+
+/**
+ * Gera cópia enxuta do estado para gravação na nuvem:
+ * omite os ~2.600 cadastros estáticos inalterados de `labcard-seed.ts` (que são
+ * sempre mesclados no load) e remove `contractContentHtml` redundante, evitando
+ * payloads multi-MB e erros de `TypeError: Failed to fetch` no browser.
+ */
+const buildCompactCloudState = (state: ClubDatabaseState): ClubDatabaseState => {
+  const seedMap = getLabcardSeedMap();
+  const compactSubs = state.subscriptions
+    .filter((sub) => {
+      if (!sub.id.startsWith('sub-labcard-')) return true;
+      return isLabcardSubscriptionModified(sub, seedMap.get(sub.id));
+    })
+    .map((sub) => {
+      if (!sub.contractContentHtml) return sub;
+      const { contractContentHtml: _omit, ...rest } = sub;
+      return rest as ClubSubscription;
+    });
+
+  return {
+    ...state,
+    subscriptions: compactSubs,
+  };
+};
+
 export const saveClubState = async (state: ClubDatabaseState): Promise<ClubDatabaseState> => {
   const nextState: ClubDatabaseState = {
     ...state,
@@ -774,27 +857,54 @@ export const saveClubState = async (state: ClubDatabaseState): Promise<ClubDatab
   memoryClubState = nextState;
   tryPersistLocalState(nextState);
 
-  try {
-    const { error } = await supabase
-      .from('site_settings' as any)
-      .upsert(
-        {
-          key: SUPABASE_SETTINGS_KEY,
-          value: nextState,
-          updated_at: nextState.updatedAt,
-        },
-        { onConflict: 'key' }
-      );
-    if (error) {
+  const cloudState = buildCompactCloudState(nextState);
+  const maxAttempts = 3;
+  let lastError: any = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      const { error } = await supabase
+        .from('site_settings' as any)
+        .upsert(
+          {
+            key: SUPABASE_SETTINGS_KEY,
+            value: cloudState,
+            updated_at: nextState.updatedAt,
+          },
+          { onConflict: 'key' }
+        );
+      if (!error) {
+        return nextState;
+      }
       console.error('[ClubService] CRITICAL: Error saving to Supabase site_settings:', error);
       throw new Error(`Falha ao registrar no banco de dados: ${error.message}`);
+    } catch (err: any) {
+      lastError = err;
+      const msg = String(err?.message || err || '');
+      const isNetworkFailure =
+        err instanceof TypeError ||
+        /failed to fetch|networkerror|load failed|timeout|aborted/i.test(msg);
+
+      if (isNetworkFailure && attempt < maxAttempts) {
+        const delayMs = attempt * 500;
+        console.warn(
+          `[ClubService] Tentativa ${attempt}/${maxAttempts} falhou (${msg}). Tentando novamente em ${delayMs}ms...`
+        );
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        continue;
+      }
+
+      console.error('[ClubService] Exception syncing to Supabase site_settings:', err);
+      if (isNetworkFailure) {
+        throw new Error(
+          `Falha de conexão ao salvar no banco de dados (${cloudState.subscriptions.length} registros enviados): ${msg}. Verifique sua internet ou tente novamente.`
+        );
+      }
+      throw err;
     }
-  } catch (err) {
-    console.error('[ClubService] Exception syncing to Supabase site_settings:', err);
-    throw err;
   }
 
-  return nextState;
+  throw lastError || new Error('Falha desconhecida ao salvar no banco de dados.');
 };
 
 let lastClubFetchErrorMessage: string | null = null;
@@ -838,13 +948,17 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
       });
       remoteSubs.forEach((s) => subsMap.set(s.id, s));
 
-      // Preservar pendente p/ transferência na base importada do Labcard e preservar ativos nativos do sistema
+      // Preservar pendente p/ transferência na base importada do Labcard salvo quando houver liberação manual explícita
       subsMap.forEach((sub) => {
         if (sub.origin === 'IMPORT_LABCARD' || sub.id.startsWith('sub-labcard-')) {
-          sub.status = 'PENDING_TRANSFER';
+          if (!sub.manualStatusOverride) {
+            sub.status = 'PENDING_TRANSFER';
+          }
           if (sub.members) {
             sub.members.forEach((m) => {
-              m.status = 'PENDING_TRANSFER';
+              if (!m.manualStatusOverride && !sub.manualStatusOverride) {
+                m.status = 'PENDING_TRANSFER';
+              }
             });
           }
         }
@@ -1877,25 +1991,34 @@ export interface AsaasSyncSelectionInput {
   paymentIds: string[];
 }
 
+export interface AsaasSyncOptions {
+  activateSelected?: boolean;
+}
+
 /**
- * Importa/sincroniza apenas as mensalidades selecionadas do Asaas no Perfil Financeiro.
- * REGRA EXPLÍCITA: Nunca altera ou ativa o status de titulares/dependentes automaticamente.
+ * Importa/sincroniza as mensalidades selecionadas do Asaas no Perfil Financeiro.
+ * Quando `options.activateSelected` é true ("Importar e Ativar"), também ativa titular e dependentes;
+ * caso contrário ("Importar (Sem Ativar)"), preserva o status sem ativar automaticamente.
  */
 export const applySelectedAsaasSync = async (
   currentState: ClubDatabaseState,
-  selections: AsaasSyncSelectionInput[]
+  selections: AsaasSyncSelectionInput[],
+  options?: AsaasSyncOptions
 ): Promise<{
   state: ClubDatabaseState;
   updatedSubs: number;
+  activatedSubs: number;
   importedInvoices: number;
   updatedInvoices: number;
   createdPendingSubs: number;
 }> => {
+  const shouldActivate = Boolean(options?.activateSelected);
   const nowIso = new Date().toISOString();
   const nextSubs = [...currentState.subscriptions];
   let seq = currentState.lastCardSequence || 3000;
 
   let updatedSubs = 0;
+  let activatedSubs = 0;
   let importedInvoices = 0;
   let updatedInvoices = 0;
   let createdPendingSubs = 0;
@@ -1940,13 +2063,13 @@ export const applySelectedAsaasSync = async (
         monthlyEquivalent: avgAmount,
         totalContractValue: Number((avgAmount * Math.max(1, chosenPayments.length)).toFixed(2)),
         dueDay: Number((chosenPayments[0]?.dueDate || '2026-11-10').slice(8, 10)) || 10,
-        // REGRA: Importado do Asaas NÃO fica ACTIVE automaticamente (aguarda validação/documentos)
-        status: 'PENDING_TRANSFER',
+        status: shouldActivate ? 'ACTIVE' : 'PENDING_TRANSFER',
+        ...(shouldActivate ? { manualStatusOverride: true } : {}),
         origin: 'ADMIN',
         planSummaryLabel: `${modName} (Sincronizado Asaas)`,
         notes: isHalfPrice
-          ? 'Mensalidades de R$ 25,00 importadas do Asaas — confirmar documento comprobatório antes de ativar.'
-          : 'Mensalidades importadas do Asaas — conferir dados e ativar manualmente após validação.',
+          ? 'Mensalidades de R$ 25,00 importadas do Asaas — confirmar documento comprobatório.'
+          : 'Mensalidades importadas do Asaas.',
         contractType: 'ADESAO_PF',
         contractAccepted: false,
         startDate: chosenPayments[0]?.dueDate || nowIso.slice(0, 10),
@@ -1973,7 +2096,8 @@ export const applySelectedAsaasSync = async (
             backCardUrl: '/cards/24.png',
             validityLabel: '10/2027',
             monthlyValue: avgAmount,
-            status: 'PENDING_TRANSFER',
+            status: shouldActivate ? 'ACTIVE' : 'PENDING_TRANSFER',
+            ...(shouldActivate ? { manualStatusOverride: true } : {}),
             createdAt: nowIso,
           },
         ],
@@ -2053,9 +2177,27 @@ export const applySelectedAsaasSync = async (
 
     invoicesCopy.sort((a, b) => String(a.dueDate || '').localeCompare(String(b.dueDate || '')));
 
-    // IMPORTANTE: Preserva rigorosamente existingSub.status e existingSub.members (sem ativar!)
+    const updatedMembers = shouldActivate
+      ? (existingSub.members || []).map((m) => ({
+          ...m,
+          status: 'ACTIVE' as SubscriptionStatus,
+          manualStatusOverride: true,
+        }))
+      : existingSub.members;
+
+    if (shouldActivate) {
+      activatedSubs += 1;
+    }
+
     nextSubs[targetIdx] = {
       ...existingSub,
+      ...(shouldActivate
+        ? {
+            status: 'ACTIVE' as SubscriptionStatus,
+            manualStatusOverride: true,
+            members: updatedMembers,
+          }
+        : {}),
       asaasCustomerId: existingSub.asaasCustomerId || sel.candidate.customerId,
       asaasSubscriptionId:
         existingSub.asaasSubscriptionId ||
@@ -2077,6 +2219,7 @@ export const applySelectedAsaasSync = async (
   return {
     state: saved,
     updatedSubs,
+    activatedSubs,
     importedInvoices,
     updatedInvoices,
     createdPendingSubs,

@@ -75,6 +75,7 @@ export interface ClubMember {
   validityLabel: string; // Ex: 10/2027
   monthlyValue: number;
   status: SubscriptionStatus;
+  manualStatusOverride?: boolean;
   expirationDate?: string; // YYYY-MM-DD - Vencimento individual do cadastro/benefício do dependente (ex: quando a criança completa idade pagante ou expira comprovação)
   expirationNotes?: string; // Motivo do vencimento (ex: "Completa idade em 2 meses - passa a ser pagante")
   attachments?: ClubAttachment[]; // Anexos e documentos individuais do dependente
@@ -172,6 +173,7 @@ export interface ClubSubscription {
   totalContractValue: number;
   dueDay: number;
   status: SubscriptionStatus;
+  manualStatusOverride?: boolean;
   origin: 'SITE' | 'ADMIN' | 'IMPORT_LABCARD';
   consultantName?: string;
   influencerName?: string;

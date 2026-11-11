@@ -535,7 +535,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     handleLoadAsaasCandidates();
   };
 
-  const handleApplyAsaasSync = async () => {
+  const handleApplyAsaasSync = async (activateSelected: boolean = false) => {
     if (!state) return;
     const chosenCandidates = asaasCandidates.filter(
       (c) => asaasSelectedCustomers[c.customerId]
@@ -574,11 +574,15 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
     setIsApplyingAsaasSync(true);
     try {
-      const result = await applySelectedAsaasSync(state, selections);
+      const result = await applySelectedAsaasSync(state, selections, { activateSelected });
       setState(result.state);
       toast({
-        title: 'Mensalidades do Asaas Sincronizadas!',
-        description: `${result.updatedSubs} cliente(s) atualizado(s) • ${result.importedInvoices} nova(s) parcela(s) • ${result.updatedInvoices} atualizada(s). Nenhum cadastro foi ativado automaticamente.`,
+        title: activateSelected
+          ? 'Mensalidades Importadas e Cadastros Ativados!'
+          : 'Mensalidades do Asaas Sincronizadas!',
+        description: activateSelected
+          ? `${result.updatedSubs} cliente(s) atualizado(s) • ${result.activatedSubs} cadastro(s) ativado(s) • ${result.importedInvoices} nova(s) parcela(s) • ${result.updatedInvoices} atualizada(s).`
+          : `${result.updatedSubs} cliente(s) atualizado(s) • ${result.importedInvoices} nova(s) parcela(s) • ${result.updatedInvoices} atualizada(s). Nenhum cadastro foi ativado automaticamente.`,
       });
       setIsAsaasSyncModalOpen(false);
     } catch (err: any) {
@@ -18008,14 +18012,14 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
             )}
           </div>
 
-          <DialogFooter className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-200">
+          <DialogFooter className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pt-3 border-t border-slate-200">
             <div className="text-xs text-slate-700">
               <strong>
                 {Object.values(asaasSelectedCustomers).filter(Boolean).length}
               </strong>{' '}
-              cliente(s) selecionado(s) • Status de sócio e dependentes permanece inalterado (não ativa).
+              cliente(s) selecionado(s) • Escolha importar mantendo o status atual ou já ativar os cadastros selecionados.
             </div>
-            <div className="flex items-center gap-2 justify-end">
+            <div className="flex flex-wrap items-center gap-2 justify-end shrink-0">
               <Button
                 type="button"
                 variant="outline"
@@ -18026,15 +18030,28 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
               </Button>
               <Button
                 type="button"
+                variant="outline"
                 disabled={
                   isApplyingAsaasSync ||
                   isLoadingAsaasSync ||
                   Object.values(asaasSelectedCustomers).filter(Boolean).length === 0
                 }
-                onClick={handleApplyAsaasSync}
+                onClick={() => handleApplyAsaasSync(false)}
+                className="border-slate-300 bg-white text-slate-900 hover:bg-slate-100 hover:text-slate-950 font-bold cursor-pointer"
+              >
+                {isApplyingAsaasSync ? 'Sincronizando...' : 'Importar (Sem Ativar)'}
+              </Button>
+              <Button
+                type="button"
+                disabled={
+                  isApplyingAsaasSync ||
+                  isLoadingAsaasSync ||
+                  Object.values(asaasSelectedCustomers).filter(Boolean).length === 0
+                }
+                onClick={() => handleApplyAsaasSync(true)}
                 className="bg-[#004d00] hover:bg-emerald-900 text-white font-bold cursor-pointer"
               >
-                {isApplyingAsaasSync ? 'Sincronizando...' : 'Importar Mensalidades Selecionadas (Sem Ativar)'}
+                {isApplyingAsaasSync ? 'Sincronizando...' : 'Importar e Ativar'}
               </Button>
             </div>
           </DialogFooter>
