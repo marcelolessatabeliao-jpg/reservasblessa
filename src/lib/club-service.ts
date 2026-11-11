@@ -797,8 +797,13 @@ export const saveClubState = async (state: ClubDatabaseState): Promise<ClubDatab
   return nextState;
 };
 
-export const fetchClubState = async (): Promise<ClubDatabaseState> => {
+let lastClubFetchErrorMessage: string | null = null;
+
+export const getLastClubFetchError = (): string | null => lastClubFetchErrorMessage;
+
+export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<ClubDatabaseState> => {
   const local = memoryClubState || loadClubStateLocal();
+  const timeoutMs = options?.timeoutMs ?? 25000;
   try {
     const queryPromise = supabase
       .from('site_settings' as any)
@@ -809,12 +814,15 @@ export const fetchClubState = async (): Promise<ClubDatabaseState> => {
     const timeoutPromise = new Promise<{ data: null; error: Error }>((resolve) => {
       setTimeout(() => {
         resolve({ data: null, error: new Error('Timeout ao sincronizar banco de dados') });
-      }, 10000);
+      }, timeoutMs);
     });
 
     const { data, error } = (await Promise.race([queryPromise, timeoutPromise])) as any;
 
-    if (!error && data && (data as any).value) {
+    if (error) {
+      lastClubFetchErrorMessage = error.message || 'Falha ao consultar servidor';
+    } else if (!error && data && (data as any).value) {
+      lastClubFetchErrorMessage = null;
       const remote = (data as any).value as Partial<ClubDatabaseState>;
       const remoteSubs = remote.subscriptions || [];
       const localSubs = local.subscriptions || [];
@@ -2223,15 +2231,34 @@ export const findMemberOrSubscriptionByQuery = (
         else if (em.includes(q)) maxScore = Math.max(maxScore, 300);
       }
 
-      // 3. Carteirinha / Código
-      const cardNum = member.cardNumber.toLowerCase();
-      const code = sub.subscriptionCode.toLowerCase();
-      const qrTok = member.qrToken.toLowerCase();
-      if (cardNum === q || code === q || qrTok === q) {
+      // 3. Carteirinha / Código (aceita texto exato ou apenas dígitos, ex: #1212253016 ou 1212253016)
+      const cardNum = (member.cardNumber || '').toLowerCase();
+      const holderCardNum = (member.holderCardNumber || '').toLowerCase();
+      const code = (sub.subscriptionCode || '').toLowerCase();
+      const qrTok = (member.qrToken || '').toLowerCase();
+      const cardDigits = cleanDigits(member.cardNumber);
+      const codeDigits = cleanDigits(sub.subscriptionCode);
+      const qrDigits = cleanDigits(member.qrToken);
+      if (
+        cardNum === q ||
+        code === q ||
+        qrTok === q ||
+        holderCardNum === q ||
+        (qDigits.length >= 4 &&
+          (cardDigits === qDigits || codeDigits === qDigits || qrDigits === qDigits))
+      ) {
         maxScore = Math.max(maxScore, 980);
-      } else if (cardNum.startsWith(q) || code.startsWith(q)) {
+      } else if (
+        cardNum.startsWith(q) ||
+        code.startsWith(q) ||
+        (qDigits.length >= 4 && (cardDigits.startsWith(qDigits) || codeDigits.startsWith(qDigits)))
+      ) {
         maxScore = Math.max(maxScore, 850);
-      } else if (cardNum.includes(q) || code.includes(q)) {
+      } else if (
+        cardNum.includes(q) ||
+        code.includes(q) ||
+        (qDigits.length >= 4 && (cardDigits.includes(qDigits) || codeDigits.includes(qDigits)))
+      ) {
         maxScore = Math.max(maxScore, 400);
       }
 
