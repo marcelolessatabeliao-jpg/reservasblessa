@@ -59,6 +59,8 @@ import {
   AlignRight,
   AlignJustify,
   Maximize2,
+  ShieldCheck,
+  XCircle,
 } from 'lucide-react';
 import logo from '@/assets/logo.png';
 import { Button } from '@/components/ui/button';
@@ -99,6 +101,7 @@ import {
   getClubStateSync,
   fetchClubState,
   saveClubState,
+  activateAllClubSubscriptions,
   createClubSubscription,
   markClubInvoicePaid,
   generateAsaasChargeForClubInvoice,
@@ -4428,7 +4431,34 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   Listagem exclusiva de Titulares. Os dependentes ficam dentro do cadastro de cada titular ou podem ser localizados pesquisando por Nome, CPF ou Nº da Carteirinha.
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  size="sm"
+                  type="button"
+                  onClick={async () => {
+                    if (!state) return;
+                    const inactiveCount = state.subscriptions.filter(
+                      (s) => s.status !== 'ACTIVE' || s.members.some((m) => m.status !== 'ACTIVE')
+                    ).length;
+                    if (
+                      inactiveCount > 0 &&
+                      !window.confirm(
+                        `Deseja ativar todos os ${state.subscriptions.length} cadastros e seus dependentes no sistema Lessa Club (${inactiveCount} com pendência/inativos)?`
+                      )
+                    ) {
+                      return;
+                    }
+                    const nextState = activateAllClubSubscriptions(state);
+                    await persist(nextState);
+                    toast({
+                      title: '✅ Todos os Cadastros Ativados!',
+                      description: `${nextState.subscriptions.length} titulares e todos os dependentes estão ATIVOS no Lessa Club.`,
+                    });
+                  }}
+                  className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold w-full sm:w-auto cursor-pointer"
+                >
+                  <CheckCircle2 className="w-4 h-4 mr-1.5" /> Ativar Todos
+                </Button>
                 <Button
                   size="sm"
                   onClick={() => {

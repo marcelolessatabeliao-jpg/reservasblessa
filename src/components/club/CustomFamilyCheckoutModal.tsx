@@ -78,7 +78,7 @@ export const CustomFamilyCheckoutModal: React.FC<CustomFamilyCheckoutModalProps>
   initialCycle = 'ANNUAL',
 }) => {
   const { toast } = useToast();
-  const [step, setStep] = useState<'PLAN' | 'MEMBERS' | 'CONTRACT' | 'PAYMENT' | 'SUCCESS'>('PLAN');
+  const [step, setStep] = useState<'MEMBERS' | 'CONTRACT' | 'PAYMENT' | 'SUCCESS'>('MEMBERS');
   const [billingCycle, setBillingCycle] = useState<BillingCycle>(initialCycle);
   const [paymentMethod, setPaymentMethod] = useState<ClubPaymentMethod>('PIX');
   const [installments, setInstallments] = useState<number>(12);
@@ -120,10 +120,10 @@ export const CustomFamilyCheckoutModal: React.FC<CustomFamilyCheckoutModalProps>
   const [asaasError, setAsaasError] = useState<string | null>(null);
   const [copiedPix, setCopiedPix] = useState(false);
 
-  // Inicializa a lista de membros a partir das quantidades do simulador
+  // Inicializa a lista de membros diretamente na etapa de preenchimento a partir das quantidades do simulador
   useEffect(() => {
     if (!open) return;
-    setStep('PLAN');
+    setStep('MEMBERS');
     setBillingCycle(initialCycle);
 
     const list: CreateSubscriptionMemberInput[] = [];
@@ -603,16 +603,15 @@ export const CustomFamilyCheckoutModal: React.FC<CustomFamilyCheckoutModalProps>
                 Ecossistema Oficial Lessa Club
               </span>
               <DialogTitle className="text-xl sm:text-2xl font-display font-black text-emerald-950 mt-1">
-                {step === 'PLAN' && '1. Resumo & Modalidade da Assinatura Familiar'}
-                {step === 'MEMBERS' && '2. Dados, Fotos e Integrantes da Família'}
-                {step === 'CONTRACT' && '3. Termo de Adesão e Assinatura Digital'}
-                {step === 'PAYMENT' && '4. Pagamento & Ativação das Carteirinhas'}
+                {step === 'MEMBERS' && '1. Dados, Fotos e Integrantes da Família'}
+                {step === 'CONTRACT' && '2. Termo de Adesão e Assinatura Digital'}
+                {step === 'PAYMENT' && '3. Pagamento & Ativação das Carteirinhas'}
                 {step === 'SUCCESS' && '🎉 Parabéns! Suas Carteirinhas e Contrato estão Prontos'}
               </DialogTitle>
             </div>
             <div className="text-right bg-amber-50 border border-amber-300/80 px-3.5 py-2 rounded-2xl">
               <span className="text-[10px] uppercase font-black text-amber-900 block">
-                {billingCycle === 'ANNUAL' ? 'Plano Anual (10% OFF)' : 'Plano Mensal'}
+                {billingCycle === 'ANNUAL' ? 'Plano Anual (10% OFF)' : 'Plano Mensal'} • {membersList.length} {membersList.length === 1 ? 'pessoa' : 'pessoas'}
               </span>
               <span className="text-lg sm:text-xl font-black text-emerald-950">
                 {formatCurrency(pricingSummary.monthlyTotal)}
@@ -622,201 +621,7 @@ export const CustomFamilyCheckoutModal: React.FC<CustomFamilyCheckoutModalProps>
           </div>
         </DialogHeader>
 
-        {/* PASSO 1: ESCOLHA ENTRE ANUAL (10% OFF) E MENSAL + FORMA DE PAGAMENTO */}
-        {step === 'PLAN' && (
-          <div className="space-y-6 pt-2">
-            {/* Chave Anual vs Mensal (Sem precisar duplicar planos no banco!) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div
-                onClick={() => setBillingCycle('ANNUAL')}
-                className={`cursor-pointer p-5 rounded-2xl border-2 transition-all relative ${
-                  billingCycle === 'ANNUAL'
-                    ? 'border-amber-500 bg-gradient-to-br from-amber-50 via-yellow-50/60 to-amber-100/50 shadow-lg'
-                    : 'border-slate-200 bg-slate-50/60 hover:border-amber-300'
-                }`}
-              >
-                <span className="absolute top-3 right-3 bg-amber-500 text-emerald-950 text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase">
-                  Mais Vantajoso • 10% OFF
-                </span>
-                <h4 className="font-black text-sm uppercase text-amber-950 mb-1">
-                  👑 Plano Anual (Preço Congelado até 2027)
-                </h4>
-                <p className="text-2xl sm:text-3xl font-black text-emerald-950">
-                  12x de {formatCurrency(pricingSummary.monthlyTotal)}
-                </p>
-                <p className="text-xs font-bold text-slate-600 mt-1">
-                  Total anual: {formatCurrency(pricingSummary.annualTotal)} • Garante a tabela 2026 por 1 ano inteiro
-                </p>
-              </div>
-
-              <div
-                onClick={() => setBillingCycle('MONTHLY')}
-                className={`cursor-pointer p-5 rounded-2xl border-2 transition-all relative ${
-                  billingCycle === 'MONTHLY'
-                    ? 'border-emerald-600 bg-emerald-50/70 shadow-lg'
-                    : 'border-slate-200 bg-slate-50/60 hover:border-emerald-300'
-                }`}
-              >
-                <h4 className="font-black text-sm uppercase text-emerald-950 mb-1">
-                  📅 Plano Mensal Recorrente
-                </h4>
-                <p className="text-2xl sm:text-3xl font-black text-emerald-800">
-                  {formatCurrency(
-                    membersList.reduce((acc, m) => {
-                      const mod =
-                        DEFAULT_CLUB_MODALITIES.find((x) => x.code === m.modalityCode) ||
-                        DEFAULT_CLUB_MODALITIES[0];
-                      return acc + mod.monthlyPrice;
-                    }, 0)
-                  )}{' '}
-                  / mês
-                </p>
-                <p className="text-xs font-bold text-slate-600 mt-1">
-                  Renovação mensal sem fidelidade • Cancele quando quiser
-                </p>
-              </div>
-            </div>
-
-            {/* Composição Personalizada da Família */}
-            <div className="bg-slate-50 p-4 sm:p-5 rounded-2xl border border-slate-200 space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <h4 className="font-black text-xs sm:text-sm uppercase text-emerald-950">
-                  Integrantes na mesma Assinatura Familiar ({membersList.length})
-                </h4>
-                <div className="flex flex-wrap gap-1.5">
-                  {DEFAULT_CLUB_MODALITIES.filter((m) => m.visibleInSimulator).map((mod) => (
-                    <Button
-                      key={mod.code}
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleAddMember(mod.code)}
-                      className="h-7 text-[11px] font-bold bg-white"
-                    >
-                      + {mod.emoji} {mod.name.replace('Lessa ', '')}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="divide-y divide-slate-200/80">
-                {pricingSummary.detailed.map((item, idx) => (
-                  <div key={idx} className="py-2.5 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2.5">
-                      <span className="text-xl">{item.mod.emoji || '🎟️'}</span>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-black text-xs sm:text-sm text-slate-900">
-                            {idx === 0 ? '1º Integrante (Titular)' : `${idx + 1}º Integrante (Dependente)`}
-                          </span>
-                          <Badge variant="outline" className="text-[10px] font-bold">
-                            {item.mod.name}
-                          </Badge>
-                        </div>
-                        <span className="text-[11px] text-slate-500 font-medium">
-                          {item.mod.subtitle} • Carteirinha exclusiva com foto e QR Code
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <span className="font-black text-sm text-emerald-800">
-                        {item.unitMonthly === 0
-                          ? 'GRÁTIS'
-                          : `${formatCurrency(item.unitMonthly)}/mês`}
-                      </span>
-                      {membersList.length > 1 && (
-                        <Button
-                          type="button"
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleRemoveMember(idx)}
-                          className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Aviso Profissional de Assinatura */}
-            <div className="text-[11px] text-slate-600 bg-slate-50 rounded-xl p-3 border border-slate-200 leading-relaxed flex items-start gap-2">
-              <span className="text-emerald-700 text-sm">ℹ️</span>
-              <div>
-                <strong className="text-slate-800">Modalidade de Assinatura:</strong> Os planos Lessa Club constituem uma assinatura contínua com mensalidade regular para garantia e manutenção do acesso ilimitado e benefícios de associado, devidas mensalmente independentemente da frequência de uso ou visitação ao balneário.
-              </div>
-            </div>
-
-            {/* Escolha do Meio de Pagamento */}
-            {pricingSummary.monthlyTotal > 0 && (
-              <div className="space-y-2.5">
-                <Label className="text-xs font-black uppercase text-slate-700">
-                  Escolha a Forma de Pagamento Preferida:
-                </Label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div
-                    onClick={() => setPaymentMethod('PIX')}
-                    className={`cursor-pointer p-4 rounded-2xl border-2 flex items-center gap-3 transition-all ${
-                      paymentMethod === 'PIX'
-                        ? 'border-emerald-600 bg-emerald-50/70'
-                        : 'border-slate-200 hover:border-emerald-300'
-                    }`}
-                  >
-                    <QrCode className="w-8 h-8 text-emerald-700 shrink-0" />
-                    <div>
-                      <p className="font-black text-sm text-emerald-950">
-                        PIX (Liberação Imediata)
-                      </p>
-                      <p className="text-xs text-slate-600">
-                        {billingCycle === 'ANNUAL'
-                          ? `1ª Mensalidade de ${formatCurrency(pricingSummary.monthlyTotal)} hoje + carnê mensal PIX ou valor integral`
-                          : `${formatCurrency(pricingSummary.monthlyTotal)}/mês via QR Code PIX`}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div
-                    onClick={() => setPaymentMethod('CREDIT_CARD')}
-                    className={`cursor-pointer p-4 rounded-2xl border-2 flex items-center gap-3 transition-all ${
-                      paymentMethod === 'CREDIT_CARD'
-                        ? 'border-emerald-600 bg-emerald-50/70'
-                        : 'border-slate-200 hover:border-emerald-300'
-                    }`}
-                  >
-                    <CreditCard className="w-8 h-8 text-amber-600 shrink-0" />
-                    <div>
-                      <p className="font-black text-sm text-emerald-950">
-                        Cartão de Crédito / Recorrência
-                      </p>
-                      <p className="text-xs text-slate-600">
-                        {billingCycle === 'ANNUAL'
-                          ? `Até 12x de ${formatCurrency(pricingSummary.monthlyTotal)} no cartão via Asaas`
-                          : `Recorrência mensal automática de ${formatCurrency(pricingSummary.monthlyTotal)}`}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="flex justify-end pt-2">
-              <Button
-                type="button"
-                size="lg"
-                onClick={() => setStep('MEMBERS')}
-                className="w-full sm:w-auto bg-emerald-700 hover:bg-emerald-800 text-white font-black rounded-2xl h-12 px-8"
-              >
-                Preencher Dados & Fotos das Carteirinhas
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* PASSO 2: DADOS DO TITULAR, ENDEREÇO E INTEGRANTES COM FOTO */}
+        {/* PASSO 1: DADOS DO TITULAR, ENDEREÇO E INTEGRANTES COM FOTO */}
         {step === 'MEMBERS' && (
           <div className="space-y-6 pt-2">
             {/* Dados Pessoais do Titular */}
@@ -1213,15 +1018,67 @@ export const CustomFamilyCheckoutModal: React.FC<CustomFamilyCheckoutModalProps>
               ))}
             </div>
 
+            {/* Escolha da Forma de Pagamento Preferida */}
+            {pricingSummary.monthlyTotal > 0 && (
+              <div className="bg-slate-50 p-4 sm:p-5 rounded-2xl border border-slate-200 space-y-2.5">
+                <Label className="text-xs font-black uppercase text-slate-700">
+                  Forma de Pagamento Preferida:
+                </Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div
+                    onClick={() => setPaymentMethod('PIX')}
+                    className={`cursor-pointer p-3.5 rounded-xl border-2 flex items-center gap-3 transition-all bg-white ${
+                      paymentMethod === 'PIX'
+                        ? 'border-emerald-600 bg-emerald-50/70'
+                        : 'border-slate-200 hover:border-emerald-300'
+                    }`}
+                  >
+                    <QrCode className="w-7 h-7 text-emerald-700 shrink-0" />
+                    <div>
+                      <p className="font-black text-sm text-emerald-950">
+                        PIX (Liberação Imediata)
+                      </p>
+                      <p className="text-[11px] text-slate-600">
+                        {billingCycle === 'ANNUAL'
+                          ? `1ª de ${formatCurrency(pricingSummary.monthlyTotal)} hoje + carnê PIX`
+                          : `${formatCurrency(pricingSummary.monthlyTotal)}/mês via PIX`}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div
+                    onClick={() => setPaymentMethod('CREDIT_CARD')}
+                    className={`cursor-pointer p-3.5 rounded-xl border-2 flex items-center gap-3 transition-all bg-white ${
+                      paymentMethod === 'CREDIT_CARD'
+                        ? 'border-emerald-600 bg-emerald-50/70'
+                        : 'border-slate-200 hover:border-emerald-300'
+                    }`}
+                  >
+                    <CreditCard className="w-7 h-7 text-amber-600 shrink-0" />
+                    <div>
+                      <p className="font-black text-sm text-emerald-950">
+                        Cartão de Crédito / Recorrência
+                      </p>
+                      <p className="text-[11px] text-slate-600">
+                        {billingCycle === 'ANNUAL'
+                          ? `Até 12x de ${formatCurrency(pricingSummary.monthlyTotal)} no cartão`
+                          : `Recorrência mensal de ${formatCurrency(pricingSummary.monthlyTotal)}`}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center justify-between pt-2 gap-3">
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setStep('PLAN')}
-                className="rounded-xl font-bold"
+                onClick={() => onOpenChange(false)}
+                className="rounded-xl font-bold text-slate-800 hover:text-slate-950 hover:bg-slate-100"
               >
                 <ArrowLeft className="w-4 h-4 mr-1.5" />
-                Voltar
+                Alterar Planos
               </Button>
               <Button
                 type="button"

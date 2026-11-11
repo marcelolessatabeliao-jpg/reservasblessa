@@ -23,6 +23,10 @@ import {
   AlertTriangle,
   ChevronDown,
   ChevronUp,
+  CheckCircle2,
+  ShieldCheck,
+  ZoomIn,
+  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -312,8 +316,15 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('ANNUAL');
   const [cardCycleMap, setCardCycleMap] = useState<Record<string, BillingCycle>>({});
 
-  // Controle de abas de benefícios e documentação (fechadas por padrão para melhor visualização dos planos)
+  // Controle de abas de benefícios e documentação e pré-visualização ampliada da carteirinha
   const [expandedBenefitsMap, setExpandedBenefitsMap] = useState<Record<string, boolean>>({});
+  const [previewCardModal, setPreviewCardModal] = useState<{
+    title: string;
+    subtitle: string;
+    frontUrl: string;
+    backUrl?: string;
+    benefits: string[];
+  } | null>(null);
 
   // Contador de pessoas no card único "Lessa Club" (1 a 15 pessoas)
   const [lessaClubPeopleCount, setLessaClubPeopleCount] = useState<number>(1);
@@ -1450,23 +1461,87 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                     Sua família tem perfis diferentes? Aqui você <strong>não precisa fazer assinaturas separadas</strong>! Combine <strong>Adulto Integral + Estudante + Professor + Servidor + Crianças Kids + Idosos 60+ + PCD/TEA</strong> em um único contrato e pagamento.
                   </p>
 
-                  {/* Preview das artes das carteirinhas empilhadas com fotos de exemplo */}
-                  <div className="flex items-center gap-3 pt-1">
-                    <img
-                      src="/cards/17.png"
-                      alt="Lessa Club"
-                      className="w-28 sm:w-32 rounded-xl border-2 border-amber-400/60 shadow-lg"
-                    />
-                    <img
-                      src="/cards/7.png"
-                      alt="Student Pass"
-                      className="w-24 sm:w-28 rounded-xl border border-white/20 shadow-md -ml-6 mt-3"
-                    />
-                    <img
-                      src="/cards/37.png"
-                      alt="Lessa Kids"
-                      className="w-24 sm:w-28 rounded-xl border border-white/20 shadow-md -ml-6 -mt-2"
-                    />
+                  {/* Preview das artes das carteirinhas empilhadas (clique para ampliar e ler em alta resolução) */}
+                  <div className="space-y-2 pt-1">
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPreviewCardModal({
+                            title: 'Lessa Club (Associado Titular)',
+                            subtitle: 'Carteirinha Oficial Frente e Verso — Plano Individual ou Familiar',
+                            frontUrl: '/cards/17.png',
+                            backUrl: '/cards/24.png',
+                            benefits: [
+                              'Acesso ilimitado às sextas, sábados, domingos e feriados (9h às 17h)',
+                              'Carteirinha digital com QR Code exclusivo no Portal do Sócio',
+                              'Sem taxa de adesão • Combine perfis pagos e gratuitos na mesma família',
+                            ],
+                          })
+                        }
+                        className="group relative rounded-xl overflow-hidden border-2 border-amber-400/70 shadow-lg focus:outline-none cursor-pointer"
+                        title="Clique para ampliar a carteirinha"
+                      >
+                        <img
+                          src="/cards/17.png"
+                          alt="Lessa Club"
+                          className="w-32 sm:w-36 h-auto object-contain block"
+                        />
+                        <span className="absolute bottom-1 right-1 bg-slate-950/80 text-white text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1">
+                          <ZoomIn className="w-2.5 h-2.5" /> Ampliar
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPreviewCardModal({
+                            title: 'Lessa Student Pass (Meia-Entrada)',
+                            subtitle: 'Carteirinha Oficial Frente e Verso — 10% OFF no Anual',
+                            frontUrl: '/cards/7.png',
+                            backUrl: '/cards/24.png',
+                            benefits: [
+                              'Meia-assinatura exclusiva para estudantes com documento comprobatório',
+                              'Acesso ilimitado nos dias e horários de funcionamento do balneário',
+                            ],
+                          })
+                        }
+                        className="-ml-4 mt-3 rounded-xl overflow-hidden border border-white/30 shadow-md hover:z-20 transition-transform hover:scale-105 cursor-pointer"
+                        title="Clique para ampliar Student Pass"
+                      >
+                        <img
+                          src="/cards/7.png"
+                          alt="Student Pass"
+                          className="w-28 sm:w-32 h-auto object-contain block"
+                        />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPreviewCardModal({
+                            title: 'Lessa Kids (Gratuidade até 11 anos)',
+                            subtitle: 'Carteirinha Infantil Oficial Frente e Verso — R$ 0,00',
+                            frontUrl: '/cards/37.png',
+                            backUrl: '/cards/39.png',
+                            benefits: [
+                              'Isenção total de mensalidade para crianças de 0 a 11 anos',
+                              'Mediante certidão de nascimento ou RG infantil',
+                            ],
+                          })
+                        }
+                        className="-ml-4 -mt-2 rounded-xl overflow-hidden border border-white/30 shadow-md hover:z-20 transition-transform hover:scale-105 cursor-pointer"
+                        title="Clique para ampliar Lessa Kids"
+                      >
+                        <img
+                          src="/cards/37.png"
+                          alt="Lessa Kids"
+                          className="w-28 sm:w-32 h-auto object-contain block"
+                        />
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-amber-200/90 font-semibold flex items-center gap-1.5">
+                      <ZoomIn className="w-3.5 h-3.5 shrink-0" />
+                      Clique em qualquer carteirinha para ampliar frente, verso e detalhes em alta definição
+                    </p>
                   </div>
 
                   <ul className="space-y-1.5 text-xs text-emerald-100/90 pt-2">
@@ -1769,13 +1844,29 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                               </div>
                             </div>
                           )}
-                          <div className="relative aspect-[1.586/1] w-full rounded-xl overflow-hidden shadow-sm bg-transparent flex items-center justify-center">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPreviewCardModal({
+                                title: card.title,
+                                subtitle: card.subtitle,
+                                frontUrl: card.cardImage,
+                                backUrl: card.backCardUrl || '/cards/24.png',
+                                benefits: card.benefits,
+                              })
+                            }
+                            className="group relative aspect-[1.586/1] w-full rounded-xl overflow-hidden shadow-sm border border-slate-200/80 bg-slate-50 flex items-center justify-center cursor-zoom-in focus:outline-none"
+                            title="Clique para ampliar e ler os detalhes da carteirinha"
+                          >
                             <img
                               src={card.cardImage}
                               alt={card.title}
-                              className="w-full h-full object-cover rounded-xl select-none"
+                              className="w-full h-full object-contain rounded-xl select-none transition-transform duration-200 group-hover:scale-[1.03]"
                             />
-                          </div>
+                            <span className="absolute bottom-2 right-2 bg-slate-950/85 hover:bg-slate-900 text-white text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1 shadow-md">
+                              <ZoomIn className="w-3 h-3 text-amber-300" /> Ampliar detalhes
+                            </span>
+                          </button>
                         </div>
 
                         {/* Faixa Azul-Escura com o Nome do Plano */}
@@ -1912,7 +2003,22 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                           </div>
                         )}
 
-                        {/* ABA EXTENSÍVEL: VEJA OS BENEFÍCIOS E DOCUMENTAÇÃO (ESCONDIDA POR PADRÃO) */}
+                        {/* RESUMO LEGÍVEL DOS DETALHES PRINCIPAIS DO PLANO (SEMPRE VISÍVEL SEM CORTES) */}
+                        <div className="mx-4 mt-3 p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1.5 text-left">
+                          <div className="text-[10px] font-black uppercase tracking-wider text-emerald-800">
+                            Detalhes principais deste plano:
+                          </div>
+                          <ul className="space-y-1 text-xs text-slate-700 font-medium">
+                            {card.benefits.slice(0, 3).map((b, bIdx) => (
+                              <li key={bIdx} className="flex items-start gap-1.5 leading-snug">
+                                <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                                <span>{b}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+
+                        {/* ABA EXTENSÍVEL: VER TODOS OS BENEFÍCIOS E DOCUMENTAÇÃO COMPLETA */}
                         <div className="p-4 border-t border-slate-100 mt-2">
                           <button
                             type="button"
@@ -1930,7 +2036,7 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                           >
                             <span className="flex items-center gap-2">
                               <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
-                              <span>Veja os benefícios e documentação</span>
+                              <span>Ver benefícios e documentação completa</span>
                             </span>
                             <span className="flex items-center gap-1 text-[11px] font-black text-emerald-700">
                               <span>
@@ -3982,6 +4088,79 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                     </div>
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL DE AMPLIAÇÃO DA CARTEIRINHA (FRENTE, VERSO E DETALHES LEGÍVEIS) */}
+        {previewCardModal && (
+          <div
+            className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setPreviewCardModal(null)}
+          >
+            <div
+              className="bg-white rounded-3xl max-w-3xl w-full p-5 sm:p-7 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto space-y-5"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-900 px-2.5 py-0.5 rounded-full">
+                    Visualização Ampliada • Alta Definição
+                  </span>
+                  <h3 className="text-xl sm:text-2xl font-black text-slate-900 mt-1">
+                    {previewCardModal.title}
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-600">{previewCardModal.subtitle}</p>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setPreviewCardModal(null)}
+                  className="shrink-0 font-bold text-slate-800 hover:bg-slate-100 hover:text-slate-950"
+                >
+                  <X className="w-4 h-4 mr-1" /> Fechar
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <span className="text-xs font-black uppercase text-slate-600 block">
+                    Frente da Carteirinha
+                  </span>
+                  <img
+                    src={previewCardModal.frontUrl}
+                    alt={`${previewCardModal.title} - Frente`}
+                    className="w-full h-auto rounded-2xl border border-slate-200 shadow-md object-contain bg-slate-50"
+                  />
+                </div>
+                {previewCardModal.backUrl && (
+                  <div className="space-y-1.5">
+                    <span className="text-xs font-black uppercase text-slate-600 block">
+                      Verso da Carteirinha
+                    </span>
+                    <img
+                      src={previewCardModal.backUrl}
+                      alt={`${previewCardModal.title} - Verso`}
+                      className="w-full h-auto rounded-2xl border border-slate-200 shadow-md object-contain bg-slate-50"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-2">
+                <h4 className="text-xs font-black uppercase tracking-wider text-emerald-900">
+                  Benefícios, Regras e Condições deste Plano:
+                </h4>
+                <ul className="space-y-1.5 text-xs sm:text-sm text-slate-700">
+                  {previewCardModal.benefits.map((b, idx) => (
+                    <li key={idx} className="flex items-start gap-2 leading-snug">
+                      <Check className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
+                      <span>{b}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             </div>
           </div>

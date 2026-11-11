@@ -117,7 +117,7 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
     const [card, name, cpf, plan, birth, phone, by, status] = g.titular;
     const mod = mapModality(plan);
     const isAnnual = plan.toLowerCase().includes('anual');
-    const titStatus: SubscriptionStatus = 'PENDING_TRANSFER';
+    const titStatus: SubscriptionStatus = 'ACTIVE';
     const holderCard = card;
     const subId = `sub-labcard-${holderCard}`;
     const subCode = holderCard;
@@ -147,7 +147,7 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
     const depMembers: ClubMember[] = g.dependents.map((dep) => {
       const [depCard, depName, depCpf, depPlan, depBirth, depPhone, depBy, depStatusStr] = dep;
       const depMod = depPlan && depPlan !== '- R$ 0,00' ? mapModality(depPlan) : mod;
-      const depStatus: SubscriptionStatus = 'PENDING_TRANSFER';
+      const depStatus: SubscriptionStatus = 'ACTIVE';
 
       return {
         id: `mem-${depCard}`,

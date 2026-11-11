@@ -653,9 +653,11 @@ export const normalizeClubDatabaseState = (
         !memberHasProofDocument(m, sub);
 
       const resolvedStatus: SubscriptionStatus = isLabcard
-        ? ('PENDING_TRANSFER' as SubscriptionStatus)
+        ? (m.status === 'INACTIVE' || m.status === 'CANCELLED' ? m.status : 'ACTIVE')
         : missingRequiredDoc
         ? 'INACTIVE'
+        : m.status === 'PENDING_TRANSFER'
+        ? 'ACTIVE'
         : m.status;
 
       return {
@@ -667,9 +669,11 @@ export const normalizeClubDatabaseState = (
     });
 
     const resolvedSubStatus: SubscriptionStatus = isLabcard
-      ? ('PENDING_TRANSFER' as SubscriptionStatus)
+      ? (sub.status === 'INACTIVE' || sub.status === 'CANCELLED' ? sub.status : 'ACTIVE')
       : normalizedMembers.length > 0 && normalizedMembers.every((m) => m.status === 'INACTIVE')
       ? 'INACTIVE'
+      : sub.status === 'PENDING_TRANSFER'
+      ? 'ACTIVE'
       : sub.status;
 
     return {
@@ -838,13 +842,18 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
       });
       remoteSubs.forEach((s) => subsMap.set(s.id, s));
 
-      // Preservar status ATIVO quando houver vínculo de cartão ou faturamento efetivo, e PENDING_TRANSFER para os demais
+      // Garantir que cadastros migrados/Labcard estejam ATIVOS no sistema (preservando inativações/cancelamentos explícitos)
       subsMap.forEach((sub) => {
-        if ((sub.origin === 'IMPORT_LABCARD' || sub.id.startsWith('sub-labcard-')) && sub.status !== 'ACTIVE') {
-          sub.status = 'PENDING_TRANSFER';
+        const isLabcardSub = sub.origin === 'IMPORT_LABCARD' || sub.id.startsWith('sub-labcard-');
+        if (isLabcardSub || sub.status === 'PENDING_TRANSFER') {
+          if (sub.status !== 'INACTIVE' && sub.status !== 'CANCELLED') {
+            sub.status = 'ACTIVE';
+          }
           if (sub.members) {
             sub.members.forEach((m) => {
-              if (m.status !== 'ACTIVE') m.status = 'PENDING_TRANSFER';
+              if (m.status !== 'INACTIVE' && m.status !== 'CANCELLED') {
+                m.status = 'ACTIVE';
+              }
             });
           }
         }
@@ -865,6 +874,25 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
     console.warn('[ClubService] Fallback to local state:', err);
   }
   return local;
+};
+
+/** Ativa todas as assinaturas e seus respectivos integrantes/dependentes no sistema Lessa Club. */
+export const activateAllClubSubscriptions = (state: ClubDatabaseState): ClubDatabaseState => {
+  const nowIso = new Date().toISOString();
+  const updatedSubs: ClubSubscription[] = state.subscriptions.map((sub) => ({
+    ...sub,
+    status: 'ACTIVE',
+    updatedAt: nowIso,
+    members: sub.members.map((m) => ({
+      ...m,
+      status: 'ACTIVE',
+    })),
+  }));
+
+  return {
+    ...state,
+    subscriptions: updatedSubs,
+  };
 };
 
 // ============================================================================
