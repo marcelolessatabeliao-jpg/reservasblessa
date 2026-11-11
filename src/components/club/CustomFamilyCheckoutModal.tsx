@@ -457,6 +457,12 @@ export const CustomFamilyCheckoutModal: React.FC<CustomFamilyCheckoutModalProps>
         paymentMethod,
         installments: billingCycle === 'ANNUAL' && paymentMethod === 'PIX' ? 1 : 12,
         origin: 'SITE',
+        consultantCode:
+          typeof window !== 'undefined'
+            ? new URLSearchParams(window.location.search).get('ref') ||
+              sessionStorage.getItem('lessa_active_consultant_ref') ||
+              ''
+            : '',
         consultantName,
         members: membersList,
       });

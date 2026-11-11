@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, useLocation, Link } from 'react-router-dom';
 import {
   CreditCard,
   FileText,
@@ -70,12 +70,20 @@ import {
   attachMemberProofDocument,
   compressImageFile,
   fileToDataUrl,
+  buildConsultantReferralUrl,
+  doesConsultantAllowModality,
+  getSelectablePlansForConsultants,
+  getConsultantSubscriptionMetrics,
 } from '@/lib/club-service';
 import { ClubMemberCardView } from '@/components/club/ClubMemberCardView';
 
 const SocioPortal: React.FC = () => {
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const isConsultantRoute =
+    location.pathname.toLowerCase().includes('/consultor') ||
+    location.pathname.toLowerCase().includes('/influencer');
   const initialCpfOrCard = searchParams.get('cpf') || searchParams.get('card') || '';
 
   const [state, setState] = useState<ClubDatabaseState | null>(null);
@@ -84,7 +92,15 @@ const SocioPortal: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [subscription, setSubscription] = useState<ClubSubscription | null>(null);
   const [loggedConsultant, setLoggedConsultant] = useState<ClubConsultant | null>(null);
-  const [portalType, setPortalType] = useState<'ASSOCIADO' | 'CONSULTOR'>('ASSOCIADO');
+  const [portalType, setPortalType] = useState<'ASSOCIADO' | 'CONSULTOR'>(
+    isConsultantRoute ? 'CONSULTOR' : 'ASSOCIADO'
+  );
+
+  useEffect(() => {
+    if (isConsultantRoute) {
+      setPortalType('CONSULTOR');
+    }
+  }, [isConsultantRoute]);
   const [loading, setLoading] = useState(true);
   const [selectedInvoiceForPix, setSelectedInvoiceForPix] = useState<ClubInvoice | null>(null);
   const [paymentMethodTab, setPaymentMethodTab] = useState<'PIX' | 'CARD'>('PIX');
@@ -122,7 +138,7 @@ const SocioPortal: React.FC = () => {
     const qClean = loginInput.trim().toLowerCase();
     const qDigits = cleanDigits(loginInput);
 
-    // 1. Verifica se é acesso de Consultor ou Influencer (Acesso com E-mail ou CPF e Senha)
+    // 1. Verifica se é acesso de Consultor ou Influencer (E-mail ou CPF + Senha, mesma mecânica do Associado)
     const foundCons = (state.consultants || []).find((c) => {
       const emailMatch = !!c.email && c.email.toLowerCase().trim() === qClean;
       const cpfMatch = !!c.cpf && cleanDigits(c.cpf) === qDigits && qDigits.length >= 6;
@@ -130,26 +146,41 @@ const SocioPortal: React.FC = () => {
       return emailMatch || cpfMatch || codeMatch;
     });
 
-    if (foundCons) {
-      if (passwordInput.trim()) {
-        const pass = passwordInput.trim();
-        const consCpfDigits = cleanDigits(foundCons.cpf);
-        const validPasses = [
-          foundCons.password,
-          consCpfDigits,
-          consCpfDigits.slice(0, 6),
-          '123456',
-        ].filter(Boolean);
+    if (foundCons && (portalType === 'CONSULTOR' || !findMemberOrSubscriptionByQuery(state, loginInput).length)) {
+      if (foundCons.status === 'INACTIVE') {
+        toast({
+          title: 'Cadastro inativo',
+          description: 'Este acesso de consultor/influencer está desativado. Procure a administração.',
+          variant: 'destructive',
+        });
+        return;
+      }
 
-        const isValid = validPasses.some((p) => p === pass || cleanDigits(p) === cleanDigits(pass));
-        if (!isValid) {
-          toast({
-            title: 'Senha incorreta',
-            description: 'A senha informada não confere para este consultor/influencer.',
-            variant: 'destructive',
-          });
-          return;
-        }
+      if (!passwordInput.trim()) {
+        toast({
+          title: 'Senha obrigatória',
+          description: 'Informe sua senha de acesso ao Portal do Consultor.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const pass = passwordInput.trim();
+      const consCpfDigits = cleanDigits(foundCons.cpf);
+      const validPasses = foundCons.password?.trim()
+        ? [foundCons.password.trim()]
+        : [consCpfDigits, consCpfDigits.slice(0, 6), '123456'].filter(Boolean);
+
+      const isValid = validPasses.some(
+        (p) => p === pass || (cleanDigits(p).length >= 4 && cleanDigits(p) === cleanDigits(pass))
+      );
+      if (!isValid) {
+        toast({
+          title: 'Senha incorreta',
+          description: 'A senha informada não confere para este consultor/influencer.',
+          variant: 'destructive',
+        });
+        return;
       }
 
       setLoggedConsultant(foundCons);
@@ -160,7 +191,16 @@ const SocioPortal: React.FC = () => {
       return;
     }
 
-    // 2. Se não for consultor, verifica se é associado
+    if (portalType === 'CONSULTOR' && !foundCons) {
+      toast({
+        title: 'Consultor / Influencer não localizado',
+        description: 'Verifique seu E-mail, CPF ou Código de Indicação e tente novamente.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // 2. Acesso do Associado (E-mail, CPF ou Carteirinha + Senha)
     const matches = findMemberOrSubscriptionByQuery(state, loginInput);
     if (matches.length === 0) {
       toast({
@@ -172,22 +212,27 @@ const SocioPortal: React.FC = () => {
     }
     const foundSub = matches[0].subscription;
 
-    // Se senha foi digitada, valida com a data de nascimento
-    if (passwordInput.trim()) {
-      const cleanPass = cleanDigits(passwordInput);
-      const holderPass = getBirthDatePassword(foundSub.holderBirthDate);
-      const memberPasses = foundSub.members.map((m) => getBirthDatePassword(m.birthDate));
-      const allValidPasses = [holderPass, ...memberPasses, '123456'];
+    if (!passwordInput.trim()) {
+      toast({
+        title: 'Senha obrigatória',
+        description: 'Informe sua senha (data de nascimento no formato DDMMAAAA) para acessar.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    const cleanPass = cleanDigits(passwordInput);
+    const holderPass = getBirthDatePassword(foundSub.holderBirthDate);
+    const memberPasses = foundSub.members.map((m) => getBirthDatePassword(m.birthDate));
+    const allValidPasses = [holderPass, ...memberPasses, '123456'];
 
-      const isValid = allValidPasses.some((p) => p && cleanDigits(p) === cleanPass);
-      if (!isValid) {
-        toast({
-          title: 'Senha incorreta',
-          description: 'A senha informada não confere. Verifique seus dados e tente novamente.',
-          variant: 'destructive',
-        });
-        return;
-      }
+    const isValid = allValidPasses.some((p) => p && cleanDigits(p) === cleanPass);
+    if (!isValid) {
+      toast({
+        title: 'Senha incorreta',
+        description: 'A senha informada não confere. Verifique seus dados e tente novamente.',
+        variant: 'destructive',
+      });
+      return;
     }
 
     setSubscription(foundSub);
@@ -413,49 +458,41 @@ const SocioPortal: React.FC = () => {
 
       <div className="container mx-auto px-4 pt-8 max-w-6xl">
         {loggedConsultant ? (() => {
-          const linkedSubs = (state?.subscriptions || []).filter(
-            (s) =>
-              s.consultantName?.toLowerCase() === loggedConsultant.name.toLowerCase() ||
-              s.influencerName?.toLowerCase() === loggedConsultant.name.toLowerCase() ||
-              s.consultantCode?.toLowerCase() === loggedConsultant.referralCode.toLowerCase()
+          const metrics = getConsultantSubscriptionMetrics(
+            loggedConsultant,
+            state?.subscriptions || []
           );
+          const linkedSubs = metrics.linkedSubs;
+          const paidSales = metrics.paidSales;
+          const pendingSubs = metrics.pendingSubs;
+          const totalPaidCommission = metrics.totalPaidCommission;
 
-          // Contabilidade de vendas: APENAS APÓS PAGAMENTO EFETIVO
-          const paidSubs = linkedSubs.filter(
-            (s) => s.status === 'ACTIVE' || (s.invoices || []).some((inv) => inv.status === 'PAID')
+          const selectablePlans = getSelectablePlansForConsultants(state?.modalities);
+          const allowedPlans =
+            loggedConsultant.allowedPlanCodes && loggedConsultant.allowedPlanCodes.length > 0
+              ? selectablePlans.filter((p) =>
+                  doesConsultantAllowModality(loggedConsultant.allowedPlanCodes, p)
+                )
+              : selectablePlans;
+
+          const referralLink = buildConsultantReferralUrl(
+            window.location.origin,
+            loggedConsultant
           );
-
-          const totalPaidVolume = paidSubs.reduce(
-            (acc, s) => acc + (s.totalContractValue || s.monthlyEquivalent * 12 || 0),
-            0
-          );
-
-          const totalPaidCommission = paidSubs.reduce((acc, s) => {
-            const planVal = s.totalContractValue || s.monthlyEquivalent * 12 || 0;
-            if (loggedConsultant.commissionType === 'FIXED') {
-              return acc + (loggedConsultant.commissionValue || 0);
-            }
-            const pct = loggedConsultant.commissionPercent || loggedConsultant.commissionValue || 10;
-            return acc + (planVal * pct) / 100;
-          }, 0);
-
-          const referralLink = `${window.location.origin}/planos?ref=${loggedConsultant.referralCode}`;
           const qrCodeUrl = getQrCodeImageUrl(referralLink, 280);
 
-          const copyReferralLink = () => {
-            navigator.clipboard.writeText(referralLink);
+          const copyReferralLink = (customUrl = referralLink) => {
+            navigator.clipboard.writeText(customUrl);
             toast({
               title: 'Link copiado!',
-              description: 'O seu link de indicação foi copiado para a área de transferência.',
+              description: 'O seu link personalizado de indicação foi copiado para a área de transferência.',
             });
           };
 
           const shareWhatsApp = () => {
-            const text = `🌿 Olá! Venha ser associado do *Balneário Família Lessa* com benefícios exclusivos! Faça sua adesão pelo meu link oficial: ${referralLink}`;
+            const text = `🌿 Olá! Venha ser associado do *Balneário Família Lessa* com benefícios exclusivos! Faça sua adesão pelo meu link oficial de atendimento (*${loggedConsultant.name}*): ${referralLink}`;
             window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
           };
-
-          const pendingSubs = linkedSubs.filter((s) => !paidSubs.includes(s));
 
           return (
             <div className="space-y-6 pb-16">
@@ -516,7 +553,7 @@ const SocioPortal: React.FC = () => {
                       />
                       <Button
                         type="button"
-                        onClick={copyReferralLink}
+                        onClick={() => copyReferralLink(referralLink)}
                         className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs shrink-0"
                       >
                         <Copy className="w-3.5 h-3.5 mr-1.5" /> Copiar Link
@@ -535,7 +572,7 @@ const SocioPortal: React.FC = () => {
                       <Button
                         type="button"
                         variant="outline"
-                        className="border-white/30 text-white hover:bg-white/10 font-bold text-xs"
+                        className="bg-white/10 border-white/30 text-white hover:bg-white/20 hover:text-white font-bold text-xs"
                       >
                         <ExternalLink className="w-3.5 h-3.5 mr-1.5" /> Abrir Minha Página
                       </Button>
@@ -552,10 +589,59 @@ const SocioPortal: React.FC = () => {
                     <img src={qrCodeUrl} alt="QR Code" className="w-36 h-36 mx-auto object-contain" />
                   </div>
                   <a href={qrCodeUrl} download={`QRCode_${loggedConsultant.referralCode}.png`}>
-                    <Button size="sm" variant="outline" className="text-xs font-bold border-slate-300">
+                    <Button size="sm" variant="outline" className="text-xs font-bold border-slate-300 text-slate-800 hover:bg-slate-100 hover:text-slate-900">
                       <Printer className="w-3.5 h-3.5 mr-1.5" /> Baixar Imagem QR Code
                     </Button>
                   </a>
+                </div>
+              </div>
+
+              {/* Planos Liberados para este Consultor */}
+              <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-base font-black text-slate-900">
+                      Planos Disponíveis no Seu Link ({allowedPlans.length})
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Clientes que acessam seu link ou QR Code visualizam exclusivamente estes planos configurados pela administração.
+                    </p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {allowedPlans.map((plan) => {
+                    const directPlanUrl = buildConsultantReferralUrl(
+                      window.location.origin,
+                      loggedConsultant,
+                      plan.code
+                    );
+                    return (
+                      <div
+                        key={plan.code}
+                        className="p-3 rounded-2xl border border-slate-200 bg-slate-50 flex items-center justify-between gap-2"
+                      >
+                        <div className="min-w-0">
+                          <span className="font-black text-xs text-slate-900 block truncate">
+                            {plan.name}
+                          </span>
+                          <span className="text-[11px] font-semibold text-emerald-800 block">
+                            {plan.isFreeTier
+                              ? 'Gratuito (R$ 0,00)'
+                              : `Mensal ${formatCurrency(plan.monthlyPrice)} • Anual ${formatCurrency(plan.annualPrice)}`}
+                          </span>
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => copyReferralLink(directPlanUrl)}
+                          className="h-7 px-2.5 text-[11px] font-bold bg-white border-emerald-600 text-emerald-900 hover:bg-emerald-50 shrink-0"
+                        >
+                          <Copy className="w-3 h-3 mr-1" /> Copiar
+                        </Button>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -578,9 +664,11 @@ const SocioPortal: React.FC = () => {
                 <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-200 shadow-sm">
                   <span className="text-xs font-bold text-emerald-800 block">Vendas Efetivamente Pagas</span>
                   <span className="text-2xl font-black text-emerald-950 mt-1 block">
-                    {paidSubs.length}
+                    {paidSales.length}
                   </span>
-                  <span className="text-[10px] text-emerald-700">pagamentos confirmados</span>
+                  <span className="text-[10px] text-emerald-700">
+                    Volume: {formatCurrency(metrics.totalPaidVolume)}
+                  </span>
                 </div>
                 <div className="bg-[#004d00] text-white p-4 rounded-2xl shadow-sm">
                   <span className="text-xs font-bold text-emerald-300 block">Comissões a Receber</span>
@@ -590,7 +678,7 @@ const SocioPortal: React.FC = () => {
                   <span className="text-[10px] text-emerald-200">
                     {loggedConsultant.commissionType === 'FIXED'
                       ? `R$ ${(loggedConsultant.commissionValue || 0).toFixed(2)} fixo por venda paga`
-                      : `${loggedConsultant.commissionPercent || 10}% sobre contratos pagos`}
+                      : `${loggedConsultant.commissionPercent || 10}% sobre vendas pagas`}
                   </span>
                 </div>
               </div>
@@ -607,11 +695,11 @@ const SocioPortal: React.FC = () => {
                     </p>
                   </div>
                   <Badge className="bg-emerald-100 text-emerald-900 font-bold text-xs self-start sm:self-auto">
-                    {paidSubs.length} {paidSubs.length === 1 ? 'venda confirmada' : 'vendas confirmadas'}
+                    {paidSales.length} {paidSales.length === 1 ? 'venda confirmada' : 'vendas confirmadas'}
                   </Badge>
                 </div>
 
-                {paidSubs.length === 0 ? (
+                {paidSales.length === 0 ? (
                   <div className="text-center py-10 text-slate-500 text-xs">
                     Nenhuma venda com pagamento confirmado ainda. Compartilhe seu link ou QR Code para gerar suas primeiras comissões!
                   </div>
@@ -629,40 +717,35 @@ const SocioPortal: React.FC = () => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-200">
-                        {paidSubs.map((sub) => {
-                          const planVal = sub.totalContractValue || sub.monthlyEquivalent * 12 || 0;
-                          const comVal =
-                            loggedConsultant.commissionType === 'FIXED'
-                              ? loggedConsultant.commissionValue || 0
-                              : (planVal * (loggedConsultant.commissionPercent || 10)) / 100;
-                          const paidInv = (sub.invoices || []).find((i) => i.status === 'PAID');
-                          const datePgto = paidInv?.paidAt || sub.createdAt;
-
-                          return (
-                            <tr key={sub.id} className="hover:bg-slate-50">
-                              <td className="py-2.5 px-3 font-bold text-slate-900">
-                                {sub.holderName}
-                              </td>
-                              <td className="py-2.5 px-3 text-slate-600">
-                                {formatDateBR(datePgto)}
-                              </td>
-                              <td className="py-2.5 px-3 text-slate-700">
-                                {sub.planSummaryLabel}
-                              </td>
-                              <td className="py-2.5 px-3 font-semibold text-slate-900">
-                                {formatCurrency(planVal)}
-                              </td>
-                              <td className="py-2.5 px-3 font-black text-emerald-800">
-                                {formatCurrency(comVal)}
-                              </td>
-                              <td className="py-2.5 px-3 text-center">
-                                <span className="inline-block px-2 py-0.5 rounded font-black text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300 uppercase">
-                                  PAGO
+                        {paidSales.map((sale) => (
+                          <tr key={sale.subscription.id} className="hover:bg-slate-50">
+                            <td className="py-2.5 px-3 font-bold text-slate-900">
+                              {sale.subscription.holderName}
+                            </td>
+                            <td className="py-2.5 px-3 text-slate-600">
+                              {formatDateBR(sale.paidAt)}
+                            </td>
+                            <td className="py-2.5 px-3 text-slate-700">
+                              {sale.subscription.planSummaryLabel}
+                            </td>
+                            <td className="py-2.5 px-3 font-semibold text-slate-900">
+                              <div>{formatCurrency(sale.planValue)}</div>
+                              {sale.paidAmount > 0 && sale.paidAmount !== sale.planValue && (
+                                <span className="text-[10px] text-emerald-700 block">
+                                  Pago: {formatCurrency(sale.paidAmount)}
                                 </span>
-                              </td>
-                            </tr>
-                          );
-                        })}
+                              )}
+                            </td>
+                            <td className="py-2.5 px-3 font-black text-emerald-800">
+                              {formatCurrency(sale.commissionValue)}
+                            </td>
+                            <td className="py-2.5 px-3 text-center">
+                              <span className="inline-block px-2 py-0.5 rounded font-black text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300 uppercase">
+                                PAGO
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
                       </tbody>
                     </table>
                   </div>
@@ -745,7 +828,7 @@ const SocioPortal: React.FC = () => {
 
                 <div>
                   <label className="text-xs font-bold uppercase text-slate-700 block mb-1.5">
-                    Senha {portalType === 'CONSULTOR' && <span className="text-slate-400 font-normal lowercase">(padrão: CPF ou cadastrada)</span>}
+                    Senha * {portalType === 'CONSULTOR' && <span className="text-slate-400 font-normal lowercase">(cadastrada ou CPF)</span>}
                   </label>
                   <div className="relative">
                     <Input
@@ -754,6 +837,7 @@ const SocioPortal: React.FC = () => {
                       onChange={(e) => setPasswordInput(e.target.value)}
                       placeholder="Digite sua senha"
                       className="h-12 text-base pr-11"
+                      required
                     />
                     <button
                       type="button"

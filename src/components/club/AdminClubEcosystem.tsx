@@ -116,6 +116,7 @@ import {
   isValidCnpj,
   cleanDigits,
   formatCpf,
+  formatPhone,
   formatBirthDate,
   getMemberAccessMessage,
   updateAsaasPaymentDueDate,
@@ -125,6 +126,11 @@ import {
   isMemberBlockedForMissingDoc,
   attachMemberProofDocument,
   verifyMemberProofDocument,
+  getConsultantSlug,
+  buildConsultantReferralUrl,
+  doesConsultantAllowModality,
+  getSelectablePlansForConsultants,
+  getConsultantSubscriptionMetrics,
 } from '@/lib/club-service';
 import {
   getSeenClubSubIds,
@@ -373,10 +379,15 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     'TODOS' | 'ACTIVE' | 'INACTIVE'
   >('TODOS');
   const [showNewConsultantForm, setShowNewConsultantForm] = useState(false);
+  const [newConsRole, setNewConsRole] = useState<'CONSULTOR' | 'INFLUENCER'>('CONSULTOR');
   const [newConsName, setNewConsName] = useState('');
   const [newConsCpf, setNewConsCpf] = useState('');
   const [newConsPhone, setNewConsPhone] = useState('');
   const [newConsEmail, setNewConsEmail] = useState('');
+  const [newConsPassword, setNewConsPassword] = useState('');
+  const [showNewConsPassword, setShowNewConsPassword] = useState(false);
+  const [newConsAllowedPlans, setNewConsAllowedPlans] = useState<string[]>([]);
+  const [isSavingConsultant, setIsSavingConsultant] = useState(false);
   const [newConsCommissionType, setNewConsCommissionType] = useState<'PERCENT' | 'FIXED'>('PERCENT');
   const [newConsCommission, setNewConsCommission] = useState<number>(10);
   const [newConsCommissionRecurring, setNewConsCommissionRecurring] = useState(false);
@@ -388,6 +399,10 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     recurrence: true,
   });
   const [newConsCode, setNewConsCode] = useState('');
+
+  // Modal Editar Consultor / Influencer
+  const [editingConsultant, setEditingConsultant] = useState<ClubConsultant | null>(null);
+  const [showEditConsPassword, setShowEditConsPassword] = useState(false);
 
   // Modal Gerar Link de Indicação (Screenshot 4)
   const [selectedConsultantForLink, setSelectedConsultantForLink] = useState<ClubConsultant | null>(null);
@@ -1399,46 +1414,183 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     });
   };
 
+  const generateUniqueReferralCode = (
+    preferredCode: string,
+    fullName: string,
+    excludeId?: string
+  ): string => {
+    const existingCodes = new Set(
+      (state?.consultants || [])
+        .filter((c) => c.id !== excludeId)
+        .map((c) => c.referralCode.trim().toUpperCase())
+    );
+    const cleanedPreferred = preferredCode
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toUpperCase()
+      .replace(/[^A-Z0-9_-]/g, '');
+
+    if (cleanedPreferred && !existingCodes.has(cleanedPreferred)) {
+      return cleanedPreferred;
+    }
+
+    const baseName = fullName
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+      .split(/\s+/)[0]
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '') || 'CONSULTOR';
+
+    if (!existingCodes.has(baseName)) return baseName;
+    let counter = 2;
+    while (existingCodes.has(`${baseName}${counter}`)) {
+      counter++;
+    }
+    return `${baseName}${counter}`;
+  };
+
   const handleCreateConsultant = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!state || !newConsName.trim()) return;
-    const assignedRole = consultantRoleFilter === 'INFLUENCER' ? 'INFLUENCER' : 'CONSULTOR';
+    if (!state) {
+      toast({
+        variant: 'destructive',
+        title: 'Aguarde o carregamento',
+        description: 'Os dados do sistema ainda estão carregando. Tente novamente em instantes.',
+      });
+      return;
+    }
+    if (!newConsName.trim()) {
+      toast({
+        variant: 'destructive',
+        title: 'Nome obrigatório',
+        description: 'Preencha o Nome Completo do consultor ou influencer.',
+      });
+      return;
+    }
+
+    const allPlanCodes = getSelectablePlansForConsultants(state.modalities).map((p) => p.code);
+    const selectedPlans =
+      newConsAllowedPlans.length > 0 ? newConsAllowedPlans : allPlanCodes;
+    const assignedRole = newConsRole === 'INFLUENCER' ? 'INFLUENCER' : 'CONSULTOR';
+    const referralCode = generateUniqueReferralCode(newConsCode, newConsName);
+    const cpfFormatted = newConsCpf.trim() ? formatCpf(newConsCpf) || newConsCpf.trim() : '000.000.000-00';
+    const passwordToSave =
+      newConsPassword.trim() ||
+      cleanDigits(newConsCpf) ||
+      '123456';
+
     const newCons: ClubConsultant = {
       id: `cons_${Date.now()}`,
       name: newConsName.trim(),
-      cpf: newConsCpf.trim() || '000.000.000-00',
+      cpf: cpfFormatted,
       phone: newConsPhone.trim(),
-      email: newConsEmail.trim(),
+      email: newConsEmail.trim().toLowerCase(),
+      password: passwordToSave,
       role: assignedRole,
       commissionType: newConsCommissionType,
-      commissionValue: Number(newConsCommission) || 10,
-      commissionPercent: newConsCommissionType === 'PERCENT' ? (Number(newConsCommission) || 10) : 10,
+      commissionValue: Number(newConsCommission) || 0,
+      commissionPercent: newConsCommissionType === 'PERCENT' ? (Number(newConsCommission) || 0) : 10,
       commissionRecurring: newConsCommissionRecurring,
       commissionFirstOnly: newConsCommissionFirstOnly,
       paymentMethodsAllowed: { ...newConsMethods },
-      referralCode:
-        newConsCode.trim().toUpperCase() ||
-        newConsName
-          .trim()
-          .split(' ')[0]
-          .toUpperCase() + Math.floor(10 + Math.random() * 89),
+      allowedPlanCodes: selectedPlans,
+      referralCode,
+      clicksCount: 0,
       status: 'ACTIVE',
       createdAt: new Date().toISOString(),
     };
-    await persist({
-      ...state,
-      consultants: [newCons, ...state.consultants],
-    });
-    setNewConsName('');
-    setNewConsCpf('');
-    setNewConsPhone('');
-    setNewConsEmail('');
-    setNewConsCode('');
-    setShowNewConsultantForm(false);
-    toast({
-      title: `${assignedRole === 'INFLUENCER' ? 'Influencer' : 'Consultor'} cadastrado com sucesso!`,
-      description: `Código de Indicação: ${newCons.referralCode} (${newConsCommissionType === 'FIXED' ? `R$ ${newConsCommission},00 fixo` : `${newConsCommission}%`})`,
-    });
+
+    setIsSavingConsultant(true);
+    try {
+      await persist({
+        ...state,
+        consultants: [newCons, ...(state.consultants || [])],
+      });
+      setNewConsName('');
+      setNewConsCpf('');
+      setNewConsPhone('');
+      setNewConsEmail('');
+      setNewConsPassword('');
+      setNewConsCode('');
+      setNewConsAllowedPlans(allPlanCodes);
+      setConsultantRoleFilter('TODOS');
+      setConsultantStatusFilter('TODOS');
+      setShowNewConsultantForm(false);
+      toast({
+        title: `${assignedRole === 'INFLUENCER' ? 'Influencer' : 'Consultor'} cadastrado com sucesso!`,
+        description: `Código: ${newCons.referralCode} • Login: ${newCons.email || newCons.cpf} • Senha: ${passwordToSave}`,
+      });
+    } catch (err: any) {
+      console.error('[AdminClub] Erro ao salvar consultor:', err);
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao cadastrar consultor/influencer',
+        description: err?.message || 'Não foi possível salvar no banco de dados. Tente novamente.',
+      });
+    } finally {
+      setIsSavingConsultant(false);
+    }
+  };
+
+  const handleSaveEditedConsultant = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!state || !editingConsultant) return;
+    if (!editingConsultant.name.trim()) {
+      toast({
+        variant: 'destructive',
+        title: 'Nome obrigatório',
+        description: 'Informe o nome do consultor/influencer.',
+      });
+      return;
+    }
+
+    const uniqueCode = generateUniqueReferralCode(
+      editingConsultant.referralCode,
+      editingConsultant.name,
+      editingConsultant.id
+    );
+
+    const updatedCons: ClubConsultant = {
+      ...editingConsultant,
+      name: editingConsultant.name.trim(),
+      cpf: editingConsultant.cpf.trim() ? formatCpf(editingConsultant.cpf) || editingConsultant.cpf.trim() : '000.000.000-00',
+      phone: editingConsultant.phone.trim(),
+      email: (editingConsultant.email || '').trim().toLowerCase(),
+      password:
+        (editingConsultant.password || '').trim() ||
+        cleanDigits(editingConsultant.cpf) ||
+        '123456',
+      referralCode: uniqueCode,
+      commissionPercent:
+        editingConsultant.commissionType === 'FIXED'
+          ? editingConsultant.commissionPercent || 10
+          : Number(editingConsultant.commissionValue ?? editingConsultant.commissionPercent ?? 10),
+    };
+
+    setIsSavingConsultant(true);
+    try {
+      await persist({
+        ...state,
+        consultants: (state.consultants || []).map((c) =>
+          c.id === updatedCons.id ? updatedCons : c
+        ),
+      });
+      setEditingConsultant(null);
+      toast({
+        title: 'Cadastro atualizado!',
+        description: `Dados e credenciais de ${updatedCons.name} salvos com sucesso.`,
+      });
+    } catch (err: any) {
+      console.error('[AdminClub] Erro ao editar consultor:', err);
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao atualizar consultor',
+        description: err?.message || 'Tente novamente.',
+      });
+    } finally {
+      setIsSavingConsultant(false);
+    }
   };
 
   const handleToggleConsultantStatus = async (consultantId: string) => {
@@ -4516,9 +4668,36 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   </Button>
                 </div>
 
+                <a
+                  href="/consultor"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="border-emerald-700 text-emerald-900 hover:bg-emerald-50 hover:text-emerald-950 font-bold text-xs h-9"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5 mr-1" /> Portal do Consultor
+                  </Button>
+                </a>
+
                 <Button
+                  type="button"
                   size="sm"
-                  onClick={() => setShowNewConsultantForm((p) => !p)}
+                  onClick={() => {
+                    const opening = !showNewConsultantForm;
+                    if (opening && state) {
+                      setNewConsRole(
+                        consultantRoleFilter === 'INFLUENCER' ? 'INFLUENCER' : 'CONSULTOR'
+                      );
+                      setNewConsAllowedPlans(
+                        getSelectablePlansForConsultants(state.modalities).map((p) => p.code)
+                      );
+                    }
+                    setShowNewConsultantForm(opening);
+                  }}
                   className="bg-[#004d00] hover:bg-emerald-900 text-white font-bold text-xs h-9"
                 >
                   <Plus className="w-4 h-4 mr-1" /> Novo Consultor / Influencer
@@ -4526,18 +4705,18 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
               </div>
             </div>
 
-            {/* FORMULÁRIO DE CADASTRO COM TODOS OS DADOS DA SCREENSHOT 2 */}
+            {/* FORMULÁRIO DE CADASTRO COMPLETO COM LOGIN, SENHA, LINK PERSONALIZADO E SELEÇÃO DE PLANOS */}
             {showNewConsultantForm && (
               <form
                 onSubmit={handleCreateConsultant}
                 className="bg-emerald-50/80 border border-emerald-300 rounded-2xl p-5 space-y-4 shadow-sm"
               >
-                <div className="flex items-center justify-between border-b border-emerald-200 pb-2">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-emerald-200 pb-2">
                   <h4 className="font-black text-sm text-emerald-950 uppercase tracking-wide">
                     Cadastrar Novo Consultor de Vendas / Influencer
                   </h4>
                   <Badge className="bg-emerald-800 text-white text-xs">
-                    Comissão Flexível (% ou R$) + Link Rastreado
+                    Link Personalizado + Acesso ao Portal (E-mail e Senha)
                   </Badge>
                 </div>
 
@@ -4556,16 +4735,17 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     <Label className="text-xs font-bold">CPF *</Label>
                     <Input
                       value={newConsCpf}
-                      onChange={(e) => setNewConsCpf(e.target.value)}
+                      onChange={(e) => setNewConsCpf(formatCpf(e.target.value))}
                       placeholder="000.000.000-00"
                       className="bg-white mt-1 h-9"
+                      required
                     />
                   </div>
                   <div className="sm:col-span-3">
                     <Label className="text-xs font-bold">Telefone / WhatsApp *</Label>
                     <Input
                       value={newConsPhone}
-                      onChange={(e) => setNewConsPhone(e.target.value)}
+                      onChange={(e) => setNewConsPhone(formatPhone(e.target.value))}
                       placeholder="(69) 99999-9999"
                       className="bg-white mt-1 h-9"
                       required
@@ -4574,13 +4754,69 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   <div className="sm:col-span-2">
                     <Label className="text-xs font-bold">Papel</Label>
                     <select
-                      value={consultantRoleFilter === 'INFLUENCER' ? 'INFLUENCER' : 'CONSULTOR'}
-                      onChange={(e) => setConsultantRoleFilter(e.target.value as any)}
+                      value={newConsRole}
+                      onChange={(e) => setNewConsRole(e.target.value as 'CONSULTOR' | 'INFLUENCER')}
                       className="w-full h-9 rounded-md border border-slate-300 px-2 text-xs font-bold bg-white mt-1"
                     >
                       <option value="CONSULTOR">Consultor</option>
                       <option value="INFLUENCER">Influencer</option>
                     </select>
+                  </div>
+
+                  {/* CREDENCIAIS DE ACESSO AO PORTAL + CÓDIGO PERSONALIZADO */}
+                  <div className="sm:col-span-4">
+                    <Label className="text-xs font-bold">E-mail de Acesso (Portal) *</Label>
+                    <Input
+                      type="email"
+                      value={newConsEmail}
+                      onChange={(e) => setNewConsEmail(e.target.value)}
+                      placeholder="vendedor@email.com"
+                      className="bg-white mt-1 h-9"
+                      required
+                    />
+                  </div>
+
+                  <div className="sm:col-span-4">
+                    <Label className="text-xs font-bold">Senha de Acesso (Portal) *</Label>
+                    <div className="relative mt-1">
+                      <Input
+                        type={showNewConsPassword ? 'text' : 'password'}
+                        value={newConsPassword}
+                        onChange={(e) => setNewConsPassword(e.target.value)}
+                        placeholder="Crie a senha do consultor"
+                        className="bg-white h-9 pr-9"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewConsPassword((p) => !p)}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-800"
+                      >
+                        {showNewConsPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="sm:col-span-4">
+                    <Label className="text-xs font-bold">Código Personalizado no Link</Label>
+                    <Input
+                      value={newConsCode}
+                      onChange={(e) =>
+                        setNewConsCode(
+                          e.target.value
+                            .normalize('NFD')
+                            .replace(/[\u0300-\u036f]/g, '')
+                            .toUpperCase()
+                            .replace(/[^A-Z0-9_-]/g, '')
+                        )
+                      }
+                      placeholder={
+                        newConsName.trim()
+                          ? `Ex: ${getConsultantSlug(newConsName.split(' ')[0]).toUpperCase()}`
+                          : 'Automático pelo nome'
+                      }
+                      className="bg-white mt-1 h-9 font-mono uppercase"
+                    />
                   </div>
 
                   {/* CONFIGURAÇÃO DA COMISSÃO (PERCENTUAL OU EM R$ FIXO) */}
@@ -4612,7 +4848,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   </div>
 
                   <div className="sm:col-span-6 flex flex-col justify-end space-y-2 pb-1">
-                    <div className="flex items-center gap-4 text-xs font-semibold text-slate-800">
+                    <div className="flex flex-wrap items-center gap-4 text-xs font-semibold text-slate-800">
                       <label className="flex items-center gap-1.5 cursor-pointer">
                         <input
                           type="checkbox"
@@ -4634,7 +4870,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     </div>
                   </div>
 
-                  {/* FORMAS DE VENDAS AUTORIZADAS (SCREENSHOT 2) */}
+                  {/* FORMAS DE VENDAS AUTORIZADAS */}
                   <div className="sm:col-span-12 pt-2 border-t border-emerald-200">
                     <Label className="text-xs font-bold text-slate-700 mb-1.5 block">
                       Formas de Vendas Liberadas para este Consultor:
@@ -4686,6 +4922,90 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                       </label>
                     </div>
                   </div>
+
+                  {/* PAINEL DE SELEÇÃO DE PLANOS EXISTENTES PARA O LINK DO CONSULTOR */}
+                  {(() => {
+                    const selectablePlans = getSelectablePlansForConsultants(state.modalities);
+                    return (
+                      <div className="sm:col-span-12 pt-3 border-t border-emerald-200 space-y-2.5">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <Label className="text-xs font-black text-emerald-950 uppercase block">
+                              Planos Visíveis no Link Personalizado ({newConsAllowedPlans.length}/{selectablePlans.length})
+                            </Label>
+                            <span className="text-[11px] font-medium text-emerald-800">
+                              Selecione quais planos existentes devem aparecer quando o cliente acessar o link deste consultor.
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() =>
+                                setNewConsAllowedPlans(selectablePlans.map((p) => p.code))
+                              }
+                              className="h-7 text-[11px] font-bold bg-white border-emerald-600 text-emerald-900 hover:bg-emerald-100"
+                            >
+                              Selecionar Todos
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setNewConsAllowedPlans([])}
+                              className="h-7 text-[11px] font-bold bg-white border-slate-300 text-slate-700 hover:bg-slate-100"
+                            >
+                              Limpar Seleção
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+                          {selectablePlans.map((plan) => {
+                            const checked = newConsAllowedPlans.includes(plan.code);
+                            return (
+                              <label
+                                key={plan.code}
+                                className={`flex items-start gap-2 p-2.5 rounded-xl border cursor-pointer transition-all ${
+                                  checked
+                                    ? 'bg-white border-emerald-600 shadow-sm ring-1 ring-emerald-500/30'
+                                    : 'bg-white/60 border-slate-200 opacity-75 hover:opacity-100'
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setNewConsAllowedPlans((prev) =>
+                                        prev.includes(plan.code) ? prev : [...prev, plan.code]
+                                      );
+                                    } else {
+                                      setNewConsAllowedPlans((prev) =>
+                                        prev.filter((c) => c !== plan.code)
+                                      );
+                                    }
+                                  }}
+                                  className="w-4 h-4 mt-0.5 rounded text-emerald-700 shrink-0"
+                                />
+                                <div className="min-w-0">
+                                  <span className="font-black text-xs text-slate-900 block truncate">
+                                    {plan.name}
+                                  </span>
+                                  <span className="text-[10px] font-semibold text-emerald-800 block">
+                                    {plan.isFreeTier
+                                      ? 'Gratuito (R$ 0,00)'
+                                      : `Mensal ${formatCurrency(plan.monthlyPrice)} • Anual ${formatCurrency(plan.annualPrice)}`}
+                                  </span>
+                                </div>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <div className="flex justify-end gap-2 pt-2 border-t border-emerald-200">
@@ -4693,15 +5013,17 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     type="button"
                     variant="outline"
                     onClick={() => setShowNewConsultantForm(false)}
-                    className="h-9 text-xs"
+                    className="h-9 text-xs bg-white text-slate-800 hover:bg-slate-100"
+                    disabled={isSavingConsultant}
                   >
                     Cancelar
                   </Button>
                   <Button
                     type="submit"
+                    disabled={isSavingConsultant}
                     className="bg-[#004d00] hover:bg-emerald-900 text-white font-black text-xs h-9 px-5"
                   >
-                    Salvar e Ativar Vendedor
+                    {isSavingConsultant ? 'Salvando...' : 'Salvar e Ativar Vendedor'}
                   </Button>
                 </div>
               </form>
@@ -4720,37 +5042,29 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   return true;
                 })
                 .map((cons) => {
-                  const linkedSubs = (state.subscriptions || []).filter(
-                    (s) =>
-                      s.consultantName?.toLowerCase() === cons.name.toLowerCase() ||
-                      s.influencerName?.toLowerCase() === cons.name.toLowerCase() ||
-                      s.consultantCode?.toLowerCase() === cons.referralCode.toLowerCase()
+                  const metrics = getConsultantSubscriptionMetrics(
+                    cons,
+                    state.subscriptions || []
                   );
-                  const leadsCount = linkedSubs.length; // Quantas pessoas aderiram
-
-                  // Contabilidade de vendas: APENAS APÓS PAGAMENTO EFETIVO DO PLANO
-                  const paidSubs = linkedSubs.filter(
-                    (s) => s.status === 'ACTIVE' || (s.invoices || []).some((inv) => inv.status === 'PAID')
+                  const leadsCount = metrics.linkedSubs.length;
+                  const paidCount = metrics.paidCount;
+                  const totalPaidCommission = metrics.totalPaidCommission;
+                  const selectablePlans = getSelectablePlansForConsultants(state.modalities);
+                  const allowedList =
+                    cons.allowedPlanCodes && cons.allowedPlanCodes.length > 0
+                      ? selectablePlans.filter((p) =>
+                          doesConsultantAllowModality(cons.allowedPlanCodes, p)
+                        )
+                      : selectablePlans;
+                  const personalizedPreview = buildConsultantReferralUrl(
+                    window.location.origin,
+                    cons
                   );
-                  const paidCount = paidSubs.length;
-                  const totalPaidVolume = paidSubs.reduce(
-                    (acc, s) => acc + (s.totalContractValue || (s.monthlyEquivalent * 12) || 0),
-                    0
-                  );
-
-                  const totalPaidCommission = paidSubs.reduce((acc, s) => {
-                    const planVal = s.totalContractValue || (s.monthlyEquivalent * 12) || 0;
-                    if (cons.commissionType === 'FIXED') {
-                      return acc + (cons.commissionValue || 0);
-                    }
-                    const pct = cons.commissionPercent || cons.commissionValue || 10;
-                    return acc + (planVal * pct) / 100;
-                  }, 0);
 
                   const commissionText =
                     cons.commissionType === 'FIXED'
                       ? `R$ ${(cons.commissionValue || 0).toFixed(2)} por venda paga`
-                      : `${cons.commissionPercent || cons.commissionValue || 10}% sobre contratos pagos`;
+                      : `${cons.commissionPercent || cons.commissionValue || 10}% sobre vendas pagas`;
 
                   return (
                     <div
@@ -4759,7 +5073,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     >
                       <div>
                         <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-black text-slate-900 text-sm">
                               {cons.name}
                             </span>
@@ -4786,31 +5100,62 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
                         <div className="text-xs text-slate-600 mt-2 space-y-1">
                           <p>
-                            Código de Indicação: <strong className="font-mono text-emerald-800">{cons.referralCode}</strong>
+                            Código de Indicação:{' '}
+                            <strong className="font-mono text-emerald-800">
+                              {cons.referralCode}
+                            </strong>{' '}
+                            • Planos no Link:{' '}
+                            <strong className="text-slate-900">
+                              {cons.allowedPlanCodes && cons.allowedPlanCodes.length > 0
+                                ? `${allowedList.length}/${selectablePlans.length}`
+                                : `Todos (${selectablePlans.length})`}
+                            </strong>
                           </p>
                           <p>
                             Tel: <strong>{cons.phone || '—'}</strong> • CPF: {cons.cpf}
                           </p>
                           <p>
-                            Comissão Configurada: <strong className="text-emerald-900">{commissionText}</strong>
+                            Login Portal:{' '}
+                            <strong className="text-slate-900">
+                              {cons.email || cons.cpf || '—'}
+                            </strong>{' '}
+                            • Senha:{' '}
+                            <strong className="font-mono text-slate-800">
+                              {cons.password || cleanDigits(cons.cpf) || '123456'}
+                            </strong>
+                          </p>
+                          <p className="truncate text-[11px] text-emerald-900 bg-emerald-100/60 px-2 py-1 rounded border border-emerald-200 font-mono">
+                            {personalizedPreview}
+                          </p>
+                          <p>
+                            Comissão Configurada:{' '}
+                            <strong className="text-emerald-900">{commissionText}</strong>
                             {cons.commissionRecurring && ' (Recorrente)'}
                           </p>
                           <div className="mt-2.5 pt-2 border-t border-slate-200 grid grid-cols-2 gap-1.5 text-[11px]">
                             <div className="bg-white p-2 rounded-lg border border-slate-200">
                               <span className="text-slate-500 block">Acessos Link / QR:</span>
-                              <strong className="text-slate-900 text-xs">{cons.clicksCount || 0} acessos</strong>
+                              <strong className="text-slate-900 text-xs">
+                                {cons.clicksCount || 0} acessos
+                              </strong>
                             </div>
                             <div className="bg-white p-2 rounded-lg border border-slate-200">
                               <span className="text-slate-500 block">Pessoas Aderiram:</span>
-                              <strong className="text-slate-900 text-xs">{leadsCount} cadastros</strong>
+                              <strong className="text-slate-900 text-xs">
+                                {leadsCount} cadastros
+                              </strong>
                             </div>
                             <div className="bg-emerald-50 p-2 rounded-lg border border-emerald-200">
                               <span className="text-emerald-800 block">Vendas Pagas:</span>
-                              <strong className="text-emerald-950 text-xs">{paidCount} confirmadas</strong>
+                              <strong className="text-emerald-950 text-xs">
+                                {paidCount} confirmadas
+                              </strong>
                             </div>
                             <div className="bg-emerald-50 p-2 rounded-lg border border-emerald-200">
                               <span className="text-emerald-800 block">Comissão Efetiva:</span>
-                              <strong className="text-emerald-900 text-xs">{formatCurrency(totalPaidCommission)}</strong>
+                              <strong className="text-emerald-900 text-xs">
+                                {formatCurrency(totalPaidCommission)}
+                              </strong>
                             </div>
                           </div>
                         </div>
@@ -4819,49 +5164,78 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                       <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-200">
                         <div className="flex flex-wrap items-center gap-1.5">
                           <Button
+                            type="button"
                             size="sm"
-                            onClick={() => setSelectedConsultantForLink(cons)}
+                            onClick={() => {
+                              setLinkPlanSelection('TODOS');
+                              setLinkAllowedMethods(
+                                cons.paymentMethodsAllowed || {
+                                  boleto: true,
+                                  pix: true,
+                                  creditCard: true,
+                                  recurrence: true,
+                                }
+                              );
+                              setSelectedConsultantForLink(cons);
+                            }}
                             className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs h-8"
                           >
-                            <QrCode className="w-3.5 h-3.5 mr-1" /> Gerar Link & QR Code
+                            <QrCode className="w-3.5 h-3.5 mr-1" /> Link & QR Code
                           </Button>
                           <Button
+                            type="button"
                             size="sm"
                             variant="outline"
                             onClick={() => {
+                              const currentAllowed = selectablePlans
+                                .filter((p) => doesConsultantAllowModality(cons.allowedPlanCodes, p))
+                                .map((p) => p.code);
                               setSelectedConsultantForPlans(cons);
                               setDraftAllowedPlans(
                                 cons.allowedPlanCodes && cons.allowedPlanCodes.length > 0
-                                  ? cons.allowedPlanCodes
-                                  : ALL_CONSULTANT_PLANS.map((p) => p.code)
+                                  ? currentAllowed
+                                  : selectablePlans.map((p) => p.code)
                               );
                             }}
-                            className="border-slate-300 text-slate-800 hover:bg-slate-100 font-bold text-xs h-8"
+                            className="bg-white border-slate-300 text-slate-800 hover:bg-slate-100 hover:text-slate-900 font-bold text-xs h-8"
                             title="Selecionar quais planos devem aparecer para este vendedor"
                           >
-                            <Settings className="w-3.5 h-3.5 mr-1 text-slate-600" /> Permissão de Planos
+                            <Settings className="w-3.5 h-3.5 mr-1 text-slate-600" /> Planos
                           </Button>
                           <Button
+                            type="button"
                             size="sm"
                             variant="outline"
                             onClick={() => setSelectedConsultantForAccounting(cons)}
-                            className="border-emerald-600 text-emerald-900 hover:bg-emerald-50 font-bold text-xs h-8"
+                            className="bg-white border-emerald-600 text-emerald-900 hover:bg-emerald-50 hover:text-emerald-950 font-bold text-xs h-8"
                             title="Ver Vendas Pagas e Comissões"
                           >
-                            <DollarSign className="w-3.5 h-3.5 mr-1 text-emerald-700" /> Contabilidade ({paidCount})
+                            <DollarSign className="w-3.5 h-3.5 mr-1 text-emerald-700" /> Contab. ({paidCount})
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setEditingConsultant({ ...cons })}
+                            className="bg-white border-slate-300 text-slate-800 hover:bg-slate-100 hover:text-slate-900 font-bold text-xs h-8"
+                            title="Editar cadastro, e-mail e senha de acesso"
+                          >
+                            <Edit3 className="w-3.5 h-3.5 mr-1 text-slate-600" /> Editar
                           </Button>
                         </div>
 
                         <div className="flex items-center gap-1.5">
                           <Button
+                            type="button"
                             size="sm"
                             variant="outline"
                             onClick={() => handleToggleConsultantStatus(cons.id)}
-                            className="text-xs h-8"
+                            className="bg-white text-slate-800 hover:bg-slate-100 hover:text-slate-900 text-xs h-8"
                           >
                             {cons.status === 'ACTIVE' ? 'Desativar' : 'Ativar'}
                           </Button>
                           <Button
+                            type="button"
                             size="sm"
                             variant="ghost"
                             onClick={() => handleDeleteConsultant(cons.id, cons.name)}
@@ -4884,41 +5258,59 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
           </div>
 
           {/* =====================================================================
-              MODAL GERAR LINK DE INDICAÇÃO PERSONALIZADO + QR CODE (SCREENSHOT 4)
+              MODAL GERAR LINK PERSONALIZADO + QR CODE + ACESSO AO PORTAL
           ===================================================================== */}
           <Dialog
             open={!!selectedConsultantForLink}
             onOpenChange={(open) => !open && setSelectedConsultantForLink(null)}
           >
-            <DialogContent className="max-w-xl p-6 space-y-4">
+            <DialogContent className="max-w-xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
               {selectedConsultantForLink && (() => {
                 const baseUrl = window.location.origin;
-                const planParam =
-                  linkPlanSelection !== 'TODOS' ? `&plano=${linkPlanSelection}` : '';
-                const fullReferralLink = `${baseUrl}/planos?ref=${selectedConsultantForLink.referralCode}${planParam}`;
+                const fullReferralLink = buildConsultantReferralUrl(
+                  baseUrl,
+                  selectedConsultantForLink,
+                  linkPlanSelection
+                );
                 const qrUrl = getQrCodeImageUrl(fullReferralLink, 280);
+                const permittedModalities = (state.modalities || []).filter(
+                  (m) =>
+                    m.active !== false &&
+                    doesConsultantAllowModality(selectedConsultantForLink.allowedPlanCodes, m)
+                );
+                const portalUrl = `${baseUrl}/consultor`;
+                const consPass =
+                  selectedConsultantForLink.password ||
+                  cleanDigits(selectedConsultantForLink.cpf) ||
+                  '123456';
 
                 return (
                   <div className="space-y-4">
                     <DialogHeader>
                       <DialogTitle className="text-base font-black text-slate-900 uppercase">
-                        GERAR LINK DE INDICAÇÃO PF PERSONALIZADO
+                        LINK PERSONALIZADO & QR CODE DE VENDAS
                       </DialogTitle>
-                      <p className="text-xs text-slate-500">
-                        Consultor / Influencer: <strong>{selectedConsultantForLink.name}</strong> (Código: {selectedConsultantForLink.referralCode})
+                      <p className="text-xs text-slate-600">
+                        {selectedConsultantForLink.role === 'INFLUENCER' ? 'Influencer' : 'Consultor'}:{' '}
+                        <strong className="text-emerald-900">{selectedConsultantForLink.name}</strong>{' '}
+                        • Código: <strong className="font-mono">{selectedConsultantForLink.referralCode}</strong>
                       </p>
                     </DialogHeader>
 
                     <div className="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs">
                       <div>
-                        <Label className="text-xs font-bold text-slate-700">Selecione o plano:</Label>
+                        <Label className="text-xs font-bold text-slate-700">
+                          Direcionar para Plano Específico ({permittedModalities.length} liberado(s)):
+                        </Label>
                         <select
                           value={linkPlanSelection}
                           onChange={(e) => setLinkPlanSelection(e.target.value)}
                           className="w-full h-9 rounded-md border border-slate-300 px-2 text-xs font-bold bg-white mt-1"
                         >
-                          <option value="TODOS">Todos os Planos (Página Geral de Adesão)</option>
-                          {(state.modalities || []).map((m) => (
+                          <option value="TODOS">
+                            Todos os Planos Liberados para este Vendedor ({permittedModalities.length})
+                          </option>
+                          {permittedModalities.map((m) => (
                             <option key={m.code} value={m.code}>
                               {m.name} — Mensal: {formatCurrency(m.monthlyPrice)} / Anual: {formatCurrency(m.annualPrice)}
                             </option>
@@ -4928,7 +5320,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
                       <div>
                         <Label className="text-xs font-bold text-slate-700 mb-1 block">
-                          Formas de Vendas Permitidas:
+                          Formas de Vendas Configuradas:
                         </Label>
                         <div className="flex flex-wrap gap-4 text-xs font-semibold">
                           <label className="flex items-center gap-1.5 cursor-pointer">
@@ -4982,7 +5374,9 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     {/* LINK E QR CODE GERADOS */}
                     <div className="p-4 bg-emerald-50/70 border border-emerald-300 rounded-xl space-y-3">
                       <div>
-                        <Label className="text-xs font-bold text-emerald-950">Link Rastreado do Vendedor:</Label>
+                        <Label className="text-xs font-bold text-emerald-950">
+                          Link Único Personalizado com Identificação do Consultor:
+                        </Label>
                         <div className="flex items-center gap-2 mt-1">
                           <Input
                             readOnly
@@ -4995,13 +5389,26 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                               navigator.clipboard.writeText(fullReferralLink);
                               toast({
                                 title: 'Link copiado!',
-                                description: 'O link de indicação foi copiado para a área de transferência.',
+                                description: 'O link personalizado do consultor foi copiado.',
                               });
                             }}
                             className="bg-[#004d00] hover:bg-emerald-900 text-white font-bold text-xs h-9 px-3 shrink-0"
                           >
-                            <Copy className="w-3.5 h-3.5 mr-1" /> Copiar Link
+                            <Copy className="w-3.5 h-3.5 mr-1" /> Copiar
                           </Button>
+                          <a
+                            href={fullReferralLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="bg-white border-emerald-600 text-emerald-900 hover:bg-emerald-100 font-bold text-xs h-9 px-3 shrink-0"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5 mr-1" /> Abrir
+                            </Button>
+                          </a>
                         </div>
                       </div>
 
@@ -5014,7 +5421,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         <div className="space-y-1.5 text-xs text-emerald-950">
                           <strong className="block text-sm">QR Code Exclusivo de Indicação</strong>
                           <p className="text-[11px] text-emerald-800">
-                            Aponte a câmera do celular para este QR Code para abrir direto a contratação com a comissão vinculada a <strong>{selectedConsultantForLink.name}</strong>.
+                            Ao abrir o link ou QR Code, o cliente verá o banner oficial confirmando o atendimento de{' '}
+                            <strong>{selectedConsultantForLink.name}</strong> e apenas os planos liberados para ele.
                           </p>
                           <a
                             href={qrUrl}
@@ -5026,13 +5434,34 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                               type="button"
                               size="sm"
                               variant="outline"
-                              className="text-xs font-bold border-emerald-600 text-emerald-900 h-8 mt-1"
+                              className="bg-white text-xs font-bold border-emerald-600 text-emerald-900 hover:bg-emerald-100 h-8 mt-1"
                             >
                               Baixar Imagem QR Code
                             </Button>
                           </a>
                         </div>
                       </div>
+                    </div>
+
+                    {/* CREDENCIAIS DO PORTAL DO CONSULTOR */}
+                    <div className="p-3.5 bg-slate-900 text-white rounded-xl text-xs space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <strong className="text-amber-300 uppercase text-[11px]">
+                          Acesso ao Portal do Consultor
+                        </strong>
+                        <a
+                          href={portalUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-emerald-300 hover:underline font-bold"
+                        >
+                          {portalUrl}
+                        </a>
+                      </div>
+                      <p className="text-slate-300">
+                        Usuário: <strong className="text-white">{selectedConsultantForLink.email || selectedConsultantForLink.cpf}</strong>{' '}
+                        • Senha: <strong className="font-mono text-white">{consPass}</strong>
+                      </p>
                     </div>
                   </div>
                 );
@@ -5041,192 +5470,218 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
           </Dialog>
 
           {/* =====================================================================
-              MODAL PERMISSÃO DE PLANOS (IDÊNTICO À SCREENSHOT 4 DO USUÁRIO)
+              MODAL PERMISSÃO DE PLANOS (TODOS OS PLANOS EXISTENTES NO SISTEMA)
           ===================================================================== */}
           <Dialog
             open={!!selectedConsultantForPlans}
             onOpenChange={(open) => !open && setSelectedConsultantForPlans(null)}
           >
             <DialogContent className="max-w-4xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
-              {selectedConsultantForPlans && (
-                <div className="space-y-4">
-                  <DialogHeader className="border-b pb-2">
-                    <DialogTitle className="text-lg font-black text-slate-900 uppercase flex items-center gap-2">
-                      <span>PERMISSÃO DE PLANOS</span>
-                      <ChevronDown className="w-5 h-5 text-slate-500" />
-                    </DialogTitle>
-                    <p className="text-xs text-slate-600">
-                      Configure quais planos devem aparecer no link e QR Code de vendas para:{' '}
-                      <strong className="text-emerald-900">{selectedConsultantForPlans.name}</strong>{' '}
-                      (Código: {selectedConsultantForPlans.referralCode})
-                    </p>
-                  </DialogHeader>
+              {selectedConsultantForPlans && (() => {
+                const selectablePlans = getSelectablePlansForConsultants(state?.modalities);
+                const permittedPlans = selectablePlans.filter((p) =>
+                  draftAllowedPlans.includes(p.code)
+                );
+                const unpermittedPlans = selectablePlans.filter(
+                  (p) => !draftAllowedPlans.includes(p.code)
+                );
 
-                  {/* Botões de Ação Rápida no Topo (Screenshot 4) */}
-                  <div className="flex items-center justify-between py-1">
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={() => setDraftAllowedPlans([])}
-                      className="bg-red-600 hover:bg-red-700 text-white font-black text-xs uppercase px-4 h-8 rounded"
-                    >
-                      REMOVER TODOS
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={() =>
-                        setDraftAllowedPlans(ALL_CONSULTANT_PLANS.map((p) => p.code))
-                      }
-                      className="bg-[#008000] hover:bg-emerald-700 text-white font-black text-xs uppercase px-4 h-8 rounded"
-                    >
-                      ADD TODOS
-                    </Button>
-                  </div>
+                return (
+                  <div className="space-y-4">
+                    <DialogHeader className="border-b pb-2">
+                      <DialogTitle className="text-lg font-black text-slate-900 uppercase flex items-center gap-2">
+                        <span>PERMISSÃO DE PLANOS NO LINK DO CONSULTOR</span>
+                        <ChevronDown className="w-5 h-5 text-slate-500" />
+                      </DialogTitle>
+                      <p className="text-xs text-slate-600">
+                        Escolha exatamente quais planos cadastrados no sistema devem aparecer no link e QR Code de{' '}
+                        <strong className="text-emerald-900">{selectedConsultantForPlans.name}</strong>{' '}
+                        (Código: {selectedConsultantForPlans.referralCode})
+                      </p>
+                    </DialogHeader>
 
-                  {/* Duas Tabelas Lado a Lado (PLANOS PERMITIDOS vs TODOS OS PLANOS) */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Coluna 1: PLANOS PERMITIDOS */}
-                    <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-                      <div className="bg-slate-100 px-3 py-2 border-b border-slate-200">
-                        <span className="font-black text-xs uppercase tracking-wide text-slate-800">
-                          PLANOS PERMITIDOS ({draftAllowedPlans.length})
-                        </span>
-                      </div>
-                      <div className="max-h-96 overflow-y-auto">
-                        <table className="w-full text-left border-collapse text-xs">
-                          <thead>
-                            <tr className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold">
-                              <th className="py-2 px-3">Plano</th>
-                              <th className="py-2 px-3 text-right">Ação</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100">
-                            {ALL_CONSULTANT_PLANS.filter((p) =>
-                              draftAllowedPlans.includes(p.code)
-                            ).map((p) => (
-                              <tr key={p.code} className="hover:bg-slate-50">
-                                <td className="py-2 px-3 font-semibold text-slate-800 flex items-center gap-1.5">
-                                  <span className="text-[10px] text-slate-400">▶</span>
-                                  <span>{p.name}</span>
-                                </td>
-                                <td className="py-2 px-3 text-right">
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setDraftAllowedPlans((prev) =>
-                                        prev.filter((c) => c !== p.code)
-                                      )
-                                    }
-                                    className="bg-red-600 hover:bg-red-700 text-white text-[11px] font-bold px-3 py-1 rounded"
+                    <div className="flex items-center justify-between py-1">
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => setDraftAllowedPlans([])}
+                        className="bg-red-600 hover:bg-red-700 text-white font-black text-xs uppercase px-4 h-8 rounded"
+                      >
+                        REMOVER TODOS
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() =>
+                          setDraftAllowedPlans(selectablePlans.map((p) => p.code))
+                        }
+                        className="bg-[#008000] hover:bg-emerald-700 text-white font-black text-xs uppercase px-4 h-8 rounded"
+                      >
+                        ADD TODOS ({selectablePlans.length})
+                      </Button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Coluna 1: PLANOS PERMITIDOS */}
+                      <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                        <div className="bg-slate-100 px-3 py-2 border-b border-slate-200">
+                          <span className="font-black text-xs uppercase tracking-wide text-slate-800">
+                            PLANOS PERMITIDOS NO LINK ({permittedPlans.length})
+                          </span>
+                        </div>
+                        <div className="max-h-96 overflow-y-auto">
+                          <table className="w-full text-left border-collapse text-xs">
+                            <thead>
+                              <tr className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold">
+                                <th className="py-2 px-3">Plano</th>
+                                <th className="py-2 px-3 text-right">Ação</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {permittedPlans.map((p) => (
+                                <tr key={p.code} className="hover:bg-slate-50">
+                                  <td className="py-2 px-3 font-semibold text-slate-800">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-[10px] text-emerald-600">▶</span>
+                                      <span>{p.name}</span>
+                                    </div>
+                                    <span className="text-[10px] text-slate-500 block pl-4">
+                                      {p.isFreeTier
+                                        ? 'Gratuito'
+                                        : `Mensal ${formatCurrency(p.monthlyPrice)} • Anual ${formatCurrency(p.annualPrice)}`}
+                                    </span>
+                                  </td>
+                                  <td className="py-2 px-3 text-right">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setDraftAllowedPlans((prev) =>
+                                          prev.filter((c) => c !== p.code)
+                                        )
+                                      }
+                                      className="bg-red-600 hover:bg-red-700 text-white text-[11px] font-bold px-3 py-1 rounded"
+                                    >
+                                      Remover
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                              {permittedPlans.length === 0 && (
+                                <tr>
+                                  <td
+                                    colSpan={2}
+                                    className="py-8 text-center text-slate-400 text-xs italic"
                                   >
-                                    Remover
-                                  </button>
-                                </td>
+                                    Nenhum plano selecionado. Clique em "Add" ao lado ou "ADD TODOS".
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      {/* Coluna 2: TODOS OS PLANOS / DISPONÍVEIS */}
+                      <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                        <div className="bg-slate-100 px-3 py-2 border-b border-slate-200">
+                          <span className="font-black text-xs uppercase tracking-wide text-slate-800">
+                            TODOS OS PLANOS EXISTENTES ({unpermittedPlans.length} disponíveis)
+                          </span>
+                        </div>
+                        <div className="max-h-96 overflow-y-auto">
+                          <table className="w-full text-left border-collapse text-xs">
+                            <thead>
+                              <tr className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold">
+                                <th className="py-2 px-3">Plano</th>
+                                <th className="py-2 px-3 text-right">Ação</th>
                               </tr>
-                            ))}
-                            {draftAllowedPlans.length === 0 && (
-                              <tr>
-                                <td
-                                  colSpan={2}
-                                  className="py-8 text-center text-slate-400 text-xs italic"
-                                >
-                                  Nenhum plano liberado. Clique em "Add" ao lado ou "ADD TODOS".
-                                </td>
-                              </tr>
-                            )}
-                          </tbody>
-                        </table>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {unpermittedPlans.map((p) => (
+                                <tr key={p.code} className="hover:bg-slate-50">
+                                  <td className="py-2 px-3 font-semibold text-slate-800">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-[10px] text-slate-400">▶</span>
+                                      <span>{p.name}</span>
+                                    </div>
+                                    <span className="text-[10px] text-slate-500 block pl-4">
+                                      {p.isFreeTier
+                                        ? 'Gratuito'
+                                        : `Mensal ${formatCurrency(p.monthlyPrice)} • Anual ${formatCurrency(p.annualPrice)}`}
+                                    </span>
+                                  </td>
+                                  <td className="py-2 px-3 text-right">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setDraftAllowedPlans((prev) =>
+                                          prev.includes(p.code) ? prev : [...prev, p.code]
+                                        )
+                                      }
+                                      className="bg-[#008000] hover:bg-emerald-700 text-white text-[11px] font-bold px-3.5 py-1 rounded"
+                                    >
+                                      Add
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                              {unpermittedPlans.length === 0 && (
+                                <tr>
+                                  <td
+                                    colSpan={2}
+                                    className="py-8 text-center text-emerald-700 font-bold text-xs"
+                                  >
+                                    ✓ Todos os planos já estão liberados para este vendedor!
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
                       </div>
                     </div>
 
-                    {/* Coluna 2: TODOS OS PLANOS / DISPONÍVEIS */}
-                    <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-                      <div className="bg-slate-100 px-3 py-2 border-b border-slate-200">
-                        <span className="font-black text-xs uppercase tracking-wide text-slate-800">
-                          TODOS OS PLANOS ({ALL_CONSULTANT_PLANS.length - draftAllowedPlans.length} disponíveis)
-                        </span>
-                      </div>
-                      <div className="max-h-96 overflow-y-auto">
-                        <table className="w-full text-left border-collapse text-xs">
-                          <thead>
-                            <tr className="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold">
-                              <th className="py-2 px-3">Plano</th>
-                              <th className="py-2 px-3 text-right">Ação</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100">
-                            {ALL_CONSULTANT_PLANS.filter(
-                              (p) => !draftAllowedPlans.includes(p.code)
-                            ).map((p) => (
-                              <tr key={p.code} className="hover:bg-slate-50">
-                                <td className="py-2 px-3 font-semibold text-slate-800 flex items-center gap-1.5">
-                                  <span className="text-[10px] text-slate-400">▶</span>
-                                  <span>{p.name}</span>
-                                </td>
-                                <td className="py-2 px-3 text-right">
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setDraftAllowedPlans((prev) => [...prev, p.code])
-                                    }
-                                    className="bg-[#008000] hover:bg-emerald-700 text-white text-[11px] font-bold px-3.5 py-1 rounded"
-                                  >
-                                    Add
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                            {ALL_CONSULTANT_PLANS.filter(
-                              (p) => !draftAllowedPlans.includes(p.code)
-                            ).length === 0 && (
-                              <tr>
-                                <td
-                                  colSpan={2}
-                                  className="py-8 text-center text-emerald-700 font-bold text-xs"
-                                >
-                                  ✓ Todos os planos já estão liberados para este vendedor!
-                                </td>
-                              </tr>
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
+                    <DialogFooter className="pt-2 border-t">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setSelectedConsultantForPlans(null)}
+                        className="bg-white text-slate-800 hover:bg-slate-100 text-xs"
+                      >
+                        Cancelar
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={async () => {
+                          if (!state || !selectedConsultantForPlans) return;
+                          if (draftAllowedPlans.length === 0) {
+                            toast({
+                              variant: 'destructive',
+                              title: 'Selecione ao menos 1 plano',
+                              description: 'Escolha pelo menos um plano para aparecer no link deste consultor.',
+                            });
+                            return;
+                          }
+                          const updated = (state.consultants || []).map((c) =>
+                            c.id === selectedConsultantForPlans.id
+                              ? { ...c, allowedPlanCodes: draftAllowedPlans }
+                              : c
+                          );
+                          await persist({ ...state, consultants: updated });
+                          setSelectedConsultantForPlans(null);
+                          toast({
+                            title: 'Permissões de Planos Atualizadas!',
+                            description: `${draftAllowedPlans.length} plano(s) configurados no link de ${selectedConsultantForPlans.name}.`,
+                          });
+                        }}
+                        className="bg-[#004d00] hover:bg-emerald-900 text-white font-bold text-xs"
+                      >
+                        Salvar Permissões de Planos
+                      </Button>
+                    </DialogFooter>
                   </div>
-
-                  <DialogFooter className="pt-2 border-t">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setSelectedConsultantForPlans(null)}
-                      className="text-xs"
-                    >
-                      Cancelar
-                    </Button>
-                    <Button
-                      type="button"
-                      onClick={async () => {
-                        if (!state || !selectedConsultantForPlans) return;
-                        const updated = (state.consultants || []).map((c) =>
-                          c.id === selectedConsultantForPlans.id
-                            ? { ...c, allowedPlanCodes: draftAllowedPlans }
-                            : c
-                        );
-                        await persist({ ...state, consultants: updated });
-                        setSelectedConsultantForPlans(null);
-                        toast({
-                          title: 'Permissões de Planos Atualizadas!',
-                          description: `Planos configurados com sucesso para ${selectedConsultantForPlans.name}.`,
-                        });
-                      }}
-                      className="bg-[#004d00] hover:bg-emerald-900 text-white font-bold text-xs"
-                    >
-                      Salvar Permissões de Planos
-                    </Button>
-                  </DialogFooter>
-                </div>
-              )}
+                );
+              })()}
             </DialogContent>
           </Dialog>
 
@@ -5239,38 +5694,10 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
           >
             <DialogContent className="max-w-3xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
               {selectedConsultantForAccounting && (() => {
-                const linkedSubs = (state?.subscriptions || []).filter(
-                  (s) =>
-                    s.consultantName?.toLowerCase() ===
-                      selectedConsultantForAccounting.name.toLowerCase() ||
-                    s.influencerName?.toLowerCase() ===
-                      selectedConsultantForAccounting.name.toLowerCase() ||
-                    s.consultantCode?.toLowerCase() ===
-                      selectedConsultantForAccounting.referralCode.toLowerCase()
+                const metrics = getConsultantSubscriptionMetrics(
+                  selectedConsultantForAccounting,
+                  state?.subscriptions || []
                 );
-
-                const paidSubs = linkedSubs.filter(
-                  (s) => s.status === 'ACTIVE' || (s.invoices || []).some((inv) => inv.status === 'PAID')
-                );
-
-                const pendingSubs = linkedSubs.filter((s) => !paidSubs.includes(s));
-
-                const totalPaidVolume = paidSubs.reduce(
-                  (acc, s) => acc + (s.totalContractValue || (s.monthlyEquivalent * 12) || 0),
-                  0
-                );
-
-                const totalPaidCommission = paidSubs.reduce((acc, s) => {
-                  const planVal = s.totalContractValue || (s.monthlyEquivalent * 12) || 0;
-                  if (selectedConsultantForAccounting.commissionType === 'FIXED') {
-                    return acc + (selectedConsultantForAccounting.commissionValue || 0);
-                  }
-                  const pct =
-                    selectedConsultantForAccounting.commissionPercent ||
-                    selectedConsultantForAccounting.commissionValue ||
-                    10;
-                  return acc + (planVal * pct) / 100;
-                }, 0);
 
                 return (
                   <div className="space-y-4">
@@ -5296,19 +5723,22 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                       <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
                         <span className="text-slate-500 block">Pessoas que Aderiram</span>
                         <strong className="text-slate-900 text-lg block">
-                          {linkedSubs.length}
+                          {metrics.linkedSubs.length}
                         </strong>
                       </div>
                       <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200">
-                        <span className="text-emerald-800 block">Vendas Efetivamente Pagas</span>
+                        <span className="text-emerald-800 block">Vendas Pagas</span>
                         <strong className="text-emerald-950 text-lg block">
-                          {paidSubs.length}
+                          {metrics.paidCount}
                         </strong>
+                        <span className="text-[10px] text-emerald-700 block">
+                          Total: {formatCurrency(metrics.totalPaidVolume)}
+                        </span>
                       </div>
                       <div className="p-3 rounded-xl bg-[#004d00] text-white">
-                        <span className="text-emerald-300 block">Comissão Total a Pagar</span>
+                        <span className="text-emerald-300 block">Comissão a Pagar</span>
                         <strong className="text-white text-lg block">
-                          {formatCurrency(totalPaidCommission)}
+                          {formatCurrency(metrics.totalPaidCommission)}
                         </strong>
                       </div>
                     </div>
@@ -5316,9 +5746,9 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     {/* Tabela de Vendas Pagas */}
                     <div>
                       <h4 className="text-xs font-black text-slate-800 uppercase mb-2">
-                        Vendas Confirmadas (Pagamento Efetivado)
+                        Vendas Confirmadas (Contabilidade Apenas Após Pagamento Efetivo)
                       </h4>
-                      {paidSubs.length === 0 ? (
+                      {metrics.paidSales.length === 0 ? (
                         <div className="p-6 text-center text-slate-400 text-xs border border-dashed rounded-xl">
                           Nenhuma venda confirmada com pagamento efetivo até o momento.
                         </div>
@@ -5336,54 +5766,46 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
-                              {paidSubs.map((sub) => {
-                                const planVal =
-                                  sub.totalContractValue || (sub.monthlyEquivalent * 12) || 0;
-                                const comVal =
-                                  selectedConsultantForAccounting.commissionType === 'FIXED'
-                                    ? selectedConsultantForAccounting.commissionValue || 0
-                                    : (planVal *
-                                        (selectedConsultantForAccounting.commissionPercent || 10)) /
-                                      100;
-                                const paidInv = (sub.invoices || []).find((i) => i.status === 'PAID');
-                                const dtPg = paidInv?.paidAt || sub.createdAt;
-
-                                return (
-                                  <tr key={sub.id} className="hover:bg-slate-50">
-                                    <td className="py-2 px-3 font-bold text-slate-900">
-                                      {sub.holderName}
-                                    </td>
-                                    <td className="py-2 px-3 text-slate-600">
-                                      {formatDateBR(dtPg)}
-                                    </td>
-                                    <td className="py-2 px-3 text-slate-700">
-                                      {sub.planSummaryLabel}
-                                    </td>
-                                    <td className="py-2 px-3 font-semibold text-slate-900">
-                                      {formatCurrency(planVal)}
-                                    </td>
-                                    <td className="py-2 px-3 font-black text-emerald-800">
-                                      {formatCurrency(comVal)}
-                                    </td>
-                                    <td className="py-2 px-3 text-center">
-                                      <span className="inline-block px-2 py-0.5 rounded font-black text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300">
-                                        PAGO
+                              {metrics.paidSales.map((sale) => (
+                                <tr key={sale.subscription.id} className="hover:bg-slate-50">
+                                  <td className="py-2 px-3 font-bold text-slate-900">
+                                    {sale.subscription.holderName}
+                                  </td>
+                                  <td className="py-2 px-3 text-slate-600">
+                                    {formatDateBR(sale.paidAt)}
+                                  </td>
+                                  <td className="py-2 px-3 text-slate-700">
+                                    {sale.subscription.planSummaryLabel}
+                                  </td>
+                                  <td className="py-2 px-3 font-semibold text-slate-900">
+                                    <div>{formatCurrency(sale.planValue)}</div>
+                                    {sale.paidAmount > 0 && sale.paidAmount !== sale.planValue && (
+                                      <span className="text-[10px] text-emerald-700 block">
+                                        Pago: {formatCurrency(sale.paidAmount)}
                                       </span>
-                                    </td>
-                                  </tr>
-                                );
-                              })}
+                                    )}
+                                  </td>
+                                  <td className="py-2 px-3 font-black text-emerald-800">
+                                    {formatCurrency(sale.commissionValue)}
+                                  </td>
+                                  <td className="py-2 px-3 text-center">
+                                    <span className="inline-block px-2 py-0.5 rounded font-black text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                      PAGO
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
                             </tbody>
                           </table>
                         </div>
                       )}
                     </div>
 
-                    {pendingSubs.length > 0 && (
+                    {metrics.pendingSubs.length > 0 && (
                       <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900">
-                        <span className="font-bold">⚠️ {pendingSubs.length} adesão(ões) com pagamento pendente:</span>
+                        <span className="font-bold">⚠️ {metrics.pendingSubs.length} adesão(ões) aguardando pagamento:</span>
                         <p className="text-[11px] text-amber-800 mt-0.5">
-                          A contabilidade e liberação da comissão ocorre somente após a liquidação do pagamento pelo cliente.
+                          A contabilidade e liberação da comissão ocorre somente após a compensação do pagamento pelo cliente.
                         </p>
                       </div>
                     )}
@@ -5400,6 +5822,199 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   </div>
                 );
               })()}
+            </DialogContent>
+          </Dialog>
+
+          {/* =====================================================================
+              MODAL EDITAR DADOS, CÓDIGO E SENHA DE ACESSO DO CONSULTOR / INFLUENCER
+          ===================================================================== */}
+          <Dialog
+            open={!!editingConsultant}
+            onOpenChange={(open) => !open && setEditingConsultant(null)}
+          >
+            <DialogContent className="max-w-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+              {editingConsultant && (
+                <form onSubmit={handleSaveEditedConsultant} className="space-y-4">
+                  <DialogHeader className="border-b pb-2">
+                    <DialogTitle className="text-base font-black text-slate-900 uppercase">
+                      Editar Cadastro & Credenciais de Acesso
+                    </DialogTitle>
+                    <p className="text-xs text-slate-600">
+                      Atualize dados cadastrais, e-mail e senha de acesso ao Portal do Consultor (<code>/consultor</code>).
+                    </p>
+                  </DialogHeader>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 text-xs font-bold text-slate-700">
+                    <div className="sm:col-span-6">
+                      <Label className="text-xs font-bold">Nome Completo *</Label>
+                      <Input
+                        value={editingConsultant.name}
+                        onChange={(e) =>
+                          setEditingConsultant({ ...editingConsultant, name: e.target.value })
+                        }
+                        className="bg-white mt-1 h-9"
+                        required
+                      />
+                    </div>
+                    <div className="sm:col-span-3">
+                      <Label className="text-xs font-bold">CPF</Label>
+                      <Input
+                        value={editingConsultant.cpf}
+                        onChange={(e) =>
+                          setEditingConsultant({
+                            ...editingConsultant,
+                            cpf: formatCpf(e.target.value),
+                          })
+                        }
+                        className="bg-white mt-1 h-9"
+                      />
+                    </div>
+                    <div className="sm:col-span-3">
+                      <Label className="text-xs font-bold">Papel</Label>
+                      <select
+                        value={editingConsultant.role}
+                        onChange={(e) =>
+                          setEditingConsultant({
+                            ...editingConsultant,
+                            role: e.target.value as 'CONSULTOR' | 'INFLUENCER',
+                          })
+                        }
+                        className="w-full h-9 rounded-md border border-slate-300 px-2 text-xs font-bold bg-white mt-1"
+                      >
+                        <option value="CONSULTOR">Consultor</option>
+                        <option value="INFLUENCER">Influencer</option>
+                      </select>
+                    </div>
+
+                    <div className="sm:col-span-4">
+                      <Label className="text-xs font-bold">Telefone / WhatsApp</Label>
+                      <Input
+                        value={editingConsultant.phone}
+                        onChange={(e) =>
+                          setEditingConsultant({
+                            ...editingConsultant,
+                            phone: formatPhone(e.target.value),
+                          })
+                        }
+                        className="bg-white mt-1 h-9"
+                      />
+                    </div>
+                    <div className="sm:col-span-4">
+                      <Label className="text-xs font-bold">E-mail de Login</Label>
+                      <Input
+                        type="email"
+                        value={editingConsultant.email || ''}
+                        onChange={(e) =>
+                          setEditingConsultant({ ...editingConsultant, email: e.target.value })
+                        }
+                        placeholder="vendedor@email.com"
+                        className="bg-white mt-1 h-9"
+                      />
+                    </div>
+                    <div className="sm:col-span-4">
+                      <Label className="text-xs font-bold">Senha de Acesso (Portal)</Label>
+                      <div className="relative mt-1">
+                        <Input
+                          type={showEditConsPassword ? 'text' : 'password'}
+                          value={editingConsultant.password || ''}
+                          onChange={(e) =>
+                            setEditingConsultant({
+                              ...editingConsultant,
+                              password: e.target.value,
+                            })
+                          }
+                          placeholder="Senha para entrar no portal"
+                          className="bg-white h-9 pr-9"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowEditConsPassword((p) => !p)}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-800"
+                        >
+                          {showEditConsPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="sm:col-span-4">
+                      <Label className="text-xs font-bold">Código no Link</Label>
+                      <Input
+                        value={editingConsultant.referralCode}
+                        onChange={(e) =>
+                          setEditingConsultant({
+                            ...editingConsultant,
+                            referralCode: e.target.value
+                              .normalize('NFD')
+                              .replace(/[\u0300-\u036f]/g, '')
+                              .toUpperCase()
+                              .replace(/[^A-Z0-9_-]/g, ''),
+                          })
+                        }
+                        className="bg-white mt-1 h-9 font-mono uppercase"
+                      />
+                    </div>
+                    <div className="sm:col-span-4">
+                      <Label className="text-xs font-bold">Tipo de Comissão</Label>
+                      <select
+                        value={editingConsultant.commissionType || 'PERCENT'}
+                        onChange={(e) =>
+                          setEditingConsultant({
+                            ...editingConsultant,
+                            commissionType: e.target.value as 'PERCENT' | 'FIXED',
+                          })
+                        }
+                        className="w-full h-9 rounded-md border border-slate-300 px-2 text-xs font-bold bg-white mt-1"
+                      >
+                        <option value="PERCENT">Percentual (%)</option>
+                        <option value="FIXED">Valor Fixo (R$)</option>
+                      </select>
+                    </div>
+                    <div className="sm:col-span-4">
+                      <Label className="text-xs font-bold">
+                        {editingConsultant.commissionType === 'FIXED' ? 'Valor Fixo (R$)' : 'Porcentagem (%)'}
+                      </Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={
+                          editingConsultant.commissionValue ??
+                          editingConsultant.commissionPercent ??
+                          10
+                        }
+                        onChange={(e) =>
+                          setEditingConsultant({
+                            ...editingConsultant,
+                            commissionValue: Number(e.target.value),
+                            commissionPercent:
+                              editingConsultant.commissionType === 'FIXED'
+                                ? editingConsultant.commissionPercent
+                                : Number(e.target.value),
+                          })
+                        }
+                        className="bg-white mt-1 h-9"
+                      />
+                    </div>
+                  </div>
+
+                  <DialogFooter className="pt-2 border-t">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setEditingConsultant(null)}
+                      className="bg-white text-slate-800 hover:bg-slate-100 text-xs"
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={isSavingConsultant}
+                      className="bg-[#004d00] hover:bg-emerald-900 text-white font-bold text-xs"
+                    >
+                      {isSavingConsultant ? 'Salvando...' : 'Salvar Alterações'}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              )}
             </DialogContent>
           </Dialog>
         </TabsContent>
@@ -7567,21 +8182,10 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   {state.consultants
                     .filter((c) => c.role === 'CONSULTOR')
                     .map((cons) => {
-                      const linkedSubs = (state.subscriptions || []).filter(
-                        (s) =>
-                          (s.consultantName || '')
-                            .toLowerCase()
-                            .includes(cons.name.toLowerCase()) ||
-                          (s.consultantName || '')
-                            .toLowerCase()
-                            .includes(cons.referralCode.toLowerCase())
+                      const metrics = getConsultantSubscriptionMetrics(
+                        cons,
+                        state.subscriptions || []
                       );
-                      const totalSales = linkedSubs.reduce(
-                        (acc, s) => acc + s.totalContractValue,
-                        0
-                      );
-                      const totalCommission =
-                        (totalSales * (cons.commissionPercent || 10)) / 100;
                       return (
                         <div
                           key={cons.id}
@@ -7595,25 +8199,25 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                               </Badge>
                             </div>
                             <div className="text-slate-600 mt-0.5">
-                              CPF: {cons.cpf} • Tel: {cons.phone || '—'} •
-                              Comissão: <strong>{cons.commissionPercent}%</strong>
+                              CPF: {cons.cpf} • Tel: {cons.phone || '—'} • E-mail: {cons.email || '—'} •
+                              Comissão: <strong>{cons.commissionType === 'FIXED' ? `${formatCurrency(cons.commissionValue || 0)} fixo` : `${cons.commissionPercent || 10}%`}</strong>
                             </div>
                           </div>
                           {consultantReportSubFilter === 'COMISSAO' ? (
                             <div className="text-right">
                               <div className="text-[11px] text-slate-500">
-                                {linkedSubs.length} venda(s) • Total Contratos:{' '}
-                                {formatCurrency(totalSales)}
+                                {metrics.paidCount} venda(s) paga(s) ({metrics.linkedSubs.length} adesões) • Total Contratos:{' '}
+                                {formatCurrency(metrics.totalPaidVolume)}
                               </div>
                               <div className="text-sm font-black text-emerald-700">
                                 Comissão a Pagar:{' '}
-                                {formatCurrency(totalCommission)}
+                                {formatCurrency(metrics.totalPaidCommission)}
                               </div>
                             </div>
                           ) : (
                             <Badge className="bg-emerald-700 text-white">
                               {cons.status === 'ACTIVE' ? 'ATIVO' : 'INATIVO'} •{' '}
-                              {linkedSubs.length} cliente(s)
+                              {metrics.paidCount} paga(s) / {metrics.linkedSubs.length} cliente(s)
                             </Badge>
                           )}
                         </div>
@@ -7666,19 +8270,14 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   {state.consultants
                     .filter((c) => c.role === 'INFLUENCER')
                     .map((inf) => {
-                      const linkedSubs = (state.subscriptions || []).filter(
-                        (s) =>
-                          (s.influencerName || s.consultantName || '')
-                            .toLowerCase()
-                            .includes(inf.name.toLowerCase()) ||
-                          (s.influencerName || s.consultantName || '')
-                            .toLowerCase()
-                            .includes(inf.referralCode.toLowerCase())
+                      const metrics = getConsultantSubscriptionMetrics(
+                        inf,
+                        state.subscriptions || []
                       );
                       return (
                         <div
                           key={inf.id}
-                          className="p-4 rounded-2xl border border-slate-200 flex items-center justify-between bg-slate-50 text-xs"
+                          className="p-4 rounded-2xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50 text-xs"
                         >
                           <div>
                             <div className="font-black text-sm text-slate-900 flex items-center gap-2">
@@ -7688,13 +8287,18 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                               </Badge>
                             </div>
                             <div className="text-slate-600 mt-0.5">
-                              CPF: {inf.cpf} • Tel: {inf.phone || '—'} •
-                              Comissão: <strong>{inf.commissionPercent}%</strong>
+                              CPF: {inf.cpf} • Tel: {inf.phone || '—'} • E-mail: {inf.email || '—'} •
+                              Comissão: <strong>{inf.commissionType === 'FIXED' ? `${formatCurrency(inf.commissionValue || 0)} fixo` : `${inf.commissionPercent || 10}%`}</strong>
                             </div>
                           </div>
-                          <Badge className="bg-emerald-700 text-white">
-                            {linkedSubs.length} indicação(ões)
-                          </Badge>
+                          <div className="text-right">
+                            <div className="text-[11px] text-slate-500">
+                              Total Pago: {formatCurrency(metrics.totalPaidVolume)} • Comissão: <strong className="text-emerald-700">{formatCurrency(metrics.totalPaidCommission)}</strong>
+                            </div>
+                            <Badge className="bg-emerald-700 text-white mt-1">
+                              {metrics.paidCount} paga(s) / {metrics.linkedSubs.length} indicação(ões)
+                            </Badge>
+                          </div>
                         </div>
                       );
                     })}

@@ -856,6 +856,7 @@ export interface CreateSubscriptionInput {
   origin?: 'SITE' | 'ADMIN' | 'IMPORT_LABCARD';
   consultantName?: string;
   consultantCode?: string;
+  consultantId?: string;
   influencerName?: string;
   vehicleModel?: string;
   vehiclePlate?: string;
@@ -1075,6 +1076,20 @@ export const createClubSubscription = async (
   const contractType: ContractTemplateType =
     input.contractType || (hasPublicidade ? 'FAMILY_PUBLICIDADE' : 'ADESAO_PF');
 
+  const matchedCons =
+    input.consultantId || input.consultantCode || input.consultantName || input.influencerName
+      ? (state.consultants || []).find(
+          (c) =>
+            (input.consultantId && c.id === input.consultantId) ||
+            (input.consultantCode && c.referralCode.toLowerCase() === input.consultantCode.trim().toLowerCase()) ||
+            (input.consultantName && c.name.toLowerCase() === input.consultantName.trim().toLowerCase()) ||
+            (input.influencerName && c.name.toLowerCase() === input.influencerName.trim().toLowerCase())
+        )
+      : undefined;
+
+  const resolvedConsName = input.consultantName || (matchedCons?.role === 'CONSULTOR' ? matchedCons.name : '') || '';
+  const resolvedInfName = input.influencerName || (matchedCons?.role === 'INFLUENCER' ? matchedCons.name : '') || '';
+
   const subscription: ClubSubscription = {
     id: subscriptionId,
     subscriptionCode: holderCardNumber,
@@ -1102,8 +1117,10 @@ export const createClubSubscription = async (
     dueDay: input.dueDay || now.getDate(),
     status: finalStatus,
     origin: input.origin || 'SITE',
-    consultantName: input.consultantName || '',
-    influencerName: input.influencerName || '',
+    consultantId: input.consultantId || matchedCons?.id || '',
+    consultantCode: input.consultantCode || matchedCons?.referralCode || '',
+    consultantName: resolvedConsName || matchedCons?.name || '',
+    influencerName: resolvedInfName,
     planSummaryLabel,
     vehicleModel: input.vehicleModel || '',
     vehiclePlate: input.vehiclePlate || '',
@@ -2087,6 +2104,240 @@ export const findMemberOrSubscriptionByQuery = (
   });
 
   return scoredResults.map(({ member, subscription }) => ({ member, subscription }));
+};
+
+export const getConsultantSlug = (name?: string | null): string => {
+  return (name || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+};
+
+export const buildConsultantReferralUrl = (
+  baseUrl: string,
+  consultant: Pick<ClubConsultant, 'referralCode' | 'name'>,
+  planCode?: string
+): string => {
+  const cleanBase = baseUrl.replace(/\/+$/, '');
+  const slug = getConsultantSlug(consultant.name);
+  const params = new URLSearchParams();
+  if (slug) params.set('consultor', slug);
+  params.set('ref', consultant.referralCode);
+  if (planCode && planCode !== 'TODOS') {
+    params.set('plano', planCode);
+  }
+  return `${cleanBase}/planos?${params.toString()}`;
+};
+
+export const findConsultantByParams = (
+  consultants: ClubConsultant[],
+  refParam?: string | null,
+  consultorParam?: string | null
+): ClubConsultant | null => {
+  if (!consultants || consultants.length === 0) return null;
+  const refNorm = (refParam || '').trim().toLowerCase();
+  const consNorm = getConsultantSlug(consultorParam || '');
+
+  if (!refNorm && !consNorm) return null;
+
+  const activeFirst = [...consultants].sort((a, b) =>
+    a.status === 'ACTIVE' && b.status !== 'ACTIVE' ? -1 : b.status === 'ACTIVE' && a.status !== 'ACTIVE' ? 1 : 0
+  );
+
+  if (refNorm) {
+    const byCodeOrId = activeFirst.find(
+      (c) =>
+        c.referralCode.toLowerCase() === refNorm ||
+        c.id.toLowerCase() === refNorm ||
+        getConsultantSlug(c.name) === refNorm
+    );
+    if (byCodeOrId) return byCodeOrId;
+  }
+
+  if (consNorm) {
+    const bySlug = activeFirst.find((c) => getConsultantSlug(c.name) === consNorm);
+    if (bySlug) return bySlug;
+  }
+
+  return null;
+};
+
+const MODALITY_ALIAS_GROUPS: Record<string, string[]> = {
+  ADULTO: ['ADULTO', 'LESSA_CLUB', 'LESSA CLUB', 'FAMILY_PUBLICIDADE', 'DUO_CLUB'],
+  ESTUDANTE: ['ESTUDANTE', 'STUDENT_PASS', 'STUDENT'],
+  PROFESSOR: ['PROFESSOR', 'PROFESSOR_PASS'],
+  SERVIDOR: ['SERVIDOR', 'SERVIDOR_PASS'],
+  PCD_TEA: ['PCD_TEA', 'INCLUSAO', 'PCD', 'TEA'],
+  IDOSO_60: ['IDOSO_60', 'VITALICIO_60', 'VITALICIO', '60+'],
+  KIDS: ['KIDS', 'LESSA_KIDS', 'CRIANCA'],
+  PARCEIRO: ['PARCEIRO', 'EMPRESA', 'LESSA_PARCEIRO'],
+};
+
+const matchesPlanCodeToken = (allowedToken: string, targetCode: string, targetName = ''): boolean => {
+  const a = allowedToken.toUpperCase().trim();
+  const c = targetCode.toUpperCase().trim();
+  const n = targetName.toUpperCase().trim();
+  if (!a) return false;
+  if (a === c || (n && (a === n || n.includes(a) || a.includes(n)))) return true;
+
+  for (const [, aliases] of Object.entries(MODALITY_ALIAS_GROUPS)) {
+    const targetInGroup = aliases.some((al) => c === al || c.includes(al) || n.includes(al));
+    const allowedInGroup = aliases.some((al) => a === al || a.includes(al));
+    if (targetInGroup && allowedInGroup) return true;
+  }
+  return false;
+};
+
+export const doesConsultantAllowModality = (
+  allowedPlanCodes: string[] | undefined,
+  modality: { id?: string; code: string; name?: string }
+): boolean => {
+  if (!allowedPlanCodes || allowedPlanCodes.length === 0) return true;
+  return allowedPlanCodes.some(
+    (token) =>
+      matchesPlanCodeToken(token, modality.code, modality.name || '') ||
+      (!!modality.id && token.toUpperCase().trim() === modality.id.toUpperCase().trim())
+  );
+};
+
+export interface SelectableConsultantPlan {
+  code: string;
+  name: string;
+  subtitle: string;
+  monthlyPrice: number;
+  annualPrice: number;
+  isFreeTier?: boolean;
+}
+
+export const getSelectablePlansForConsultants = (
+  modalities?: ClubModality[]
+): SelectableConsultantPlan[] => {
+  const source = modalities && modalities.length > 0 ? modalities : DEFAULT_CLUB_MODALITIES;
+  const seen = new Set<string>();
+  const result: SelectableConsultantPlan[] = [];
+  source.forEach((m) => {
+    if (m.active === false) return;
+    const code = m.code.toUpperCase().trim();
+    if (seen.has(code)) return;
+    seen.add(code);
+    result.push({
+      code,
+      name: m.name,
+      subtitle: m.subtitle || '',
+      monthlyPrice: Number(m.monthlyPrice || 0),
+      annualPrice: Number(m.annualPrice || 0),
+      isFreeTier: m.isFreeTier,
+    });
+  });
+  return result;
+};
+
+export interface ConsultantPaidSaleDetail {
+  subscription: ClubSubscription;
+  paidAt: string;
+  planValue: number;
+  paidAmount: number;
+  commissionValue: number;
+}
+
+export interface ConsultantMetricsSummary {
+  linkedSubs: ClubSubscription[];
+  paidSales: ConsultantPaidSaleDetail[];
+  pendingSubs: ClubSubscription[];
+  paidCount: number;
+  totalPaidVolume: number;
+  totalPaidCommission: number;
+}
+
+export const getConsultantSubscriptionMetrics = (
+  consultant: ClubConsultant,
+  subscriptions: ClubSubscription[]
+): ConsultantMetricsSummary => {
+  const nameLower = consultant.name.trim().toLowerCase();
+  const codeLower = consultant.referralCode.trim().toLowerCase();
+
+  const linkedSubs = (subscriptions || []).filter(
+    (s) =>
+      (s.consultantId && s.consultantId === consultant.id) ||
+      (s.consultantCode && s.consultantCode.trim().toLowerCase() === codeLower) ||
+      (s.consultantName && s.consultantName.trim().toLowerCase() === nameLower) ||
+      (s.influencerName && s.influencerName.trim().toLowerCase() === nameLower)
+  );
+
+  const paidSales: ConsultantPaidSaleDetail[] = [];
+  const pendingSubs: ClubSubscription[] = [];
+
+  linkedSubs.forEach((sub) => {
+    const paidInvoices = (sub.invoices || []).filter((inv) => inv.status === 'PAID');
+    const paidAmount = Number(
+      paidInvoices.reduce((acc, inv) => acc + (Number(inv.amount) || 0), 0).toFixed(2)
+    );
+    const hasPaidInvoice = paidInvoices.length > 0;
+    const isEffectivelyPaid =
+      sub.totalContractValue === 0 && sub.monthlyEquivalent === 0
+        ? sub.status === 'ACTIVE'
+        : hasPaidInvoice || sub.status === 'ACTIVE';
+
+    if (!isEffectivelyPaid) {
+      pendingSubs.push(sub);
+      return;
+    }
+
+    const contractValue = Number(
+      (
+        sub.totalContractValue ||
+        (sub.monthlyEquivalent > 0 ? sub.monthlyEquivalent * 12 : 0) ||
+        paidAmount
+      ).toFixed(2)
+    );
+
+    // Se comissão for recorrente: calcula sobre tudo já pago; se apenas 1ª adesão: sobre o valor do contrato (anual) ou 1ª fatura paga (mensal)
+    const commissionBaseValue =
+      consultant.commissionRecurring && !consultant.commissionFirstOnly
+        ? paidAmount || contractValue
+        : sub.billingCycle === 'ANNUAL'
+        ? contractValue
+        : paidInvoices[0]?.amount || sub.monthlyEquivalent || contractValue;
+
+    let comVal = 0;
+    if (consultant.commissionType === 'FIXED') {
+      const unitFixed = Number(consultant.commissionValue || 0);
+      comVal =
+        consultant.commissionRecurring && !consultant.commissionFirstOnly && paidInvoices.length > 0
+          ? Number((unitFixed * paidInvoices.length).toFixed(2))
+          : unitFixed;
+    } else {
+      const pct = Number(consultant.commissionPercent || consultant.commissionValue || 10);
+      comVal = Number(((commissionBaseValue * pct) / 100).toFixed(2));
+    }
+
+    const latestPaidInv = paidInvoices[paidInvoices.length - 1] || paidInvoices[0];
+    paidSales.push({
+      subscription: sub,
+      paidAt: latestPaidInv?.paidAt || sub.updatedAt || sub.createdAt,
+      planValue: contractValue,
+      paidAmount,
+      commissionValue: comVal,
+    });
+  });
+
+  const totalPaidVolume = Number(
+    paidSales.reduce((acc, item) => acc + item.planValue, 0).toFixed(2)
+  );
+  const totalPaidCommission = Number(
+    paidSales.reduce((acc, item) => acc + item.commissionValue, 0).toFixed(2)
+  );
+
+  return {
+    linkedSubs,
+    paidSales,
+    pendingSubs,
+    paidCount: paidSales.length,
+    totalPaidVolume,
+    totalPaidCommission,
+  };
 };
 
 export const trackConsultantClick = async (consultantIdOrCode: string): Promise<void> => {

@@ -32,6 +32,7 @@ import { useToast } from '@/hooks/use-toast';
 import logo from '@/assets/logo.png';
 import {
   BillingCycle,
+  ClubConsultant,
   ClubInvoice,
   ClubModality,
   ClubPaymentMethod,
@@ -63,6 +64,8 @@ import {
   trackConsultantClick,
   getPlanDocumentRule,
   isMemberBlockedForMissingDoc,
+  findConsultantByParams,
+  doesConsultantAllowModality,
 } from '@/lib/club-service';
 import { ClubMemberCardView } from '@/components/club/ClubMemberCardView';
 import { trackFBEvent } from '@/utils/pixel-events';
@@ -256,32 +259,54 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
 }) => {
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
-  const urlRef = searchParams.get('ref');
+  const urlRefParam = searchParams.get('ref') || searchParams.get('c') || '';
+  const urlConsultorParam = searchParams.get('consultor') || '';
   const urlPlan = searchParams.get('plano');
+
+  // Persiste referência do consultor durante a sessão do visitante para não perder rastreio ao navegar/recarregar
+  useEffect(() => {
+    if (urlRefParam) {
+      sessionStorage.setItem('lessa_active_consultant_ref', urlRefParam.trim());
+    }
+    if (urlConsultorParam) {
+      sessionStorage.setItem('lessa_active_consultant_slug', urlConsultorParam.trim());
+    }
+  }, [urlRefParam, urlConsultorParam]);
+
+  const effectiveRef =
+    urlRefParam ||
+    (typeof window !== 'undefined'
+      ? sessionStorage.getItem('lessa_active_consultant_ref') || ''
+      : '');
+  const effectiveConsultorSlug =
+    urlConsultorParam ||
+    (typeof window !== 'undefined'
+      ? sessionStorage.getItem('lessa_active_consultant_slug') || ''
+      : '');
 
   const [state, setState] = useState<ClubDatabaseState | null>(null);
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
 
-  // Consultor identificado pela URL de indicação (Screenshot 4)
-  const matchedConsultant = useMemo(() => {
-    if (!urlRef || !state?.consultants) return null;
-    return (
-      state.consultants.find(
-        (c) => c.referralCode.toLowerCase() === urlRef.trim().toLowerCase()
-      ) || null
+  // Consultor identificado pela URL de indicação ou sessão rastreada
+  const matchedConsultant: ClubConsultant | null = useMemo(() => {
+    if (!state?.consultants || (!effectiveRef && !effectiveConsultorSlug)) return null;
+    return findConsultantByParams(
+      state.consultants,
+      effectiveRef,
+      effectiveConsultorSlug
     );
-  }, [urlRef, state]);
+  }, [effectiveRef, effectiveConsultorSlug, state]);
 
   // Rastreamento de acessos ao link ou QR Code do consultor/influencer
   useEffect(() => {
-    if (matchedConsultant && urlRef) {
+    if (matchedConsultant && (effectiveRef || effectiveConsultorSlug)) {
       const sessionKey = `tracked_ref_view_${matchedConsultant.id}`;
       if (!sessionStorage.getItem(sessionKey)) {
         sessionStorage.setItem(sessionKey, '1');
         trackConsultantClick(matchedConsultant.id);
       }
     }
-  }, [matchedConsultant, urlRef]);
+  }, [matchedConsultant, effectiveRef, effectiveConsultorSlug]);
 
   // Ciclo geral e por card
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('ANNUAL');
@@ -372,37 +397,99 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
   }, [urlPlan]);
 
   // Sempre garante lista de modalidades (mesmo antes do fetch terminar)
-  // Se o consultor/influencer possuir permissão específica de planos configurada, exibe apenas os liberados para ele
+  // Se o consultor/influencer possuir permissão específica de planos configurada, exibe ESTRITAMENTE apenas os liberados para ele
   const activeModalities: ClubModality[] = useMemo(() => {
-    const list =
+    const list = (
       state?.modalities && state.modalities.length > 0
         ? state.modalities
-        : DEFAULT_CLUB_MODALITIES;
+        : DEFAULT_CLUB_MODALITIES
+    ).filter((m) => m.active !== false);
 
     if (matchedConsultant?.allowedPlanCodes && matchedConsultant.allowedPlanCodes.length > 0) {
-      const allowed = matchedConsultant.allowedPlanCodes.map((c) => c.toUpperCase());
-      const filtered = list.filter((m) => {
-        return allowed.some(
-          (code) =>
-            m.code.toUpperCase() === code ||
-            m.id.toUpperCase() === code ||
-            m.name.toUpperCase().includes(code) ||
-            code.includes(m.name.toUpperCase())
-        );
-      });
-      return filtered.length > 0 ? filtered : list;
+      const filtered = list.filter((m) =>
+        doesConsultantAllowModality(matchedConsultant.allowedPlanCodes, m)
+      );
+      if (filtered.length > 0) return filtered;
     }
 
     return list;
   }, [state, matchedConsultant]);
 
+  // Cards de planos filtrados rigorosamente pelas permissões do consultor (e planos extras criados no Admin)
+  const displayedCatalogPlans: CatalogPlanCard[] = useMemo(() => {
+    const hasRestrictedConsultant =
+      Boolean(matchedConsultant?.allowedPlanCodes && matchedConsultant.allowedPlanCodes.length > 0);
+
+    const baseCards = CATALOG_PLANS.filter((card) => {
+      if (hasRestrictedConsultant && matchedConsultant) {
+        return doesConsultantAllowModality(matchedConsultant.allowedPlanCodes, {
+          id: card.id,
+          code: card.modalityCode,
+          name: card.title,
+        });
+      }
+      return true;
+    }).map((card) => {
+      const stateMod = (state?.modalities || []).find(
+        (m) => m.code.toUpperCase() === card.modalityCode.toUpperCase()
+      );
+      if (!stateMod) return card;
+      return {
+        ...card,
+        title: stateMod.name || card.title,
+        monthlyPrice: stateMod.monthlyPrice ?? card.monthlyPrice,
+        annualPrice: stateMod.annualPrice ?? card.annualPrice,
+        annualInstallment: stateMod.annualInstallment ?? card.annualInstallment,
+        isFreePlan: stateMod.isFreeTier ?? card.isFreePlan,
+      };
+    });
+
+    // Inclui quaisquer planos adicionais criados no painel Config -> Planos que ainda não estão no catálogo padrão
+    const knownCodes = new Set(CATALOG_PLANS.map((c) => c.modalityCode.toUpperCase()));
+    const extraCards: CatalogPlanCard[] = activeModalities
+      .filter((m) => m.visibleOnSite !== false && !knownCodes.has(m.code.toUpperCase()))
+      .map((m) => ({
+        id: m.id,
+        title: m.name,
+        subtitle: m.subtitle || 'Plano Oficial Lessa Club',
+        modalityCode: m.code,
+        cardImage: m.frontCardUrl || '/cards/44.png',
+        backCardUrl: m.backCardUrl || '/cards/24.png',
+        monthlyPrice: m.monthlyPrice || 0,
+        annualPrice: m.annualPrice || 0,
+        annualInstallment: m.annualInstallment || 0,
+        badge: m.badgeText || (m.isFreeTier ? 'GRATUIDADE' : 'PLANO OFICIAL'),
+        isFreePlan: m.isFreeTier,
+        benefits: [
+          m.documentLabel ? `Requer comprovação: ${m.documentLabel}` : 'Sem taxa de adesão',
+          'Acesso às dependências do Balneário Lessa nos dias e horários de funcionamento',
+          'Carteirinha digital oficial com QR Code exclusivo',
+        ],
+      }));
+
+    return [...baseCards, ...extraCards];
+  }, [matchedConsultant, state?.modalities, activeModalities]);
+
   const findModality = (code: string): ClubModality => {
     return (
       activeModalities.find((m) => m.code === code) ||
+      (state?.modalities || []).find((m) => m.code === code) ||
       DEFAULT_CLUB_MODALITIES.find((m) => m.code === code) ||
+      activeModalities[0] ||
       DEFAULT_CLUB_MODALITIES[0]
     );
   };
+
+  // Garante que o meio de pagamento padrão respeite as permissões do consultor
+  useEffect(() => {
+    const allowed = matchedConsultant?.paymentMethodsAllowed;
+    if (!allowed) return;
+    if (paymentMethod === 'CREDIT_CARD' && allowed.creditCard === false) {
+      if (allowed.pix !== false) setPaymentMethod('PIX');
+    } else if (paymentMethod === 'PIX' && allowed.pix === false) {
+      if (allowed.creditCard !== false) setPaymentMethod('CREDIT_CARD');
+    }
+  }, [matchedConsultant, paymentMethod]);
 
   const getCardCycle = (cardId: string): BillingCycle => {
     return cardCycleMap[cardId] || billingCycle;
@@ -820,9 +907,12 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
         installments: chosenInstallments,
         status: isFree ? 'ACTIVE' : 'INACTIVE',
         origin: 'SITE',
-        consultantName: matchedConsultant?.name || '',
-        consultantCode: matchedConsultant?.referralCode || urlRef || '',
         consultantId: matchedConsultant?.id || '',
+        consultantCode: matchedConsultant?.referralCode || effectiveRef || '',
+        consultantName:
+          matchedConsultant?.role === 'INFLUENCER' ? '' : matchedConsultant?.name || '',
+        influencerName:
+          matchedConsultant?.role === 'INFLUENCER' ? matchedConsultant.name : '',
         attachments: holderDocAttachment ? [holderDocAttachment] : [],
         members: [
           {
@@ -1203,6 +1293,48 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
       )}
 
       <div className="w-full max-w-[1400px] mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-6">
+        {/* BANNER DE CONFIRMAÇÃO DO CONSULTOR / INFLUENCER OFICIAL SEMPRE VISÍVEL NO TOPO */}
+        {matchedConsultant && (
+          <div className="bg-gradient-to-r from-[#004d00] via-emerald-900 to-teal-950 text-white rounded-2xl p-4 sm:p-5 max-w-4xl mx-auto mb-6 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-2 border-amber-400/70">
+            <div className="flex items-start sm:items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-400 text-emerald-950 flex items-center justify-center shrink-0 shadow">
+                <CheckCircle2 className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-black text-amber-300 uppercase text-[11px] tracking-wider">
+                    Atendimento Oficial Confirmado •{' '}
+                    {matchedConsultant.role === 'INFLUENCER'
+                      ? 'Influencer Parceiro'
+                      : 'Consultor de Vendas'}
+                  </span>
+                  <Badge className="bg-emerald-700 text-white font-mono font-bold text-[10px] border border-emerald-400/40">
+                    Código: {matchedConsultant.referralCode}
+                  </Badge>
+                </div>
+                <p className="font-black text-base sm:text-lg text-white mt-0.5 leading-tight">
+                  Você está contratando com: {matchedConsultant.name}
+                </p>
+                <p className="text-xs text-emerald-100/90 mt-0.5">
+                  {matchedConsultant.phone
+                    ? `WhatsApp de apoio: ${matchedConsultant.phone} • `
+                    : ''}
+                  Adesão e benefícios vinculados ao link exclusivo deste representante.
+                </p>
+              </div>
+            </div>
+            {matchedConsultant.allowedPlanCodes &&
+              matchedConsultant.allowedPlanCodes.length > 0 && (
+                <Badge className="bg-white text-emerald-950 font-black text-[11px] px-3 py-1.5 self-start sm:self-center shrink-0">
+                  {displayedCatalogPlans.length}{' '}
+                  {displayedCatalogPlans.length === 1
+                    ? 'plano liberado'
+                    : 'planos liberados'}
+                </Badge>
+              )}
+          </div>
+        )}
+
         {/* BARRA SUPERIOR DE 4 ETAPAS (Exibida no topo quando step > 1: Cadastro, Termos, Pagamento) */}
         {step > 1 && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-2 max-w-4xl mx-auto mb-8">
@@ -1408,57 +1540,17 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                     </div>
                   </div>
 
-                  {/* Contadores por Modalidade */}
+                  {/* Contadores por Modalidade (Filtrados pelas permissões do Consultor, se houver) */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    {[
-                      {
-                        code: 'ADULTO',
-                        label: 'Adulto Integral (Lessa Club)',
-                        price:
-                          customActiveCycle === 'ANNUAL'
-                            ? 'R$ 44,91/mês'
-                            : 'R$ 49,90/mês',
-                      },
-                      {
-                        code: 'ESTUDANTE',
-                        label: 'Estudante (10% OFF)',
-                        price:
-                          customActiveCycle === 'ANNUAL'
-                            ? 'R$ 22,50/mês'
-                            : 'R$ 25,00/mês',
-                      },
-                      {
-                        code: 'PROFESSOR',
-                        label: 'Professor (10% OFF)',
-                        price:
-                          customActiveCycle === 'ANNUAL'
-                            ? 'R$ 22,50/mês'
-                            : 'R$ 25,00/mês',
-                      },
-                      {
-                        code: 'SERVIDOR',
-                        label: 'Servidor Público (10% OFF)',
-                        price:
-                          customActiveCycle === 'ANNUAL'
-                            ? 'R$ 22,50/mês'
-                            : 'R$ 25,00/mês',
-                      },
-                      {
-                        code: 'KIDS',
-                        label: 'Lessa Kids (0 a 11 anos)',
-                        price: 'GRÁTIS (R$ 0)',
-                      },
-                      {
-                        code: 'IDOSO_60',
-                        label: 'Lessa Vitalício 60+',
-                        price: 'GRÁTIS (R$ 0)',
-                      },
-                      {
-                        code: 'PCD_TEA',
-                        label: 'Inclusão PCD e TEA',
-                        price: 'GRÁTIS (R$ 0)',
-                      },
-                    ].map((item) => {
+                    {activeModalities.map((mod) => {
+                      const code = mod.code;
+                      const label = mod.name;
+                      const price = mod.isFreeTier
+                        ? 'GRÁTIS (R$ 0)'
+                        : customActiveCycle === 'ANNUAL'
+                        ? `${formatCurrency(mod.annualInstallment)}/mês`
+                        : `${formatCurrency(mod.monthlyPrice)}/mês`;
+                      const item = { code, label, price };
                       const qty = customCounts[item.code] || 0;
                       return (
                         <div
@@ -1555,21 +1647,16 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
               </div>
             </div>
 
-            {/* BANNER DE VENDEDOR / CONSULTOR RASTREADO */}
+            {/* BANNER DE CONFIRMAÇÃO COMPACTO ACIMA DAS ETAPAS */}
             {matchedConsultant && (
-              <div className="bg-gradient-to-r from-emerald-900 to-teal-950 text-white rounded-2xl p-3.5 max-w-3xl mx-auto my-3 shadow-md flex items-center justify-between gap-3 text-xs border border-emerald-500/30">
-                <div className="flex items-center gap-2.5">
-                  <Sparkles className="w-5 h-5 text-amber-300 shrink-0" />
-                  <div>
-                    <span className="font-bold text-emerald-300 uppercase text-[10px] tracking-wider block">
-                      Indicação Oficial Balneário Lessa
-                    </span>
-                    <span className="font-black text-sm">
-                      Você está contratando através de: {matchedConsultant.name}
-                    </span>
-                  </div>
+              <div className="bg-emerald-900 text-white rounded-xl p-3 max-w-3xl mx-auto my-2 shadow-sm flex items-center justify-between gap-3 text-xs border border-emerald-500/40">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-amber-300 shrink-0" />
+                  <span>
+                    Representante vinculado: <strong>{matchedConsultant.name}</strong>
+                  </span>
                 </div>
-                <Badge className="bg-emerald-600 text-white font-mono font-bold text-xs shrink-0">
+                <Badge className="bg-emerald-700 text-white font-mono font-bold text-[10px]">
                   Ref: {matchedConsultant.referralCode}
                 </Badge>
               </div>
@@ -1615,7 +1702,10 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg sm:text-xl font-black text-slate-900">
-                  Planos por Categoria e Gratuidades Oficiais
+                  {matchedConsultant?.allowedPlanCodes &&
+                  matchedConsultant.allowedPlanCodes.length > 0
+                    ? `Planos Disponíveis com ${matchedConsultant.name}`
+                    : 'Planos por Categoria e Gratuidades Oficiais'}
                 </h3>
                 <span className="text-xs text-slate-500 hidden sm:inline">
                   Escolha sua categoria principal abaixo (você também poderá incluir dependentes no cadastro)
@@ -1623,7 +1713,7 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-7">
-                {CATALOG_PLANS.map((card) => {
+                {displayedCatalogPlans.map((card) => {
                   const activeCycle = getCardCycle(card.id);
                   const hasCounter = !!card.hasPeopleCounter;
                   const isFree = !!card.isFreePlan;
