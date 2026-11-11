@@ -3317,6 +3317,19 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                       <QrCode className="w-4 h-4 text-amber-300" />
                       <span>Validar Carteirinha (QR Code)</span>
                     </button>
+                    <button
+                      type="button"
+                      onMouseEnter={() => setOpenSubMenu(null)}
+                      onClick={() => {
+                        setOpenMenu(null);
+                        setOpenSubMenu(null);
+                        handleOpenAsaasSyncModal();
+                      }}
+                      className="w-full px-4 py-2 mt-1 text-left bg-amber-400 hover:bg-amber-300 flex items-center gap-2 text-emerald-950 font-black"
+                    >
+                      <RefreshCw className="w-4 h-4 shrink-0" />
+                      <span>Sincronizar Asaas</span>
+                    </button>
                   </div>
                 </div>
               )}
@@ -3623,6 +3636,19 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                       <span>{item.label}</span>
                     </button>
                   ))}
+                  <div className="border-t border-white/20 mt-1 pt-1 px-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOpenMenu(null);
+                        handleOpenAsaasSyncModal();
+                      }}
+                      className="w-full px-3 py-2 rounded-lg text-left bg-amber-400 hover:bg-amber-300 text-emerald-950 font-black flex items-center gap-2"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5 shrink-0" />
+                      <span>Sincronizar Asaas (Mensalidades)</span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -4466,7 +4492,20 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
             <h3 className="text-base font-black text-slate-900 mb-4">
               Ações Rápidas do Balneário
             </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+              <Button
+                type="button"
+                onClick={handleOpenAsaasSyncModal}
+                className="h-14 justify-start bg-amber-400 hover:bg-amber-300 text-emerald-950 font-black rounded-2xl px-4 shadow-sm cursor-pointer"
+              >
+                <RefreshCw className="w-5 h-5 mr-3 shrink-0" />
+                <div className="text-left">
+                  <div className="text-sm">Sincronizar Asaas</div>
+                  <div className="text-[10px] text-emerald-900 font-bold">
+                    Pré-visualizar e importar parcelas
+                  </div>
+                </div>
+              </Button>
               <Button
                 onClick={() => {
                   setPersonType('PF');
