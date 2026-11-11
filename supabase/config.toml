@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.create-internal-order]
 verify_jwt = false
+
+[functions.sync-labcard]
+verify_jwt = false

@@ -159,6 +159,9 @@ export interface ClubSubscription {
   holderMaritalStatus?: string;
   holderPhone: string;
   holderEmail?: string;
+  holderCnpj?: string;
+  companyName?: string;
+  labcardSituationLabel?: string;
   addressCep?: string;
   addressStreet?: string;
   addressNumber?: string;

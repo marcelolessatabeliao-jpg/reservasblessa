@@ -3134,3 +3134,692 @@ export const getValidityLabelFromDate = (dateStr?: string | null, fallback = '')
   const [yyyy, mm] = isoDay.split('-');
   return `${mm}/${yyyy}`;
 };
+
+// ============================================================================
+// INTEGRAÇÃO API LABCARD (https://api.cartaobl.com.br/docs/api-docs.json)
+// ============================================================================
+
+export interface LabcardApiClientRecord {
+  id?: number | string;
+  registro_plano?: string;
+  num_card?: string | number;
+  num_card_titular?: string | number;
+  id_cartao_padrao?: number;
+  nome?: string;
+  data_nascimento?: string;
+  rg?: string;
+  cpf?: string;
+  cnpj?: string;
+  sexo?: string;
+  estado_civil?: string;
+  ddd?: string;
+  telefone?: string;
+  email?: string;
+  cep?: string;
+  endereco?: string;
+  num?: string;
+  complemento?: string;
+  bairro?: string;
+  cidade?: string;
+  estado?: string;
+  vencimento_cartao?: string;
+  registro_consultor?: string | number;
+  registro_empresa?: string | number;
+  situacao_cadastral?: string;
+  titular?: string | number | boolean;
+  status?: string | number;
+  liberado?: string | number;
+  excluido?: string | number;
+  cancelado?: string | number;
+  plano?: string;
+  valor?: string | number;
+  created_at?: string;
+  adicionais?: any;
+  cartoes?: any;
+  [key: string]: any;
+}
+
+export interface LabcardApiInitResponse {
+  token: string;
+  hasServerCredentials: boolean;
+  currentPage: number;
+  lastPage: number;
+  perPage: number;
+  totalClientes: number;
+  clientes: LabcardApiClientRecord[];
+  consultores: any[];
+  empresas: any[];
+  planos: any[];
+  sampleKeys: string[];
+}
+
+export interface LabcardEnrichStats {
+  totalApiRecords: number;
+  matchedSubscriptions: number;
+  newTitularesCount: number;
+  newDependentsAdded: number;
+  emailsFilled: number;
+  addressesFilled: number;
+  rgsFilled: number;
+  validitiesUpdated: number;
+  consultantsLinked: number;
+  boletosImported: number;
+  hasExtraMediaField: string[];
+}
+
+export const checkLabcardServerStatus = async (): Promise<{
+  hasServerCredentials: boolean;
+  baseUrl: string;
+}> => {
+  const { data, error } = await supabase.functions.invoke('sync-labcard', {
+    body: { action: 'status' },
+  });
+  if (error || !data) {
+    return { hasServerCredentials: false, baseUrl: 'https://api.cartaobl.com.br' };
+  }
+  return {
+    hasServerCredentials: Boolean(data.hasServerCredentials),
+    baseUrl: String(data.baseUrl || 'https://api.cartaobl.com.br'),
+  };
+};
+
+export const initLabcardApiSync = async (creds?: {
+  usuario?: string;
+  senha?: string;
+}): Promise<LabcardApiInitResponse> => {
+  const { data, error } = await supabase.functions.invoke('sync-labcard', {
+    body: {
+      action: 'init',
+      usuario: creds?.usuario,
+      senha: creds?.senha,
+    },
+  });
+  if (error || data?.error) {
+    throw new Error(data?.error || error?.message || 'Erro ao autenticar na API do Labcard.');
+  }
+  return data as LabcardApiInitResponse;
+};
+
+export const fetchLabcardClientesPages = async (
+  token: string,
+  startPage: number,
+  endPage: number
+): Promise<{
+  items: LabcardApiClientRecord[];
+  lastPage: number;
+  totalClientes: number;
+}> => {
+  const { data, error } = await supabase.functions.invoke('sync-labcard', {
+    body: {
+      action: 'fetch-clientes-pages',
+      token,
+      startPage,
+      endPage,
+    },
+  });
+  if (error || data?.error) {
+    throw new Error(data?.error || error?.message || `Erro ao baixar páginas ${startPage}-${endPage} do Labcard.`);
+  }
+  return data;
+};
+
+export const fetchLabcardBoletos = async (
+  token: string,
+  startPage = 1,
+  maxPages = 12
+): Promise<{ boletos: any[]; lastPage: number; total: number }> => {
+  const { data, error } = await supabase.functions.invoke('sync-labcard', {
+    body: {
+      action: 'fetch-boletos',
+      token,
+      startPage,
+      maxPages,
+    },
+  });
+  if (error || data?.error) {
+    throw new Error(data?.error || error?.message || 'Erro ao buscar boletos do Labcard.');
+  }
+  return data;
+};
+
+const normalizeIsoDateFromLabcard = (raw?: string | null): string => {
+  if (!raw) return '';
+  const trimmed = String(raw).trim();
+  if (!trimmed || trimmed === '0000-00-00') return '';
+  if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) return trimmed.slice(0, 10);
+  const br = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (br) return `${br[3]}-${br[2]}-${br[1]}`;
+  return '';
+};
+
+const isLabcardTitularRecord = (rec: LabcardApiClientRecord): boolean => {
+  const numCard = cleanDigits(String(rec.num_card || ''));
+  const holderCard = cleanDigits(String(rec.num_card_titular || ''));
+  const titFlag = String(rec.titular ?? '').trim().toLowerCase();
+  if (['1', 'sim', 'true', 'titular', 's'].includes(titFlag)) return true;
+  if (['0', 'nao', 'não', 'false', 'dependente', 'dep', 'n'].includes(titFlag)) return false;
+  if (!holderCard || (numCard && holderCard === numCard)) return true;
+  return false;
+};
+
+const normalizeGender = (raw?: string | null): string => {
+  const s = String(raw || '').trim();
+  if (!s) return '';
+  const up = s.toUpperCase();
+  if (up === 'M' || up.startsWith('MASC')) return 'Masculino';
+  if (up === 'F' || up.startsWith('FEM')) return 'Feminino';
+  return s;
+};
+
+const normalizeLabcardPhone = (ddd?: string, tel?: string): string => {
+  const d = cleanDigits(String(ddd || ''));
+  const t = cleanDigits(String(tel || ''));
+  if (!t) return '';
+  if (d && !t.startsWith(d) && t.length <= 9) {
+    return formatPhone(`${d}${t}`);
+  }
+  return formatPhone(t);
+};
+
+const detectExtraMediaKeys = (records: LabcardApiClientRecord[]): string[] => {
+  if (!records || records.length === 0) return [];
+  const sampleKeys = new Set<string>();
+  records.slice(0, 25).forEach((r) => {
+    if (r && typeof r === 'object') {
+      Object.keys(r).forEach((k) => {
+        if (/(foto|img|imag|anex|doc|file|arquiv|pdf|avatar|midia|comprov)/i.test(k)) {
+          sampleKeys.add(k);
+        }
+      });
+    }
+  });
+  return Array.from(sampleKeys);
+};
+
+export const applyLabcardFullEnrichment = async (
+  currentState: ClubDatabaseState,
+  payload: {
+    clientes: LabcardApiClientRecord[];
+    consultores?: any[];
+    empresas?: any[];
+    planos?: any[];
+    boletos?: any[];
+  },
+  options: {
+    includeNewClients: boolean;
+    includeBoletos: boolean;
+  }
+): Promise<{
+  state: ClubDatabaseState;
+  stats: LabcardEnrichStats;
+}> => {
+  const nowIso = new Date().toISOString();
+  const nextSubs = currentState.subscriptions.map((s) => ({
+    ...s,
+    members: [...(s.members || [])],
+    invoices: [...(s.invoices || [])],
+    additionalServices: [...(s.additionalServices || [])],
+  }));
+
+  // Mapas de apoio de Consultores, Empresas e Planos
+  const consultorMap = new Map<string, any>();
+  (payload.consultores || []).forEach((c) => {
+    [c.id, c.registro, c.codigo, c.registro_consultor, c.num_card]
+      .filter((k) => k !== undefined && k !== null && String(k).trim() !== '')
+      .forEach((k) => consultorMap.set(String(k).trim(), c));
+  });
+
+  const empresaMap = new Map<string, any>();
+  (payload.empresas || []).forEach((e) => {
+    [e.id, e.registro, e.registro_empresa]
+      .filter((k) => k !== undefined && k !== null && String(k).trim() !== '')
+      .forEach((k) => empresaMap.set(String(k).trim(), e));
+  });
+
+  const planoMap = new Map<string, any>();
+  (payload.planos || []).forEach((p) => {
+    [p.id, p.registro, p.registro_plano]
+      .filter((k) => k !== undefined && k !== null && String(k).trim() !== '')
+      .forEach((k) => planoMap.set(String(k).trim(), p));
+  });
+
+  // Índices rápidos das assinaturas existentes por num_card e CPF
+  const subIdxByCard = new Map<string, number>();
+  const subIdxByCpf = new Map<string, number>();
+  nextSubs.forEach((s, idx) => {
+    const codeDigits = cleanDigits(s.subscriptionCode);
+    if (codeDigits) subIdxByCard.set(codeDigits, idx);
+    const cpfDigits = cleanDigits(s.holderCpf);
+    if (cpfDigits && cpfDigits.length >= 11 && !subIdxByCpf.has(cpfDigits)) {
+      subIdxByCpf.set(cpfDigits, idx);
+    }
+    (s.members || []).forEach((m) => {
+      const mCard = cleanDigits(m.cardNumber);
+      if (mCard && !subIdxByCard.has(mCard)) subIdxByCard.set(mCard, idx);
+    });
+  });
+
+  const titulares: LabcardApiClientRecord[] = [];
+  const dependentes: LabcardApiClientRecord[] = [];
+
+  (payload.clientes || []).forEach((rec) => {
+    if (!rec || typeof rec !== 'object') return;
+    if (isLabcardTitularRecord(rec)) titulares.push(rec);
+    else dependentes.push(rec);
+  });
+
+  const stats: LabcardEnrichStats = {
+    totalApiRecords: (payload.clientes || []).length,
+    matchedSubscriptions: 0,
+    newTitularesCount: 0,
+    newDependentsAdded: 0,
+    emailsFilled: 0,
+    addressesFilled: 0,
+    rgsFilled: 0,
+    validitiesUpdated: 0,
+    consultantsLinked: 0,
+    boletosImported: 0,
+    hasExtraMediaField: detectExtraMediaKeys(payload.clientes || []),
+  };
+
+  const resolveLabcardModalityInfo = (planText?: string) => {
+    const p = String(planText || '').toLowerCase();
+    if (p.includes('estudant') || p.includes('student')) {
+      return { code: 'ESTUDANTE', name: 'Lessa Student Pass', front: '/cards/6.png', back: '/cards/24.png', price: 25 };
+    }
+    if (p.includes('professor')) {
+      return { code: 'PROFESSOR', name: 'Lessa Professor Pass', front: '/cards/3.png', back: '/cards/24.png', price: 25 };
+    }
+    if (p.includes('servidor')) {
+      return { code: 'SERVIDOR', name: 'Lessa Servidor Pass', front: '/cards/10.png', back: '/cards/24.png', price: 25 };
+    }
+    if (p.includes('kids') || p.includes('infantil')) {
+      return { code: 'KIDS', name: 'Lessa Kids', front: '/cards/38.png', back: '/cards/39.png', price: 0 };
+    }
+    if (p.includes('60') || p.includes('idoso') || p.includes('vital')) {
+      return { code: 'IDOSO_60', name: 'Lessa Vitalício 60+', front: '/cards/26.png', back: '/cards/39.png', price: 0 };
+    }
+    if (p.includes('pcd') || p.includes('tea') || p.includes('inclus') || p.includes('pdc')) {
+      return { code: 'PCD_TEA', name: 'Lessa Inclusão - PCD e TEA', front: '/cards/35.png', back: '/cards/24.png', price: 0 };
+    }
+    return { code: 'ADULTO', name: 'Lessa Club', front: '/cards/44.png', back: '/cards/24.png', price: 49.9 };
+  };
+
+  // Agrupar boletos por número do cartão quando solicitados
+  const boletosByCard = new Map<string, any[]>();
+  if (options.includeBoletos && Array.isArray(payload.boletos)) {
+    payload.boletos.forEach((b) => {
+      const cardDigits = cleanDigits(String(b.num_card || b.num_card_titular || ''));
+      if (!cardDigits) return;
+      const list = boletosByCard.get(cardDigits) || [];
+      list.push(b);
+      boletosByCard.set(cardDigits, list);
+    });
+  }
+
+  // Função auxiliar para aplicar dados da API sobre um ClubMember preservando status/mídias
+  const enrichMemberFromApi = (member: ClubMember, rec: LabcardApiClientRecord): ClubMember => {
+    const birthIso = normalizeIsoDateFromLabcard(rec.data_nascimento);
+    const expIso = normalizeIsoDateFromLabcard(rec.vencimento_cartao);
+    const rgStr = String(rec.rg || '').trim();
+    const sexStr = normalizeGender(rec.sexo);
+    const phoneStr = normalizeLabcardPhone(rec.ddd, rec.telefone);
+
+    return {
+      ...member,
+      rg: member.rg || rgStr || undefined,
+      birthDate: member.birthDate || birthIso || undefined,
+      sex: member.sex || sexStr || undefined,
+      phone: member.phone || phoneStr || undefined,
+      expirationDate: member.expirationDate || expIso || undefined,
+      validityLabel: expIso
+        ? getValidityLabelFromDate(expIso, member.validityLabel)
+        : member.validityLabel,
+    };
+  };
+
+  // 1) Processar Titulares da API
+  for (const rec of titulares) {
+    const numCard = cleanDigits(String(rec.num_card || rec.num_card_titular || ''));
+    const cpfDigits = cleanDigits(String(rec.cpf || ''));
+    if (!numCard && cpfDigits.length < 11) continue;
+
+    let subIdx = numCard ? subIdxByCard.get(numCard) ?? -1 : -1;
+    if (subIdx === -1 && cpfDigits.length >= 11) {
+      subIdx = subIdxByCpf.get(cpfDigits) ?? -1;
+    }
+
+    const emailStr = String(rec.email || '').trim();
+    const rgStr = String(rec.rg || '').trim();
+    const cnpjStr = cleanDigits(String(rec.cnpj || ''));
+    const birthIso = normalizeIsoDateFromLabcard(rec.data_nascimento);
+    const expIso = normalizeIsoDateFromLabcard(rec.vencimento_cartao);
+    const createdIso = normalizeIsoDateFromLabcard(rec.created_at);
+    const sexStr = normalizeGender(rec.sexo);
+    const maritalStr = String(rec.estado_civil || '').trim();
+    const phoneStr = normalizeLabcardPhone(rec.ddd, rec.telefone);
+
+    const cepStr = String(rec.cep || '').trim();
+    const streetStr = String(rec.endereco || '').trim();
+    const numStr = String(rec.num || '').trim();
+    const compStr = String(rec.complemento || '').trim();
+    const bairroStr = String(rec.bairro || '').trim();
+    const cityStr = String(rec.cidade || '').trim();
+    const stateStr = String(rec.estado || '').trim();
+
+    const consultorRec = rec.registro_consultor
+      ? consultorMap.get(String(rec.registro_consultor).trim())
+      : undefined;
+    const empresaRec = rec.registro_empresa
+      ? empresaMap.get(String(rec.registro_empresa).trim())
+      : undefined;
+    const planoRec = rec.registro_plano
+      ? planoMap.get(String(rec.registro_plano).trim())
+      : undefined;
+
+    const sitParts = [
+      rec.situacao_cadastral ? String(rec.situacao_cadastral) : '',
+      rec.status ? `Status API: ${rec.status}` : '',
+      String(rec.cancelado) === '1' || String(rec.cancelado).toLowerCase() === 'sim' ? 'Cancelado no Labcard' : '',
+    ].filter(Boolean);
+    const sitLabel = sitParts.join(' • ');
+
+    if (subIdx >= 0) {
+      const existing = nextSubs[subIdx];
+      let touched = false;
+
+      const updated: ClubSubscription = { ...existing };
+
+      if (emailStr && !updated.holderEmail) {
+        updated.holderEmail = emailStr;
+        stats.emailsFilled += 1;
+        touched = true;
+      }
+      if (rgStr && !updated.holderRg) {
+        updated.holderRg = rgStr;
+        stats.rgsFilled += 1;
+        touched = true;
+      }
+      if (cnpjStr.length >= 14 && !updated.holderCnpj) {
+        updated.holderCnpj = cnpjStr;
+        updated.personType = 'PJ';
+        touched = true;
+      }
+      if (birthIso && !updated.holderBirthDate) {
+        updated.holderBirthDate = birthIso;
+        touched = true;
+      }
+      if (sexStr && !updated.holderSex) {
+        updated.holderSex = sexStr;
+        touched = true;
+      }
+      if (maritalStr && !updated.holderMaritalStatus) {
+        updated.holderMaritalStatus = maritalStr;
+        touched = true;
+      }
+      if (phoneStr && !updated.holderPhone) {
+        updated.holderPhone = phoneStr;
+        touched = true;
+      }
+
+      if ((cepStr || streetStr || bairroStr || cityStr) && (!updated.addressStreet || !updated.addressCep || updated.addressCity === 'Porto Velho')) {
+        if (cepStr && !updated.addressCep) updated.addressCep = cepStr;
+        if (streetStr && !updated.addressStreet) updated.addressStreet = streetStr;
+        if (numStr && !updated.addressNumber) updated.addressNumber = numStr;
+        if (compStr && !updated.addressComplement) updated.addressComplement = compStr;
+        if (bairroStr && !updated.addressNeighborhood) updated.addressNeighborhood = bairroStr;
+        if (cityStr && (!updated.addressCity || updated.addressCity === 'Porto Velho')) updated.addressCity = cityStr;
+        if (stateStr && (!updated.addressState || updated.addressState === 'RO')) updated.addressState = stateStr;
+        stats.addressesFilled += 1;
+        touched = true;
+      }
+
+      if (expIso && updated.endDate === '2027-10-31') {
+        updated.endDate = expIso;
+        stats.validitiesUpdated += 1;
+        touched = true;
+      }
+      if (createdIso && updated.startDate === '2025-01-01') {
+        updated.startDate = createdIso;
+        touched = true;
+      }
+
+      if (consultorRec && (!updated.consultantName || updated.consultantName === 'Administrador' || updated.consultantName === 'CONSULTOR SITE')) {
+        updated.consultantId = String(consultorRec.id || consultorRec.registro || rec.registro_consultor || '');
+        updated.consultantName = String(consultorRec.nome || consultorRec.name || '');
+        stats.consultantsLinked += 1;
+        touched = true;
+      }
+
+      if (empresaRec && !updated.companyName) {
+        updated.companyName = String(empresaRec.nome || empresaRec.razao_social || empresaRec.empresa || '');
+        touched = true;
+      }
+
+      if (sitLabel && !updated.labcardSituationLabel) {
+        updated.labcardSituationLabel = sitLabel;
+        touched = true;
+      }
+
+      // Atualizar membro titular correspondente dentro da assinatura
+      const memIdx = updated.members.findIndex(
+        (m) =>
+          (numCard && cleanDigits(m.cardNumber) === numCard) ||
+          (cpfDigits.length >= 11 && cleanDigits(m.cpf) === cpfDigits) ||
+          m.role === 'TITULAR'
+      );
+      if (memIdx >= 0) {
+        updated.members[memIdx] = enrichMemberFromApi(updated.members[memIdx], rec);
+        touched = true;
+      }
+
+      // Mesclar boletos históricos do Labcard (opcional)
+      if (options.includeBoletos && numCard) {
+        const cardBoletos = boletosByCard.get(numCard) || [];
+        cardBoletos.forEach((b, bIdx) => {
+          const docNum = String(b.num_documento || b.boleto || b.nosso_numero || b.id || `${numCard}-${bIdx}`);
+          const due = normalizeIsoDateFromLabcard(b.vencimento || b.data_vencimento || b.data) || nowIso.slice(0, 10);
+          const alreadyExists = updated.invoices.some(
+            (inv) =>
+              (inv.boletoNumber && inv.boletoNumber === docNum) ||
+              inv.id === `inv_lc_${docNum}` ||
+              (inv.dueDate === due && Math.abs(Number(inv.amount || 0) - Number(b.valor || 0)) < 0.05)
+          );
+          if (!alreadyExists) {
+            const stRaw = String(b.status || b.situacao || '').toLowerCase();
+            const isPaid = stRaw.includes('pag') || stRaw.includes('baix') || stRaw.includes('liquid');
+            updated.invoices.push({
+              id: `inv_lc_${docNum}`,
+              subscriptionId: updated.id,
+              subscriptionCode: updated.subscriptionCode,
+              holderName: updated.holderName,
+              holderCpf: updated.holderCpf,
+              holderPhone: updated.holderPhone,
+              installmentNumber: bIdx + 1,
+              totalInstallments: cardBoletos.length,
+              referenceMonth: due.length >= 7 ? `${due.slice(5, 7)}/${due.slice(0, 4)}` : '',
+              amount: Number(b.valor || planoRec?.valor || updated.monthlyEquivalent || 0),
+              dueDate: due,
+              paidAt: isPaid ? normalizeIsoDateFromLabcard(b.data_pagamento || b.updated_at) || due : undefined,
+              paymentMethod: 'BOLETO',
+              status: isPaid ? 'PAID' : isClubDateExpired(due) ? 'OVERDUE' : 'PENDING',
+              boletoNumber: docNum,
+              description: String(b.descricao || b.referencia || `Boleto Labcard (${due})`),
+              createdAt: nowIso,
+            });
+            stats.boletosImported += 1;
+            touched = true;
+          }
+        });
+      }
+
+      if (touched) {
+        updated.updatedAt = nowIso;
+        nextSubs[subIdx] = updated;
+      }
+      stats.matchedSubscriptions += 1;
+    } else if (options.includeNewClients && numCard) {
+      // Cadastro novo existente na API do Labcard que ainda não estava na base local (sempre PENDING_TRANSFER)
+      const planLabel = String(rec.plano || planoRec?.nome || 'Lessa Club');
+      const mod = resolveLabcardModalityInfo(planLabel);
+      const val = Number(rec.valor || planoRec?.valor || mod.price || 0);
+      const subId = `sub-labcard-${numCard}`;
+      const formattedCpf = formatCpf(cpfDigits);
+
+      const newSub: ClubSubscription = {
+        id: subId,
+        subscriptionCode: numCard,
+        personType: cnpjStr.length >= 14 ? 'PJ' : 'PF',
+        holderName: String(rec.nome || 'ASSOCIADO LABCARD').trim().toUpperCase(),
+        holderCpf: formattedCpf,
+        holderRg: rgStr || undefined,
+        holderBirthDate: birthIso || undefined,
+        holderSex: sexStr || undefined,
+        holderMaritalStatus: maritalStr || undefined,
+        holderPhone: phoneStr,
+        holderEmail: emailStr || undefined,
+        holderCnpj: cnpjStr || undefined,
+        companyName: empresaRec ? String(empresaRec.nome || empresaRec.razao_social || '') : undefined,
+        labcardSituationLabel: sitLabel || undefined,
+        addressCep: cepStr || undefined,
+        addressStreet: streetStr || undefined,
+        addressNumber: numStr || undefined,
+        addressComplement: compStr || undefined,
+        addressNeighborhood: bairroStr || undefined,
+        addressCity: cityStr || 'Ariquemes',
+        addressState: stateStr || 'RO',
+        billingCycle: planLabel.toLowerCase().includes('anual') ? 'ANNUAL' : 'MONTHLY',
+        paymentMethod: 'PIX',
+        installments: planLabel.toLowerCase().includes('anual') ? 12 : 1,
+        monthlyEquivalent: val,
+        totalContractValue: planLabel.toLowerCase().includes('anual') ? val * 12 : val,
+        dueDay: 10,
+        status: 'PENDING_TRANSFER',
+        origin: 'IMPORT_LABCARD',
+        consultantId: consultorRec ? String(consultorRec.id || consultorRec.registro || '') : undefined,
+        consultantName: consultorRec ? String(consultorRec.nome || consultorRec.name || '') : undefined,
+        planSummaryLabel: planLabel,
+        notes: 'Sincronizado diretamente da API do Labcard.',
+        contractType: 'ADESAO_PF',
+        contractAccepted: true,
+        contractSignedAt: createdIso ? `${createdIso}T00:00:00.000Z` : nowIso,
+        startDate: createdIso || nowIso.slice(0, 10),
+        endDate: expIso || '2027-10-31',
+        members: [
+          {
+            id: `mem-${numCard}`,
+            subscriptionId: subId,
+            role: 'TITULAR',
+            modalityCode: mod.code,
+            modalityName: mod.name,
+            planCycleLabel: planLabel,
+            fullName: String(rec.nome || 'ASSOCIADO LABCARD').trim().toUpperCase(),
+            cpf: formattedCpf,
+            rg: rgStr || undefined,
+            birthDate: birthIso || undefined,
+            sex: sexStr || undefined,
+            phone: phoneStr || undefined,
+            cardNumber: numCard,
+            holderCardNumber: numCard,
+            qrToken: `LC-${numCard}`,
+            frontCardUrl: mod.front,
+            backCardUrl: mod.back,
+            validityLabel: expIso ? getValidityLabelFromDate(expIso, '10/2027') : '10/2027',
+            expirationDate: expIso || undefined,
+            monthlyValue: val,
+            status: 'PENDING_TRANSFER',
+            createdAt: createdIso ? `${createdIso}T00:00:00.000Z` : nowIso,
+          },
+        ],
+        invoices: [],
+        attachments: [],
+        visits: [],
+        additionalServices: [],
+        createdAt: createdIso ? `${createdIso}T00:00:00.000Z` : nowIso,
+        updatedAt: nowIso,
+      };
+
+      const newIdx = nextSubs.length;
+      nextSubs.push(newSub);
+      subIdxByCard.set(numCard, newIdx);
+      if (cpfDigits.length >= 11) subIdxByCpf.set(cpfDigits, newIdx);
+      stats.newTitularesCount += 1;
+    }
+  }
+
+  // 2) Processar Dependentes da API (enriquecer existentes ou vincular dependentes ausentes ao titular)
+  for (const dep of dependentes) {
+    const depCard = cleanDigits(String(dep.num_card || ''));
+    const holderCard = cleanDigits(String(dep.num_card_titular || ''));
+    const depCpf = cleanDigits(String(dep.cpf || ''));
+    if (!holderCard && !depCard) continue;
+
+    const parentIdx = holderCard
+      ? subIdxByCard.get(holderCard) ?? -1
+      : depCard
+      ? subIdxByCard.get(depCard) ?? -1
+      : -1;
+    if (parentIdx === -1) continue;
+
+    const parentSub = nextSubs[parentIdx];
+    const memIdx = parentSub.members.findIndex(
+      (m) =>
+        (depCard && cleanDigits(m.cardNumber) === depCard) ||
+        (depCpf.length >= 11 && cleanDigits(m.cpf) === depCpf)
+    );
+
+    if (memIdx >= 0) {
+      parentSub.members[memIdx] = enrichMemberFromApi(parentSub.members[memIdx], dep);
+      parentSub.updatedAt = nowIso;
+    } else if (depCard) {
+      const mod = resolveLabcardModalityInfo(dep.plano || parentSub.planSummaryLabel);
+      const expIso = normalizeIsoDateFromLabcard(dep.vencimento_cartao);
+      const birthIso = normalizeIsoDateFromLabcard(dep.data_nascimento);
+      const depPhone = normalizeLabcardPhone(dep.ddd, dep.telefone) || parentSub.holderPhone;
+      parentSub.members.push({
+        id: `mem-${depCard}`,
+        subscriptionId: parentSub.id,
+        role: 'DEPENDENTE',
+        modalityCode: mod.code,
+        modalityName: mod.name,
+        planCycleLabel: String(dep.plano || mod.name),
+        fullName: String(dep.nome || 'DEPENDENTE').trim().toUpperCase(),
+        cpf: formatCpf(depCpf),
+        rg: String(dep.rg || '').trim() || undefined,
+        birthDate: birthIso || undefined,
+        sex: normalizeGender(dep.sexo) || undefined,
+        phone: depPhone || undefined,
+        cardNumber: depCard,
+        holderCardNumber: parentSub.subscriptionCode,
+        qrToken: `LC-${depCard}`,
+        frontCardUrl: mod.front,
+        backCardUrl: mod.back,
+        validityLabel: expIso ? getValidityLabelFromDate(expIso, '10/2027') : '10/2027',
+        expirationDate: expIso || undefined,
+        monthlyValue: Number(dep.valor || 0),
+        status: 'PENDING_TRANSFER',
+        createdAt: normalizeIsoDateFromLabcard(dep.created_at)
+          ? `${normalizeIsoDateFromLabcard(dep.created_at)}T00:00:00.000Z`
+          : nowIso,
+      });
+      subIdxByCard.set(depCard, parentIdx);
+      parentSub.updatedAt = nowIso;
+      stats.newDependentsAdded += 1;
+    }
+  }
+
+  // Ordenar faturas cronologicamente em assinaturas modificadas
+  nextSubs.forEach((s) => {
+    if (s.updatedAt === nowIso && s.invoices.length > 1) {
+      s.invoices.sort((a, b) => String(a.dueDate || '').localeCompare(String(b.dueDate || '')));
+    }
+  });
+
+  const nextState: ClubDatabaseState = {
+    ...currentState,
+    subscriptions: nextSubs,
+  };
+
+  const saved = await saveClubState(nextState);
+  return { state: saved, stats };
+};

@@ -142,6 +142,13 @@ import {
   fetchAsaasInstallmentCandidates,
   applySelectedAsaasSync,
   mapAsaasPaymentStatusToInvoiceStatus,
+  checkLabcardServerStatus,
+  initLabcardApiSync,
+  fetchLabcardClientesPages,
+  fetchLabcardBoletos,
+  applyLabcardFullEnrichment,
+  LabcardApiClientRecord,
+  LabcardEnrichStats,
 } from '@/lib/club-service';
 import {
   getSeenClubSubIds,
@@ -593,6 +600,119 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       });
     } finally {
       setIsApplyingAsaasSync(false);
+    }
+  };
+
+  // Sincronização completa com API do Labcard (e-mail, RG, sexo, endereço, validades, consultores, boletos)
+  const [isLabcardSyncModalOpen, setIsLabcardSyncModalOpen] = useState(false);
+  const [labcardHasServerCreds, setLabcardHasServerCreds] = useState<boolean>(false);
+  const [labcardApiUser, setLabcardApiUser] = useState('');
+  const [labcardApiPass, setLabcardApiPass] = useState('');
+  const [isLoadingLabcardSync, setIsLoadingLabcardSync] = useState(false);
+  const [labcardProgressText, setLabcardProgressText] = useState('');
+  const [labcardSyncError, setLabcardSyncError] = useState<string | null>(null);
+  const [labcardIncludeNewClients, setLabcardIncludeNewClients] = useState(true);
+  const [labcardIncludeBoletos, setLabcardIncludeBoletos] = useState(true);
+  const [isApplyingLabcardEnrich, setIsApplyingLabcardEnrich] = useState(false);
+  const [labcardEnrichResult, setLabcardEnrichResult] = useState<LabcardEnrichStats | null>(null);
+  const [labcardFetchedPayload, setLabcardFetchedPayload] = useState<{
+    clientes: LabcardApiClientRecord[];
+    consultores: any[];
+    empresas: any[];
+    planos: any[];
+    boletos: any[];
+    sampleKeys: string[];
+  } | null>(null);
+
+  const handleOpenLabcardSyncModal = async () => {
+    setIsLabcardSyncModalOpen(true);
+    setLabcardSyncError(null);
+    setLabcardEnrichResult(null);
+    const status = await checkLabcardServerStatus().catch(() => ({
+      hasServerCredentials: false,
+      baseUrl: 'https://api.cartaobl.com.br',
+    }));
+    setLabcardHasServerCreds(status.hasServerCredentials);
+  };
+
+  const handleFetchLabcardFullData = async () => {
+    setIsLoadingLabcardSync(true);
+    setLabcardSyncError(null);
+    setLabcardEnrichResult(null);
+    setLabcardFetchedPayload(null);
+    try {
+      setLabcardProgressText('Autenticando na API do Labcard e carregando página 1...');
+      const initRes = await initLabcardApiSync(
+        labcardApiUser || labcardApiPass
+          ? { usuario: labcardApiUser.trim(), senha: labcardApiPass }
+          : undefined
+      );
+
+      setLabcardHasServerCreds(initRes.hasServerCredentials || Boolean(initRes.token));
+      const allClientes: LabcardApiClientRecord[] = [...(initRes.clientes || [])];
+      const lastPage = Math.max(1, Number(initRes.lastPage || 1));
+
+      // Buscar demais páginas em blocos de 5 páginas (~500 clientes por bloco)
+      const pagesPerBatch = 5;
+      for (let start = 2; start <= lastPage; start += pagesPerBatch) {
+        const end = Math.min(lastPage, start + pagesPerBatch - 1);
+        setLabcardProgressText(
+          `Baixando clientes do Labcard: páginas ${start}–${end} de ${lastPage} (${allClientes.length} carregados)...`
+        );
+        const batch = await fetchLabcardClientesPages(initRes.token, start, end);
+        allClientes.push(...(batch.items || []));
+      }
+
+      let boletosList: any[] = [];
+      if (labcardIncludeBoletos) {
+        setLabcardProgressText('Buscando histórico de boletos e mensalidades do Labcard...');
+        const boletosRes = await fetchLabcardBoletos(initRes.token, 1, 15).catch(() => ({
+          boletos: [],
+          lastPage: 1,
+          total: 0,
+        }));
+        boletosList = boletosRes.boletos || [];
+      }
+
+      setLabcardFetchedPayload({
+        clientes: allClientes,
+        consultores: initRes.consultores || [],
+        empresas: initRes.empresas || [],
+        planos: initRes.planos || [],
+        boletos: boletosList,
+        sampleKeys: initRes.sampleKeys || [],
+      });
+      setLabcardProgressText('');
+    } catch (err: any) {
+      setLabcardSyncError(err?.message || 'Não foi possível buscar os cadastros na API do Labcard.');
+      setLabcardProgressText('');
+    } finally {
+      setIsLoadingLabcardSync(false);
+    }
+  };
+
+  const handleApplyLabcardEnrichment = async () => {
+    if (!state || !labcardFetchedPayload) return;
+    setIsApplyingLabcardEnrich(true);
+    try {
+      const res = await applyLabcardFullEnrichment(state, labcardFetchedPayload, {
+        includeNewClients: labcardIncludeNewClients,
+        includeBoletos: labcardIncludeBoletos,
+      });
+      setState(res.state);
+      setLabcardEnrichResult(res.stats);
+      toast({
+        title: 'Dados Completos do Labcard Importados!',
+        description: `${res.stats.matchedSubscriptions} cadastros atualizados • ${res.stats.emailsFilled} e-mails • ${res.stats.addressesFilled} endereços • ${res.stats.rgsFilled} RGs • ${res.stats.newTitularesCount} novos titulares • ${res.stats.boletosImported} boletos.`,
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao salvar enriquecimento do Labcard',
+        description: err?.message || 'Falha ao atualizar os cadastros no banco de dados.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsApplyingLabcardEnrich(false);
     }
   };
 
@@ -3334,6 +3454,19 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                       <RefreshCw className="w-4 h-4 shrink-0" />
                       <span>Sincronizar Asaas</span>
                     </button>
+                    <button
+                      type="button"
+                      onMouseEnter={() => setOpenSubMenu(null)}
+                      onClick={() => {
+                        setOpenMenu(null);
+                        setOpenSubMenu(null);
+                        handleOpenLabcardSyncModal();
+                      }}
+                      className="w-full px-4 py-2 mt-1 text-left bg-sky-100 hover:bg-sky-200 flex items-center gap-2 text-sky-950 font-black"
+                    >
+                      <Download className="w-4 h-4 shrink-0" />
+                      <span>Sincronizar Labcard (API)</span>
+                    </button>
                   </div>
                 </div>
               )}
@@ -4496,7 +4629,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
             <h3 className="text-base font-black text-slate-900 mb-4">
               Ações Rápidas do Balneário
             </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
               <Button
                 type="button"
                 onClick={handleOpenAsaasSyncModal}
@@ -4507,6 +4640,19 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   <div className="text-sm">Sincronizar Asaas</div>
                   <div className="text-[10px] text-emerald-900 font-bold">
                     Pré-visualizar e importar parcelas
+                  </div>
+                </div>
+              </Button>
+              <Button
+                type="button"
+                onClick={handleOpenLabcardSyncModal}
+                className="h-14 justify-start bg-sky-700 hover:bg-sky-800 text-white font-black rounded-2xl px-4 shadow-sm cursor-pointer"
+              >
+                <Download className="w-5 h-5 mr-3 shrink-0" />
+                <div className="text-left">
+                  <div className="text-sm">API Labcard</div>
+                  <div className="text-[10px] text-sky-100 font-bold">
+                    Enriquecer cadastros existentes
                   </div>
                 </div>
               </Button>
@@ -4602,6 +4748,15 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                  onClick={handleOpenLabcardSyncModal}
+                  className="border-sky-700 text-sky-900 bg-sky-50 hover:bg-sky-100 hover:text-sky-950 font-bold w-full sm:w-auto cursor-pointer"
+                >
+                  <Download className="w-4 h-4 mr-1.5" /> API Labcard (Completar Dados)
+                </Button>
                 <Button
                   size="sm"
                   type="button"
@@ -18052,6 +18207,212 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 className="bg-[#004d00] hover:bg-emerald-900 text-white font-bold cursor-pointer"
               >
                 {isApplyingAsaasSync ? 'Sincronizando...' : 'Importar e Ativar'}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ===================================================================== */}
+      {/* MODAL: SINCRONIZAR DADOS COMPLETOS VIA API DO LABCARD */}
+      {/* ===================================================================== */}
+      <Dialog open={isLabcardSyncModalOpen} onOpenChange={setIsLabcardSyncModalOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col bg-white text-slate-900">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg font-black text-sky-950">
+              <Download className="w-5 h-5 text-sky-700" />
+              Importar Dados Completos dos Cadastros (API Labcard)
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-600">
+              Busca via API oficial (<code>api.cartaobl.com.br</code>) todos os campos faltantes dos cadastros existentes:
+              <strong> E-mail, RG, Sexo, Estado Civil, Endereço completo, Validade real do cartão, Consultores, Empresas</strong> e boletos históricos — <strong>preservando status, fotos, anexos e cobranças do Asaas já salvas.</strong>
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 overflow-y-auto pr-1 py-1">
+            {/* Credenciais de acesso à API do Labcard */}
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="text-xs font-bold text-slate-800">
+                  1. Conexão com a API do Labcard
+                </div>
+                {labcardHasServerCreds ? (
+                  <Badge className="bg-emerald-100 text-emerald-800 border border-emerald-200 text-[10px] font-bold">
+                    Credenciais configuradas no servidor
+                  </Badge>
+                ) : (
+                  <Badge className="bg-amber-100 text-amber-800 border border-amber-200 text-[10px] font-bold">
+                    Informe login Admin do Labcard para conectar
+                  </Badge>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-[11px] font-bold text-slate-700">
+                    Usuário Admin Labcard {labcardHasServerCreds ? '(opcional se salvo no servidor)' : '*'}
+                  </Label>
+                  <Input
+                    value={labcardApiUser}
+                    onChange={(e) => setLabcardApiUser(e.target.value)}
+                    placeholder={labcardHasServerCreds ? 'Usar secret do servidor' : 'Ex: admin'}
+                    className="h-9 text-xs bg-white mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-[11px] font-bold text-slate-700">
+                    Senha Admin Labcard {labcardHasServerCreds ? '(opcional se salva no servidor)' : '*'}
+                  </Label>
+                  <Input
+                    type="password"
+                    value={labcardApiPass}
+                    onChange={(e) => setLabcardApiPass(e.target.value)}
+                    placeholder={labcardHasServerCreds ? '••••••••' : 'Senha da API Labcard'}
+                    className="h-9 text-xs bg-white mt-1"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-4 pt-1 text-xs text-slate-700">
+                <label className="inline-flex items-center gap-2 cursor-pointer font-medium">
+                  <input
+                    type="checkbox"
+                    checked={labcardIncludeNewClients}
+                    onChange={(e) => setLabcardIncludeNewClients(e.target.checked)}
+                    className="rounded border-slate-300"
+                  />
+                  Incluir clientes novos criados após a planilha (sempre como Pendente Transferência)
+                </label>
+                <label className="inline-flex items-center gap-2 cursor-pointer font-medium">
+                  <input
+                    type="checkbox"
+                    checked={labcardIncludeBoletos}
+                    onChange={(e) => setLabcardIncludeBoletos(e.target.checked)}
+                    className="rounded border-slate-300"
+                  />
+                  Importar histórico de boletos do Labcard
+                </label>
+              </div>
+
+              <div className="flex justify-end pt-1">
+                <Button
+                  type="button"
+                  disabled={isLoadingLabcardSync || isApplyingLabcardEnrich}
+                  onClick={handleFetchLabcardFullData}
+                  className="bg-sky-700 hover:bg-sky-800 text-white font-bold cursor-pointer"
+                >
+                  <RefreshCw className={`w-4 h-4 mr-1.5 ${isLoadingLabcardSync ? 'animate-spin' : ''}`} />
+                  {isLoadingLabcardSync ? 'Baixando da API...' : 'Buscar Todos os Cadastros do Labcard'}
+                </Button>
+              </div>
+            </div>
+
+            {isLoadingLabcardSync && labcardProgressText && (
+              <div className="p-4 rounded-xl bg-sky-50 border border-sky-200 text-xs text-sky-900 font-semibold flex items-center gap-2">
+                <RefreshCw className="w-4 h-4 animate-spin shrink-0 text-sky-700" />
+                <span>{labcardProgressText}</span>
+              </div>
+            )}
+
+            {labcardSyncError && (
+              <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-900 space-y-1">
+                <div className="font-bold">Erro ao consultar API do Labcard</div>
+                <div>{labcardSyncError}</div>
+              </div>
+            )}
+
+            {labcardFetchedPayload && !isLoadingLabcardSync && (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-black text-emerald-950">
+                    2. Prévia dos Dados Carregados da API
+                  </div>
+                  <Badge className="bg-emerald-700 text-white text-[10px]">
+                    Pronto para aplicar
+                  </Badge>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                  <div className="bg-white rounded-lg p-2.5 border border-emerald-100">
+                    <div className="text-[10px] text-slate-500">Registros na API</div>
+                    <div className="text-base font-black text-slate-900">
+                      {labcardFetchedPayload.clientes.length}
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-lg p-2.5 border border-emerald-100">
+                    <div className="text-[10px] text-slate-500">Com E-mail na API</div>
+                    <div className="text-base font-black text-emerald-700">
+                      {labcardFetchedPayload.clientes.filter((c) => Boolean(String(c.email || '').trim())).length}
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-lg p-2.5 border border-emerald-100">
+                    <div className="text-[10px] text-slate-500">Com Endereço</div>
+                    <div className="text-base font-black text-sky-700">
+                      {labcardFetchedPayload.clientes.filter((c) => Boolean(String(c.endereco || c.cep || '').trim())).length}
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-lg p-2.5 border border-emerald-100">
+                    <div className="text-[10px] text-slate-500">Consultores / Boletos</div>
+                    <div className="text-base font-black text-amber-700">
+                      {labcardFetchedPayload.consultores.length} / {labcardFetchedPayload.boletos.length}
+                    </div>
+                  </div>
+                </div>
+
+                {labcardFetchedPayload.sampleKeys.length > 0 && (
+                  <div className="text-[11px] text-slate-600 bg-white rounded-lg p-2.5 border border-emerald-100">
+                    <strong>Campos recebidos pela API:</strong>{' '}
+                    <span className="break-all">{labcardFetchedPayload.sampleKeys.join(', ')}</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {labcardEnrichResult && (
+              <div className="bg-white border-2 border-emerald-600 rounded-xl p-4 space-y-2 text-xs">
+                <div className="font-black text-emerald-900 flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  Enriquecimento Concluído e Salvo no Banco de Dados!
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-slate-800">
+                  <div>Cadastros atualizados: <strong>{labcardEnrichResult.matchedSubscriptions}</strong></div>
+                  <div>E-mails preenchidos: <strong>{labcardEnrichResult.emailsFilled}</strong></div>
+                  <div>Endereços preenchidos: <strong>{labcardEnrichResult.addressesFilled}</strong></div>
+                  <div>RGs preenchidos: <strong>{labcardEnrichResult.rgsFilled}</strong></div>
+                  <div>Validades atualizadas: <strong>{labcardEnrichResult.validitiesUpdated}</strong></div>
+                  <div>Consultores vinculados: <strong>{labcardEnrichResult.consultantsLinked}</strong></div>
+                  <div>Novos titulares: <strong>{labcardEnrichResult.newTitularesCount}</strong></div>
+                  <div>Novos dependentes: <strong>{labcardEnrichResult.newDependentsAdded}</strong></div>
+                  <div>Boletos importados: <strong>{labcardEnrichResult.boletosImported}</strong></div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-slate-200">
+            <div className="text-[11px] text-slate-600">
+              Nenhuma ativação ou documento existente é sobrescrito durante o enriquecimento.
+            </div>
+            <div className="flex flex-wrap items-center gap-2 justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsLabcardSyncModalOpen(false)}
+                className="text-slate-800 hover:bg-slate-100 hover:text-slate-950 font-bold"
+              >
+                Fechar
+              </Button>
+              <Button
+                type="button"
+                disabled={
+                  !labcardFetchedPayload ||
+                  isLoadingLabcardSync ||
+                  isApplyingLabcardEnrich
+                }
+                onClick={handleApplyLabcardEnrichment}
+                className="bg-[#004d00] hover:bg-emerald-900 text-white font-bold cursor-pointer"
+              >
+                {isApplyingLabcardEnrich ? 'Salvando Enriquecimento...' : 'Aplicar Enriquecimento Agora'}
               </Button>
             </div>
           </DialogFooter>
