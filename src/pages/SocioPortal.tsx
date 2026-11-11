@@ -69,6 +69,7 @@ import {
   getPlanDocumentRule,
   memberHasProofDocument,
   isMemberBlockedForMissingDoc,
+  isClubDateExpired,
   attachMemberProofDocument,
   compressImageFile,
   fileToDataUrl,
@@ -1120,9 +1121,12 @@ const SocioPortal: React.FC = () => {
                       const docRule = getPlanDocumentRule(member.modalityCode, member.modalityName);
                       const hasDoc = memberHasProofDocument(member, subscription);
                       const missingDoc = isMemberBlockedForMissingDoc(member, subscription);
+                      const effExp = member.expirationDate || subscription.endDate;
+                      const isExpiredMember = isClubDateExpired(effExp);
                       const isLockedMember =
                         subscription.status !== 'ACTIVE' ||
                         member.status !== 'ACTIVE' ||
+                        isExpiredMember ||
                         missingDoc;
                       return (
                         <div
@@ -1136,6 +1140,8 @@ const SocioPortal: React.FC = () => {
                             lockReason={
                               missingDoc
                                 ? `Falta anexar: ${docRule.title || 'comprovante do plano'}`
+                                : isExpiredMember
+                                ? `Cadastro expirado em ${formatDateBR(effExp)}`
                                 : member.status !== 'ACTIVE' || subscription.status !== 'ACTIVE'
                                 ? 'Aguardando pagamento / liberação'
                                 : undefined
@@ -1275,9 +1281,12 @@ const SocioPortal: React.FC = () => {
                           const docRule = getPlanDocumentRule(member.modalityCode, member.modalityName);
                           const hasDoc = memberHasProofDocument(member, subscription);
                           const missingDoc = isMemberBlockedForMissingDoc(member, subscription);
+                          const effExp = member.expirationDate || subscription.endDate;
+                          const isExpiredDep = isClubDateExpired(effExp);
                           const isLockedDep =
                             subscription.status !== 'ACTIVE' ||
                             member.status !== 'ACTIVE' ||
+                            isExpiredDep ||
                             missingDoc;
                           return (
                             <div
@@ -1292,8 +1301,12 @@ const SocioPortal: React.FC = () => {
                                 lockReason={
                                   missingDoc
                                     ? `Falta anexar: ${docRule.title || 'comprovante do plano'}`
-                                    : member.status !== 'ACTIVE' || subscription.status !== 'ACTIVE'
-                                    ? 'Aguardando pagamento / liberação'
+                                    : isExpiredDep
+                                    ? `Cadastro expirado em ${formatDateBR(effExp)}`
+                                    : subscription.status !== 'ACTIVE'
+                                    ? 'Aguardando pagamento / liberação do titular'
+                                    : member.status !== 'ACTIVE'
+                                    ? 'Dependente inativo no momento'
                                     : undefined
                                 }
                                 onUpdatePhoto={handleUpdateMemberPhoto}

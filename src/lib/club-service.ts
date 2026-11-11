@@ -2586,3 +2586,26 @@ export const fetchAddressByCep = async (rawCep: string): Promise<CepAddressResul
 
   return null;
 };
+
+/**
+ * Retorna true quando a data (YYYY-MM-DD ou ISO) já expirou (anterior à data atual local).
+ */
+export const isClubDateExpired = (dateStr?: string | null): boolean => {
+  if (!dateStr) return false;
+  const isoDay = dateStr.trim().slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(isoDay)) return false;
+  const now = new Date();
+  const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  return isoDay < todayIso;
+};
+
+/**
+ * Converte data YYYY-MM-DD para rótulo MM/YYYY exibido nas carteirinhas.
+ */
+export const getValidityLabelFromDate = (dateStr?: string | null, fallback = ''): string => {
+  if (!dateStr) return fallback;
+  const isoDay = dateStr.trim().slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(isoDay)) return fallback;
+  const [yyyy, mm] = isoDay.split('-');
+  return `${mm}/${yyyy}`;
+};

@@ -133,6 +133,8 @@ import {
   doesConsultantAllowModality,
   getSelectablePlansForConsultants,
   getConsultantSubscriptionMetrics,
+  isClubDateExpired,
+  getValidityLabelFromDate,
 } from '@/lib/club-service';
 import {
   getSeenClubSubIds,
@@ -232,6 +234,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     billingCycle: 'ANNUAL' as BillingCycle,
     monthlyEquivalent: 0,
     planSummaryLabel: '',
+    endDate: '',
   });
 
   // Perfil Financeiro do Cliente states
@@ -627,6 +630,22 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
   // Situação (Liberar / Inativar / Status) para cadastro já existente
   const [situacaoLiberar, setSituacaoLiberar] = useState<'SIM' | 'NAO'>('SIM');
   const [situacaoInativar, setSituacaoInativar] = useState<'NAO' | 'SIM'>('NAO');
+  const [depExpDrafts, setDepExpDrafts] = useState<Record<string, string>>({});
+  const [lastRegistrationChangeBox, setLastRegistrationChangeBox] = useState<{
+    title: string;
+    detail: string;
+    isActive: boolean;
+    changedAt: string;
+  } | null>(null);
+  const [statusChangeFeedbackModal, setStatusChangeFeedbackModal] = useState<{
+    title: string;
+    previousStatusLabel?: string;
+    newStatusLabel: string;
+    subjectName: string;
+    expirationDate?: string;
+    detail: string;
+    isActive: boolean;
+  } | null>(null);
 
   // Editing Modality or Contract
   const [editingModality, setEditingModality] =
@@ -1895,7 +1914,14 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         billingCycle: selectedSubForDetail.billingCycle || 'ANNUAL',
         monthlyEquivalent: selectedSubForDetail.monthlyEquivalent || 0,
         planSummaryLabel: selectedSubForDetail.planSummaryLabel || '',
+        endDate: selectedSubForDetail.endDate || '',
       });
+      const draftMap: Record<string, string> = {};
+      (selectedSubForDetail.members || []).forEach((m) => {
+        draftMap[m.id] = m.expirationDate || '';
+      });
+      setDepExpDrafts(draftMap);
+      setLastRegistrationChangeBox(null);
       setSelectedClientInvoiceIdsForDelete([]);
       setEditingClientInvoiceId(null);
       setShowFaturaAvulsaForm(false);
@@ -1940,10 +1966,14 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       return;
     }
 
+    const prevStatus = selectedSubForDetail.status;
     const targetStatus: ClubSubscription['status'] =
       situacaoLiberar === 'SIM' && situacaoInativar === 'NAO'
         ? 'ACTIVE'
         : 'INACTIVE';
+    const nextEndDate =
+      editClientData.endDate.trim() || selectedSubForDetail.endDate;
+    const nextValidityLabel = getValidityLabelFromDate(nextEndDate);
     const parsedEditMonthly = Number(String(editClientData.monthlyEquivalent).replace(',', '.'));
     const monthlyVal =
       Number.isFinite(parsedEditMonthly) && parsedEditMonthly >= 0
@@ -1952,6 +1982,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     const updatedSub: ClubSubscription = {
       ...selectedSubForDetail,
       status: targetStatus,
+      endDate: nextEndDate,
       holderName: editClientData.holderName.trim() || selectedSubForDetail.holderName,
       holderCpf: editClientData.holderCpf.trim() || selectedSubForDetail.holderCpf,
       holderRg: editClientData.holderRg.trim(),
@@ -1995,10 +2026,20 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
               sex: editClientData.holderSex || m.sex,
               phone: editClientData.holderPhone.trim() || m.phone,
               status: targetStatus,
+              expirationDate: nextEndDate || m.expirationDate,
+              validityLabel: nextValidityLabel || m.validityLabel,
             }
           : {
               ...m,
-              status: targetStatus,
+              // Preserva o status individual do dependente quando o titular já permanece ATIVO;
+              // se o cadastro mudou entre ATIVO e INATIVO, sincroniza com a alteração solicitada.
+              status:
+                prevStatus !== targetStatus || targetStatus !== 'ACTIVE'
+                  ? targetStatus
+                  : m.status,
+              validityLabel: m.expirationDate
+                ? getValidityLabelFromDate(m.expirationDate, m.validityLabel)
+                : nextValidityLabel || m.validityLabel,
             }
       ),
       updatedAt: new Date().toISOString(),
@@ -2011,6 +2052,30 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     };
     setSelectedSubForDetail(updatedSub);
     await persist(nextState);
+    const prevLabel = prevStatus === 'ACTIVE' ? 'ATIVO' : 'INATIVO';
+    const newLabel = targetStatus === 'ACTIVE' ? 'ATIVO' : 'INATIVO';
+    const statusChanged = prevStatus !== targetStatus;
+    const nowTime = new Date().toLocaleTimeString('pt-BR');
+    const feedbackMsg = statusChanged
+      ? `Alteração realizada no cadastro de ${updatedSub.holderName}: situação alterada de ${prevLabel} para ${newLabel}. Expiração: ${formatDateBR(nextEndDate)}.`
+      : `Alterações do cadastro de ${updatedSub.holderName} salvas com sucesso (Situação: ${newLabel} • Expiração: ${formatDateBR(nextEndDate)}).`;
+    setLastRegistrationChangeBox({
+      title: statusChanged
+        ? `Alteração no cadastro realizada (${prevLabel} → ${newLabel})`
+        : 'Cadastro atualizado com sucesso!',
+      detail: feedbackMsg,
+      isActive: targetStatus === 'ACTIVE',
+      changedAt: nowTime,
+    });
+    setStatusChangeFeedbackModal({
+      title: 'Alteração realizada no cadastro!',
+      previousStatusLabel: statusChanged ? prevLabel : undefined,
+      newStatusLabel: newLabel,
+      subjectName: `${updatedSub.holderName} (Cartão #${updatedSub.subscriptionCode})`,
+      expirationDate: nextEndDate,
+      detail: feedbackMsg,
+      isActive: targetStatus === 'ACTIVE',
+    });
     toast({
       title: 'Cadastro do cliente atualizado com sucesso!',
       description: `${updatedSub.holderName} (#${updatedSub.subscriptionCode}) — Status: ${
@@ -2508,13 +2573,22 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     newStatus: ClubSubscription['status']
   ) => {
     if (!state) return;
+    const prevLabel = sub.status === 'ACTIVE' ? 'ATIVO' : 'INATIVO';
+    const newLabel = newStatus === 'ACTIVE' ? 'ATIVO' : 'INATIVO';
+    const nextEndDate = editClientData.endDate.trim() || sub.endDate;
+    const nextValidity = getValidityLabelFromDate(nextEndDate);
+
     const updatedSub: ClubSubscription = {
       ...sub,
       status: newStatus,
+      endDate: nextEndDate,
       updatedAt: new Date().toISOString(),
       members: sub.members.map((m) => ({
         ...m,
         status: newStatus === 'ACTIVE' ? 'ACTIVE' : 'INACTIVE',
+        validityLabel: m.expirationDate
+          ? getValidityLabelFromDate(m.expirationDate, m.validityLabel)
+          : nextValidity || m.validityLabel,
       })),
     };
     const nextState: ClubDatabaseState = {
@@ -2527,12 +2601,133 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     if (selectedSubForDetail?.id === updatedSub.id) {
       setSelectedSubForDetail(updatedSub);
     }
+    const feedbackMsg =
+      prevLabel !== newLabel
+        ? `Alteração realizada no cadastro de ${sub.holderName}: situação alterada de ${prevLabel} para ${newLabel}. Carteirinhas atualizadas.`
+        : `Situação do cadastro confirmada como ${newLabel} para ${sub.holderName}.`;
+    setLastRegistrationChangeBox({
+      title:
+        prevLabel !== newLabel
+          ? `Alteração no cadastro realizada (${prevLabel} → ${newLabel})`
+          : `Situação confirmada como ${newLabel}`,
+      detail: feedbackMsg,
+      isActive: newStatus === 'ACTIVE',
+      changedAt: new Date().toLocaleTimeString('pt-BR'),
+    });
+    setStatusChangeFeedbackModal({
+      title: 'Alteração realizada no cadastro!',
+      previousStatusLabel: prevLabel !== newLabel ? prevLabel : undefined,
+      newStatusLabel: newLabel,
+      subjectName: `${sub.holderName} (Cartão #${sub.subscriptionCode})`,
+      expirationDate: nextEndDate,
+      detail: feedbackMsg,
+      isActive: newStatus === 'ACTIVE',
+    });
     toast({
       title:
         newStatus === 'ACTIVE'
           ? 'Cadastro LIBERADO • Status: ATIVO!'
           : 'Cadastro INATIVADO • Status: INATIVO!',
       description: `Titular: ${sub.holderName} (Carteirinhas atualizadas)`,
+    });
+  };
+
+  // Ativar / Inativar dependente (ou integrante) individualmente
+  const handleToggleMemberStatus = async (
+    sub: ClubSubscription,
+    memberId: string,
+    nextMemberStatus: 'ACTIVE' | 'INACTIVE'
+  ) => {
+    if (!state) return;
+    const targetMember = sub.members.find((m) => m.id === memberId);
+    if (!targetMember) return;
+    const prevLabel = targetMember.status === 'ACTIVE' ? 'ATIVO' : 'INATIVO';
+    const newLabel = nextMemberStatus === 'ACTIVE' ? 'ATIVO' : 'INATIVO';
+
+    const updatedSub: ClubSubscription = {
+      ...sub,
+      updatedAt: new Date().toISOString(),
+      members: sub.members.map((m) =>
+        m.id === memberId ? { ...m, status: nextMemberStatus } : m
+      ),
+    };
+    const nextState: ClubDatabaseState = {
+      ...state,
+      subscriptions: (state.subscriptions || []).map((s) =>
+        s.id === updatedSub.id ? updatedSub : s
+      ),
+    };
+    if (selectedSubForDetail?.id === updatedSub.id) {
+      setSelectedSubForDetail(updatedSub);
+    }
+    await persist(nextState);
+
+    const feedbackMsg = `Alteração realizada no dependente ${targetMember.fullName}: situação alterada individualmente de ${prevLabel} para ${newLabel}.`;
+    setStatusChangeFeedbackModal({
+      title: 'Alteração individual de dependente realizada!',
+      previousStatusLabel: prevLabel !== newLabel ? prevLabel : undefined,
+      newStatusLabel: newLabel,
+      subjectName: `${targetMember.fullName} (Cartão #${targetMember.cardNumber})`,
+      expirationDate: targetMember.expirationDate || sub.endDate,
+      detail: feedbackMsg,
+      isActive: nextMemberStatus === 'ACTIVE',
+    });
+    toast({
+      title: `${targetMember.fullName} marcado como ${newLabel}!`,
+      description: `Status individual do dependente atualizado no cadastro de ${sub.holderName}.`,
+    });
+  };
+
+  // Salvar data de expiração individual de qualquer cadastro / dependente
+  const handleUpdateMemberExpirationDate = async (
+    sub: ClubSubscription,
+    memberId: string,
+    newExpDate: string
+  ) => {
+    if (!state) return;
+    const targetMember = sub.members.find((m) => m.id === memberId);
+    if (!targetMember) return;
+    const cleanedDate = newExpDate.trim() || undefined;
+    const nextValidity = getValidityLabelFromDate(
+      cleanedDate || sub.endDate,
+      targetMember.validityLabel
+    );
+
+    const updatedSub: ClubSubscription = {
+      ...sub,
+      updatedAt: new Date().toISOString(),
+      members: sub.members.map((m) =>
+        m.id === memberId
+          ? {
+              ...m,
+              expirationDate: cleanedDate,
+              validityLabel: nextValidity,
+            }
+          : m
+      ),
+    };
+    const nextState: ClubDatabaseState = {
+      ...state,
+      subscriptions: (state.subscriptions || []).map((s) =>
+        s.id === updatedSub.id ? updatedSub : s
+      ),
+    };
+    if (selectedSubForDetail?.id === updatedSub.id) {
+      setSelectedSubForDetail(updatedSub);
+      setDepExpDrafts((prev) => ({
+        ...prev,
+        [memberId]: cleanedDate || '',
+      }));
+    }
+    await persist(nextState);
+
+    toast({
+      title: cleanedDate
+        ? `Expiração atualizada para ${targetMember.fullName}!`
+        : `Data de expiração individual removida para ${targetMember.fullName}.`,
+      description: cleanedDate
+        ? `Nova data de expiração: ${formatDateBR(cleanedDate)}`
+        : `Passa a seguir o vencimento geral do titular (${formatDateBR(sub.endDate)}).`,
     });
   };
 
@@ -10317,36 +10512,71 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           <Paperclip className="w-3 h-3 mr-1" /> Ver / Anexar Documentos
                         </Button>
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
                         {selectedSubForDetail.members.map((m, idx) => {
                           const docMissing = isMemberBlockedForMissingDoc(m, selectedSubForDetail);
                           const hasDoc = memberHasProofDocument(m, selectedSubForDetail);
                           const rule = getPlanDocumentRule(m.modalityCode, m.modalityName);
+                          const effExp = m.expirationDate || selectedSubForDetail.endDate;
+                          const isExpired = isClubDateExpired(effExp);
+                          const isDep = m.role === 'DEPENDENTE';
+                          const draftExp = depExpDrafts[m.id] ?? m.expirationDate ?? '';
                           return (
                             <div
                               key={m.id}
-                              className="bg-white rounded-lg border border-slate-200 p-2.5 flex flex-col gap-1 text-xs shadow-sm"
+                              className={`bg-white rounded-xl border p-3 flex flex-col gap-2 text-xs shadow-sm ${
+                                isExpired
+                                  ? 'border-rose-300 bg-rose-50/40'
+                                  : m.status !== 'ACTIVE'
+                                  ? 'border-slate-300 bg-slate-50/70'
+                                  : 'border-slate-200'
+                              }`}
                             >
-                              <div className="flex flex-wrap items-center justify-between gap-1">
+                              <div className="flex flex-wrap items-center justify-between gap-1.5">
                                 <span className="font-black text-slate-900">
                                   {idx === 0 || m.role === 'TITULAR' ? '👑 TITULAR' : `👤 DEPENDENTE #${idx}`}:{' '}
                                   {m.fullName}
                                 </span>
-                                <Badge
-                                  className={
-                                    m.status === 'ACTIVE' && !docMissing
-                                      ? 'bg-emerald-600 text-white text-[10px]'
-                                      : 'bg-rose-600 text-white text-[10px]'
-                                  }
-                                >
-                                  {docMissing
-                                    ? 'INATIVO (FALTA DOC)'
-                                    : m.status === 'ACTIVE'
-                                    ? 'ATIVO'
-                                    : m.status === 'PENDING_TRANSFER'
-                                    ? 'PEND. TRANSF.'
-                                    : 'INATIVO'}
-                                </Badge>
+                                <div className="flex items-center gap-1.5">
+                                  <Badge
+                                    className={
+                                      isExpired || docMissing || m.status !== 'ACTIVE'
+                                        ? 'bg-rose-600 text-white text-[10px]'
+                                        : 'bg-emerald-600 text-white text-[10px]'
+                                    }
+                                  >
+                                    {isExpired
+                                      ? 'EXPIRADO'
+                                      : docMissing
+                                      ? 'INATIVO (FALTA DOC)'
+                                      : m.status === 'ACTIVE'
+                                      ? 'ATIVO'
+                                      : m.status === 'PENDING_TRANSFER'
+                                      ? 'PEND. TRANSF.'
+                                      : 'INATIVO'}
+                                  </Badge>
+                                  {isDep && (
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() =>
+                                        handleToggleMemberStatus(
+                                          selectedSubForDetail,
+                                          m.id,
+                                          m.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'
+                                        )
+                                      }
+                                      className={`h-6 px-2 text-[10px] font-bold cursor-pointer ${
+                                        m.status === 'ACTIVE'
+                                          ? 'border-rose-300 text-rose-700 bg-rose-50 hover:bg-rose-100'
+                                          : 'border-emerald-300 text-emerald-800 bg-emerald-50 hover:bg-emerald-100'
+                                      }`}
+                                    >
+                                      {m.status === 'ACTIVE' ? 'Inativar' : 'Ativar'}
+                                    </Button>
+                                  )}
+                                </div>
                               </div>
                               <div className="text-emerald-900 font-bold">
                                 Plano: {m.planCycleLabel || m.modalityName}
@@ -10367,13 +10597,47 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                   </span>
                                 )}
                               </div>
+                              <div className="flex flex-wrap items-center justify-between gap-2 pt-1.5 border-t border-slate-100">
+                                <span className={`text-[11px] font-semibold ${isExpired ? 'text-rose-700' : 'text-slate-600'}`}>
+                                  Expiração: <strong>{effExp ? formatDateBR(effExp) : 'Não definida'}</strong>
+                                  {m.expirationDate ? '' : ' (geral)'}
+                                </span>
+                                <div className="flex items-center gap-1">
+                                  <Input
+                                    type="date"
+                                    value={draftExp}
+                                    onChange={(e) =>
+                                      setDepExpDrafts((prev) => ({
+                                        ...prev,
+                                        [m.id]: e.target.value,
+                                      }))
+                                    }
+                                    className="h-7 text-[11px] w-32 bg-white px-2"
+                                  />
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() =>
+                                      handleUpdateMemberExpirationDate(
+                                        selectedSubForDetail,
+                                        m.id,
+                                        draftExp
+                                      )
+                                    }
+                                    className="h-7 px-2 text-[10px] font-bold border-emerald-600 text-emerald-900 bg-white hover:bg-emerald-50 cursor-pointer"
+                                  >
+                                    Salvar Data
+                                  </Button>
+                                </div>
+                              </div>
                             </div>
                           );
                         })}
                       </div>
                     </div>
 
-                    <div className="sm:col-span-4">
+                    <div className="sm:col-span-3">
                       <Label className="text-xs font-bold text-slate-700">
                         Modalidade de Cobrança
                       </Label>
@@ -10391,7 +10655,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         <option value="MONTHLY">Plano Mensal Recorrente</option>
                       </select>
                     </div>
-                    <div className="sm:col-span-4">
+                    <div className="sm:col-span-3">
                       <Label className="text-xs font-bold text-slate-700">
                         Valor Mensal (R$)
                       </Label>
@@ -10408,7 +10672,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         className="mt-1 font-bold text-emerald-900"
                       />
                     </div>
-                    <div className="sm:col-span-4">
+                    <div className="sm:col-span-3">
                       <Label className="text-xs font-bold text-slate-700">
                         Dia de Vencimento
                       </Label>
@@ -10424,6 +10688,22 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           })
                         }
                         className="mt-1"
+                      />
+                    </div>
+                    <div className="sm:col-span-3">
+                      <Label className="text-xs font-bold text-slate-700">
+                        Data de Expiração do Cadastro
+                      </Label>
+                      <Input
+                        type="date"
+                        value={editClientData.endDate}
+                        onChange={(e) =>
+                          setEditClientData({
+                            ...editClientData,
+                            endDate: e.target.value,
+                          })
+                        }
+                        className="mt-1 font-semibold bg-white"
                       />
                     </div>
                   </div>
@@ -10755,12 +11035,43 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                 : 'INACTIVE';
                             handleToggleSubStatus(selectedSubForDetail, targetStatus);
                           }}
-                          className="bg-[#004d00] hover:bg-emerald-900 text-white font-black uppercase tracking-wider px-4 sm:px-5 h-9 rounded-md shadow shrink-0 text-xs"
+                          className="bg-[#004d00] hover:bg-emerald-900 text-white font-black uppercase tracking-wider px-4 sm:px-5 h-9 rounded-md shadow shrink-0 text-xs cursor-pointer"
                         >
                           SALVAR
                         </Button>
                       </div>
                     </div>
+
+                    {lastRegistrationChangeBox && (
+                      <div
+                        className={`rounded-xl border-2 p-3 flex flex-wrap items-center justify-between gap-2 text-xs ${
+                          lastRegistrationChangeBox.isActive
+                            ? 'bg-emerald-50 border-emerald-400 text-emerald-950'
+                            : 'bg-rose-50 border-rose-400 text-rose-950'
+                        }`}
+                      >
+                        <div className="flex items-start gap-2">
+                          <CheckCircle2
+                            className={`w-4 h-4 mt-0.5 shrink-0 ${
+                              lastRegistrationChangeBox.isActive ? 'text-emerald-700' : 'text-rose-700'
+                            }`}
+                          />
+                          <div>
+                            <div className="font-black uppercase tracking-wide">
+                              {lastRegistrationChangeBox.title} ({lastRegistrationChangeBox.changedAt})
+                            </div>
+                            <div className="font-medium mt-0.5">{lastRegistrationChangeBox.detail}</div>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setLastRegistrationChangeBox(null)}
+                          className="text-[11px] font-bold px-2 py-1 rounded border border-current/25 hover:bg-white/60 cursor-pointer"
+                        >
+                          Fechar aviso
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex justify-end pt-2">
@@ -10807,16 +11118,33 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         holderMember,
                         selectedSubForDetail
                       );
+                      const holderEffExp = holderMember.expirationDate || selectedSubForDetail.endDate;
+                      const holderExpired = isClubDateExpired(holderEffExp);
+                      const holderLocked =
+                        holderMissingDoc || holderMember.status !== 'ACTIVE' || holderExpired;
                       return (
                         <div key={holderMember.id} className="space-y-2">
                           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-1.5">
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
                               <Badge className="bg-emerald-800 text-white font-black">
                                 TITULAR
                               </Badge>
                               <h4 className="text-sm font-black uppercase tracking-wider text-slate-900">
                                 1. Carteirinha do Titular ({holderMember.fullName})
                               </h4>
+                              <Badge
+                                className={
+                                  holderExpired || holderMember.status !== 'ACTIVE'
+                                    ? 'bg-rose-600 text-white text-[10px]'
+                                    : 'bg-emerald-600 text-white text-[10px]'
+                                }
+                              >
+                                {holderExpired
+                                  ? `EXPIRADO (${formatDateBR(holderEffExp)})`
+                                  : holderMember.status === 'ACTIVE'
+                                  ? `ATIVO • Exp: ${formatDateBR(holderEffExp)}`
+                                  : 'INATIVO'}
+                              </Badge>
                             </div>
                             {holderMissingDoc && (
                               <Button
@@ -10834,10 +11162,14 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                             <ClubMemberCardView
                               member={holderMember}
                               showBackSide={true}
-                              locked={holderMissingDoc}
+                              locked={holderLocked}
                               lockReason={
                                 holderMissingDoc
                                   ? `Falta documento comprobatório (${holderMember.modalityName})`
+                                  : holderExpired
+                                  ? `Cadastro expirado em ${formatDateBR(holderEffExp)}`
+                                  : holderMember.status !== 'ACTIVE'
+                                  ? 'Cadastro INATIVO'
                                   : undefined
                               }
                               onUpdatePhoto={async (memberId, dataUrl) => {
@@ -10898,11 +11230,59 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                               depMember,
                               selectedSubForDetail
                             );
+                            const depEffExp = depMember.expirationDate || selectedSubForDetail.endDate;
+                            const depExpired = isClubDateExpired(depEffExp);
+                            const depLocked =
+                              depMissingDoc || depMember.status !== 'ACTIVE' || depExpired;
                             return (
                               <div
                                 key={depMember.id}
                                 className="bg-slate-50 rounded-2xl p-4 border border-slate-200 space-y-2"
                               >
+                                <div className="flex flex-wrap items-center justify-between gap-2 pb-1 border-b border-slate-200/80">
+                                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                                    <strong className="text-slate-900">{depMember.fullName}</strong>
+                                    <Badge
+                                      className={
+                                        depExpired || depMember.status !== 'ACTIVE'
+                                          ? 'bg-rose-600 text-white text-[10px]'
+                                          : 'bg-emerald-600 text-white text-[10px]'
+                                      }
+                                    >
+                                      {depExpired
+                                        ? `EXPIRADO (${formatDateBR(depEffExp)})`
+                                        : depMember.status === 'ACTIVE'
+                                        ? 'ATIVO'
+                                        : 'INATIVO'}
+                                    </Badge>
+                                    {depEffExp && (
+                                      <span className="text-[11px] text-slate-600 font-medium">
+                                        Expira em: <strong>{formatDateBR(depEffExp)}</strong>
+                                      </span>
+                                    )}
+                                  </div>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() =>
+                                      handleToggleMemberStatus(
+                                        selectedSubForDetail,
+                                        depMember.id,
+                                        depMember.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'
+                                      )
+                                    }
+                                    className={`h-7 px-2.5 text-[11px] font-bold cursor-pointer ${
+                                      depMember.status === 'ACTIVE'
+                                        ? 'border-rose-300 text-rose-700 bg-rose-50 hover:bg-rose-100'
+                                        : 'border-emerald-300 text-emerald-800 bg-emerald-50 hover:bg-emerald-100'
+                                    }`}
+                                  >
+                                    {depMember.status === 'ACTIVE'
+                                      ? 'Inativar Dependente'
+                                      : 'Ativar Dependente'}
+                                  </Button>
+                                </div>
                                 {depMissingDoc && (
                                   <div className="flex flex-wrap items-center justify-between gap-2 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2 text-xs text-rose-800">
                                     <span className="font-bold">
@@ -10923,10 +11303,14 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                   member={depMember}
                                   dependentIndex={depIdx + 1}
                                   showBackSide={true}
-                                  locked={depMissingDoc}
+                                  locked={depLocked}
                                   lockReason={
                                     depMissingDoc
                                       ? `Falta documento comprobatório (${depMember.modalityName})`
+                                      : depExpired
+                                      ? `Cadastro expirado em ${formatDateBR(depEffExp)}`
+                                      : depMember.status !== 'ACTIVE'
+                                      ? 'Dependente INATIVO individualmente'
                                       : undefined
                                   }
                                   onUpdatePhoto={async (memberId, dataUrl) => {
@@ -13379,6 +13763,20 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                     : `DEP. #${mIdx}`}
                                 </Badge>
                                 <strong>{memberItem.fullName}</strong> ({memberItem.modalityName}) • Cartão #{memberItem.cardNumber}
+                                <Badge
+                                  className={
+                                    isClubDateExpired(memberItem.expirationDate || selectedSubForDetail.endDate) ||
+                                    memberItem.status !== 'ACTIVE'
+                                      ? 'bg-rose-600 text-white text-[10px]'
+                                      : 'bg-emerald-700 text-white text-[10px]'
+                                  }
+                                >
+                                  {isClubDateExpired(memberItem.expirationDate || selectedSubForDetail.endDate)
+                                    ? 'EXPIRADO'
+                                    : memberItem.status === 'ACTIVE'
+                                    ? 'ATIVO'
+                                    : 'INATIVO'}
+                                </Badge>
                                 {docRule.requiresDocument && (
                                   <Badge
                                     className={
@@ -13394,13 +13792,34 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                       : 'COMPROVAÇÃO ANEXADA'}
                                   </Badge>
                                 )}
-                                {memberItem.expirationDate && (
+                                {(memberItem.expirationDate || selectedSubForDetail.endDate) && (
                                   <span className="ml-1 font-semibold text-amber-800">
-                                    • Vencimento: {formatDateBR(memberItem.expirationDate)}
+                                    • Expira: {formatDateBR(memberItem.expirationDate || selectedSubForDetail.endDate)}
                                   </span>
                                 )}
                               </div>
                               <div className="flex flex-wrap items-center gap-1.5">
+                                {memberItem.role === 'DEPENDENTE' && (
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() =>
+                                      handleToggleMemberStatus(
+                                        selectedSubForDetail,
+                                        memberItem.id,
+                                        memberItem.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'
+                                      )
+                                    }
+                                    className={`h-7 text-[11px] font-bold cursor-pointer ${
+                                      memberItem.status === 'ACTIVE'
+                                        ? 'border-rose-300 text-rose-700 bg-rose-50 hover:bg-rose-100'
+                                        : 'border-emerald-300 text-emerald-800 bg-emerald-50 hover:bg-emerald-100'
+                                    }`}
+                                  >
+                                    {memberItem.status === 'ACTIVE' ? 'Inativar' : 'Ativar'}
+                                  </Button>
+                                )}
                                 {docRule.requiresDocument && (
                                   <Button
                                     type="button"
@@ -13950,48 +14369,91 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                       {dep.fullName.slice(0, 2).toUpperCase()}
                                     </div>
                                   )}
-                                  <div>
-                                    <div className="font-bold text-sm text-slate-900 flex items-center gap-2">
-                                      <span>{dep.fullName}</span>
-                                      <Badge
-                                        variant="outline"
-                                        className="text-[11px] font-semibold border-slate-300"
-                                      >
-                                        Cartão #{dep.cardNumber}
-                                      </Badge>
-                                      <Badge className="bg-emerald-800 text-white text-[11px]">
-                                        {dep.modalityName || 'Dependente'}
-                                      </Badge>
-                                    </div>
-                                    <div className="text-[11px] text-slate-500">
-                                      CPF: <strong>{dep.cpf || 'Não informado'}</strong> • Nascimento:{' '}
-                                      <strong>
-                                        {dep.birthDate ? formatDateBR(dep.birthDate) : 'Não informado'}
-                                      </strong> • Mensalidade:{' '}
-                                      <strong>{formatCurrency(dep.monthlyValue || 0)}</strong>
+                                    <div>
+                                      <div className="font-bold text-sm text-slate-900 flex flex-wrap items-center gap-2">
+                                        <span>{dep.fullName}</span>
+                                        <Badge
+                                          variant="outline"
+                                          className="text-[11px] font-semibold border-slate-300"
+                                        >
+                                          Cartão #{dep.cardNumber}
+                                        </Badge>
+                                        <Badge className="bg-emerald-800 text-white text-[11px]">
+                                          {dep.modalityName || 'Dependente'}
+                                        </Badge>
+                                        <Badge
+                                          className={
+                                            isExpired || dep.status !== 'ACTIVE'
+                                              ? 'bg-rose-600 text-white text-[11px]'
+                                              : 'bg-emerald-600 text-white text-[11px]'
+                                          }
+                                        >
+                                          {isExpired
+                                            ? 'EXPIRADO'
+                                            : dep.status === 'ACTIVE'
+                                            ? 'ATIVO'
+                                            : 'INATIVO'}
+                                        </Badge>
+                                      </div>
+                                      <div className="text-[11px] text-slate-500">
+                                        CPF: <strong>{dep.cpf || 'Não informado'}</strong> • Nascimento:{' '}
+                                        <strong>
+                                          {dep.birthDate ? formatDateBR(dep.birthDate) : 'Não informado'}
+                                        </strong> • Mensalidade:{' '}
+                                        <strong>{formatCurrency(dep.monthlyValue || 0)}</strong>
+                                        {dep.expirationDate && (
+                                          <>
+                                            {' '}• Expiração:{' '}
+                                            <strong className={isExpired ? 'text-rose-700' : 'text-amber-900'}>
+                                              {formatDateBR(dep.expirationDate)}
+                                            </strong>
+                                          </>
+                                        )}
+                                      </div>
                                     </div>
                                   </div>
-                                </div>
 
-                                <div className="flex items-center gap-2">
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => {
-                                      if (isEditingModality) {
-                                        setEditingDepModalityMemberId(null);
-                                      } else {
-                                        setEditingDepModalityMemberId(dep.id);
-                                        setTargetNewModalityCode(
-                                          dep.modalityCode || 'ESTUDANTE'
-                                        );
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() =>
+                                        handleToggleMemberStatus(
+                                          selectedSubForDetail,
+                                          dep.id,
+                                          dep.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'
+                                        )
                                       }
-                                    }}
-                                    className="text-xs font-bold border-amber-600 text-amber-900 hover:bg-amber-100 h-8"
-                                  >
-                                    ⚡ {isEditingModality ? 'Fechar Edição' : 'Tornar Pagante / Alterar Modalidade'}
-                                  </Button>
+                                      className={`text-xs font-bold h-8 cursor-pointer ${
+                                        dep.status === 'ACTIVE'
+                                          ? 'border-rose-400 text-rose-700 bg-rose-50 hover:bg-rose-100'
+                                          : 'border-emerald-500 text-emerald-800 bg-emerald-50 hover:bg-emerald-100'
+                                      }`}
+                                    >
+                                      {dep.status === 'ACTIVE'
+                                        ? 'Inativar Dependente'
+                                        : 'Ativar Dependente'}
+                                    </Button>
+
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => {
+                                        if (isEditingModality) {
+                                          setEditingDepModalityMemberId(null);
+                                        } else {
+                                          setEditingDepModalityMemberId(dep.id);
+                                          setTargetNewModalityCode(
+                                            dep.modalityCode || 'ESTUDANTE'
+                                          );
+                                        }
+                                      }}
+                                      className="text-xs font-bold border-amber-600 text-amber-900 hover:bg-amber-100 h-8"
+                                    >
+                                      ⚡ {isEditingModality ? 'Fechar Edição' : 'Tornar Pagante / Alterar Modalidade'}
+                                    </Button>
 
                                   <Button
                                     size="sm"
@@ -14035,6 +14497,65 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                   >
                                     <Trash2 className="w-3.5 h-3.5 mr-1" /> Remover
                                   </Button>
+                                </div>
+                              </div>
+
+                              {/* DATA DE EXPIRAÇÃO INDIVIDUAL DESTE DEPENDENTE */}
+                              <div className="bg-white rounded-lg border border-slate-200 p-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+                                <div className="flex items-center gap-2">
+                                  <Calendar className="w-4 h-4 text-emerald-700 shrink-0" />
+                                  <span className="font-bold text-slate-700">
+                                    Data de Expiração deste Dependente:
+                                  </span>
+                                  <span className="text-slate-600">
+                                    {dep.expirationDate
+                                      ? formatDateBR(dep.expirationDate)
+                                      : `Segue titular (${formatDateBR(selectedSubForDetail.endDate)})`}
+                                  </span>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <Input
+                                    type="date"
+                                    value={depExpDrafts[dep.id] ?? dep.expirationDate ?? ''}
+                                    onChange={(e) =>
+                                      setDepExpDrafts((prev) => ({
+                                        ...prev,
+                                        [dep.id]: e.target.value,
+                                      }))
+                                    }
+                                    className="h-8 text-xs w-36 bg-white"
+                                  />
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    onClick={() =>
+                                      handleUpdateMemberExpirationDate(
+                                        selectedSubForDetail,
+                                        dep.id,
+                                        depExpDrafts[dep.id] ?? dep.expirationDate ?? ''
+                                      )
+                                    }
+                                    className="h-8 text-xs font-bold bg-[#004d00] hover:bg-emerald-900 text-white cursor-pointer"
+                                  >
+                                    Salvar Expiração
+                                  </Button>
+                                  {dep.expirationDate && (
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() =>
+                                        handleUpdateMemberExpirationDate(
+                                          selectedSubForDetail,
+                                          dep.id,
+                                          ''
+                                        )
+                                      }
+                                      className="h-8 text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                                    >
+                                      Limpar
+                                    </Button>
+                                  )}
                                 </div>
                               </div>
 
@@ -16822,6 +17343,81 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 >
                   <CheckCircle2 className="w-4 h-4 mr-1.5" />
                   Registrar Entrada na Portaria (Check-in)
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* CAIXA DE CONFIRMAÇÃO DE ALTERAÇÃO DE STATUS / CADASTRO */}
+      <Dialog
+        open={Boolean(statusChangeFeedbackModal)}
+        onOpenChange={(open) => !open && setStatusChangeFeedbackModal(null)}
+      >
+        <DialogContent className="max-w-md bg-white border-2 border-slate-200 rounded-2xl p-6 shadow-2xl">
+          {statusChangeFeedbackModal && (
+            <div className="space-y-4">
+              <div className="flex items-start gap-3">
+                <div
+                  className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                    statusChangeFeedbackModal.isActive
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : 'bg-rose-100 text-rose-700'
+                  }`}
+                >
+                  <CheckCircle2 className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900">
+                    {statusChangeFeedbackModal.title}
+                  </h3>
+                  <p className="text-xs font-semibold text-slate-500 mt-0.5">
+                    {statusChangeFeedbackModal.subjectName}
+                  </p>
+                </div>
+              </div>
+
+              <div
+                className={`rounded-xl border p-3.5 text-xs space-y-2 ${
+                  statusChangeFeedbackModal.isActive
+                    ? 'bg-emerald-50 border-emerald-300 text-emerald-950'
+                    : 'bg-rose-50 border-rose-300 text-rose-950'
+                }`}
+              >
+                <p className="font-semibold leading-relaxed">
+                  {statusChangeFeedbackModal.detail}
+                </p>
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  {statusChangeFeedbackModal.previousStatusLabel && (
+                    <Badge variant="outline" className="bg-white border-slate-300 text-slate-700 text-[11px]">
+                      Antes: {statusChangeFeedbackModal.previousStatusLabel}
+                    </Badge>
+                  )}
+                  <Badge
+                    className={`text-[11px] font-black ${
+                      statusChangeFeedbackModal.isActive
+                        ? 'bg-emerald-700 text-white'
+                        : 'bg-rose-700 text-white'
+                    }`}
+                  >
+                    Situação Atual: {statusChangeFeedbackModal.newStatusLabel}
+                  </Badge>
+                  {statusChangeFeedbackModal.expirationDate && (
+                    <Badge variant="outline" className="bg-white border-slate-300 text-slate-700 text-[11px]">
+                      Expiração: {formatDateBR(statusChangeFeedbackModal.expirationDate)}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  onClick={() => setStatusChangeFeedbackModal(null)}
+                  className="bg-[#004d00] hover:bg-emerald-900 text-white font-bold px-6 cursor-pointer"
+                >
+                  OK, Entendi
                 </Button>
               </div>
             </div>
