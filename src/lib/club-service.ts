@@ -762,11 +762,19 @@ export const saveClubState = async (state: ClubDatabaseState): Promise<ClubDatab
 export const fetchClubState = async (): Promise<ClubDatabaseState> => {
   const local = memoryClubState || loadClubStateLocal();
   try {
-    const { data, error } = await supabase
+    const queryPromise = supabase
       .from('site_settings' as any)
       .select('value, updated_at')
       .eq('key', SUPABASE_SETTINGS_KEY)
       .maybeSingle();
+
+    const timeoutPromise = new Promise<{ data: null; error: Error }>((resolve) => {
+      setTimeout(() => {
+        resolve({ data: null, error: new Error('Timeout ao sincronizar banco de dados') });
+      }, 10000);
+    });
+
+    const { data, error } = (await Promise.race([queryPromise, timeoutPromise])) as any;
 
     if (!error && data && (data as any).value) {
       const remote = (data as any).value as Partial<ClubDatabaseState>;

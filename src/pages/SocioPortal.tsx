@@ -53,6 +53,7 @@ import {
 import {
   ClubDatabaseState,
   fetchClubState,
+  getClubStateSync,
   saveClubState,
   findMemberOrSubscriptionByQuery,
   formatCurrency,
@@ -86,7 +87,7 @@ const SocioPortal: React.FC = () => {
     location.pathname.toLowerCase().includes('/influencer');
   const initialCpfOrCard = searchParams.get('cpf') || searchParams.get('card') || '';
 
-  const [state, setState] = useState<ClubDatabaseState | null>(null);
+  const [state, setState] = useState<ClubDatabaseState>(() => getClubStateSync());
   const [loginInput, setLoginInput] = useState(initialCpfOrCard);
   const [passwordInput, setPasswordInput] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -101,7 +102,8 @@ const SocioPortal: React.FC = () => {
       setPortalType('CONSULTOR');
     }
   }, [isConsultantRoute]);
-  const [loading, setLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(true);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [selectedInvoiceForPix, setSelectedInvoiceForPix] = useState<ClubInvoice | null>(null);
   const [paymentMethodTab, setPaymentMethodTab] = useState<'PIX' | 'CARD'>('PIX');
   const [generatingPixId, setGeneratingPixId] = useState<string | null>(null);
@@ -119,127 +121,168 @@ const SocioPortal: React.FC = () => {
   }, [sortedInvoices]);
 
   useEffect(() => {
-    fetchClubState().then((loaded) => {
-      setState(loaded);
-      setLoading(false);
-      if (initialCpfOrCard) {
-        const matches = findMemberOrSubscriptionByQuery(loaded, initialCpfOrCard);
-        if (matches.length > 0) {
-          setSubscription(matches[0].subscription);
+    let active = true;
+    setIsSyncing(true);
+    fetchClubState()
+      .then((loaded) => {
+        if (!active) return;
+        setState(loaded);
+        if (initialCpfOrCard) {
+          const matches = findMemberOrSubscriptionByQuery(loaded, initialCpfOrCard);
+          if (matches.length > 0) {
+            setSubscription(matches[0].subscription);
+          }
         }
-      }
-    });
+      })
+      .catch((err) => {
+        console.warn('[SocioPortal] Falha ao sincronizar com servidor, mantendo cache local:', err);
+      })
+      .finally(() => {
+        if (active) setIsSyncing(false);
+      });
+    return () => {
+      active = false;
+    };
   }, [initialCpfOrCard]);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!state || !loginInput.trim()) return;
+    if (!loginInput.trim()) return;
 
     const qClean = loginInput.trim().toLowerCase();
     const qDigits = cleanDigits(loginInput);
 
-    // 1. Verifica se é acesso de Consultor ou Influencer (E-mail ou CPF + Senha, mesma mecânica do Associado)
-    const foundCons = (state.consultants || []).find((c) => {
-      const emailMatch = !!c.email && c.email.toLowerCase().trim() === qClean;
-      const cpfMatch = !!c.cpf && cleanDigits(c.cpf) === qDigits && qDigits.length >= 6;
-      const codeMatch = !!c.referralCode && c.referralCode.toLowerCase().trim() === qClean;
-      return emailMatch || cpfMatch || codeMatch;
-    });
+    setIsLoggingIn(true);
+    try {
+      let currentState = state;
 
-    if (foundCons && (portalType === 'CONSULTOR' || !findMemberOrSubscriptionByQuery(state, loginInput).length)) {
-      if (foundCons.status === 'INACTIVE') {
+      const findInState = (st: ClubDatabaseState) => {
+        const cons = (st.consultants || []).find((c) => {
+          const emailMatch = !!c.email && c.email.toLowerCase().trim() === qClean;
+          const cpfMatch = !!c.cpf && cleanDigits(c.cpf) === qDigits && qDigits.length >= 6;
+          const codeMatch = !!c.referralCode && c.referralCode.toLowerCase().trim() === qClean;
+          return emailMatch || cpfMatch || codeMatch;
+        });
+        const memberMatches = findMemberOrSubscriptionByQuery(st, loginInput);
+        return { cons, memberMatches };
+      };
+
+      let { cons: foundCons, memberMatches } = findInState(currentState);
+
+      if (
+        (portalType === 'CONSULTOR' && !foundCons) ||
+        (portalType === 'ASSOCIADO' && memberMatches.length === 0 && !foundCons)
+      ) {
+        const freshState = await fetchClubState();
+        setState(freshState);
+        currentState = freshState;
+        ({ cons: foundCons, memberMatches } = findInState(currentState));
+      }
+
+      // 1. Verifica se é acesso de Consultor ou Influencer (E-mail ou CPF + Senha, mesma mecânica do Associado)
+      if (foundCons && (portalType === 'CONSULTOR' || memberMatches.length === 0)) {
+        if (foundCons.status === 'INACTIVE') {
+          toast({
+            title: 'Cadastro inativo',
+            description: 'Este acesso de consultor/influencer está desativado. Procure a administração.',
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        if (!passwordInput.trim()) {
+          toast({
+            title: 'Senha obrigatória',
+            description: 'Informe sua senha de acesso ao Portal do Consultor.',
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        const pass = passwordInput.trim();
+        const consCpfDigits = cleanDigits(foundCons.cpf);
+        const validPasses = foundCons.password?.trim()
+          ? [foundCons.password.trim()]
+          : [consCpfDigits, consCpfDigits.slice(0, 6), '123456'].filter(Boolean);
+
+        const isValid = validPasses.some(
+          (p) => p === pass || (cleanDigits(p).length >= 4 && cleanDigits(p) === cleanDigits(pass))
+        );
+        if (!isValid) {
+          toast({
+            title: 'Senha incorreta',
+            description: 'A senha informada não confere para este consultor/influencer.',
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        setLoggedConsultant(foundCons);
         toast({
-          title: 'Cadastro inativo',
-          description: 'Este acesso de consultor/influencer está desativado. Procure a administração.',
+          title: `Bem-vindo(a), ${foundCons.name.split(' ')[0]}!`,
+          description: `Painel do ${foundCons.role === 'INFLUENCER' ? 'Influencer' : 'Consultor'} acessado com sucesso.`,
+        });
+        return;
+      }
+
+      if (portalType === 'CONSULTOR' && !foundCons) {
+        toast({
+          title: 'Consultor / Influencer não localizado',
+          description: 'Verifique seu E-mail, CPF ou Código de Indicação e tente novamente.',
           variant: 'destructive',
         });
         return;
       }
+
+      // 2. Acesso do Associado (E-mail, CPF ou Carteirinha + Senha)
+      if (memberMatches.length === 0) {
+        toast({
+          title: 'Cadastro não localizado',
+          description: 'Verifique seu E-mail, CPF ou Carteirinha e tente novamente.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      const foundSub = memberMatches[0].subscription;
 
       if (!passwordInput.trim()) {
         toast({
           title: 'Senha obrigatória',
-          description: 'Informe sua senha de acesso ao Portal do Consultor.',
+          description: 'Informe sua senha (data de nascimento no formato DDMMAAAA) para acessar.',
           variant: 'destructive',
         });
         return;
       }
+      const cleanPass = cleanDigits(passwordInput);
+      const holderPass = getBirthDatePassword(foundSub.holderBirthDate);
+      const memberPasses = foundSub.members.map((m) => getBirthDatePassword(m.birthDate));
+      const allValidPasses = [holderPass, ...memberPasses, '123456'];
 
-      const pass = passwordInput.trim();
-      const consCpfDigits = cleanDigits(foundCons.cpf);
-      const validPasses = foundCons.password?.trim()
-        ? [foundCons.password.trim()]
-        : [consCpfDigits, consCpfDigits.slice(0, 6), '123456'].filter(Boolean);
-
-      const isValid = validPasses.some(
-        (p) => p === pass || (cleanDigits(p).length >= 4 && cleanDigits(p) === cleanDigits(pass))
-      );
+      const isValid = allValidPasses.some((p) => p && cleanDigits(p) === cleanPass);
       if (!isValid) {
         toast({
           title: 'Senha incorreta',
-          description: 'A senha informada não confere para este consultor/influencer.',
+          description: 'A senha informada não confere. Verifique seus dados e tente novamente.',
           variant: 'destructive',
         });
         return;
       }
 
-      setLoggedConsultant(foundCons);
+      setSubscription(foundSub);
       toast({
-        title: `Bem-vindo(a), ${foundCons.name.split(' ')[0]}!`,
-        description: `Painel do ${foundCons.role === 'INFLUENCER' ? 'Influencer' : 'Consultor'} acessado com sucesso.`,
+        title: `Bem-vindo(a), ${foundSub.holderName.split(' ')[0]}!`,
+        description: 'Acesse suas carteirinhas, faturas e contrato abaixo.',
       });
-      return;
-    }
-
-    if (portalType === 'CONSULTOR' && !foundCons) {
+    } catch (err: any) {
+      console.error('[SocioPortal] Erro ao validar acesso:', err);
       toast({
-        title: 'Consultor / Influencer não localizado',
-        description: 'Verifique seu E-mail, CPF ou Código de Indicação e tente novamente.',
+        title: 'Erro ao acessar conta',
+        description: err?.message || 'Não foi possível validar seus dados. Tente novamente.',
         variant: 'destructive',
       });
-      return;
+    } finally {
+      setIsLoggingIn(false);
     }
-
-    // 2. Acesso do Associado (E-mail, CPF ou Carteirinha + Senha)
-    const matches = findMemberOrSubscriptionByQuery(state, loginInput);
-    if (matches.length === 0) {
-      toast({
-        title: 'Cadastro não localizado',
-        description: 'Verifique seu E-mail, CPF ou Carteirinha e tente novamente.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    const foundSub = matches[0].subscription;
-
-    if (!passwordInput.trim()) {
-      toast({
-        title: 'Senha obrigatória',
-        description: 'Informe sua senha (data de nascimento no formato DDMMAAAA) para acessar.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    const cleanPass = cleanDigits(passwordInput);
-    const holderPass = getBirthDatePassword(foundSub.holderBirthDate);
-    const memberPasses = foundSub.members.map((m) => getBirthDatePassword(m.birthDate));
-    const allValidPasses = [holderPass, ...memberPasses, '123456'];
-
-    const isValid = allValidPasses.some((p) => p && cleanDigits(p) === cleanPass);
-    if (!isValid) {
-      toast({
-        title: 'Senha incorreta',
-        description: 'A senha informada não confere. Verifique seus dados e tente novamente.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setSubscription(foundSub);
-    toast({
-      title: `Bem-vindo(a), ${foundSub.holderName.split(' ')[0]}!`,
-      description: 'Acesse suas carteirinhas, faturas e contrato abaixo.',
-    });
   };
 
   const handleUpdateMemberPhoto = async (memberId: string, photoDataUrl: string) => {
@@ -851,11 +894,16 @@ const SocioPortal: React.FC = () => {
                 </div>
                 <Button
                   type="submit"
-                  disabled={loading}
-                  className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-base rounded-xl"
+                  disabled={isLoggingIn}
+                  className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-base rounded-xl shadow-md"
                 >
-                  <Search className="w-4 h-4 mr-2" /> Acessar Minha Conta
+                  <Search className="w-4 h-4 mr-2" /> {isLoggingIn ? 'Entrando...' : 'Acessar Minha Conta'}
                 </Button>
+                {isSyncing && !isLoggingIn && (
+                  <p className="text-[11px] text-center text-slate-400">
+                    Sincronizando cadastros mais recentes em segundo plano...
+                  </p>
+                )}
               </form>
 
               <div className="mt-6 pt-6 border-t border-slate-100 text-center space-y-3">
