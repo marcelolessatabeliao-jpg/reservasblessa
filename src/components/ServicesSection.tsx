@@ -66,10 +66,10 @@ const services = [
     image: '/images/pesca.jpg',
   },
   {
-    title: 'Batismos',
-    description: 'Batistério natural em ambiente sagrado. Disponível gratuitamente para igrejas.',
-    price: 'Gratuito para igrejas',
-    image: '/images/batismo.jpg',
+    title: 'Eventos & Grupos',
+    description: 'Espaço amplo junto à natureza ideal para encontros, confraternizações, eventos familiares e excursões.',
+    price: 'Consulte condições',
+    image: '/images/cachoeira-nova.jpg',
   },
   {
     title: 'Tirolesa',

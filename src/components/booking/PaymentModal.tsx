@@ -65,12 +65,18 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, phone, 
             setConfirmationCode(payload.new.confirmation_code);
             setPaymentConfirmed(true);
 
-            trackFBEvent('Purchase', { 
-              value: totalAmount, 
-              currency: 'BRL', 
-              content_name: 'Reserva Balneário Lessa',
-              content_ids: [orderId]
-            });
+            trackFBEvent(
+              'Purchase',
+              {
+                value: totalAmount,
+                currency: 'BRL',
+                content_name: 'Reserva Balneário Lessa - Day Use e Lazer',
+                content_category: 'Parque Aquático, Day Use e Reservas',
+                content_type: 'product',
+                content_ids: [orderId],
+              },
+              { eventId: `purchase_${orderId}`, dedupeKey: `purchase_${orderId}` }
+            );
 
             toast({
               title: 'Pagamento Confirmado!',
@@ -90,6 +96,18 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, phone, 
   const handleGeneratePayment = async (method: PaymentMethod) => {
     setLoading(true);
     setPixData(null);
+    trackFBEvent(
+      'InitiateCheckout',
+      {
+        value: totalAmount,
+        currency: 'BRL',
+        content_name: 'Reserva Balneário Lessa - Day Use e Lazer',
+        content_category: 'Parque Aquático, Day Use e Reservas',
+        content_type: 'product',
+        content_ids: [orderId],
+      },
+      { eventId: `ic_${orderId}`, dedupeKey: `ic_${orderId}` }
+    );
     try {
       // Get phone from booking state if needed, but the parent should ideally pass it.
       // For now, we'll try to find it from the orders table if it's missing, 
@@ -161,12 +179,18 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, phone, 
          setConfirmationCode(updatedOrder.confirmation_code);
          setPaymentConfirmed(true);
 
-         trackFBEvent('Purchase', { 
-           value: totalAmount, 
-           currency: 'BRL', 
-           content_name: 'Reserva Balneário Lessa',
-           content_ids: [orderId]
-         });
+         trackFBEvent(
+           'Purchase',
+           {
+             value: totalAmount,
+             currency: 'BRL',
+             content_name: 'Reserva Balneário Lessa - Day Use e Lazer',
+             content_category: 'Parque Aquático, Day Use e Reservas',
+             content_type: 'product',
+             content_ids: [orderId],
+           },
+           { eventId: `purchase_${orderId}`, dedupeKey: `purchase_${orderId}` }
+         );
       }
 
       toast({
@@ -403,12 +427,18 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, phone, 
                     if (order?.confirmation_code) setConfirmationCode(order.confirmation_code);
                     setPaymentConfirmed(true);
 
-                    trackFBEvent('Purchase', { 
-                      value: totalAmount, 
-                      currency: 'BRL', 
-                      content_name: 'Reserva Balneário Lessa',
-                      content_ids: [orderId]
-                    });
+                    trackFBEvent(
+                      'Purchase',
+                      {
+                        value: totalAmount,
+                        currency: 'BRL',
+                        content_name: 'Reserva Balneário Lessa - Day Use e Lazer',
+                        content_category: 'Parque Aquático, Day Use e Reservas',
+                        content_type: 'product',
+                        content_ids: [orderId],
+                      },
+                      { eventId: `purchase_${orderId}`, dedupeKey: `purchase_${orderId}` }
+                    );
 
                     toast({ title: "Confirmado!", description: "Seu pagamento foi identificado com sucesso." });
                     onSuccess?.('paid_auto');

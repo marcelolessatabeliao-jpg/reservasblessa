@@ -121,12 +121,18 @@ export function BookingOverview({
               setPersistedConfirmationCode(payload.new.confirmation_code);
               setPaymentConfirmed(true);
               
-              trackFBEvent('Purchase', { 
-                value: totals.total, 
-                currency: 'BRL', 
-                content_name: 'Reserva Balneário Lessa',
-                content_ids: [persistedOrderId]
-              });
+              trackFBEvent(
+                'Purchase',
+                {
+                  value: totals.total,
+                  currency: 'BRL',
+                  content_name: 'Reserva Balneário Lessa - Day Use e Lazer',
+                  content_category: 'Parque Aquático, Day Use e Reservas',
+                  content_type: 'product',
+                  content_ids: [persistedOrderId],
+                },
+                { eventId: `purchase_${persistedOrderId}`, dedupeKey: `purchase_${persistedOrderId}` }
+              );
 
               toast({ title: 'Pagamento Confirmado!', description: 'Sua reserva está garantida!' });
             }
@@ -169,11 +175,16 @@ export function BookingOverview({
     }
 
     // Tracker: Lead
-    trackFBEvent('Lead', { 
-      content_name: 'Reserva Balneário Lessa', 
-      value: totals.total, 
-      currency: 'BRL' 
-    });
+    trackFBEvent(
+      'Lead',
+      {
+        content_name: 'Reserva Balneário Lessa - Day Use e Lazer',
+        content_category: 'Parque Aquático, Day Use e Reservas',
+        value: totals.total,
+        currency: 'BRL',
+      },
+      { dedupeKey: `lead_booking_${Math.round((totals.total || 0) * 100)}` }
+    );
 
     if (!booking.entry.cpf || !isValidCPF(booking.entry.cpf)) {
        toast({
@@ -395,12 +406,18 @@ export function BookingOverview({
       if (method === 'PIX') {
         setPaymentData(null);
         
-        trackFBEvent('InitiateCheckout', { 
-          value: totals.total, 
-          currency: 'BRL', 
-          content_name: 'Reserva Balneário Lessa',
-          payment_method: 'PIX'
-        });
+        trackFBEvent(
+          'InitiateCheckout',
+          {
+            value: totals.total,
+            currency: 'BRL',
+            content_name: 'Reserva Balneário Lessa - PIX',
+            content_category: 'Parque Aquático, Day Use e Reservas',
+            content_type: 'product',
+            content_ids: orderId ? [orderId] : undefined,
+          },
+          orderId ? { eventId: `ic_${orderId}`, dedupeKey: `ic_${orderId}` } : undefined
+        );
 
         const response = await supabase.functions.invoke('create-payment', {
           body: {
@@ -426,12 +443,18 @@ export function BookingOverview({
         setActivePaymentMethod('PIX');
         toast({ title: 'PIX Gerado com Sucesso!', description: 'Finalize o pagamento abaixo.' });
       } else if (method === 'CREDIT_CARD') {
-        trackFBEvent('InitiateCheckout', { 
-          value: totals.total, 
-          currency: 'BRL', 
-          content_name: 'Reserva Balneário Lessa',
-          payment_method: 'CreditCard'
-        });
+        trackFBEvent(
+          'InitiateCheckout',
+          {
+            value: totals.total,
+            currency: 'BRL',
+            content_name: 'Reserva Balneário Lessa - Cartão',
+            content_category: 'Parque Aquático, Day Use e Reservas',
+            content_type: 'product',
+            content_ids: orderId ? [orderId] : undefined,
+          },
+          orderId ? { eventId: `ic_${orderId}`, dedupeKey: `ic_${orderId}` } : undefined
+        );
 
         const response = await supabase.functions.invoke('create-payment', {
           body: {

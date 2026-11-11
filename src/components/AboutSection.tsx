@@ -57,13 +57,13 @@ export function AboutSection() {
                 Sobre o <span className="text-primary-dark italic">Balneário Lessa</span>
               </h2>
               <p className="text-muted-foreground text-base sm:text-lg leading-relaxed font-medium">
-                Um balneário cristão, familiar e cheio de vida em Ariquemes–RO.
-                Descubra um lugar para descansar o corpo, renovar a fé e criar memórias inesquecíveis com quem você ama.
+                Um parque aquático e balneário familiar completo em Ariquemes–RO.
+                Descubra um lugar para descansar o corpo, renovar as energias e criar memórias inesquecíveis com quem você ama.
               </p>
               <div className="bg-muted/30 p-5 rounded-2xl border-l-4 border-primary/30 relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-2 h-full bg-primary/5" />
                 <p className="text-muted-foreground text-sm sm:text-base leading-relaxed italic relative z-10">
-                  No Balneário Lessa, cada canto é pensado para acolher. Aqui, a natureza encontra a fé, a diversão encontra o descanso e as famílias se reconectam em meio às águas, árvores, trilhas e encontros.
+                  No Balneário Lessa, cada canto é pensado para acolher. Aqui, a natureza encontra a tranquilidade, a diversão encontra o descanso e as famílias se reconectam em meio às águas, árvores, trilhas e encontros.
                 </p>
               </div>
             </div>
@@ -92,7 +92,7 @@ export function AboutSection() {
                   {[
                     { emoji: '💦', text: 'Piscinas Adulto e Infantil' },
                     { emoji: '🌊', text: 'Cachoeiras com bio-piscinas' },
-                    { emoji: '⛪', text: 'Batistério' },
+                    { emoji: '🛶', text: 'Lago Natural e Área de Eventos' },
                     { emoji: '🎢', text: 'Tirolesa (acima de 12 anos)' },
                     { emoji: '⚽', text: 'Campo de Futebol e Vôlei' },
                     { emoji: '🛖', text: 'Cabanas com Redes' },

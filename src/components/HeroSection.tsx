@@ -59,14 +59,14 @@ export function HeroSection() {
           variants={itemVariants}
           className="inline-flex items-center gap-2 bg-sun text-slate-900 font-display font-black text-[10px] sm:text-xs px-5 sm:px-7 py-2 sm:py-2.5 rounded-full mb-5 sm:mb-7 shadow-2xl uppercase tracking-widest border border-white/20"
         >
-          <Sparkles className="h-3 w-3 animate-pulse" /> 🌿 O Jardim do Éden em Ariquemes
+          <Sparkles className="h-3 w-3 animate-pulse" /> 🌿 Parque Aquático e Lazer em Ariquemes
         </motion.div>
 
         <motion.p
           variants={itemVariants}
           className="text-white/95 font-bold text-[13px] sm:text-xl md:text-2xl max-w-[330px] sm:max-w-3xl mx-auto mb-6 sm:mb-10 font-body px-1 sm:px-4 drop-shadow-md leading-snug sm:leading-relaxed italic"
         >
-          Natureza, lazer, fé e aventura para toda a família em um ambiente acolhedor e cristão.
+          Natureza, lazer e aventura para toda a família em um ambiente acolhedor, seguro e tranquilo.
         </motion.p>
 
         <motion.div

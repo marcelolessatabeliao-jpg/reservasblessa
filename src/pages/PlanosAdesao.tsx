@@ -65,6 +65,7 @@ import {
   isMemberBlockedForMissingDoc,
 } from '@/lib/club-service';
 import { ClubMemberCardView } from '@/components/club/ClubMemberCardView';
+import { trackFBEvent } from '@/utils/pixel-events';
 
 const fileToDataUrl = compressImageFile;
 
@@ -854,6 +855,46 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
       setCreatedSub(res.subscription);
       setCreatedInvoice(res.firstInvoice || null);
 
+      const firstVal = Number(res.firstInvoice?.amount ?? res.subscription.monthlyEquivalent ?? 0);
+      trackFBEvent(
+        'Lead',
+        {
+          content_name: res.subscription.planSummaryLabel || 'Adesão Lessa Club',
+          content_category: 'Clube de Vantagens e Lazer',
+          content_ids: [res.subscription.id],
+          value: firstVal,
+          currency: 'BRL',
+        },
+        { eventId: `lead_club_${res.subscription.id}`, dedupeKey: `lead_club_${res.subscription.id}` }
+      );
+      if (!isFree && firstVal > 0) {
+        trackFBEvent(
+          'InitiateCheckout',
+          {
+            content_name: res.subscription.planSummaryLabel || 'Adesão Lessa Club',
+            content_category: 'Clube de Vantagens e Lazer',
+            content_type: 'product',
+            content_ids: [res.subscription.id],
+            value: firstVal,
+            currency: 'BRL',
+          },
+          { eventId: `ic_club_${res.subscription.id}`, dedupeKey: `ic_club_${res.subscription.id}` }
+        );
+      } else if (isFree) {
+        trackFBEvent(
+          'Purchase',
+          {
+            content_name: res.subscription.planSummaryLabel || 'Adesão Lessa Club',
+            content_category: 'Clube de Vantagens e Lazer',
+            content_type: 'product',
+            content_ids: [res.subscription.id],
+            value: 0,
+            currency: 'BRL',
+          },
+          { eventId: `purchase_club_${res.subscription.id}`, dedupeKey: `purchase_club_${res.subscription.id}` }
+        );
+      }
+
       if (!cardHolderName.trim()) {
         setCardHolderName(holderName.toUpperCase());
       }
@@ -992,6 +1033,18 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
           setCreatedSub(updatedSub);
           setCreatedInvoice(updatedSub.invoices[0] || createdInvoice);
         }
+        trackFBEvent(
+          'Purchase',
+          {
+            content_name: createdSub.planSummaryLabel || 'Adesão Lessa Club',
+            content_category: 'Clube de Vantagens e Lazer',
+            content_type: 'product',
+            content_ids: [createdSub.id],
+            value: createdInvoice.amount || createdSub.monthlyEquivalent || 0,
+            currency: 'BRL',
+          },
+          { eventId: `purchase_club_${createdSub.id}`, dedupeKey: `purchase_club_${createdSub.id}` }
+        );
         toast({
           title: 'Pagamento Aprovado • PLANO ATIVO!',
           description:
@@ -1035,6 +1088,18 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
           setCreatedSub(sub);
           setCreatedInvoice(sub.invoices[0] || createdInvoice);
         }
+        trackFBEvent(
+          'Purchase',
+          {
+            content_name: createdSub.planSummaryLabel || 'Adesão Lessa Club',
+            content_category: 'Clube de Vantagens e Lazer',
+            content_type: 'product',
+            content_ids: [createdSub.id],
+            value: createdInvoice.amount || createdSub.monthlyEquivalent || 0,
+            currency: 'BRL',
+          },
+          { eventId: `purchase_club_${createdSub.id}`, dedupeKey: `purchase_club_${createdSub.id}` }
+        );
         toast({
           title: 'Pagamento Confirmado • PLANO ATIVO!',
           description: 'Todas as carteirinhas da sua família estão ATIVAS e liberadas para edição!',
@@ -1072,6 +1137,18 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
             setCreatedSub(updatedSub);
             setCreatedInvoice(updatedSub.invoices[0] || createdInvoice);
           }
+          trackFBEvent(
+            'Purchase',
+            {
+              content_name: createdSub.planSummaryLabel || 'Adesão Lessa Club',
+              content_category: 'Clube de Vantagens e Lazer',
+              content_type: 'product',
+              content_ids: [createdSub.id],
+              value: createdInvoice.amount || createdSub.monthlyEquivalent || 0,
+              currency: 'BRL',
+            },
+            { eventId: `purchase_club_${createdSub.id}`, dedupeKey: `purchase_club_${createdSub.id}` }
+          );
           toast({
             title: 'Pagamento Confirmado • PLANO ATIVO!',
             description: 'Todas as carteirinhas da sua família estão ATIVAS e liberadas para edição!',

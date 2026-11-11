@@ -3,21 +3,44 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Balneário Lessa - Reservas Online | Natureza e Lazer</title>
-    <meta name="description" content="Reserve entradas, quiosques e passeios de quadriciclo no Balneário Lessa. Natureza, lazer e aventura para toda a família.">
+    <title>Balneário Lessa - Parque Aquático, Day Use, Quiosques e Chalés | Ariquemes/RO</title>
+    <meta name="description" content="Balneário Lessa em Ariquemes/RO: parque aquático, piscinas, cachoeiras, quiosques com churrasqueira, chalés e passeios de quadriciclo para toda a família.">
+    <meta name="keywords" content="balneário, parque aquático, day use, lazer, turismo, quiosques, chalés, piscinas, cachoeiras, Ariquemes, Rondônia">
     <meta name="author" content="Balneário Lessa" />
-
-    
-    
+    <meta property="og:site_name" content="Balneário Lessa - Parque Aquático e Lazer" />
     <meta property="og:type" content="website" />
 
     <meta name="twitter:card" content="summary_large_image" />
-    <meta property="og:title" content="Balneário Lessa - Reservas Online | Natureza e Lazer">
-  <meta name="twitter:title" content="Balneário Lessa - Reservas Online | Natureza e Lazer">
-  <meta property="og:description" content="Reserve entradas, quiosques e passeios de quadriciclo no Balneário Lessa. Natureza, lazer e aventura para toda a família.">
-  <meta name="twitter:description" content="Reserve entradas, quiosques e passeios de quadriciclo no Balneário Lessa. Natureza, lazer e aventura para toda a família.">
+    <meta property="og:title" content="Balneário Lessa - Parque Aquático, Day Use, Quiosques e Chalés | Ariquemes/RO">
+    <meta name="twitter:title" content="Balneário Lessa - Parque Aquático, Day Use, Quiosques e Chalés | Ariquemes/RO">
+    <meta property="og:description" content="Reserve entradas Day Use, quiosques, chalés e passeios de quadriciclo no Balneário Lessa. Turismo, natureza e lazer em Ariquemes/RO.">
+    <meta name="twitter:description" content="Reserve entradas Day Use, quiosques, chalés e passeios de quadriciclo no Balneário Lessa. Turismo, natureza e lazer em Ariquemes/RO.">
     <meta property="og:image" content="https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/35e9be1f-f913-4f7b-8a58-747173c79a8c/id-preview-7fa39df3--3e7f3512-e968-4bcc-916f-6e90d50f60bb.lovable.app-1773495806826.png">
     <meta name="twitter:image" content="https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/35e9be1f-f913-4f7b-8a58-747173c79a8c/id-preview-7fa39df3--3e7f3512-e968-4bcc-916f-6e90d50f60bb.lovable.app-1773495806826.png">
+
+    <!-- Structured Data: Parque Aquático / Atração Turística e Lazer -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": ["TouristAttraction", "AmusementPark", "LocalBusiness"],
+        "name": "Balneário Lessa",
+        "description": "Parque aquático, área de lazer familiar, day use, quiosques, chalés e trilhas ecológicas em Ariquemes/RO.",
+        "url": "https://reservas.balneariolessa.com.br",
+        "address": {
+          "@type": "PostalAddress",
+          "streetAddress": "Linha C-65, KM 07, Zona Rural",
+          "addressLocality": "Ariquemes",
+          "addressRegion": "RO",
+          "addressCountry": "BR"
+        },
+        "amenityFeature": [
+          { "@type": "LocationFeatureSpecification", "name": "Piscinas e Toboágua", "value": true },
+          { "@type": "LocationFeatureSpecification", "name": "Cachoeiras Naturais", "value": true },
+          { "@type": "LocationFeatureSpecification", "name": "Quiosques e Chalés", "value": true },
+          { "@type": "LocationFeatureSpecification", "name": "Passeio de Quadriciclo e Tirolesa", "value": true }
+        ]
+      }
+    </script>
 
     <!-- Meta Pixel Code -->
     <script>
@@ -29,14 +52,18 @@
     t.src=v;s=b.getElementsByTagName(e)[0];
     s.parentNode.insertBefore(t,s)}(window, document,'script',
     'https://connect.facebook.net/en_US/fbevents.js');
-    fbq('init', '761812239646587');
-    fbq('track', 'PageView');
+    if (typeof window !== 'undefined' && !/^\/(admin|clube-admin)/.test(window.location.pathname || '')) {
+      fbq('init', '761812239646587');
+      window._lessaPixelInited = true;
+    }
     </script>
-
     <!-- End Meta Pixel Code -->
   </head>
 
   <body>
+    <noscript>
+      <img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=761812239646587&ev=PageView&noscript=1" alt="" />
+    </noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

@@ -52,6 +52,7 @@ import {
   type CreateSubscriptionMemberInput,
 } from '@/lib/club-service';
 import { ClubMemberCardView } from './ClubMemberCardView';
+import { trackFBEvent } from '@/utils/pixel-events';
 
 export interface SimulatorQuantities {
   adult: number;
@@ -463,8 +464,47 @@ export const CustomFamilyCheckoutModal: React.FC<CustomFamilyCheckoutModalProps>
       setCreatedSubscription(subscription);
       setCreatedInvoice(firstInvoice || null);
 
+      const firstVal = Number(firstInvoice?.amount ?? subscription.monthlyEquivalent ?? 0);
+      trackFBEvent(
+        'Lead',
+        {
+          content_name: subscription.planSummaryLabel || 'Plano Família Lessa Club',
+          content_category: 'Clube de Vantagens e Lazer',
+          content_ids: [subscription.id],
+          value: firstVal,
+          currency: 'BRL',
+        },
+        { eventId: `lead_club_${subscription.id}`, dedupeKey: `lead_club_${subscription.id}` }
+      );
+      if (firstVal > 0) {
+        trackFBEvent(
+          'InitiateCheckout',
+          {
+            content_name: subscription.planSummaryLabel || 'Plano Família Lessa Club',
+            content_category: 'Clube de Vantagens e Lazer',
+            content_type: 'product',
+            content_ids: [subscription.id],
+            value: firstVal,
+            currency: 'BRL',
+          },
+          { eventId: `ic_club_${subscription.id}`, dedupeKey: `ic_club_${subscription.id}` }
+        );
+      }
+
       // Se o plano for R$ 0,00 (ex: apenas gratuito), já vai direto para sucesso com carteirinhas ativas
       if (subscription.monthlyEquivalent === 0 || !firstInvoice || firstInvoice.amount === 0) {
+        trackFBEvent(
+          'Purchase',
+          {
+            content_name: subscription.planSummaryLabel || 'Plano Família Lessa Club',
+            content_category: 'Clube de Vantagens e Lazer',
+            content_type: 'product',
+            content_ids: [subscription.id],
+            value: 0,
+            currency: 'BRL',
+          },
+          { eventId: `purchase_club_${subscription.id}`, dedupeKey: `purchase_club_${subscription.id}` }
+        );
         setStep('SUCCESS');
         toast({
           title: 'Assinatura e Carteirinhas Geradas com Sucesso!',
@@ -517,6 +557,18 @@ export const CustomFamilyCheckoutModal: React.FC<CustomFamilyCheckoutModalProps>
       );
       if (paid) {
         clearInterval(timer);
+        trackFBEvent(
+          'Purchase',
+          {
+            content_name: createdSubscription.planSummaryLabel || 'Plano Família Lessa Club',
+            content_category: 'Clube de Vantagens e Lazer',
+            content_type: 'product',
+            content_ids: [createdSubscription.id],
+            value: createdInvoice.amount || createdSubscription.monthlyEquivalent || 0,
+            currency: 'BRL',
+          },
+          { eventId: `purchase_club_${createdSubscription.id}`, dedupeKey: `purchase_club_${createdSubscription.id}` }
+        );
         setStep('SUCCESS');
         toast({
           title: 'Pagamento Confirmado!',
