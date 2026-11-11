@@ -3223,6 +3223,24 @@ export const checkLabcardServerStatus = async (): Promise<{
   };
 };
 
+const extractInvokeErrorMessage = async (
+  error: any,
+  data: any,
+  fallback: string
+): Promise<string> => {
+  if (data?.error) return String(data.error);
+  try {
+    if (error?.context && typeof error.context.json === 'function') {
+      const ctx = await error.context.json();
+      if (ctx?.error) return String(ctx.error);
+      if (ctx?.message) return String(ctx.message);
+    }
+  } catch {
+    // ignorar falha ao ler body de erro
+  }
+  return error?.message || fallback;
+};
+
 export const initLabcardApiSync = async (creds?: {
   usuario?: string;
   senha?: string;
@@ -3234,8 +3252,10 @@ export const initLabcardApiSync = async (creds?: {
       senha: creds?.senha,
     },
   });
-  if (error || data?.error) {
-    throw new Error(data?.error || error?.message || 'Erro ao autenticar na API do Labcard.');
+  if (error || data?.error || data?.ok === false) {
+    throw new Error(
+      await extractInvokeErrorMessage(error, data, 'Erro ao autenticar na API do Labcard.')
+    );
   }
   return data as LabcardApiInitResponse;
 };
@@ -3257,8 +3277,14 @@ export const fetchLabcardClientesPages = async (
       endPage,
     },
   });
-  if (error || data?.error) {
-    throw new Error(data?.error || error?.message || `Erro ao baixar páginas ${startPage}-${endPage} do Labcard.`);
+  if (error || data?.error || data?.ok === false) {
+    throw new Error(
+      await extractInvokeErrorMessage(
+        error,
+        data,
+        `Erro ao baixar páginas ${startPage}-${endPage} do Labcard.`
+      )
+    );
   }
   return data;
 };
@@ -3276,8 +3302,10 @@ export const fetchLabcardBoletos = async (
       maxPages,
     },
   });
-  if (error || data?.error) {
-    throw new Error(data?.error || error?.message || 'Erro ao buscar boletos do Labcard.');
+  if (error || data?.error || data?.ok === false) {
+    throw new Error(
+      await extractInvokeErrorMessage(error, data, 'Erro ao buscar boletos do Labcard.')
+    );
   }
   return data;
 };

@@ -105,10 +105,16 @@ Deno.serve(async (req) => {
       }
 
       if (!loginRes.ok) {
+        const rawErr = String(
+          loginJson?.message || loginJson?.error || loginText || loginRes.statusText || ''
+        )
+        if (/SQLSTATE\[HY000\].*1045|Access denied for user/i.test(rawErr)) {
+          throw new Error(
+            `O servidor da API do Labcard (api.cartaobl.com.br) retornou HTTP ${loginRes.status} por falha de acesso ao banco MySQL deles ("Access denied for user u379359386_cartaoBlSystem"). Esse erro é no servidor da Labcard/Cartaobl e precisa ser corrigido pelo suporte/hospedagem deles.`
+          )
+        }
         throw new Error(
-          `Falha ao autenticar na API do Labcard (${loginRes.status}): ${
-            loginJson?.message || loginJson?.error || loginRes.statusText
-          }`
+          `Falha ao autenticar na API do Labcard (HTTP ${loginRes.status}): ${rawErr.slice(0, 260)}`
         )
       }
 
@@ -292,10 +298,13 @@ Deno.serve(async (req) => {
     throw new Error(`Ação inválida para sync-labcard: ${action}`)
   } catch (err: any) {
     return new Response(
-      JSON.stringify({ error: err?.message || 'Erro desconhecido na integração Labcard' }),
+      JSON.stringify({
+        ok: false,
+        error: err?.message || 'Erro desconhecido na integração Labcard',
+      }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
+        status: 200,
       }
     )
   }
