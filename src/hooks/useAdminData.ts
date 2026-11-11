@@ -15,8 +15,9 @@ export function useAdminData() {
   const [credits, setCredits] = useState<any[]>([]);
   const [targetDate, setTargetDate] = useState<Date>(new Date());
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  const fetchData = useCallback(async (isBackground: boolean | unknown = false) => {
+    const silent = isBackground === true;
+    if (!silent) setLoading(true);
     try {
       const orderData = await getAdminOrders();
       const { data: bks } = await supabase
@@ -57,7 +58,7 @@ export function useAdminData() {
       if (orderData) {
         orderData.forEach((o: any) => {
           if (o.status === 'awaiting_payment') return;
-          const resDate = o.visit_date || o.created_at.split('T')[0];
+          const resDate = o.visit_date || (typeof o.created_at === 'string' ? o.created_at.split('T')[0] : format(new Date(), 'yyyy-MM-dd'));
           const customerName = o.customer_name || 'Venda Loja';
           
           (o.order_items || []).forEach((item: any) => {
@@ -97,18 +98,22 @@ export function useAdminData() {
       setKioskReservations(parsedKiosks);
       setQuadReservations(parsedQuads);
       setOrders(orderData || []);
-    } catch (err) {
-      toast({ title: "Erro ao carregar dados", variant: "destructive" });
+    } catch (err: any) {
+      console.error('[useAdminData] Erro ao carregar dados:', err);
+      const isAbort = err?.name === 'AbortError' || String(err?.message || '').includes('aborted');
+      if (isBackground !== true && !isAbort) {
+        toast({ title: "Erro ao carregar dados", description: err?.message, variant: "destructive" });
+      }
     } finally {
-      setLoading(false);
+      if (isBackground !== true) setLoading(false);
     }
   }, [toast]);
 
   useEffect(() => {
-    fetchData();
+    fetchData(false);
     const channel = supabase.channel("admin_changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => fetchData())
-      .on("postgres_changes", { event: "*", schema: "public", table: "bookings" }, () => fetchData())
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => fetchData(true))
+      .on("postgres_changes", { event: "*", schema: "public", table: "bookings" }, () => fetchData(true))
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [fetchData]);

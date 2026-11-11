@@ -71,6 +71,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
@@ -586,6 +587,14 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     useState<ClubModality | null>(null);
   const [editingContract, setEditingContract] =
     useState<ClubContractTemplate | null>(null);
+
+  // Modal de Visualização de Anexos
+  const [previewAttachment, setPreviewAttachment] = useState<{
+    name: string;
+    dataUrl: string;
+    mimeType?: string;
+    createdAt?: string;
+  } | null>(null);
 
   useEffect(() => {
     setIsSyncing(true);
@@ -9061,7 +9070,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     size="sm"
                     variant="outline"
                     onClick={() => setSelectedSubForDetail(null)}
-                    className="h-8 border-slate-300 text-slate-700 hover:bg-slate-100 font-bold text-xs w-full sm:w-auto"
+                    className="h-8 border-slate-300 bg-white text-slate-800 hover:bg-slate-100 hover:text-slate-950 font-bold text-xs w-full sm:w-auto"
                   >
                     ← Voltar para Lista de Clientes
                   </Button>
@@ -11625,7 +11634,23 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                               </div>
                             </div>
                           </div>
-                          <div className="flex items-center gap-1.5 shrink-0">
+                          <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() =>
+                                setPreviewAttachment({
+                                  name: att.name,
+                                  dataUrl: att.dataUrl,
+                                  mimeType: att.mimeType,
+                                  createdAt: att.createdAt,
+                                })
+                              }
+                              className="h-8 text-xs font-bold border-emerald-600 bg-white text-emerald-900 hover:bg-emerald-50 hover:text-emerald-950"
+                            >
+                              <Eye className="w-3.5 h-3.5 mr-1" /> Visualizar
+                            </Button>
                             <a
                               href={att.dataUrl}
                               download={att.name}
@@ -11887,7 +11912,23 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                         </div>
                                       </div>
                                     </div>
-                                    <div className="flex items-center gap-1 shrink-0">
+                                    <div className="flex flex-wrap items-center gap-1 shrink-0">
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() =>
+                                          setPreviewAttachment({
+                                            name: att.name,
+                                            dataUrl: att.dataUrl,
+                                            mimeType: att.mimeType,
+                                            createdAt: att.createdAt,
+                                          })
+                                        }
+                                        className="h-7 px-2 text-[11px] font-bold border-emerald-600 bg-white text-emerald-900 hover:bg-emerald-50 hover:text-emerald-950"
+                                      >
+                                        <Eye className="w-3 h-3 mr-1" /> Visualizar
+                                      </Button>
                                       <a href={att.dataUrl} download={att.name} target="_blank" rel="noreferrer">
                                         <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]">
                                           <Download className="w-3 h-3 mr-1" /> Baixar
@@ -11937,6 +11978,90 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                       })}
                     </div>
                   </div>
+
+                  {/* MODAL DE VISUALIZAÇÃO DE ANEXO */}
+                  <Dialog
+                    open={Boolean(previewAttachment)}
+                    onOpenChange={(open) => !open && setPreviewAttachment(null)}
+                  >
+                    <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+                      <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-base font-black text-slate-900 pr-6 truncate">
+                          <Eye className="w-4 h-4 text-emerald-700 shrink-0" />
+                          <span className="truncate">{previewAttachment?.name}</span>
+                        </DialogTitle>
+                        {previewAttachment?.createdAt && (
+                          <DialogDescription className="text-xs text-slate-500">
+                            Enviado em {formatDateBR(previewAttachment.createdAt)}
+                          </DialogDescription>
+                        )}
+                      </DialogHeader>
+
+                      {previewAttachment && (
+                        <div className="flex-1 overflow-auto bg-slate-100 rounded-xl border border-slate-200 p-3 flex items-center justify-center min-h-[300px]">
+                          {previewAttachment.dataUrl?.startsWith('data:image/') ||
+                          previewAttachment.mimeType?.startsWith('image/') ||
+                          /\.(png|jpe?g|gif|webp)(\?|$)/i.test(previewAttachment.name || '') ? (
+                            <img
+                              src={previewAttachment.dataUrl}
+                              alt={previewAttachment.name}
+                              className="max-w-full max-h-[65vh] object-contain rounded-lg shadow-md"
+                            />
+                          ) : previewAttachment.dataUrl?.startsWith('data:application/pdf') ||
+                            previewAttachment.mimeType === 'application/pdf' ||
+                            /\.pdf(\?|$)/i.test(previewAttachment.name || '') ? (
+                            <iframe
+                              src={previewAttachment.dataUrl}
+                              title={previewAttachment.name}
+                              className="w-full h-[65vh] rounded-lg border border-slate-300 bg-white"
+                            />
+                          ) : (
+                            <div className="text-center space-y-3 p-6">
+                              <FileText className="w-12 h-12 text-slate-400 mx-auto" />
+                              <p className="text-sm font-bold text-slate-700">
+                                Pré-visualização direta indisponível para este formato ({previewAttachment.mimeType || 'arquivo'}).
+                              </p>
+                              <a
+                                href={previewAttachment.dataUrl}
+                                download={previewAttachment.name}
+                                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#004d00] text-white text-xs font-bold"
+                              >
+                                <Download className="w-4 h-4" /> Baixar Arquivo
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {previewAttachment && (
+                        <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-slate-200">
+                          <a
+                            href={previewAttachment.dataUrl}
+                            download={previewAttachment.name}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            <Button
+                              type="button"
+                              size="sm"
+                              className="bg-[#004d00] hover:bg-emerald-900 text-white font-bold text-xs"
+                            >
+                              <Download className="w-3.5 h-3.5 mr-1.5" /> Baixar Anexo
+                            </Button>
+                          </a>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setPreviewAttachment(null)}
+                            className="font-bold text-xs"
+                          >
+                            Fechar
+                          </Button>
+                        </div>
+                      )}
+                    </DialogContent>
+                  </Dialog>
                 </div>
               )}
 

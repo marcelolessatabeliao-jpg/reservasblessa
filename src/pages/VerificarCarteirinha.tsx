@@ -158,7 +158,7 @@ const VerificarCarteirinha: React.FC = () => {
             </span>
           </div>
           <Link to="/socio">
-            <Button size="sm" variant="outline" className="border-slate-700 text-slate-200 hover:bg-slate-800">
+            <Button size="sm" variant="outline" className="border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 hover:text-white">
               Área do Sócio
             </Button>
           </Link>
@@ -191,7 +191,7 @@ const VerificarCarteirinha: React.FC = () => {
             </div>
             <div className="pt-2">
               <Link to="/assinatura">
-                <Button variant="outline" className="border-slate-700 text-slate-300 hover:bg-slate-800">
+                <Button variant="outline" className="border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white">
                   <ArrowLeft className="w-4 h-4 mr-2" /> Voltar ao Início
                 </Button>
               </Link>

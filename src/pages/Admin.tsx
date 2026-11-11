@@ -714,24 +714,54 @@ export default function Admin() {
       }
     } catch(e) { console.error("Error syncing total:", e); }
   };
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  const fetchData = useCallback(async (isBackground: boolean | unknown = false) => {
+    const silent = isBackground === true;
+    if (!silent) setLoading(true);
     try {
-      const orderData = await getAdminOrders();
-      const { data: bks } = await supabase.from('bookings').select('*').order('visit_date', { ascending: false });
-      const { data: kiosks } = await (supabase.from('kiosk_reservations') as any)
-        .select('*, orders(customer_name, status), bookings(name)')
-        .order('reservation_date', { ascending: false });
-        
-      const { data: quads } = await (supabase.from('quad_reservations') as any)
-        .select('*, orders(customer_name, status), bookings(name)')
-        .order('reservation_date', { ascending: false });
-      
-      const { data: creds } = await supabase
-        .from('internal_credits')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
+      const [
+        orderDataRes,
+        bksRes,
+        kiosksRes,
+        quadsRes,
+        credsRes,
+      ] = await Promise.allSettled([
+        getAdminOrders(),
+        supabase.from('bookings').select('*').order('visit_date', { ascending: false }),
+        (supabase.from('kiosk_reservations') as any)
+          .select('*, orders(customer_name, status), bookings(name)')
+          .order('reservation_date', { ascending: false }),
+        (supabase.from('quad_reservations') as any)
+          .select('*, orders(customer_name, status), bookings(name)')
+          .order('reservation_date', { ascending: false }),
+        supabase.from('internal_credits').select('*').order('created_at', { ascending: false }),
+      ]);
+
+      const orderData = orderDataRes.status === 'fulfilled' ? orderDataRes.value : [];
+      if (orderDataRes.status === 'rejected') {
+        console.warn('[Admin] Falha parcial em getAdminOrders:', orderDataRes.reason);
+      }
+
+      const bks =
+        bksRes.status === 'fulfilled' && !bksRes.value.error ? bksRes.value.data : [];
+      const kiosks =
+        kiosksRes.status === 'fulfilled' && !kiosksRes.value.error ? kiosksRes.value.data : [];
+      const quads =
+        quadsRes.status === 'fulfilled' && !quadsRes.value.error ? quadsRes.value.data : [];
+      const creds =
+        credsRes.status === 'fulfilled' && !credsRes.value.error ? credsRes.value.data : [];
+
+      if (
+        orderDataRes.status === 'rejected' &&
+        (bksRes.status === 'rejected' || bksRes.value?.error)
+      ) {
+        throw new Error(
+          (orderDataRes.reason as any)?.message ||
+            (bksRes.status === 'fulfilled'
+              ? bksRes.value?.error?.message
+              : 'Falha de conexão com o banco')
+        );
+      }
+
       const tQuads = await getGlobalSetting('total_quads', 2);
       setTotalQuads(Number(tQuads));
 
@@ -829,7 +859,7 @@ export default function Admin() {
             o.last_voucher_sent_at = o.last_voucher_sent_at || (o.notes?.includes('[VOUCHER ENVIADO]') ? o.updated_at || new Date().toISOString() : null);
             if (['cancelled', 'cancelado'].includes(o.status?.toLowerCase())) return;
             if (!o.order_items) return;
-            const resDate = o.visit_date || o.created_at.split('T')[0];
+            const resDate = o.visit_date || (typeof o.created_at === 'string' ? o.created_at.split('T')[0] : getROTodayStr());
             const customerName = o.customer_name || 'Venda Loja';
             
             let orderAdults = 0;
@@ -1043,11 +1073,18 @@ export default function Admin() {
       setTotals({ adults: tAdults, children: tChildren });
       setLastSync(new Date());
 
-    } catch (err) {
-      console.error(err);
-      toast({ title: "Erro ao carregar dados", variant: "destructive" });
+    } catch (err: any) {
+      console.error('[Admin] Erro ao carregar dados:', err);
+      const isAbort = err?.name === 'AbortError' || String(err?.message || '').includes('aborted');
+      if (isBackground !== true && !isAbort) {
+        toast({
+          title: "Erro ao carregar dados",
+          description: err?.message || "Verifique sua conexão e tente atualizar.",
+          variant: "destructive",
+        });
+      }
     } finally {
-      setLoading(false);
+      if (isBackground !== true) setLoading(false);
     }
   }, [toast]);
 
@@ -1071,7 +1108,7 @@ export default function Admin() {
       }
       
       // Refresh UI with updated statuses
-      fetchData();
+      fetchData(true);
     } catch (err) {
       console.error('[Admin] Error in auto-payment sync:', err);
     }
@@ -1081,19 +1118,19 @@ export default function Admin() {
     if (!token) return;
 
     console.log("[Admin] Setting up initial data and subscriptions...");
-    fetchData();
+    fetchData(false);
     refreshClubNotifications();
 
     const channel = supabase.channel("admin_db_changes")
       .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, (payload) => {
         console.log("[Admin] Change detected in orders:", payload);
-        fetchData();
+        fetchData(true);
       })
-      .on("postgres_changes", { event: "*", schema: "public", table: "order_items" }, () => fetchData())
-      .on("postgres_changes", { event: "*", schema: "public", table: "bookings" }, () => fetchData())
-      .on("postgres_changes", { event: "*", schema: "public", table: "kiosk_reservations" }, () => fetchData())
-      .on("postgres_changes", { event: "*", schema: "public", table: "quad_reservations" }, () => fetchData())
-      .on("postgres_changes", { event: "*", schema: "public", table: "payments" }, () => fetchData())
+      .on("postgres_changes", { event: "*", schema: "public", table: "order_items" }, () => fetchData(true))
+      .on("postgres_changes", { event: "*", schema: "public", table: "bookings" }, () => fetchData(true))
+      .on("postgres_changes", { event: "*", schema: "public", table: "kiosk_reservations" }, () => fetchData(true))
+      .on("postgres_changes", { event: "*", schema: "public", table: "quad_reservations" }, () => fetchData(true))
+      .on("postgres_changes", { event: "*", schema: "public", table: "payments" }, () => fetchData(true))
       .subscribe((status) => {
         console.log("[Admin] Realtime subscription status:", status);
         if (status === 'SUBSCRIBED') {
@@ -1101,18 +1138,18 @@ export default function Admin() {
         }
       });
 
-    // Fallback: Refresh data and sync payments every 5 minutes (club notifications every 30s)
+    // Fallback: Refresh data and sync payments every 30s silently in background
     const pollInterval = setInterval(() => {
       console.log("[Admin] Periodic sync...");
-      fetchData();
+      fetchData(true);
       syncAllPendingPayments();
       refreshClubNotifications();
     }, 30 * 1000);
 
-    // Sync when window regains focus
+    // Sync silently when window regains focus
     const handleFocus = () => {
       console.log("[Admin] Window focused, syncing data...");
-      fetchData();
+      fetchData(true);
       syncAllPendingPayments();
       refreshClubNotifications();
     };

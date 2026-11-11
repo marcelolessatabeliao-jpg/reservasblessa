@@ -379,7 +379,7 @@ export const ClubMemberCardView: React.FC<ClubMemberCardViewProps> = ({
                     size="sm"
                     variant="outline"
                     onClick={() => fileInputRef.current?.click()}
-                    className="h-8 text-xs font-bold border-emerald-600 text-emerald-800 hover:bg-emerald-50"
+                    className="h-8 text-xs font-bold border-emerald-600 bg-white text-emerald-800 hover:bg-emerald-50 hover:text-emerald-950"
                   >
                     <Camera className="w-3.5 h-3.5 mr-1.5" />
                     {member.photoUrl ? 'Trocar Foto' : 'Enviar Foto'}
@@ -435,7 +435,7 @@ export const ClubMemberCardView: React.FC<ClubMemberCardViewProps> = ({
               size="sm"
               variant="ghost"
               onClick={() => setEditingPhotoUrl(null)}
-              className="text-slate-300 hover:text-white h-8"
+              className="text-slate-300 hover:bg-slate-800 hover:text-white h-8"
             >
               <X className="w-4 h-4 mr-1" /> Cancelar
             </Button>
@@ -491,7 +491,7 @@ export const ClubMemberCardView: React.FC<ClubMemberCardViewProps> = ({
                     setPhotoOffsetX(0);
                     setPhotoOffsetY(0);
                   }}
-                  className="h-8 text-xs font-bold border-slate-600 bg-slate-900 text-slate-200 hover:bg-slate-700"
+                  className="h-8 text-xs font-bold border-slate-600 bg-slate-900 text-slate-200 hover:bg-slate-700 hover:text-white"
                 >
                   <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
                   Centralizar (1x)

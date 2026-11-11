@@ -49,7 +49,7 @@ export function Navbar() {
           </div>
           
           <div className="flex items-center gap-3">
-            <Button asChild variant="outline" className="hidden xl:flex bg-white/5 text-primary-foreground hover:bg-white/10 border-white/20 font-bold px-4 h-10 rounded-xl transition-all">
+            <Button asChild variant="outline" className="hidden xl:flex bg-white/5 text-primary-foreground hover:bg-white/10 hover:text-white border-white/20 font-bold px-4 h-10 rounded-xl transition-all">
               <Link to="/consultar" className="flex items-center gap-2">
                 <Search className="h-4 w-4" /> Consultar Reserva
               </Link>
@@ -81,7 +81,7 @@ export function Navbar() {
         </div>
 
         {/* Mobile Toggle */}
-        <Button variant="ghost" size="icon" className="lg:hidden text-primary-foreground shrink-0 hover:bg-white/10" onClick={() => setOpen(!open)}>
+        <Button variant="ghost" size="icon" className="lg:hidden text-primary-foreground shrink-0 hover:bg-white/10 hover:text-white" onClick={() => setOpen(!open)}>
           {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
         </Button>
       </div>

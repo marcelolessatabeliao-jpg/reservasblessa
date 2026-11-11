@@ -30,6 +30,7 @@ import {
   Camera,
   Upload,
   FileCheck,
+  Download,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -221,6 +222,11 @@ const SocioPortal: React.FC = () => {
   };
 
   const [uploadingDocMemberId, setUploadingDocMemberId] = useState<string | null>(null);
+  const [previewDocModal, setPreviewDocModal] = useState<{
+    name: string;
+    dataUrl: string;
+    mimeType?: string;
+  } | null>(null);
 
   const handleUploadMemberDocument = async (member: ClubMember, file: File) => {
     if (!subscription) return;
@@ -934,7 +940,7 @@ const SocioPortal: React.FC = () => {
                         <Button
                           size="sm"
                           variant="outline"
-                          className="w-full md:w-auto border-emerald-400/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 text-xs font-bold"
+                          className="w-full md:w-auto border-emerald-400/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:text-white text-xs font-bold"
                         >
                           <ShieldCheck className="w-3.5 h-3.5 mr-1.5" /> Simular Validação
                         </Button>
@@ -1089,15 +1095,37 @@ const SocioPortal: React.FC = () => {
                                       Comprovação anexada ao cadastro do titular
                                     </div>
                                   </div>
-                                  <a
-                                    href={member.documentProofUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    download={member.documentProofName || 'comprovante-titular'}
-                                    className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 hover:underline"
-                                  >
-                                    <ExternalLink className="w-3.5 h-3.5" /> Visualizar / Baixar
-                                  </a>
+                                  <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() =>
+                                        setPreviewDocModal({
+                                          name: member.documentProofName || 'comprovante-titular',
+                                          dataUrl: member.documentProofUrl!,
+                                        })
+                                      }
+                                      className="h-7 px-2 text-xs font-bold border-emerald-600 bg-white text-emerald-800 hover:bg-emerald-50 hover:text-emerald-950"
+                                    >
+                                      <Eye className="w-3.5 h-3.5 mr-1" /> Visualizar
+                                    </Button>
+                                    <a
+                                      href={member.documentProofUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      download={member.documentProofName || 'comprovante-titular'}
+                                    >
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-7 px-2 text-xs font-bold"
+                                      >
+                                        <Download className="w-3.5 h-3.5 mr-1" /> Baixar
+                                      </Button>
+                                    </a>
+                                  </div>
                                 </div>
                               )}
                             </div>
@@ -1219,15 +1247,37 @@ const SocioPortal: React.FC = () => {
                                           Comprovação anexada ao cadastro do dependente
                                         </div>
                                       </div>
-                                      <a
-                                        href={member.documentProofUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        download={member.documentProofName || 'comprovante-dependente'}
-                                        className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 hover:underline"
-                                      >
-                                        <ExternalLink className="w-3.5 h-3.5" /> Visualizar / Baixar
-                                      </a>
+                                      <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                                        <Button
+                                          type="button"
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() =>
+                                            setPreviewDocModal({
+                                              name: member.documentProofName || 'comprovante-dependente',
+                                              dataUrl: member.documentProofUrl!,
+                                            })
+                                          }
+                                          className="h-7 px-2 text-xs font-bold border-emerald-600 bg-white text-emerald-800 hover:bg-emerald-50 hover:text-emerald-950"
+                                        >
+                                          <Eye className="w-3.5 h-3.5 mr-1" /> Visualizar
+                                        </Button>
+                                        <a
+                                          href={member.documentProofUrl}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          download={member.documentProofName || 'comprovante-dependente'}
+                                        >
+                                          <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            className="h-7 px-2 text-xs font-bold"
+                                          >
+                                            <Download className="w-3.5 h-3.5 mr-1" /> Baixar
+                                          </Button>
+                                        </a>
+                                      </div>
                                     </div>
                                   )}
                                 </div>
@@ -1392,15 +1442,38 @@ const SocioPortal: React.FC = () => {
                                         </div>
                                       </div>
                                     </div>
-                                    <a
-                                      href={doc.dataUrl}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      download={doc.name}
-                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold shrink-0"
-                                    >
-                                      <ExternalLink className="w-3.5 h-3.5" /> Abrir
-                                    </a>
+                                    <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() =>
+                                          setPreviewDocModal({
+                                            name: doc.name,
+                                            dataUrl: doc.dataUrl,
+                                            mimeType: doc.mimeType,
+                                          })
+                                        }
+                                        className="h-7 px-2 text-xs font-bold border-emerald-600 bg-white text-emerald-800 hover:bg-emerald-50 hover:text-emerald-950"
+                                      >
+                                        <Eye className="w-3.5 h-3.5 mr-1" /> Visualizar
+                                      </Button>
+                                      <a
+                                        href={doc.dataUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        download={doc.name}
+                                      >
+                                        <Button
+                                          type="button"
+                                          size="sm"
+                                          variant="outline"
+                                          className="h-7 px-2 text-xs font-bold"
+                                        >
+                                          <Download className="w-3.5 h-3.5 mr-1" /> Baixar
+                                        </Button>
+                                      </a>
+                                    </div>
                                   </div>
                                 ))}
                               </div>
@@ -1415,6 +1488,76 @@ const SocioPortal: React.FC = () => {
                     })}
                   </div>
                 </div>
+
+                {/* MODAL DE VISUALIZAÇÃO DO DOCUMENTO NO PORTAL DO SÓCIO */}
+                <Dialog
+                  open={Boolean(previewDocModal)}
+                  onOpenChange={(open) => !open && setPreviewDocModal(null)}
+                >
+                  <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center gap-2 text-base font-black text-slate-900 pr-6 truncate">
+                        <Eye className="w-4 h-4 text-emerald-700 shrink-0" />
+                        <span className="truncate">{previewDocModal?.name}</span>
+                      </DialogTitle>
+                    </DialogHeader>
+
+                    {previewDocModal && (
+                      <div className="flex-1 overflow-auto bg-slate-100 rounded-xl border border-slate-200 p-3 flex items-center justify-center min-h-[300px]">
+                        {previewDocModal.dataUrl.startsWith('data:image/') ||
+                        previewDocModal.mimeType?.startsWith('image/') ? (
+                          <img
+                            src={previewDocModal.dataUrl}
+                            alt={previewDocModal.name}
+                            className="max-w-full max-h-[65vh] object-contain rounded-lg shadow-md"
+                          />
+                        ) : previewDocModal.dataUrl.startsWith('data:application/pdf') ||
+                          previewDocModal.mimeType === 'application/pdf' ? (
+                          <iframe
+                            src={previewDocModal.dataUrl}
+                            title={previewDocModal.name}
+                            className="w-full h-[65vh] rounded-lg border border-slate-300 bg-white"
+                          />
+                        ) : (
+                          <div className="text-center space-y-3 p-6">
+                            <FileText className="w-12 h-12 text-slate-400 mx-auto" />
+                            <p className="text-sm font-bold text-slate-700">
+                              Pré-visualização direta indisponível para este formato.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {previewDocModal && (
+                      <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-slate-200">
+                        <a
+                          href={previewDocModal.dataUrl}
+                          download={previewDocModal.name}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="bg-[#004d00] hover:bg-emerald-900 text-white font-bold text-xs"
+                          >
+                            <Download className="w-3.5 h-3.5 mr-1.5" /> Baixar Documento
+                          </Button>
+                        </a>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setPreviewDocModal(null)}
+                          className="font-bold text-xs"
+                        >
+                          Fechar
+                        </Button>
+                      </div>
+                    )}
+                  </DialogContent>
+                </Dialog>
               </TabsContent>
 
               {/* TAB 2: FATURAS */}
