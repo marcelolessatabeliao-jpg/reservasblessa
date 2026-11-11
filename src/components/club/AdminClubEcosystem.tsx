@@ -61,6 +61,7 @@ import {
   Maximize2,
   ShieldCheck,
   XCircle,
+  RefreshCw,
 } from 'lucide-react';
 import logo from '@/assets/logo.png';
 import { Button } from '@/components/ui/button';
@@ -137,6 +138,10 @@ import {
   getConsultantSubscriptionMetrics,
   isClubDateExpired,
   getValidityLabelFromDate,
+  AsaasCustomerSyncCandidate,
+  fetchAsaasInstallmentCandidates,
+  applySelectedAsaasSync,
+  mapAsaasPaymentStatusToInvoiceStatus,
 } from '@/lib/club-service';
 import {
   getSeenClubSubIds,
@@ -463,6 +468,129 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     description: string;
     active: boolean;
   } | null>(null);
+
+  // Sincronização em lote com Asaas (Pré-visualização antes de importar mensalidades; sem ativar cadastros)
+  const [isAsaasSyncModalOpen, setIsAsaasSyncModalOpen] = useState(false);
+  const [isLoadingAsaasSync, setIsLoadingAsaasSync] = useState(false);
+  const [isApplyingAsaasSync, setIsApplyingAsaasSync] = useState(false);
+  const [asaasSyncError, setAsaasSyncError] = useState<string | null>(null);
+  const [asaasSyncMeta, setAsaasSyncMeta] = useState<{
+    isProd: boolean;
+    totalFound: number;
+    returnedCount: number;
+    truncated: boolean;
+  } | null>(null);
+  const [asaasCandidates, setAsaasCandidates] = useState<AsaasCustomerSyncCandidate[]>([]);
+  const [asaasSelectedCustomers, setAsaasSelectedCustomers] = useState<Record<string, boolean>>({});
+  const [asaasTargetMap, setAsaasTargetMap] = useState<Record<string, string>>({});
+  const [asaasPaymentSelectionMap, setAsaasPaymentSelectionMap] = useState<
+    Record<string, Record<string, boolean>>
+  >({});
+  const [asaasFilterCategory, setAsaasFilterCategory] = useState<
+    'ALL' | 'SUBSCRIPTION' | 'RESERVATION' | 'MATCHED' | 'HALF_PRICE'
+  >('ALL');
+  const [asaasSearchQuery, setAsaasSearchQuery] = useState('');
+  const [expandedAsaasCustomerId, setExpandedAsaasCustomerId] = useState<string | null>(null);
+
+  const handleLoadAsaasCandidates = async () => {
+    if (!state) return;
+    setIsLoadingAsaasSync(true);
+    setAsaasSyncError(null);
+    try {
+      const res = await fetchAsaasInstallmentCandidates(state);
+      setAsaasSyncMeta({
+        isProd: res.isProd,
+        totalFound: res.totalFound,
+        returnedCount: res.returnedCount,
+        truncated: res.truncated,
+      });
+      setAsaasCandidates(res.candidates);
+
+      const nextSelected: Record<string, boolean> = {};
+      const nextTargets: Record<string, string> = {};
+      const nextPayMap: Record<string, Record<string, boolean>> = {};
+
+      res.candidates.forEach((cand) => {
+        nextSelected[cand.customerId] = false; // Usuário revisa e escolhe quem sincronizar
+        nextTargets[cand.customerId] = cand.matchedSubscriptionId || 'CREATE_PENDING';
+        const payFlags: Record<string, boolean> = {};
+        (cand.payments || []).forEach((p) => {
+          payFlags[p.id] = !p.looksLikeReservation;
+        });
+        nextPayMap[cand.customerId] = payFlags;
+      });
+
+      setAsaasSelectedCustomers(nextSelected);
+      setAsaasTargetMap(nextTargets);
+      setAsaasPaymentSelectionMap(nextPayMap);
+    } catch (err: any) {
+      setAsaasSyncError(err?.message || 'Erro ao consultar parcelas ativas no Asaas.');
+    } finally {
+      setIsLoadingAsaasSync(false);
+    }
+  };
+
+  const handleOpenAsaasSyncModal = () => {
+    setIsAsaasSyncModalOpen(true);
+    handleLoadAsaasCandidates();
+  };
+
+  const handleApplyAsaasSync = async () => {
+    if (!state) return;
+    const chosenCandidates = asaasCandidates.filter(
+      (c) => asaasSelectedCustomers[c.customerId]
+    );
+    if (chosenCandidates.length === 0) {
+      toast({
+        title: 'Nenhum cliente selecionado',
+        description: 'Marque ao menos um cliente na pré-visualização para importar as mensalidades.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const selections = chosenCandidates
+      .map((cand) => {
+        const payFlags = asaasPaymentSelectionMap[cand.customerId] || {};
+        const paymentIds = (cand.payments || [])
+          .filter((p) => payFlags[p.id] !== false)
+          .map((p) => p.id);
+        return {
+          candidate: cand,
+          targetSubscriptionId: asaasTargetMap[cand.customerId] || cand.matchedSubscriptionId || 'CREATE_PENDING',
+          paymentIds,
+        };
+      })
+      .filter((s) => s.paymentIds.length > 0);
+
+    if (selections.length === 0) {
+      toast({
+        title: 'Nenhuma parcela marcada',
+        description: 'Os clientes marcados não têm parcelas selecionadas para importar.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsApplyingAsaasSync(true);
+    try {
+      const result = await applySelectedAsaasSync(state, selections);
+      setState(result.state);
+      toast({
+        title: 'Mensalidades do Asaas Sincronizadas!',
+        description: `${result.updatedSubs} cliente(s) atualizado(s) • ${result.importedInvoices} nova(s) parcela(s) • ${result.updatedInvoices} atualizada(s). Nenhum cadastro foi ativado automaticamente.`,
+      });
+      setIsAsaasSyncModalOpen(false);
+    } catch (err: any) {
+      toast({
+        title: 'Erro na sincronização com o Asaas',
+        description: err?.message || 'Não foi possível salvar as mensalidades importadas.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsApplyingAsaasSync(false);
+    }
+  };
 
   // Finanças sub-views (matching Labcard Finanças dropdown)
   const [financeSubView, setFinanceSubView] = useState<
@@ -4430,7 +4558,16 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   Listagem exclusiva de Titulares. Os dependentes ficam dentro do cadastro de cada titular ou podem ser localizados pesquisando por Nome, CPF ou Nº da Carteirinha.
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                  onClick={handleOpenAsaasSyncModal}
+                  className="border-emerald-700 text-emerald-900 bg-emerald-50 hover:bg-emerald-100 hover:text-emerald-950 font-bold w-full sm:w-auto cursor-pointer"
+                >
+                  <RefreshCw className="w-4 h-4 mr-1.5" /> Sincronizar Asaas
+                </Button>
                 <Button
                   size="sm"
                   onClick={() => {
@@ -6374,6 +6511,15 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   {tab.label}
                 </Button>
               ))}
+              <Button
+                size="sm"
+                type="button"
+                variant="outline"
+                onClick={handleOpenAsaasSyncModal}
+                className="shrink-0 whitespace-nowrap text-xs border-emerald-700 text-emerald-900 bg-emerald-50 hover:bg-emerald-100 hover:text-emerald-950 font-bold ml-auto cursor-pointer"
+              >
+                <RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Sincronizar Asaas (Mensalidades)
+              </Button>
             </div>
 
             {/* 1. FLUXO DE CAIXA (IDÊNTICO À SCREENSHOT 5 DO USUÁRIO) */}
@@ -17424,6 +17570,435 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL DE PRÉ-VISUALIZAÇÃO E SINCRONIZAÇÃO DE MENSALIDADES DO ASAAS (SEM ATIVAR CADASTROS) */}
+      <Dialog open={isAsaasSyncModalOpen} onOpenChange={setIsAsaasSyncModalOpen}>
+        <DialogContent className="w-[calc(100vw-16px)] max-w-5xl max-h-[92vh] overflow-y-auto bg-white p-4 sm:p-6">
+          <DialogHeader>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <DialogTitle className="text-lg sm:text-xl font-black text-slate-900 flex items-center gap-2">
+                  <RefreshCw className={`w-5 h-5 text-emerald-700 ${isLoadingAsaasSync ? 'animate-spin' : ''}`} />
+                  Sincronizar Mensalidades e Parcelas do Asaas
+                </DialogTitle>
+                <DialogDescription className="text-xs text-slate-600 mt-0.5">
+                  Visualize primeiro os clientes retornados pelo Asaas, descarte cobranças de reservas avulsas e selecione exatamente quem deseja importar.
+                </DialogDescription>
+              </div>
+              {asaasSyncMeta && (
+                <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                  <Badge className={asaasSyncMeta.isProd ? 'bg-emerald-700 text-white' : 'bg-amber-500 text-slate-950'}>
+                    {asaasSyncMeta.isProd ? 'Asaas Produção' : 'Asaas Sandbox'}
+                  </Badge>
+                  <Badge variant="outline" className="bg-slate-50 text-slate-800 border-slate-300 font-bold">
+                    {asaasSyncMeta.returnedCount} cliente(s) carregado(s)
+                    {asaasSyncMeta.truncated ? ` de ${asaasSyncMeta.totalFound}` : ''}
+                  </Badge>
+                </div>
+              )}
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Aviso obrigatório: Não ativa cadastros */}
+            <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-3 text-xs text-amber-950 flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+              <div className="leading-relaxed">
+                <strong>Importação Segura (Sem Ativação Automática):</strong> Esta sincronização importa/atualiza <strong>somente as mensalidades no Perfil Financeiro</strong>. O status de sócios e dependentes <strong>não será alterado para Ativo</strong> (parcelas de <strong>R$ 25,00</strong> ou cadastros pendentes continuam aguardando validação e anexos de documentos).
+              </div>
+            </div>
+
+            {asaasSyncError && (
+              <div className="bg-rose-50 border border-rose-300 text-rose-900 rounded-xl p-3 text-xs space-y-1">
+                <div className="font-bold">Não foi possível carregar os dados do Asaas:</div>
+                <div>{asaasSyncError}</div>
+                <div className="text-[11px] text-rose-700 pt-1">
+                  Dica: verifique se a Edge Function <code>check-payment</code> foi implantada com a rota de listagem em lote (<code>list-asaas-installments</code>) e se <code>ASAAS_API_KEY</code> está configurada.
+                </div>
+              </div>
+            )}
+
+            {/* Barra de pesquisa e filtros */}
+            <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center justify-between">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <Input
+                  value={asaasSearchQuery}
+                  onChange={(e) => setAsaasSearchQuery(e.target.value)}
+                  placeholder="Filtrar por nome, CPF/CNPJ, descrição ou ID do Asaas..."
+                  className="pl-9 h-9 text-xs bg-white"
+                />
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={isLoadingAsaasSync}
+                onClick={handleLoadAsaasCandidates}
+                className="h-9 text-xs font-bold text-slate-800 hover:bg-slate-100 hover:text-slate-950 cursor-pointer"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isLoadingAsaasSync ? 'animate-spin' : ''}`} />
+                Atualizar do Asaas
+              </Button>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap gap-1.5">
+                {(
+                  [
+                    { id: 'ALL', label: `Todos (${asaasCandidates.length})` },
+                    {
+                      id: 'SUBSCRIPTION',
+                      label: `Prováveis Assinaturas (${asaasCandidates.filter((c) => c.likelyCategory === 'SUBSCRIPTION' || c.likelyCategory === 'MIXED').length})`,
+                    },
+                    {
+                      id: 'MATCHED',
+                      label: `Já no Clube (${asaasCandidates.filter((c) => Boolean(c.matchedSubscriptionId)).length})`,
+                    },
+                    {
+                      id: 'HALF_PRICE',
+                      label: `Parcelas R$ 25,00 (${asaasCandidates.filter((c) => c.hasHalfPriceCharge).length})`,
+                    },
+                    {
+                      id: 'RESERVATION',
+                      label: `Possíveis Reservas (${asaasCandidates.filter((c) => c.likelyCategory === 'RESERVATION').length})`,
+                    },
+                  ] as const
+                ).map((f) => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => setAsaasFilterCategory(f.id)}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors cursor-pointer ${
+                      asaasFilterCategory === f.id
+                        ? 'bg-[#004d00] text-white border-[#004d00]'
+                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex flex-wrap gap-1.5">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    const next: Record<string, boolean> = {};
+                    asaasCandidates.forEach((c) => {
+                      if (
+                        (c.likelyCategory === 'SUBSCRIPTION' || c.likelyCategory === 'MIXED') &&
+                        Boolean(c.matchedSubscriptionId)
+                      ) {
+                        next[c.customerId] = true;
+                      }
+                    });
+                    setAsaasSelectedCustomers(next);
+                  }}
+                  className="h-7 text-[11px] font-bold text-slate-800 hover:bg-slate-100 hover:text-slate-950"
+                >
+                  Marcar Assinaturas c/ Cadastro
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setAsaasSelectedCustomers({})}
+                  className="h-7 text-[11px] font-bold text-slate-800 hover:bg-slate-100 hover:text-slate-950"
+                >
+                  Desmarcar Todos
+                </Button>
+              </div>
+            </div>
+
+            {/* Lista de clientes retornados */}
+            {isLoadingAsaasSync ? (
+              <div className="py-12 text-center space-y-2 text-slate-600 text-sm">
+                <RefreshCw className="w-7 h-7 animate-spin mx-auto text-emerald-700" />
+                <div className="font-bold">Consultando assinaturas e cobranças ativas no Asaas...</div>
+                <div className="text-xs text-slate-500">Isso pode levar alguns segundos conforme a quantidade de clientes.</div>
+              </div>
+            ) : (
+              <div className="space-y-2.5 max-h-[420px] overflow-y-auto pr-1">
+                {asaasCandidates
+                  .filter((cand) => {
+                    if (asaasFilterCategory === 'SUBSCRIPTION') {
+                      if (cand.likelyCategory !== 'SUBSCRIPTION' && cand.likelyCategory !== 'MIXED') return false;
+                    } else if (asaasFilterCategory === 'RESERVATION') {
+                      if (cand.likelyCategory !== 'RESERVATION') return false;
+                    } else if (asaasFilterCategory === 'MATCHED') {
+                      if (!cand.matchedSubscriptionId) return false;
+                    } else if (asaasFilterCategory === 'HALF_PRICE') {
+                      if (!cand.hasHalfPriceCharge) return false;
+                    }
+
+                    if (!asaasSearchQuery.trim()) return true;
+                    const q = asaasSearchQuery.toLowerCase();
+                    return (
+                      cand.name.toLowerCase().includes(q) ||
+                      (cand.cpfCnpj || '').toLowerCase().includes(q) ||
+                      cand.customerId.toLowerCase().includes(q) ||
+                      (cand.matchedHolderName || '').toLowerCase().includes(q) ||
+                      (cand.payments || []).some((p) => (p.description || '').toLowerCase().includes(q))
+                    );
+                  })
+                  .map((cand) => {
+                    const isChecked = Boolean(asaasSelectedCustomers[cand.customerId]);
+                    const isExpanded = expandedAsaasCustomerId === cand.customerId;
+                    const payFlags = asaasPaymentSelectionMap[cand.customerId] || {};
+                    const selectedPayCount = (cand.payments || []).filter(
+                      (p) => payFlags[p.id] !== false
+                    ).length;
+
+                    return (
+                      <div
+                        key={cand.customerId}
+                        className={`rounded-xl border p-3 transition-colors ${
+                          isChecked
+                            ? 'border-emerald-600 bg-emerald-50/40'
+                            : cand.likelyCategory === 'RESERVATION'
+                            ? 'border-rose-200 bg-rose-50/20'
+                            : 'border-slate-200 bg-white'
+                        }`}
+                      >
+                        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5">
+                          <div className="flex items-start gap-2.5">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={(e) =>
+                                setAsaasSelectedCustomers((prev) => ({
+                                  ...prev,
+                                  [cand.customerId]: e.target.checked,
+                                }))
+                              }
+                              className="mt-1 w-4 h-4 accent-emerald-700 cursor-pointer shrink-0"
+                            />
+                            <div className="space-y-1">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="font-black text-sm text-slate-900">
+                                  {cand.name}
+                                </span>
+                                <span className="text-xs font-mono text-slate-600">
+                                  {cand.cpfCnpj ? formatCpf(cand.cpfCnpj) : 'Sem CPF/CNPJ'}
+                                </span>
+                                {cand.likelyCategory === 'RESERVATION' ? (
+                                  <Badge className="bg-rose-100 text-rose-800 border border-rose-300 text-[10px] font-bold">
+                                    Provável Reserva (Não é Assinatura)
+                                  </Badge>
+                                ) : cand.hasActiveSubscription ? (
+                                  <Badge className="bg-emerald-100 text-emerald-900 border border-emerald-300 text-[10px] font-bold">
+                                    Assinatura Recorrente Ativa ({cand.subscriptions.length})
+                                  </Badge>
+                                ) : (
+                                  <Badge className="bg-blue-100 text-blue-900 border border-blue-300 text-[10px] font-bold">
+                                    Parcelamento / Cobranças ({cand.payments.length})
+                                  </Badge>
+                                )}
+                                {cand.hasHalfPriceCharge && (
+                                  <Badge className="bg-amber-100 text-amber-950 border border-amber-400 text-[10px] font-bold">
+                                    ⚠️ Parcela R$ 25,00 (Requer Comprovante p/ Ativar)
+                                  </Badge>
+                                )}
+                              </div>
+
+                              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-600">
+                                <span>Tel: {cand.phone || '—'}</span>
+                                <span>
+                                  {cand.payments.length} cobrança(s) no Asaas •{' '}
+                                  <strong>{selectedPayCount}</strong> marcada(s) p/ importar
+                                </span>
+                                {cand.matchedSubscriptionId ? (
+                                  <span className="text-emerald-800 font-bold">
+                                    ✅ Correspondência no Clube: {cand.matchedHolderName} ({cand.matchedStatus})
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-500 font-semibold">
+                                    Ainda não cadastrado no Lessa Club
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2 pl-6 lg:pl-0">
+                            <select
+                              value={asaasTargetMap[cand.customerId] || cand.matchedSubscriptionId || 'CREATE_PENDING'}
+                              onChange={(e) =>
+                                setAsaasTargetMap((prev) => ({
+                                  ...prev,
+                                  [cand.customerId]: e.target.value,
+                                }))
+                              }
+                              className="h-8 px-2 rounded-lg border border-slate-300 text-[11px] font-semibold bg-white text-slate-800 max-w-[260px]"
+                            >
+                              {cand.matchedSubscriptionId && (
+                                <option value={cand.matchedSubscriptionId}>
+                                  Vincular a: {cand.matchedHolderName} (Status preservado)
+                                </option>
+                              )}
+                              <option value="CREATE_PENDING">
+                                Criar novo registro Pendente (NÃO ativa)
+                              </option>
+                              {(state?.subscriptions || [])
+                                .filter((s) => s.id !== cand.matchedSubscriptionId)
+                                .slice(0, 60)
+                                .map((s) => (
+                                  <option key={s.id} value={s.id}>
+                                    Vincular manual: {s.holderName} ({s.holderCpf})
+                                  </option>
+                                ))}
+                            </select>
+
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() =>
+                                setExpandedAsaasCustomerId(isExpanded ? null : cand.customerId)
+                              }
+                              className="h-8 text-[11px] font-bold text-slate-800 hover:bg-slate-100 hover:text-slate-950"
+                            >
+                              <Eye className="w-3.5 h-3.5 mr-1" />
+                              {isExpanded ? 'Ocultar Parcelas' : `Ver Parcelas (${cand.payments.length})`}
+                            </Button>
+                          </div>
+                        </div>
+
+                        {isExpanded && (
+                          <div className="mt-3 pt-3 border-t border-slate-200 overflow-x-auto">
+                            <table className="w-full text-[11px] border-collapse">
+                              <thead>
+                                <tr className="bg-slate-100 text-slate-700 text-left">
+                                  <th className="py-1.5 px-2">Importar</th>
+                                  <th className="py-1.5 px-2">Vencimento</th>
+                                  <th className="py-1.5 px-2">Valor</th>
+                                  <th className="py-1.5 px-2">Meio</th>
+                                  <th className="py-1.5 px-2">Status Asaas</th>
+                                  <th className="py-1.5 px-2">Descrição / Origem</th>
+                                  <th className="py-1.5 px-2">Link</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100">
+                                {(cand.payments || []).map((p) => {
+                                  const payChecked = payFlags[p.id] !== false;
+                                  const invSt = mapAsaasPaymentStatusToInvoiceStatus(p.status);
+                                  return (
+                                    <tr key={p.id} className={!payChecked ? 'opacity-50' : ''}>
+                                      <td className="py-1.5 px-2">
+                                        <input
+                                          type="checkbox"
+                                          checked={payChecked}
+                                          onChange={(e) =>
+                                            setAsaasPaymentSelectionMap((prev) => ({
+                                              ...prev,
+                                              [cand.customerId]: {
+                                                ...(prev[cand.customerId] || {}),
+                                                [p.id]: e.target.checked,
+                                              },
+                                            }))
+                                          }
+                                          className="w-3.5 h-3.5 accent-emerald-700"
+                                        />
+                                      </td>
+                                      <td className="py-1.5 px-2 font-mono font-bold">
+                                        {formatDateBR(p.dueDate)}
+                                      </td>
+                                      <td className="py-1.5 px-2 font-bold text-slate-900">
+                                        {formatCurrency(p.value)}
+                                      </td>
+                                      <td className="py-1.5 px-2">{p.billingType}</td>
+                                      <td className="py-1.5 px-2">
+                                        <Badge
+                                          className={`text-[10px] ${
+                                            invSt === 'PAID'
+                                              ? 'bg-emerald-100 text-emerald-800'
+                                              : invSt === 'OVERDUE'
+                                              ? 'bg-rose-100 text-rose-800'
+                                              : 'bg-amber-100 text-amber-800'
+                                          }`}
+                                        >
+                                          {invSt === 'PAID'
+                                            ? 'PAGA'
+                                            : invSt === 'OVERDUE'
+                                            ? 'ATRASADA'
+                                            : 'PENDENTE'}
+                                        </Badge>
+                                      </td>
+                                      <td className="py-1.5 px-2 text-slate-700 max-w-[280px] truncate">
+                                        {p.looksLikeReservation && (
+                                          <span className="text-rose-700 font-bold mr-1">[Reserva]</span>
+                                        )}
+                                        {p.description || '—'}
+                                      </td>
+                                      <td className="py-1.5 px-2">
+                                        {p.invoiceUrl ? (
+                                          <a
+                                            href={p.invoiceUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-blue-700 underline font-semibold"
+                                          >
+                                            Fatura
+                                          </a>
+                                        ) : (
+                                          '—'
+                                        )}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                {!isLoadingAsaasSync && asaasCandidates.length === 0 && !asaasSyncError && (
+                  <div className="py-10 text-center text-xs text-slate-500">
+                    Nenhum cliente com assinatura ou parcela ativa foi retornado pelo Asaas.
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-200">
+            <div className="text-xs text-slate-700">
+              <strong>
+                {Object.values(asaasSelectedCustomers).filter(Boolean).length}
+              </strong>{' '}
+              cliente(s) selecionado(s) • Status de sócio e dependentes permanece inalterado (não ativa).
+            </div>
+            <div className="flex items-center gap-2 justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsAsaasSyncModalOpen(false)}
+                className="text-slate-800 hover:bg-slate-100 hover:text-slate-950 font-bold"
+              >
+                Fechar
+              </Button>
+              <Button
+                type="button"
+                disabled={
+                  isApplyingAsaasSync ||
+                  isLoadingAsaasSync ||
+                  Object.values(asaasSelectedCustomers).filter(Boolean).length === 0
+                }
+                onClick={handleApplyAsaasSync}
+                className="bg-[#004d00] hover:bg-emerald-900 text-white font-bold cursor-pointer"
+              >
+                {isApplyingAsaasSync ? 'Sincronizando...' : 'Importar Mensalidades Selecionadas (Sem Ativar)'}
+              </Button>
+            </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

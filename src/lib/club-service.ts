@@ -1728,6 +1728,361 @@ export const checkClubInvoicePaymentStatus = async (
   return false;
 };
 
+// ============================================================================
+// PRÉ-VISUALIZAÇÃO E SINCRONIZAÇÃO DE MENSALIDADES DO ASAAS (SEM AUTO-ATIVAR)
+// ============================================================================
+export interface AsaasPaymentPreviewItem {
+  id: string;
+  value: number;
+  netValue: number;
+  billingType: string;
+  status: string;
+  dueDate: string;
+  paidAt?: string;
+  description?: string;
+  invoiceUrl?: string;
+  subscriptionId?: string;
+  installmentId?: string;
+  installmentNumber?: number;
+  externalReference?: string;
+  looksLikeReservation?: boolean;
+  looksLikeSub?: boolean;
+}
+
+export interface AsaasSubscriptionPreviewItem {
+  id: string;
+  value: number;
+  cycle: string;
+  billingType: string;
+  description?: string;
+  status: string;
+  nextDueDate?: string;
+  dateCreated?: string;
+}
+
+export interface AsaasCustomerSyncCandidate {
+  customerId: string;
+  name: string;
+  cpfCnpj: string;
+  email?: string;
+  phone?: string;
+  subscriptions: AsaasSubscriptionPreviewItem[];
+  payments: AsaasPaymentPreviewItem[];
+  likelyCategory: 'SUBSCRIPTION' | 'RESERVATION' | 'MIXED' | 'OTHER';
+  hasActiveSubscription: boolean;
+  hasInstallments: boolean;
+  hasHalfPriceCharge: boolean;
+  matchedSubscriptionId?: string;
+  matchedHolderName?: string;
+  matchedStatus?: SubscriptionStatus;
+  matchedOrigin?: string;
+}
+
+const normalizeNameKey = (val: string): string =>
+  (val || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+
+export const mapAsaasPaymentStatusToInvoiceStatus = (
+  asaasStatus: string
+): 'PAID' | 'PENDING' | 'OVERDUE' | 'CANCELLED' => {
+  const s = (asaasStatus || '').toUpperCase();
+  if (s === 'RECEIVED' || s === 'CONFIRMED' || s === 'RECEIVED_IN_CASH') return 'PAID';
+  if (s === 'OVERDUE') return 'OVERDUE';
+  if (
+    s === 'REFUNDED' ||
+    s === 'DELETED' ||
+    s === 'REFUND_REQUESTED' ||
+    s === 'CHARGEBACK_REQUESTED'
+  ) {
+    return 'CANCELLED';
+  }
+  return 'PENDING';
+};
+
+export const mapAsaasBillingTypeToMethod = (billingType: string): ClubPaymentMethod => {
+  const b = (billingType || '').toUpperCase();
+  if (b === 'CREDIT_CARD' || b === 'DEBIT_CARD') return 'CREDIT_CARD';
+  if (b === 'BOLETO') return 'BOLETO';
+  return 'PIX';
+};
+
+export const fetchAsaasInstallmentCandidates = async (
+  currentState: ClubDatabaseState
+): Promise<{
+  isProd: boolean;
+  totalFound: number;
+  returnedCount: number;
+  truncated: boolean;
+  candidates: AsaasCustomerSyncCandidate[];
+}> => {
+  const { data, error } = await supabase.functions.invoke('check-payment', {
+    body: { action: 'list-asaas-installments', maxCustomers: 150 },
+  });
+
+  if (error || !data?.success) {
+    throw new Error(
+      data?.error ||
+        error?.message ||
+        'Não foi possível consultar as parcelas ativas no Asaas.'
+    );
+  }
+
+  const rawItems = (data.items || []) as AsaasCustomerSyncCandidate[];
+  const subs = currentState?.subscriptions || [];
+
+  const candidates = rawItems.map((item) => {
+    const cleanDoc = cleanDigits(item.cpfCnpj);
+    const normName = normalizeNameKey(item.name);
+    const paymentIds = new Set((item.payments || []).map((p) => p.id));
+
+    const matched =
+      subs.find((s) => s.asaasCustomerId && s.asaasCustomerId === item.customerId) ||
+      (cleanDoc.length >= 11
+        ? subs.find((s) => cleanDigits(s.holderCpf) === cleanDoc)
+        : undefined) ||
+      subs.find(
+        (s) =>
+          (s.asaasPaymentId && paymentIds.has(s.asaasPaymentId)) ||
+          (s.invoices || []).some((inv) => inv.asaasPaymentId && paymentIds.has(inv.asaasPaymentId))
+      ) ||
+      (normName.length >= 6
+        ? subs.find((s) => normalizeNameKey(s.holderName) === normName)
+        : undefined);
+
+    return {
+      ...item,
+      matchedSubscriptionId: matched?.id,
+      matchedHolderName: matched?.holderName,
+      matchedStatus: matched?.status,
+      matchedOrigin: matched?.origin,
+    };
+  });
+
+  return {
+    isProd: Boolean(data.isProd),
+    totalFound: Number(data.totalFound || candidates.length),
+    returnedCount: Number(data.returnedCount || candidates.length),
+    truncated: Boolean(data.truncated),
+    candidates,
+  };
+};
+
+export interface AsaasSyncSelectionInput {
+  candidate: AsaasCustomerSyncCandidate;
+  targetSubscriptionId: string; // ID de ClubSubscription existente ou 'CREATE_PENDING'
+  paymentIds: string[];
+}
+
+/**
+ * Importa/sincroniza apenas as mensalidades selecionadas do Asaas no Perfil Financeiro.
+ * REGRA EXPLÍCITA: Nunca altera ou ativa o status de titulares/dependentes automaticamente.
+ */
+export const applySelectedAsaasSync = async (
+  currentState: ClubDatabaseState,
+  selections: AsaasSyncSelectionInput[]
+): Promise<{
+  state: ClubDatabaseState;
+  updatedSubs: number;
+  importedInvoices: number;
+  updatedInvoices: number;
+  createdPendingSubs: number;
+}> => {
+  const nowIso = new Date().toISOString();
+  const nextSubs = [...currentState.subscriptions];
+  let seq = currentState.lastCardSequence || 3000;
+
+  let updatedSubs = 0;
+  let importedInvoices = 0;
+  let updatedInvoices = 0;
+  let createdPendingSubs = 0;
+
+  for (const sel of selections) {
+    const selectedPaymentSet = new Set(sel.paymentIds);
+    const chosenPayments = (sel.candidate.payments || [])
+      .filter((p) => selectedPaymentSet.has(p.id))
+      .sort((a, b) => String(a.dueDate || '').localeCompare(String(b.dueDate || '')));
+
+    if (chosenPayments.length === 0) continue;
+
+    let targetIdx =
+      sel.targetSubscriptionId && sel.targetSubscriptionId !== 'CREATE_PENDING'
+        ? nextSubs.findIndex((s) => s.id === sel.targetSubscriptionId)
+        : -1;
+
+    if (targetIdx === -1 && sel.targetSubscriptionId === 'CREATE_PENDING') {
+      seq += 1;
+      const cardCode = `121225${String(seq).padStart(4, '0')}`;
+      const newSubId = `sub-asaas-${cleanDigits(sel.candidate.cpfCnpj) || sel.candidate.customerId}`;
+      const mainSub = sel.candidate.subscriptions?.[0];
+      const avgAmount =
+        mainSub?.value ||
+        chosenPayments[0]?.value ||
+        49.9;
+      const isHalfPrice = Math.abs(avgAmount - 25.0) < 0.05 || Math.abs(avgAmount - 22.5) < 0.05;
+      const modCode = isHalfPrice ? 'ESTUDANTE' : 'ADULTO';
+      const modName = isHalfPrice ? 'Meia-Assinatura (Verificar Doc.)' : 'Lessa Club';
+
+      const newSub: ClubSubscription = {
+        id: newSubId,
+        subscriptionCode: cardCode,
+        personType: cleanDigits(sel.candidate.cpfCnpj).length > 11 ? 'PJ' : 'PF',
+        holderName: (sel.candidate.name || 'CLIENTE ASAAS').toUpperCase(),
+        holderCpf: formatCpf(sel.candidate.cpfCnpj || ''),
+        holderPhone: formatPhone(sel.candidate.phone || ''),
+        holderEmail: sel.candidate.email || undefined,
+        billingCycle: mainSub?.cycle === 'YEARLY' ? 'ANNUAL' : 'MONTHLY',
+        paymentMethod: mapAsaasBillingTypeToMethod(chosenPayments[0]?.billingType || 'PIX'),
+        installments: chosenPayments.length > 1 ? chosenPayments.length : 1,
+        monthlyEquivalent: avgAmount,
+        totalContractValue: Number((avgAmount * Math.max(1, chosenPayments.length)).toFixed(2)),
+        dueDay: Number((chosenPayments[0]?.dueDate || '2026-11-10').slice(8, 10)) || 10,
+        // REGRA: Importado do Asaas NÃO fica ACTIVE automaticamente (aguarda validação/documentos)
+        status: 'PENDING_TRANSFER',
+        origin: 'ADMIN',
+        planSummaryLabel: `${modName} (Sincronizado Asaas)`,
+        notes: isHalfPrice
+          ? 'Mensalidades de R$ 25,00 importadas do Asaas — confirmar documento comprobatório antes de ativar.'
+          : 'Mensalidades importadas do Asaas — conferir dados e ativar manualmente após validação.',
+        contractType: 'ADESAO_PF',
+        contractAccepted: false,
+        startDate: chosenPayments[0]?.dueDate || nowIso.slice(0, 10),
+        endDate: '2027-10-31',
+        asaasCustomerId: sel.candidate.customerId,
+        asaasSubscriptionId: mainSub?.id || chosenPayments[0]?.subscriptionId,
+        asaasPaymentId: chosenPayments[0]?.id,
+        asaasInvoiceUrl: chosenPayments[0]?.invoiceUrl,
+        members: [
+          {
+            id: `mem-${cardCode}`,
+            subscriptionId: newSubId,
+            role: 'TITULAR',
+            modalityCode: modCode,
+            modalityName: modName,
+            planCycleLabel: modName,
+            fullName: (sel.candidate.name || 'CLIENTE ASAAS').toUpperCase(),
+            cpf: formatCpf(sel.candidate.cpfCnpj || ''),
+            phone: formatPhone(sel.candidate.phone || ''),
+            cardNumber: cardCode,
+            holderCardNumber: cardCode,
+            qrToken: `LC-${cardCode}`,
+            frontCardUrl: isHalfPrice ? '/cards/7.png' : '/cards/17.png',
+            backCardUrl: '/cards/24.png',
+            validityLabel: '10/2027',
+            monthlyValue: avgAmount,
+            status: 'PENDING_TRANSFER',
+            createdAt: nowIso,
+          },
+        ],
+        invoices: [],
+        attachments: [],
+        visits: [],
+        additionalServices: [],
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      };
+      nextSubs.unshift(newSub);
+      targetIdx = 0;
+      createdPendingSubs += 1;
+    }
+
+    if (targetIdx === -1) continue;
+
+    const existingSub = nextSubs[targetIdx];
+    const invoicesCopy: ClubInvoice[] = [...(existingSub.invoices || [])];
+    const totalCount = Math.max(invoicesCopy.length + chosenPayments.length, chosenPayments.length);
+
+    chosenPayments.forEach((p, idx) => {
+      const mappedStatus = mapAsaasPaymentStatusToInvoiceStatus(p.status);
+      const mappedMethod = mapAsaasBillingTypeToMethod(p.billingType);
+      const dueStr = p.dueDate || nowIso.slice(0, 10);
+      const refMonth =
+        dueStr.length >= 7 ? `${dueStr.slice(5, 7)}/${dueStr.slice(0, 4)}` : '';
+
+      const matchIdx = invoicesCopy.findIndex(
+        (inv) =>
+          (inv.asaasPaymentId && inv.asaasPaymentId === p.id) ||
+          (!inv.asaasPaymentId &&
+            inv.dueDate === dueStr &&
+            Math.abs(Number(inv.amount || 0) - Number(p.value || 0)) < 0.05)
+      );
+
+      if (matchIdx >= 0) {
+        const prevInv = invoicesCopy[matchIdx];
+        invoicesCopy[matchIdx] = {
+          ...prevInv,
+          amount: Number(p.value || prevInv.amount),
+          dueDate: dueStr,
+          paidAt: mappedStatus === 'PAID' ? p.paidAt || prevInv.paidAt || nowIso : prevInv.paidAt,
+          paymentMethod: mappedMethod,
+          status: mappedStatus,
+          asaasPaymentId: p.id,
+          asaasInvoiceUrl: p.invoiceUrl || prevInv.asaasInvoiceUrl,
+          description: p.description || prevInv.description,
+        };
+        updatedInvoices += 1;
+      } else {
+        invoicesCopy.push({
+          id: `inv_asaas_${p.id}`,
+          subscriptionId: existingSub.id,
+          subscriptionCode: existingSub.subscriptionCode,
+          holderName: existingSub.holderName,
+          holderCpf: existingSub.holderCpf,
+          holderPhone: existingSub.holderPhone,
+          installmentNumber: p.installmentNumber || idx + 1,
+          totalInstallments: totalCount,
+          referenceMonth: refMonth,
+          amount: Number(p.value || 0),
+          dueDate: dueStr,
+          paidAt: mappedStatus === 'PAID' ? p.paidAt || nowIso : undefined,
+          paymentMethod: mappedMethod,
+          status: mappedStatus,
+          asaasPaymentId: p.id,
+          asaasInvoiceUrl: p.invoiceUrl || undefined,
+          description:
+            p.description ||
+            `Mensalidade Asaas${refMonth ? ` (${refMonth})` : ''}`,
+          createdAt: nowIso,
+        });
+        importedInvoices += 1;
+      }
+    });
+
+    invoicesCopy.sort((a, b) => String(a.dueDate || '').localeCompare(String(b.dueDate || '')));
+
+    // IMPORTANTE: Preserva rigorosamente existingSub.status e existingSub.members (sem ativar!)
+    nextSubs[targetIdx] = {
+      ...existingSub,
+      asaasCustomerId: existingSub.asaasCustomerId || sel.candidate.customerId,
+      asaasSubscriptionId:
+        existingSub.asaasSubscriptionId ||
+        sel.candidate.subscriptions?.[0]?.id ||
+        chosenPayments[0]?.subscriptionId,
+      invoices: invoicesCopy,
+      updatedAt: nowIso,
+    };
+    updatedSubs += 1;
+  }
+
+  const nextState: ClubDatabaseState = {
+    ...currentState,
+    subscriptions: nextSubs,
+    lastCardSequence: seq,
+  };
+
+  const saved = await saveClubState(nextState);
+  return {
+    state: saved,
+    updatedSubs,
+    importedInvoices,
+    updatedInvoices,
+    createdPendingSubs,
+  };
+};
+
 export const markClubInvoicePaid = async (
   subscriptionId: string,
   invoiceId: string,

@@ -11,8 +11,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { orderId, paymentId } = await req.json()
-    if (!orderId && !paymentId) throw new Error('OrderId ou PaymentId é obrigatório')
+    const body = await req.json()
+    const { action, orderId, paymentId } = body
 
     const ASAAS_API_KEY = Deno.env.get('ASAAS_API_KEY');
     if (!ASAAS_API_KEY) throw new Error('A variável ASAAS_API_KEY não foi configurada.');
@@ -20,6 +20,187 @@ Deno.serve(async (req) => {
     const isProd = ASAAS_API_KEY.startsWith('aact_live_');
     const DEFAULT_URL = isProd ? 'https://www.asaas.com/api/v3' : 'https://sandbox.asaas.com/api/v3';
     const ASAAS_URL = Deno.env.get('ASAAS_BASE_URL') || DEFAULT_URL;
+
+    // AÇÃO EM LOTE: Listar clientes com assinaturas/parcelas ativas ou em aberto no Asaas (somente leitura/prévia)
+    if (action === 'list-asaas-installments') {
+      const fetchAsaasJson = async (path: string) => {
+        const res = await fetch(`${ASAAS_URL}${path}`, {
+          headers: { access_token: ASAAS_API_KEY },
+        });
+        const json = await res.json();
+        if (!res.ok) {
+          throw new Error(`Asaas (${path}): ${json.errors?.[0]?.description || res.statusText}`);
+        }
+        return json;
+      };
+
+      const fetchAllPages = async (basePath: string, maxPages = 6) => {
+        const all: any[] = [];
+        const limit = 100;
+        for (let page = 0; page < maxPages; page++) {
+          const sep = basePath.includes('?') ? '&' : '?';
+          const json = await fetchAsaasJson(`${basePath}${sep}limit=${limit}&offset=${page * limit}`);
+          const chunk = Array.isArray(json?.data) ? json.data : [];
+          all.push(...chunk);
+          if (!json?.hasMore || chunk.length < limit) break;
+        }
+        return all;
+      };
+
+      const [activeSubs, pendingPayments, overduePayments] = await Promise.all([
+        fetchAllPages('/subscriptions?status=ACTIVE', 6).catch(() => []),
+        fetchAllPages('/payments?status=PENDING', 6).catch(() => []),
+        fetchAllPages('/payments?status=OVERDUE', 4).catch(() => []),
+      ]);
+
+      const subsByCustomer = new Map<string, any[]>();
+      const activeCustomerIds = new Set<string>();
+
+      for (const s of activeSubs) {
+        if (!s?.customer) continue;
+        activeCustomerIds.add(s.customer);
+        const list = subsByCustomer.get(s.customer) || [];
+        list.push({
+          id: s.id,
+          value: Number(s.value || 0),
+          cycle: s.cycle || 'MONTHLY',
+          billingType: s.billingType || 'UNDEFINED',
+          description: s.description || '',
+          status: s.status || 'ACTIVE',
+          nextDueDate: s.nextDueDate || '',
+          dateCreated: s.dateCreated || '',
+        });
+        subsByCustomer.set(s.customer, list);
+      }
+
+      const openPaymentsByCustomer = new Map<string, any[]>();
+      for (const p of [...pendingPayments, ...overduePayments]) {
+        if (!p?.customer || p.deleted) continue;
+        activeCustomerIds.add(p.customer);
+        const list = openPaymentsByCustomer.get(p.customer) || [];
+        list.push(p);
+        openPaymentsByCustomer.set(p.customer, list);
+      }
+
+      const customerIds = Array.from(activeCustomerIds);
+      const maxCustomers = Number(body.maxCustomers || 150);
+      const truncated = customerIds.length > maxCustomers;
+      const targetIds = customerIds.slice(0, maxCustomers);
+
+      const isSubText = (text: string) =>
+        /lessa\s*club|assinatura|mensalidade|carn[eê]|student|professor|servidor|vital[ií]cio|kids|pcd|tea|fidelidade|anual|pass/i.test(text);
+      const isResText = (text: string) =>
+        /reserva|chal[eé]|quiosque|day\s*use|camping|ingresso|entrada\s+avulsa|quadriciclo|voucher|pedido\s+#/i.test(text);
+
+      const items: any[] = [];
+      const batchSize = 6;
+      for (let i = 0; i < targetIds.length; i += batchSize) {
+        const chunk = targetIds.slice(i, i + batchSize);
+        const batchResults = await Promise.all(
+          chunk.map(async (custId) => {
+            try {
+              const [custData, custPaymentsRes] = await Promise.all([
+                fetchAsaasJson(`/customers/${custId}`),
+                fetchAsaasJson(`/payments?customer=${custId}&limit=100`),
+              ]);
+
+              const rawPayments = Array.isArray(custPaymentsRes?.data)
+                ? custPaymentsRes.data.filter((p: any) => !p.deleted)
+                : (openPaymentsByCustomer.get(custId) || []);
+
+              // Ordena por vencimento ascendente
+              rawPayments.sort((a: any, b: any) =>
+                String(a.dueDate || '').localeCompare(String(b.dueDate || ''))
+              );
+
+              const subsList = subsByCustomer.get(custId) || [];
+              const mappedPayments = rawPayments.map((p: any) => {
+                const text = `${p.description || ''} ${p.externalReference || ''}`.trim();
+                const val = Number(p.value || 0);
+                const looksLikeReservation = isResText(text) && !p.subscription && !isSubText(text);
+                const looksLikeSub =
+                  Boolean(p.subscription) ||
+                  Boolean(p.installment) ||
+                  isSubText(text) ||
+                  Math.abs(val - 49.9) < 0.05 ||
+                  Math.abs(val - 44.91) < 0.05 ||
+                  Math.abs(val - 25.0) < 0.05 ||
+                  Math.abs(val - 22.5) < 0.05;
+
+                return {
+                  id: p.id,
+                  value: val,
+                  netValue: Number(p.netValue || val),
+                  billingType: p.billingType || 'UNDEFINED',
+                  status: p.status || 'PENDING',
+                  dueDate: p.dueDate || '',
+                  paidAt: p.confirmedDate || p.paymentDate || p.clientPaymentDate || undefined,
+                  description: p.description || '',
+                  invoiceUrl: p.invoiceUrl || p.bankSlipUrl || '',
+                  subscriptionId: p.subscription || undefined,
+                  installmentId: p.installment || undefined,
+                  installmentNumber: p.installmentNumber || undefined,
+                  externalReference: p.externalReference || '',
+                  looksLikeReservation,
+                  looksLikeSub,
+                };
+              });
+
+              const hasActiveSubscription = subsList.length > 0;
+              const hasInstallments = mappedPayments.some((p: any) => Boolean(p.installmentId));
+              const hasSubTextSignal =
+                subsList.some((s: any) => isSubText(s.description || '')) ||
+                mappedPayments.some((p: any) => p.looksLikeSub);
+              const hasResSignal = mappedPayments.some((p: any) => p.looksLikeReservation);
+              const hasHalfPriceCharge = mappedPayments.some(
+                (p: any) => Math.abs(p.value - 25.0) < 0.05 || Math.abs(p.value - 22.5) < 0.05
+              );
+
+              let likelyCategory: 'SUBSCRIPTION' | 'RESERVATION' | 'MIXED' | 'OTHER' = 'OTHER';
+              if (hasActiveSubscription || hasInstallments || hasSubTextSignal) {
+                likelyCategory = hasResSignal && !hasActiveSubscription ? 'MIXED' : 'SUBSCRIPTION';
+              } else if (hasResSignal) {
+                likelyCategory = 'RESERVATION';
+              }
+
+              return {
+                customerId: custId,
+                name: custData?.name || 'Cliente Asaas',
+                cpfCnpj: custData?.cpfCnpj || '',
+                email: custData?.email || '',
+                phone: custData?.mobilePhone || custData?.phone || '',
+                subscriptions: subsList,
+                payments: mappedPayments,
+                likelyCategory,
+                hasActiveSubscription,
+                hasInstallments,
+                hasHalfPriceCharge,
+              };
+            } catch (custErr: any) {
+              console.warn(`[check-payment] Error loading customer ${custId}:`, custErr?.message);
+              return null;
+            }
+          })
+        );
+        for (const r of batchResults) {
+          if (r) items.push(r);
+        }
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          isProd,
+          totalFound: customerIds.length,
+          returnedCount: items.length,
+          truncated,
+          items,
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      );
+    }
+
+    if (!orderId && !paymentId) throw new Error('OrderId ou PaymentId é obrigatório')
 
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') || '',
