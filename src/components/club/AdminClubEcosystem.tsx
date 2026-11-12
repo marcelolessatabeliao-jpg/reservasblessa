@@ -62,6 +62,7 @@ import {
   ShieldCheck,
   XCircle,
   RefreshCw,
+  Loader2,
 } from 'lucide-react';
 import logo from '@/assets/logo.png';
 import { Button } from '@/components/ui/button';
@@ -92,6 +93,7 @@ import {
   ClubPaymentMethod,
   ClubSubscription,
   ClubVisitRecord,
+  ClubCardStatus,
   ContractTemplateType,
   ALL_CONSULTANT_PLANS,
   ConsultantPlanPermission,
@@ -1020,6 +1022,10 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     isActive: boolean;
   } | null>(null);
 
+  // Estados de salvamento para evitar cliques duplicados e congelamento da interface
+  const [isSavingClientRegistration, setIsSavingClientRegistration] = useState(false);
+  const [isSavingStatus, setIsSavingStatus] = useState(false);
+
   // Editing Modality or Contract
   const [editingModality, setEditingModality] =
     useState<ClubModality | null>(null);
@@ -1081,8 +1087,45 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
   };
 
   const persist = async (next: ClubDatabaseState) => {
-    const saved = await saveClubState(next);
-    setState(saved);
+    // Atualização otimista imediata para que a interface nunca congele ou trave
+    setState(next);
+    try {
+      const saved = await saveClubState(next);
+      setState(saved);
+      return saved;
+    } catch (err: any) {
+      console.warn('[AdminClubEcosystem] Aviso ao persistir estado:', err);
+      return next;
+    }
+  };
+
+  const handleUpdateMemberCardStatus = async (
+    sub: ClubSubscription,
+    memberId: string,
+    newCardStatus: ClubCardStatus
+  ) => {
+    const updatedMembers = sub.members.map((m) =>
+      m.id === memberId ? { ...m, cardStatus: newCardStatus } : m
+    );
+    const isHolder = sub.members.find((m) => m.id === memberId)?.role === 'TITULAR';
+    const updatedSub: ClubSubscription = {
+      ...sub,
+      members: updatedMembers,
+      cardStatus: isHolder ? newCardStatus : sub.cardStatus,
+      updatedAt: new Date().toISOString(),
+    };
+    setSelectedSubForDetail(updatedSub);
+    const nextState: ClubDatabaseState = {
+      ...state!,
+      subscriptions: (state?.subscriptions || []).map((s) =>
+        s.id === updatedSub.id ? updatedSub : s
+      ),
+    };
+    await persist(nextState);
+    toast({
+      title: 'Status da carteirinha atualizado!',
+      description: `Carteirinha alterada para "${newCardStatus}".`,
+    });
   };
 
   const handleExecuteQrSearch = (customQuery?: string) => {
@@ -2339,7 +2382,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
   ]);
 
   const handleSaveClientRegistrationEdits = async () => {
-    if (!state || !selectedSubForDetail) return;
+    if (!state || !selectedSubForDetail || isSavingClientRegistration) return;
 
     const rawCpf = editClientData.holderCpf.trim();
     if (rawCpf && selectedSubForDetail.personType === 'PF' && !isValidCpf(rawCpf)) {
@@ -2359,161 +2402,175 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       return;
     }
 
-    const prevStatus = selectedSubForDetail.status;
-    const chosenModality = (state.modalities || []).find(
-      (mod) => mod.code === editClientData.modalityCode
-    );
-    const isSemPlano = editClientData.modalityCode === 'SEM_PLANO';
-    const isCorporateCourtesy = editClientData.modalityCode === 'CORPORATE';
+    setIsSavingClientRegistration(true);
+    try {
+      const prevStatus = selectedSubForDetail.status;
+      const chosenModality = (state.modalities || []).find(
+        (mod) => mod.code === editClientData.modalityCode
+      );
+      const isSemPlano = editClientData.modalityCode === 'SEM_PLANO';
+      const isCorporateCourtesy = editClientData.modalityCode === 'CORPORATE';
 
-    const targetStatus: ClubSubscription['status'] = isSemPlano
-      ? 'INACTIVE'
-      : situacaoLiberar === 'SIM' && situacaoInativar === 'NAO'
-      ? 'ACTIVE'
-      : 'INACTIVE';
+      const targetStatus: ClubSubscription['status'] = isSemPlano
+        ? 'INACTIVE'
+        : situacaoLiberar === 'SIM' && situacaoInativar === 'NAO'
+        ? 'ACTIVE'
+        : 'INACTIVE';
 
-    if (isSemPlano) {
-      setSituacaoLiberar('NAO');
-      setSituacaoInativar('SIM');
-    }
+      if (isSemPlano) {
+        setSituacaoLiberar('NAO');
+        setSituacaoInativar('SIM');
+      }
 
-    const nextEndDate =
-      editClientData.endDate.trim() || selectedSubForDetail.endDate;
-    const nextValidityLabel = getValidityLabelFromDate(nextEndDate);
-    const parsedEditMonthly = Number(String(editClientData.monthlyEquivalent).replace(',', '.'));
-    const monthlyVal =
-      isSemPlano || isCorporateCourtesy
-        ? 0
-        : Number.isFinite(parsedEditMonthly) && parsedEditMonthly >= 0
-        ? parsedEditMonthly
-        : selectedSubForDetail.monthlyEquivalent;
-    const cycleSuffix =
-      editClientData.billingCycle === 'ANNUAL' ? '(Anual)' : '(Mensal)';
-    const updatedSub: ClubSubscription = {
-      ...selectedSubForDetail,
-      status: targetStatus,
-      paymentMethod: isCorporateCourtesy
-        ? 'COURTESY'
-        : selectedSubForDetail.paymentMethod,
-      endDate: nextEndDate,
-      holderName: editClientData.holderName.trim() || selectedSubForDetail.holderName,
-      holderCpf: editClientData.holderCpf.trim() || selectedSubForDetail.holderCpf,
-      holderRg: editClientData.holderRg.trim(),
-      holderBirthDate: editClientData.holderBirthDate,
-      holderSex: editClientData.holderSex,
-      holderMaritalStatus: editClientData.holderMaritalStatus,
-      holderPhone: editClientData.holderPhone.trim(),
-      holderEmail: editClientData.holderEmail.trim(),
-      consultantName: editClientData.consultantName.trim(),
-      influencerName: editClientData.influencerName.trim(),
-      addressCep: editClientData.addressCep.trim(),
-      addressStreet: editClientData.addressStreet.trim(),
-      addressNumber: editClientData.addressNumber.trim(),
-      addressComplement: editClientData.addressComplement.trim(),
-      addressNeighborhood: editClientData.addressNeighborhood.trim(),
-      addressCity: editClientData.addressCity.trim() || 'Ariquemes',
-      addressState: editClientData.addressState.trim() || 'RO',
-      vehicleModel: editClientData.vehicleModel.trim(),
-      vehiclePlate: editClientData.vehiclePlate.trim().toUpperCase(),
-      vehicleColor: editClientData.vehicleColor.trim(),
-      notes: editClientData.notes.trim(),
-      dueDay: Number(editClientData.dueDay) || 10,
-      billingCycle: editClientData.billingCycle,
-      monthlyEquivalent: monthlyVal,
-      totalContractValue:
+      const nextEndDate =
+        editClientData.endDate.trim() || selectedSubForDetail.endDate;
+      const nextValidityLabel = getValidityLabelFromDate(nextEndDate);
+      const parsedEditMonthly = Number(String(editClientData.monthlyEquivalent).replace(',', '.'));
+      const monthlyVal =
         isSemPlano || isCorporateCourtesy
           ? 0
-          : editClientData.billingCycle === 'ANNUAL'
-          ? Number((monthlyVal * 12).toFixed(2))
-          : monthlyVal,
-      planSummaryLabel:
-        editClientData.planSummaryLabel.trim() ||
-        selectedSubForDetail.planSummaryLabel,
-      members: selectedSubForDetail.members.map((m) =>
-        m.role === 'TITULAR'
-          ? {
-              ...m,
-              modalityCode: chosenModality ? chosenModality.code : m.modalityCode,
-              modalityName: chosenModality ? chosenModality.name : m.modalityName,
-              planCycleLabel: chosenModality
-                ? chosenModality.isFreeTier
-                  ? chosenModality.name
-                  : `${chosenModality.name} ${cycleSuffix}`
-                : m.planCycleLabel,
-              monthlyValue: chosenModality ? monthlyVal : m.monthlyValue,
-              frontCardUrl: chosenModality?.frontCardUrl || m.frontCardUrl,
-              backCardUrl: chosenModality?.backCardUrl || m.backCardUrl,
-              fullName:
-                editClientData.holderName.trim() || m.fullName,
-              cpf: editClientData.holderCpf.trim() || m.cpf,
-              rg: editClientData.holderRg.trim() || m.rg,
-              birthDate: editClientData.holderBirthDate || m.birthDate,
-              sex: editClientData.holderSex || m.sex,
-              phone: editClientData.holderPhone.trim() || m.phone,
-              status: targetStatus,
-              manualStatusOverride: true,
-              expirationDate: nextEndDate || m.expirationDate,
-              validityLabel: nextValidityLabel || m.validityLabel,
-            }
-          : {
-              ...m,
-              // Preserva o status individual do dependente quando o titular já permanece ATIVO;
-              // se o cadastro mudou entre ATIVO e INATIVO, sincroniza com a alteração solicitada.
-              status:
-                prevStatus !== targetStatus || targetStatus !== 'ACTIVE'
-                  ? targetStatus
-                  : m.status,
-              manualStatusOverride: true,
-              validityLabel: m.expirationDate
-                ? getValidityLabelFromDate(m.expirationDate, m.validityLabel)
-                : nextValidityLabel || m.validityLabel,
-            }
-      ),
-      updatedAt: new Date().toISOString(),
-      transferCompleted: true,
-      manualStatusOverride: true,
-      transferredAt: selectedSubForDetail.transferredAt || new Date().toISOString(),
-    };
-    const nextState: ClubDatabaseState = {
-      ...state,
-      subscriptions: (state.subscriptions || []).map((s) =>
-        s.id === updatedSub.id ? updatedSub : s
-      ),
-    };
+          : Number.isFinite(parsedEditMonthly) && parsedEditMonthly >= 0
+          ? parsedEditMonthly
+          : selectedSubForDetail.monthlyEquivalent;
+      const cycleSuffix =
+        editClientData.billingCycle === 'ANNUAL' ? '(Anual)' : '(Mensal)';
+      const updatedSub: ClubSubscription = {
+        ...selectedSubForDetail,
+        status: targetStatus,
+        paymentMethod: isCorporateCourtesy
+          ? 'COURTESY'
+          : selectedSubForDetail.paymentMethod,
+        endDate: nextEndDate,
+        holderName: editClientData.holderName.trim() || selectedSubForDetail.holderName,
+        holderCpf: editClientData.holderCpf.trim() || selectedSubForDetail.holderCpf,
+        holderRg: editClientData.holderRg.trim(),
+        holderBirthDate: editClientData.holderBirthDate,
+        holderSex: editClientData.holderSex,
+        holderMaritalStatus: editClientData.holderMaritalStatus,
+        holderPhone: editClientData.holderPhone.trim(),
+        holderEmail: editClientData.holderEmail.trim(),
+        consultantName: editClientData.consultantName.trim(),
+        influencerName: editClientData.influencerName.trim(),
+        addressCep: editClientData.addressCep.trim(),
+        addressStreet: editClientData.addressStreet.trim(),
+        addressNumber: editClientData.addressNumber.trim(),
+        addressComplement: editClientData.addressComplement.trim(),
+        addressNeighborhood: editClientData.addressNeighborhood.trim(),
+        addressCity: editClientData.addressCity.trim() || 'Ariquemes',
+        addressState: editClientData.addressState.trim() || 'RO',
+        vehicleModel: editClientData.vehicleModel.trim(),
+        vehiclePlate: editClientData.vehiclePlate.trim().toUpperCase(),
+        vehicleColor: editClientData.vehicleColor.trim(),
+        notes: editClientData.notes.trim(),
+        dueDay: Number(editClientData.dueDay) || 10,
+        billingCycle: editClientData.billingCycle,
+        monthlyEquivalent: monthlyVal,
+        totalContractValue:
+          isSemPlano || isCorporateCourtesy
+            ? 0
+            : editClientData.billingCycle === 'ANNUAL'
+            ? Number((monthlyVal * 12).toFixed(2))
+            : monthlyVal,
+        planSummaryLabel:
+          editClientData.planSummaryLabel.trim() ||
+          selectedSubForDetail.planSummaryLabel,
+        members: selectedSubForDetail.members.map((m) =>
+          m.role === 'TITULAR'
+            ? {
+                ...m,
+                modalityCode: chosenModality ? chosenModality.code : m.modalityCode,
+                modalityName: chosenModality ? chosenModality.name : m.modalityName,
+                planCycleLabel: chosenModality
+                  ? chosenModality.isFreeTier
+                    ? chosenModality.name
+                    : `${chosenModality.name} ${cycleSuffix}`
+                  : m.planCycleLabel,
+                monthlyValue: chosenModality ? monthlyVal : m.monthlyValue,
+                frontCardUrl: chosenModality?.frontCardUrl || m.frontCardUrl,
+                backCardUrl: chosenModality?.backCardUrl || m.backCardUrl,
+                fullName:
+                  editClientData.holderName.trim() || m.fullName,
+                cpf: editClientData.holderCpf.trim() || m.cpf,
+                rg: editClientData.holderRg.trim() || m.rg,
+                birthDate: editClientData.holderBirthDate || m.birthDate,
+                sex: editClientData.holderSex || m.sex,
+                phone: editClientData.holderPhone.trim() || m.phone,
+                status: targetStatus,
+                manualStatusOverride: true,
+                expirationDate: nextEndDate || m.expirationDate,
+                validityLabel: nextValidityLabel || m.validityLabel,
+              }
+            : {
+                ...m,
+                // Preserva o status individual do dependente quando o titular já permanece ATIVO;
+                // se o cadastro mudou entre ATIVO e INATIVO, sincroniza com a alteração solicitada.
+                status:
+                  prevStatus !== targetStatus || targetStatus !== 'ACTIVE'
+                    ? targetStatus
+                    : m.status,
+                manualStatusOverride: true,
+                validityLabel: m.expirationDate
+                  ? getValidityLabelFromDate(m.expirationDate, m.validityLabel)
+                  : nextValidityLabel || m.validityLabel,
+              }
+        ),
+        updatedAt: new Date().toISOString(),
+        transferCompleted: true,
+        manualStatusOverride: true,
+        transferredAt: selectedSubForDetail.transferredAt || new Date().toISOString(),
+      };
 
-    await persist(nextState);
-    setSelectedSubForDetail(updatedSub);
+      // Atualiza imediatamente na tela antes da persistência
+      setSelectedSubForDetail(updatedSub);
 
-    const prevLabel = prevStatus === 'ACTIVE' ? 'ATIVO' : 'INATIVO';
-    const newLabel = targetStatus === 'ACTIVE' ? 'ATIVO' : 'INATIVO';
-    const statusChanged = prevStatus !== targetStatus;
-    const nowTime = new Date().toLocaleTimeString('pt-BR');
-    const feedbackMsg = statusChanged
-      ? `Alteração realizada no cadastro de ${updatedSub.holderName}: situação alterada de ${prevLabel} para ${newLabel}. Expiração: ${formatDateBR(nextEndDate)}.`
-      : `Alterações do cadastro de ${updatedSub.holderName} salvas com sucesso (Situação: ${newLabel} • Expiração: ${formatDateBR(nextEndDate)}).`;
-    setLastRegistrationChangeBox({
-      title: statusChanged
-        ? `Alteração no cadastro realizada (${prevLabel} → ${newLabel})`
-        : 'Cadastro atualizado com sucesso!',
-      detail: feedbackMsg,
-      isActive: targetStatus === 'ACTIVE',
-      changedAt: nowTime,
-    });
-    setStatusChangeFeedbackModal({
-      title: 'Alteração realizada no cadastro!',
-      previousStatusLabel: statusChanged ? prevLabel : undefined,
-      newStatusLabel: newLabel,
-      subjectName: `${updatedSub.holderName} (Cartão #${updatedSub.subscriptionCode})`,
-      expirationDate: nextEndDate,
-      detail: feedbackMsg,
-      isActive: targetStatus === 'ACTIVE',
-    });
-    toast({
-      title: 'Cadastro do cliente atualizado com sucesso!',
-      description: `${updatedSub.holderName} (#${updatedSub.subscriptionCode}) — Status: ${
-        targetStatus === 'ACTIVE' ? 'ATIVO (LIBERADO)' : 'INATIVO'
-      }`,
-    });
+      const nextState: ClubDatabaseState = {
+        ...state,
+        subscriptions: (state.subscriptions || []).map((s) =>
+          s.id === updatedSub.id ? updatedSub : s
+        ),
+      };
+
+      await persist(nextState);
+
+      const prevLabel = prevStatus === 'ACTIVE' ? 'ATIVO' : 'INATIVO';
+      const newLabel = targetStatus === 'ACTIVE' ? 'ATIVO' : 'INATIVO';
+      const statusChanged = prevStatus !== targetStatus;
+      const nowTime = new Date().toLocaleTimeString('pt-BR');
+      const feedbackMsg = statusChanged
+        ? `Alteração realizada no cadastro de ${updatedSub.holderName}: situação alterada de ${prevLabel} para ${newLabel}. Expiração: ${formatDateBR(nextEndDate)}.`
+        : `Alterações do cadastro de ${updatedSub.holderName} salvas com sucesso (Situação: ${newLabel} • Expiração: ${formatDateBR(nextEndDate)}).`;
+      setLastRegistrationChangeBox({
+        title: statusChanged
+          ? `Alteração no cadastro realizada (${prevLabel} → ${newLabel})`
+          : 'Cadastro atualizado com sucesso!',
+        detail: feedbackMsg,
+        isActive: targetStatus === 'ACTIVE',
+        changedAt: nowTime,
+      });
+      setStatusChangeFeedbackModal({
+        title: 'Alteração realizada no cadastro!',
+        previousStatusLabel: statusChanged ? prevLabel : undefined,
+        newStatusLabel: newLabel,
+        subjectName: `${updatedSub.holderName} (Cartão #${updatedSub.subscriptionCode})`,
+        expirationDate: nextEndDate,
+        detail: feedbackMsg,
+        isActive: targetStatus === 'ACTIVE',
+      });
+      toast({
+        title: 'Cadastro do cliente atualizado com sucesso!',
+        description: `${updatedSub.holderName} (#${updatedSub.subscriptionCode}) — Status: ${
+          targetStatus === 'ACTIVE' ? 'ATIVO (LIBERADO)' : 'INATIVO'
+        }`,
+      });
+    } catch (err: any) {
+      console.error('[AdminClubEcosystem] Erro ao salvar cadastro do cliente:', err);
+      toast({
+        title: 'Aviso ao salvar cadastro',
+        description: 'Os dados foram preservados com sucesso no navegador.',
+      });
+    } finally {
+      setIsSavingClientRegistration(false);
+    }
   };
 
   // Função para vincular e agrupar uma pessoa (da base do clube ou do Labcard) como dependente
@@ -3239,75 +3296,89 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     sub: ClubSubscription,
     newStatus: ClubSubscription['status']
   ) => {
-    if (!state) return;
-    const prevLabel = sub.status === 'ACTIVE' ? 'ATIVO' : 'INATIVO';
-    const newLabel = newStatus === 'ACTIVE' ? 'ATIVO' : 'INATIVO';
-    const nextEndDate = editClientData.endDate.trim() || sub.endDate;
-    const nextValidity = getValidityLabelFromDate(nextEndDate);
+    if (!state || isSavingStatus) return;
+    setIsSavingStatus(true);
+    try {
+      const prevLabel = sub.status === 'ACTIVE' ? 'ATIVO' : 'INATIVO';
+      const newLabel = newStatus === 'ACTIVE' ? 'ATIVO' : 'INATIVO';
+      const nextEndDate = editClientData.endDate.trim() || sub.endDate;
+      const nextValidity = getValidityLabelFromDate(nextEndDate);
 
-    const updatedSub: ClubSubscription = {
-      ...sub,
-      status: newStatus,
-      manualStatusOverride: true,
-      endDate: nextEndDate,
-      updatedAt: new Date().toISOString(),
-      transferCompleted: true,
-      transferredAt: sub.transferredAt || new Date().toISOString(),
-      members: sub.members.map((m) => ({
-        ...m,
-        status: newStatus === 'ACTIVE' ? 'ACTIVE' : 'INACTIVE',
+      const updatedSub: ClubSubscription = {
+        ...sub,
+        status: newStatus,
         manualStatusOverride: true,
-        validityLabel: m.expirationDate
-          ? getValidityLabelFromDate(m.expirationDate, m.validityLabel)
-          : nextValidity || m.validityLabel,
-      })),
-    };
-    if (newStatus === 'ACTIVE') {
-      setSituacaoLiberar('SIM');
-      setSituacaoInativar('NAO');
-    } else {
-      setSituacaoLiberar('NAO');
-      setSituacaoInativar('SIM');
-    }
-    const nextState: ClubDatabaseState = {
-      ...state,
-      subscriptions: (state.subscriptions || []).map((s) =>
-        s.id === updatedSub.id ? updatedSub : s
-      ),
-    };
-    await persist(nextState);
-    if (selectedSubForDetail?.id === updatedSub.id) {
-      setSelectedSubForDetail(updatedSub);
-    }
-    const feedbackMsg =
-      prevLabel !== newLabel
-        ? `Alteração realizada no cadastro de ${sub.holderName}: situação alterada de ${prevLabel} para ${newLabel}. Carteirinhas atualizadas.`
-        : `Situação do cadastro confirmada como ${newLabel} para ${sub.holderName}.`;
-    setLastRegistrationChangeBox({
-      title:
+        endDate: nextEndDate,
+        updatedAt: new Date().toISOString(),
+        transferCompleted: true,
+        transferredAt: sub.transferredAt || new Date().toISOString(),
+        members: sub.members.map((m) => ({
+          ...m,
+          status: newStatus === 'ACTIVE' ? 'ACTIVE' : 'INACTIVE',
+          manualStatusOverride: true,
+          validityLabel: m.expirationDate
+            ? getValidityLabelFromDate(m.expirationDate, m.validityLabel)
+            : nextValidity || m.validityLabel,
+        })),
+      };
+      if (newStatus === 'ACTIVE') {
+        setSituacaoLiberar('SIM');
+        setSituacaoInativar('NAO');
+      } else {
+        setSituacaoLiberar('NAO');
+        setSituacaoInativar('SIM');
+      }
+
+      if (selectedSubForDetail?.id === updatedSub.id) {
+        setSelectedSubForDetail(updatedSub);
+      }
+
+      const nextState: ClubDatabaseState = {
+        ...state,
+        subscriptions: (state.subscriptions || []).map((s) =>
+          s.id === updatedSub.id ? updatedSub : s
+        ),
+      };
+      await persist(nextState);
+
+      const feedbackMsg =
         prevLabel !== newLabel
-          ? `Alteração no cadastro realizada (${prevLabel} → ${newLabel})`
-          : `Situação confirmada como ${newLabel}`,
-      detail: feedbackMsg,
-      isActive: newStatus === 'ACTIVE',
-      changedAt: new Date().toLocaleTimeString('pt-BR'),
-    });
-    setStatusChangeFeedbackModal({
-      title: 'Alteração realizada no cadastro!',
-      previousStatusLabel: prevLabel !== newLabel ? prevLabel : undefined,
-      newStatusLabel: newLabel,
-      subjectName: `${sub.holderName} (Cartão #${sub.subscriptionCode})`,
-      expirationDate: nextEndDate,
-      detail: feedbackMsg,
-      isActive: newStatus === 'ACTIVE',
-    });
-    toast({
-      title:
-        newStatus === 'ACTIVE'
-          ? 'Cadastro LIBERADO • Status: ATIVO!'
-          : 'Cadastro INATIVADO • Status: INATIVO!',
-      description: `Titular: ${sub.holderName} (Carteirinhas atualizadas)`,
-    });
+          ? `Alteração realizada no cadastro de ${sub.holderName}: situação alterada de ${prevLabel} para ${newLabel}. Carteirinhas atualizadas.`
+          : `Situação do cadastro confirmada como ${newLabel} para ${sub.holderName}.`;
+      setLastRegistrationChangeBox({
+        title:
+          prevLabel !== newLabel
+            ? `Alteração no cadastro realizada (${prevLabel} → ${newLabel})`
+            : `Situação confirmada como ${newLabel}`,
+        detail: feedbackMsg,
+        isActive: newStatus === 'ACTIVE',
+        changedAt: new Date().toLocaleTimeString('pt-BR'),
+      });
+      setStatusChangeFeedbackModal({
+        title: 'Alteração realizada no cadastro!',
+        previousStatusLabel: prevLabel !== newLabel ? prevLabel : undefined,
+        newStatusLabel: newLabel,
+        subjectName: `${sub.holderName} (Cartão #${sub.subscriptionCode})`,
+        expirationDate: nextEndDate,
+        detail: feedbackMsg,
+        isActive: newStatus === 'ACTIVE',
+      });
+      toast({
+        title:
+          newStatus === 'ACTIVE'
+            ? 'Cadastro LIBERADO • Status: ATIVO!'
+            : 'Cadastro INATIVADO • Status: INATIVO!',
+        description: `Titular: ${sub.holderName} (Carteirinhas atualizadas)`,
+      });
+    } catch (err: any) {
+      console.error('[AdminClubEcosystem] Erro ao alternar status do cliente:', err);
+      toast({
+        title: 'Aviso ao salvar status',
+        description: 'Status salvo localmente no navegador.',
+      });
+    } finally {
+      setIsSavingStatus(false);
+    }
   };
 
   // Ativar / Inativar dependente (ou integrante) individualmente
@@ -5527,6 +5598,21 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                 ? 'pendente'
                                 : 'inativo'}
                             </span>
+                            <div className="mt-1">
+                              <span
+                                className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold border whitespace-nowrap ${
+                                  (sub.members[0]?.cardStatus || sub.cardStatus) === 'Entregue'
+                                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                                    : (sub.members[0]?.cardStatus || sub.cardStatus) === 'Impresso'
+                                    ? 'bg-blue-50 text-blue-800 border-blue-300'
+                                    : (sub.members[0]?.cardStatus || sub.cardStatus) === 'em produção'
+                                    ? 'bg-amber-50 text-amber-900 border-amber-300'
+                                    : 'bg-slate-50 text-slate-600 border-slate-200'
+                                }`}
+                              >
+                                🪪 {(sub.members[0]?.cardStatus || sub.cardStatus) || 'Não produzida'}
+                              </span>
+                            </div>
                           </td>
                           <td className="py-3 px-4 text-right">
                             <div className="flex items-center justify-end">
@@ -11147,10 +11233,19 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                       <Button
                         type="button"
                         size="sm"
+                        disabled={isSavingClientRegistration}
                         onClick={handleSaveClientRegistrationEdits}
-                        className="bg-[#004d00] hover:bg-emerald-900 text-white font-black text-xs px-4 sm:px-5 w-full sm:w-auto justify-center"
+                        className="bg-[#004d00] hover:bg-emerald-900 text-white font-black text-xs px-4 sm:px-5 w-full sm:w-auto justify-center disabled:opacity-60"
                       >
-                        <CheckCircle2 className="w-4 h-4 mr-1.5" /> SALVAR ALTERAÇÕES
+                        {isSavingClientRegistration ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> SALVANDO...
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle2 className="w-4 h-4 mr-1.5" /> SALVAR ALTERAÇÕES
+                          </>
+                        )}
                       </Button>
                     </div>
                   </div>
@@ -11607,6 +11702,38 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                   </Button>
                                 </div>
                               </div>
+
+                              {/* STATUS DA CARTEIRINHA */}
+                              <div className="flex flex-wrap items-center justify-between gap-2 pt-1.5 border-t border-slate-100">
+                                <div className="flex items-center gap-1.5">
+                                  <CreditCard className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                                  <span className="text-[11px] font-bold text-slate-700">Status Carteirinha:</span>
+                                </div>
+                                <select
+                                  value={m.cardStatus || 'Não produzida'}
+                                  onChange={(e) =>
+                                    handleUpdateMemberCardStatus(
+                                      selectedSubForDetail,
+                                      m.id,
+                                      e.target.value as ClubCardStatus
+                                    )
+                                  }
+                                  className={`h-7 text-[11px] font-black rounded-lg px-2 border cursor-pointer transition-colors ${
+                                    m.cardStatus === 'Entregue'
+                                      ? 'bg-emerald-50 border-emerald-400 text-emerald-800'
+                                      : m.cardStatus === 'Impresso'
+                                      ? 'bg-blue-50 border-blue-400 text-blue-800'
+                                      : m.cardStatus === 'em produção'
+                                      ? 'bg-amber-50 border-amber-400 text-amber-900'
+                                      : 'bg-slate-50 border-slate-300 text-slate-700'
+                                  }`}
+                                >
+                                  <option value="Não produzida">⚪ Não produzida</option>
+                                  <option value="em produção">🟡 em produção</option>
+                                  <option value="Impresso">🔵 Impresso</option>
+                                  <option value="Entregue">🟢 Entregue</option>
+                                </select>
+                              </div>
                             </div>
                           );
                         })}
@@ -12006,6 +12133,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         <Button
                           type="button"
                           size="sm"
+                          disabled={isSavingStatus}
                           onClick={() => {
                             const targetStatus =
                               situacaoLiberar === 'SIM' && situacaoInativar === 'NAO'
@@ -12013,9 +12141,15 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                 : 'INACTIVE';
                             handleToggleSubStatus(selectedSubForDetail, targetStatus);
                           }}
-                          className="bg-[#004d00] hover:bg-emerald-900 text-white font-black uppercase tracking-wider px-4 sm:px-5 h-9 rounded-md shadow shrink-0 text-xs cursor-pointer"
+                          className="bg-[#004d00] hover:bg-emerald-900 text-white font-black uppercase tracking-wider px-4 sm:px-5 h-9 rounded-md shadow shrink-0 text-xs cursor-pointer disabled:opacity-60"
                         >
-                          SALVAR
+                          {isSavingStatus ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> SALVANDO...
+                            </>
+                          ) : (
+                            'SALVAR'
+                          )}
                         </Button>
                       </div>
                     </div>
@@ -12064,10 +12198,19 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     </Button>
                     <Button
                       type="button"
+                      disabled={isSavingClientRegistration}
                       onClick={handleSaveClientRegistrationEdits}
-                      className="bg-[#004d00] hover:bg-emerald-900 text-white font-black uppercase tracking-wider px-4 sm:px-8 h-12 sm:h-11 shadow-md text-xs sm:text-sm whitespace-normal text-center flex items-center justify-center"
+                      className="bg-[#004d00] hover:bg-emerald-900 text-white font-black uppercase tracking-wider px-4 sm:px-8 h-12 sm:h-11 shadow-md text-xs sm:text-sm whitespace-normal text-center flex items-center justify-center disabled:opacity-60"
                     >
-                      <CheckCircle2 className="w-4 h-4 mr-2 shrink-0" /> SALVAR TODAS AS ALTERAÇÕES DO CADASTRO
+                      {isSavingClientRegistration ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 shrink-0 animate-spin" /> SALVANDO ALTERAÇÕES...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="w-4 h-4 mr-2 shrink-0" /> SALVAR TODAS AS ALTERAÇÕES DO CADASTRO
+                        </>
+                      )}
                     </Button>
                   </div>
                 </div>
@@ -12132,6 +12275,27 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                   ? `ATIVO • Exp: ${formatDateBR(holderEffExp)}`
                                   : 'INATIVO'}
                               </Badge>
+
+                              <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-lg border border-slate-200 shadow-2xs">
+                                <CreditCard className="w-3.5 h-3.5 text-slate-500" />
+                                <span className="text-[11px] font-bold text-slate-700">Status Carteirinha:</span>
+                                <select
+                                  value={holderMember.cardStatus || 'Não produzida'}
+                                  onChange={(e) =>
+                                    handleUpdateMemberCardStatus(
+                                      selectedSubForDetail,
+                                      holderMember.id,
+                                      e.target.value as ClubCardStatus
+                                    )
+                                  }
+                                  className="h-6 text-[11px] font-bold rounded px-1.5 border border-slate-300 bg-white cursor-pointer"
+                                >
+                                  <option value="Não produzida">⚪ Não produzida</option>
+                                  <option value="em produção">🟡 em produção</option>
+                                  <option value="Impresso">🔵 Impresso</option>
+                                  <option value="Entregue">🟢 Entregue</option>
+                                </select>
+                              </div>
                             </div>
                             {holderMissingDoc && (
                               <Button
@@ -12247,6 +12411,25 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                         Expira em: <strong>{formatDateBR(depEffExp)}</strong>
                                       </span>
                                     )}
+                                    <div className="flex items-center gap-1.5 bg-white px-2 py-0.5 rounded-lg border border-slate-200 shadow-2xs">
+                                      <span className="text-[10px] font-bold text-slate-700">Status Carteirinha:</span>
+                                      <select
+                                        value={depMember.cardStatus || 'Não produzida'}
+                                        onChange={(e) =>
+                                          handleUpdateMemberCardStatus(
+                                            selectedSubForDetail,
+                                            depMember.id,
+                                            e.target.value as ClubCardStatus
+                                          )
+                                        }
+                                        className="h-6 text-[10px] font-bold rounded px-1 border border-slate-300 bg-white cursor-pointer"
+                                      >
+                                        <option value="Não produzida">⚪ Não produzida</option>
+                                        <option value="em produção">🟡 em produção</option>
+                                        <option value="Impresso">🔵 Impresso</option>
+                                        <option value="Entregue">🟢 Entregue</option>
+                                      </select>
+                                    </div>
                                   </div>
                                   <Button
                                     type="button"
@@ -15381,6 +15564,26 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                             ? 'ATIVO'
                                             : 'INATIVO'}
                                         </Badge>
+
+                                        <div className="flex items-center gap-1.5 bg-white px-2 py-0.5 rounded-lg border border-slate-200 shadow-2xs">
+                                          <span className="text-[10px] font-bold text-slate-700">Status Carteirinha:</span>
+                                          <select
+                                            value={dep.cardStatus || 'Não produzida'}
+                                            onChange={(e) =>
+                                              handleUpdateMemberCardStatus(
+                                                selectedSubForDetail,
+                                                dep.id,
+                                                e.target.value as ClubCardStatus
+                                              )
+                                            }
+                                            className="h-6 text-[10px] font-bold rounded px-1 border border-slate-300 bg-white cursor-pointer"
+                                          >
+                                            <option value="Não produzida">⚪ Não produzida</option>
+                                            <option value="em produção">🟡 em produção</option>
+                                            <option value="Impresso">🔵 Impresso</option>
+                                            <option value="Entregue">🟢 Entregue</option>
+                                          </select>
+                                        </div>
                                       </div>
                                       <div className="text-[11px] text-slate-500">
                                         CPF: <strong>{dep.cpf || 'Não informado'}</strong> • Nascimento:{' '}

@@ -306,19 +306,35 @@ export const ClubMemberCardView: React.FC<ClubMemberCardViewProps> = ({
             </span>
           </div>
 
-          <Badge
-            className={
-              isCardActive
-                ? 'bg-emerald-500 text-slate-950 font-black text-[11px]'
-                : 'bg-rose-600 text-white font-black text-[11px]'
-            }
-          >
-            {isCardActive
-              ? '● PLANO ATIVO (LIBERADO)'
-              : lockReason
-              ? `● PLANO INATIVO (${lockReason.toUpperCase()})`
-              : '● PLANO INATIVO (AGUARDANDO PAGAMENTO / COMPROVAÇÃO)'}
-          </Badge>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge
+              className={
+                isCardActive
+                  ? 'bg-emerald-500 text-slate-950 font-black text-[11px]'
+                  : 'bg-rose-600 text-white font-black text-[11px]'
+              }
+            >
+              {isCardActive
+                ? '● PLANO ATIVO (LIBERADO)'
+                : lockReason
+                ? `● PLANO INATIVO (${lockReason.toUpperCase()})`
+                : '● PLANO INATIVO (AGUARDANDO PAGAMENTO / COMPROVAÇÃO)'}
+            </Badge>
+
+            <Badge
+              className={
+                member.cardStatus === 'Entregue'
+                  ? 'bg-emerald-600 text-white font-black text-[11px]'
+                  : member.cardStatus === 'Impresso'
+                  ? 'bg-blue-600 text-white font-black text-[11px]'
+                  : member.cardStatus === 'em produção'
+                  ? 'bg-amber-400 text-slate-950 font-black text-[11px]'
+                  : 'bg-slate-600 text-white font-medium text-[11px]'
+              }
+            >
+              🪪 {member.cardStatus || 'Não produzida'}
+            </Badge>
+          </div>
         </div>
       )}
 

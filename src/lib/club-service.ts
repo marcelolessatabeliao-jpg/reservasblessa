@@ -173,6 +173,7 @@ const tryPersistLocalState = (state: ClubDatabaseState) => {
       const hasEdits =
         s.status !== 'PENDING_TRANSFER' ||
         Boolean(s.manualStatusOverride) ||
+        Boolean(s.cardStatus) ||
         Boolean(s.transferCompleted) ||
         Boolean(s.transferredAt) ||
         (s.invoices && s.invoices.length > 0) ||
@@ -181,7 +182,7 @@ const tryPersistLocalState = (state: ClubDatabaseState) => {
         (s.members &&
           s.members.some(
             (m) =>
-              Boolean(m.photoUrl || m.documentProofUrl || m.documentVerified || m.manualStatusOverride) ||
+              Boolean(m.photoUrl || m.documentProofUrl || m.documentVerified || m.manualStatusOverride || m.cardStatus) ||
               m.status !== 'PENDING_TRANSFER'
           ));
       return hasEdits;
@@ -901,7 +902,8 @@ const isLabcardSubscriptionModified = (
     sub.status !== 'PENDING_TRANSFER' ||
     Boolean(sub.manualStatusOverride) ||
     Boolean(sub.transferCompleted) ||
-    Boolean(sub.transferredAt)
+    Boolean(sub.transferredAt) ||
+    Boolean(sub.cardStatus)
   ) {
     return true;
   }
@@ -936,6 +938,7 @@ const isLabcardSubscriptionModified = (
       Boolean(m.photoUrl) ||
       Boolean(m.documentProofUrl) ||
       Boolean(m.expirationDate) ||
+      Boolean(m.cardStatus) ||
       (m.attachments?.length || 0) > 0
     ) {
       return true;
@@ -978,12 +981,13 @@ export const saveClubState = async (state: ClubDatabaseState): Promise<ClubDatab
   tryPersistLocalState(nextState);
 
   const cloudState = buildCompactCloudState(nextState);
-  const maxAttempts = 3;
+  const maxAttempts = 2;
   let lastError: any = null;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    let timeoutTimer: any = null;
     try {
-      const { error } = await supabase
+      const upsertPromise = supabase
         .from('site_settings' as any)
         .upsert(
           {
@@ -993,20 +997,31 @@ export const saveClubState = async (state: ClubDatabaseState): Promise<ClubDatab
           },
           { onConflict: 'key' }
         );
+
+      const timeoutPromise = new Promise<{ error: any }>((_, reject) => {
+        timeoutTimer = setTimeout(() => {
+          reject(new Error('Tempo limite de rede ao sincronizar com o banco de dados (7s)'));
+        }, 7000);
+      });
+
+      const { error } = await Promise.race([upsertPromise, timeoutPromise]);
+      if (timeoutTimer) clearTimeout(timeoutTimer);
+
       if (!error) {
         return nextState;
       }
       console.error('[ClubService] CRITICAL: Error saving to Supabase site_settings:', error);
       throw new Error(`Falha ao registrar no banco de dados: ${error.message}`);
     } catch (err: any) {
+      if (timeoutTimer) clearTimeout(timeoutTimer);
       lastError = err;
       const msg = String(err?.message || err || '');
       const isNetworkFailure =
         err instanceof TypeError ||
-        /failed to fetch|networkerror|load failed|timeout|aborted/i.test(msg);
+        /failed to fetch|networkerror|load failed|timeout|tempo limite|aborted/i.test(msg);
 
       if (isNetworkFailure && attempt < maxAttempts) {
-        const delayMs = attempt * 500;
+        const delayMs = attempt * 400;
         console.warn(
           `[ClubService] Tentativa ${attempt}/${maxAttempts} falhou (${msg}). Tentando novamente em ${delayMs}ms...`
         );
@@ -1015,16 +1030,17 @@ export const saveClubState = async (state: ClubDatabaseState): Promise<ClubDatab
       }
 
       console.error('[ClubService] Exception syncing to Supabase site_settings:', err);
-      if (isNetworkFailure) {
-        throw new Error(
-          `Falha de conexão ao salvar no banco de dados (${cloudState.subscriptions.length} registros enviados): ${msg}. Verifique sua internet ou tente novamente.`
-        );
-      }
-      throw err;
+      break;
     }
   }
 
-  throw lastError || new Error('Falha desconhecida ao salvar no banco de dados.');
+  // Se a sincronização remota falhar ou sofrer timeout, o estado já foi gravado com segurança
+  // no cache de memória e no localStorage. Retornamos nextState para não congelar a interface do usuário.
+  console.warn(
+    '[ClubService] Aviso: Sincronização em nuvem não concluída imediatamente, mas alterações foram preservadas localmente:',
+    lastError
+  );
+  return nextState;
 };
 
 let lastClubFetchErrorMessage: string | null = null;

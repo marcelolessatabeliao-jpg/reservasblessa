@@ -8,6 +8,11 @@ export type SubscriptionStatus =
   | 'CANCELLED';
 export type ClubPaymentMethod = 'PIX' | 'CREDIT_CARD' | 'DEBIT_CARD' | 'BOLETO' | 'COURTESY' | 'LOCAL';
 export type ContractTemplateType = 'ADESAO_PF' | 'TERMOS_SITE' | 'FAMILY_PUBLICIDADE';
+export type ClubCardStatus =
+  | 'Impresso'
+  | 'em produção'
+  | 'Entregue'
+  | 'Não produzida';
 
 export interface ClubModality {
   id: string;
@@ -76,6 +81,7 @@ export interface ClubMember {
   monthlyValue: number;
   status: SubscriptionStatus;
   manualStatusOverride?: boolean;
+  cardStatus?: ClubCardStatus;
   expirationDate?: string; // YYYY-MM-DD - Vencimento individual do cadastro/benefício do dependente (ex: quando a criança completa idade pagante ou expira comprovação)
   expirationNotes?: string; // Motivo do vencimento (ex: "Completa idade em 2 meses - passa a ser pagante")
   attachments?: ClubAttachment[]; // Anexos e documentos individuais do dependente
@@ -177,6 +183,7 @@ export interface ClubSubscription {
   dueDay: number;
   status: SubscriptionStatus;
   manualStatusOverride?: boolean;
+  cardStatus?: ClubCardStatus;
   origin: 'SITE' | 'ADMIN' | 'IMPORT_LABCARD';
   transferCompleted?: boolean;
   transferredAt?: string;
