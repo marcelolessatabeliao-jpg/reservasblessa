@@ -9527,77 +9527,6 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
             );
           })()}
 
-          {/* MODAL DE CONFIRMAÇÃO DE EXCLUSÃO DE CLIENTE */}
-          <Dialog open={!!clientToDelete} onOpenChange={(open) => !open && setClientToDelete(null)}>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle className="text-base font-black text-rose-700 flex items-center gap-2">
-                  <Trash2 className="w-5 h-5 text-rose-600" /> Confirmar Exclusão de Cliente
-                </DialogTitle>
-              </DialogHeader>
-              <div className="space-y-3 py-2 text-xs text-slate-700">
-                <p>
-                  Tem certeza que deseja excluir permanentemente o cadastro de:
-                </p>
-                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl space-y-1">
-                  <div className="font-bold text-sm text-rose-950">
-                    {clientToDelete?.holderName}
-                  </div>
-                  <div className="text-[11px] text-rose-800">
-                    Cartão: <strong>#{clientToDelete?.subscriptionCode}</strong> • CPF: <strong>{clientToDelete?.holderCpf}</strong>
-                  </div>
-                  <div className="text-[11px] text-rose-700">
-                    Plano: {clientToDelete?.planSummaryLabel} ({clientToDelete?.invoices.length || 0} faturas vinculadas)
-                  </div>
-                </div>
-                <p className="text-slate-500 font-medium">
-                  ⚠️ Esta ação é irreversível e removerá todas as carteirinhas, dependentes, histórico financeiro e parcelas deste cliente.
-                </p>
-              </div>
-              <DialogFooter className="flex items-center justify-end gap-2 pt-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setClientToDelete(null)}
-                  className="text-xs"
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="sm"
-                  onClick={async () => {
-                    if (!clientToDelete || !state) return;
-                    const nextDeletedIds = Array.from(
-                      new Set([...(state.deletedSubscriptionIds || []), clientToDelete.id])
-                    );
-                    const nextState: ClubDatabaseState = {
-                      ...state,
-                      subscriptions: (state.subscriptions || []).filter(
-                        (s) => s.id !== clientToDelete.id
-                      ),
-                      deletedSubscriptionIds: nextDeletedIds,
-                    };
-                    await persist(nextState);
-                    toast({
-                      title: 'Cliente excluído com sucesso!',
-                      description: clientToDelete.holderName,
-                    });
-                    if (selectedSubForDetail?.id === clientToDelete.id) {
-                      setSelectedSubForDetail(null);
-                    }
-                    setClientToDelete(null);
-                  }}
-                  className="text-xs font-bold bg-rose-600 hover:bg-rose-700"
-                >
-                  Sim, Excluir Cadastro
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-
           {(configSection === 'FORMAS_PG' ||
             configSection === 'CATEGORIAS' ||
             configSection === 'ESPECIALIDADES' ||
@@ -10954,6 +10883,16 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   <Button
                     type="button"
                     size="sm"
+                    variant="destructive"
+                    onClick={() => setClientToDelete(selectedSubForDetail)}
+                    className="h-8 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs w-full sm:w-auto shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                    title="Excluir este cadastro e todas as informações vinculadas"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" /> Excluir Cliente
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
                     variant="outline"
                     onClick={() => setSelectedSubForDetail(null)}
                     className="h-8 border-slate-300 bg-white text-slate-800 hover:bg-slate-100 hover:text-slate-950 font-bold text-xs w-full sm:w-auto"
@@ -12113,11 +12052,20 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     )}
                   </div>
 
-                  <div className="flex justify-end pt-2">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setClientToDelete(selectedSubForDetail)}
+                      className="border-rose-300 text-rose-700 bg-rose-50 hover:bg-rose-100 hover:text-rose-800 font-bold text-xs h-11 px-4 flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
+                      title="Excluir permanentemente este cliente e todos os seus dados"
+                    >
+                      <Trash2 className="w-4 h-4 text-rose-600" /> Excluir Cadastro Deste Cliente
+                    </Button>
                     <Button
                       type="button"
                       onClick={handleSaveClientRegistrationEdits}
-                      className="w-full sm:w-auto bg-[#004d00] hover:bg-emerald-900 text-white font-black uppercase tracking-wider px-4 sm:px-8 h-12 sm:h-11 shadow-md text-xs sm:text-sm whitespace-normal text-center flex items-center justify-center"
+                      className="bg-[#004d00] hover:bg-emerald-900 text-white font-black uppercase tracking-wider px-4 sm:px-8 h-12 sm:h-11 shadow-md text-xs sm:text-sm whitespace-normal text-center flex items-center justify-center"
                     >
                       <CheckCircle2 className="w-4 h-4 mr-2 shrink-0" /> SALVAR TODAS AS ALTERAÇÕES DO CADASTRO
                     </Button>
@@ -19281,6 +19229,77 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
               className="text-slate-700 font-bold hover:bg-slate-200 rounded-xl"
             >
               Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL GLOBAL DE CONFIRMAÇÃO DE EXCLUSÃO DE CLIENTE */}
+      <Dialog open={!!clientToDelete} onOpenChange={(open) => !open && setClientToDelete(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base font-black text-rose-700 flex items-center gap-2">
+              <Trash2 className="w-5 h-5 text-rose-600" /> Confirmar Exclusão de Cliente
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2 text-xs text-slate-700">
+            <p>
+              Tem certeza que deseja excluir permanentemente o cadastro de:
+            </p>
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl space-y-1">
+              <div className="font-bold text-sm text-rose-950">
+                {clientToDelete?.holderName}
+              </div>
+              <div className="text-[11px] text-rose-800">
+                Cartão: <strong>#{clientToDelete?.subscriptionCode}</strong> • CPF: <strong>{clientToDelete?.holderCpf}</strong>
+              </div>
+              <div className="text-[11px] text-rose-700">
+                Plano: {clientToDelete?.planSummaryLabel} ({clientToDelete?.invoices.length || 0} faturas vinculadas)
+              </div>
+            </div>
+            <p className="text-slate-500 font-medium">
+              ⚠️ Esta ação é irreversível e removerá todas as carteirinhas, dependentes, histórico financeiro e parcelas deste cliente.
+            </p>
+          </div>
+          <DialogFooter className="flex items-center justify-end gap-2 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setClientToDelete(null)}
+              className="text-xs"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              onClick={async () => {
+                if (!clientToDelete || !state) return;
+                const nextDeletedIds = Array.from(
+                  new Set([...(state.deletedSubscriptionIds || []), clientToDelete.id])
+                );
+                const nextState: ClubDatabaseState = {
+                  ...state,
+                  subscriptions: (state.subscriptions || []).filter(
+                    (s) => s.id !== clientToDelete.id
+                  ),
+                  deletedSubscriptionIds: nextDeletedIds,
+                };
+                await persist(nextState);
+                toast({
+                  title: 'Cliente excluído com sucesso!',
+                  description: clientToDelete.holderName,
+                });
+                if (selectedSubForDetail?.id === clientToDelete.id) {
+                  setSelectedSubForDetail(null);
+                }
+                setClientToDelete(null);
+              }}
+              className="text-xs font-bold bg-rose-600 hover:bg-rose-700"
+            >
+              Sim, Excluir Cadastro
             </Button>
           </DialogFooter>
         </DialogContent>
