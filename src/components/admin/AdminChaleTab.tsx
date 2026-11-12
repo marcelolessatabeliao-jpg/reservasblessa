@@ -73,7 +73,8 @@ import { format, parseISO, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { getGlobalSetting, updateGlobalSetting } from '@/lib/booking-service';
+import { getGlobalSetting, updateGlobalSetting, getChaleBlockedDatesMap } from '@/lib/booking-service';
+import type { DateRange } from 'react-day-picker';
 import html2canvas from 'html2canvas';
 
 export interface ChaleReservation {
@@ -231,6 +232,41 @@ export function AdminChaleTab({
           .map(([id]) => Number(id))
           .filter((n) => !isNaN(n));
         updateGlobalSetting('disabled_chale_ids', currentDisabled);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Datas e períodos específicos bloqueados por chalé (sincronizado com site_settings -> chale_blocked_dates)
+  const [chaleBlockedDatesMap, setChaleBlockedDatesMap] = useState<Record<number, string[]>>(() => {
+    try {
+      const saved = localStorage.getItem('lessa_admin_chale_blocked_dates_v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') return parsed;
+      }
+    } catch {}
+    return {};
+  });
+  const [calendarModalChaleId, setCalendarModalChaleId] = useState<number | null>(null);
+  const [calendarSelectMode, setCalendarSelectMode] = useState<'multiple' | 'range'>('multiple');
+  const [rangeSelection, setRangeSelection] = useState<DateRange | undefined>(undefined);
+  const [isSavingBlockedDates, setIsSavingBlockedDates] = useState(false);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('lessa_admin_chale_blocked_dates_v1', JSON.stringify(chaleBlockedDatesMap));
+    } catch {}
+  }, [chaleBlockedDatesMap]);
+
+  useEffect(() => {
+    let active = true;
+    getChaleBlockedDatesMap().then((remoteMap) => {
+      if (!active) return;
+      if (remoteMap && typeof remoteMap === 'object') {
+        setChaleBlockedDatesMap(remoteMap);
       }
     });
     return () => {
@@ -691,7 +727,8 @@ export function AdminChaleTab({
         return mapTargetDateStr >= inStr && mapTargetDateStr <= outStr;
       });
 
-      const isManualIndisponivel = statuses[unit.id] === 'indisponivel';
+      const isDateBlocked = (chaleBlockedDatesMap[unit.id] || []).includes(mapTargetDateStr);
+      const isManualIndisponivel = statuses[unit.id] === 'indisponivel' || isDateBlocked;
       let status: 'disponivel' | 'indisponivel' | 'ocupado' = 'disponivel';
       if (reservation) {
         status = 'ocupado';
@@ -726,7 +763,8 @@ export function AdminChaleTab({
       const onlineRes = onlineList.find(r => r && Number(r.chaleId) === unit.id && r.status !== 'cancelled');
       
       const reservation = localRes || onlineRes;
-      const isManualIndisponivel = statuses[unit.id] === 'indisponivel';
+      const isDateBlocked = (chaleBlockedDatesMap[unit.id] || []).includes(mapTargetDateStr);
+      const isManualIndisponivel = statuses[unit.id] === 'indisponivel' || isDateBlocked;
 
       let status: 'disponivel' | 'indisponivel' | 'ocupado' = 'disponivel';
       if (reservation) {
@@ -805,6 +843,75 @@ export function AdminChaleTab({
           ? `Chalé ${chaleId} liberado (Verde)`
           : `Chalé ${chaleId} bloqueado para manutenção (Amarelo)`,
     });
+  };
+
+  // Persistir datas bloqueadas personalizadas por chalé
+  const persistChaleBlockedDates = async (nextMap: Record<number, string[]>) => {
+    setChaleBlockedDatesMap(nextMap);
+    setIsSavingBlockedDates(true);
+    const ok = await updateGlobalSetting('chale_blocked_dates', nextMap);
+    setIsSavingBlockedDates(false);
+    if (!ok) {
+      toast({
+        title: 'Erro ao salvar datas no site',
+        description: 'Não foi possível sincronizar as datas bloqueadas com o site. Tente novamente.',
+        variant: 'destructive'
+      });
+      return false;
+    }
+    return true;
+  };
+
+  const handleSetChaleBlockedDates = async (chaleId: number, dates: string[]) => {
+    const clean = Array.from(new Set(dates.filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)))).sort();
+    const nextMap = { ...chaleBlockedDatesMap };
+    if (clean.length > 0) {
+      nextMap[chaleId] = clean;
+    } else {
+      delete nextMap[chaleId];
+    }
+    await persistChaleBlockedDates(nextMap);
+  };
+
+  const handleApplyBlockedRange = async (chaleId: number, action: 'block' | 'unblock') => {
+    if (!rangeSelection?.from) {
+      toast({ title: 'Selecione a data inicial do período no calendário.', variant: 'destructive' });
+      return;
+    }
+    const start = new Date(rangeSelection.from);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(rangeSelection.to || rangeSelection.from);
+    end.setHours(0, 0, 0, 0);
+
+    const rangeDates: string[] = [];
+    let curr = start <= end ? new Date(start) : new Date(end);
+    const limit = start <= end ? end : start;
+    let guard = 0;
+    while (curr <= limit && guard < 365) {
+      rangeDates.push(format(curr, 'yyyy-MM-dd'));
+      curr = addDays(curr, 1);
+      guard++;
+    }
+
+    const currentSet = new Set(chaleBlockedDatesMap[chaleId] || []);
+    if (action === 'block') {
+      rangeDates.forEach((d) => currentSet.add(d));
+    } else {
+      rangeDates.forEach((d) => currentSet.delete(d));
+    }
+
+    const ok = await handleSetChaleBlockedDates(chaleId, Array.from(currentSet))
+      .then(() => true)
+      .catch(() => false);
+    if (ok) {
+      setRangeSelection(undefined);
+      toast({
+        title:
+          action === 'block'
+            ? `${rangeDates.length} dia(s) bloqueado(s) no Chalé ${String(chaleId).padStart(2, '0')}`
+            : `${rangeDates.length} dia(s) liberado(s) no Chalé ${String(chaleId).padStart(2, '0')}`
+      });
+    }
   };
 
   // Abrir Modal de Nova Reserva
@@ -1576,22 +1683,60 @@ export function AdminChaleTab({
               </button>
             </>
           ) : isAvailable ? (
-            <button
-              type="button"
-              onClick={() => handleToggleBlock(unit.id)}
-              className="text-[10px] font-bold text-amber-800 hover:text-amber-900 hover:bg-amber-100 px-2.5 py-1 rounded-lg transition-all ml-auto cursor-pointer"
-            >
-              Bloquear p/ Manutenção
-            </button>
+            <div className="w-full flex items-center justify-between gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => {
+                  setRangeSelection(undefined);
+                  setCalendarModalChaleId(unit.id);
+                }}
+                className="text-[10px] font-black text-emerald-900 bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 px-2.5 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1"
+                title="Bloquear datas ou períodos específicos para este chalé"
+              >
+                <Calendar className="w-3 h-3" />
+                Datas / Períodos
+                {(chaleBlockedDatesMap[unit.id]?.length || 0) > 0 && (
+                  <span className="bg-amber-400 text-slate-950 px-1.5 py-0.2 rounded-full text-[9px] font-black">
+                    {chaleBlockedDatesMap[unit.id].length}
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleToggleBlock(unit.id)}
+                className="text-[10px] font-bold text-amber-800 hover:text-amber-900 hover:bg-amber-100 px-2.5 py-1 rounded-lg transition-all ml-auto cursor-pointer"
+              >
+                Bloquear p/ Manutenção
+              </button>
+            </div>
           ) : (
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => handleToggleBlock(unit.id)}
-              className="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs h-8 rounded-lg cursor-pointer"
-            >
-              ✓ Liberar Chalé
-            </Button>
+            <div className="w-full flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setRangeSelection(undefined);
+                  setCalendarModalChaleId(unit.id);
+                }}
+                className="text-[10px] font-black text-slate-800 bg-white hover:bg-slate-100 border border-slate-300 px-2.5 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 shrink-0"
+                title="Gerenciar datas/períodos bloqueados deste chalé"
+              >
+                <Calendar className="w-3 h-3" />
+                Datas
+                {(chaleBlockedDatesMap[unit.id]?.length || 0) > 0 && (
+                  <span className="bg-amber-400 text-slate-950 px-1.5 rounded-full text-[9px] font-black">
+                    {chaleBlockedDatesMap[unit.id].length}
+                  </span>
+                )}
+              </button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => handleToggleBlock(unit.id)}
+                className="flex-1 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs h-8 rounded-lg cursor-pointer"
+              >
+                ✓ Liberar Chalé
+              </Button>
+            </div>
           )}
         </div>
       </div>
@@ -2328,19 +2473,38 @@ export function AdminChaleTab({
                         Desocupar Chalé
                       </Button>
                     )}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleToggleBlock(unit.id)}
-                      className={cn(
-                        "rounded-xl text-xs font-black uppercase tracking-wider h-9 transition-all shadow-xs",
-                        isBlocked 
-                          ? "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700 font-black" 
-                          : "bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-400 font-black"
-                      )}
-                    >
-                      {isBlocked ? "Liberar Disponibilidade" : "Bloquear p/ Manutenção"}
-                    </Button>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setRangeSelection(undefined);
+                          setCalendarModalChaleId(unit.id);
+                        }}
+                        className="rounded-xl text-xs font-black uppercase tracking-wider h-9 bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border border-emerald-300 flex items-center gap-1.5"
+                      >
+                        <Calendar className="w-3.5 h-3.5" />
+                        Datas / Períodos
+                        {(chaleBlockedDatesMap[unit.id]?.length || 0) > 0 && (
+                          <span className="bg-amber-400 text-slate-950 px-1.5 py-0.5 rounded-full text-[10px] font-black">
+                            {chaleBlockedDatesMap[unit.id].length}
+                          </span>
+                        )}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleToggleBlock(unit.id)}
+                        className={cn(
+                          "rounded-xl text-xs font-black uppercase tracking-wider h-9 transition-all shadow-xs",
+                          isBlocked 
+                            ? "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700 font-black" 
+                            : "bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-400 font-black"
+                        )}
+                      >
+                        {isBlocked ? "Liberar Disponibilidade" : "Bloquear p/ Manutenção"}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               );
@@ -3340,6 +3504,199 @@ export function AdminChaleTab({
           }}
         />
       )}
+
+      {/* MODAL CALENDÁRIO INDIVIDUAL DE DATAS / PERÍODOS INDISPONÍVEIS POR CHALÉ */}
+      <Dialog
+        open={calendarModalChaleId !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCalendarModalChaleId(null);
+            setRangeSelection(undefined);
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg rounded-3xl border-2 border-emerald-200 p-0 overflow-hidden bg-white">
+          {calendarModalChaleId !== null && (() => {
+            const targetId = calendarModalChaleId;
+            const targetUnit = CHALE_UNITS.find((u) => u.id === targetId);
+            const blockedList = chaleBlockedDatesMap[targetId] || [];
+            const blockedDateObjs = blockedList.map((d) => new Date(`${d}T12:00:00`));
+
+            return (
+              <>
+                <div className="bg-gradient-to-br from-emerald-950 via-[#042817] to-slate-950 text-white p-5 border-b border-amber-400/40">
+                  <DialogHeader>
+                    <DialogTitle className="text-base font-black uppercase tracking-tight text-white flex items-center gap-2">
+                      <Calendar className="w-5 h-5 text-amber-400" />
+                      Agenda de Indisponibilidade — Chalé {String(targetId).padStart(2, '0')}
+                    </DialogTitle>
+                    <DialogDescription className="text-xs text-emerald-200 font-medium">
+                      {targetUnit?.name || `Chalé ${targetId}`} • Selecione datas avulsas ou um período para bloquear apenas este chalé no site.
+                    </DialogDescription>
+                  </DialogHeader>
+                </div>
+
+                <div className="p-4 sm:p-5 space-y-4 max-h-[75vh] overflow-y-auto">
+                  {/* Alternador de modo: Datas específicas vs Período */}
+                  <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-2xl border border-slate-200">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCalendarSelectMode('multiple');
+                        setRangeSelection(undefined);
+                      }}
+                      className={cn(
+                        "py-2 px-3 rounded-xl text-xs font-black uppercase transition-all cursor-pointer",
+                        calendarSelectMode === 'multiple'
+                          ? "bg-emerald-800 text-white shadow-sm"
+                          : "text-slate-600 hover:text-slate-900"
+                      )}
+                    >
+                      Datas Específicas
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCalendarSelectMode('range')}
+                      className={cn(
+                        "py-2 px-3 rounded-xl text-xs font-black uppercase transition-all cursor-pointer",
+                        calendarSelectMode === 'range'
+                          ? "bg-amber-400 text-slate-950 shadow-sm"
+                          : "text-slate-600 hover:text-slate-900"
+                      )}
+                    >
+                      Período (De – Até)
+                    </button>
+                  </div>
+
+                  <div className="bg-white border-2 border-slate-200 rounded-2xl p-2 flex justify-center">
+                    {calendarSelectMode === 'multiple' ? (
+                      <CalendarUI
+                        mode="multiple"
+                        selected={blockedDateObjs}
+                        onSelect={(dates) => {
+                          const nextStrs = (dates || []).map((d) => format(d, 'yyyy-MM-dd'));
+                          handleSetChaleBlockedDates(targetId, nextStrs);
+                        }}
+                        locale={ptBR}
+                        className="p-1"
+                      />
+                    ) : (
+                      <CalendarUI
+                        mode="range"
+                        selected={rangeSelection}
+                        onSelect={setRangeSelection}
+                        modifiers={{ blocked: blockedDateObjs }}
+                        modifiersClassNames={{
+                          blocked: 'bg-red-100 text-red-900 border border-red-300 font-black'
+                        }}
+                        locale={ptBR}
+                        className="p-1"
+                      />
+                    )}
+                  </div>
+
+                  {calendarSelectMode === 'range' && (
+                    <div className="flex items-center gap-2 flex-wrap bg-amber-50 border border-amber-200 p-3 rounded-2xl">
+                      <div className="text-[11px] font-bold text-amber-950 flex-1 min-w-[160px]">
+                        {rangeSelection?.from ? (
+                          rangeSelection.to ? (
+                            <>Período: <strong>{format(rangeSelection.from, 'dd/MM/yyyy')}</strong> até <strong>{format(rangeSelection.to, 'dd/MM/yyyy')}</strong></>
+                          ) : (
+                            <>Início: <strong>{format(rangeSelection.from, 'dd/MM/yyyy')}</strong> (selecione o fim)</>
+                          )
+                        ) : (
+                          'Clique no dia inicial e no dia final no calendário.'
+                        )}
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={!rangeSelection?.from || isSavingBlockedDates}
+                        onClick={() => handleApplyBlockedRange(targetId, 'block')}
+                        className="bg-red-600 hover:bg-red-700 text-white font-black text-[11px] uppercase rounded-xl h-8"
+                      >
+                        Bloquear Período
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={!rangeSelection?.from || isSavingBlockedDates}
+                        onClick={() => handleApplyBlockedRange(targetId, 'unblock')}
+                        className="border-emerald-400 text-emerald-900 hover:bg-emerald-50 font-black text-[11px] uppercase rounded-xl h-8"
+                      >
+                        Liberar Período
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Lista de datas atualmente bloqueadas */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-black uppercase text-slate-800">
+                        Datas bloqueadas neste chalé ({blockedList.length}):
+                      </span>
+                      {blockedList.length > 0 && (
+                        <button
+                          type="button"
+                          disabled={isSavingBlockedDates}
+                          onClick={() => handleSetChaleBlockedDates(targetId, [])}
+                          className="text-[10px] font-black text-red-600 hover:text-red-700 uppercase cursor-pointer"
+                        >
+                          Limpar Todas
+                        </button>
+                      )}
+                    </div>
+
+                    {blockedList.length === 0 ? (
+                      <p className="text-xs text-slate-500 font-medium">
+                        Nenhuma data específica bloqueada. Este chalé segue apenas o status geral e as reservas existentes.
+                      </p>
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
+                        {blockedList.map((dStr) => (
+                          <span
+                            key={dStr}
+                            className="inline-flex items-center gap-1 bg-amber-100 text-amber-950 border border-amber-300 px-2 py-0.5 rounded-lg text-[11px] font-bold"
+                          >
+                            {format(parseISO(dStr), 'dd/MM/yyyy')}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleSetChaleBlockedDates(
+                                  targetId,
+                                  blockedList.filter((x) => x !== dStr)
+                                )
+                              }
+                              className="text-amber-900 hover:text-red-700 font-black cursor-pointer ml-0.5"
+                              title="Remover bloqueio desta data"
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <DialogFooter className="p-4 bg-slate-50 border-t border-slate-200">
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setCalendarModalChaleId(null);
+                      setRangeSelection(undefined);
+                    }}
+                    className="w-full sm:w-auto bg-emerald-800 hover:bg-emerald-900 text-white font-black text-xs uppercase rounded-xl"
+                  >
+                    Concluir
+                  </Button>
+                </DialogFooter>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
 
     </div>
   );

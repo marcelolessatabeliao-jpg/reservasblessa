@@ -389,17 +389,62 @@ export async function getBookedKioskIds(date: string): Promise<number[]> {
   return Array.from(new Set(bookedIds));
 }
 
+export function isChaleBlockedForRange(
+  blockedDates: string[] | undefined,
+  checkIn: string,
+  checkOut?: string | null
+): boolean {
+  if (!Array.isArray(blockedDates) || blockedDates.length === 0 || !checkIn) return false;
+  if (!checkOut || checkOut <= checkIn) {
+    return blockedDates.includes(checkIn);
+  }
+  return blockedDates.some((d) => d >= checkIn && d < checkOut);
+}
+
+export async function getChaleBlockedDatesMap(): Promise<Record<number, string[]>> {
+  try {
+    const raw = await getGlobalSetting('chale_blocked_dates', {});
+    const normalized: Record<number, string[]> = {};
+    if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+      Object.entries(raw).forEach(([k, val]) => {
+        const id = Number(k);
+        if (!isNaN(id) && id > 0 && Array.isArray(val)) {
+          const clean = Array.from(
+            new Set(val.map(String).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)))
+          ).sort();
+          if (clean.length > 0) normalized[id] = clean;
+        }
+      });
+    }
+    return normalized;
+  } catch (err) {
+    console.warn('Erro ao carregar datas bloqueadas por chalé:', err);
+    return {};
+  }
+}
+
 export async function getBookedChaleIds(date?: string | null): Promise<number[]> {
   // Chalés indisponíveis por padrão (6 de alvenaria onde apenas 5 estão disponíveis -> Chalé 06 indisponível; e todos os 6 de vidro 07-12 indisponíveis)
   const defaultUnavailable = [6, 7, 8, 9, 10, 11, 12];
   
   try {
-    const customDisabled = await getGlobalSetting('disabled_chale_ids', defaultUnavailable);
+    const [customDisabled, blockedDatesMap] = await Promise.all([
+      getGlobalSetting('disabled_chale_ids', defaultUnavailable),
+      getChaleBlockedDatesMap()
+    ]);
     const bookedIds: number[] = Array.isArray(customDisabled) 
       ? customDisabled.map(Number).filter(n => !isNaN(n)) 
       : [...defaultUnavailable];
 
     if (!date) return Array.from(new Set(bookedIds));
+
+    // Incluir chalés bloqueados especificamente para esta data
+    Object.entries(blockedDatesMap).forEach(([idStr, dates]) => {
+      if (dates.includes(date)) {
+        const numId = Number(idStr);
+        if (!isNaN(numId) && numId > 0) bookedIds.push(numId);
+      }
+    });
 
     const blockedStatuses = ['paid', 'pago', 'confirmed', 'confirmado', 'checked-in', 'completed'];
 

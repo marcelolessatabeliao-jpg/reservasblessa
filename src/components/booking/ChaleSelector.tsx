@@ -42,7 +42,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar as CalendarUI } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { useServices } from '@/hooks/useServices';
-import { getBookedChaleIds, getGlobalSetting } from '@/lib/booking-service';
+import { getBookedChaleIds, getGlobalSetting, getChaleBlockedDatesMap, isChaleBlockedForRange } from '@/lib/booking-service';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { format, addDays } from 'date-fns';
@@ -113,6 +113,7 @@ function ChaleSelectorInner({
   const [selectedChaleUnit, setSelectedChaleUnit] = useState<number | null>(chale.chaleId || null);
   const [bookedChaleIds, setBookedChaleIds] = useState<number[]>([]);
   const [maintenanceChaleIds, setMaintenanceChaleIds] = useState<number[]>([6, 7, 8, 9, 10, 11, 12]);
+  const [chaleBlockedDatesMap, setChaleBlockedDatesMap] = useState<Record<number, string[]>>({});
   const [existingReservations, setExistingReservations] = useState<ChaleReservationDetail[]>([]);
   const [isLoadingBooked, setIsLoadingBooked] = useState<boolean>(false);
   const [isCheckInCalendarOpen, setIsCheckInCalendarOpen] = useState<boolean>(false);
@@ -205,15 +206,17 @@ function ChaleSelectorInner({
   }, [chale.checkOutDate, refSunday]);
 
   const formattedDate = format(checkInActive, 'yyyy-MM-dd');
+  const formattedOutDate = format(checkOutActive, 'yyyy-MM-dd');
 
   // Buscar chalés ocupados e bloqueios de manutenção
   useEffect(() => {
     async function loadAvailability() {
       setIsLoadingBooked(true);
       try {
-        const [ids, disabledIds] = await Promise.all([
+        const [ids, disabledIds, blockedMap] = await Promise.all([
           getBookedChaleIds(formattedDate),
-          getGlobalSetting('disabled_chale_ids', [6, 7, 8, 9, 10, 11, 12])
+          getGlobalSetting('disabled_chale_ids', [6, 7, 8, 9, 10, 11, 12]),
+          getChaleBlockedDatesMap()
         ]);
         setBookedChaleIds(ids);
         setMaintenanceChaleIds(
@@ -221,6 +224,7 @@ function ChaleSelectorInner({
             ? disabledIds.map(Number).filter((n) => !isNaN(n))
             : [6, 7, 8, 9, 10, 11, 12]
         );
+        setChaleBlockedDatesMap(blockedMap);
 
         const { data } = await supabase
           .from('orders')
@@ -295,11 +299,13 @@ function ChaleSelectorInner({
 
   const chaletsCount = selectedChaleUnits.length;
 
-  // Remover automaticamente chalés selecionados que foram bloqueados para manutenção ou reservados
+  // Remover automaticamente chalés selecionados que foram bloqueados para manutenção, datas específicas ou reservados
   useEffect(() => {
     if (selectedChaleUnits.length === 0) return;
     const blockedSet = new Set([...bookedChaleIds, ...maintenanceChaleIds, ...disabledChaleIds]);
-    const validSelected = selectedChaleUnits.filter(id => !blockedSet.has(id));
+    const validSelected = selectedChaleUnits.filter(
+      id => !blockedSet.has(id) && !isChaleBlockedForRange(chaleBlockedDatesMap[id], formattedDate, formattedOutDate)
+    );
     if (validSelected.length !== selectedChaleUnits.length) {
       setSelectedChaleUnit(validSelected[0] || null);
       if (validSelected.length === 0) {
@@ -320,7 +326,7 @@ function ChaleSelectorInner({
         });
       }
     }
-  }, [bookedChaleIds, maintenanceChaleIds, disabledChaleIds, selectedChaleUnits]);
+  }, [bookedChaleIds, maintenanceChaleIds, disabledChaleIds, chaleBlockedDatesMap, formattedDate, formattedOutDate, selectedChaleUnits]);
 
   // Mapa de ocupação por chalé ('casal' = 2 adultos, 'individual' = 1 adulto)
   const chaleOccupancies: Record<number, 'casal' | 'individual'> = useMemo(() => {
@@ -677,13 +683,14 @@ function ChaleSelectorInner({
 
   // Status de ocupação para cada chalé
   const getUnitStatus = (unitId: number) => {
-    const isMaintenance = maintenanceChaleIds.includes(unitId) || disabledChaleIds.includes(unitId);
-    if (isMaintenance) {
+    const isGlobalMaintenance = maintenanceChaleIds.includes(unitId) || disabledChaleIds.includes(unitId);
+    const isDateBlocked = isChaleBlockedForRange(chaleBlockedDatesMap[unitId], formattedDate, formattedOutDate);
+    if (isGlobalMaintenance || isDateBlocked) {
       return {
         isOccupied: true,
         isMaintenance: true,
-        badge: 'Manutenção',
-        subtext: 'Bloqueado p/ manutenção',
+        badge: isGlobalMaintenance ? 'Manutenção' : 'Indisponível',
+        subtext: isGlobalMaintenance ? 'Bloqueado p/ manutenção' : 'Indisponível nestas datas',
         color: 'bg-amber-500 text-slate-950 border-amber-400'
       };
     }
