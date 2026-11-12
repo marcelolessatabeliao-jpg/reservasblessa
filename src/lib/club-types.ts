@@ -178,6 +178,8 @@ export interface ClubSubscription {
   status: SubscriptionStatus;
   manualStatusOverride?: boolean;
   origin: 'SITE' | 'ADMIN' | 'IMPORT_LABCARD';
+  transferCompleted?: boolean;
+  transferredAt?: string;
   consultantName?: string;
   influencerName?: string;
   consultantCode?: string;

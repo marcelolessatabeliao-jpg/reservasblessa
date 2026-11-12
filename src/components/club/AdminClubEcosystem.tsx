@@ -1026,6 +1026,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         invoicesOverdue: 0,
         totalPaidAmount: 0,
         totalPendingAmount: 0,
+        transferredCount: 0,
+        pendingTransferCount: 0,
       };
     }
 
@@ -1038,11 +1040,19 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     let invoicesOverdue = 0;
     let totalPaidAmount = 0;
     let totalPendingAmount = 0;
+    let transferredCount = 0;
+    let pendingTransferCount = 0;
 
     for (const sub of (state?.subscriptions || [])) {
       const isSubActive = sub.status === 'ACTIVE';
       if (isSubActive) holdersActive++;
       else holdersInactive++;
+
+      if (!sub.transferCompleted && sub.status === 'PENDING_TRANSFER') {
+        pendingTransferCount++;
+      } else {
+        transferredCount++;
+      }
 
       for (const m of (sub.members || [])) {
         if (m.role === 'DEPENDENTE') {
@@ -1075,6 +1085,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       invoicesOverdue,
       totalPaidAmount,
       totalPendingAmount,
+      transferredCount,
+      pendingTransferCount,
     };
   }, [state]);
 
@@ -1582,6 +1594,9 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
   // Atualização instantânea em segundo plano ao clicar em Dashboard (sem bloquear tela)
   const handleRefreshDashboard = async () => {
+    setSelectedSubForDetail(null);
+    setQuickQuery('');
+    setQuickSearchOpen(false);
     setActiveTab('dashboard');
     setOpenMenu(null);
     setOpenSubMenu(null);
@@ -2336,6 +2351,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
             }
       ),
       updatedAt: new Date().toISOString(),
+      transferCompleted: true,
+      transferredAt: selectedSubForDetail.transferredAt || new Date().toISOString(),
     };
     const nextState: ClubDatabaseState = {
       ...state,
@@ -2876,6 +2893,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       status: newStatus,
       endDate: nextEndDate,
       updatedAt: new Date().toISOString(),
+      transferCompleted: true,
+      transferredAt: sub.transferredAt || new Date().toISOString(),
       members: sub.members.map((m) => ({
         ...m,
         status: newStatus === 'ACTIVE' ? 'ACTIVE' : 'INACTIVE',
@@ -4470,22 +4489,27 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     }`}
                   >
                     <div>
-                      <div className="flex items-center gap-1.5 mb-1">
+                      <div className="flex flex-wrap items-center gap-1.5 mb-1">
                         <Badge
                           className={
                             subscription.status === 'ACTIVE'
                               ? 'bg-emerald-600 text-white text-[10px]'
-                              : subscription.status === 'PENDING_TRANSFER'
+                              : !subscription.transferCompleted && subscription.status === 'PENDING_TRANSFER'
                               ? 'bg-amber-600 text-white text-[10px]'
                               : 'bg-rose-600 text-white text-[10px]'
                           }
                         >
                           {subscription.status === 'ACTIVE'
                             ? 'ATIVO • LIBERADO'
-                            : subscription.status === 'PENDING_TRANSFER'
+                            : !subscription.transferCompleted && subscription.status === 'PENDING_TRANSFER'
                             ? 'PENDENTE P/ TRANSFERÊNCIA'
                             : 'INATIVO / AGUARDANDO'}
                         </Badge>
+                        {subscription.transferCompleted && (
+                          <Badge className="bg-teal-600 text-white text-[10px]">
+                            ✓ TRANSFERÊNCIA CONCLUÍDA
+                          </Badge>
+                        )}
                         <Badge variant="outline" className="text-[10px] font-bold">
                           {member.role === 'TITULAR' ? '👑 TITULAR' : '👥 DEPENDENTE'}
                         </Badge>
@@ -4536,7 +4560,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       >
         {/* TAB 1: DASHBOARD */}
         <TabsContent value="dashboard" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
             {/* Card 1: Titulares */}
             <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
               <div className="flex items-center justify-between mb-4">
@@ -4661,6 +4685,48 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 </div>
               </div>
             </div>
+
+            {/* Card 4: Status da Transferência p/ Lessa Club */}
+            <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-xs font-black uppercase tracking-wider text-slate-400">
+                  Transferência Lessa Club
+                </span>
+                <CheckCircle2 className="w-5 h-5 text-teal-600" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div
+                  onClick={() => {
+                    setPersonFilter('ALL');
+                    setSubStatusFilter('ALL');
+                    setActiveTab('associados');
+                  }}
+                  className="bg-teal-50 border border-teal-200 rounded-2xl p-4 cursor-pointer hover:bg-teal-100/70 transition-colors"
+                >
+                  <span className="text-xs font-bold text-teal-700 block">
+                    Aptos / Transferidos
+                  </span>
+                  <span className="text-3xl font-black text-teal-900">
+                    {metrics.transferredCount}
+                  </span>
+                </div>
+                <div
+                  onClick={() => {
+                    setPersonFilter('ALL');
+                    setSubStatusFilter('PENDING_TRANSFER');
+                    setActiveTab('associados');
+                  }}
+                  className="bg-amber-50 border border-amber-200 rounded-2xl p-4 cursor-pointer hover:bg-amber-100/70 transition-colors"
+                >
+                  <span className="text-xs font-bold text-amber-800 block">
+                    Faltam Transferir
+                  </span>
+                  <span className="text-3xl font-black text-amber-950">
+                    {metrics.pendingTransferCount}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Quick Shortcuts */}
@@ -4668,16 +4734,16 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
             <h3 className="text-base font-black text-slate-900 mb-4">
               Ações Rápidas do Balneário
             </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               <Button
                 type="button"
                 onClick={handleOpenAsaasSyncModal}
-                className="h-14 justify-start bg-amber-400 hover:bg-amber-300 text-emerald-950 font-black rounded-2xl px-4 shadow-sm cursor-pointer"
+                className="h-auto min-h-[68px] py-3 px-4 justify-start bg-amber-400 hover:bg-amber-300 text-emerald-950 font-black rounded-2xl shadow-sm cursor-pointer whitespace-normal text-left"
               >
                 <RefreshCw className="w-5 h-5 mr-3 shrink-0" />
-                <div className="text-left">
-                  <div className="text-sm">Sincronizar Asaas</div>
-                  <div className="text-[10px] text-emerald-900 font-bold">
+                <div className="text-left min-w-0">
+                  <div className="text-sm font-black leading-tight">Sincronizar Asaas</div>
+                  <div className="text-[11px] text-emerald-900 font-bold leading-snug mt-0.5">
                     Pré-visualizar e importar parcelas
                   </div>
                 </div>
@@ -4685,12 +4751,12 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
               <Button
                 type="button"
                 onClick={handleOpenLabcardSyncModal}
-                className="h-14 justify-start bg-sky-700 hover:bg-sky-800 text-white font-black rounded-2xl px-4 shadow-sm cursor-pointer"
+                className="h-auto min-h-[68px] py-3 px-4 justify-start bg-sky-700 hover:bg-sky-800 text-white font-black rounded-2xl shadow-sm cursor-pointer whitespace-normal text-left"
               >
                 <Download className="w-5 h-5 mr-3 shrink-0" />
-                <div className="text-left">
-                  <div className="text-sm">API Labcard</div>
-                  <div className="text-[10px] text-sky-100 font-bold">
+                <div className="text-left min-w-0">
+                  <div className="text-sm font-black leading-tight">API Labcard</div>
+                  <div className="text-[11px] text-sky-100 font-bold leading-snug mt-0.5">
                     Enriquecer cadastros existentes
                   </div>
                 </div>
@@ -4700,12 +4766,12 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   setPersonType('PF');
                   setNewSubModalOpen(true);
                 }}
-                className="h-14 justify-start bg-[#004d00] hover:bg-emerald-900 text-white font-bold rounded-2xl px-4"
+                className="h-auto min-h-[68px] py-3 px-4 justify-start bg-[#004d00] hover:bg-emerald-900 text-white font-bold rounded-2xl whitespace-normal text-left"
               >
                 <UserPlus className="w-5 h-5 mr-3 shrink-0" />
-                <div className="text-left">
-                  <div className="text-sm">Cadastrar Cliente PF</div>
-                  <div className="text-[10px] opacity-80 font-normal">
+                <div className="text-left min-w-0">
+                  <div className="text-sm font-bold leading-tight">Cadastrar Cliente PF</div>
+                  <div className="text-[11px] opacity-85 font-normal leading-snug mt-0.5">
                     Integral + Estudante + Kids + 60+
                   </div>
                 </div>
@@ -4714,14 +4780,14 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
               <Button
                 variant="outline"
                 onClick={() => setActiveTab('impressao')}
-                className="h-14 justify-start border-slate-200 hover:bg-slate-50 font-bold rounded-2xl px-4"
+                className="h-auto min-h-[68px] py-3 px-4 justify-start border-slate-200 hover:bg-slate-50 font-bold rounded-2xl whitespace-normal text-left"
               >
                 <Printer className="w-5 h-5 mr-3 text-emerald-600 shrink-0" />
-                <div className="text-left">
-                  <div className="text-sm text-slate-900">
+                <div className="text-left min-w-0">
+                  <div className="text-sm font-bold text-slate-900 leading-tight">
                     Folha c/ 4 Carteirinhas
                   </div>
-                  <div className="text-[10px] text-slate-500 font-normal">
+                  <div className="text-[11px] text-slate-500 font-normal leading-snug mt-0.5">
                     Frente e Verso pronto p/ impressão
                   </div>
                 </div>
@@ -4733,14 +4799,14 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   setFinanceSubView('FLUXO_CAIXA');
                   setActiveTab('financeiro');
                 }}
-                className="h-14 justify-start border-slate-200 hover:bg-slate-50 font-bold rounded-2xl px-4"
+                className="h-auto min-h-[68px] py-3 px-4 justify-start border-slate-200 hover:bg-slate-50 font-bold rounded-2xl whitespace-normal text-left"
               >
                 <DollarSign className="w-5 h-5 mr-3 text-emerald-700 shrink-0" />
-                <div className="text-left">
-                  <div className="text-sm text-slate-900">
+                <div className="text-left min-w-0">
+                  <div className="text-sm font-bold text-slate-900 leading-tight">
                     Fluxo de Caixa & Baixas
                   </div>
-                  <div className="text-[10px] text-slate-500 font-normal">
+                  <div className="text-[11px] text-slate-500 font-normal leading-snug mt-0.5">
                     Entradas, Saídas e Baixa em Lote
                   </div>
                 </div>
@@ -4749,14 +4815,14 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
               <Button
                 variant="outline"
                 onClick={() => setActiveTab('relatorios')}
-                className="h-14 justify-start border-slate-200 hover:bg-slate-50 font-bold rounded-2xl px-4"
+                className="h-auto min-h-[68px] py-3 px-4 justify-start border-slate-200 hover:bg-slate-50 font-bold rounded-2xl whitespace-normal text-left"
               >
                 <BarChart3 className="w-5 h-5 mr-3 text-purple-600 shrink-0" />
-                <div className="text-left">
-                  <div className="text-sm text-slate-900">
+                <div className="text-left min-w-0">
+                  <div className="text-sm font-bold text-slate-900 leading-tight">
                     Relatórios & Agenda
                   </div>
-                  <div className="text-[10px] text-slate-500 font-normal">
+                  <div className="text-[11px] text-slate-500 font-normal leading-snug mt-0.5">
                     Clientes, Consultores, Empresas, SMS
                   </div>
                 </div>
@@ -10497,7 +10563,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     className={`text-[11px] sm:text-xs py-1 ${
                       selectedSubForDetail.status === 'ACTIVE'
                         ? 'bg-emerald-600 text-white'
-                        : selectedSubForDetail.status === 'PENDING_TRANSFER'
+                        : !selectedSubForDetail.transferCompleted && selectedSubForDetail.status === 'PENDING_TRANSFER'
                         ? 'bg-amber-600 text-white'
                         : 'bg-rose-600 text-white'
                     }`}
@@ -10505,10 +10571,15 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     STATUS ATUAL:{' '}
                     {selectedSubForDetail.status === 'ACTIVE'
                       ? 'ATIVO (LIBERADO)'
-                      : selectedSubForDetail.status === 'PENDING_TRANSFER'
+                      : !selectedSubForDetail.transferCompleted && selectedSubForDetail.status === 'PENDING_TRANSFER'
                       ? 'PENDENTE PARA TRANSFERÊNCIA'
                       : 'INATIVO (AGUARDANDO PAGTO)'}
                   </Badge>
+                  {selectedSubForDetail.transferCompleted && (
+                    <Badge className="bg-teal-600 text-white text-[11px] sm:text-xs py-1">
+                      ✓ TRANSFERÊNCIA CONCLUÍDA
+                    </Badge>
+                  )}
                   <Button
                     type="button"
                     size="sm"
@@ -11540,8 +11611,10 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           >
                             {situacaoLiberar === 'SIM' && situacaoInativar === 'NAO'
                               ? 'ATIVO'
-                              : selectedSubForDetail?.status === 'PENDING_TRANSFER'
+                              : !selectedSubForDetail?.transferCompleted && selectedSubForDetail?.status === 'PENDING_TRANSFER'
                               ? 'PENDENTE P/ TRANSFERÊNCIA'
+                              : selectedSubForDetail?.transferCompleted
+                              ? 'INATIVO • TRANSFERÊNCIA CONCLUÍDA'
                               : 'INATIVO'}
                           </span>
                         </div>
