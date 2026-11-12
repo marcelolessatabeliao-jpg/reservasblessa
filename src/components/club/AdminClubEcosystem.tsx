@@ -2477,6 +2477,42 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         s.id === updatedSub.id ? updatedSub : s
       ),
     };
+
+    await persist(nextState);
+    setSelectedSubForDetail(updatedSub);
+
+    const prevLabel = prevStatus === 'ACTIVE' ? 'ATIVO' : 'INATIVO';
+    const newLabel = targetStatus === 'ACTIVE' ? 'ATIVO' : 'INATIVO';
+    const statusChanged = prevStatus !== targetStatus;
+    const nowTime = new Date().toLocaleTimeString('pt-BR');
+    const feedbackMsg = statusChanged
+      ? `Alteração realizada no cadastro de ${updatedSub.holderName}: situação alterada de ${prevLabel} para ${newLabel}. Expiração: ${formatDateBR(nextEndDate)}.`
+      : `Alterações do cadastro de ${updatedSub.holderName} salvas com sucesso (Situação: ${newLabel} • Expiração: ${formatDateBR(nextEndDate)}).`;
+    setLastRegistrationChangeBox({
+      title: statusChanged
+        ? `Alteração no cadastro realizada (${prevLabel} → ${newLabel})`
+        : 'Cadastro atualizado com sucesso!',
+      detail: feedbackMsg,
+      isActive: targetStatus === 'ACTIVE',
+      changedAt: nowTime,
+    });
+    setStatusChangeFeedbackModal({
+      title: 'Alteração realizada no cadastro!',
+      previousStatusLabel: statusChanged ? prevLabel : undefined,
+      newStatusLabel: newLabel,
+      subjectName: `${updatedSub.holderName} (Cartão #${updatedSub.subscriptionCode})`,
+      expirationDate: nextEndDate,
+      detail: feedbackMsg,
+      isActive: targetStatus === 'ACTIVE',
+    });
+    toast({
+      title: 'Cadastro do cliente atualizado com sucesso!',
+      description: `${updatedSub.holderName} (#${updatedSub.subscriptionCode}) — Status: ${
+        targetStatus === 'ACTIVE' ? 'ATIVO (LIBERADO)' : 'INATIVO'
+      }`,
+    });
+  };
+
   // Função para vincular e agrupar uma pessoa (da base do clube ou do Labcard) como dependente
   const handleAttachPersonAsDependent = async (person: {
     fullName: string;
@@ -2498,7 +2534,12 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       const mod =
         (state.modalities || []).find((m) => m.code === (person.modalityCode || 'PUBLICIDADE')) ||
         (state.modalities || []).find((m) => m.code === targetSub.members[0]?.modalityCode) ||
-        state.modalities[0];
+        (state.modalities && state.modalities.length > 0 ? state.modalities[0] : null);
+
+      const modCode = mod?.code || targetSub.members[0]?.modalityCode || 'PUBLICIDADE';
+      const modName = mod?.name || targetSub.members[0]?.modalityName || targetSub.planSummaryLabel || 'Lessa Club';
+      const frontCard = mod?.dependentFrontCardUrl || mod?.frontCardUrl || targetSub.members[0]?.frontCardUrl || '/cards/44.png';
+      const backCard = mod?.dependentBackCardUrl || mod?.backCardUrl || targetSub.members[0]?.backCardUrl || '/cards/24.png';
 
       // Verifica se a pessoa já está nesta assinatura
       const alreadyInSub = targetSub.members.some(
@@ -2522,9 +2563,9 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         id: `mem-${cardNum}-${Date.now()}`,
         subscriptionId: targetSub.id,
         role: 'DEPENDENTE',
-        modalityCode: mod.code,
-        modalityName: mod.name,
-        planCycleLabel: mod.name,
+        modalityCode: modCode,
+        modalityName: modName,
+        planCycleLabel: modName,
         fullName: cleanName,
         cpf: cleanCpf,
         birthDate: person.birthDate || '',
@@ -2532,8 +2573,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         cardNumber: cardNum,
         holderCardNumber: targetSub.subscriptionCode,
         qrToken: `LC-${cardNum}`,
-        frontCardUrl: mod.dependentFrontCardUrl || mod.frontCardUrl,
-        backCardUrl: mod.dependentBackCardUrl || mod.backCardUrl,
+        frontCardUrl: frontCard,
+        backCardUrl: backCard,
         validityLabel: getValidityLabelFromDate(targetSub.endDate),
         monthlyValue: 0,
         status: targetSub.status === 'ACTIVE' ? 'ACTIVE' : 'PENDING_TRANSFER',
@@ -2556,7 +2597,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       );
 
       if (person.sourceSubscriptionId && person.sourceSubscriptionId !== targetSub.id) {
-        const sourceSub = state.subscriptions.find((s) => s.id === person.sourceSubscriptionId);
+        const sourceSub = (state.subscriptions || []).find((s) => s.id === person.sourceSubscriptionId);
         if (sourceSub) {
           if (sourceSub.members.length <= 1) {
             // Era uma assinatura solitária só dessa pessoa -> removemos o registro solto
@@ -2603,37 +2644,6 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     } finally {
       setAttachingPersonLoading(false);
     }
-  };
-    const prevLabel = prevStatus === 'ACTIVE' ? 'ATIVO' : 'INATIVO';
-    const newLabel = targetStatus === 'ACTIVE' ? 'ATIVO' : 'INATIVO';
-    const statusChanged = prevStatus !== targetStatus;
-    const nowTime = new Date().toLocaleTimeString('pt-BR');
-    const feedbackMsg = statusChanged
-      ? `Alteração realizada no cadastro de ${updatedSub.holderName}: situação alterada de ${prevLabel} para ${newLabel}. Expiração: ${formatDateBR(nextEndDate)}.`
-      : `Alterações do cadastro de ${updatedSub.holderName} salvas com sucesso (Situação: ${newLabel} • Expiração: ${formatDateBR(nextEndDate)}).`;
-    setLastRegistrationChangeBox({
-      title: statusChanged
-        ? `Alteração no cadastro realizada (${prevLabel} → ${newLabel})`
-        : 'Cadastro atualizado com sucesso!',
-      detail: feedbackMsg,
-      isActive: targetStatus === 'ACTIVE',
-      changedAt: nowTime,
-    });
-    setStatusChangeFeedbackModal({
-      title: 'Alteração realizada no cadastro!',
-      previousStatusLabel: statusChanged ? prevLabel : undefined,
-      newStatusLabel: newLabel,
-      subjectName: `${updatedSub.holderName} (Cartão #${updatedSub.subscriptionCode})`,
-      expirationDate: nextEndDate,
-      detail: feedbackMsg,
-      isActive: targetStatus === 'ACTIVE',
-    });
-    toast({
-      title: 'Cadastro do cliente atualizado com sucesso!',
-      description: `${updatedSub.holderName} (#${updatedSub.subscriptionCode}) — Status: ${
-        targetStatus === 'ACTIVE' ? 'ATIVO (LIBERADO)' : 'INATIVO'
-      }`,
-    });
   };
 
   const getSubscriptionPlanBreakdown = (sub: ClubSubscription) => {
