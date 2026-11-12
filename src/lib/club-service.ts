@@ -1244,15 +1244,17 @@ export const createClubSubscription = async (
     });
   }
 
+  const isSemPlano = builtMembers[0]?.modalityCode === 'SEM_PLANO';
   const isFreePlan = monthlyEquivalent === 0 || input.paymentMethod === 'COURTESY';
-  const baseStatus: SubscriptionStatus =
-    input.status || (isFreePlan ? 'ACTIVE' : 'INACTIVE');
+  const baseStatus: SubscriptionStatus = isSemPlano
+    ? 'INACTIVE'
+    : input.status || (isFreePlan ? 'ACTIVE' : 'INACTIVE');
 
   // Sincroniza status individual dos membros:
   // Planos que exigem comprovação ficam INATIVOS por integrante enquanto faltar o documento anexado.
   builtMembers.forEach((m) => {
     const needsDoc = isMemberBlockedForMissingDoc(m);
-    if (needsDoc) {
+    if (isSemPlano || m.modalityCode === 'SEM_PLANO' || needsDoc) {
       m.status = 'INACTIVE';
     } else {
       m.status = baseStatus;

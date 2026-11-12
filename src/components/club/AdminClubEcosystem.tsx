@@ -248,6 +248,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     billingCycle: 'ANNUAL' as BillingCycle,
     monthlyEquivalent: 0,
     planSummaryLabel: '',
+    modalityCode: '',
     endDate: '',
   });
 
@@ -2169,6 +2170,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         billingCycle: selectedSubForDetail.billingCycle || 'ANNUAL',
         monthlyEquivalent: selectedSubForDetail.monthlyEquivalent || 0,
         planSummaryLabel: selectedSubForDetail.planSummaryLabel || '',
+        modalityCode:
+          selectedSubForDetail.members.find((m) => m.role === 'TITULAR')
+            ?.modalityCode ||
+          selectedSubForDetail.members[0]?.modalityCode ||
+          '',
         endDate: selectedSubForDetail.endDate || '',
       });
       const draftMap: Record<string, string> = {};
@@ -2222,21 +2228,41 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     }
 
     const prevStatus = selectedSubForDetail.status;
-    const targetStatus: ClubSubscription['status'] =
-      situacaoLiberar === 'SIM' && situacaoInativar === 'NAO'
-        ? 'ACTIVE'
-        : 'INACTIVE';
+    const chosenModality = (state.modalities || []).find(
+      (mod) => mod.code === editClientData.modalityCode
+    );
+    const isSemPlano = editClientData.modalityCode === 'SEM_PLANO';
+    const isCorporateCourtesy = editClientData.modalityCode === 'CORPORATE';
+
+    const targetStatus: ClubSubscription['status'] = isSemPlano
+      ? 'INACTIVE'
+      : situacaoLiberar === 'SIM' && situacaoInativar === 'NAO'
+      ? 'ACTIVE'
+      : 'INACTIVE';
+
+    if (isSemPlano) {
+      setSituacaoLiberar('NAO');
+      setSituacaoInativar('SIM');
+    }
+
     const nextEndDate =
       editClientData.endDate.trim() || selectedSubForDetail.endDate;
     const nextValidityLabel = getValidityLabelFromDate(nextEndDate);
     const parsedEditMonthly = Number(String(editClientData.monthlyEquivalent).replace(',', '.'));
     const monthlyVal =
-      Number.isFinite(parsedEditMonthly) && parsedEditMonthly >= 0
+      isSemPlano || isCorporateCourtesy
+        ? 0
+        : Number.isFinite(parsedEditMonthly) && parsedEditMonthly >= 0
         ? parsedEditMonthly
         : selectedSubForDetail.monthlyEquivalent;
+    const cycleSuffix =
+      editClientData.billingCycle === 'ANNUAL' ? '(Anual)' : '(Mensal)';
     const updatedSub: ClubSubscription = {
       ...selectedSubForDetail,
       status: targetStatus,
+      paymentMethod: isCorporateCourtesy
+        ? 'COURTESY'
+        : selectedSubForDetail.paymentMethod,
       endDate: nextEndDate,
       holderName: editClientData.holderName.trim() || selectedSubForDetail.holderName,
       holderCpf: editClientData.holderCpf.trim() || selectedSubForDetail.holderCpf,
@@ -2263,7 +2289,9 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       billingCycle: editClientData.billingCycle,
       monthlyEquivalent: monthlyVal,
       totalContractValue:
-        editClientData.billingCycle === 'ANNUAL'
+        isSemPlano || isCorporateCourtesy
+          ? 0
+          : editClientData.billingCycle === 'ANNUAL'
           ? Number((monthlyVal * 12).toFixed(2))
           : monthlyVal,
       planSummaryLabel:
@@ -2273,6 +2301,16 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         m.role === 'TITULAR'
           ? {
               ...m,
+              modalityCode: chosenModality ? chosenModality.code : m.modalityCode,
+              modalityName: chosenModality ? chosenModality.name : m.modalityName,
+              planCycleLabel: chosenModality
+                ? chosenModality.isFreeTier
+                  ? chosenModality.name
+                  : `${chosenModality.name} ${cycleSuffix}`
+                : m.planCycleLabel,
+              monthlyValue: chosenModality ? monthlyVal : m.monthlyValue,
+              frontCardUrl: chosenModality?.frontCardUrl || m.frontCardUrl,
+              backCardUrl: chosenModality?.backCardUrl || m.backCardUrl,
               fullName:
                 editClientData.holderName.trim() || m.fullName,
               cpf: editClientData.holderCpf.trim() || m.cpf,
@@ -10673,8 +10711,17 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     </div>
 
                     <span className="text-[11px] text-slate-500 break-words">
-                      Plano: <strong>{selectedSubForDetail.planSummaryLabel}</strong> • Valor:{' '}
-                      <strong>{formatCurrency(selectedSubForDetail.monthlyEquivalent)}/mês</strong>
+                      Plano: <strong>{selectedSubForDetail.planSummaryLabel}</strong> •{' '}
+                      {selectedSubForDetail.members.some((m) => m.modalityCode === 'CORPORATE') ||
+                      selectedSubForDetail.paymentMethod === 'COURTESY' ? (
+                        <strong className="text-emerald-700">Cortesia (Colaboradores)</strong>
+                      ) : selectedSubForDetail.members.some((m) => m.modalityCode === 'SEM_PLANO') ? (
+                        <strong className="text-rose-700">Sem valor (Inativo)</strong>
+                      ) : (
+                        <>
+                          Valor: <strong>{formatCurrency(selectedSubForDetail.monthlyEquivalent)}/mês</strong>
+                        </>
+                      )}
                     </span>
                   </div>
 
@@ -10893,19 +10940,63 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     </div>
                     <div className="sm:col-span-4">
                       <Label className="text-xs font-bold text-slate-700">
-                        Plano Selecionado do Titular
+                        Plano Selecionado do Titular (Alterar Plano)
                       </Label>
-                      <div className="mt-1 h-10 px-3 rounded-md border border-emerald-300 bg-emerald-50 flex items-center justify-between text-xs font-black text-emerald-950">
-                        <span className="truncate">
-                          {selectedSubForDetail.members.find((m) => m.role === 'TITULAR')
-                            ?.modalityName ||
-                            selectedSubForDetail.members[0]?.modalityName ||
-                            'Não identificado'}
-                        </span>
-                        <Badge className="bg-emerald-700 text-white text-[10px] shrink-0 ml-2">
-                          TITULAR
-                        </Badge>
-                      </div>
+                      <select
+                        value={editClientData.modalityCode}
+                        onChange={(e) => {
+                          const newCode = e.target.value;
+                          const chosen = (state.modalities || []).find((m) => m.code === newCode);
+                          if (!chosen) {
+                            setEditClientData({ ...editClientData, modalityCode: newCode });
+                            return;
+                          }
+                          const isSemPlano = newCode === 'SEM_PLANO';
+                          const isCorporate = newCode === 'CORPORATE';
+                          const nextMonthly =
+                            isSemPlano || isCorporate || chosen.isFreeTier
+                              ? 0
+                              : editClientData.billingCycle === 'ANNUAL'
+                              ? chosen.annualInstallment || chosen.monthlyPrice
+                              : chosen.monthlyPrice;
+                          const nextLabel = isSemPlano
+                            ? 'Sem Plano (Inativo)'
+                            : isCorporate
+                            ? 'Lessa Corporate Pass — Cortesia (Colaboradores)'
+                            : chosen.isFreeTier
+                            ? chosen.name
+                            : `${chosen.name} (${editClientData.billingCycle === 'ANNUAL' ? 'Anual' : 'Mensal'})`;
+
+                          if (isSemPlano) {
+                            setSituacaoLiberar('NAO');
+                            setSituacaoInativar('SIM');
+                          } else if (isCorporate) {
+                            setSituacaoLiberar('SIM');
+                            setSituacaoInativar('NAO');
+                          }
+
+                          setEditClientData({
+                            ...editClientData,
+                            modalityCode: newCode,
+                            monthlyEquivalent: nextMonthly,
+                            planSummaryLabel: nextLabel,
+                          });
+                        }}
+                        className="w-full h-10 mt-1 rounded-md border border-emerald-400 px-3 text-xs font-black text-emerald-950 bg-emerald-50"
+                      >
+                        {(state.modalities || []).map((mod) => (
+                          <option key={mod.code} value={mod.code}>
+                            {mod.name} —{' '}
+                            {mod.code === 'CORPORATE'
+                              ? 'Cortesia (Interno)'
+                              : mod.code === 'SEM_PLANO'
+                              ? 'Sem valor (Inativo)'
+                              : mod.isFreeTier
+                              ? 'Gratuito'
+                              : `${formatCurrency(mod.monthlyPrice)}/mês`}
+                          </option>
+                        ))}
+                      </select>
                     </div>
 
                     <div className="sm:col-span-12">
@@ -16510,7 +16601,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     {(state.modalities || []).map((m) => (
                       <option key={m.code} value={m.code}>
                         {m.name} (
-                        {m.isFreeTier
+                        {m.code === 'CORPORATE'
+                          ? 'Cortesia — Colaboradores (Interno)'
+                          : m.code === 'SEM_PLANO'
+                          ? 'Sem valor (Status Inativo)'
+                          : m.isFreeTier
                           ? 'R$ 0,00 - Grátis'
                           : cycle === 'ANNUAL'
                           ? `Anual: ${formatCurrency(m.annualPrice)} ou 12x ${formatCurrency(
