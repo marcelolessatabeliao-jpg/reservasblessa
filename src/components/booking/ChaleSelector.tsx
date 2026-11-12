@@ -121,9 +121,9 @@ function ChaleSelectorInner({
   const [isTermsExpanded, setIsTermsExpanded] = useState<boolean>(false);
   const [isTermsModalOpen, setIsTermsModalOpen] = useState<boolean>(false);
 
-  // Data âncora inicial (Hospedagem liberada a partir de 12/11/2026)
+  // Data âncora inicial (Hospedagem liberada a partir de 19/11/2026)
   const anchorDate = useMemo(() => {
-    const minHosp = new Date('2026-11-12T00:00:00');
+    const minHosp = new Date('2026-11-19T00:00:00');
     let candidate = chale.checkInDate || visitDate || new Date();
     if (new Date(candidate) < minHosp) {
       candidate = minHosp;
@@ -173,9 +173,11 @@ function ChaleSelectorInner({
     };
   }, [anchorDate]);
 
-  // Garantir pacote padrão se ainda não definido (sem pré-selecionar nenhum chalé)
+  // Garantir pacote padrão se ainda não definido ou se a data estiver antes de 19/11/2026
   useEffect(() => {
-    if (!chale.packageType || !chale.checkInDate) {
+    const minHosp = new Date('2026-11-19T00:00:00');
+    const isBeforeMin = chale.checkInDate && new Date(chale.checkInDate) < minHosp;
+    if (!chale.packageType || !chale.checkInDate || isBeforeMin) {
       onUpdate({
         packageType: 'combo-2n-sex-dom',
         checkInDate: refFriday,
@@ -189,7 +191,7 @@ function ChaleSelectorInner({
         chaleKids: {}
       });
     }
-  }, [chale.packageType, refFriday, refSunday]);
+  }, [chale.packageType, chale.checkInDate, refFriday, refSunday]);
 
   // Datas ativas
   const checkInActive = useMemo(() => {
@@ -457,8 +459,14 @@ function ChaleSelectorInner({
       pkgType = 'combo-2n-sex-dom';
     }
 
+    const updatedInDate = new Date(inDate);
+    if (inDay === 4) {
+      updatedInDate.setHours(diffNights >= 2 ? 9 : 15, 0, 0, 0);
+    }
+
     onUpdate({
       packageType: pkgType,
+      checkInDate: updatedInDate,
       checkOutDate: newOutDate,
       includeSundayDayUse: true
     });
@@ -625,12 +633,12 @@ function ChaleSelectorInner({
     });
   };
 
-  // Redefinir as datas para o padrão (Combo Sex a Dom - a partir de 12/11/2026)
+  // Redefinir as datas para o padrão (Combo Sex a Dom - a partir de 19/11/2026)
   const handleResetDates = () => {
-    const minHosp = new Date('2026-11-12T00:00:00');
+    const minHosp = new Date('2026-11-19T00:00:00');
     let inDate = new Date(refFriday);
     if (inDate < minHosp) {
-      inDate = new Date('2026-11-13T15:00:00');
+      inDate = new Date('2026-11-20T15:00:00');
     } else {
       inDate.setHours(15, 0, 0, 0);
     }
@@ -959,10 +967,12 @@ function ChaleSelectorInner({
                         if (d) handleSelectCheckInDate(d);
                       }}
                       disabled={(d) => {
+                        const day = new Date(d);
+                        day.setHours(0, 0, 0, 0);
                         const today = new Date();
                         today.setHours(0, 0, 0, 0);
-                        const minHosp = new Date('2026-11-12T00:00:00');
-                        return d < today || d < minHosp || !isChaleCheckInDay(d);
+                        const minHosp = new Date('2026-11-19T00:00:00');
+                        return day < today || day < minHosp || !isChaleCheckInDay(day);
                       }}
                       className="p-1 pointer-events-auto"
                       locale={ptBR}
@@ -976,7 +986,7 @@ function ChaleSelectorInner({
                     </div>
                     <div className="flex items-start gap-1.5 text-amber-300">
                       <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0 mt-0.5" />
-                      <span className="leading-tight">Check-in às 15h (Quintas às 09h)</span>
+                      <span className="leading-tight">Check-in às 15h (Combos na quinta às 09h)</span>
                     </div>
 
                     <button
@@ -1049,13 +1059,19 @@ function ChaleSelectorInner({
                         if (d) handleSelectCheckOutDate(d);
                       }}
                       disabled={(d) => {
+                        const day = new Date(d);
+                        day.setHours(0, 0, 0, 0);
                         const today = new Date();
                         today.setHours(0, 0, 0, 0);
-                        const minHosp = new Date('2026-11-12T00:00:00');
-                        const isAfterCheckIn = d > checkInActive;
-                        const isWithinWeekend = d <= maxWeekendOutDate;
-                        const isValidOperating = isChaleCheckOutDay(d);
-                        return d < today || d < minHosp || !isAfterCheckIn || !isWithinWeekend || !isValidOperating;
+                        const minHosp = new Date('2026-11-19T00:00:00');
+                        const inDayStart = new Date(checkInActive);
+                        inDayStart.setHours(0, 0, 0, 0);
+                        const maxOutStart = new Date(maxWeekendOutDate);
+                        maxOutStart.setHours(0, 0, 0, 0);
+                        const isAfterCheckIn = day > inDayStart;
+                        const isWithinWeekend = day <= maxOutStart;
+                        const isValidOperating = isChaleCheckOutDay(day);
+                        return day < today || day < minHosp || !isAfterCheckIn || !isWithinWeekend || !isValidOperating;
                       }}
                       className="p-1 pointer-events-auto"
                       locale={ptBR}

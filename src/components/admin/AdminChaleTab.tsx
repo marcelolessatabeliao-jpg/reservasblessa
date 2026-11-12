@@ -637,8 +637,8 @@ export function AdminChaleTab({
     return [...localList, ...onlineList].filter(r => r && r.status !== 'cancelled');
   }, [localReservations, realChaleOrders]);
 
-  // MAPA DE OCUPAÇÃO: DATA SELECIONADA (Inicia a partir do dia 13/11/2026 - Primeira sexta disponível)
-  const [mapTargetDate, setMapTargetDate] = useState<Date>(() => new Date('2026-11-13T12:00:00'));
+  // MAPA DE OCUPAÇÃO: DATA SELECIONADA (Inicia a partir do dia 20/11/2026 - Primeira sexta disponível)
+  const [mapTargetDate, setMapTargetDate] = useState<Date>(() => new Date('2026-11-20T12:00:00'));
   const [isMapCalendarOpen, setIsMapCalendarOpen] = useState(false);
   const mapTargetDateStr = format(mapTargetDate, 'yyyy-MM-dd');
 
@@ -823,7 +823,7 @@ export function AdminChaleTab({
     let outDateStr = initialCheckOut;
 
     if (!inDateStr) {
-      const minDate = new Date('2026-11-12T00:00:00');
+      const minDate = new Date('2026-11-19T00:00:00');
       let base = new Date();
       if (base < minDate) base = minDate;
       const day = base.getDay();

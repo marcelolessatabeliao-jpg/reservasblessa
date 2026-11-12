@@ -833,6 +833,9 @@ export const OPERATING_DAYS = 'Sextas, Sábados, Domingos e Feriados';
 // Hospedagem e Camping liberados a partir do dia 12 de Novembro de 2026 (bloqueados até 11/11/2026)
 export const MIN_HOSPEDAGEM_CAMPING_DATE = '2026-11-12';
 
+// Chalés liberados para locação a partir de quinta-feira 19 de Novembro de 2026
+export const MIN_CHALE_DATE = '2026-11-19';
+
 export function isDateAvailableForHospedagem(date: Date | string | null | undefined): boolean {
   if (!date) return false;
   const d = parseToRODate(date);
@@ -843,9 +846,19 @@ export function isDateAvailableForHospedagem(date: Date | string | null | undefi
   return dateStr >= MIN_HOSPEDAGEM_CAMPING_DATE;
 }
 
+export function isDateAvailableForChale(date: Date | string | null | undefined): boolean {
+  if (!date) return false;
+  const d = parseToRODate(date);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const dateStr = `${year}-${month}-${day}`;
+  return dateStr >= MIN_CHALE_DATE;
+}
+
 export function isChaleCheckInDay(date: Date | string): boolean {
   const d = parseToRODate(date);
-  if (!isDateAvailableForHospedagem(d)) return false;
+  if (!isDateAvailableForChale(d)) return false;
   const day = d.getDay();
   // Quinta (4), Sexta (5), Sábado (6), Domingo (0)
   return day === 4 || day === 5 || day === 6 || day === 0 || isHolidayDate(d);
@@ -853,7 +866,7 @@ export function isChaleCheckInDay(date: Date | string): boolean {
 
 export function isChaleCheckOutDay(date: Date | string): boolean {
   const d = parseToRODate(date);
-  if (!isDateAvailableForHospedagem(d)) return false;
+  if (!isDateAvailableForChale(d)) return false;
   const day = d.getDay();
   // Sexta (5), Sábado (6), Domingo (0), Segunda (1)
   return day === 5 || day === 6 || day === 0 || day === 1 || isHolidayDate(d);
