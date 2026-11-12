@@ -42,7 +42,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar as CalendarUI } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { useServices } from '@/hooks/useServices';
-import { getBookedChaleIds } from '@/lib/booking-service';
+import { getBookedChaleIds, getGlobalSetting } from '@/lib/booking-service';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { format, addDays } from 'date-fns';
@@ -112,6 +112,7 @@ function ChaleSelectorInner({
   const { getPrice } = useServices();
   const [selectedChaleUnit, setSelectedChaleUnit] = useState<number | null>(chale.chaleId || null);
   const [bookedChaleIds, setBookedChaleIds] = useState<number[]>([]);
+  const [maintenanceChaleIds, setMaintenanceChaleIds] = useState<number[]>([6, 7, 8, 9, 10, 11, 12]);
   const [existingReservations, setExistingReservations] = useState<ChaleReservationDetail[]>([]);
   const [isLoadingBooked, setIsLoadingBooked] = useState<boolean>(false);
   const [isCheckInCalendarOpen, setIsCheckInCalendarOpen] = useState<boolean>(false);
@@ -203,13 +204,21 @@ function ChaleSelectorInner({
 
   const formattedDate = format(checkInActive, 'yyyy-MM-dd');
 
-  // Buscar chalés ocupados
+  // Buscar chalés ocupados e bloqueios de manutenção
   useEffect(() => {
     async function loadAvailability() {
       setIsLoadingBooked(true);
       try {
-        const ids = await getBookedChaleIds(formattedDate);
+        const [ids, disabledIds] = await Promise.all([
+          getBookedChaleIds(formattedDate),
+          getGlobalSetting('disabled_chale_ids', [6, 7, 8, 9, 10, 11, 12])
+        ]);
         setBookedChaleIds(ids);
+        setMaintenanceChaleIds(
+          Array.isArray(disabledIds)
+            ? disabledIds.map(Number).filter((n) => !isNaN(n))
+            : [6, 7, 8, 9, 10, 11, 12]
+        );
 
         const { data } = await supabase
           .from('orders')
@@ -244,6 +253,14 @@ function ChaleSelectorInner({
 
     loadAvailability();
 
+    const handleVisibilityOrFocus = () => {
+      if (document.visibilityState === 'visible') {
+        loadAvailability();
+      }
+    };
+    window.addEventListener('focus', loadAvailability);
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+
     const channel = supabase.channel('chale-map-updates')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
         loadAvailability();
@@ -251,9 +268,14 @@ function ChaleSelectorInner({
       .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, () => {
         loadAvailability();
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'site_settings' }, () => {
+        loadAvailability();
+      })
       .subscribe();
 
     return () => {
+      window.removeEventListener('focus', loadAvailability);
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
       supabase.removeChannel(channel);
     };
   }, [formattedDate]);
@@ -270,6 +292,33 @@ function ChaleSelectorInner({
   }, [chale.chaleIds, chale.chaleId]);
 
   const chaletsCount = selectedChaleUnits.length;
+
+  // Remover automaticamente chalés selecionados que foram bloqueados para manutenção ou reservados
+  useEffect(() => {
+    if (selectedChaleUnits.length === 0) return;
+    const blockedSet = new Set([...bookedChaleIds, ...maintenanceChaleIds, ...disabledChaleIds]);
+    const validSelected = selectedChaleUnits.filter(id => !blockedSet.has(id));
+    if (validSelected.length !== selectedChaleUnits.length) {
+      setSelectedChaleUnit(validSelected[0] || null);
+      if (validSelected.length === 0) {
+        onUpdate({
+          chaleId: null,
+          chaleIds: [],
+          chaleOccupancies: {},
+          adultsCount: 0,
+          childrenCount: 0,
+          childrenAges: [],
+          chaleKids: {},
+          guestNames: []
+        });
+      } else {
+        onUpdate({
+          chaleId: validSelected[0],
+          chaleIds: validSelected
+        });
+      }
+    }
+  }, [bookedChaleIds, maintenanceChaleIds, disabledChaleIds, selectedChaleUnits]);
 
   // Mapa de ocupação por chalé ('casal' = 2 adultos, 'individual' = 1 adulto)
   const chaleOccupancies: Record<number, 'casal' | 'individual'> = useMemo(() => {
@@ -471,7 +520,7 @@ function ChaleSelectorInner({
       pkgType = 'combo-4n-qui-seg';
     } else if (preset === 'diaria-qui-sex') {
       inDate = new Date(refThursday);
-      inDate.setHours(9, 0, 0, 0);
+      inDate.setHours(15, 0, 0, 0);
       outDate = new Date(refFriday);
       outDate.setHours(12, 0, 0, 0);
       pkgType = 'diaria-qui-sex';
@@ -505,11 +554,13 @@ function ChaleSelectorInner({
   };
 
   // Toggle de seleção de múltiplos chalés
-  const handleToggleUnitSelection = (unitId: number, isOccupied: boolean) => {
+  const handleToggleUnitSelection = (unitId: number, isOccupied: boolean, isMaintenance: boolean = false) => {
     if (isOccupied) {
       toast({
-        title: "Chalé Ocupado",
-        description: `O Chalé ${String(unitId).padStart(2, '0')} já possui reserva confirmada para este período. Por favor, escolha outro chalé livre.`,
+        title: isMaintenance ? "Chalé em Manutenção" : "Chalé Ocupado",
+        description: isMaintenance
+          ? `O Chalé ${String(unitId).padStart(2, '0')} está temporariamente bloqueado para manutenção. Por favor, escolha outro chalé livre.`
+          : `O Chalé ${String(unitId).padStart(2, '0')} já possui reserva confirmada para este período. Por favor, escolha outro chalé livre.`,
         variant: "destructive"
       });
       return;
@@ -618,7 +669,17 @@ function ChaleSelectorInner({
 
   // Status de ocupação para cada chalé
   const getUnitStatus = (unitId: number) => {
-    const isBookedDirectly = bookedChaleIds.includes(unitId) || disabledChaleIds.includes(unitId);
+    const isMaintenance = maintenanceChaleIds.includes(unitId) || disabledChaleIds.includes(unitId);
+    if (isMaintenance) {
+      return {
+        isOccupied: true,
+        isMaintenance: true,
+        badge: 'Manutenção',
+        subtext: 'Bloqueado p/ manutenção',
+        color: 'bg-amber-500 text-slate-950 border-amber-400'
+      };
+    }
+    const isBookedDirectly = bookedChaleIds.includes(unitId);
     const existing = existingReservations.find(r => r.chaleId === unitId);
     if (isBookedDirectly || existing) {
       let subtext = 'Reservado';
@@ -632,6 +693,7 @@ function ChaleSelectorInner({
       }
       return {
         isOccupied: true,
+        isMaintenance: false,
         badge: 'Ocupado',
         subtext,
         color: 'bg-red-600 text-white border-red-700'
@@ -639,6 +701,7 @@ function ChaleSelectorInner({
     }
     return {
       isOccupied: false,
+      isMaintenance: false,
       badge: 'Livre',
       subtext: `Disponível para entrada às ${stayPricing?.checkInHour || '15h'}`,
       color: 'bg-emerald-600 text-white border-emerald-700'
@@ -667,7 +730,7 @@ function ChaleSelectorInner({
     if (isComboQuiDomActive) return 'Combo 3 Noites — Quinta a Domingo (10% OFF)';
     if (isComboSexSegActive) return 'Combo 3 Noites — Sexta a Segunda (10% OFF)';
     if (isComboQuiSegActive) return 'Combo 4 Noites — Quinta a Segunda (Maior Estadia — 10% OFF)';
-    if (inDay === 4 && outDay === 5 && diffNights === 1) return 'Diária Avulsa — Quinta para Sexta (Entrada 09h)';
+    if (inDay === 4 && outDay === 5 && diffNights === 1) return 'Diária Avulsa — Quinta para Sexta (Entrada 15h)';
     if (inDay === 5 && outDay === 6 && diffNights === 1) return 'Diária Avulsa — Sexta para Sábado';
     if (inDay === 6 && outDay === 0 && diffNights === 1) return 'Diária Avulsa — Sábado para Domingo';
     if (inDay === 0 && outDay === 1 && diffNights === 1) return 'Diária Avulsa — Domingo para Segunda';
@@ -1370,29 +1433,36 @@ function ChaleSelectorInner({
               const isUnitSelected = selectedChaleUnits.includes(unit.id);
               const status = getUnitStatus(unit.id);
               const isOccupied = status.isOccupied;
+              const isMaintenance = status.isMaintenance;
 
               return (
                 <div
                   key={unit.id}
-                  onClick={() => handleToggleUnitSelection(unit.id, isOccupied)}
+                  onClick={() => handleToggleUnitSelection(unit.id, isOccupied, isMaintenance)}
                   className={cn(
                     "p-3 sm:p-4 rounded-2xl border-2 text-left transition-all relative flex flex-col justify-between min-h-[115px] sm:min-h-[125px] select-none shadow-md",
-                    isOccupied
-                      ? "opacity-50 bg-[#1f1315] border-red-900/60 cursor-not-allowed text-red-200"
-                      : isUnitSelected
-                        ? "bg-gradient-to-br from-amber-400 via-amber-300 to-amber-500 text-slate-950 border-amber-200 shadow-xl scale-[1.03] cursor-pointer ring-2 ring-amber-400/50"
-                        : "bg-gradient-to-b from-[#063321] to-[#032014] text-white border-emerald-700/60 hover:border-amber-400 hover:shadow-lg hover:scale-[1.02] cursor-pointer group"
+                    isMaintenance
+                      ? "opacity-65 bg-[#241b0b] border-amber-700/70 cursor-not-allowed text-amber-200"
+                      : isOccupied
+                        ? "opacity-50 bg-[#1f1315] border-red-900/60 cursor-not-allowed text-red-200"
+                        : isUnitSelected
+                          ? "bg-gradient-to-br from-amber-400 via-amber-300 to-amber-500 text-slate-950 border-amber-200 shadow-xl scale-[1.03] cursor-pointer ring-2 ring-amber-400/50"
+                          : "bg-gradient-to-b from-[#063321] to-[#032014] text-white border-emerald-700/60 hover:border-amber-400 hover:shadow-lg hover:scale-[1.02] cursor-pointer group"
                   )}
                 >
                   <div className={cn(
                     "absolute -top-2.5 -right-2 font-black text-[9px] uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow-md border flex items-center gap-1 z-10",
-                    isOccupied
-                      ? "bg-red-600 text-white border-red-500"
-                      : isUnitSelected
-                        ? "bg-slate-950 text-amber-300 border-slate-800"
-                        : "bg-emerald-500 text-emerald-950 border-emerald-300"
+                    isMaintenance
+                      ? "bg-amber-400 text-slate-950 border-amber-300"
+                      : isOccupied
+                        ? "bg-red-600 text-white border-red-500"
+                        : isUnitSelected
+                          ? "bg-slate-950 text-amber-300 border-slate-800"
+                          : "bg-emerald-500 text-emerald-950 border-emerald-300"
                   )}>
-                    {isOccupied ? (
+                    {isMaintenance ? (
+                      <AlertTriangle className="w-2.5 h-2.5" />
+                    ) : isOccupied ? (
                       <Lock className="w-2.5 h-2.5" />
                     ) : isUnitSelected ? (
                       <CheckCircle2 className="w-2.5 h-2.5 text-amber-300" />
@@ -1406,18 +1476,20 @@ function ChaleSelectorInner({
                     <div className="flex items-center gap-1.5 mb-1">
                       <span className={cn(
                         "font-black text-sm uppercase tracking-tight block font-sans",
-                        isOccupied ? "text-red-300" : isUnitSelected ? "text-slate-950" : "text-white group-hover:text-amber-300"
+                        isMaintenance ? "text-amber-300" : isOccupied ? "text-red-300" : isUnitSelected ? "text-slate-950" : "text-white group-hover:text-amber-300"
                       )}>
                         Chalé {String(unit.id).padStart(2, '0')}
                       </span>
                     </div>
                     <span className={cn(
                       "text-[9px] font-black uppercase px-2 py-0.5 rounded-md inline-block tracking-wider",
-                      isOccupied
-                        ? "bg-red-950/60 text-red-300 border border-red-800/40"
-                        : isUnitSelected
-                          ? "bg-slate-950 text-amber-300"
-                          : "bg-emerald-900/90 text-emerald-200 border border-emerald-700/60"
+                      isMaintenance
+                        ? "bg-amber-950/70 text-amber-300 border border-amber-700/50"
+                        : isOccupied
+                          ? "bg-red-950/60 text-red-300 border border-red-800/40"
+                          : isUnitSelected
+                            ? "bg-slate-950 text-amber-300"
+                            : "bg-emerald-900/90 text-emerald-200 border border-emerald-700/60"
                     )}>
                       Alvenaria Tradicional
                     </span>
@@ -1426,11 +1498,13 @@ function ChaleSelectorInner({
                   <div className="pt-2">
                     <span className={cn(
                       "text-[10px] font-bold block",
-                      isOccupied
-                        ? "text-red-300/80"
-                        : isUnitSelected
-                          ? "text-slate-950 font-black"
-                          : "text-emerald-300"
+                      isMaintenance
+                        ? "text-amber-300/90"
+                        : isOccupied
+                          ? "text-red-300/80"
+                          : isUnitSelected
+                            ? "text-slate-950 font-black"
+                            : "text-emerald-300"
                     )}>
                       {isOccupied ? status.subtext : isUnitSelected ? '✓ Incluso na reserva (clique p/ remover)' : '+ Clique para adicionar'}
                     </span>
@@ -1439,6 +1513,12 @@ function ChaleSelectorInner({
               );
             })}
           </div>
+          {readyUnits.every((unit) => getUnitStatus(unit.id).isOccupied) && (
+            <div className="p-3 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 text-xs font-bold flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>Todos os chalés estão indisponíveis ou bloqueados para manutenção no momento.</span>
+            </div>
+          )}
         </div>
 
         {/* ROW 3: CONFIGURAÇÃO AGRUPADA POR CHALÉ (MODALIDADE + ADICIONAL DE CRIANÇAS LADO A LADO) */}

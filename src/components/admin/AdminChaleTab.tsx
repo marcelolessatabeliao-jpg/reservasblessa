@@ -73,6 +73,7 @@ import { format, parseISO, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { getGlobalSetting, updateGlobalSetting } from '@/lib/booking-service';
 import html2canvas from 'html2canvas';
 
 export interface ChaleReservation {
@@ -211,6 +212,31 @@ export function AdminChaleTab({
       console.error('Erro ao salvar statuses de chalé:', err);
     }
   }, [manualStatuses]);
+
+  // Sincronizar bloqueios de manutenção com Supabase (site_settings -> disabled_chale_ids)
+  useEffect(() => {
+    let active = true;
+    getGlobalSetting('disabled_chale_ids', null).then((remoteDisabled) => {
+      if (!active) return;
+      if (Array.isArray(remoteDisabled)) {
+        const disabledSet = new Set(remoteDisabled.map(Number).filter((n) => !isNaN(n)));
+        const synced: Record<number, 'disponivel' | 'indisponivel'> = {};
+        CHALE_UNITS.forEach((unit) => {
+          synced[unit.id] = disabledSet.has(unit.id) ? 'indisponivel' : 'disponivel';
+        });
+        setManualStatuses(synced);
+      } else {
+        const currentDisabled = Object.entries(manualStatuses)
+          .filter(([, status]) => status === 'indisponivel')
+          .map(([id]) => Number(id))
+          .filter((n) => !isNaN(n));
+        updateGlobalSetting('disabled_chale_ids', currentDisabled);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // Edição de notas inline
   const [editingNoteChaleId, setEditingNoteChaleId] = useState<number | null>(null);
@@ -444,7 +470,7 @@ export function AdminChaleTab({
     } else if (pkg === 'combo-4n-qui-seg') {
       inD = thursday; outD = monday; inTime = '09:00';
     } else if (pkg === 'diaria-qui-sex') {
-      inD = thursday; outD = friday; inTime = '09:00';
+      inD = thursday; outD = friday; inTime = '15:00';
     } else if (pkg === 'diaria-sex-sab') {
       inD = friday; outD = saturday; inTime = '15:00';
     } else if (pkg === 'diaria-sab-dom') {
@@ -750,13 +776,34 @@ export function AdminChaleTab({
   const countIndisponiveis = chalesList.filter(c => c.status === 'indisponivel').length;
 
   // Toggle Bloquear / Liberar Manutenção
-  const handleToggleBlock = (chaleId: number) => {
-    setManualStatuses(prev => {
-      const nextStatus: 'disponivel' | 'indisponivel' = prev[chaleId] === 'indisponivel' ? 'disponivel' : 'indisponivel';
-      return { ...prev, [chaleId]: nextStatus };
-    });
+  const handleToggleBlock = async (chaleId: number) => {
+    const nextStatus: 'disponivel' | 'indisponivel' =
+      manualStatuses[chaleId] === 'indisponivel' ? 'disponivel' : 'indisponivel';
+    const nextStatuses: Record<number, 'disponivel' | 'indisponivel'> = {
+      ...manualStatuses,
+      [chaleId]: nextStatus
+    };
+    setManualStatuses(nextStatuses);
+
+    const disabledIds = CHALE_UNITS
+      .map((u) => u.id)
+      .filter((id) => nextStatuses[id] === 'indisponivel');
+
+    const ok = await updateGlobalSetting('disabled_chale_ids', disabledIds);
+    if (!ok) {
+      toast({
+        title: 'Erro ao salvar bloqueio no site',
+        description: 'Não foi possível sincronizar o bloqueio com o site de reservas. Tente novamente.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
     toast({
-      title: manualStatuses[chaleId] === 'indisponivel' ? `Chalé ${chaleId} liberado (Verde)` : `Chalé ${chaleId} bloqueado para manutenção (Amarelo)`,
+      title:
+        nextStatus === 'disponivel'
+          ? `Chalé ${chaleId} liberado (Verde)`
+          : `Chalé ${chaleId} bloqueado para manutenção (Amarelo)`,
     });
   };
 

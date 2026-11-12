@@ -250,7 +250,7 @@ export const CHALE_PACKAGES: Record<ChalePackageType, ChalePackageInfo> = {
     priceIndividual: 240,
     priceCasal: 340,
     basePrice: 340,
-    description: 'Check-in quinta às 9h • Check-out sexta às 12h com café da manhã incluso na manhã de sexta.'
+    description: 'Check-in quinta às 15h • Check-out sexta às 12h com café da manhã incluso na manhã de sexta.'
   },
   'diaria-sex-sab': {
     id: 'diaria-sex-sab',
@@ -483,8 +483,8 @@ export function calculateStayPricing(checkIn: Date | string | null, checkOut: Da
   const totalIndividual = Math.round(totalIndividualGross * (1 - discountPct));
   const totalCasal = Math.round(totalCasalGross * (1 - discountPct));
 
-  // Check-in na quinta às 9h ou 15h nos demais dias
-  const checkInHour = hasThursdayIn ? '09h' : '15h';
+  // Check-in na quinta às 9h apenas nos combos (>= 2 noites); diárias avulsas e demais dias às 15h
+  const checkInHour = hasThursdayIn && nightsCount >= 2 ? '09h' : '15h';
   const checkOutHour = '12h';
 
   return {
