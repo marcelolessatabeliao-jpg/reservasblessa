@@ -2451,6 +2451,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
               sex: editClientData.holderSex || m.sex,
               phone: editClientData.holderPhone.trim() || m.phone,
               status: targetStatus,
+              manualStatusOverride: true,
               expirationDate: nextEndDate || m.expirationDate,
               validityLabel: nextValidityLabel || m.validityLabel,
             }
@@ -2462,6 +2463,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 prevStatus !== targetStatus || targetStatus !== 'ACTIVE'
                   ? targetStatus
                   : m.status,
+              manualStatusOverride: true,
               validityLabel: m.expirationDate
                 ? getValidityLabelFromDate(m.expirationDate, m.validityLabel)
                 : nextValidityLabel || m.validityLabel,
@@ -2469,6 +2471,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       ),
       updatedAt: new Date().toISOString(),
       transferCompleted: true,
+      manualStatusOverride: true,
       transferredAt: selectedSubForDetail.transferredAt || new Date().toISOString(),
     };
     const nextState: ClubDatabaseState = {
@@ -2578,6 +2581,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         validityLabel: getValidityLabelFromDate(targetSub.endDate),
         monthlyValue: 0,
         status: targetSub.status === 'ACTIVE' ? 'ACTIVE' : 'PENDING_TRANSFER',
+        manualStatusOverride: true,
         createdAt: new Date().toISOString(),
       };
 
@@ -2587,6 +2591,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         members: updatedMembers,
         updatedAt: new Date().toISOString(),
         transferCompleted: true,
+        manualStatusOverride: true,
         transferredAt: targetSub.transferredAt || new Date().toISOString(),
       };
 
@@ -3143,6 +3148,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     const updatedSub: ClubSubscription = {
       ...sub,
       status: newStatus,
+      manualStatusOverride: true,
       endDate: nextEndDate,
       updatedAt: new Date().toISOString(),
       transferCompleted: true,
@@ -3150,11 +3156,19 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       members: sub.members.map((m) => ({
         ...m,
         status: newStatus === 'ACTIVE' ? 'ACTIVE' : 'INACTIVE',
+        manualStatusOverride: true,
         validityLabel: m.expirationDate
           ? getValidityLabelFromDate(m.expirationDate, m.validityLabel)
           : nextValidity || m.validityLabel,
       })),
     };
+    if (newStatus === 'ACTIVE') {
+      setSituacaoLiberar('SIM');
+      setSituacaoInativar('NAO');
+    } else {
+      setSituacaoLiberar('NAO');
+      setSituacaoInativar('SIM');
+    }
     const nextState: ClubDatabaseState = {
       ...state,
       subscriptions: (state.subscriptions || []).map((s) =>
@@ -3211,8 +3225,13 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     const updatedSub: ClubSubscription = {
       ...sub,
       updatedAt: new Date().toISOString(),
+      transferCompleted: true,
+      transferredAt: sub.transferredAt || new Date().toISOString(),
+      manualStatusOverride: true,
       members: sub.members.map((m) =>
-        m.id === memberId ? { ...m, status: nextMemberStatus } : m
+        m.id === memberId
+          ? { ...m, status: nextMemberStatus, manualStatusOverride: true }
+          : m
       ),
     };
     const nextState: ClubDatabaseState = {

@@ -171,11 +171,19 @@ const tryPersistLocalState = (state: ClubDatabaseState) => {
     const compactSubs = state.subscriptions.filter((s) => {
       if (!s.id.startsWith('sub-labcard-')) return true;
       const hasEdits =
-        s.status === 'ACTIVE' ||
+        s.status !== 'PENDING_TRANSFER' ||
+        Boolean(s.manualStatusOverride) ||
+        Boolean(s.transferCompleted) ||
+        Boolean(s.transferredAt) ||
         (s.invoices && s.invoices.length > 0) ||
         (s.attachments && s.attachments.length > 0) ||
         (s.visits && s.visits.length > 0) ||
-        (s.members && s.members.some((m) => Boolean(m.photoUrl || m.documentProofUrl || m.documentVerified)));
+        (s.members &&
+          s.members.some(
+            (m) =>
+              Boolean(m.photoUrl || m.documentProofUrl || m.documentVerified || m.manualStatusOverride) ||
+              m.status !== 'PENDING_TRANSFER'
+          ));
       return hasEdits;
     });
     localStorage.setItem(
@@ -654,10 +662,17 @@ export const normalizeClubDatabaseState = (
         getPlanDocumentRule(m.modalityCode, m.modalityName).requiresDocument &&
         !memberHasProofDocument(m, sub);
 
+      const isManualOrTransferred =
+        Boolean(m.manualStatusOverride) ||
+        Boolean(sub.manualStatusOverride) ||
+        Boolean(sub.transferCompleted) ||
+        sub.status === 'ACTIVE' ||
+        m.status === 'ACTIVE';
+
       const resolvedStatus: SubscriptionStatus =
-        isLabcard && !m.manualStatusOverride && !sub.manualStatusOverride
+        isLabcard && !isManualOrTransferred
           ? ('PENDING_TRANSFER' as SubscriptionStatus)
-          : missingRequiredDoc && !m.manualStatusOverride && !sub.manualStatusOverride
+          : missingRequiredDoc && !isManualOrTransferred
           ? 'INACTIVE'
           : m.status;
 
@@ -669,12 +684,17 @@ export const normalizeClubDatabaseState = (
       };
     });
 
+    const isSubManualOrTransferred =
+      Boolean(sub.manualStatusOverride) ||
+      Boolean(sub.transferCompleted) ||
+      sub.status === 'ACTIVE';
+
     const resolvedSubStatus: SubscriptionStatus =
-      isLabcard && !sub.manualStatusOverride
+      isLabcard && !isSubManualOrTransferred
         ? ('PENDING_TRANSFER' as SubscriptionStatus)
         : normalizedMembers.length > 0 &&
           normalizedMembers.every((m) => m.status === 'INACTIVE') &&
-          !sub.manualStatusOverride
+          !isSubManualOrTransferred
         ? 'INACTIVE'
         : sub.status;
 
@@ -802,7 +822,14 @@ const isLabcardSubscriptionModified = (
   seedSub?: ClubSubscription
 ): boolean => {
   if (!seedSub) return true;
-  if (sub.status !== 'PENDING_TRANSFER' || Boolean(sub.manualStatusOverride)) return true;
+  if (
+    sub.status !== 'PENDING_TRANSFER' ||
+    Boolean(sub.manualStatusOverride) ||
+    Boolean(sub.transferCompleted) ||
+    Boolean(sub.transferredAt)
+  ) {
+    return true;
+  }
   if (
     sub.asaasCustomerId ||
     sub.asaasSubscriptionId ||
@@ -974,15 +1001,25 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
         if (!deletedSet.has(s.id)) subsMap.set(s.id, s);
       });
 
-      // Preservar pendente p/ transferência na base importada do Labcard salvo quando houver liberação manual explícita
+      // Preservar pendente p/ transferência na base importada do Labcard salvo quando houver liberação manual explícita ou transferência concluída
       subsMap.forEach((sub) => {
         if (sub.origin === 'IMPORT_LABCARD' || sub.id.startsWith('sub-labcard-')) {
-          if (!sub.manualStatusOverride) {
+          const isManualOrTransferred =
+            Boolean(sub.manualStatusOverride) ||
+            Boolean(sub.transferCompleted) ||
+            sub.status === 'ACTIVE';
+
+          if (!isManualOrTransferred) {
             sub.status = 'PENDING_TRANSFER';
           }
           if (sub.members) {
             sub.members.forEach((m) => {
-              if (!m.manualStatusOverride && !sub.manualStatusOverride) {
+              const isMemberManualOrTransferred =
+                isManualOrTransferred ||
+                Boolean(m.manualStatusOverride) ||
+                m.status === 'ACTIVE';
+
+              if (!isMemberManualOrTransferred) {
                 m.status = 'PENDING_TRANSFER';
               }
             });
