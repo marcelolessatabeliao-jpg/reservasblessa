@@ -159,6 +159,7 @@ import {
   ClubMemberCardView,
   MultiCardPrintSheet,
 } from '@/components/club/ClubMemberCardView';
+import { LABCARD_RAW_RECORDS } from '@/lib/labcard-seed';
 
 const MONTH_OPTIONS = [
   { value: '2026-01', label: 'Janeiro/2026' },
@@ -251,6 +252,122 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     modalityCode: '',
     endDate: '',
   });
+
+  // Busca e Agrupamento de Dependente / Pessoa existente ao cadastro
+  const [personSearchModalOpen, setPersonSearchModalOpen] = useState(false);
+  const [personSearchQuery, setPersonSearchQuery] = useState('');
+  const [attachingPersonLoading, setAttachingPersonLoading] = useState(false);
+
+  // Candidatos para vincular como dependente ao cadastro atual
+  const personSearchCandidates = useMemo(() => {
+    const q = personSearchQuery.trim().toLowerCase();
+    if (q.length < 2 || !selectedSubForDetail) return [];
+
+    const existingCardNumbers = new Set(
+      selectedSubForDetail.members.map((m) => m.cardNumber.trim())
+    );
+    const existingCpfs = new Set(
+      selectedSubForDetail.members
+        .filter((m) => m.cpf)
+        .map((m) => m.cpf.replace(/\D/g, ''))
+    );
+    const existingNames = new Set(
+      selectedSubForDetail.members.map((m) => m.fullName.trim().toLowerCase())
+    );
+
+    const results: Array<{
+      fullName: string;
+      cpf: string;
+      cardNumber: string;
+      birthDate?: string;
+      phone?: string;
+      modalityCode?: string;
+      sourceSubscriptionId?: string;
+      sourceLabel: string;
+      isLabcardSeed?: boolean;
+    }> = [];
+
+    const cleanQDigits = q.replace(/\D/g, '');
+
+    // 1. Procurar nas assinaturas do banco local/estado
+    if (state?.subscriptions) {
+      for (const sub of state.subscriptions) {
+        for (const m of sub.members) {
+          const mCard = (m.cardNumber || '').trim();
+          const mCpfDigits = (m.cpf || '').replace(/\D/g, '');
+          const mName = m.fullName.trim();
+
+          // Já está no cadastro selecionado? Pula
+          if (
+            existingCardNumbers.has(mCard) ||
+            (mCpfDigits && existingCpfs.has(mCpfDigits)) ||
+            existingNames.has(mName.toLowerCase())
+          ) {
+            continue;
+          }
+
+          // Combina com a query?
+          const matchName = mName.toLowerCase().includes(q);
+          const matchCard = mCard.toLowerCase().includes(q);
+          const matchCpf = cleanQDigits && mCpfDigits.includes(cleanQDigits);
+          const matchPhone = cleanQDigits && (m.phone || '').replace(/\D/g, '').includes(cleanQDigits);
+
+          if (matchName || matchCard || matchCpf || matchPhone) {
+            results.push({
+              fullName: mName,
+              cpf: m.cpf || '',
+              cardNumber: mCard,
+              birthDate: m.birthDate,
+              phone: m.phone,
+              modalityCode: m.modalityCode,
+              sourceSubscriptionId: sub.id,
+              sourceLabel: `Assinatura #${sub.subscriptionCode} (${m.role === 'TITULAR' ? 'Titular' : 'Dependente'})`,
+              isLabcardSeed: false,
+            });
+          }
+        }
+      }
+    }
+
+    // 2. Procurar na base raw do Labcard (LABCARD_RAW_RECORDS)
+    const seenCards = new Set(results.map((r) => r.cardNumber));
+    for (const row of LABCARD_RAW_RECORDS) {
+      const card = String(row[0] || '').trim();
+      const name = String(row[1] || '').trim();
+      const rawCpf = String(row[2] || '').trim();
+      const cpfDigits = rawCpf.replace(/\D/g, '');
+      const birthDate = String(row[4] || '').trim();
+
+      if (!name) continue;
+      if (
+        existingCardNumbers.has(card) ||
+        (cpfDigits && existingCpfs.has(cpfDigits)) ||
+        existingNames.has(name.toLowerCase()) ||
+        seenCards.has(card)
+      ) {
+        continue;
+      }
+
+      const matchName = name.toLowerCase().includes(q);
+      const matchCard = card.toLowerCase().includes(q);
+      const matchCpf = cleanQDigits && cpfDigits.includes(cleanQDigits);
+
+      if (matchName || matchCard || matchCpf) {
+        results.push({
+          fullName: name,
+          cpf: rawCpf,
+          cardNumber: card,
+          birthDate,
+          sourceLabel: `Base Labcard (Cartão #${card})`,
+          isLabcardSeed: true,
+        });
+        seenCards.add(card);
+      }
+      if (results.length >= 35) break;
+    }
+
+    return results;
+  }, [personSearchQuery, selectedSubForDetail, state?.subscriptions]);
 
   // Perfil Financeiro do Cliente states
   const [selectedCarneNumber, setSelectedCarneNumber] = useState('ALL');
@@ -2360,8 +2477,133 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         s.id === updatedSub.id ? updatedSub : s
       ),
     };
-    setSelectedSubForDetail(updatedSub);
-    await persist(nextState);
+  // Função para vincular e agrupar uma pessoa (da base do clube ou do Labcard) como dependente
+  const handleAttachPersonAsDependent = async (person: {
+    fullName: string;
+    cpf?: string;
+    cardNumber?: string;
+    birthDate?: string;
+    phone?: string;
+    modalityCode?: string;
+    sourceSubscriptionId?: string;
+  }) => {
+    if (!state || !selectedSubForDetail) return;
+    setAttachingPersonLoading(true);
+
+    try {
+      const targetSub = selectedSubForDetail;
+      const cleanName = person.fullName.trim();
+      const cleanCpf = person.cpf ? formatCpf(person.cpf) : '';
+      const cardNum = person.cardNumber || String(Number(targetSub.subscriptionCode) + targetSub.members.length);
+      const mod =
+        (state.modalities || []).find((m) => m.code === (person.modalityCode || 'PUBLICIDADE')) ||
+        (state.modalities || []).find((m) => m.code === targetSub.members[0]?.modalityCode) ||
+        state.modalities[0];
+
+      // Verifica se a pessoa já está nesta assinatura
+      const alreadyInSub = targetSub.members.some(
+        (m) =>
+          m.cardNumber === cardNum ||
+          (cleanCpf && m.cpf && m.cpf.replace(/\D/g, '') === cleanCpf.replace(/\D/g, '')) ||
+          m.fullName.trim().toLowerCase() === cleanName.toLowerCase()
+      );
+
+      if (alreadyInSub) {
+        toast({
+          title: 'Pessoa já vinculada',
+          description: `${cleanName} já faz parte deste cadastro.`,
+          variant: 'destructive',
+        });
+        setAttachingPersonLoading(false);
+        return;
+      }
+
+      const newMember: ClubMember = {
+        id: `mem-${cardNum}-${Date.now()}`,
+        subscriptionId: targetSub.id,
+        role: 'DEPENDENTE',
+        modalityCode: mod.code,
+        modalityName: mod.name,
+        planCycleLabel: mod.name,
+        fullName: cleanName,
+        cpf: cleanCpf,
+        birthDate: person.birthDate || '',
+        phone: person.phone || '',
+        cardNumber: cardNum,
+        holderCardNumber: targetSub.subscriptionCode,
+        qrToken: `LC-${cardNum}`,
+        frontCardUrl: mod.dependentFrontCardUrl || mod.frontCardUrl,
+        backCardUrl: mod.dependentBackCardUrl || mod.backCardUrl,
+        validityLabel: getValidityLabelFromDate(targetSub.endDate),
+        monthlyValue: 0,
+        status: targetSub.status === 'ACTIVE' ? 'ACTIVE' : 'PENDING_TRANSFER',
+        createdAt: new Date().toISOString(),
+      };
+
+      const updatedMembers = [...targetSub.members, newMember];
+      const updatedTargetSub: ClubSubscription = {
+        ...targetSub,
+        members: updatedMembers,
+        updatedAt: new Date().toISOString(),
+        transferCompleted: true,
+        transferredAt: targetSub.transferredAt || new Date().toISOString(),
+      };
+
+      // Se a pessoa pertencia a uma assinatura individual isolada (ex: importada como titular avulsa),
+      // removemos a assinatura órfã antiga ou removemos o membro dela para evitar duplicação
+      let nextSubs = (state.subscriptions || []).map((s) =>
+        s.id === updatedTargetSub.id ? updatedTargetSub : s
+      );
+
+      if (person.sourceSubscriptionId && person.sourceSubscriptionId !== targetSub.id) {
+        const sourceSub = state.subscriptions.find((s) => s.id === person.sourceSubscriptionId);
+        if (sourceSub) {
+          if (sourceSub.members.length <= 1) {
+            // Era uma assinatura solitária só dessa pessoa -> removemos o registro solto
+            nextSubs = nextSubs.filter((s) => s.id !== person.sourceSubscriptionId);
+          } else {
+            // Tinha outros membros -> remove apenas essa pessoa da assinatura de origem
+            nextSubs = nextSubs.map((s) =>
+              s.id === person.sourceSubscriptionId
+                ? {
+                    ...s,
+                    members: s.members.filter(
+                      (m) =>
+                        m.cardNumber !== cardNum &&
+                        m.fullName.trim().toLowerCase() !== cleanName.toLowerCase()
+                    ),
+                  }
+                : s
+            );
+          }
+        }
+      }
+
+      const nextState: ClubDatabaseState = {
+        ...state,
+        subscriptions: nextSubs,
+      };
+
+      await persist(nextState);
+      setSelectedSubForDetail(updatedTargetSub);
+      setPersonSearchModalOpen(false);
+      setPersonSearchQuery('');
+
+      toast({
+        title: 'Dependente Agrupado com Sucesso!',
+        description: `${cleanName} (Cartão #${cardNum}) foi vinculado à família de ${targetSub.holderName}.`,
+      });
+    } catch (err) {
+      console.error('Erro ao agrupar dependente:', err);
+      toast({
+        title: 'Erro ao agrupar dependente',
+        description: 'Ocorreu uma falha ao vincular a pessoa. Tente novamente.',
+        variant: 'destructive',
+      });
+    } finally {
+      setAttachingPersonLoading(false);
+    }
+  };
     const prevLabel = prevStatus === 'ACTIVE' ? 'ATIVO' : 'INATIVO';
     const newLabel = targetStatus === 'ACTIVE' ? 'ATIVO' : 'INATIVO';
     const statusChanged = prevStatus !== targetStatus;
@@ -11094,15 +11336,29 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           <Users className="w-4 h-4 text-emerald-700" />
                           Integrantes da Assinatura ({selectedSubForDetail.members.length}): Nome e Plano de Cada Pessoa
                         </div>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setClientDetailTool('ANEXOS')}
-                          className="h-7 text-[11px] font-bold border-emerald-600 text-emerald-900 bg-white"
-                        >
-                          <Paperclip className="w-3 h-3 mr-1" /> Ver / Anexar Documentos
-                        </Button>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => {
+                              setPersonSearchQuery('');
+                              setPersonSearchModalOpen(true);
+                            }}
+                            className="h-7 text-[11px] font-black bg-emerald-800 hover:bg-emerald-900 text-white shadow-xs cursor-pointer flex items-center gap-1"
+                            title="Buscar dependente por nome ou cartão para agrupar nesta família"
+                          >
+                            <Search className="w-3 h-3 text-amber-300" /> + Buscar e Agrupar Dependente
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setClientDetailTool('ANEXOS')}
+                            className="h-7 text-[11px] font-bold border-emerald-600 text-emerald-900 bg-white"
+                          >
+                            <Paperclip className="w-3 h-3 mr-1" /> Ver / Anexar Documentos
+                          </Button>
+                        </div>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
                         {selectedSubForDetail.members.map((m, idx) => {
@@ -18667,6 +18923,176 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 {isApplyingLabcardEnrich ? 'Salvando Enriquecimento...' : 'Aplicar Enriquecimento Agora'}
               </Button>
             </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL DE BUSCA E AGRUPAMENTO DE DEPENDENTE AO CADASTRO */}
+      <Dialog
+        open={personSearchModalOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPersonSearchModalOpen(false);
+            setPersonSearchQuery('');
+          }
+        }}
+      >
+        <DialogContent className="max-w-2xl rounded-3xl border-2 border-emerald-400 p-0 overflow-hidden bg-white shadow-2xl">
+          <div className="bg-gradient-to-r from-emerald-950 via-[#042817] to-slate-950 text-white p-5 border-b border-amber-400/40">
+            <DialogHeader>
+              <DialogTitle className="text-base sm:text-lg font-black uppercase tracking-tight text-white flex items-center gap-2">
+                <Search className="w-5 h-5 text-amber-400" />
+                Buscar e Agrupar Dependente ao Cadastro
+              </DialogTitle>
+              <DialogDescription className="text-xs text-emerald-200 font-medium">
+                Vincular dependente à família de{' '}
+                <strong className="text-amber-300">
+                  {selectedSubForDetail?.holderName}
+                </strong>{' '}
+                (Cartão Titular #{selectedSubForDetail?.subscriptionCode})
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+
+          <div className="p-5 space-y-4 max-h-[75vh] overflow-y-auto">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-slate-800">
+                Digite o Nome Completo, CPF ou Nº do Cartão para Localizar a Pessoa:
+              </Label>
+              <div className="relative">
+                <Input
+                  value={personSearchQuery}
+                  onChange={(e) => setPersonSearchQuery(e.target.value)}
+                  placeholder="Ex: Maria Cleide, 1212252448 ou 928.632.482-00..."
+                  className="h-11 pl-10 pr-10 font-semibold text-xs sm:text-sm rounded-xl border-slate-300 focus:border-emerald-600 focus:ring-emerald-600"
+                  autoFocus
+                />
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+                {personSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setPersonSearchQuery('')}
+                    className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 p-0.5"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-500">
+                A busca pesquisa em toda a base de associados do Lessa Club e no banco completo de cartões do Labcard.
+              </p>
+            </div>
+
+            {/* Lista de Resultados */}
+            <div className="space-y-2 pt-2 border-t border-slate-200">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  Resultados Encontrados ({personSearchCandidates.length})
+                </span>
+                {personSearchQuery.trim().length >= 2 && (
+                  <span className="text-[11px] text-emerald-700 font-semibold">
+                    Filtrado por: "{personSearchQuery}"
+                  </span>
+                )}
+              </div>
+
+              {personSearchQuery.trim().length < 2 ? (
+                <div className="p-8 text-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/60">
+                  <Search className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                  <p className="text-xs font-bold text-slate-600">
+                    Digite pelo menos 2 caracteres acima para iniciar a busca.
+                  </p>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Ex: digite "Maria Cleide" ou "1212252448" para localizar o cadastro.
+                  </p>
+                </div>
+              ) : personSearchCandidates.length === 0 ? (
+                <div className="p-8 text-center rounded-2xl border-2 border-dashed border-amber-200 bg-amber-50/40">
+                  <AlertTriangle className="w-8 h-8 text-amber-500 mx-auto mb-2" />
+                  <p className="text-xs font-bold text-slate-700">
+                    Nenhuma pessoa encontrada com "{personSearchQuery}".
+                  </p>
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Verifique se digitou o nome correto ou tente buscar diretamente pelo número do cartão ou CPF.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1">
+                  {personSearchCandidates.map((candidate, idx) => (
+                    <div
+                      key={`${candidate.cardNumber}-${idx}`}
+                      className="p-3.5 rounded-2xl border border-slate-200 bg-white hover:border-emerald-400 hover:bg-emerald-50/30 transition-all shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs sm:text-sm font-black text-slate-900 uppercase">
+                            {candidate.fullName}
+                          </span>
+                          <Badge
+                            variant="outline"
+                            className="bg-emerald-50 text-emerald-800 border-emerald-300 font-mono text-[10px] font-bold"
+                          >
+                            Cartão #{candidate.cardNumber}
+                          </Badge>
+                          {candidate.isLabcardSeed ? (
+                            <Badge className="bg-sky-100 text-sky-800 border-sky-300 text-[10px] font-semibold">
+                              Base Labcard
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-purple-100 text-purple-800 border-purple-300 text-[10px] font-semibold">
+                              {candidate.sourceLabel}
+                            </Badge>
+                          )}
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-600">
+                          {candidate.cpf && (
+                            <span>
+                              <strong>CPF:</strong> {candidate.cpf}
+                            </span>
+                          )}
+                          {candidate.birthDate && (
+                            <span>
+                              <strong>Nascimento:</strong> {candidate.birthDate}
+                            </span>
+                          )}
+                          {candidate.phone && (
+                            <span>
+                              <strong>Telefone:</strong> {candidate.phone}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={attachingPersonLoading}
+                        onClick={() => handleAttachPersonAsDependent(candidate)}
+                        className="bg-[#004d00] hover:bg-emerald-900 text-white font-bold text-xs shrink-0 cursor-pointer shadow-sm rounded-xl h-9 px-3 gap-1.5"
+                      >
+                        <UserPlus className="w-3.5 h-3.5" />
+                        {attachingPersonLoading ? 'Vinculando...' : 'Vincular como Dependente'}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setPersonSearchModalOpen(false);
+                setPersonSearchQuery('');
+              }}
+              className="text-slate-700 font-bold hover:bg-slate-200 rounded-xl"
+            >
+              Fechar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
