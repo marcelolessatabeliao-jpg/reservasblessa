@@ -830,8 +830,8 @@ export const WHATSAPP_NUMBER = '556992626140';
 export const OPERATING_HOURS = 'Aberto das 9h às 17h';
 export const OPERATING_DAYS = 'Sextas, Sábados, Domingos e Feriados';
 
-// Hospedagem e Camping liberados a partir do dia 12 de Novembro de 2026 (bloqueados até 11/11/2026)
-export const MIN_HOSPEDAGEM_CAMPING_DATE = '2026-11-12';
+// Hospedagem e Camping liberados a partir do dia 19 de Novembro de 2026 (bloqueados até 18/11/2026)
+export const MIN_HOSPEDAGEM_CAMPING_DATE = '2026-11-19';
 
 // Chalés liberados para locação a partir de quinta-feira 19 de Novembro de 2026
 export const MIN_CHALE_DATE = '2026-11-19';

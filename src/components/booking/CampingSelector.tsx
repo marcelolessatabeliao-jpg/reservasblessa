@@ -80,10 +80,10 @@ export function CampingSelector({ camping, onUpdate, visitDate, onUpdateVisitDat
   const activeDate = camping.date || visitDate;
   const isDateValid = activeDate ? (isOperatingDay(activeDate) && isDateAvailableForHospedagem(activeDate)) : false;
 
-  // Garante que o camping inicie em data válida a partir de 12/11/2026
+  // Garante que o camping inicie em data válida a partir de 19/11/2026
   useEffect(() => {
-    if (!activeDate || new Date(activeDate) < new Date('2026-11-12T00:00:00')) {
-      const defaultCampingDate = new Date('2026-11-13T12:00:00');
+    if (!activeDate || new Date(activeDate) < new Date('2026-11-19T00:00:00')) {
+      const defaultCampingDate = new Date('2026-11-20T12:00:00');
       onUpdate({ date: defaultCampingDate });
       if (onUpdateVisitDate) onUpdateVisitDate(defaultCampingDate);
     }
@@ -145,7 +145,7 @@ export function CampingSelector({ camping, onUpdate, visitDate, onUpdateVisitDat
           <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
           <div className="text-xs">
             <strong className="block text-amber-900 font-black">Atenção ao dia selecionado:</strong>
-            O camping está disponível <strong>a partir de 12/11/2026</strong>, exclusivamente em dias de funcionamento do parque (sextas, sábados, domingos e feriados).
+            O camping está disponível <strong>a partir de 19/11/2026</strong>, exclusivamente em dias de funcionamento do parque (sextas, sábados, domingos e feriados).
           </div>
         </div>
       )}
@@ -182,7 +182,7 @@ export function CampingSelector({ camping, onUpdate, visitDate, onUpdateVisitDat
                   Data de Entrada do Camping
                 </h5>
                 <p className="text-[10px] text-emerald-300">
-                  Liberado a partir de 12/11/2026 (dias de funcionamento)
+                  Liberado a partir de 19/11/2026 (dias de funcionamento)
                 </p>
               </div>
               <div className="p-2 flex justify-center">
@@ -197,10 +197,12 @@ export function CampingSelector({ camping, onUpdate, visitDate, onUpdateVisitDat
                     }
                   }}
                   disabled={(d) => {
+                    const day = new Date(d);
+                    day.setHours(0, 0, 0, 0);
                     const today = new Date();
                     today.setHours(0, 0, 0, 0);
-                    const minDate = new Date('2026-11-12T00:00:00');
-                    return d < today || d < minDate || !isOperatingDay(d);
+                    const minDate = new Date('2026-11-19T00:00:00');
+                    return day < today || day < minDate || !isOperatingDay(day);
                   }}
                   locale={ptBR}
                   className="p-1"
