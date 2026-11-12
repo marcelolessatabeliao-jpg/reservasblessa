@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { getLabcardSubscriptions } from './labcard-seed';
+import { getLabcardSubscriptions, doesPlanAllowDependents } from './labcard-seed';
 import {
   DEFAULT_CLUB_MODALITIES,
   DEFAULT_CONTRACT_TEMPLATES,
@@ -709,6 +709,81 @@ export const normalizeClubDatabaseState = (
     };
   });
 
+  // Garante que planos individuais (Student, Professor, Servidor, Kids, PDC/TEA, Vitalício)
+  // nunca mantenham dependentes indevidos, separando cada dependente como titular individual
+  const detachedIndividualSubs: ClubSubscription[] = [];
+  const cleanedSubscriptions = normalizedSubscriptions.map((sub) => {
+    const titularMod = sub.members.find((m) => m.role === 'TITULAR')?.modalityCode;
+    const allowsDeps = doesPlanAllowDependents(sub.planSummaryLabel || titularMod);
+
+    if (!allowsDeps && sub.members.some((m) => m.role === 'DEPENDENTE')) {
+      const depList = sub.members.filter((m) => m.role === 'DEPENDENTE');
+      depList.forEach((dep) => {
+        const depCard = dep.cardNumber || String(Date.now());
+        const indSub: ClubSubscription = {
+          id: `sub-labcard-${depCard}`,
+          subscriptionCode: depCard,
+          personType: 'PF',
+          holderName: dep.fullName,
+          holderCpf: dep.cpf || '',
+          holderBirthDate: dep.birthDate || '',
+          holderPhone: dep.phone || '',
+          addressCity: sub.addressCity || 'Porto Velho',
+          addressState: sub.addressState || 'RO',
+          billingCycle: 'MONTHLY',
+          paymentMethod: 'PIX',
+          installments: 1,
+          monthlyEquivalent: 0,
+          totalContractValue: 0,
+          dueDay: 10,
+          status: dep.status === 'ACTIVE' ? 'ACTIVE' : 'PENDING_TRANSFER',
+          origin: sub.origin || 'IMPORT_LABCARD',
+          planSummaryLabel: 'Sem Plano - R$ 0,00',
+          notes: `Cadastro individual desvinculado de ${sub.holderName}`,
+          contractType: 'ADESAO_PF',
+          contractAccepted: true,
+          startDate: sub.startDate || '2025-01-01',
+          endDate: dep.expirationDate || sub.endDate || '2027-10-31',
+          members: [
+            {
+              ...dep,
+              role: 'TITULAR',
+              holderCardNumber: depCard,
+              modalityCode: 'SEM_PLANO',
+              modalityName: 'Sem Plano',
+              planCycleLabel: 'Sem Plano',
+            },
+          ],
+          invoices: [],
+          attachments: [],
+          visits: [],
+          additionalServices: [],
+        };
+        detachedIndividualSubs.push(indSub);
+      });
+
+      const onlyTitular = sub.members.filter((m) => m.role === 'TITULAR');
+      const cleanLabel = sub.planSummaryLabel
+        ? sub.planSummaryLabel.replace(/\s*\(\d+\s*pessoas?\)/i, '')
+        : sub.planSummaryLabel;
+
+      return {
+        ...sub,
+        planSummaryLabel: cleanLabel,
+        members: onlyTitular,
+      };
+    }
+
+    return sub;
+  });
+
+  const finalNormalizedSubscriptions = [...cleanedSubscriptions];
+  detachedIndividualSubs.forEach((d) => {
+    if (!finalNormalizedSubscriptions.some((s) => s.id === d.id)) {
+      finalNormalizedSubscriptions.push(d);
+    }
+  });
+
   const hasLatestContractFormat = parsed.contractTemplates?.every(
     (t) =>
       ((t.contentHtml?.includes('[/resumo-financeiro-contrato]') &&
@@ -747,7 +822,7 @@ export const normalizeClubDatabaseState = (
       ...m,
       benefits: Array.isArray(m.benefits) ? m.benefits : [],
     })),
-    subscriptions: normalizedSubscriptions.filter((s) => !deletedIdSet.has(s.id)),
+    subscriptions: finalNormalizedSubscriptions.filter((s) => !deletedIdSet.has(s.id)),
     deletedSubscriptionIds: mergedDeletedIds,
     consultants: parsed.consultants?.length ? parsed.consultants : fallbackState?.consultants || getInitialState().consultants,
     contractTemplates:

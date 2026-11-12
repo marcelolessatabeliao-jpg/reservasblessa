@@ -70,6 +70,10 @@ function mapModality(planStr: string) {
     return { code: 'ADULTO', name: 'Lessa Duo Club', front: '/cards/44.png', back: '/cards/24.png', price: 74.9 };
   }
 
+  if (!p || p === '- r$ 0,00' || p.trim() === '- r$ 0,00' || p.includes('sem plano')) {
+    return { code: 'SEM_PLANO', name: 'Sem Plano', front: '/cards/21.png', back: '/cards/24.png', price: 0 };
+  }
+
   // Default Lessa Club
   let price = 49.9;
   if (p.includes('2 pessoas') || p.includes('2')) price = 99.8;
@@ -79,6 +83,42 @@ function mapModality(planStr: string) {
   if (p.includes('1.077')) price = 89.82;
   if (p.includes('538')) price = 44.91;
   return { code: 'ADULTO', name: 'Lessa Club', front: '/cards/44.png', back: '/cards/24.png', price };
+}
+
+export function doesPlanAllowDependents(planStr?: string): boolean {
+  const p = (planStr || '').toLowerCase();
+  // Planos individuais NÃO admitem dependentes:
+  if (
+    p.includes('student') ||
+    p.includes('estudante') ||
+    p.includes('professor') ||
+    p.includes('servidor') ||
+    p.includes('kids') ||
+    p.includes('tea') ||
+    p.includes('pcd') ||
+    p.includes('pdc') ||
+    p.includes('inclus') ||
+    p.includes('vital') ||
+    p.includes('60+') ||
+    p.includes('sem plano') ||
+    p === 'sem_plano'
+  ) {
+    return false;
+  }
+  // Apenas Lessa Family e Lessa Club admitem dependentes:
+  if (
+    p.includes('family') ||
+    p.includes('familia') ||
+    p.includes('corporate') ||
+    p.includes('publicidade') ||
+    p.includes('lessa club') ||
+    p.includes('duo') ||
+    p.includes('pessoas') ||
+    p === 'adulto'
+  ) {
+    return true;
+  }
+  return false;
 }
 
 let cachedLabcardSubs: ClubSubscription[] | null = null;
@@ -101,9 +141,10 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
       currentTitular = row;
       currentDependents = [];
     } else {
-      if (currentTitular) {
+      if (currentTitular && doesPlanAllowDependents(currentTitular[3])) {
         currentDependents.push(row);
       } else {
+        if (currentTitular) groups.push({ titular: currentTitular, dependents: currentDependents });
         currentTitular = row;
         currentDependents = [];
       }

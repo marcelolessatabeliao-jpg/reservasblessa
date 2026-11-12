@@ -159,7 +159,7 @@ import {
   ClubMemberCardView,
   MultiCardPrintSheet,
 } from '@/components/club/ClubMemberCardView';
-import { LABCARD_RAW_RECORDS } from '@/lib/labcard-seed';
+import { LABCARD_RAW_RECORDS, doesPlanAllowDependents } from '@/lib/labcard-seed';
 
 const MONTH_OPTIONS = [
   { value: '2026-01', label: 'Janeiro/2026' },
@@ -2531,6 +2531,20 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
     try {
       const targetSub = selectedSubForDetail;
+      const isPlanAllowingDeps = doesPlanAllowDependents(
+        targetSub.planSummaryLabel || targetSub.members[0]?.modalityCode
+      );
+      if (!isPlanAllowingDeps) {
+        toast({
+          title: 'Plano Individual',
+          description:
+            'Este plano é estritamente individual (Student, Professor, Servidor, Kids, TEA/PCD ou Vitalício) e não aceita dependentes. Apenas os planos Lessa Family e Lessa Club permitem dependentes.',
+          variant: 'destructive',
+        });
+        setAttachingPersonLoading(false);
+        return;
+      }
+
       const cleanName = person.fullName.trim();
       const cleanCpf = person.cpf ? formatCpf(person.cpf) : '';
       const cardNum = person.cardNumber || String(Number(targetSub.subscriptionCode) + targetSub.members.length);
@@ -2649,6 +2663,92 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     } finally {
       setAttachingPersonLoading(false);
     }
+  };
+
+  // Desvincular um dependente e torná-lo titular de seu próprio cadastro individual
+  const handleDetachDependentToIndividual = async (
+    sub: ClubSubscription,
+    memberId: string
+  ) => {
+    if (!state) return;
+    const targetMember = sub.members.find((m) => m.id === memberId);
+    if (!targetMember) return;
+
+    const depCard = targetMember.cardNumber || String(Date.now());
+    const newIndSub: ClubSubscription = {
+      id: `sub-labcard-${depCard}`,
+      subscriptionCode: depCard,
+      personType: 'PF',
+      holderName: targetMember.fullName,
+      holderCpf: targetMember.cpf || '',
+      holderBirthDate: targetMember.birthDate || '',
+      holderPhone: targetMember.phone || '',
+      addressCity: sub.addressCity || 'Porto Velho',
+      addressState: sub.addressState || 'RO',
+      billingCycle: 'MONTHLY',
+      paymentMethod: 'PIX',
+      installments: 1,
+      monthlyEquivalent: 0,
+      totalContractValue: 0,
+      dueDay: 10,
+      status: targetMember.status === 'ACTIVE' ? 'ACTIVE' : 'PENDING_TRANSFER',
+      origin: sub.origin || 'IMPORT_LABCARD',
+      planSummaryLabel: 'Sem Plano - R$ 0,00',
+      notes: `Cadastro individual desvinculado de ${sub.holderName} (#${sub.subscriptionCode})`,
+      contractType: 'ADESAO_PF',
+      contractAccepted: true,
+      startDate: sub.startDate || '2025-01-01',
+      endDate: targetMember.expirationDate || sub.endDate || '2027-10-31',
+      manualStatusOverride: true,
+      transferCompleted: true,
+      transferredAt: new Date().toISOString(),
+      members: [
+        {
+          ...targetMember,
+          role: 'TITULAR',
+          holderCardNumber: depCard,
+          modalityCode: 'SEM_PLANO',
+          modalityName: 'Sem Plano',
+          planCycleLabel: 'Sem Plano',
+          manualStatusOverride: true,
+        },
+      ],
+      invoices: [],
+      attachments: [],
+      visits: [],
+      additionalServices: [],
+    };
+
+    const remainingMembers = sub.members.filter((m) => m.id !== memberId);
+    const updatedSub: ClubSubscription = {
+      ...sub,
+      members: remainingMembers,
+      updatedAt: new Date().toISOString(),
+      manualStatusOverride: true,
+      transferCompleted: true,
+      transferredAt: sub.transferredAt || new Date().toISOString(),
+    };
+
+    let nextSubs = (state.subscriptions || []).map((s) =>
+      s.id === updatedSub.id ? updatedSub : s
+    );
+    if (!nextSubs.some((s) => s.id === newIndSub.id)) {
+      nextSubs.push(newIndSub);
+    }
+
+    const nextState: ClubDatabaseState = {
+      ...state,
+      subscriptions: nextSubs,
+    };
+
+    await persist(nextState);
+    if (selectedSubForDetail?.id === updatedSub.id) {
+      setSelectedSubForDetail(updatedSub);
+    }
+    toast({
+      title: 'Dependente Desvinculado!',
+      description: `${targetMember.fullName} (Cartão #${depCard}) agora possui seu próprio cadastro individual como Titular.`,
+    });
   };
 
   const getSubscriptionPlanBreakdown = (sub: ClubSubscription) => {
@@ -11365,29 +11465,72 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           <Users className="w-4 h-4 text-emerald-700" />
                           Integrantes da Assinatura ({selectedSubForDetail.members.length}): Nome e Plano de Cada Pessoa
                         </div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Button
-                            type="button"
-                            size="sm"
-                            onClick={() => {
-                              setPersonSearchQuery('');
-                              setPersonSearchModalOpen(true);
-                            }}
-                            className="h-7 text-[11px] font-black bg-emerald-800 hover:bg-emerald-900 text-white shadow-xs cursor-pointer flex items-center gap-1"
-                            title="Buscar dependente por nome ou cartão para agrupar nesta família"
-                          >
-                            <Search className="w-3 h-3 text-amber-300" /> + Buscar e Agrupar Dependente
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setClientDetailTool('ANEXOS')}
-                            className="h-7 text-[11px] font-bold border-emerald-600 text-emerald-900 bg-white"
-                          >
-                            <Paperclip className="w-3 h-3 mr-1" /> Ver / Anexar Documentos
-                          </Button>
-                        </div>
+                        {(() => {
+                          const isPlanAllowingDeps = doesPlanAllowDependents(
+                            selectedSubForDetail.planSummaryLabel ||
+                              selectedSubForDetail.members[0]?.modalityCode
+                          );
+                          const hasDependents = selectedSubForDetail.members.some(
+                            (m) => m.role === 'DEPENDENTE'
+                          );
+
+                          return (
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {!isPlanAllowingDeps && (
+                                <Badge
+                                  variant="outline"
+                                  className="border-amber-400 bg-amber-50 text-amber-900 text-[11px] font-bold"
+                                >
+                                  ⚠️ Plano Individual (Sem Dependentes)
+                                </Badge>
+                              )}
+                              {!isPlanAllowingDeps && hasDependents && (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  onClick={async () => {
+                                    const deps = selectedSubForDetail.members.filter(
+                                      (m) => m.role === 'DEPENDENTE'
+                                    );
+                                    for (const dep of deps) {
+                                      await handleDetachDependentToIndividual(
+                                        selectedSubForDetail,
+                                        dep.id
+                                      );
+                                    }
+                                  }}
+                                  className="h-7 text-[11px] font-black bg-amber-600 hover:bg-amber-700 text-white shadow-xs cursor-pointer flex items-center gap-1"
+                                  title="Separar todos os dependentes indevidos deste cadastro individual como titulares próprios"
+                                >
+                                  Separar Todos como Titulares Individuais
+                                </Button>
+                              )}
+                              {isPlanAllowingDeps && (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  onClick={() => {
+                                    setPersonSearchQuery('');
+                                    setPersonSearchModalOpen(true);
+                                  }}
+                                  className="h-7 text-[11px] font-black bg-emerald-800 hover:bg-emerald-900 text-white shadow-xs cursor-pointer flex items-center gap-1"
+                                  title="Buscar dependente por nome ou cartão para agrupar nesta família"
+                                >
+                                  <Search className="w-3 h-3 text-amber-300" /> + Buscar e Agrupar Dependente
+                                </Button>
+                              )}
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setClientDetailTool('ANEXOS')}
+                                className="h-7 text-[11px] font-bold border-emerald-600 text-emerald-900 bg-white"
+                              >
+                                <Paperclip className="w-3 h-3 mr-1" /> Ver / Anexar Documentos
+                              </Button>
+                            </div>
+                          );
+                        })()}
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
                         {selectedSubForDetail.members.map((m, idx) => {
@@ -11433,25 +11576,42 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                       : 'INATIVO'}
                                   </Badge>
                                   {isDep && (
-                                    <Button
-                                      type="button"
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() =>
-                                        handleToggleMemberStatus(
-                                          selectedSubForDetail,
-                                          m.id,
-                                          m.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'
-                                        )
-                                      }
-                                      className={`h-6 px-2 text-[10px] font-bold cursor-pointer ${
-                                        m.status === 'ACTIVE'
-                                          ? 'border-rose-300 text-rose-700 bg-rose-50 hover:bg-rose-100'
-                                          : 'border-emerald-300 text-emerald-800 bg-emerald-50 hover:bg-emerald-100'
-                                      }`}
-                                    >
-                                      {m.status === 'ACTIVE' ? 'Inativar' : 'Ativar'}
-                                    </Button>
+                                    <>
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() =>
+                                          handleToggleMemberStatus(
+                                            selectedSubForDetail,
+                                            m.id,
+                                            m.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'
+                                          )
+                                        }
+                                        className={`h-6 px-2 text-[10px] font-bold cursor-pointer ${
+                                          m.status === 'ACTIVE'
+                                            ? 'border-rose-300 text-rose-700 bg-rose-50 hover:bg-rose-100'
+                                            : 'border-emerald-300 text-emerald-800 bg-emerald-50 hover:bg-emerald-100'
+                                        }`}
+                                      >
+                                        {m.status === 'ACTIVE' ? 'Inativar' : 'Ativar'}
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() =>
+                                          handleDetachDependentToIndividual(
+                                            selectedSubForDetail,
+                                            m.id
+                                          )
+                                        }
+                                        className="h-6 px-2 text-[10px] font-bold border-amber-400 text-amber-900 bg-amber-50 hover:bg-amber-100 cursor-pointer"
+                                        title="Separar este dependente em um cadastro individual próprio como Titular"
+                                      >
+                                        Tornar Titular Individual
+                                      </Button>
+                                    </>
                                   )}
                                 </div>
                               </div>
