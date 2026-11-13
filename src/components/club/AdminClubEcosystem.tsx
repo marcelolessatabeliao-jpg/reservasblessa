@@ -11976,17 +11976,21 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                 <span>
                                   Cartão: <strong className="font-mono text-slate-700">{m.cardNumber}</strong> • CPF: {m.cpf || '-'}
                                 </span>
-                                {rule.requiresDocument && (
+                                {rule.requiresDocument ? (
                                   <span
                                     className={
                                       hasDoc
-                                        ? 'text-emerald-700 font-bold'
-                                        : 'text-rose-600 font-bold'
+                                        ? 'text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 inline-flex items-center gap-1'
+                                        : 'text-rose-600 font-bold bg-rose-50 px-2 py-0.5 rounded border border-rose-200 inline-flex items-center gap-1'
                                     }
                                   >
-                                    {hasDoc ? '✔ Doc. anexado' : '⚠ Sem doc. anexado'}
+                                    {hasDoc ? '✔ Comprovação Anexada' : '⚠ Sem doc. anexado'}
                                   </span>
-                                )}
+                                ) : hasDoc ? (
+                                  <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 inline-flex items-center gap-1">
+                                    ✔ Documento Anexado
+                                  </span>
+                                ) : null}
                               </div>
                               <div className="flex flex-wrap items-center justify-between gap-2 pt-1.5 border-t border-slate-100">
                                 <span className={`text-[11px] font-semibold ${isExpired ? 'text-rose-700' : 'text-slate-600'}`}>
@@ -15212,6 +15216,20 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           memberItem,
                           selectedSubForDetail
                         );
+                        // Anexos da assinatura vinculados ao titular ou que mencionem este integrante
+                        const memberSubAttachments = (selectedSubForDetail.attachments || []).filter((att) => {
+                          if (memberItem.role === 'TITULAR' || selectedSubForDetail.members.length === 1) {
+                            return true;
+                          }
+                          const firstName = memberItem.fullName.split(' ')[0].toLowerCase().trim();
+                          const attName = (att.name || '').toLowerCase();
+                          return (
+                            (firstName.length >= 3 && attName.includes(firstName)) ||
+                            (memberItem.cardNumber && attName.includes(memberItem.cardNumber)) ||
+                            (memberItem.id && att.id.includes(memberItem.id))
+                          );
+                        });
+
                         const combinedAttachments = [
                           ...(memberItem.documentProofUrl &&
                           !(memberItem.attachments || []).some(
@@ -15230,13 +15248,19 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                               ]
                             : []),
                           ...(memberItem.attachments || []),
+                          ...memberSubAttachments.filter(
+                            (sa) =>
+                              !(memberItem.attachments || []).some(
+                                (ma) => ma.id === sa.id || (ma.dataUrl && ma.dataUrl === sa.dataUrl)
+                              )
+                          ),
                         ];
 
                         return (
                           <div
                             key={memberItem.id}
                             className={`p-3.5 rounded-xl border space-y-2.5 ${
-                              missingDoc
+                              !hasDoc && docRule.requiresDocument
                                 ? 'border-amber-400 bg-amber-50/70'
                                 : 'border-slate-200 bg-slate-50/80'
                             }`}
@@ -15272,12 +15296,12 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                 {docRule.requiresDocument && (
                                   <Badge
                                     className={
-                                      missingDoc
+                                      !hasDoc
                                         ? 'bg-rose-600 text-white text-[10px]'
                                         : 'bg-emerald-600 text-white text-[10px]'
                                     }
                                   >
-                                    {missingDoc
+                                    {!hasDoc
                                       ? 'INATIVO — FALTA COMPROVAÇÃO'
                                       : memberItem.documentVerified
                                       ? 'VALIDADO PELO ADMIN'

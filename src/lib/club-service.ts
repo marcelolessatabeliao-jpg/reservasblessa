@@ -137,17 +137,44 @@ export const memberHasProofDocument = (
   if (!member) return false;
   if (member.documentVerified) return true;
   if (member.documentProofUrl && member.documentProofUrl.trim().length > 0) return true;
-  if (Array.isArray(member.attachments) && member.attachments.some((a) => Boolean(a?.dataUrl))) {
+  if (Array.isArray(member.attachments) && member.attachments.length > 0) {
     return true;
   }
-  if (sub?.attachments && member.id) {
-    const matched = sub.attachments.some(
-      (att) =>
-        att.title?.includes(member.id!) ||
-        att.notes?.includes(member.id!)
-    );
+  if (Array.isArray(member.proofDocuments) && member.proofDocuments.length > 0) {
+    return true;
+  }
+
+  // Verifica nos anexos da assinatura (sub.attachments)
+  if (sub?.attachments && Array.isArray(sub.attachments) && sub.attachments.length > 0) {
+    // Se o membro é titular ou a assinatura só tem 1 membro, qualquer anexo cadastrado para o cliente conta como documento dele
+    const isHolderOrSolo =
+      member.role === 'TITULAR' ||
+      !sub.members ||
+      sub.members.length <= 1 ||
+      (sub.members[0] && sub.members[0].id === member.id);
+
+    if (isHolderOrSolo) {
+      return true;
+    }
+
+    // Para dependentes em famílias com múltiplos integrantes, busca por primeiro nome, cartão ou id
+    const firstName = (member.fullName || '').split(' ')[0].toLowerCase().trim();
+    const card = (member.cardNumber || '').trim();
+    const memId = (member.id || '').trim();
+
+    const matched = sub.attachments.some((att) => {
+      const attName = (att.name || '').toLowerCase();
+      const attId = (att.id || '').toLowerCase();
+      return (
+        (firstName.length >= 3 && attName.includes(firstName)) ||
+        (card && attName.includes(card)) ||
+        (memId && (attId.includes(memId) || attName.includes(memId)))
+      );
+    });
+
     if (matched) return true;
   }
+
   return false;
 };
 
