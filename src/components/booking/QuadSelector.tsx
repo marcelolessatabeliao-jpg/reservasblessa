@@ -19,13 +19,13 @@ interface Props {
   onRemoveQuad?: (index: number) => void;
 }
 
-// CAPACIDADE MÁXIMA ESTRITA: O Balneário Lessa opera com no máximo 2 quadriciclos por horário
-const MAX_QUADS_PER_SLOT = 2;
+// Capacidade configurável de quadriciclos por horário (padrão oficial: 3 quadriciclos)
+const DEFAULT_QUADS_PER_SLOT = 3;
 
 export function QuadSelector({ quads, selectedDate, onUpdate, onSetQuads }: Props) {
   const { getPrice, isLoading } = useServices();
   const { toast } = useToast();
-  const [maxQuads, setMaxQuads] = useState<number>(MAX_QUADS_PER_SLOT);
+  const [maxQuads, setMaxQuads] = useState<number>(DEFAULT_QUADS_PER_SLOT);
   const [slotAvailabilities, setSlotAvailabilities] = useState<Record<string, number>>({});
   const [isFetchingAvailability, setIsFetchingAvailability] = useState(false);
   const [disableQuads, setDisableQuads] = useState(false);
@@ -54,16 +54,26 @@ export function QuadSelector({ quads, selectedDate, onUpdate, onSetQuads }: Prop
 
   useEffect(() => {
     async function fetchConfig() {
-      // Limite absoluto de no máximo 2 quadriciclos por horário
-      const total = await getGlobalSetting('total_quads', MAX_QUADS_PER_SLOT);
+      const total = await getGlobalSetting('total_quads', DEFAULT_QUADS_PER_SLOT);
       const configuredTotal = Number(total);
-      setMaxQuads(configuredTotal > 0 ? Math.min(MAX_QUADS_PER_SLOT, configuredTotal) : MAX_QUADS_PER_SLOT);
+      setMaxQuads(configuredTotal > 0 ? configuredTotal : DEFAULT_QUADS_PER_SLOT);
       const blockedQuads = await getGlobalSetting('disable_quads', false);
       setDisableQuads(Boolean(blockedQuads));
       const blockedSlots = await getGlobalSetting('disabled_quad_slots', []);
       setDisabledQuadSlots(Array.isArray(blockedSlots) ? blockedSlots : []);
     }
     fetchConfig();
+
+    const handleSettingChange = (e: any) => {
+      if (e?.detail?.key === 'total_quads') {
+        const val = Number(e.detail.value);
+        if (val > 0) setMaxQuads(val);
+      }
+    };
+    window.addEventListener('global_setting_updated', handleSettingChange);
+    return () => {
+      window.removeEventListener('global_setting_updated', handleSettingChange);
+    };
   }, []);
 
   useEffect(() => {
@@ -111,7 +121,7 @@ export function QuadSelector({ quads, selectedDate, onUpdate, onSetQuads }: Prop
     const indItem = quads.find(q => q.time === slotTime && q.type === 'individual' && q.quantity > 0);
     const dupItem = quads.find(q => q.time === slotTime && q.type === 'dupla' && q.quantity > 0);
     const currentSlotTotal = (indItem?.quantity || 0) + (dupItem?.quantity || 0);
-    const maxAllowed = Math.min(MAX_QUADS_PER_SLOT, Math.max(0, MAX_QUADS_PER_SLOT - dbUsed + currentSlotTotal));
+    const maxAllowed = Math.max(0, maxQuads - dbUsed + currentSlotTotal);
 
     const safeInd = Math.max(0, newIndQty);
     const safeDup = Math.max(0, newDupQty);
@@ -269,8 +279,8 @@ export function QuadSelector({ quads, selectedDate, onUpdate, onSetQuads }: Prop
                   const totalSlotQty = indQty + dupQty;
                   const isSelectedByMe = totalSlotQty > 0;
 
-                  // Trava de no máximo 2 quadriciclos por horário
-                  const remaining = isSlotDisabled ? 0 : Math.max(0, MAX_QUADS_PER_SLOT - dbUsed);
+                  // Trava dinâmica de quadriciclos por horário
+                  const remaining = isSlotDisabled ? 0 : Math.max(0, maxQuads - dbUsed);
                   const isFull = isSlotDisabled || remaining <= 0;
                   const isExpanded = expandedSlot === t;
                   const isHighlighted = isSelectedByMe || isExpanded;
@@ -395,8 +405,8 @@ export function QuadSelector({ quads, selectedDate, onUpdate, onSetQuads }: Prop
                 const currentDupQty = dupItem?.quantity || 0;
                 const currentSlotTotal = currentIndQty + currentDupQty;
                 
-                // Vagas disponíveis para este horário: TRAVA RIGOROSA DE NO MÁXIMO 2 NO TOTAL
-                const availableForSlot = isSlotDisabled ? 0 : Math.max(0, Math.min(MAX_QUADS_PER_SLOT, MAX_QUADS_PER_SLOT - dbUsed + currentSlotTotal));
+                // Vagas disponíveis para este horário com base na capacidade mestre
+                const availableForSlot = isSlotDisabled ? 0 : Math.max(0, maxQuads - dbUsed + currentSlotTotal);
                 const slotGrossTotal = (currentIndQty * indGrossPrice) + (currentDupQty * dupGrossPrice);
                 const slotFinalTotal = (currentIndQty * indFinalPrice) + (currentDupQty * dupFinalPrice);
 
@@ -412,7 +422,7 @@ export function QuadSelector({ quads, selectedDate, onUpdate, onSetQuads }: Prop
                             Configurar Passeio das {slot}
                           </h4>
                           <span className="text-[11px] text-amber-300 font-bold block">
-                            {availableForSlot} quadriciclo{availableForSlot > 1 ? 's' : ''} disponível{availableForSlot > 1 ? 'is' : ''} (Limite: máximo 2 por horário)
+                            {availableForSlot} quadriciclo{availableForSlot > 1 ? 's' : ''} disponível{availableForSlot > 1 ? 'is' : ''} (Limite: máximo {maxQuads} por horário)
                           </span>
                         </div>
                       </div>
@@ -560,7 +570,7 @@ export function QuadSelector({ quads, selectedDate, onUpdate, onSetQuads }: Prop
                           </div>
                         ) : (
                           <span className="text-xs font-bold text-slate-400 italic block mt-0.5 text-center sm:text-left">
-                            Selecione 1 ou 2 quadriciclos (individual ou dupla)
+                            Selecione até {availableForSlot} quadriciclo{availableForSlot > 1 ? 's' : ''} (individual ou dupla)
                           </span>
                         )}
                       </div>

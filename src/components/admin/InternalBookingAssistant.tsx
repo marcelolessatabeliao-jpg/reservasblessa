@@ -26,13 +26,14 @@ export function InternalBookingAssistant({
   isAllowedDay, 
   isHoliday, 
   kioskReservations = [], 
-  quadReservations = [] 
+  quadReservations = [],
+  totalQuads
 }: any) {
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isFetchingAvail, setIsFetchingAvail] = useState(false);
   const [bookedIds, setBookedIds] = useState<number[]>([]);
-  const [maxQuads, setMaxQuads] = useState(2);
+  const [maxQuads, setMaxQuads] = useState(totalQuads ? Number(totalQuads) : 3);
   const [slotAvailabilities, setSlotAvailabilities] = useState<Record<string, number>>({});
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   
@@ -41,11 +42,11 @@ export function InternalBookingAssistant({
 
   const QUAD_TIMES = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00'];
 
-  // Fetch max quads on mount
+  // Fetch max quads on mount e quando abrir o modal ou mudar a prop
   useEffect(() => {
     async function fetchConfig() {
-      const total = await getGlobalSetting('total_quads', 2);
-      const finalTotal = Math.min(2, Number(total) || 2);
+      const total = await getGlobalSetting('total_quads', totalQuads || 3);
+      const finalTotal = Math.max(1, Number(total) || 3);
       setMaxQuads(finalTotal);
       // Initialize slot availabilities with the fetched max quads
       const initialAvail: Record<string, number> = {};
@@ -55,7 +56,18 @@ export function InternalBookingAssistant({
       setSlotAvailabilities(initialAvail);
     }
     fetchConfig();
-  }, []);
+
+    const handleSettingChange = (e: any) => {
+      if (e?.detail?.key === 'total_quads') {
+        const val = Number(e.detail.value);
+        if (val > 0) setMaxQuads(val);
+      }
+    };
+    window.addEventListener('global_setting_updated', handleSettingChange);
+    return () => {
+      window.removeEventListener('global_setting_updated', handleSettingChange);
+    };
+  }, [totalQuads, isOpen]);
 
   const initialData = {
     name: '', phone: '', cpf: '', visit_date: '',

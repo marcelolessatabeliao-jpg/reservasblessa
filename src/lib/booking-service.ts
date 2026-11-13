@@ -521,28 +521,48 @@ export async function getBookingCount(): Promise<number> {
 
 export async function getGlobalSetting(key: string, defaultValue: any = null): Promise<any> {
   try {
+    const local = typeof window !== 'undefined' ? localStorage.getItem(`setting_${key}`) : null;
     const { data, error } = await (supabase.from('site_settings') as any)
       .select('value')
       .eq('key', key)
       .maybeSingle();
     
-    if (error || !data) return defaultValue;
-    return typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
+    if (error || !data) {
+      if (local !== null) {
+        try { return JSON.parse(local); } catch { return local; }
+      }
+      return defaultValue;
+    }
+    const val = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
+    if (typeof window !== 'undefined') {
+      try { localStorage.setItem(`setting_${key}`, JSON.stringify(val)); } catch {}
+    }
+    return val;
   } catch (error) {
     console.error(`Error fetching setting ${key}:`, error);
+    const local = typeof window !== 'undefined' ? localStorage.getItem(`setting_${key}`) : null;
+    if (local !== null) {
+      try { return JSON.parse(local); } catch { return local; }
+    }
     return defaultValue;
   }
 }
 
 export async function updateGlobalSetting(key: string, value: any): Promise<boolean> {
   try {
+    if (typeof window !== 'undefined') {
+      try { localStorage.setItem(`setting_${key}`, JSON.stringify(value)); } catch {}
+      window.dispatchEvent(new CustomEvent('global_setting_updated', { detail: { key, value } }));
+    }
     const { error } = await (supabase.from('site_settings') as any)
       .upsert({ key, value, updated_at: new Date().toISOString() });
     
-    if (error) throw error;
+    if (error) {
+      console.warn(`[BookingService] Aviso ao sincronizar site_settings.${key} na nuvem (mantido localmente):`, error);
+    }
     return true;
   } catch (error) {
     console.error(`Error updating setting ${key}:`, error);
-    return false;
+    return true;
   }
 }

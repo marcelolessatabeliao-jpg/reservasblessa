@@ -630,7 +630,7 @@ export default function Admin() {
   }, [bookings, orders, notificationsRefreshTrigger]);
 
   const [targetDate, setTargetDate] = useState<Date>(new Date());
-  const [totalQuads, setTotalQuads] = useState<number>(2);
+  const [totalQuads, setTotalQuads] = useState<number>(3);
   const [disableFutebolSabao, setDisableFutebolSabao] = useState(false);
   const [disablePesca, setDisablePesca] = useState(false);
   const [disableQuads, setDisableQuads] = useState(false);
@@ -762,8 +762,8 @@ export default function Admin() {
         );
       }
 
-      const tQuads = await getGlobalSetting('total_quads', 2);
-      setTotalQuads(Number(tQuads));
+      const tQuads = await getGlobalSetting('total_quads', 3);
+      setTotalQuads(Number(tQuads) || 3);
 
       const fsBlocked = await getGlobalSetting('disable_futebol_sabao', false);
       setDisableFutebolSabao(!!fsBlocked);
@@ -2061,7 +2061,7 @@ export default function Admin() {
               <div className="pt-4 border-t border-slate-200 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">Bloquear Horários (8h às 16h):</span>
-                  <span className="text-[10px] font-black text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">2 Quadriciclos / Horário</span>
+                  <span className="text-[10px] font-black text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">{totalQuads} Quadriciclos / Horário</span>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {QUAD_TIMES.map(t => {

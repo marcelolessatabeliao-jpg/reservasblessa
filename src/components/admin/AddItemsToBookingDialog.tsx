@@ -30,7 +30,7 @@ export function AddItemsToBookingDialog({
   const [loading, setLoading] = useState(false);
   const [isFetchingAvail, setIsFetchingAvail] = useState(false);
   const [bookedIds, setBookedIds] = useState<number[]>([]);
-  const [maxQuads, setMaxQuads] = useState(2);
+  const [maxQuads, setMaxQuads] = useState(3);
   const [slotAvailabilities, setSlotAvailabilities] = useState<Record<string, number>>({});
   
   const { toast } = useToast();
@@ -59,11 +59,22 @@ export function AddItemsToBookingDialog({
 
   useEffect(() => {
     async function fetchConfig() {
-      const total = await getGlobalSetting('total_quads', 2);
-      setMaxQuads(Number(total));
+      const total = await getGlobalSetting('total_quads', 3);
+      setMaxQuads(Number(total) || 3);
     }
     fetchConfig();
-  }, []);
+
+    const handleSettingChange = (e: any) => {
+      if (e?.detail?.key === 'total_quads') {
+        const val = Number(e.detail.value);
+        if (val > 0) setMaxQuads(val);
+      }
+    };
+    window.addEventListener('global_setting_updated', handleSettingChange);
+    return () => {
+      window.removeEventListener('global_setting_updated', handleSettingChange);
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     const fetchOccupied = async () => {
