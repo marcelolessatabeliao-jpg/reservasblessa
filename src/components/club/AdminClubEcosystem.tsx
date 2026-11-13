@@ -492,6 +492,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
   const [gerarCarneAsaasRecurrence, setGerarCarneAsaasRecurrence] = useState<'NONE' | 'REGISTERED_CARD'>('NONE');
   const [gerarCarneAsaasBillingType, setGerarCarneAsaasBillingType] = useState<'UNDEFINED' | 'BOLETO' | 'PIX'>('UNDEFINED');
   const [gerarCarneAsaasLoading, setGerarCarneAsaasLoading] = useState(false);
+  const [gerarCarneProgress, setGerarCarneProgress] = useState<string>('');
 
   // Modal de Confirmação Obrigatória para Exclusão / Estorno de Parcelas
   const [invoiceDeleteConfirm, setInvoiceDeleteConfirm] = useState<
@@ -14931,8 +14932,15 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         <div className="flex items-center justify-center gap-3 pt-2 border-t border-slate-200">
                           <Button
                             type="button"
-                            disabled={gerarCarneAsaasLoading}
-                            onClick={() => setGerarCarneAsaasModalOpen(false)}
+                            onClick={() => {
+                              if (gerarCarneAsaasLoading) {
+                                toast({
+                                  title: 'Emissão em segundo plano',
+                                  description: 'A emissão das parcelas continuará sendo processada.',
+                                });
+                              }
+                              setGerarCarneAsaasModalOpen(false);
+                            }}
                             className="bg-[#d9534f] hover:bg-rose-700 text-white font-bold text-xs uppercase px-5 h-10"
                           >
                             FECHAR JANELA
@@ -14947,6 +14955,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                             }
                             onClick={async () => {
                               setGerarCarneAsaasLoading(true);
+                              setGerarCarneProgress('(Iniciando...)');
                               try {
                                 const res = await emitCarneMonthlyChargesInAsaas({
                                   subscriptionId: selectedSubForDetail.id,
@@ -14957,6 +14966,9 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                   equalizedAmount: equalizedValue,
                                   activateCardRecurrence: gerarCarneAsaasRecurrence === 'REGISTERED_CARD',
                                   cardLast4: selectedSubForDetail.registeredCard?.last4Digits,
+                                  onProgress: (cur, tot) => {
+                                    setGerarCarneProgress(`(${cur}/${tot})`);
+                                  },
                                 });
                                 setState(res.state);
                                 const updated = res.state.subscriptions.find(
@@ -14967,23 +14979,24 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                 }
                                 setGerarCarneAsaasModalOpen(false);
                                 toast({
-                                  title: `Carnê gerado no Asaas!`,
-                                  description: `${res.generatedCount} cobrança(s) emitida(s) de ${formatCurrency(equalizedValue)}${res.failedCount > 0 ? ` (${res.failedCount} falha(s): ${res.firstError || ''})` : ''}.`,
-                                  variant: res.generatedCount === 0 ? 'destructive' : 'default',
+                                  title: res.generatedCount > 0 ? `Carnê gerado no Asaas!` : 'Aviso sobre o Carnê',
+                                  description: `${res.generatedCount} cobrança(s) sincronizada(s) no Asaas de ${formatCurrency(equalizedValue)}${res.failedCount > 0 ? ` (${res.failedCount} com pendência: ${res.firstError || 'verifique gateway'})` : ''}.`,
+                                  variant: res.generatedCount === 0 && res.failedCount > 0 ? 'destructive' : 'default',
                                 });
                               } catch (err: any) {
                                 toast({
-                                  title: 'Erro ao gerar Carnê no Asaas',
+                                  title: 'Aviso ao gerar Carnê no Asaas',
                                   description: err?.message || 'Verifique os dados do associado e tente novamente.',
                                   variant: 'destructive',
                                 });
                               } finally {
                                 setGerarCarneAsaasLoading(false);
+                                setGerarCarneProgress('');
                               }
                             }}
                             className="bg-[#5cb85c] hover:bg-emerald-600 text-white font-bold text-xs uppercase px-5 h-10"
                           >
-                            {gerarCarneAsaasLoading ? 'EMITINDO NO ASAAS...' : 'GERAR CARNÊ!'}
+                            {gerarCarneAsaasLoading ? `EMITINDO NO ASAAS ${gerarCarneProgress}...` : 'GERAR CARNÊ!'}
                           </Button>
                         </div>
                       </div>

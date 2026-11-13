@@ -1797,7 +1797,31 @@ export interface EmitCarneMonthlyChargesParams {
   equalizedAmount?: number;
   activateCardRecurrence?: boolean;
   cardLast4?: string;
+  onProgress?: (current: number, total: number, message: string) => void;
 }
+
+const invokeEdgeFunctionWithTimeout = async (
+  name: string,
+  options: { body: any },
+  timeoutMs = 12000
+): Promise<any> => {
+  let timeoutId: any;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(`Tempo limite de ${timeoutMs / 1000}s atingido na comunicação com o gateway.`));
+    }, timeoutMs);
+  });
+
+  try {
+    const result = await Promise.race([
+      supabase.functions.invoke(name, options),
+      timeoutPromise,
+    ]);
+    return result;
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+};
 
 export const emitCarneMonthlyChargesInAsaas = async (
   params: EmitCarneMonthlyChargesParams
@@ -1839,6 +1863,14 @@ export const emitCarneMonthlyChargesInAsaas = async (
 
   for (let idx = 0; idx < eligibleInvoices.length; idx++) {
     const inv = eligibleInvoices[idx];
+    if (params.onProgress) {
+      params.onProgress(
+        idx + 1,
+        eligibleInvoices.length,
+        `Emitindo parcela ${idx + 1} de ${eligibleInvoices.length}...`
+      );
+    }
+
     // Atualiza datas subsequentes com dia fixo e valor equalizado caso informado
     const due = new Date(baseDate.getFullYear(), baseDate.getMonth() + idx, 1);
     const maxDayOfMonth = new Date(due.getFullYear(), due.getMonth() + 1, 0).getDate();
@@ -1874,7 +1906,7 @@ export const emitCarneMonthlyChargesInAsaas = async (
         .filter(Boolean)
         .join('\n');
 
-      const { data, error } = await supabase.functions.invoke('create-payment', {
+      const { data, error } = await invokeEdgeFunctionWithTimeout('create-payment', {
         body: {
           orderId: inv.id,
           name: targetSub.holderName,
@@ -1886,7 +1918,7 @@ export const emitCarneMonthlyChargesInAsaas = async (
           dueDate: inv.dueDate,
           description: asaasDescription,
         },
-      });
+      }, 12000);
 
       if (!error && data?.success && data.data) {
         inv.asaasPaymentId = data.data.paymentId;

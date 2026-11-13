@@ -105,28 +105,67 @@ Deno.serve(async (req) => {
         }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });
     }
 
-    // 3. Criar/Vincular Cliente no Asaas
-    const customerReq = await fetch(`${ASAAS_URL}/customers`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'access_token': ASAAS_API_KEY },
-      body: JSON.stringify({
-        name: name,
-        cpfCnpj: cleanCpf,
-        email: email || 'cliente@balneariolessa.com.br',
-        mobilePhone: cleanPhone,
-        notificationDisabled: false,
-      })
-    });
+    // 3. Obter ou Criar Cliente no Asaas (reutiliza se já existir pelo CPF)
+    let asaasCustomerId: string | null = null;
 
-    const customerData = await customerReq.json();
-    if (!customerReq.ok) {
-       throw new Error(`Asaas (Cliente): ${customerData.errors?.[0]?.description || 'Erro ao criar cadastro'}`);
+    if (cleanCpf) {
+      try {
+        const existingCustRes = await fetch(`${ASAAS_URL}/customers?cpfCnpj=${cleanCpf}`, {
+          headers: { 'access_token': ASAAS_API_KEY }
+        });
+        if (existingCustRes.ok) {
+          const custJson = await existingCustRes.json();
+          if (custJson?.data && custJson.data.length > 0) {
+            asaasCustomerId = custJson.data[0].id;
+          }
+        }
+      } catch (searchErr) {
+        console.warn('Erro ao pesquisar cliente por CPF no Asaas:', searchErr);
+      }
+    }
+
+    if (!asaasCustomerId) {
+      const customerReq = await fetch(`${ASAAS_URL}/customers`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'access_token': ASAAS_API_KEY },
+        body: JSON.stringify({
+          name: name,
+          cpfCnpj: cleanCpf,
+          email: email || 'cliente@balneariolessa.com.br',
+          mobilePhone: cleanPhone,
+          notificationDisabled: false,
+        })
+      });
+
+      const customerData = await customerReq.json();
+      if (customerReq.ok && customerData?.id) {
+        asaasCustomerId = customerData.id;
+      } else {
+        // Se falhou ao criar (ex: duplicidade de CPF detectada pelo Asaas), faz uma segunda busca
+        if (cleanCpf) {
+          try {
+            const retryCustRes = await fetch(`${ASAAS_URL}/customers?cpfCnpj=${cleanCpf}`, {
+              headers: { 'access_token': ASAAS_API_KEY }
+            });
+            if (retryCustRes.ok) {
+              const retryJson = await retryCustRes.json();
+              if (retryJson?.data && retryJson.data.length > 0) {
+                asaasCustomerId = retryJson.data[0].id;
+              }
+            }
+          } catch (_) {}
+        }
+
+        if (!asaasCustomerId) {
+          throw new Error(`Asaas (Cliente): ${customerData.errors?.[0]?.description || 'Erro ao criar cadastro'}`);
+        }
+      }
     }
 
     // 4. Gerar Cobrança (PIX, CARTÃO ou CARNÊ com Parcelas)
     const isInstallment = Number(installmentCount) > 1;
     const paymentBody: Record<string, any> = {
-      customer: customerData.id,
+      customer: asaasCustomerId,
       billingType: billingType,
       dueDate: dueDate || new Date().toISOString().split('T')[0],
       description: description || `Reserva Balneário Lessa`,
