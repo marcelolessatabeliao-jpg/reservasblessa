@@ -106,7 +106,47 @@ export function QuadSelector({ quads, selectedDate, onUpdate, onSetQuads }: Prop
     return slotAvailabilities[slotTime] || 0;
   };
 
-  // Atualizar quantidades para um horário específico (permite 1 Individual + 1 Dupla, 2 Individual, ou 2 Dupla)
+  // Garante que nenhum horário exceda a capacidade máxima de quadriciclos disponíveis
+  useEffect(() => {
+    let hasOverflow = false;
+    const adjusted: QuadItem[] = [];
+    const groupedByTime: Record<string, { ind: number; dup: number; date?: Date }> = {};
+    
+    quads.forEach(q => {
+      if (q.quantity > 0 && q.time) {
+        if (!groupedByTime[q.time]) groupedByTime[q.time] = { ind: 0, dup: 0, date: q.date };
+        if (q.type === 'dupla') groupedByTime[q.time].dup += q.quantity;
+        else groupedByTime[q.time].ind += q.quantity;
+      }
+    });
+
+    Object.entries(groupedByTime).forEach(([time, counts]) => {
+      const dbUsed = getSlotDbUsage(time);
+      const slotLimit = Math.max(0, maxQuads - dbUsed);
+      const total = counts.ind + counts.dup;
+      if (total > slotLimit) {
+        hasOverflow = true;
+        let remainingCap = slotLimit;
+        const safeInd = Math.min(counts.ind, remainingCap);
+        remainingCap -= safeInd;
+        const safeDup = Math.min(counts.dup, remainingCap);
+        
+        if (safeInd > 0) adjusted.push({ type: 'individual', quantity: safeInd, time: time as QuadTime, date: counts.date });
+        if (safeDup > 0) adjusted.push({ type: 'dupla', quantity: safeDup, time: time as QuadTime, date: counts.date });
+      }
+    });
+
+    if (hasOverflow && onSetQuads) {
+      const timesWithOverflow = Object.keys(groupedByTime).filter(t => {
+        const dbUsed = getSlotDbUsage(t);
+        return (groupedByTime[t].ind + groupedByTime[t].dup) > Math.max(0, maxQuads - dbUsed);
+      });
+      const unaffected = quads.filter(q => !timesWithOverflow.includes(q.time || ''));
+      onSetQuads([...unaffected, ...adjusted]);
+    }
+  }, [maxQuads, slotAvailabilities]);
+
+  // Atualizar quantidades para um horário específico (permite Individual e/ou Dupla respeitando rigorosamente o limite de maxQuads)
   const handleUpdateSlotQuantities = (slotTime: QuadTime, newIndQty: number, newDupQty: number) => {
     if (!checkDate) {
       toast({ title: 'Selecione a data primeiro', variant: 'destructive' });
@@ -114,17 +154,14 @@ export function QuadSelector({ quads, selectedDate, onUpdate, onSetQuads }: Prop
     }
 
     const dbUsed = getSlotDbUsage(slotTime);
-    const indItem = quads.find(q => q.time === slotTime && q.type === 'individual' && q.quantity > 0);
-    const dupItem = quads.find(q => q.time === slotTime && q.type === 'dupla' && q.quantity > 0);
-    const currentSlotTotal = (indItem?.quantity || 0) + (dupItem?.quantity || 0);
-    const maxAllowed = Math.max(0, maxQuads - dbUsed + currentSlotTotal);
+    const maxSlotLimit = Math.max(0, maxQuads - dbUsed);
 
     const safeInd = Math.max(0, newIndQty);
     const safeDup = Math.max(0, newDupQty);
-    if (safeInd + safeDup > maxAllowed) {
+    if (safeInd + safeDup > maxSlotLimit) {
       toast({
-        title: 'Limite atingido',
-        description: `O limite máximo é de ${maxAllowed} quadriciclo(s) para este horário.`,
+        title: 'Limite máximo atingido',
+        description: `São permitidos no máximo ${maxSlotLimit} quadriciclo(s) no total para o horário das ${slotTime} (somando Individual e Dupla).`,
         variant: 'destructive',
       });
       return;
@@ -354,10 +391,10 @@ export function QuadSelector({ quads, selectedDate, onUpdate, onSetQuads }: Prop
                         )}>
                           {isSelectedByMe ? (
                             indQty > 0 && dupQty > 0
-                              ? `${indQty}x Ind. + ${dupQty}x Dup.`
+                              ? `${indQty}x Ind. + ${dupQty}x Dup. (${totalSlotQty}/${remaining})`
                               : indQty > 0
-                                ? `${indQty}x Individual`
-                                : `${dupQty}x De Dupla`
+                                ? `${indQty}x Individual (${totalSlotQty}/${remaining})`
+                                : `${dupQty}x De Dupla (${totalSlotQty}/${remaining})`
                           ) : isSlotDisabled ? (
                             'Indisponível'
                           ) : isFull ? (
@@ -401,8 +438,8 @@ export function QuadSelector({ quads, selectedDate, onUpdate, onSetQuads }: Prop
                 const currentDupQty = dupItem?.quantity || 0;
                 const currentSlotTotal = currentIndQty + currentDupQty;
                 
-                // Vagas disponíveis para este horário com base na capacidade mestre
-                const availableForSlot = isSlotDisabled ? 0 : Math.max(0, maxQuads - dbUsed + currentSlotTotal);
+                // Capacidade total máxima fixa para este horário (limite absoluto: maxQuads - dbUsed)
+                const maxSlotCapacity = isSlotDisabled ? 0 : Math.max(0, maxQuads - dbUsed);
                 const slotGrossTotal = (currentIndQty * indGrossPrice) + (currentDupQty * dupGrossPrice);
                 const slotFinalTotal = (currentIndQty * indFinalPrice) + (currentDupQty * dupFinalPrice);
 
@@ -418,7 +455,7 @@ export function QuadSelector({ quads, selectedDate, onUpdate, onSetQuads }: Prop
                             Configurar Passeio das {slot}
                           </h4>
                           <span className="text-[11px] text-amber-300 font-bold block">
-                            {availableForSlot} quadriciclo{availableForSlot > 1 ? 's' : ''} disponível{availableForSlot > 1 ? 'is' : ''} (Limite: máximo {maxQuads} por horário)
+                            {maxSlotCapacity} quadriciclo{maxSlotCapacity !== 1 ? 's' : ''} disponível{maxSlotCapacity !== 1 ? 'is' : ''} (Limite: máximo {maxSlotCapacity} por horário)
                           </span>
                         </div>
                       </div>
@@ -431,7 +468,7 @@ export function QuadSelector({ quads, selectedDate, onUpdate, onSetQuads }: Prop
                       </button>
                     </div>
 
-                    {/* SELEÇÃO INDEPENDENTE POR MODALIDADE (PERMITE 1 INDIVIDUAL + 1 DUPLA) */}
+                    {/* SELEÇÃO INDEPENDENTE POR MODALIDADE (PERMITE INDIVIDUAL E/OU DUPLA ATÉ O LIMITE DE 3) */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                       {/* Modalidade 1: Passeio Individual */}
                       <div className={cn(
@@ -449,7 +486,7 @@ export function QuadSelector({ quads, selectedDate, onUpdate, onSetQuads }: Prop
                               10% OFF
                             </span>
                           </div>
-                          <span className="text-[10.5px] text-emerald-200/90 font-medium mt-0.5 block">1 pessoa · 40 minutos</span>
+                          <span className="text-[10.5px] text-emerald-200/90 font-medium mt-0.5 block">1 pessoa por quadriciclo · 40 minutos</span>
                         </div>
 
                         <div className="flex items-center justify-between gap-2 pt-2 border-t border-white/10">
@@ -468,7 +505,7 @@ export function QuadSelector({ quads, selectedDate, onUpdate, onSetQuads }: Prop
                               type="button"
                               disabled={currentIndQty <= 0}
                               onClick={() => handleUpdateSlotQuantities(slot, currentIndQty - 1, currentDupQty)}
-                              className="w-8 h-8 rounded-xl font-black bg-emerald-950 border-2 border-emerald-700 text-white hover:bg-emerald-800 disabled:opacity-30 flex items-center justify-center cursor-pointer shadow-xs transition-colors"
+                              className="w-8 h-8 rounded-xl font-black bg-emerald-950 border-2 border-emerald-700 text-white hover:bg-emerald-800 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center cursor-pointer shadow-xs transition-colors"
                               title="Diminuir Individual"
                             >
                               <Minus className="w-3.5 h-3.5 stroke-[3]" />
@@ -478,9 +515,9 @@ export function QuadSelector({ quads, selectedDate, onUpdate, onSetQuads }: Prop
                             </span>
                             <button
                               type="button"
-                              disabled={currentSlotTotal >= availableForSlot}
+                              disabled={currentSlotTotal >= maxSlotCapacity}
                               onClick={() => handleUpdateSlotQuantities(slot, currentIndQty + 1, currentDupQty)}
-                              className="w-8 h-8 rounded-xl font-black bg-amber-400 border-2 border-amber-500 text-slate-950 hover:bg-amber-300 disabled:opacity-30 flex items-center justify-center cursor-pointer shadow-xs transition-colors"
+                              className="w-8 h-8 rounded-xl font-black bg-amber-400 border-2 border-amber-500 text-slate-950 hover:bg-amber-300 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center cursor-pointer shadow-xs transition-colors"
                               title="Adicionar Individual"
                             >
                               <Plus className="w-3.5 h-3.5 stroke-[3]" />
@@ -505,7 +542,7 @@ export function QuadSelector({ quads, selectedDate, onUpdate, onSetQuads }: Prop
                               10% OFF
                             </span>
                           </div>
-                          <span className="text-[10.5px] text-emerald-200/90 font-medium mt-0.5 block">2 pessoas · 40 minutos</span>
+                          <span className="text-[10.5px] text-emerald-200/90 font-medium mt-0.5 block">Até 2 pessoas por quadriciclo · 40 minutos</span>
                         </div>
 
                         <div className="flex items-center justify-between gap-2 pt-2 border-t border-white/10">
@@ -524,7 +561,7 @@ export function QuadSelector({ quads, selectedDate, onUpdate, onSetQuads }: Prop
                               type="button"
                               disabled={currentDupQty <= 0}
                               onClick={() => handleUpdateSlotQuantities(slot, currentIndQty, currentDupQty - 1)}
-                              className="w-8 h-8 rounded-xl font-black bg-emerald-950 border-2 border-emerald-700 text-white hover:bg-emerald-800 disabled:opacity-30 flex items-center justify-center cursor-pointer shadow-xs transition-colors"
+                              className="w-8 h-8 rounded-xl font-black bg-emerald-950 border-2 border-emerald-700 text-white hover:bg-emerald-800 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center cursor-pointer shadow-xs transition-colors"
                               title="Diminuir de Dupla"
                             >
                               <Minus className="w-3.5 h-3.5 stroke-[3]" />
@@ -534,9 +571,9 @@ export function QuadSelector({ quads, selectedDate, onUpdate, onSetQuads }: Prop
                             </span>
                             <button
                               type="button"
-                              disabled={currentSlotTotal >= availableForSlot}
+                              disabled={currentSlotTotal >= maxSlotCapacity}
                               onClick={() => handleUpdateSlotQuantities(slot, currentIndQty, currentDupQty + 1)}
-                              className="w-8 h-8 rounded-xl font-black bg-amber-400 border-2 border-amber-500 text-slate-950 hover:bg-amber-300 disabled:opacity-30 flex items-center justify-center cursor-pointer shadow-xs transition-colors"
+                              className="w-8 h-8 rounded-xl font-black bg-amber-400 border-2 border-amber-500 text-slate-950 hover:bg-amber-300 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center cursor-pointer shadow-xs transition-colors"
                               title="Adicionar de Dupla"
                             >
                               <Plus className="w-3.5 h-3.5 stroke-[3]" />
@@ -566,12 +603,12 @@ export function QuadSelector({ quads, selectedDate, onUpdate, onSetQuads }: Prop
                           </div>
                         ) : (
                           <span className="text-xs font-bold text-slate-400 italic block mt-0.5 text-center sm:text-left">
-                            Selecione até {availableForSlot} quadriciclo{availableForSlot > 1 ? 's' : ''} (individual ou dupla)
+                            Selecione até {maxSlotCapacity} quadriciclo{maxSlotCapacity !== 1 ? 's' : ''} no total (individual ou dupla)
                           </span>
                         )}
                       </div>
                       <span className="text-xs font-black text-amber-300 bg-emerald-950/90 px-3 py-1 rounded-xl border border-emerald-700/60 shadow-xs">
-                        {currentSlotTotal} de {availableForSlot} quadriciclo{availableForSlot > 1 ? 's' : ''}
+                        {currentSlotTotal} de {maxSlotCapacity} quadriciclo{maxSlotCapacity !== 1 ? 's' : ''}
                       </span>
                     </div>
 
