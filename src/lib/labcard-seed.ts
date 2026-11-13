@@ -123,8 +123,6 @@ export function doesPlanAllowDependents(planStr?: string): boolean {
 
 // Mapeamento explícito de dependentes conhecidos vinculados à família de cada titular
 export const KNOWN_DEPENDENT_TO_TITULAR_MAP: Record<string, string> = {
-  // Guibson Meireles Moura -> Laene Passos de Almeida
-  '121225708': '121225255',
   // Tamires Magalhães costa lagos -> Andre Jose de Vaz Magalhaes Lagos
   '121225179': '121225165',
   // Noelia Novaes de Almeida -> Altamires Teles Monteiro
@@ -145,10 +143,6 @@ export const KNOWN_DEPENDENT_TO_TITULAR_MAP: Record<string, string> = {
   '121225211': '121225207', // Gisele Tavares Mendes
   // Família Wesley Vieira
   '121225216': '121225215', // Ester Rodrigues Carvalho
-  // Família Osmar Jose Rodrigues
-  '121225223': '121225221', // Ewelin de Almeida Pereira
-  '121225224': '121225221', // Derek vieira pereira
-  '121225225': '121225221', // Débora Letícia dos Santos Carmo
   // Família Raimundo Viana Arimateia
   '121225226': '121225214', // Elisângela Sobrinha Ribeiro Arimateia
   // Família Wdson Cazoto Chanan
@@ -156,10 +150,70 @@ export const KNOWN_DEPENDENT_TO_TITULAR_MAP: Record<string, string> = {
   '121225228': '121225220', // Mellysa reibiton moreno
   '121225229': '121225220', // Arthur moreno chanan
   '121225230': '121225220', // Maysa moreno chanan
-  // Família Wagner da Cruz Rodrigues (121225346)
+  // Família Osmar Jose Rodrigues
+  '121225223': '121225221', // Ewelin de Almeida Pereira
+  '121225224': '121225221', // Derek vieira pereira
+  '121225225': '121225221', // Débora Letícia dos Santos Carmo
+  // Família Fernando Dias Massaranduba
+  '121225251': '121225250', // Carla Leandro Osório
+  // Família Walter Felix da Silva
+  '121225253': '121225252', // Eliane Reges de Jesus
+  // Família Laene Passos de Almeida
+  '121225708': '121225255', // Guibson Meireles Moura
+  // Família Edinei Vieira Costa
+  '121225278': '121225277', // Amanda Caroline Lima Costa
+  '121225279': '121225277', // Karen Milena Lima Costa
+  // Família Cleidson Guimaraes Santos
+  '121225283': '121225282', // Raiane Carias de Souza
+  // Família Mackson Alves de Souza
+  '121225287': '121225286', // Amanda de Almeida
+  // Família Alicia Joner
+  '121225290': '121225289', // Douglas Buratto
+  // Família Julio Silva Cardoso
+  '121225292': '121225291', // Cristiana da Silva cordeiro
+  '121225293': '121225291', // Jhonata José da Silva
+  // Família Delcio Gomes da Silva
+  '121225297': '121225296', // Denise Gomes Nunes
+  '121225298': '121225296', // Rebecca Nunes da Silva
+  // Família Rosiane Corrente
+  '121225300': '121225299', // Julia Corrente Alves
+  '121225301': '121225299', // Maria Luiza Corrente Dutra
+  // Família Marcos Correa da Silva
+  '121225303': '121225302', // Débora Oliveira de Souza
+  // Família David da Silva Pereira
+  '121225305': '121225304', // Dieila Gonçalves de Souza
+  '121225306': '121225304', // Victória Angel Golçalves Pereira
+  // Família Renata Andre Leocadio
+  '121225309': '121225308', // Raissa Leocadio da Silva
+  '121225310': '121225308', // Francinaldo Silvido da Silva
+  '121225311': '121225308', // Gilmara nasciemeto moreira
+  '121225312': '121225308', // Sofia gurgel do nascimento
+  // Família Elton Pimenta da Silva
+  '121225314': '121225313', // ELTON PIMENTA DA SILVA JUNIOR
+  '121225315': '121225313', // Alice de Souza Batista Pimenta
+  // Família Bruna da Silva Souza
+  '121225324': '121225322', // Ana Sheila da Silva
+  // Família Gilson Portela dos Santos
+  '121225332': '121225331', // ALISSON DA SILVA SANTIAGO
+  '121225334': '121225331', // JULIANA ANTUNES VIANA
+  // Família Alexandre de Faria Mendonca
+  '121225340': '121225338', // Eloá Camila Moraes da Silva
+  '121225341': '121225338', // Cristiane Miranda Moraes
+  // Família Jesua Rocha dos Santos
+  '121225344': '121225343', // Marli Lucio
+  '121225345': '121225343', // SABRINA VICTORIA LUCIO FERNANDES
+  // Família Wagner da Cruz Rodrigues
   '121225351': '121225346', // Lorraine Lobak Rodrigues
   '121225352': '121225346', // Nilceia Sindra Lobak Rodrigues
   '1212251854': '121225346', // Larissa Lobak Rodrigues
+  // Família Darcy Borges da Silva
+  '121225355': '121225354', // Fabiana Pereira Marques dos Santos
+  '121225356': '121225354', // Edjane de Lima Pereira Borges
+  '121225357': '121225354', // Grazielly Borges de Lima
+  '121225358': '121225354', // Eduarda Marques de Souza
+  // Família David Pereira Pacheco
+  '121225361': '121225359', // Edinaura Franco Barbosa
+  '121225362': '121225359', // Ana julia de Lima Machado
 };
 
 // Somente associados que já tiveram alteração formal de transferência/adesão finalizada no novo sistema
@@ -472,7 +526,8 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
       holderBirthDate: formatBirth(birth),
       holderPhone: formatPhone(phone),
       holderEmail: holderEmail || undefined,
-      addressCity: 'Porto Velho',
+      addressCep: '76870-000',
+      addressCity: 'Ariquemes',
       addressState: 'RO',
       billingCycle: isAnnual ? 'ANNUAL' : 'MONTHLY',
       paymentMethod: plan.toLowerCase().includes('publicidade') ? 'COURTESY' : 'PIX',

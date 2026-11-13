@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { getLabcardSubscriptions, doesPlanAllowDependents, REGULARIZED_ACTIVE_CARDS } from './labcard-seed';
+import { saveStateToIndexedDB, loadStateFromIndexedDB } from './club-indexeddb';
 import {
   DEFAULT_CLUB_MODALITIES,
   DEFAULT_CONTRACT_TEMPLATES,
@@ -298,6 +299,9 @@ const isLabcardSubscriptionModified = (
 };
 
 export const tryPersistLocalState = (state: ClubDatabaseState) => {
+  // Salva no IndexedDB de alta capacidade sem qualquer restrição de tamanho para mídias e fotos
+  saveStateToIndexedDB(state);
+
   const seedMap = getLabcardSeedMap();
   const compactSubs = state.subscriptions.filter((s) => {
     if (!s.id.startsWith('sub-labcard-')) return true;
@@ -1189,6 +1193,28 @@ export const getLastClubFetchError = (): string | null => lastClubFetchErrorMess
 
 export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<ClubDatabaseState> => {
   const local = memoryClubState || loadClubStateLocal();
+  try {
+    const idbState = await loadStateFromIndexedDB();
+    if (idbState && idbState.subscriptions && idbState.subscriptions.length > 0) {
+      const idbMap = new Map(idbState.subscriptions.map((s) => [s.id, s]));
+      local.subscriptions.forEach((s) => {
+        const full = idbMap.get(s.id);
+        if (full) {
+          if ((full.attachments?.length || 0) > (s.attachments?.length || 0)) {
+            s.attachments = full.attachments;
+          }
+          if (full.addressCep && !s.addressCep) s.addressCep = full.addressCep;
+          if (full.addressStreet && !s.addressStreet) s.addressStreet = full.addressStreet;
+          if (full.addressNumber && !s.addressNumber) s.addressNumber = full.addressNumber;
+          if (full.addressNeighborhood && !s.addressNeighborhood) s.addressNeighborhood = full.addressNeighborhood;
+          if (full.vehicleModel && !s.vehicleModel) s.vehicleModel = full.vehicleModel;
+          if (full.vehiclePlate && !s.vehiclePlate) s.vehiclePlate = full.vehiclePlate;
+          if (full.vehicleColor && !s.vehicleColor) s.vehicleColor = full.vehicleColor;
+          if (full.holderRg && !s.holderRg) s.holderRg = full.holderRg;
+        }
+      });
+    }
+  } catch {}
   const timeoutMs = options?.timeoutMs ?? 25000;
   try {
     const queryPromise = supabase
