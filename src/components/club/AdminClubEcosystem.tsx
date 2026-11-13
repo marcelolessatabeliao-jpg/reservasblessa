@@ -2639,13 +2639,9 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
               }
         ),
         updatedAt: new Date().toISOString(),
-        transferCompleted: isLiberandoManualmente
-          ? true
-          : (selectedSubForDetail.transferCompleted ?? false),
-        manualStatusOverride: isLiberandoManualmente,
-        transferredAt: isLiberandoManualmente
-          ? (selectedSubForDetail.transferredAt || new Date().toISOString())
-          : selectedSubForDetail.transferredAt,
+        transferCompleted: selectedSubForDetail.transferCompleted ?? false,
+        manualStatusOverride: isLiberandoManualmente || Boolean(selectedSubForDetail.manualStatusOverride),
+        transferredAt: selectedSubForDetail.transferredAt,
       };
 
       // Atualiza imediatamente na tela antes da persistência
@@ -3109,6 +3105,44 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     toast({
       title: 'Dependente Desvinculado!',
       description: `${targetMember.fullName} (Cartão #${depCard}) agora possui seu próprio cadastro individual como Titular.`,
+    });
+  };
+
+  // Alterna manualmente o status de transferência concluída do associado
+  const handleToggleTransferCompleted = async (sub: ClubSubscription, completed: boolean) => {
+    if (!state) return;
+    const isLab = sub.origin === 'IMPORT_LABCARD' || sub.id.startsWith('sub-labcard-');
+    const targetStatus: SubscriptionStatus = completed ? 'ACTIVE' : (isLab ? 'PENDING_TRANSFER' : sub.status);
+
+    const updatedSub: ClubSubscription = {
+      ...sub,
+      transferCompleted: completed,
+      transferredAt: completed ? new Date().toISOString() : undefined,
+      manualStatusOverride: completed,
+      status: targetStatus,
+      members: (sub.members || []).map((m) => ({
+        ...m,
+        status: completed ? 'ACTIVE' : (isLab ? 'PENDING_TRANSFER' : m.status),
+        manualStatusOverride: completed,
+      })),
+      updatedAt: new Date().toISOString(),
+    };
+
+    const nextSubs = (state.subscriptions || []).map((s) => (s.id === updatedSub.id ? updatedSub : s));
+    const nextState: ClubDatabaseState = {
+      ...state,
+      subscriptions: nextSubs,
+    };
+
+    await persist(nextState);
+    if (selectedSubForDetail?.id === updatedSub.id) {
+      setSelectedSubForDetail(updatedSub);
+    }
+    toast({
+      title: completed ? 'Transferência Concluída!' : 'Transferência Reaberta',
+      description: completed
+        ? `O cadastro de ${updatedSub.holderName} foi regularizado e liberado no portal.`
+        : `O cadastro de ${updatedSub.holderName} retornou ao status de Pendente para Transferência/Conferência.`,
     });
   };
 
@@ -11443,10 +11477,31 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                       ? 'PENDENTE PARA TRANSFERÊNCIA'
                       : 'INATIVO (AGUARDANDO PAGTO)'}
                   </Badge>
-                  {selectedSubForDetail.transferCompleted && (
+                  {selectedSubForDetail.transferCompleted ? (
                     <Badge className="bg-teal-600 text-white text-[11px] sm:text-xs py-1">
                       ✓ TRANSFERÊNCIA CONCLUÍDA
                     </Badge>
+                  ) : null}
+                  {selectedSubForDetail.transferCompleted ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => handleToggleTransferCompleted(selectedSubForDetail, false)}
+                      className="h-8 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold text-xs shadow-xs flex items-center gap-1.5 cursor-pointer"
+                      title="Reabrir este cadastro como Pendente para Transferência/Conferência"
+                    >
+                      ↩ Reabrir Transferência (Pendente)
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => handleToggleTransferCompleted(selectedSubForDetail, true)}
+                      className="h-8 bg-teal-600 hover:bg-teal-700 text-white font-black text-xs shadow-xs flex items-center gap-1.5 cursor-pointer"
+                      title="Marcar conferência como concluída e liberar o cadastro no portal do sócio"
+                    >
+                      ✓ Concluir Transferência Deste Cadastro
+                    </Button>
                   )}
                   <Button
                     type="button"
@@ -12021,6 +12076,18 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           const hasDependents = selectedSubForDetail.members.some(
                             (m) => m.role === 'DEPENDENTE'
                           );
+                          const isEligibleForTransfer =
+                            !isPlanAllowingDeps ||
+                            (selectedSubForDetail.members.length === 1 && (
+                              (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('kids') ||
+                              (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('tea') ||
+                              (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('pcd') ||
+                              (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('pdc') ||
+                              (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('vital') ||
+                              (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('60+') ||
+                              (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('sem plano') ||
+                              ['KIDS', 'PCD_TEA', 'IDOSO_60', 'SEM_PLANO'].includes(selectedSubForDetail.members[0]?.modalityCode || '')
+                            ));
 
                           return (
                             <div className="flex items-center gap-2 flex-wrap">
@@ -12033,19 +12100,21 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                 </Badge>
                               )}
                               {/* Botão para transferir este associado (Kids, PCD/TEA, Vitalício ou avulso) para o cadastro de um titular */}
-                              <Button
-                                type="button"
-                                size="sm"
-                                onClick={() => {
-                                  setTransferHolderSearchQuery('');
-                                  setTransferHolderModalOpen(true);
-                                }}
-                                className="h-7 text-[11px] font-black bg-blue-700 hover:bg-blue-800 text-white shadow-xs cursor-pointer flex items-center gap-1.5"
-                                title="Transferir e vincular este associado como dependente ao cadastro de um titular"
-                              >
-                                <ArrowRightLeft className="w-3.5 h-3.5 text-amber-300" />
-                                Transferir para um Titular
-                              </Button>
+                              {isEligibleForTransfer && (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  onClick={() => {
+                                    setTransferHolderSearchQuery('');
+                                    setTransferHolderModalOpen(true);
+                                  }}
+                                  className="h-7 text-[11px] font-black bg-blue-700 hover:bg-blue-800 text-white shadow-xs cursor-pointer flex items-center gap-1.5"
+                                  title="Transferir e vincular este associado como dependente ao cadastro de um titular"
+                                >
+                                  <ArrowRightLeft className="w-3.5 h-3.5 text-amber-300" />
+                                  Transferir para um Titular
+                                </Button>
+                              )}
                               {!isPlanAllowingDeps && hasDependents && (
                                 <Button
                                   type="button"
@@ -12103,6 +12172,16 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           const isExpired = isClubDateExpired(effExp);
                           const isDep = m.role === 'DEPENDENTE';
                           const draftExp = depExpDrafts[m.id] ?? m.expirationDate ?? '';
+                          const isMemEligibleForTransfer =
+                            !doesPlanAllowDependents(selectedSubForDetail.planSummaryLabel || m.modalityCode) ||
+                            (['KIDS', 'PCD_TEA', 'IDOSO_60', 'SEM_PLANO'].includes(m.modalityCode || '') ||
+                             (m.planCycleLabel || '').toLowerCase().includes('kids') ||
+                             (m.planCycleLabel || '').toLowerCase().includes('tea') ||
+                             (m.planCycleLabel || '').toLowerCase().includes('pcd') ||
+                             (m.planCycleLabel || '').toLowerCase().includes('pdc') ||
+                             (m.planCycleLabel || '').toLowerCase().includes('vital') ||
+                             (m.planCycleLabel || '').toLowerCase().includes('60+') ||
+                             (m.planCycleLabel || '').toLowerCase().includes('sem plano'));
                           return (
                             <div
                               key={m.id}
@@ -12137,7 +12216,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                       ? 'PEND. TRANSF.'
                                       : 'INATIVO'}
                                   </Badge>
-                                  {!isDep && (
+                                  {!isDep && isMemEligibleForTransfer && (
                                     <Button
                                       type="button"
                                       size="sm"
@@ -15275,12 +15354,28 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           dataUrl,
                           createdAt: new Date().toISOString(),
                         };
+                        const titularMember =
+                          selectedSubForDetail.members.find((m) => m.role === 'TITULAR') ||
+                          selectedSubForDetail.members[0];
+                        const updatedMembers = selectedSubForDetail.members.map((m) => {
+                          if (m.id === titularMember?.id) {
+                            return {
+                              ...m,
+                              documentProofUrl: dataUrl,
+                              documentProofName: file.name,
+                              documentVerified: true,
+                            };
+                          }
+                          return m;
+                        });
+
                         const updatedSub: ClubSubscription = {
                           ...selectedSubForDetail,
                           attachments: [
                             newAtt,
                             ...(selectedSubForDetail.attachments || []),
                           ],
+                          members: updatedMembers,
                         };
                         const nextState: ClubDatabaseState = {
                           ...state,

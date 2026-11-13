@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { getLabcardSubscriptions, doesPlanAllowDependents } from './labcard-seed';
+import { getLabcardSubscriptions, doesPlanAllowDependents, REGULARIZED_ACTIVE_CARDS } from './labcard-seed';
 import {
   DEFAULT_CLUB_MODALITIES,
   DEFAULT_CONTRACT_TEMPLATES,
@@ -273,45 +273,57 @@ const isLabcardSubscriptionModified = (
 };
 
 export const tryPersistLocalState = (state: ClubDatabaseState) => {
+  const seedMap = getLabcardSeedMap();
+  const compactSubs = state.subscriptions.filter((s) => {
+    if (!s.id.startsWith('sub-labcard-')) return true;
+    return isLabcardSubscriptionModified(s, seedMap.get(s.id));
+  });
+
+  const payload = {
+    ...state,
+    subscriptions: compactSubs.map((s) => ({
+      ...s,
+      contractContentHtml: undefined,
+    })),
+  };
+
   try {
-    // Otimiza cache local omitindo registros intocados do seed Labcard (que já vêm do bundle em ms),
-    // mantendo cadastros do site, admin, alterações manuais, consultores e modelos de contrato abaixo da cota de 5MB.
-    const seedMap = getLabcardSeedMap();
-    const compactSubs = state.subscriptions.filter((s) => {
-      if (!s.id.startsWith('sub-labcard-')) return true;
-      return isLabcardSubscriptionModified(s, seedMap.get(s.id));
-    });
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({
-        ...state,
-        subscriptions: compactSubs,
-      })
-    );
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   } catch (e) {
-    console.warn('[ClubService] localStorage quota warning:', e);
+    console.warn('[ClubService] localStorage quota exceeded, safely compressing cached attachments:', e);
     try {
-      const strippedSubs = state.subscriptions
-        .filter((s) => !s.id.startsWith('sub-labcard-'))
-        .map((s) => ({
-          ...s,
-          contractContentHtml: undefined,
-          attachments: [],
-          members: s.members.map((m) => ({
-            ...m,
-            photoUrl: '',
-            documentProofUrl: m.documentProofUrl ? 'HAS_DOC_REMOTE' : '',
-            attachments: [],
-          })),
-        }));
+      // NUNCA exclui cadastros sub-labcard- modificados nem apaga vínculos familiares!
+      // Caso a cota de 5MB seja atingida, comprime apenas strings dataUrl gigantes (> 150KB) mantendo metadados
+      const safeSubs = compactSubs.map((s) => ({
+        ...s,
+        contractContentHtml: undefined,
+        attachments: (s.attachments || []).map((att) => ({
+          ...att,
+          dataUrl:
+            att.dataUrl && att.dataUrl.length > 150000
+              ? att.dataUrl.slice(0, 100) + '...[COMPACTED_LOCAL]'
+              : att.dataUrl,
+        })),
+        members: (s.members || []).map((m) => ({
+          ...m,
+          photoUrl: m.photoUrl && m.photoUrl.length > 150000 ? '' : m.photoUrl,
+          documentProofUrl:
+            m.documentProofUrl && m.documentProofUrl.length > 150000
+              ? 'HAS_DOC_ATTACHED'
+              : m.documentProofUrl,
+        })),
+      }));
+
       localStorage.setItem(
         STORAGE_KEY,
         JSON.stringify({
           ...state,
-          subscriptions: strippedSubs,
+          subscriptions: safeSubs,
         })
       );
-    } catch {}
+    } catch (innerErr) {
+      console.error('[ClubService] Falha crítica de cota do localStorage:', innerErr);
+    }
   }
 };
 
@@ -906,80 +918,8 @@ export const normalizeClubDatabaseState = (
     };
   });
 
-  // Garante que planos individuais (Student, Professor, Servidor, Kids, PDC/TEA, Vitalício)
-  // nunca mantenham dependentes indevidos, separando cada dependente como titular individual
-  const detachedIndividualSubs: ClubSubscription[] = [];
-  const cleanedSubscriptions = normalizedSubscriptions.map((sub) => {
-    const titularMod = sub.members.find((m) => m.role === 'TITULAR')?.modalityCode;
-    const allowsDeps = doesPlanAllowDependents(sub.planSummaryLabel || titularMod);
-
-    if (!allowsDeps && sub.members.some((m) => m.role === 'DEPENDENTE')) {
-      const depList = sub.members.filter((m) => m.role === 'DEPENDENTE');
-      depList.forEach((dep) => {
-        const depCard = dep.cardNumber || String(Date.now());
-        const indSub: ClubSubscription = {
-          id: `sub-labcard-${depCard}`,
-          subscriptionCode: depCard,
-          personType: 'PF',
-          holderName: dep.fullName,
-          holderCpf: dep.cpf || '',
-          holderBirthDate: dep.birthDate || '',
-          holderPhone: dep.phone || '',
-          addressCity: sub.addressCity || 'Porto Velho',
-          addressState: sub.addressState || 'RO',
-          billingCycle: 'MONTHLY',
-          paymentMethod: 'PIX',
-          installments: 1,
-          monthlyEquivalent: 0,
-          totalContractValue: 0,
-          dueDay: 10,
-          status: dep.status === 'ACTIVE' ? 'ACTIVE' : 'PENDING_TRANSFER',
-          origin: sub.origin || 'IMPORT_LABCARD',
-          planSummaryLabel: 'Sem Plano - R$ 0,00',
-          notes: `Cadastro individual desvinculado de ${sub.holderName}`,
-          contractType: 'ADESAO_PF',
-          contractAccepted: true,
-          startDate: sub.startDate || '2025-01-01',
-          endDate: dep.expirationDate || sub.endDate || '2027-10-31',
-          members: [
-            {
-              ...dep,
-              role: 'TITULAR',
-              holderCardNumber: depCard,
-              modalityCode: 'SEM_PLANO',
-              modalityName: 'Sem Plano',
-              planCycleLabel: 'Sem Plano',
-            },
-          ],
-          invoices: [],
-          attachments: [],
-          visits: [],
-          additionalServices: [],
-        };
-        detachedIndividualSubs.push(indSub);
-      });
-
-      const onlyTitular = sub.members.filter((m) => m.role === 'TITULAR');
-      const cleanLabel = sub.planSummaryLabel
-        ? sub.planSummaryLabel.replace(/\s*\(\d+\s*pessoas?\)/i, '')
-        : sub.planSummaryLabel;
-
-      return {
-        ...sub,
-        planSummaryLabel: cleanLabel,
-        members: onlyTitular,
-      };
-    }
-
-    return sub;
-  });
-
-  const finalNormalizedSubscriptions = [...cleanedSubscriptions];
-  detachedIndividualSubs.forEach((d) => {
-    if (!finalNormalizedSubscriptions.some((s) => s.id === d.id)) {
-      finalNormalizedSubscriptions.push(d);
-    }
-  });
+  // Mantém a integridade de todos os vínculos e dependentes definidos pelo administrador ou planilha
+  const finalNormalizedSubscriptions = normalizedSubscriptions;
 
   const hasLatestContractFormat = parsed.contractTemplates?.every(
     (t) =>
@@ -1064,7 +1004,36 @@ export const loadClubStateLocal = (): ClubDatabaseState => {
       if (!deletedSet.has(s.id)) subsMap.set(s.id, s);
     });
     (parsed.subscriptions || []).forEach((s) => {
-      if (!deletedSet.has(s.id)) subsMap.set(s.id, s);
+      if (!deletedSet.has(s.id)) {
+        const seedSub = subsMap.get(s.id);
+        if (seedSub && seedSub.members && seedSub.members.length > (s.members?.length || 0)) {
+          // Restaura dependentes mapeados da família (como Lorraine, Nilceia e Larissa de Wagner) caso o cache local tenha ficado desatualizado
+          const existingCards = new Set((s.members || []).map((m) => m.cardNumber));
+          const missingDeps = seedSub.members.filter((m) => !existingCards.has(m.cardNumber));
+          if (missingDeps.length > 0) {
+            s.members = [...(s.members || []), ...missingDeps];
+            if (seedSub.planSummaryLabel && (!s.planSummaryLabel || !s.planSummaryLabel.includes('pessoas'))) {
+              s.planSummaryLabel = seedSub.planSummaryLabel;
+            }
+          }
+        }
+        subsMap.set(s.id, s);
+      }
+    });
+
+    // Assegura que cadastros do Labcard não fiquem como "transferência concluída" prematuramente
+    subsMap.forEach((sub) => {
+      if (sub.origin === 'IMPORT_LABCARD' || sub.id.startsWith('sub-labcard-')) {
+        if (!REGULARIZED_ACTIVE_CARDS.has(sub.subscriptionCode) && !sub.transferCompleted) {
+          sub.transferCompleted = false;
+          sub.status = 'PENDING_TRANSFER';
+          if (sub.members) {
+            sub.members.forEach((m) => {
+              m.status = 'PENDING_TRANSFER';
+            });
+          }
+        }
+      }
     });
     const normalized = normalizeClubDatabaseState({
       ...parsed,
@@ -1244,6 +1213,17 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
             const localTime = s.updatedAt ? new Date(s.updatedAt).getTime() : 0;
             const remoteTime = current.updatedAt ? new Date(current.updatedAt).getTime() : 0;
             if (localTime >= remoteTime || s.manualStatusOverride || s.transferCompleted) {
+              if (current.members && current.members.length > (s.members?.length || 0)) {
+                // Restaura dependentes mapeados da família (como Lorraine, Nilceia e Larissa de Wagner) caso o cache local tenha ficado com menos integrantes
+                const existingCards = new Set((s.members || []).map((m) => m.cardNumber));
+                const missingDeps = current.members.filter((m) => !existingCards.has(m.cardNumber));
+                if (missingDeps.length > 0) {
+                  s.members = [...(s.members || []), ...missingDeps];
+                  if (current.planSummaryLabel && (!s.planSummaryLabel || !s.planSummaryLabel.includes('pessoas'))) {
+                    s.planSummaryLabel = current.planSummaryLabel;
+                  }
+                }
+              }
               subsMap.set(s.id, s);
             }
           }
@@ -1253,7 +1233,8 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
       // Preservar pendente p/ transferência na base importada do Labcard enquanto a transferência não for concluída
       subsMap.forEach((sub) => {
         if (sub.origin === 'IMPORT_LABCARD' || sub.id.startsWith('sub-labcard-')) {
-          if (!sub.transferCompleted) {
+          if (!REGULARIZED_ACTIVE_CARDS.has(sub.subscriptionCode) && !sub.transferCompleted) {
+            sub.transferCompleted = false;
             sub.status = 'PENDING_TRANSFER';
             if (sub.members) {
               sub.members.forEach((m) => {
