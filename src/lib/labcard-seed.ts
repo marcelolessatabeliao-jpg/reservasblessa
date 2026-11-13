@@ -121,10 +121,76 @@ export function doesPlanAllowDependents(planStr?: string): boolean {
   return false;
 }
 
+// Mapeamento explícito de dependentes conhecidos vinculados à família de cada titular
+export const KNOWN_DEPENDENT_TO_TITULAR_MAP: Record<string, string> = {
+  // Guibson Meireles Moura -> Laene Passos de Almeida
+  '121225708': '121225255',
+  // Tamires Magalhães costa lagos -> Andre Jose de Vaz Magalhaes Lagos
+  '121225179': '121225165',
+  // Noelia Novaes de Almeida -> Altamires Teles Monteiro
+  '121225186': '121225185',
+  // Melissa Almeida dos Santos Soares -> Charles Soares Pinto
+  '121225192': '121225191',
+  // Delco da Silva Júnior -> Adriana Lopes dos Santos Nonato
+  '121225195': '121225194',
+  // Família Zaqueu Santos Alves
+  '121225198': '121225196', // Monica baeta
+  '121225199': '121225196', // ZELMA MARIA DA SILVA ALVES
+  '121225200': '121225196', // ISAQUE SANTOS DA SILVA
+  '121225201': '121225196', // SOFIA SANTOS DA SILVA
+  // Família Armando D Soares Caldeira
+  '121225208': '121225207', // Débora Cristina dos Santos Medinas
+  '121225209': '121225207', // Dario Soares dos Santos
+  '121225210': '121225207', // Esther Amanda dos Santos
+  '121225211': '121225207', // Gisele Tavares Mendes
+  // Família Wesley Vieira
+  '121225216': '121225215', // Ester Rodrigues Carvalho
+  // Família Osmar Jose Rodrigues
+  '121225223': '121225221', // Ewelin de Almeida Pereira
+  '121225224': '121225221', // Derek vieira pereira
+  '121225225': '121225221', // Débora Letícia dos Santos Carmo
+  // Família Raimundo Viana Arimateia
+  '121225226': '121225214', // Elisângela Sobrinha Ribeiro Arimateia
+  // Família Wdson Cazoto Chanan
+  '121225227': '121225220', // Sílvia moreno dos santos
+  '121225228': '121225220', // Mellysa reibiton moreno
+  '121225229': '121225220', // Arthur moreno chanan
+  '121225230': '121225220', // Maysa moreno chanan
+};
+
+// Conjunto de cartões de titulares e dependentes regularizados com ativação garantida
+export const REGULARIZED_ACTIVE_CARDS = new Set([
+  '121225164', '121225165', '121225185', '121225187', '121225189', '121225190',
+  '121225191', '121225193', '121225194', '121225196', '121225197', '121225202',
+  '121225203', '121225204', '121225205', '121225206', '121225207', '121225212',
+  '121225213', '121225214', '121225215', '121225217', '121225219', '121225220',
+  '121225221', '121225231', '121225232', '121225233', '121225235', '121225236',
+  '121225248', '121225255',
+  // Dependentes ativados
+  '121225708', '121225179', '121225186', '121225192', '121225195', '121225198',
+  '121225199', '121225200', '121225201', '121225208', '121225209', '121225210',
+  '121225211', '121225216', '121225223', '121225224', '121225225', '121225226',
+  '121225227', '121225228', '121225229', '121225230'
+]);
+
 let cachedLabcardSubs: ClubSubscription[] | null = null;
 
 export const getLabcardSubscriptions = (): ClubSubscription[] => {
   if (cachedLabcardSubs) return cachedLabcardSubs;
+
+  const rowByCard = new Map<string, [string, string, string, string, string, string, string, string]>();
+  for (const r of LABCARD_RAW_RECORDS) {
+    rowByCard.set(r[0], r);
+  }
+
+  const explicitDepsByTitular = new Map<string, Array<[string, string, string, string, string, string, string, string]>>();
+  for (const [depCard, titCard] of Object.entries(KNOWN_DEPENDENT_TO_TITULAR_MAP)) {
+    const depRow = rowByCard.get(depCard);
+    if (depRow) {
+      if (!explicitDepsByTitular.has(titCard)) explicitDepsByTitular.set(titCard, []);
+      explicitDepsByTitular.get(titCard)!.push(depRow);
+    }
+  }
 
   let currentTitular: [string, string, string, string, string, string, string, string] | null = null;
   let currentDependents: Array<[string, string, string, string, string, string, string, string]> = [];
@@ -134,14 +200,34 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
   }> = [];
 
   for (const row of LABCARD_RAW_RECORDS) {
+    const card = row[0];
+    // Se o cartão for um dependente mapeado explicitamente para outro titular, não trate como titular nem anexe sequencialmente
+    if (KNOWN_DEPENDENT_TO_TITULAR_MAP[card]) {
+      continue;
+    }
+
     const plan = row[3];
     const isBlank = (!plan || plan === '- R$ 0,00' || plan.trim() === '- R$ 0,00');
+
+    // Bruno Alves dos Santos (121225258) não é dependente de Laene (121225255), vira titular individual
+    if (card === '121225258') {
+      if (currentTitular) groups.push({ titular: currentTitular, dependents: currentDependents });
+      currentTitular = row;
+      currentDependents = [];
+      continue;
+    }
+
     if (!isBlank) {
       if (currentTitular) groups.push({ titular: currentTitular, dependents: currentDependents });
       currentTitular = row;
       currentDependents = [];
     } else {
-      if (currentTitular && doesPlanAllowDependents(currentTitular[3])) {
+      // Se o titular atual já possui dependentes explícitos, não acumule linhas consecutivas aleatórias
+      if (currentTitular && explicitDepsByTitular.has(currentTitular[0])) {
+        groups.push({ titular: currentTitular, dependents: currentDependents });
+        currentTitular = row;
+        currentDependents = [];
+      } else if (currentTitular && doesPlanAllowDependents(currentTitular[3])) {
         currentDependents.push(row);
       } else {
         if (currentTitular) groups.push({ titular: currentTitular, dependents: currentDependents });
@@ -154,11 +240,23 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
     groups.push({ titular: currentTitular, dependents: currentDependents });
   }
 
+  // Sobrescreve dependentes explícitos mapeados com precisão
+  for (const g of groups) {
+    const titCard = g.titular[0];
+    if (explicitDepsByTitular.has(titCard)) {
+      g.dependents = explicitDepsByTitular.get(titCard)!;
+    }
+  }
+
   cachedLabcardSubs = groups.map((g) => {
     const [card, name, cpf, plan, birth, phone, by, status] = g.titular;
     const mod = mapModality(plan);
     const isAnnual = plan.toLowerCase().includes('anual');
-    const titStatus: SubscriptionStatus = 'PENDING_TRANSFER';
+    const isTitularAtivo =
+      REGULARIZED_ACTIVE_CARDS.has(card) ||
+      status?.toLowerCase().trim() === 'ativo' ||
+      status === '1';
+    const titStatus: SubscriptionStatus = isTitularAtivo ? 'ACTIVE' : 'PENDING_TRANSFER';
     const holderCard = card;
     const subId = `sub-labcard-${holderCard}`;
     const subCode = holderCard;
@@ -182,13 +280,19 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
       validityLabel: '10/2027',
       monthlyValue: mod.price,
       status: titStatus,
+      manualStatusOverride: isTitularAtivo,
       createdAt: '2025-01-01T00:00:00.000Z',
     };
 
     const depMembers: ClubMember[] = g.dependents.map((dep) => {
       const [depCard, depName, depCpf, depPlan, depBirth, depPhone, depBy, depStatusStr] = dep;
       const depMod = depPlan && depPlan !== '- R$ 0,00' ? mapModality(depPlan) : mod;
-      const depStatus: SubscriptionStatus = 'PENDING_TRANSFER';
+      const isDepAtivo =
+        REGULARIZED_ACTIVE_CARDS.has(depCard) ||
+        isTitularAtivo ||
+        depStatusStr?.toLowerCase().trim() === 'ativo' ||
+        depStatusStr === '1';
+      const depStatus: SubscriptionStatus = isDepAtivo ? 'ACTIVE' : 'PENDING_TRANSFER';
 
       return {
         id: `mem-${depCard}`,
@@ -209,6 +313,7 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
         validityLabel: '10/2027',
         monthlyValue: 0,
         status: depStatus,
+        manualStatusOverride: isDepAtivo,
         createdAt: '2025-01-01T00:00:00.000Z',
       };
     });
@@ -401,6 +506,9 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
       registeredCard,
       createdAt: finalCreatedAt,
       updatedAt: '2026-11-10T00:00:00.000Z',
+      transferCompleted: finalStatus === 'ACTIVE',
+      manualStatusOverride: finalStatus === 'ACTIVE',
+      transferredAt: finalStatus === 'ACTIVE' ? '2026-11-13T00:00:00.000Z' : undefined,
     };
   });
 

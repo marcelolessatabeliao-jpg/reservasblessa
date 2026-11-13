@@ -122,6 +122,16 @@ const SocioPortal: React.FC = () => {
     return sortedInvoices.find((i) => i.status !== 'PAID');
   }, [sortedInvoices]);
 
+  const isSubscriptionActive = useMemo(() => {
+    if (!subscription) return false;
+    if (subscription.status === 'ACTIVE') return true;
+    if (subscription.monthlyEquivalent === 0 || subscription.paymentMethod === 'COURTESY') return true;
+    if (subscription.contractType === 'FAMILY_PUBLICIDADE') return true;
+    if (subscription.planSummaryLabel && /publicidade|permuta/i.test(subscription.planSummaryLabel)) return true;
+    if (subscription.members && subscription.members.some((m) => m.status === 'ACTIVE')) return true;
+    return false;
+  }, [subscription]);
+
   useEffect(() => {
     let active = true;
     setIsSyncing(true);
@@ -938,13 +948,13 @@ const SocioPortal: React.FC = () => {
                 <div className="flex flex-wrap items-center gap-2 mb-1">
                   <Badge
                     className={
-                      subscription.status === 'ACTIVE'
+                      isSubscriptionActive
                         ? 'bg-emerald-600 text-white font-black'
                         : 'bg-rose-600 text-white font-black'
                     }
                   >
-                    {subscription.status === 'ACTIVE'
-                      ? '● STATUS ATUAL: PLANO ATIVO (PAGAMENTO IDENTIFICADO)'
+                    {isSubscriptionActive
+                      ? '● STATUS ATUAL: PLANO ATIVO (LIBERADO)'
                       : '● STATUS ATUAL: PLANO INATIVO (AGUARDANDO PAGAMENTO)'}
                   </Badge>
                   <span className="text-xs font-semibold text-slate-500">
@@ -1084,14 +1094,14 @@ const SocioPortal: React.FC = () => {
                   </div>
                 )}
 
-                {subscription.status !== 'ACTIVE' ? (
+                {!isSubscriptionActive ? (
                   <div className="bg-rose-50 border-2 border-rose-300 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="space-y-1">
                       <h4 className="font-black text-rose-900 text-sm sm:text-base">
-                        🔒 Plano Inativo — Aguardando Pagamento ou Comprovação Documental
+                        🔒 Plano Inativo — Aguardando Ativação do Cadastro
                       </h4>
                       <p className="text-xs text-rose-800">
-                        A edição da foto 3x4 e o download das carteirinhas só são liberados após a confirmação do pagamento (aba <strong>"Mensalidades"</strong>) e envio dos documentos obrigatórios de cada integrante (aba <strong>"Documentos"</strong>).
+                        A edição da foto 3x4 e o download das carteirinhas só são liberados após a confirmação do pagamento (aba <strong>"Mensalidades"</strong>) ou ativação do plano pela administração.
                       </p>
                     </div>
                   </div>
@@ -1124,8 +1134,7 @@ const SocioPortal: React.FC = () => {
                       const effExp = member.expirationDate || subscription.endDate;
                       const isExpiredMember = isClubDateExpired(effExp);
                       const isLockedMember =
-                        subscription.status !== 'ACTIVE' ||
-                        member.status !== 'ACTIVE' ||
+                        (!isSubscriptionActive && member.status !== 'ACTIVE') ||
                         isExpiredMember ||
                         missingDoc;
                       return (
@@ -1142,8 +1151,8 @@ const SocioPortal: React.FC = () => {
                                 ? `Falta anexar: ${docRule.title || 'comprovante do plano'}`
                                 : isExpiredMember
                                 ? `Cadastro expirado em ${formatDateBR(effExp)}`
-                                : member.status !== 'ACTIVE' || subscription.status !== 'ACTIVE'
-                                ? 'Aguardando pagamento / liberação'
+                                : !isSubscriptionActive && member.status !== 'ACTIVE'
+                                ? 'Aguardando liberação do cadastro'
                                 : undefined
                             }
                             onUpdatePhoto={handleUpdateMemberPhoto}
@@ -1283,9 +1292,10 @@ const SocioPortal: React.FC = () => {
                           const missingDoc = isMemberBlockedForMissingDoc(member, subscription);
                           const effExp = member.expirationDate || subscription.endDate;
                           const isExpiredDep = isClubDateExpired(effExp);
+                          const isDepInactive = member.status === 'INACTIVE';
                           const isLockedDep =
-                            subscription.status !== 'ACTIVE' ||
-                            member.status !== 'ACTIVE' ||
+                            (!isSubscriptionActive && member.status !== 'ACTIVE') ||
+                            isDepInactive ||
                             isExpiredDep ||
                             missingDoc;
                           return (
@@ -1303,9 +1313,9 @@ const SocioPortal: React.FC = () => {
                                     ? `Falta anexar: ${docRule.title || 'comprovante do plano'}`
                                     : isExpiredDep
                                     ? `Cadastro expirado em ${formatDateBR(effExp)}`
-                                    : subscription.status !== 'ACTIVE'
-                                    ? 'Aguardando pagamento / liberação do titular'
-                                    : member.status !== 'ACTIVE'
+                                    : !isSubscriptionActive && member.status !== 'ACTIVE'
+                                    ? 'Aguardando liberação do titular'
+                                    : isDepInactive
                                     ? 'Dependente inativo no momento'
                                     : undefined
                                 }

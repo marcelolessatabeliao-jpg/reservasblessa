@@ -2489,9 +2489,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         ? 'INACTIVE'
         : situacaoInativar === 'SIM'
         ? 'INACTIVE'
-        : situacaoLiberar === 'SIM' || selectedSubForDetail.status === 'PENDING_TRANSFER'
+        : situacaoLiberar === 'SIM' ||
+          selectedSubForDetail.status === 'ACTIVE' ||
+          selectedSubForDetail.status === 'PENDING_TRANSFER'
         ? 'ACTIVE'
-        : 'INACTIVE';
+        : selectedSubForDetail.status || 'INACTIVE';
 
       if (isSemPlano) {
         setSituacaoLiberar('NAO');
@@ -2735,7 +2737,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
           backCardUrl: backCard,
           validityLabel: getValidityLabelFromDate(targetSub.endDate),
           monthlyValue: 0,
-          status: targetSub.status === 'ACTIVE' ? 'ACTIVE' : 'PENDING_TRANSFER',
+          status: targetSub.status === 'ACTIVE' || targetSub.monthlyEquivalent === 0 || targetSub.paymentMethod === 'COURTESY' ? 'ACTIVE' : 'PENDING_TRANSFER',
           manualStatusOverride: true,
           createdAt: new Date().toISOString(),
         };
@@ -3652,17 +3654,22 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     const prevLabel = targetMember.status === 'ACTIVE' ? 'ATIVO' : 'INATIVO';
     const newLabel = nextMemberStatus === 'ACTIVE' ? 'ATIVO' : 'INATIVO';
 
+    const updatedMembers = sub.members.map((m) =>
+      m.id === memberId
+        ? { ...m, status: nextMemberStatus, manualStatusOverride: true }
+        : m
+    );
+    const hasActiveTitular = updatedMembers.some((m) => m.role === 'TITULAR' && m.status === 'ACTIVE');
+    const hasAnyActive = updatedMembers.some((m) => m.status === 'ACTIVE');
+
     const updatedSub: ClubSubscription = {
       ...sub,
+      status: hasActiveTitular || hasAnyActive ? 'ACTIVE' : 'INACTIVE',
       updatedAt: new Date().toISOString(),
       transferCompleted: true,
       transferredAt: sub.transferredAt || new Date().toISOString(),
       manualStatusOverride: true,
-      members: sub.members.map((m) =>
-        m.id === memberId
-          ? { ...m, status: nextMemberStatus, manualStatusOverride: true }
-          : m
-      ),
+      members: updatedMembers,
     };
     const nextState: ClubDatabaseState = {
       ...state,
