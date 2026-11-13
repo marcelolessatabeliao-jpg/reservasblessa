@@ -3117,6 +3117,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     const updatedSub: ClubSubscription = {
       ...sub,
       transferCompleted: completed,
+      manuallyConfirmedTransfer: completed,
       transferredAt: completed ? new Date().toISOString() : undefined,
       manualStatusOverride: completed,
       status: targetStatus,
@@ -12077,17 +12078,14 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                             (m) => m.role === 'DEPENDENTE'
                           );
                           const isEligibleForTransfer =
-                            !isPlanAllowingDeps ||
-                            (selectedSubForDetail.members.length === 1 && (
-                              (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('kids') ||
-                              (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('tea') ||
-                              (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('pcd') ||
-                              (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('pdc') ||
-                              (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('vital') ||
-                              (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('60+') ||
-                              (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('sem plano') ||
-                              ['KIDS', 'PCD_TEA', 'IDOSO_60', 'SEM_PLANO'].includes(selectedSubForDetail.members[0]?.modalityCode || '')
-                            ));
+                            (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('kids') ||
+                            (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('tea') ||
+                            (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('pcd') ||
+                            (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('pdc') ||
+                            (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('inclus') ||
+                            (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('vital') ||
+                            (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('sem plano') ||
+                            ['KIDS', 'PCD_TEA', 'VITALICIO', 'SEM_PLANO'].includes(selectedSubForDetail.members[0]?.modalityCode || '');
 
                           return (
                             <div className="flex items-center gap-2 flex-wrap">
@@ -12173,14 +12171,13 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           const isDep = m.role === 'DEPENDENTE';
                           const draftExp = depExpDrafts[m.id] ?? m.expirationDate ?? '';
                           const isMemEligibleForTransfer =
-                            !doesPlanAllowDependents(selectedSubForDetail.planSummaryLabel || m.modalityCode) ||
-                            (['KIDS', 'PCD_TEA', 'IDOSO_60', 'SEM_PLANO'].includes(m.modalityCode || '') ||
+                            (['KIDS', 'PCD_TEA', 'VITALICIO', 'SEM_PLANO'].includes(m.modalityCode || '') ||
                              (m.planCycleLabel || '').toLowerCase().includes('kids') ||
                              (m.planCycleLabel || '').toLowerCase().includes('tea') ||
                              (m.planCycleLabel || '').toLowerCase().includes('pcd') ||
                              (m.planCycleLabel || '').toLowerCase().includes('pdc') ||
+                             (m.planCycleLabel || '').toLowerCase().includes('inclus') ||
                              (m.planCycleLabel || '').toLowerCase().includes('vital') ||
-                             (m.planCycleLabel || '').toLowerCase().includes('60+') ||
                              (m.planCycleLabel || '').toLowerCase().includes('sem plano'));
                           return (
                             <div

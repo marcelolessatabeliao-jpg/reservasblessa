@@ -187,6 +187,7 @@ export interface ClubSubscription {
   cardStatus?: ClubCardStatus;
   origin: 'SITE' | 'ADMIN' | 'IMPORT_LABCARD';
   transferCompleted?: boolean;
+  manuallyConfirmedTransfer?: boolean;
   transferredAt?: string;
   consultantName?: string;
   influencerName?: string;

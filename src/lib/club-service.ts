@@ -209,6 +209,7 @@ const isLabcardSubscriptionModified = (
     sub.status !== 'PENDING_TRANSFER' ||
     Boolean(sub.manualStatusOverride) ||
     Boolean(sub.transferCompleted) ||
+    Boolean(sub.manuallyConfirmedTransfer) ||
     Boolean(sub.transferredAt) ||
     Boolean(sub.cardStatus)
   ) {
@@ -238,14 +239,31 @@ const isLabcardSubscriptionModified = (
   if (
     sub.holderName !== seedSub.holderName ||
     sub.holderCpf !== seedSub.holderCpf ||
+    sub.holderRg !== seedSub.holderRg ||
+    sub.holderSex !== seedSub.holderSex ||
+    sub.holderMaritalStatus !== seedSub.holderMaritalStatus ||
     sub.holderPhone !== seedSub.holderPhone ||
     sub.holderEmail !== seedSub.holderEmail ||
     sub.holderBirthDate !== seedSub.holderBirthDate ||
+    sub.addressCep !== seedSub.addressCep ||
+    sub.addressStreet !== seedSub.addressStreet ||
+    sub.addressNumber !== seedSub.addressNumber ||
+    sub.addressComplement !== seedSub.addressComplement ||
+    sub.addressNeighborhood !== seedSub.addressNeighborhood ||
     sub.addressCity !== seedSub.addressCity ||
+    sub.addressState !== seedSub.addressState ||
     sub.notes !== seedSub.notes ||
     sub.vehiclePlate !== seedSub.vehiclePlate ||
+    sub.vehicleModel !== seedSub.vehicleModel ||
+    sub.vehicleColor !== seedSub.vehicleColor ||
     sub.planSummaryLabel !== seedSub.planSummaryLabel ||
-    sub.billingCycle !== seedSub.billingCycle
+    sub.billingCycle !== seedSub.billingCycle ||
+    sub.consultantName !== seedSub.consultantName ||
+    sub.influencerName !== seedSub.influencerName ||
+    sub.dueDay !== seedSub.dueDay ||
+    sub.monthlyEquivalent !== seedSub.monthlyEquivalent ||
+    sub.totalContractValue !== seedSub.totalContractValue ||
+    sub.paymentMethod !== seedSub.paymentMethod
   ) {
     return true;
   }
@@ -264,7 +282,14 @@ const isLabcardSubscriptionModified = (
       (m.attachments?.length || 0) > 0 ||
       m.fullName !== sm.fullName ||
       m.cpf !== sm.cpf ||
-      m.phone !== sm.phone
+      m.rg !== sm.rg ||
+      m.phone !== sm.phone ||
+      m.email !== sm.email ||
+      m.birthDate !== sm.birthDate ||
+      m.relationship !== sm.relationship ||
+      m.role !== sm.role ||
+      m.modalityCode !== sm.modalityCode ||
+      m.cardNumber !== sm.cardNumber
     ) {
       return true;
     }
@@ -1024,7 +1049,7 @@ export const loadClubStateLocal = (): ClubDatabaseState => {
     // Assegura que cadastros do Labcard não fiquem como "transferência concluída" prematuramente
     subsMap.forEach((sub) => {
       if (sub.origin === 'IMPORT_LABCARD' || sub.id.startsWith('sub-labcard-')) {
-        if (!REGULARIZED_ACTIVE_CARDS.has(sub.subscriptionCode) && !sub.transferCompleted) {
+        if (!REGULARIZED_ACTIVE_CARDS.has(sub.subscriptionCode) && !sub.manuallyConfirmedTransfer) {
           sub.transferCompleted = false;
           sub.status = 'PENDING_TRANSFER';
           if (sub.members) {
@@ -1233,7 +1258,7 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
       // Preservar pendente p/ transferência na base importada do Labcard enquanto a transferência não for concluída
       subsMap.forEach((sub) => {
         if (sub.origin === 'IMPORT_LABCARD' || sub.id.startsWith('sub-labcard-')) {
-          if (!REGULARIZED_ACTIVE_CARDS.has(sub.subscriptionCode) && !sub.transferCompleted) {
+          if (!REGULARIZED_ACTIVE_CARDS.has(sub.subscriptionCode) && !sub.manuallyConfirmedTransfer) {
             sub.transferCompleted = false;
             sub.status = 'PENDING_TRANSFER';
             if (sub.members) {
