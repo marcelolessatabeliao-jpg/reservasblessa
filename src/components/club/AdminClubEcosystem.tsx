@@ -42,6 +42,7 @@ import {
   Wrench,
   X,
   Check,
+  Edit,
   Edit3,
   Eye,
   EyeOff,
@@ -1085,6 +1086,24 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     detail: string;
     isActive: boolean;
   } | null>(null);
+
+  // Modal de Edição de Dados do Dependente (Nome, CPF, Data de Nascimento, RG, Telefone)
+  const [isEditDependentModalOpen, setIsEditDependentModalOpen] = useState(false);
+  const [editingDependentMember, setEditingDependentMember] = useState<ClubMember | null>(null);
+  const [editDependentData, setEditDependentData] = useState<{
+    fullName: string;
+    cpf: string;
+    birthDate: string;
+    rg: string;
+    phone: string;
+  }>({
+    fullName: '',
+    cpf: '',
+    birthDate: '',
+    rg: '',
+    phone: '',
+  });
+  const [isSavingDependentData, setIsSavingDependentData] = useState(false);
 
   // Estados de salvamento para evitar cliques duplicados e congelamento da interface
   const [isSavingClientRegistration, setIsSavingClientRegistration] = useState(false);
@@ -3749,6 +3768,101 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         ? `Nova data de expiração: ${formatDateBR(cleanedDate)}`
         : `Passa a seguir o vencimento geral do titular (${formatDateBR(sub.endDate)}).`,
     });
+  };
+
+  // Abertura do modal de edição dos dados cadastrais do dependente (Nome, CPF, Data de Nascimento, RG, Telefone)
+  const handleOpenEditDependentModal = (member: ClubMember) => {
+    setEditingDependentMember(member);
+    setEditDependentData({
+      fullName: member.fullName || '',
+      cpf: member.cpf || '',
+      birthDate: member.birthDate ? formatBirthDate(member.birthDate) : '',
+      rg: member.rg || '',
+      phone: member.phone || '',
+    });
+    setIsEditDependentModalOpen(true);
+  };
+
+  // Salvamento das alterações do dependente
+  const handleSaveDependentData = async () => {
+    if (!state || !selectedSubForDetail || !editingDependentMember || isSavingDependentData) return;
+
+    const trimmedName = editDependentData.fullName.trim();
+    if (!trimmedName) {
+      toast({
+        title: 'Nome Obrigatório',
+        description: 'Por favor, informe o nome completo do dependente.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const rawCpf = cleanDigits(editDependentData.cpf);
+    if (rawCpf && rawCpf.length > 0 && !isValidCpf(rawCpf)) {
+      toast({
+        title: 'CPF Inválido',
+        description: 'O CPF informado para o dependente não é válido. Verifique os 11 dígitos.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsSavingDependentData(true);
+    try {
+      const formattedCpfVal = rawCpf ? formatCpf(rawCpf) : editDependentData.cpf.trim();
+      const formattedBirthVal = editDependentData.birthDate.trim()
+        ? formatBirthDate(editDependentData.birthDate.trim())
+        : editingDependentMember.birthDate;
+
+      const updatedMembers = selectedSubForDetail.members.map((m) => {
+        if (m.id === editingDependentMember.id || m.cardNumber === editingDependentMember.cardNumber) {
+          return {
+            ...m,
+            fullName: trimmedName,
+            cpf: formattedCpfVal,
+            birthDate: formattedBirthVal,
+            rg: editDependentData.rg.trim() || m.rg,
+            phone: editDependentData.phone.trim() ? formatPhone(editDependentData.phone) : m.phone,
+            manualStatusOverride: true,
+          };
+        }
+        return m;
+      });
+
+      const updatedSub: ClubSubscription = {
+        ...selectedSubForDetail,
+        members: updatedMembers,
+        updatedAt: new Date().toISOString(),
+        manualStatusOverride: true,
+      };
+
+      const nextState: ClubDatabaseState = {
+        ...state,
+        subscriptions: (state.subscriptions || []).map((s) =>
+          s.id === updatedSub.id ? updatedSub : s
+        ),
+      };
+
+      setSelectedSubForDetail(updatedSub);
+      await persist(nextState);
+
+      setIsEditDependentModalOpen(false);
+      setEditingDependentMember(null);
+
+      toast({
+        title: 'Dados do Dependente Atualizados!',
+        description: `Os dados de ${trimmedName} foram alterados e salvos com sucesso.`,
+      });
+    } catch (err) {
+      console.error('Erro ao salvar dependente:', err);
+      toast({
+        title: 'Erro ao salvar',
+        description: 'Ocorreu um erro ao salvar as alterações do dependente.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSavingDependentData(false);
+    }
   };
 
   // Batch settle invoices
@@ -11942,6 +12056,16 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                         type="button"
                                         size="sm"
                                         variant="outline"
+                                        onClick={() => handleOpenEditDependentModal(m)}
+                                        className="h-6 px-2 text-[10px] font-bold border-blue-400 text-blue-800 bg-blue-50 hover:bg-blue-100 cursor-pointer flex items-center gap-1"
+                                        title="Editar Nome, CPF e Data de Nascimento deste Dependente"
+                                      >
+                                        <Edit className="w-2.5 h-2.5 text-blue-600" /> Editar Dados
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
                                         onClick={() =>
                                           handleToggleMemberStatus(
                                             selectedSubForDetail,
@@ -15959,6 +16083,16 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                   </div>
 
                                   <div className="flex flex-wrap items-center gap-2">
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleOpenEditDependentModal(dep)}
+                                      className="text-xs font-bold border-blue-400 text-blue-800 bg-blue-50 hover:bg-blue-100 h-8 gap-1.5 cursor-pointer flex items-center"
+                                      title="Editar Nome, CPF e Data de Nascimento deste Dependente"
+                                    >
+                                      <Edit className="w-3.5 h-3.5 text-blue-600" /> Editar Dados
+                                    </Button>
                                     <Button
                                       type="button"
                                       size="sm"
@@ -20045,6 +20179,157 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
               Cancelar
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL PARA EDITAR DADOS DO DEPENDENTE (NOME, CPF, DATA DE NASCIMENTO, RG, TELEFONE) */}
+      <Dialog
+        open={isEditDependentModalOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsEditDependentModalOpen(false);
+            setEditingDependentMember(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg rounded-3xl border-2 border-emerald-500 p-0 overflow-hidden bg-white shadow-2xl">
+          <div className="bg-gradient-to-r from-emerald-950 via-[#042817] to-slate-950 text-white p-5 border-b border-amber-400/40">
+            <DialogHeader>
+              <DialogTitle className="text-base sm:text-lg font-black uppercase tracking-tight text-white flex items-center gap-2">
+                <Edit className="w-5 h-5 text-amber-400" />
+                Editar Dados do Dependente
+              </DialogTitle>
+              <DialogDescription className="text-xs text-emerald-200 font-medium">
+                Cartão #{editingDependentMember?.cardNumber} • Vinculado à família de{' '}
+                <strong className="text-amber-300">
+                  {selectedSubForDetail?.holderName}
+                </strong>
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSaveDependentData();
+            }}
+            className="p-5 space-y-4"
+          >
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-slate-800 flex items-center gap-1">
+                <User className="w-3.5 h-3.5 text-emerald-700" /> Nome Completo do Dependente *
+              </Label>
+              <Input
+                value={editDependentData.fullName}
+                onChange={(e) =>
+                  setEditDependentData((prev) => ({ ...prev, fullName: e.target.value }))
+                }
+                placeholder="Ex: Gilmara Nascimento Moreira"
+                className="h-10 text-xs sm:text-sm font-semibold rounded-xl border-slate-300 focus:border-emerald-600 focus:ring-emerald-600"
+                required
+                autoFocus
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold text-slate-800 flex items-center gap-1">
+                  <CreditCard className="w-3.5 h-3.5 text-emerald-700" /> CPF do Dependente
+                </Label>
+                <Input
+                  value={editDependentData.cpf}
+                  onChange={(e) =>
+                    setEditDependentData((prev) => ({
+                      ...prev,
+                      cpf: formatCpf(e.target.value),
+                    }))
+                  }
+                  placeholder="000.000.000-00"
+                  className="h-10 text-xs sm:text-sm font-semibold rounded-xl border-slate-300 focus:border-emerald-600 focus:ring-emerald-600"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold text-slate-800 flex items-center gap-1">
+                  <Calendar className="w-3.5 h-3.5 text-emerald-700" /> Data de Nascimento
+                </Label>
+                <Input
+                  value={editDependentData.birthDate}
+                  onChange={(e) =>
+                    setEditDependentData((prev) => ({
+                      ...prev,
+                      birthDate: formatBirthDate(e.target.value),
+                    }))
+                  }
+                  placeholder="dd/mm/aaaa (Ex: 12/01/1988)"
+                  className="h-10 text-xs sm:text-sm font-semibold rounded-xl border-slate-300 focus:border-emerald-600 focus:ring-emerald-600"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold text-slate-800">
+                  RG (Opcional)
+                </Label>
+                <Input
+                  value={editDependentData.rg}
+                  onChange={(e) =>
+                    setEditDependentData((prev) => ({ ...prev, rg: e.target.value }))
+                  }
+                  placeholder="Nº do RG"
+                  className="h-10 text-xs sm:text-sm font-semibold rounded-xl border-slate-300"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold text-slate-800">
+                  Telefone / WhatsApp (Opcional)
+                </Label>
+                <Input
+                  value={editDependentData.phone}
+                  onChange={(e) =>
+                    setEditDependentData((prev) => ({
+                      ...prev,
+                      phone: formatPhone(e.target.value),
+                    }))
+                  }
+                  placeholder="(69) 90000-0000"
+                  className="h-10 text-xs sm:text-sm font-semibold rounded-xl border-slate-300"
+                />
+              </div>
+            </div>
+
+            <DialogFooter className="pt-3 border-t border-slate-200 flex items-center justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setIsEditDependentModalOpen(false);
+                  setEditingDependentMember(null);
+                }}
+                className="text-xs font-bold text-slate-700 rounded-xl"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSavingDependentData}
+                className="text-xs font-black bg-[#004d00] hover:bg-emerald-900 text-white rounded-xl px-5 h-10 shadow-md gap-1.5 cursor-pointer"
+              >
+                {isSavingDependentData ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Salvando...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-3.5 h-3.5" /> Salvar Dados do Dependente
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 
