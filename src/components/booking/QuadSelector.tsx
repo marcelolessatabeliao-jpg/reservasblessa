@@ -101,10 +101,6 @@ export function QuadSelector({ quads, selectedDate, onUpdate, onSetQuads }: Prop
     }
   }, [quads]);
 
-  if (isLoading) {
-    return <div className="flex items-center justify-center p-6"><Loader2 className="animate-spin text-primary h-6 w-6" /></div>;
-  }
-
   // Uso do slot no banco de dados (excluindo reservas locais do próprio cliente)
   const getSlotDbUsage = (slotTime: string) => {
     return slotAvailabilities[slotTime] || 0;

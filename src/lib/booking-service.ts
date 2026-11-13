@@ -280,53 +280,80 @@ export async function saveBooking(
 }
 
 export async function getAllQuadAvailabilities(date: string): Promise<Record<string, number>> {
-  const { data, error } = await (supabase
-    .from('quad_reservations') as any)
-    .select('time_slot, quantity, orders!inner(status)')
-    .eq('reservation_date', date);
+  try {
+    const fetchPromise = (supabase
+      .from('quad_reservations') as any)
+      .select('time_slot, quantity, orders!inner(status)')
+      .eq('reservation_date', date);
 
-  const result: Record<string, number> = {};
-  if (error || !data) return result;
+    const timeoutPromise = new Promise<{ data: null; error: Error }>((resolve) =>
+      setTimeout(() => resolve({ data: null, error: new Error('Timeout') }), 1800)
+    );
 
-  const confirmedStatuses = ['paid', 'pago', 'confirmed', 'confirmado', 'checked-in', 'completed'];
+    const { data, error }: any = await Promise.race([fetchPromise, timeoutPromise]);
 
-  data.forEach((r: any) => {
-    const status = (r.orders?.status || '').toLowerCase();
-    if (confirmedStatuses.includes(status)) {
-      result[r.time_slot] = (result[r.time_slot] || 0) + (Number(r.quantity) || 0);
-    }
-  });
+    const result: Record<string, number> = {};
+    if (error || !data) return result;
 
-  return result;
+    const confirmedStatuses = ['paid', 'pago', 'confirmed', 'confirmado', 'checked-in', 'completed'];
+
+    data.forEach((r: any) => {
+      const status = (r.orders?.status || '').toLowerCase();
+      if (confirmedStatuses.includes(status)) {
+        result[r.time_slot] = (result[r.time_slot] || 0) + (Number(r.quantity) || 0);
+      }
+    });
+
+    return result;
+  } catch {
+    return {};
+  }
 }
 
 export async function getQuadAvailability(date: string, timeSlot: string): Promise<number> {
-  const { data, error } = await (supabase
-    .from('quad_reservations') as any)
-    .select('quantity, orders!inner(status)')
-    .eq('reservation_date', date)
-    .eq('time_slot', timeSlot);
+  try {
+    const fetchPromise = (supabase
+      .from('quad_reservations') as any)
+      .select('quantity, orders!inner(status)')
+      .eq('reservation_date', date)
+      .eq('time_slot', timeSlot);
 
-  if (error || !data) return 0;
+    const timeoutPromise = new Promise<{ data: null; error: Error }>((resolve) =>
+      setTimeout(() => resolve({ data: null, error: new Error('Timeout') }), 1800)
+    );
 
-  const confirmedStatuses = ['paid', 'pago', 'confirmed', 'confirmado', 'checked-in', 'completed'];
+    const { data, error }: any = await Promise.race([fetchPromise, timeoutPromise]);
 
-  return data
-    .filter((r: any) => {
-      const status = (r.orders?.status || '').toLowerCase();
-      return confirmedStatuses.includes(status);
-    })
-    .reduce((sum: number, r: any) => sum + (Number(r.quantity) || 0), 0);
+    if (error || !data) return 0;
+
+    const confirmedStatuses = ['paid', 'pago', 'confirmed', 'confirmado', 'checked-in', 'completed'];
+
+    return data
+      .filter((r: any) => {
+        const status = (r.orders?.status || '').toLowerCase();
+        return confirmedStatuses.includes(status);
+      })
+      .reduce((sum: number, r: any) => sum + (Number(r.quantity) || 0), 0);
+  } catch {
+    return 0;
+  }
 }
 
 export async function getBookedKioskIds(date: string): Promise<number[]> {
-  const { data, error } = await (supabase
-    .from('kiosk_reservations') as any)
-    .select('id, kiosk_id, kiosk_type, orders!inner(status)')
-    .eq('reservation_date', date)
-    .order('id', { ascending: true });
+  try {
+    const fetchPromise = (supabase
+      .from('kiosk_reservations') as any)
+      .select('id, kiosk_id, kiosk_type, orders!inner(status)')
+      .eq('reservation_date', date)
+      .order('id', { ascending: true });
 
-  if (error || !data) return [];
+    const timeoutPromise = new Promise<{ data: null; error: Error }>((resolve) =>
+      setTimeout(() => resolve({ data: null, error: new Error('Timeout') }), 1800)
+    );
+
+    const { data, error }: any = await Promise.race([fetchPromise, timeoutPromise]);
+
+    if (error || !data) return [];
 
   // Apenas reservas pagas e confirmadas bloqueiam o quiosque
   // Reservas pendentes NÃO bloqueiam - apenas pagos e confirmados
@@ -387,6 +414,9 @@ export async function getBookedKioskIds(date: string): Promise<number[]> {
 
   // Retorna IDs únicos para evitar duplicidade visual
   return Array.from(new Set(bookedIds));
+} catch {
+  return [];
+}
 }
 
 export function isChaleBlockedForRange(
@@ -522,10 +552,17 @@ export async function getBookingCount(): Promise<number> {
 export async function getGlobalSetting(key: string, defaultValue: any = null): Promise<any> {
   try {
     const local = typeof window !== 'undefined' ? localStorage.getItem(`setting_${key}`) : null;
-    const { data, error } = await (supabase.from('site_settings') as any)
+    
+    const fetchPromise = (supabase.from('site_settings') as any)
       .select('value')
       .eq('key', key)
       .maybeSingle();
+
+    const timeoutPromise = new Promise<{ data: null; error: Error }>((resolve) =>
+      setTimeout(() => resolve({ data: null, error: new Error('Timeout') }), 1200)
+    );
+
+    const { data, error }: any = await Promise.race([fetchPromise, timeoutPromise]);
     
     if (error || !data) {
       if (local !== null) {

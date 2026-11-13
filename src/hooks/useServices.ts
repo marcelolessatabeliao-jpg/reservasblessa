@@ -8,21 +8,41 @@ export interface ServiceItem {
   base_price: number;
 }
 
+const DEFAULT_SERVICES: ServiceItem[] = [
+  { id: '1', name: 'Quiosque Maior', type: 'kiosk_maior', base_price: 150 },
+  { id: '2', name: 'Quiosque Menor', type: 'kiosk_menor', base_price: 100 },
+  { id: '3', name: 'Quiosque Familiar', type: 'kiosk_familiar', base_price: 75 },
+  { id: '4', name: 'Quadriciclo Individual', type: 'quad_individual', base_price: 130 },
+  { id: '5', name: 'Quadriciclo Dupla', type: 'quad_dupla', base_price: 195 },
+  { id: '6', name: 'Futebol de Sabão', type: 'add_futebol-sabao', base_price: 10 },
+  { id: '7', name: 'Pesca Esportiva', type: 'add_pesca', base_price: 15 },
+];
+
 export function useServices() {
-  const { data: services = [], isLoading, error } = useQuery({
+  const { data: services = DEFAULT_SERVICES, error } = useQuery({
     queryKey: ['services'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('services')
-        .select('*')
-        .eq('ativo', true);
-      
-      if (error) {
-        console.error('Error fetching services:', error);
-        throw error;
+      try {
+        const fetchPromise = supabase
+          .from('services')
+          .select('*')
+          .eq('ativo', true);
+
+        const timeoutPromise = new Promise<{ data: null; error: Error }>((resolve) =>
+          setTimeout(() => resolve({ data: null, error: new Error('Timeout') }), 1500)
+        );
+
+        const res: any = await Promise.race([fetchPromise, timeoutPromise]);
+        if (res.error) {
+          console.warn('[useServices] Usando tabela de serviços padrão:', res.error.message);
+          return DEFAULT_SERVICES;
+        }
+        return (res.data && res.data.length > 0 ? res.data : DEFAULT_SERVICES) as ServiceItem[];
+      } catch {
+        return DEFAULT_SERVICES;
       }
-      return data as ServiceItem[];
     },
+    initialData: DEFAULT_SERVICES,
     staleTime: 1000 * 60 * 5, // 5 minutos
   });
 
@@ -30,9 +50,10 @@ export function useServices() {
     if (type === 'add_futebol-sabao' || type === 'futebol-sabao') {
       return 10;
     }
-    const service = services.find((s) => s.type === type);
+    const currentServices = services || DEFAULT_SERVICES;
+    const service = currentServices.find((s) => s.type === type);
     return service ? Number(service.base_price) : fallbackPrice;
   };
 
-  return { services, getPrice, isLoading, error };
+  return { services: services || DEFAULT_SERVICES, getPrice, isLoading: false, error };
 }

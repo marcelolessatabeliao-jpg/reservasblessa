@@ -124,10 +124,6 @@ export function KioskSelector({ kiosks, onUpdate }: Props) {
     });
   };
 
-  if (isLoading) {
-    return <div className="flex items-center justify-center p-6"><Loader2 className="animate-spin text-primary h-6 w-6" /></div>;
-  }
-
   const maiorPrice    = getPrice('kiosk_maior',    KIOSK_INFO.maior.price);
   const menorPrice    = getPrice('kiosk_menor',    KIOSK_INFO.menor.price);
   const familiarPrice = getPrice('kiosk_familiar', KIOSK_INFO.familiar.price);
