@@ -119,6 +119,7 @@ import {
   formatDateBR,
   fileToDataUrl,
   compressImageFile,
+  detectModalityCodeFromPlanDescription,
   isValidCpf,
   isValidCnpj,
   cleanDigits,
@@ -2335,6 +2336,19 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         setSituacaoLiberar('NAO');
         setSituacaoInativar('SIM');
       }
+      const rawPlanDesc = selectedSubForDetail.planSummaryLabel || '';
+      const titularMember =
+        selectedSubForDetail.members.find((m) => m.role === 'TITULAR') ||
+        selectedSubForDetail.members[0];
+      const memberModCode = titularMember?.modalityCode || '';
+      const memberModName = titularMember?.modalityName || '';
+
+      const detectedModalityCode = detectModalityCodeFromPlanDescription(
+        rawPlanDesc || memberModName,
+        memberModCode,
+        state?.modalities
+      );
+
       setEditClientData({
         holderName: selectedSubForDetail.holderName || '',
         holderCpf: selectedSubForDetail.holderCpf || '',
@@ -2361,11 +2375,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         billingCycle: selectedSubForDetail.billingCycle || 'ANNUAL',
         monthlyEquivalent: selectedSubForDetail.monthlyEquivalent || 0,
         planSummaryLabel: selectedSubForDetail.planSummaryLabel || '',
-        modalityCode:
-          selectedSubForDetail.members.find((m) => m.role === 'TITULAR')
-            ?.modalityCode ||
-          selectedSubForDetail.members[0]?.modalityCode ||
-          '',
+        modalityCode: detectedModalityCode,
         endDate: selectedSubForDetail.endDate || '',
       });
       const draftMap: Record<string, string> = {};
@@ -2426,6 +2436,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       );
       const isSemPlano = editClientData.modalityCode === 'SEM_PLANO';
       const isCorporateCourtesy = editClientData.modalityCode === 'CORPORATE';
+      const isPublicidade = editClientData.modalityCode === 'PUBLICIDADE';
 
       const targetStatus: ClubSubscription['status'] = isSemPlano
         ? 'INACTIVE'
@@ -2445,7 +2456,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       const nextValidityLabel = getValidityLabelFromDate(nextEndDate);
       const parsedEditMonthly = Number(String(editClientData.monthlyEquivalent).replace(',', '.'));
       const monthlyVal =
-        isSemPlano || isCorporateCourtesy
+        isSemPlano || isCorporateCourtesy || isPublicidade
           ? 0
           : Number.isFinite(parsedEditMonthly) && parsedEditMonthly >= 0
           ? parsedEditMonthly
@@ -2455,7 +2466,10 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       const updatedSub: ClubSubscription = {
         ...selectedSubForDetail,
         status: targetStatus,
-        paymentMethod: isCorporateCourtesy
+        contractType: isPublicidade
+          ? 'FAMILY_PUBLICIDADE'
+          : selectedSubForDetail.contractType,
+        paymentMethod: isCorporateCourtesy || isPublicidade
           ? 'COURTESY'
           : selectedSubForDetail.paymentMethod,
         endDate: nextEndDate,
@@ -2484,7 +2498,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         billingCycle: editClientData.billingCycle,
         monthlyEquivalent: monthlyVal,
         totalContractValue:
-          isSemPlano || isCorporateCourtesy
+          isSemPlano || isCorporateCourtesy || isPublicidade
             ? 0
             : editClientData.billingCycle === 'ANNUAL'
             ? Number((monthlyVal * 12).toFixed(2))
@@ -2504,8 +2518,12 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     : `${chosenModality.name} ${cycleSuffix}`
                   : m.planCycleLabel,
                 monthlyValue: chosenModality ? monthlyVal : m.monthlyValue,
-                frontCardUrl: chosenModality?.frontCardUrl || m.frontCardUrl,
-                backCardUrl: chosenModality?.backCardUrl || m.backCardUrl,
+                frontCardUrl: isPublicidade
+                  ? '/cards/29.png'
+                  : chosenModality?.frontCardUrl || m.frontCardUrl,
+                backCardUrl: isPublicidade
+                  ? '/cards/33.png'
+                  : chosenModality?.backCardUrl || m.backCardUrl,
                 fullName:
                   editClientData.holderName.trim() || m.fullName,
                 cpf: editClientData.holderCpf.trim() || m.cpf,
@@ -11477,8 +11495,9 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           }
                           const isSemPlano = newCode === 'SEM_PLANO';
                           const isCorporate = newCode === 'CORPORATE';
+                          const isPub = newCode === 'PUBLICIDADE';
                           const nextMonthly =
-                            isSemPlano || isCorporate || chosen.isFreeTier
+                            isSemPlano || isCorporate || isPub || chosen.isFreeTier
                               ? 0
                               : editClientData.billingCycle === 'ANNUAL'
                               ? chosen.annualInstallment || chosen.monthlyPrice
@@ -11487,14 +11506,16 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                             ? 'Sem Plano (Inativo)'
                             : isCorporate
                             ? 'Lessa Corporate Pass — Cortesia (Colaboradores)'
+                            : isPub
+                            ? 'Lessa Family Publicidade - R$ 0,00'
                             : chosen.isFreeTier
-                            ? chosen.name
+                            ? `${chosen.name} - R$ 0,00`
                             : `${chosen.name} (${editClientData.billingCycle === 'ANNUAL' ? 'Anual' : 'Mensal'})`;
 
                           if (isSemPlano) {
                             setSituacaoLiberar('NAO');
                             setSituacaoInativar('SIM');
-                          } else if (isCorporate) {
+                          } else if (isCorporate || isPub) {
                             setSituacaoLiberar('SIM');
                             setSituacaoInativar('NAO');
                           }
@@ -11515,6 +11536,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                               ? 'Cortesia (Interno)'
                               : mod.code === 'SEM_PLANO'
                               ? 'Sem valor (Inativo)'
+                              : mod.code === 'PUBLICIDADE'
+                              ? 'Permuta Veicular (R$ 0,00)'
                               : mod.isFreeTier
                               ? 'Gratuito'
                               : `${formatCurrency(mod.monthlyPrice)}/mês`}
@@ -11530,12 +11553,39 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                       <Textarea
                         rows={2}
                         value={editClientData.planSummaryLabel}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          const newDesc = e.target.value;
+                          const autoCode = detectModalityCodeFromPlanDescription(
+                            newDesc,
+                            editClientData.modalityCode,
+                            state?.modalities
+                          );
+                          const chosen = (state?.modalities || []).find((m) => m.code === autoCode);
+                          const isSemPlano = autoCode === 'SEM_PLANO';
+                          const isCorporate = autoCode === 'CORPORATE';
+                          const isPub = autoCode === 'PUBLICIDADE';
+                          const nextMonthly =
+                            isSemPlano || isCorporate || isPub || chosen?.isFreeTier
+                              ? 0
+                              : editClientData.billingCycle === 'ANNUAL'
+                              ? chosen?.annualInstallment || chosen?.monthlyPrice || 0
+                              : chosen?.monthlyPrice || 0;
+
+                          if (isSemPlano) {
+                            setSituacaoLiberar('NAO');
+                            setSituacaoInativar('SIM');
+                          } else if (isCorporate || isPub) {
+                            setSituacaoLiberar('SIM');
+                            setSituacaoInativar('NAO');
+                          }
+
                           setEditClientData({
                             ...editClientData,
-                            planSummaryLabel: e.target.value,
-                          })
-                        }
+                            planSummaryLabel: newDesc,
+                            modalityCode: autoCode,
+                            monthlyEquivalent: nextMonthly,
+                          });
+                        }}
                         className="mt-1 font-semibold text-sm resize-y"
                       />
                     </div>

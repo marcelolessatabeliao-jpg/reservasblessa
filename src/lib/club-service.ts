@@ -672,6 +672,87 @@ const isOutdatedCardUrl = (url?: string) =>
     '/cards/36.png',
   ].includes(url);
 
+// Detecta o código da modalidade com base no texto/descrição do plano informado na planilha ou contrato
+export const detectModalityCodeFromPlanDescription = (
+  planDescription?: string | null,
+  currentCode?: string | null,
+  modalities?: ClubModality[]
+): string => {
+  const p = (planDescription || '').trim().toLowerCase();
+  if (!p) return currentCode || 'ADULTO';
+
+  if (p.includes('publicidade') || p.includes('permuta')) {
+    return 'PUBLICIDADE';
+  }
+  if (p.includes('corporate') || p.includes('colaborador')) {
+    return 'CORPORATE';
+  }
+  if (p.includes('student') || p.includes('estudante')) {
+    return 'ESTUDANTE';
+  }
+  if (p.includes('professor') || p.includes('docente')) {
+    return 'PROFESSOR';
+  }
+  if (p.includes('servidor') || p.includes('público') || p.includes('publico')) {
+    return 'SERVIDOR';
+  }
+  if (p.includes('kids') || p.includes('criança') || p.includes('crianca')) {
+    return 'KIDS';
+  }
+  if (
+    p.includes('inclusão') ||
+    p.includes('inclusao') ||
+    p.includes('pcd') ||
+    p.includes('pdc') ||
+    p.includes('tea') ||
+    p.includes('autism')
+  ) {
+    return 'PCD_TEA';
+  }
+  if (
+    p.includes('vitalício') ||
+    p.includes('vitalicio') ||
+    p.includes('60+') ||
+    p.includes('idoso')
+  ) {
+    return 'IDOSO_60';
+  }
+  if (p.includes('parceiro')) {
+    return 'PARCEIRO';
+  }
+  if (
+    p.includes('convênio') ||
+    p.includes('convenio') ||
+    p.includes('day use') ||
+    p.includes('dayuse')
+  ) {
+    return 'CONVENIO_DAYUSE';
+  }
+  if (
+    p.includes('sem plano') ||
+    p === '- r$ 0,00' ||
+    p.trim() === '- r$ 0,00'
+  ) {
+    return 'SEM_PLANO';
+  }
+  if (p.includes('lessa club') || p.includes('duo club') || p.includes('club')) {
+    return 'ADULTO';
+  }
+
+  // Tenta encontrar por nome das modalidades cadastradas
+  if (modalities && modalities.length > 0) {
+    const directMatch = modalities.find(
+      (m) =>
+        m.name.toLowerCase() === p ||
+        p.includes(m.name.toLowerCase()) ||
+        m.code.toLowerCase() === p
+    );
+    if (directMatch) return directMatch.code;
+  }
+
+  return currentCode || 'ADULTO';
+};
+
 export const normalizeClubDatabaseState = (
   parsed: Partial<ClubDatabaseState>,
   fallbackState?: ClubDatabaseState
@@ -717,6 +798,25 @@ export const normalizeClubDatabaseState = (
         frontUrl = '/cards/26.png';
       } else if (m.modalityCode === 'PCD_TEA' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/34.png')) {
         frontUrl = '/cards/35.png';
+      }
+
+      // Sincroniza planos de Publicidade/Permuta que vieram originalmente identificados na descrição do plano
+      if (
+        (m.modalityCode === 'ADULTO' || !m.modalityCode) &&
+        ((sub.planSummaryLabel && /publicidade|permuta/i.test(sub.planSummaryLabel)) ||
+         (m.modalityName && /publicidade/i.test(m.modalityName)))
+      ) {
+        m.modalityCode = 'PUBLICIDADE';
+        m.modalityName = 'Lessa Family Publicidade';
+        frontUrl = '/cards/29.png';
+        backUrl = '/cards/33.png';
+      } else if (m.modalityCode === 'PUBLICIDADE') {
+        if (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/44.png') {
+          frontUrl = '/cards/29.png';
+        }
+        if (isOutdatedCardUrl(backUrl) || backUrl === '/cards/24.png') {
+          backUrl = '/cards/33.png';
+        }
       }
 
       if (m.modalityCode === 'KIDS' || m.modalityCode === 'IDOSO_60') {
@@ -766,8 +866,13 @@ export const normalizeClubDatabaseState = (
         ? 'INACTIVE'
         : sub.status;
 
+    const hasPublicidade =
+      Boolean(sub.planSummaryLabel && /publicidade|permuta/i.test(sub.planSummaryLabel)) ||
+      normalizedMembers.some((m) => m.modalityCode === 'PUBLICIDADE');
+
     return {
       ...sub,
+      contractType: hasPublicidade ? 'FAMILY_PUBLICIDADE' : sub.contractType,
       status: resolvedSubStatus,
       members: normalizedMembers,
       invoices: Array.isArray(sub.invoices) ? sub.invoices : [],
@@ -3039,7 +3144,8 @@ export const findConsultantByParams = (
 };
 
 const MODALITY_ALIAS_GROUPS: Record<string, string[]> = {
-  ADULTO: ['ADULTO', 'LESSA_CLUB', 'LESSA CLUB', 'FAMILY_PUBLICIDADE', 'DUO_CLUB'],
+  ADULTO: ['ADULTO', 'LESSA_CLUB', 'LESSA CLUB', 'DUO_CLUB'],
+  PUBLICIDADE: ['PUBLICIDADE', 'FAMILY_PUBLICIDADE', 'PERMUTA'],
   ESTUDANTE: ['ESTUDANTE', 'STUDENT_PASS', 'STUDENT'],
   PROFESSOR: ['PROFESSOR', 'PROFESSOR_PASS'],
   SERVIDOR: ['SERVIDOR', 'SERVIDOR_PASS'],
@@ -3047,6 +3153,8 @@ const MODALITY_ALIAS_GROUPS: Record<string, string[]> = {
   IDOSO_60: ['IDOSO_60', 'VITALICIO_60', 'VITALICIO', '60+'],
   KIDS: ['KIDS', 'LESSA_KIDS', 'CRIANCA'],
   PARCEIRO: ['PARCEIRO', 'EMPRESA', 'LESSA_PARCEIRO'],
+  CORPORATE: ['CORPORATE', 'CORPORATE_PASS', 'COLABORADOR'],
+  SEM_PLANO: ['SEM_PLANO', 'INATIVO'],
 };
 
 const matchesPlanCodeToken = (allowedToken: string, targetCode: string, targetName = ''): boolean => {

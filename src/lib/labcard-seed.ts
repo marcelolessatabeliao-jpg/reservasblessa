@@ -64,7 +64,7 @@ function mapModality(planStr: string) {
     return { code: 'PARCEIRO', name: 'Lessa Parceiro', front: '/cards/21.png', back: '/cards/24.png', price: 39.9 };
   }
   if (p.includes('publicidade')) {
-    return { code: 'ADULTO', name: 'Lessa Family Publicidade', front: '/cards/44.png', back: '/cards/24.png', price: 0 };
+    return { code: 'PUBLICIDADE', name: 'Lessa Family Publicidade', front: '/cards/29.png', back: '/cards/33.png', price: 0 };
   }
   if (p.includes('duo')) {
     return { code: 'ADULTO', name: 'Lessa Duo Club', front: '/cards/44.png', back: '/cards/24.png', price: 74.9 };
