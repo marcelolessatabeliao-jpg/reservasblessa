@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import * as XLSX from 'xlsx';
 import {
   Users,
+  ArrowRightLeft,
   UserPlus,
   CreditCard,
   Receipt,
@@ -277,6 +278,37 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     >
   >({});
 
+  // Transferir associado (Kids, PCD/TEA, Vitalício ou avulso) para cadastro de um Titular
+  const [transferHolderModalOpen, setTransferHolderModalOpen] = useState(false);
+  const [transferHolderSearchQuery, setTransferHolderSearchQuery] = useState('');
+  const [isTransferringToHolder, setIsTransferringToHolder] = useState(false);
+
+  // Titulares elegíveis para receber dependentes transferidos
+  const candidateTitularesForTransfer = useMemo(() => {
+    if (!state?.subscriptions || !selectedSubForDetail) return [];
+
+    const q = transferHolderSearchQuery.trim().toLowerCase();
+    const cleanQDigits = q.replace(/\D/g, '');
+
+    return (state.subscriptions || [])
+      .filter((sub) => {
+        // Não pode transferir para si mesmo
+        if (sub.id === selectedSubForDetail.id) return false;
+
+        // Se houver termo digitado, filtra por nome, cartão ou CPF
+        if (q.length > 0) {
+          const matchName = sub.holderName.toLowerCase().includes(q);
+          const matchCard = sub.subscriptionCode.toLowerCase().includes(q);
+          const matchCpf = cleanQDigits && (sub.holderCpf || '').replace(/\D/g, '').includes(cleanQDigits);
+          return matchName || matchCard || matchCpf;
+        }
+
+        // Sem busca: exibe titulares que aceitam dependentes (Lessa Family, Lessa Club, etc.)
+        return doesPlanAllowDependents(sub.planSummaryLabel || sub.members[0]?.modalityCode);
+      })
+      .slice(0, 40);
+  }, [state?.subscriptions, selectedSubForDetail, transferHolderSearchQuery]);
+
   // Candidatos para vincular como dependente ao cadastro atual
   const personSearchCandidates = useMemo(() => {
     const q = personSearchQuery.trim().toLowerCase();
@@ -332,15 +364,22 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
           const matchPhone = cleanQDigits && (m.phone || '').replace(/\D/g, '').includes(cleanQDigits);
 
           if (matchName || matchCard || matchCpf || matchPhone) {
+            const rawPlanStr = sub.planSummaryLabel || m.modalityName || '';
+            const detectedMod = detectModalityCodeFromPlanDescription(
+              rawPlanStr,
+              m.modalityCode,
+              state?.modalities
+            );
+
             results.push({
               fullName: mName,
               cpf: m.cpf || '',
               cardNumber: mCard,
               birthDate: m.birthDate,
               phone: m.phone,
-              modalityCode: m.modalityCode,
+              modalityCode: detectedMod || m.modalityCode,
               sourceSubscriptionId: sub.id,
-              sourceLabel: `Assinatura #${sub.subscriptionCode} (${m.role === 'TITULAR' ? 'Titular' : 'Dependente'})`,
+              sourceLabel: `Assinatura #${sub.subscriptionCode} (${m.role === 'TITULAR' ? 'Titular' : 'Dependente'}${rawPlanStr ? ` • ${rawPlanStr}` : ''})`,
               isLabcardSeed: false,
             });
           }
@@ -354,6 +393,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       const card = String(row[0] || '').trim();
       const name = String(row[1] || '').trim();
       const rawCpf = String(row[2] || '').trim();
+      const planStr = String(row[3] || '').trim();
       const cpfDigits = rawCpf.replace(/\D/g, '');
       const birthDate = String(row[4] || '').trim();
 
@@ -372,12 +412,19 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       const matchCpf = cleanQDigits && cpfDigits.includes(cleanQDigits);
 
       if (matchName || matchCard || matchCpf) {
+        const detectedMod = detectModalityCodeFromPlanDescription(
+          planStr,
+          undefined,
+          state?.modalities
+        );
+
         results.push({
           fullName: name,
           cpf: rawCpf,
           cardNumber: card,
           birthDate,
-          sourceLabel: `Base Labcard (Cartão #${card})`,
+          modalityCode: detectedMod,
+          sourceLabel: `Base Labcard (Cartão #${card}${planStr ? ` • ${planStr}` : ''})`,
           isLabcardSeed: true,
         });
         seenCards.add(card);
@@ -386,7 +433,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     }
 
     return results;
-  }, [personSearchQuery, selectedSubForDetail, state?.subscriptions]);
+  }, [personSearchQuery, selectedSubForDetail, state?.subscriptions, state?.modalities]);
 
   // Perfil Financeiro do Cliente states
   const [selectedCarneNumber, setSelectedCarneNumber] = useState('ALL');
@@ -2784,6 +2831,152 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     sourceSubscriptionId?: string;
   }) => {
     return handleAttachMultiplePersonsAsDependents([person]);
+  };
+
+  // Transferir uma assinatura individual (ex: Kids, PCD/TEA, Vitalício ou avulsa) como dependente para um titular
+  const handleTransferSubAsDependentToTitular = async (
+    sourceSub: ClubSubscription,
+    targetTitularSub: ClubSubscription
+  ) => {
+    if (!state) return;
+    setIsTransferringToHolder(true);
+
+    try {
+      const sourceMember =
+        sourceSub.members.find((m) => m.role === 'TITULAR') ||
+        sourceSub.members[0];
+
+      const cardNum =
+        sourceMember?.cardNumber ||
+        sourceSub.subscriptionCode ||
+        String(Date.now());
+
+      const cleanName = (sourceMember?.fullName || sourceSub.holderName).trim();
+      const cleanCpf = sourceMember?.cpf ? formatCpf(sourceMember.cpf) : sourceSub.holderCpf ? formatCpf(sourceSub.holderCpf) : '';
+
+      // Identifica o plano e modalidade correta (Kids, PCD/TEA, Vitalício, etc.)
+      const rawPlan = sourceSub.planSummaryLabel || sourceMember?.modalityName || '';
+      const detectedCode = detectModalityCodeFromPlanDescription(
+        rawPlan,
+        sourceMember?.modalityCode,
+        state.modalities
+      );
+
+      const chosenModality =
+        (state.modalities || []).find((m) => m.code === detectedCode) ||
+        (state.modalities || []).find((m) => m.code === sourceMember?.modalityCode) ||
+        (state.modalities || []).find((m) => m.code === targetTitularSub.members[0]?.modalityCode);
+
+      const modCode = chosenModality?.code || detectedCode || 'KIDS';
+      const modName = chosenModality?.name || sourceMember?.modalityName || rawPlan || 'Lessa Kids';
+
+      let frontCard =
+        chosenModality?.dependentFrontCardUrl ||
+        chosenModality?.frontCardUrl ||
+        sourceMember?.frontCardUrl;
+      let backCard =
+        chosenModality?.dependentBackCardUrl ||
+        chosenModality?.backCardUrl ||
+        sourceMember?.backCardUrl;
+
+      if (!frontCard || frontCard === '/cards/44.png') {
+        if (modCode === 'KIDS') frontCard = '/cards/38.png';
+        else if (modCode === 'PCD_TEA') frontCard = '/cards/35.png';
+        else if (modCode === 'IDOSO_60') frontCard = '/cards/26.png';
+        else if (modCode === 'PUBLICIDADE') frontCard = '/cards/30.png';
+        else frontCard = '/cards/44.png';
+      }
+
+      if (!backCard) {
+        if (modCode === 'KIDS' || modCode === 'IDOSO_60') backCard = '/cards/39.png';
+        else if (modCode === 'PUBLICIDADE') backCard = '/cards/33.png';
+        else backCard = '/cards/24.png';
+      }
+
+      const newDependentMember: ClubMember = {
+        id: sourceMember?.id || `mem-${cardNum}-${Date.now()}`,
+        subscriptionId: targetTitularSub.id,
+        role: 'DEPENDENTE',
+        modalityCode: modCode,
+        modalityName: modName,
+        planCycleLabel: modName,
+        fullName: cleanName,
+        cpf: cleanCpf,
+        rg: sourceMember?.rg || sourceSub.holderRg || '',
+        birthDate: sourceMember?.birthDate || sourceSub.holderBirthDate || '',
+        sex: sourceMember?.sex || sourceSub.holderSex,
+        phone: sourceMember?.phone || sourceSub.holderPhone || '',
+        cardNumber: cardNum,
+        holderCardNumber: targetTitularSub.subscriptionCode,
+        qrToken: `LC-${cardNum}`,
+        frontCardUrl: frontCard,
+        backCardUrl: backCard,
+        validityLabel: sourceMember?.validityLabel || getValidityLabelFromDate(targetTitularSub.endDate),
+        expirationDate: sourceMember?.expirationDate || targetTitularSub.endDate,
+        monthlyValue: 0,
+        status: targetTitularSub.status === 'ACTIVE' ? 'ACTIVE' : 'PENDING_TRANSFER',
+        cardStatus: sourceMember?.cardStatus || 'NOT_PRODUCED',
+        manualStatusOverride: true,
+        proofDocuments: sourceMember?.proofDocuments || [],
+        attachments: [
+          ...(sourceMember?.attachments || []),
+          ...(sourceSub.attachments || []),
+        ],
+        createdAt: sourceMember?.createdAt || new Date().toISOString(),
+      };
+
+      const currentMembers = targetTitularSub.members.filter(
+        (m) =>
+          m.cardNumber !== cardNum &&
+          m.id !== newDependentMember.id &&
+          (!cleanCpf || !m.cpf || m.cpf.replace(/\D/g, '') !== cleanCpf.replace(/\D/g, ''))
+      );
+
+      const updatedTargetMembers = [...currentMembers, newDependentMember];
+
+      const updatedTargetSub: ClubSubscription = {
+        ...targetTitularSub,
+        members: updatedTargetMembers,
+        updatedAt: new Date().toISOString(),
+        transferCompleted: true,
+        manualStatusOverride: true,
+        transferredAt: targetTitularSub.transferredAt || new Date().toISOString(),
+      };
+
+      const nextSubs = (state.subscriptions || [])
+        .filter((s) => s.id !== sourceSub.id)
+        .map((s) => (s.id === updatedTargetSub.id ? updatedTargetSub : s));
+
+      const nextDeleted = Array.from(
+        new Set([...(state.deletedSubscriptionIds || []), sourceSub.id])
+      );
+
+      const nextState: ClubDatabaseState = {
+        ...state,
+        subscriptions: nextSubs,
+        deletedSubscriptionIds: nextDeleted,
+      };
+
+      await persist(nextState);
+
+      setSelectedSubForDetail(updatedTargetSub);
+      setTransferHolderModalOpen(false);
+      setTransferHolderSearchQuery('');
+
+      toast({
+        title: 'Associado transferido com sucesso!',
+        description: `${newDependentMember.fullName} (#${cardNum} • ${modName}) agora faz parte da família de ${targetTitularSub.holderName}.`,
+      });
+    } catch (err: any) {
+      console.error('[AdminClubEcosystem] Erro ao transferir associado:', err);
+      toast({
+        title: 'Erro ao transferir associado',
+        description: err?.message || 'Falha ao vincular dependente ao titular.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsTransferringToHolder(false);
+    }
   };
 
   // Desvincular um dependente e torná-lo titular de seu próprio cadastro individual
@@ -11616,6 +11809,20 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                   ⚠️ Plano Individual (Sem Dependentes)
                                 </Badge>
                               )}
+                              {/* Botão para transferir este associado (Kids, PCD/TEA, Vitalício ou avulso) para o cadastro de um titular */}
+                              <Button
+                                type="button"
+                                size="sm"
+                                onClick={() => {
+                                  setTransferHolderSearchQuery('');
+                                  setTransferHolderModalOpen(true);
+                                }}
+                                className="h-7 text-[11px] font-black bg-blue-700 hover:bg-blue-800 text-white shadow-xs cursor-pointer flex items-center gap-1.5"
+                                title="Transferir e vincular este associado como dependente ao cadastro de um titular"
+                              >
+                                <ArrowRightLeft className="w-3.5 h-3.5 text-amber-300" />
+                                Transferir para um Titular
+                              </Button>
                               {!isPlanAllowingDeps && hasDependents && (
                                 <Button
                                   type="button"
@@ -11707,6 +11914,21 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                       ? 'PEND. TRANSF.'
                                       : 'INATIVO'}
                                   </Badge>
+                                  {!isDep && (
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => {
+                                        setTransferHolderSearchQuery('');
+                                        setTransferHolderModalOpen(true);
+                                      }}
+                                      className="h-6 px-2 text-[10px] font-bold border-blue-400 text-blue-800 bg-blue-50 hover:bg-blue-100 cursor-pointer flex items-center gap-1"
+                                      title="Transferir este associado como dependente para o cadastro de um titular"
+                                    >
+                                      <ArrowRightLeft className="w-2.5 h-2.5 text-blue-600" /> Transferir p/ Titular
+                                    </Button>
+                                  )}
                                   {isDep && (
                                     <>
                                       <Button
@@ -19644,6 +19866,153 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 )}
               </Button>
             </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL: TRANSFERIR PLANO INDIVIDUAL / KIDS / PCD / VITALÍCIO PARA CADASTRO DE UM TITULAR */}
+      <Dialog
+        open={transferHolderModalOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setTransferHolderModalOpen(false);
+            setTransferHolderSearchQuery('');
+          }
+        }}
+      >
+        <DialogContent className="max-w-2xl rounded-3xl border-2 border-blue-400 p-0 overflow-hidden bg-white shadow-2xl">
+          <div className="bg-gradient-to-r from-blue-950 via-slate-900 to-indigo-950 text-white p-5 border-b border-amber-400/40">
+            <DialogHeader>
+              <DialogTitle className="text-base sm:text-lg font-black uppercase tracking-tight text-white flex items-center gap-2">
+                <ArrowRightLeft className="w-5 h-5 text-amber-400" />
+                Transferir Associado para Cadastro de Titular
+              </DialogTitle>
+              <DialogDescription className="text-xs text-blue-200 font-medium">
+                Mover <strong className="text-amber-300">{selectedSubForDetail?.holderName}</strong> (Cartão #{selectedSubForDetail?.subscriptionCode} • Plano: {selectedSubForDetail?.planSummaryLabel}) como dependente para uma família titular.
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+
+          <div className="p-5 space-y-4 max-h-[75vh] overflow-y-auto">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-slate-800">
+                Localizar Titular de Destino (Digite Nome, CPF ou Nº do Cartão):
+              </Label>
+              <div className="relative">
+                <Input
+                  value={transferHolderSearchQuery}
+                  onChange={(e) => setTransferHolderSearchQuery(e.target.value)}
+                  placeholder="Buscar titular por nome, cartão ou CPF..."
+                  className="h-11 pl-10 pr-10 font-semibold text-xs sm:text-sm rounded-xl border-slate-300 focus:border-blue-600 focus:ring-blue-600"
+                  autoFocus
+                />
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+                {transferHolderSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setTransferHolderSearchQuery('')}
+                    className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 p-0.5"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Selecione abaixo o titular da família ao qual <strong>{selectedSubForDetail?.holderName}</strong> será vinculado como dependente.
+              </p>
+            </div>
+
+            {/* Lista de Titulares Disponíveis */}
+            <div className="space-y-2 pt-2 border-t border-slate-200">
+              <div className="text-xs font-black text-slate-700 uppercase tracking-wider">
+                Titulares Encontrados ({candidateTitularesForTransfer.length})
+              </div>
+
+              {candidateTitularesForTransfer.length === 0 ? (
+                <div className="text-center py-8 text-xs text-slate-500 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                  Nenhum titular encontrado com este termo de busca.
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-[45vh] overflow-y-auto pr-1">
+                  {candidateTitularesForTransfer.map((titularSub) => (
+                    <div
+                      key={titularSub.id}
+                      className="p-3.5 rounded-2xl border border-slate-200 hover:border-blue-400 hover:bg-blue-50/40 transition-all flex flex-wrap items-center justify-between gap-3 bg-white shadow-xs"
+                    >
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-black text-xs sm:text-sm text-slate-900">
+                            👑 {titularSub.holderName}
+                          </span>
+                          <Badge className="bg-slate-800 text-white text-[10px]">
+                            Cartão #{titularSub.subscriptionCode}
+                          </Badge>
+                          {titularSub.status === 'ACTIVE' ? (
+                            <Badge className="bg-emerald-600 text-white text-[10px]">
+                              ATIVO
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-amber-600 text-white text-[10px]">
+                              {titularSub.status}
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-slate-600 flex flex-wrap items-center gap-2">
+                          <span>
+                            <strong>Plano:</strong> {titularSub.planSummaryLabel || 'Lessa Club'}
+                          </span>
+                          <span>•</span>
+                          <span>
+                            <strong>Integrantes:</strong> {titularSub.members.length}
+                          </span>
+                          {titularSub.holderCpf && (
+                            <>
+                              <span>•</span>
+                              <span>CPF: {titularSub.holderCpf}</span>
+                            </>
+                          )}
+                          {titularSub.holderPhone && (
+                            <>
+                              <span>•</span>
+                              <span>Tel: {titularSub.holderPhone}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={isTransferringToHolder}
+                        onClick={() => {
+                          if (selectedSubForDetail) {
+                            handleTransferSubAsDependentToTitular(selectedSubForDetail, titularSub);
+                          }
+                        }}
+                        className="h-8 px-3 text-xs font-black bg-blue-700 hover:bg-blue-800 text-white shadow-xs cursor-pointer flex items-center gap-1.5"
+                      >
+                        <UserPlus className="w-3.5 h-3.5 text-amber-300" />
+                        Vincular a este Titular
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setTransferHolderModalOpen(false);
+                setTransferHolderSearchQuery('');
+              }}
+            >
+              Cancelar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
