@@ -156,21 +156,19 @@ export const KNOWN_DEPENDENT_TO_TITULAR_MAP: Record<string, string> = {
   '121225228': '121225220', // Mellysa reibiton moreno
   '121225229': '121225220', // Arthur moreno chanan
   '121225230': '121225220', // Maysa moreno chanan
+  // Família Wagner da Cruz Rodrigues (121225346)
+  '121225351': '121225346', // Lorraine Lobak Rodrigues
+  '121225352': '121225346', // Nilceia Sindra Lobak Rodrigues
+  '1212251854': '121225346', // Larissa Lobak Rodrigues
 };
 
-// Conjunto de cartões de titulares e dependentes regularizados com ativação garantida
+// Somente associados que já tiveram alteração formal de transferência/adesão finalizada no novo sistema
 export const REGULARIZED_ACTIVE_CARDS = new Set([
-  '121225164', '121225165', '121225185', '121225187', '121225189', '121225190',
-  '121225191', '121225193', '121225194', '121225196', '121225197', '121225202',
-  '121225203', '121225204', '121225205', '121225206', '121225207', '121225212',
-  '121225213', '121225214', '121225215', '121225217', '121225219', '121225220',
-  '121225221', '121225231', '121225232', '121225233', '121225235', '121225236',
-  '121225248', '121225255',
-  // Dependentes ativados
-  '121225708', '121225179', '121225186', '121225192', '121225195', '121225198',
-  '121225199', '121225200', '121225201', '121225208', '121225209', '121225210',
-  '121225211', '121225216', '121225223', '121225224', '121225225', '121225226',
-  '121225227', '121225228', '121225229', '121225230'
+  '121225255', // Laene Passos de Almeida
+  '121225708', // Guibson Meireles Moura (dependente de Laene)
+  '121225260', // Marcelo Lessa da Silva
+  '121225261', // Rosimeire S Lessa
+  '121225271', // Eduardo Rodrigues
 ]);
 
 let cachedLabcardSubs: ClubSubscription[] | null = null;
@@ -252,10 +250,7 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
     const [card, name, cpf, plan, birth, phone, by, status] = g.titular;
     const mod = mapModality(plan);
     const isAnnual = plan.toLowerCase().includes('anual');
-    const isTitularAtivo =
-      REGULARIZED_ACTIVE_CARDS.has(card) ||
-      status?.toLowerCase().trim() === 'ativo' ||
-      status === '1';
+    const isTitularAtivo = REGULARIZED_ACTIVE_CARDS.has(card);
     const titStatus: SubscriptionStatus = isTitularAtivo ? 'ACTIVE' : 'PENDING_TRANSFER';
     const holderCard = card;
     const subId = `sub-labcard-${holderCard}`;
@@ -287,11 +282,7 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
     const depMembers: ClubMember[] = g.dependents.map((dep) => {
       const [depCard, depName, depCpf, depPlan, depBirth, depPhone, depBy, depStatusStr] = dep;
       const depMod = depPlan && depPlan !== '- R$ 0,00' ? mapModality(depPlan) : mod;
-      const isDepAtivo =
-        REGULARIZED_ACTIVE_CARDS.has(depCard) ||
-        isTitularAtivo ||
-        depStatusStr?.toLowerCase().trim() === 'ativo' ||
-        depStatusStr === '1';
+      const isDepAtivo = REGULARIZED_ACTIVE_CARDS.has(depCard) || isTitularAtivo;
       const depStatus: SubscriptionStatus = isDepAtivo ? 'ACTIVE' : 'PENDING_TRANSFER';
 
       return {
@@ -506,9 +497,9 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
       registeredCard,
       createdAt: finalCreatedAt,
       updatedAt: '2026-11-10T00:00:00.000Z',
-      transferCompleted: finalStatus === 'ACTIVE',
-      manualStatusOverride: finalStatus === 'ACTIVE',
-      transferredAt: finalStatus === 'ACTIVE' ? '2026-11-13T00:00:00.000Z' : undefined,
+      transferCompleted: isTitularAtivo,
+      manualStatusOverride: isTitularAtivo,
+      transferredAt: isTitularAtivo ? '2026-11-13T00:00:00.000Z' : undefined,
     };
   });
 

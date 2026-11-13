@@ -124,6 +124,14 @@ const SocioPortal: React.FC = () => {
 
   const isSubscriptionActive = useMemo(() => {
     if (!subscription) return false;
+    // Cadastros que ainda estão pendentes de transferência e alterações não são ativos até a conclusão pela administração
+    if (
+      subscription.status === 'PENDING_TRANSFER' ||
+      (!subscription.transferCompleted &&
+        (subscription.origin === 'IMPORT_LABCARD' || subscription.id.startsWith('sub-labcard-')))
+    ) {
+      return false;
+    }
     if (subscription.status === 'ACTIVE') return true;
     if (subscription.monthlyEquivalent === 0 || subscription.paymentMethod === 'COURTESY') return true;
     if (subscription.contractType === 'FAMILY_PUBLICIDADE') return true;
@@ -950,11 +958,21 @@ const SocioPortal: React.FC = () => {
                     className={
                       isSubscriptionActive
                         ? 'bg-emerald-600 text-white font-black'
+                        : subscription.status === 'PENDING_TRANSFER' ||
+                          (!subscription.transferCompleted &&
+                            (subscription.origin === 'IMPORT_LABCARD' ||
+                              subscription.id.startsWith('sub-labcard-')))
+                        ? 'bg-amber-600 text-white font-black'
                         : 'bg-rose-600 text-white font-black'
                     }
                   >
                     {isSubscriptionActive
                       ? '● STATUS ATUAL: PLANO ATIVO (LIBERADO)'
+                      : subscription.status === 'PENDING_TRANSFER' ||
+                        (!subscription.transferCompleted &&
+                          (subscription.origin === 'IMPORT_LABCARD' ||
+                            subscription.id.startsWith('sub-labcard-')))
+                      ? '● STATUS ATUAL: CADASTRO EM TRANSFERÊNCIA (EM CONFERÊNCIA)'
                       : '● STATUS ATUAL: PLANO INATIVO (AGUARDANDO PAGAMENTO)'}
                   </Badge>
                   <span className="text-xs font-semibold text-slate-500">
@@ -1095,13 +1113,44 @@ const SocioPortal: React.FC = () => {
                 )}
 
                 {!isSubscriptionActive ? (
-                  <div className="bg-rose-50 border-2 border-rose-300 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className={`border-2 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                    subscription.status === 'PENDING_TRANSFER' ||
+                    (!subscription.transferCompleted &&
+                      (subscription.origin === 'IMPORT_LABCARD' ||
+                        subscription.id.startsWith('sub-labcard-')))
+                      ? 'bg-amber-50 border-amber-300'
+                      : 'bg-rose-50 border-rose-300'
+                  }`}>
                     <div className="space-y-1">
-                      <h4 className="font-black text-rose-900 text-sm sm:text-base">
-                        🔒 Plano Inativo — Aguardando Ativação do Cadastro
+                      <h4 className={`font-black text-sm sm:text-base ${
+                        subscription.status === 'PENDING_TRANSFER' ||
+                        (!subscription.transferCompleted &&
+                          (subscription.origin === 'IMPORT_LABCARD' ||
+                            subscription.id.startsWith('sub-labcard-')))
+                          ? 'text-amber-950'
+                          : 'text-rose-900'
+                      }`}>
+                        {subscription.status === 'PENDING_TRANSFER' ||
+                        (!subscription.transferCompleted &&
+                          (subscription.origin === 'IMPORT_LABCARD' ||
+                            subscription.id.startsWith('sub-labcard-')))
+                          ? '⏳ Cadastro em Transferência — Em Conferência / Organização'
+                          : '🔒 Plano Inativo — Aguardando Ativação do Cadastro'}
                       </h4>
-                      <p className="text-xs text-rose-800">
-                        A edição da foto 3x4 e o download das carteirinhas só são liberados após a confirmação do pagamento (aba <strong>"Mensalidades"</strong>) ou ativação do plano pela administração.
+                      <p className={`text-xs ${
+                        subscription.status === 'PENDING_TRANSFER' ||
+                        (!subscription.transferCompleted &&
+                          (subscription.origin === 'IMPORT_LABCARD' ||
+                            subscription.id.startsWith('sub-labcard-')))
+                          ? 'text-amber-900'
+                          : 'text-rose-800'
+                      }`}>
+                        {subscription.status === 'PENDING_TRANSFER' ||
+                        (!subscription.transferCompleted &&
+                          (subscription.origin === 'IMPORT_LABCARD' ||
+                            subscription.id.startsWith('sub-labcard-')))
+                          ? 'Os dados e dependentes deste cadastro estão sendo organizados e transferidos pela administração do balneário. A liberação ocorrerá assim que a transferência for concluída.'
+                          : 'A edição da foto 3x4 e o download das carteirinhas só são liberados após a confirmação do pagamento (aba "Mensalidades") ou ativação do plano pela administração.'}
                       </p>
                     </div>
                   </div>

@@ -1303,9 +1303,9 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       if (isSubActive) holdersActive++;
       else holdersInactive++;
 
-      if (!sub.transferCompleted && sub.status === 'PENDING_TRANSFER') {
+      if (!sub.transferCompleted && (sub.status === 'PENDING_TRANSFER' || sub.origin === 'IMPORT_LABCARD')) {
         pendingTransferCount++;
-      } else {
+      } else if (sub.transferCompleted) {
         transferredCount++;
       }
 
@@ -1386,6 +1386,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       if (subStatusFilter !== 'ALL') {
         if (subStatusFilter === 'PENDING') {
           if (sub.status !== 'PENDING' && sub.status !== 'PENDING_TRANSFER') return false;
+        } else if (subStatusFilter === 'PENDING_TRANSFER') {
+          if (sub.status !== 'PENDING_TRANSFER' && !(sub.origin === 'IMPORT_LABCARD' && !sub.transferCompleted)) return false;
         } else if (sub.status !== subStatusFilter) {
           return false;
         }
@@ -2407,8 +2409,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
   useEffect(() => {
     if (selectedSubForDetail) {
-      if (selectedSubForDetail.status === 'ACTIVE' || selectedSubForDetail.status === 'PENDING_TRANSFER') {
+      if (selectedSubForDetail.status === 'ACTIVE') {
         setSituacaoLiberar('SIM');
+        setSituacaoInativar('NAO');
+      } else if (selectedSubForDetail.status === 'PENDING_TRANSFER') {
+        setSituacaoLiberar('NAO');
         setSituacaoInativar('NAO');
       } else {
         setSituacaoLiberar('NAO');
@@ -2516,13 +2521,16 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       const isCorporateCourtesy = editClientData.modalityCode === 'CORPORATE';
       const isPublicidade = editClientData.modalityCode === 'PUBLICIDADE';
 
+      const isLiberandoManualmente = situacaoLiberar === 'SIM';
       const targetStatus: ClubSubscription['status'] = isSemPlano
         ? 'INACTIVE'
         : situacaoInativar === 'SIM'
         ? 'INACTIVE'
-        : situacaoLiberar === 'SIM' ||
-          selectedSubForDetail.status === 'ACTIVE' ||
-          selectedSubForDetail.status === 'PENDING_TRANSFER'
+        : isLiberandoManualmente
+        ? 'ACTIVE'
+        : selectedSubForDetail.status === 'PENDING_TRANSFER'
+        ? 'PENDING_TRANSFER'
+        : selectedSubForDetail.status === 'ACTIVE'
         ? 'ACTIVE'
         : selectedSubForDetail.status || 'INACTIVE';
 
@@ -2631,9 +2639,13 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
               }
         ),
         updatedAt: new Date().toISOString(),
-        transferCompleted: true,
-        manualStatusOverride: true,
-        transferredAt: selectedSubForDetail.transferredAt || new Date().toISOString(),
+        transferCompleted: isLiberandoManualmente
+          ? true
+          : (selectedSubForDetail.transferCompleted ?? false),
+        manualStatusOverride: isLiberandoManualmente,
+        transferredAt: isLiberandoManualmente
+          ? (selectedSubForDetail.transferredAt || new Date().toISOString())
+          : selectedSubForDetail.transferredAt,
       };
 
       // Atualiza imediatamente na tela antes da persistência
@@ -3602,8 +3614,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         manualStatusOverride: true,
         endDate: nextEndDate,
         updatedAt: new Date().toISOString(),
-        transferCompleted: true,
-        transferredAt: sub.transferredAt || new Date().toISOString(),
+        transferCompleted: newStatus === 'ACTIVE',
+        transferredAt: newStatus === 'ACTIVE' ? (sub.transferredAt || new Date().toISOString()) : undefined,
         members: sub.members.map((m) => ({
           ...m,
           status: newStatus === 'ACTIVE' ? 'ACTIVE' : 'INACTIVE',
@@ -12683,6 +12695,10 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                             const targetStatus =
                               situacaoLiberar === 'SIM' && situacaoInativar === 'NAO'
                                 ? 'ACTIVE'
+                                : situacaoInativar === 'SIM'
+                                ? 'INACTIVE'
+                                : selectedSubForDetail.status === 'PENDING_TRANSFER'
+                                ? 'PENDING_TRANSFER'
                                 : 'INACTIVE';
                             handleToggleSubStatus(selectedSubForDetail, targetStatus);
                           }}
