@@ -245,7 +245,7 @@ const isLabcardSubscriptionModified = (
   return false;
 };
 
-const tryPersistLocalState = (state: ClubDatabaseState) => {
+export const tryPersistLocalState = (state: ClubDatabaseState) => {
   try {
     // Otimiza cache local omitindo registros intocados do seed Labcard (que já vêm do bundle em ms),
     // mantendo cadastros do site, admin, alterações manuais, consultores e modelos de contrato abaixo da cota de 5MB.
@@ -976,17 +976,12 @@ const buildCompactCloudState = (state: ClubDatabaseState): ClubDatabaseState => 
   };
 };
 
-export const saveClubState = async (state: ClubDatabaseState): Promise<ClubDatabaseState> => {
-  const nextState: ClubDatabaseState = {
-    ...state,
-    updatedAt: new Date().toISOString(),
-  };
-  memoryClubState = nextState;
-  tryPersistLocalState(nextState);
+let inFlightCloudSavePromise: Promise<any> | null = null;
+let queuedCloudSaveState: ClubDatabaseState | null = null;
 
-  const cloudState = buildCompactCloudState(nextState);
-  const maxAttempts = 3;
-  let lastError: any = null;
+const runCloudSaveExecution = async (stateToSave: ClubDatabaseState): Promise<void> => {
+  const cloudState = buildCompactCloudState(stateToSave);
+  const maxAttempts = 2;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     let timeoutTimer: any = null;
@@ -997,7 +992,7 @@ export const saveClubState = async (state: ClubDatabaseState): Promise<ClubDatab
           {
             key: SUPABASE_SETTINGS_KEY,
             value: cloudState,
-            updated_at: nextState.updatedAt,
+            updated_at: stateToSave.updatedAt,
           },
           { onConflict: 'key' }
         );
@@ -1013,38 +1008,55 @@ export const saveClubState = async (state: ClubDatabaseState): Promise<ClubDatab
 
       if (!error) {
         lastClubFetchErrorMessage = null;
-        return nextState;
+        return;
       }
-      console.error('[ClubService] CRITICAL: Error saving to Supabase site_settings:', error);
-      throw new Error(`Falha ao registrar no banco de dados: ${error.message}`);
+      console.error('[ClubService] Erro ao sincronizar nuvem:', error);
+      throw new Error(`Falha no banco: ${error.message}`);
     } catch (err: any) {
       if (timeoutTimer) clearTimeout(timeoutTimer);
-      lastError = err;
       const msg = String(err?.message || err || '');
       const isNetworkFailure =
         err instanceof TypeError ||
         /failed to fetch|networkerror|load failed|timeout|tempo limite|aborted/i.test(msg);
 
       if (isNetworkFailure && attempt < maxAttempts) {
-        const delayMs = attempt * 500;
-        console.warn(
-          `[ClubService] Tentativa ${attempt}/${maxAttempts} falhou (${msg}). Tentando novamente em ${delayMs}ms...`
-        );
-        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        await new Promise((resolve) => setTimeout(resolve, attempt * 300));
         continue;
       }
-
-      console.error('[ClubService] Exception syncing to Supabase site_settings:', err);
+      console.warn('[ClubService] Sincronização em nuvem falhou, preservado localmente:', err);
       break;
     }
   }
+};
 
-  // Se a sincronização remota falhar ou sofrer timeout, o estado já foi gravado com segurança
-  // no cache de memória e no localStorage. Retornamos nextState para não congelar a interface do usuário.
-  console.warn(
-    '[ClubService] Aviso: Sincronização em nuvem não concluída imediatamente, mas alterações foram preservadas localmente:',
-    lastError
-  );
+export const saveClubState = async (state: ClubDatabaseState): Promise<ClubDatabaseState> => {
+  const nextState: ClubDatabaseState = {
+    ...state,
+    updatedAt: new Date().toISOString(),
+  };
+  // 1. Grava na memória e no cache local imediatamente (0-2ms)
+  memoryClubState = nextState;
+  tryPersistLocalState(nextState);
+
+  // 2. Enfileira ou executa a sincronização com a nuvem de forma serializada sem bloquear
+  if (inFlightCloudSavePromise) {
+    queuedCloudSaveState = nextState;
+    return nextState;
+  }
+
+  inFlightCloudSavePromise = runCloudSaveExecution(nextState)
+    .catch((err) => {
+      console.warn('[ClubService] Aviso na nuvem:', err);
+    })
+    .finally(() => {
+      inFlightCloudSavePromise = null;
+      if (queuedCloudSaveState) {
+        const pending = queuedCloudSaveState;
+        queuedCloudSaveState = null;
+        saveClubState(pending);
+      }
+    });
+
   return nextState;
 };
 

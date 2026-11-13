@@ -14773,7 +14773,9 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                       onChange={async (e) => {
                         const file = e.target.files?.[0];
                         if (!file) return;
-                        const dataUrl = await fileToDataUrl(file);
+                        const dataUrl = file.type.startsWith('image/')
+                          ? await compressImageFile(file, 1200, 1200, 0.72)
+                          : await fileToDataUrl(file);
                         const newAtt: ClubAttachment = {
                           id: `att_${Date.now()}`,
                           name: file.name,
@@ -15415,7 +15417,9 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           onChange={async (e) => {
                             const f = e.target.files?.[0];
                             if (f) {
-                              const url = await fileToDataUrl(f);
+                              const url = f.type.startsWith('image/')
+                                ? await compressImageFile(f, 600, 600, 0.75)
+                                : await fileToDataUrl(f);
                               setNewDepPhoto(url);
                             }
                           }}
@@ -16035,7 +16039,9 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                     onChange={async (e) => {
                                       const file = e.target.files?.[0];
                                       if (!file) return;
-                                      const dataUrl = await fileToDataUrl(file);
+                                      const dataUrl = file.type.startsWith('image/')
+                                        ? await compressImageFile(file, 1200, 1200, 0.72)
+                                        : await fileToDataUrl(file);
                                       const newAtt: ClubAttachment = {
                                         id: `att_dep_${Date.now()}`,
                                         name: `${dep.fullName.split(' ')[0]} - ${file.name}`,
@@ -17091,7 +17097,12 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     accept="image/*"
                     onChange={async (e) => {
                       const f = e.target.files?.[0];
-                      if (f) setHolderPhotoUrl(await fileToDataUrl(f));
+                      if (f) {
+                        const url = f.type.startsWith('image/')
+                          ? await compressImageFile(f, 600, 600, 0.75)
+                          : await fileToDataUrl(f);
+                        setHolderPhotoUrl(url);
+                      }
                     }}
                   />
                 </div>
