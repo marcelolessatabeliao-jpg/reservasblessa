@@ -259,6 +259,22 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
   const [personSearchModalOpen, setPersonSearchModalOpen] = useState(false);
   const [personSearchQuery, setPersonSearchQuery] = useState('');
   const [attachingPersonLoading, setAttachingPersonLoading] = useState(false);
+  const [selectedPersonsMap, setSelectedPersonsMap] = useState<
+    Record<
+      string,
+      {
+        fullName: string;
+        cpf?: string;
+        cardNumber: string;
+        birthDate?: string;
+        phone?: string;
+        modalityCode?: string;
+        sourceSubscriptionId?: string;
+        sourceLabel?: string;
+        isLabcardSeed?: boolean;
+      }
+    >
+  >({});
 
   // Candidatos para vincular como dependente ao cadastro atual
   const personSearchCandidates = useMemo(() => {
@@ -2575,17 +2591,19 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     }
   };
 
-  // Função para vincular e agrupar uma pessoa (da base do clube ou do Labcard) como dependente
-  const handleAttachPersonAsDependent = async (person: {
-    fullName: string;
-    cpf?: string;
-    cardNumber?: string;
-    birthDate?: string;
-    phone?: string;
-    modalityCode?: string;
-    sourceSubscriptionId?: string;
-  }) => {
-    if (!state || !selectedSubForDetail) return;
+  // Função para vincular múltiplos dependentes selecionados de uma vez só
+  const handleAttachMultiplePersonsAsDependents = async (
+    persons: Array<{
+      fullName: string;
+      cpf?: string;
+      cardNumber?: string;
+      birthDate?: string;
+      phone?: string;
+      modalityCode?: string;
+      sourceSubscriptionId?: string;
+    }>
+  ) => {
+    if (!state || !selectedSubForDetail || persons.length === 0) return;
     setAttachingPersonLoading(true);
 
     try {
@@ -2604,104 +2622,110 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         return;
       }
 
-      const cleanName = person.fullName.trim();
-      const cleanCpf = person.cpf ? formatCpf(person.cpf) : '';
-      const cardNum = person.cardNumber || String(Number(targetSub.subscriptionCode) + targetSub.members.length);
-      const mod =
-        (state.modalities || []).find((m) => m.code === (person.modalityCode || 'PUBLICIDADE')) ||
-        (state.modalities || []).find((m) => m.code === targetSub.members[0]?.modalityCode) ||
-        (state.modalities && state.modalities.length > 0 ? state.modalities[0] : null);
+      let currentMembers = [...targetSub.members];
+      let nextSubs = [...(state.subscriptions || [])];
+      let nextDeleted = [...(state.deletedSubscriptionIds || [])];
+      const addedNames: string[] = [];
 
-      const modCode = mod?.code || targetSub.members[0]?.modalityCode || 'PUBLICIDADE';
-      const modName = mod?.name || targetSub.members[0]?.modalityName || targetSub.planSummaryLabel || 'Lessa Club';
-      const frontCard = mod?.dependentFrontCardUrl || mod?.frontCardUrl || targetSub.members[0]?.frontCardUrl || '/cards/44.png';
-      const backCard = mod?.dependentBackCardUrl || mod?.backCardUrl || targetSub.members[0]?.backCardUrl || '/cards/24.png';
+      for (let i = 0; i < persons.length; i++) {
+        const person = persons[i];
+        const cleanName = person.fullName.trim();
+        const cleanCpf = person.cpf ? formatCpf(person.cpf) : '';
+        const cardNum = person.cardNumber || String(Number(targetSub.subscriptionCode) + currentMembers.length);
 
-      // Verifica se a pessoa já está nesta assinatura
-      const alreadyInSub = targetSub.members.some(
-        (m) =>
-          m.cardNumber === cardNum ||
-          (cleanCpf && m.cpf && m.cpf.replace(/\D/g, '') === cleanCpf.replace(/\D/g, '')) ||
-          m.fullName.trim().toLowerCase() === cleanName.toLowerCase()
-      );
+        // Verifica se a pessoa já está nesta assinatura
+        const alreadyInSub = currentMembers.some(
+          (m) =>
+            m.cardNumber === cardNum ||
+            (cleanCpf && m.cpf && m.cpf.replace(/\D/g, '') === cleanCpf.replace(/\D/g, '')) ||
+            m.fullName.trim().toLowerCase() === cleanName.toLowerCase()
+        );
+        if (alreadyInSub) continue;
 
-      if (alreadyInSub) {
+        const mod =
+          (state.modalities || []).find((m) => m.code === (person.modalityCode || 'PUBLICIDADE')) ||
+          (state.modalities || []).find((m) => m.code === targetSub.members[0]?.modalityCode) ||
+          (state.modalities && state.modalities.length > 0 ? state.modalities[0] : null);
+
+        const modCode = mod?.code || targetSub.members[0]?.modalityCode || 'PUBLICIDADE';
+        const modName = mod?.name || targetSub.members[0]?.modalityName || targetSub.planSummaryLabel || 'Lessa Club';
+        const frontCard = mod?.dependentFrontCardUrl || mod?.frontCardUrl || targetSub.members[0]?.frontCardUrl || '/cards/44.png';
+        const backCard = mod?.dependentBackCardUrl || mod?.backCardUrl || targetSub.members[0]?.backCardUrl || '/cards/24.png';
+
+        const newMember: ClubMember = {
+          id: `mem-${cardNum}-${Date.now()}-${i}`,
+          subscriptionId: targetSub.id,
+          role: 'DEPENDENTE',
+          modalityCode: modCode,
+          modalityName: modName,
+          planCycleLabel: modName,
+          fullName: cleanName,
+          cpf: cleanCpf,
+          birthDate: person.birthDate || '',
+          phone: person.phone || '',
+          cardNumber: cardNum,
+          holderCardNumber: targetSub.subscriptionCode,
+          qrToken: `LC-${cardNum}`,
+          frontCardUrl: frontCard,
+          backCardUrl: backCard,
+          validityLabel: getValidityLabelFromDate(targetSub.endDate),
+          monthlyValue: 0,
+          status: targetSub.status === 'ACTIVE' ? 'ACTIVE' : 'PENDING_TRANSFER',
+          manualStatusOverride: true,
+          createdAt: new Date().toISOString(),
+        };
+
+        currentMembers.push(newMember);
+        addedNames.push(cleanName);
+
+        if (person.sourceSubscriptionId && person.sourceSubscriptionId !== targetSub.id) {
+          const sourceSub = nextSubs.find((s) => s.id === person.sourceSubscriptionId);
+          if (sourceSub) {
+            if (sourceSub.members.length <= 1) {
+              // Era uma assinatura solitária só dessa pessoa -> removemos o registro solto
+              nextSubs = nextSubs.filter((s) => s.id !== person.sourceSubscriptionId);
+              if (!nextDeleted.includes(person.sourceSubscriptionId)) {
+                nextDeleted.push(person.sourceSubscriptionId);
+              }
+            } else {
+              // Tinha outros membros -> remove apenas essa pessoa da assinatura de origem
+              nextSubs = nextSubs.map((s) =>
+                s.id === person.sourceSubscriptionId
+                  ? {
+                      ...s,
+                      members: s.members.filter(
+                        (m) =>
+                          m.cardNumber !== cardNum &&
+                          m.fullName.trim().toLowerCase() !== cleanName.toLowerCase()
+                      ),
+                    }
+                  : s
+              );
+            }
+          }
+        }
+      }
+
+      if (addedNames.length === 0) {
         toast({
-          title: 'Pessoa já vinculada',
-          description: `${cleanName} já faz parte deste cadastro.`,
+          title: 'Nenhum dependente novo adicionado',
+          description: 'A(s) pessoa(s) selecionada(s) já faz(em) parte deste cadastro.',
           variant: 'destructive',
         });
         setAttachingPersonLoading(false);
         return;
       }
 
-      const newMember: ClubMember = {
-        id: `mem-${cardNum}-${Date.now()}`,
-        subscriptionId: targetSub.id,
-        role: 'DEPENDENTE',
-        modalityCode: modCode,
-        modalityName: modName,
-        planCycleLabel: modName,
-        fullName: cleanName,
-        cpf: cleanCpf,
-        birthDate: person.birthDate || '',
-        phone: person.phone || '',
-        cardNumber: cardNum,
-        holderCardNumber: targetSub.subscriptionCode,
-        qrToken: `LC-${cardNum}`,
-        frontCardUrl: frontCard,
-        backCardUrl: backCard,
-        validityLabel: getValidityLabelFromDate(targetSub.endDate),
-        monthlyValue: 0,
-        status: targetSub.status === 'ACTIVE' ? 'ACTIVE' : 'PENDING_TRANSFER',
-        manualStatusOverride: true,
-        createdAt: new Date().toISOString(),
-      };
-
-      const updatedMembers = [...targetSub.members, newMember];
       const updatedTargetSub: ClubSubscription = {
         ...targetSub,
-        members: updatedMembers,
+        members: currentMembers,
         updatedAt: new Date().toISOString(),
         transferCompleted: true,
         manualStatusOverride: true,
         transferredAt: targetSub.transferredAt || new Date().toISOString(),
       };
 
-      // Se a pessoa pertencia a uma assinatura individual isolada (ex: importada como titular avulsa),
-      // removemos a assinatura órfã antiga ou removemos o membro dela para evitar duplicação
-      let nextSubs = (state.subscriptions || []).map((s) =>
-        s.id === updatedTargetSub.id ? updatedTargetSub : s
-      );
-
-      let nextDeleted = [...(state.deletedSubscriptionIds || [])];
-
-      if (person.sourceSubscriptionId && person.sourceSubscriptionId !== targetSub.id) {
-        const sourceSub = (state.subscriptions || []).find((s) => s.id === person.sourceSubscriptionId);
-        if (sourceSub) {
-          if (sourceSub.members.length <= 1) {
-            // Era uma assinatura solitária só dessa pessoa -> removemos o registro solto
-            nextSubs = nextSubs.filter((s) => s.id !== person.sourceSubscriptionId);
-            if (!nextDeleted.includes(person.sourceSubscriptionId)) {
-              nextDeleted.push(person.sourceSubscriptionId);
-            }
-          } else {
-            // Tinha outros membros -> remove apenas essa pessoa da assinatura de origem
-            nextSubs = nextSubs.map((s) =>
-              s.id === person.sourceSubscriptionId
-                ? {
-                    ...s,
-                    members: s.members.filter(
-                      (m) =>
-                        m.cardNumber !== cardNum &&
-                        m.fullName.trim().toLowerCase() !== cleanName.toLowerCase()
-                    ),
-                  }
-                : s
-            );
-          }
-        }
-      }
+      nextSubs = nextSubs.map((s) => (s.id === updatedTargetSub.id ? updatedTargetSub : s));
 
       const nextState: ClubDatabaseState = {
         ...state,
@@ -2711,23 +2735,37 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
       await persist(nextState);
       setSelectedSubForDetail(updatedTargetSub);
+      setSelectedPersonsMap({});
       setPersonSearchModalOpen(false);
       setPersonSearchQuery('');
 
       toast({
-        title: 'Dependente Agrupado com Sucesso!',
-        description: `${cleanName} (Cartão #${cardNum}) foi vinculado à família de ${targetSub.holderName}.`,
+        title: `${addedNames.length} Dependente(s) Agrupado(s) com Sucesso!`,
+        description: `${addedNames.join(', ')} vinculado(s) à família de ${targetSub.holderName}.`,
       });
     } catch (err) {
-      console.error('Erro ao agrupar dependente:', err);
+      console.error('Erro ao agrupar dependentes:', err);
       toast({
-        title: 'Erro ao agrupar dependente',
+        title: 'Erro ao agrupar dependente(s)',
         description: 'Ocorreu uma falha ao vincular a pessoa. Tente novamente.',
         variant: 'destructive',
       });
     } finally {
       setAttachingPersonLoading(false);
     }
+  };
+
+  // Função para vincular 1 pessoa diretamente
+  const handleAttachPersonAsDependent = async (person: {
+    fullName: string;
+    cpf?: string;
+    cardNumber?: string;
+    birthDate?: string;
+    phone?: string;
+    modalityCode?: string;
+    sourceSubscriptionId?: string;
+  }) => {
+    return handleAttachMultiplePersonsAsDependents([person]);
   };
 
   // Desvincular um dependente e torná-lo titular de seu próprio cadastro individual
@@ -19333,16 +19371,48 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
               </p>
             </div>
 
-            {/* Lista de Resultados */}
-            <div className="space-y-2 pt-2 border-t border-slate-200">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                  Resultados Encontrados ({personSearchCandidates.length})
-                </span>
-                {personSearchQuery.trim().length >= 2 && (
-                  <span className="text-[11px] text-emerald-700 font-semibold">
-                    Filtrado por: "{personSearchQuery}"
+            {/* Lista de Resultados e Seleção Múltipla */}
+            <div className="space-y-3 pt-2 border-t border-slate-200">
+              <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-xl border border-slate-200 bg-slate-50">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-black text-slate-800 uppercase tracking-wider">
+                    Resultados ({personSearchCandidates.length})
                   </span>
+                  {Object.keys(selectedPersonsMap).length > 0 && (
+                    <Badge className="bg-emerald-600 text-white font-bold text-xs px-2.5 py-0.5 rounded-full">
+                      {Object.keys(selectedPersonsMap).length} selecionado(s)
+                    </Badge>
+                  )}
+                </div>
+                {personSearchCandidates.length > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        const next = { ...selectedPersonsMap };
+                        personSearchCandidates.forEach((c) => {
+                          next[c.cardNumber] = c;
+                        });
+                        setSelectedPersonsMap(next);
+                      }}
+                      className="h-7 text-[11px] font-bold text-emerald-800 border-emerald-300 bg-white hover:bg-emerald-50 px-2.5 rounded-lg cursor-pointer"
+                    >
+                      Selecionar Todos da Busca
+                    </Button>
+                    {Object.keys(selectedPersonsMap).length > 0 && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setSelectedPersonsMap({})}
+                        className="h-7 text-[11px] font-bold text-slate-600 hover:text-slate-900 px-2 rounded-lg cursor-pointer"
+                      >
+                        Limpar Seleção
+                      </Button>
+                    )}
+                  </div>
                 )}
               </div>
 
@@ -19368,81 +19438,151 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 </div>
               ) : (
                 <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1">
-                  {personSearchCandidates.map((candidate, idx) => (
-                    <div
-                      key={`${candidate.cardNumber}-${idx}`}
-                      className="p-3.5 rounded-2xl border border-slate-200 bg-white hover:border-emerald-400 hover:bg-emerald-50/30 transition-all shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                    >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs sm:text-sm font-black text-slate-900 uppercase">
-                            {candidate.fullName}
-                          </span>
-                          <Badge
-                            variant="outline"
-                            className="bg-emerald-50 text-emerald-800 border-emerald-300 font-mono text-[10px] font-bold"
-                          >
-                            Cartão #{candidate.cardNumber}
-                          </Badge>
-                          {candidate.isLabcardSeed ? (
-                            <Badge className="bg-sky-100 text-sky-800 border-sky-300 text-[10px] font-semibold">
-                              Base Labcard
-                            </Badge>
-                          ) : (
-                            <Badge className="bg-purple-100 text-purple-800 border-purple-300 text-[10px] font-semibold">
-                              {candidate.sourceLabel}
-                            </Badge>
-                          )}
+                  {personSearchCandidates.map((candidate, idx) => {
+                    const isSelected = Boolean(selectedPersonsMap[candidate.cardNumber]);
+                    return (
+                      <div
+                        key={`${candidate.cardNumber}-${idx}`}
+                        onClick={() => {
+                          setSelectedPersonsMap((prev) => {
+                            const next = { ...prev };
+                            if (next[candidate.cardNumber]) {
+                              delete next[candidate.cardNumber];
+                            } else {
+                              next[candidate.cardNumber] = candidate;
+                            }
+                            return next;
+                          });
+                        }}
+                        className={`p-3.5 rounded-2xl border transition-all shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer ${
+                          isSelected
+                            ? 'border-emerald-500 bg-emerald-50/80 ring-2 ring-emerald-400/50'
+                            : 'border-slate-200 bg-white hover:border-emerald-300 hover:bg-slate-50/60'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => {}}
+                            className="w-4 h-4 mt-1 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer shrink-0 pointer-events-none"
+                          />
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-xs sm:text-sm font-black text-slate-900 uppercase">
+                                {candidate.fullName}
+                              </span>
+                              <Badge
+                                variant="outline"
+                                className="bg-emerald-50 text-emerald-800 border-emerald-300 font-mono text-[10px] font-bold"
+                              >
+                                Cartão #{candidate.cardNumber}
+                              </Badge>
+                              {candidate.isLabcardSeed ? (
+                                <Badge className="bg-sky-100 text-sky-800 border-sky-300 text-[10px] font-semibold">
+                                  Base Labcard
+                                </Badge>
+                              ) : (
+                                <Badge className="bg-purple-100 text-purple-800 border-purple-300 text-[10px] font-semibold">
+                                  {candidate.sourceLabel}
+                                </Badge>
+                              )}
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-600">
+                              {candidate.cpf && (
+                                <span>
+                                  <strong>CPF:</strong> {candidate.cpf}
+                                </span>
+                              )}
+                              {candidate.birthDate && (
+                                <span>
+                                  <strong>Nascimento:</strong> {candidate.birthDate}
+                                </span>
+                              )}
+                              {candidate.phone && (
+                                <span>
+                                  <strong>Telefone:</strong> {candidate.phone}
+                                </span>
+                              )}
+                            </div>
+                          </div>
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-600">
-                          {candidate.cpf && (
-                            <span>
-                              <strong>CPF:</strong> {candidate.cpf}
-                            </span>
-                          )}
-                          {candidate.birthDate && (
-                            <span>
-                              <strong>Nascimento:</strong> {candidate.birthDate}
-                            </span>
-                          )}
-                          {candidate.phone && (
-                            <span>
-                              <strong>Telefone:</strong> {candidate.phone}
-                            </span>
-                          )}
+                        <div className="flex items-center gap-2 self-end sm:self-center" onClick={(e) => e.stopPropagation()}>
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={attachingPersonLoading}
+                            onClick={() => handleAttachPersonAsDependent(candidate)}
+                            className="bg-[#004d00] hover:bg-emerald-900 text-white font-bold text-xs shrink-0 cursor-pointer shadow-sm rounded-xl h-8 px-3 gap-1.5"
+                          >
+                            <UserPlus className="w-3.5 h-3.5" />
+                            Vincular Só Este
+                          </Button>
                         </div>
                       </div>
-
-                      <Button
-                        type="button"
-                        size="sm"
-                        disabled={attachingPersonLoading}
-                        onClick={() => handleAttachPersonAsDependent(candidate)}
-                        className="bg-[#004d00] hover:bg-emerald-900 text-white font-bold text-xs shrink-0 cursor-pointer shadow-sm rounded-xl h-9 px-3 gap-1.5"
-                      >
-                        <UserPlus className="w-3.5 h-3.5" />
-                        {attachingPersonLoading ? 'Vinculando...' : 'Vincular como Dependente'}
-                      </Button>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
           </div>
 
-          <DialogFooter className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-end">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setPersonSearchModalOpen(false);
-                setPersonSearchQuery('');
-              }}
-              className="text-slate-700 font-bold hover:bg-slate-200 rounded-xl"
-            >
-              Fechar
-            </Button>
+          <DialogFooter className="p-4 border-t border-slate-200 bg-slate-50 flex flex-wrap items-center justify-between gap-3">
+            <div className="text-xs text-slate-600 font-medium">
+              {Object.keys(selectedPersonsMap).length > 0 ? (
+                <span>
+                  <strong className="text-emerald-800 font-black text-sm">
+                    {Object.keys(selectedPersonsMap).length}
+                  </strong>{' '}
+                  dependente(s) marcado(s) para vincular à família
+                </span>
+              ) : (
+                <span className="text-[11px] text-slate-500">
+                  Dica: Clique ou marque as caixas para vincular múltiplos dependentes de uma só vez.
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setPersonSearchModalOpen(false);
+                  setPersonSearchQuery('');
+                  setSelectedPersonsMap({});
+                }}
+                className="text-slate-700 font-bold hover:bg-slate-200 rounded-xl"
+              >
+                Cancelar
+              </Button>
+
+              <Button
+                type="button"
+                disabled={Object.keys(selectedPersonsMap).length === 0 || attachingPersonLoading}
+                onClick={() => {
+                  const toAttach = Object.values(selectedPersonsMap);
+                  if (toAttach.length > 0) {
+                    handleAttachMultiplePersonsAsDependents(toAttach);
+                  }
+                }}
+                className="bg-[#004d00] hover:bg-emerald-900 text-white font-black text-xs px-5 h-10 rounded-xl shadow-md gap-2 disabled:opacity-50 cursor-pointer"
+              >
+                {attachingPersonLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Vinculando {Object.keys(selectedPersonsMap).length}...
+                  </>
+                ) : (
+                  <>
+                    <UserCheck className="w-4 h-4 text-amber-300" />
+                    Vincular {Object.keys(selectedPersonsMap).length > 0 ? `${Object.keys(selectedPersonsMap).length} Selecionado(s)` : 'Selecionados'} de Uma Vez
+                  </>
+                )}
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
