@@ -164,28 +164,95 @@ export const isMemberBlockedForMissingDoc = (
   return !memberHasProofDocument(member, sub);
 };
 
+let cachedLabcardSeedMap: Map<string, ClubSubscription> | null = null;
+
+const getLabcardSeedMap = (): Map<string, ClubSubscription> => {
+  if (!cachedLabcardSeedMap) {
+    cachedLabcardSeedMap = new Map(getLabcardSubscriptions().map((s) => [s.id, s]));
+  }
+  return cachedLabcardSeedMap;
+};
+
+const isLabcardSubscriptionModified = (
+  sub: ClubSubscription,
+  seedSub?: ClubSubscription
+): boolean => {
+  if (!seedSub) return true;
+  if (
+    sub.status !== 'PENDING_TRANSFER' ||
+    Boolean(sub.manualStatusOverride) ||
+    Boolean(sub.transferCompleted) ||
+    Boolean(sub.transferredAt) ||
+    Boolean(sub.cardStatus)
+  ) {
+    return true;
+  }
+  if (
+    sub.asaasCustomerId ||
+    sub.asaasSubscriptionId ||
+    sub.asaasPaymentId ||
+    sub.asaasInvoiceUrl
+  ) {
+    return true;
+  }
+  if (
+    (sub.attachments?.length || 0) > 0 ||
+    (sub.visits?.length || 0) > 0 ||
+    (sub.additionalServices?.length || 0) > 0
+  ) {
+    return true;
+  }
+  if (sub.updatedAt && sub.updatedAt !== seedSub.updatedAt) {
+    return true;
+  }
+  if ((sub.invoices?.length || 0) !== (seedSub.invoices?.length || 0)) return true;
+  if ((sub.members?.length || 0) !== (seedSub.members?.length || 0)) return true;
+
+  if (
+    sub.holderName !== seedSub.holderName ||
+    sub.holderCpf !== seedSub.holderCpf ||
+    sub.holderPhone !== seedSub.holderPhone ||
+    sub.holderEmail !== seedSub.holderEmail ||
+    sub.holderBirthDate !== seedSub.holderBirthDate ||
+    sub.addressCity !== seedSub.addressCity ||
+    sub.notes !== seedSub.notes ||
+    sub.vehiclePlate !== seedSub.vehiclePlate ||
+    sub.planSummaryLabel !== seedSub.planSummaryLabel ||
+    sub.billingCycle !== seedSub.billingCycle
+  ) {
+    return true;
+  }
+
+  for (let i = 0; i < (sub.members?.length || 0); i += 1) {
+    const m = sub.members[i];
+    const sm = seedSub.members?.[i];
+    if (!sm) return true;
+    if (
+      m.status !== 'PENDING_TRANSFER' ||
+      Boolean(m.manualStatusOverride) ||
+      Boolean(m.photoUrl) ||
+      Boolean(m.documentProofUrl) ||
+      Boolean(m.expirationDate) ||
+      Boolean(m.cardStatus) ||
+      (m.attachments?.length || 0) > 0 ||
+      m.fullName !== sm.fullName ||
+      m.cpf !== sm.cpf ||
+      m.phone !== sm.phone
+    ) {
+      return true;
+    }
+  }
+  return false;
+};
+
 const tryPersistLocalState = (state: ClubDatabaseState) => {
   try {
     // Otimiza cache local omitindo registros intocados do seed Labcard (que já vêm do bundle em ms),
     // mantendo cadastros do site, admin, alterações manuais, consultores e modelos de contrato abaixo da cota de 5MB.
+    const seedMap = getLabcardSeedMap();
     const compactSubs = state.subscriptions.filter((s) => {
       if (!s.id.startsWith('sub-labcard-')) return true;
-      const hasEdits =
-        s.status !== 'PENDING_TRANSFER' ||
-        Boolean(s.manualStatusOverride) ||
-        Boolean(s.cardStatus) ||
-        Boolean(s.transferCompleted) ||
-        Boolean(s.transferredAt) ||
-        (s.invoices && s.invoices.length > 0) ||
-        (s.attachments && s.attachments.length > 0) ||
-        (s.visits && s.visits.length > 0) ||
-        (s.members &&
-          s.members.some(
-            (m) =>
-              Boolean(m.photoUrl || m.documentProofUrl || m.documentVerified || m.manualStatusOverride || m.cardStatus) ||
-              m.status !== 'PENDING_TRANSFER'
-          ));
-      return hasEdits;
+      return isLabcardSubscriptionModified(s, seedMap.get(s.id));
     });
     localStorage.setItem(
       STORAGE_KEY,
@@ -884,69 +951,6 @@ export const loadClubStateLocal = (): ClubDatabaseState => {
   }
 };
 
-let cachedLabcardSeedMap: Map<string, ClubSubscription> | null = null;
-
-const getLabcardSeedMap = (): Map<string, ClubSubscription> => {
-  if (!cachedLabcardSeedMap) {
-    cachedLabcardSeedMap = new Map(getLabcardSubscriptions().map((s) => [s.id, s]));
-  }
-  return cachedLabcardSeedMap;
-};
-
-const isLabcardSubscriptionModified = (
-  sub: ClubSubscription,
-  seedSub?: ClubSubscription
-): boolean => {
-  if (!seedSub) return true;
-  if (
-    sub.status !== 'PENDING_TRANSFER' ||
-    Boolean(sub.manualStatusOverride) ||
-    Boolean(sub.transferCompleted) ||
-    Boolean(sub.transferredAt) ||
-    Boolean(sub.cardStatus)
-  ) {
-    return true;
-  }
-  if (
-    sub.asaasCustomerId ||
-    sub.asaasSubscriptionId ||
-    sub.asaasPaymentId ||
-    sub.asaasInvoiceUrl
-  ) {
-    return true;
-  }
-  if (
-    (sub.attachments?.length || 0) > 0 ||
-    (sub.visits?.length || 0) > 0 ||
-    (sub.additionalServices?.length || 0) > 0
-  ) {
-    return true;
-  }
-  if (sub.updatedAt && seedSub.updatedAt && sub.updatedAt !== seedSub.updatedAt) {
-    return true;
-  }
-  if ((sub.invoices?.length || 0) !== (seedSub.invoices?.length || 0)) return true;
-  if ((sub.members?.length || 0) !== (seedSub.members?.length || 0)) return true;
-
-  for (let i = 0; i < (sub.members?.length || 0); i += 1) {
-    const m = sub.members[i];
-    const sm = seedSub.members?.[i];
-    if (!sm) return true;
-    if (
-      m.status !== 'PENDING_TRANSFER' ||
-      Boolean(m.manualStatusOverride) ||
-      Boolean(m.photoUrl) ||
-      Boolean(m.documentProofUrl) ||
-      Boolean(m.expirationDate) ||
-      Boolean(m.cardStatus) ||
-      (m.attachments?.length || 0) > 0
-    ) {
-      return true;
-    }
-  }
-  return false;
-};
-
 /**
  * Gera cópia enxuta do estado para gravação na nuvem:
  * omite os ~2.600 cadastros estáticos inalterados de `labcard-seed.ts` (que são
@@ -981,7 +985,7 @@ export const saveClubState = async (state: ClubDatabaseState): Promise<ClubDatab
   tryPersistLocalState(nextState);
 
   const cloudState = buildCompactCloudState(nextState);
-  const maxAttempts = 2;
+  const maxAttempts = 3;
   let lastError: any = null;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
@@ -1000,14 +1004,15 @@ export const saveClubState = async (state: ClubDatabaseState): Promise<ClubDatab
 
       const timeoutPromise = new Promise<{ error: any }>((_, reject) => {
         timeoutTimer = setTimeout(() => {
-          reject(new Error('Tempo limite de rede ao sincronizar com o banco de dados (7s)'));
-        }, 7000);
+          reject(new Error('Tempo limite de rede ao sincronizar com o banco de dados (20s)'));
+        }, 20000);
       });
 
       const { error } = await Promise.race([upsertPromise, timeoutPromise]);
       if (timeoutTimer) clearTimeout(timeoutTimer);
 
       if (!error) {
+        lastClubFetchErrorMessage = null;
         return nextState;
       }
       console.error('[ClubService] CRITICAL: Error saving to Supabase site_settings:', error);
@@ -1021,7 +1026,7 @@ export const saveClubState = async (state: ClubDatabaseState): Promise<ClubDatab
         /failed to fetch|networkerror|load failed|timeout|tempo limite|aborted/i.test(msg);
 
       if (isNetworkFailure && attempt < maxAttempts) {
-        const delayMs = attempt * 400;
+        const delayMs = attempt * 500;
         console.warn(
           `[ClubService] Tentativa ${attempt}/${maxAttempts} falhou (${msg}). Tentando novamente em ${delayMs}ms...`
         );
@@ -1080,16 +1085,28 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
 
       // Unir assinaturas pelo ID preservando exclusões definitivas (`deletedSet`)
       const subsMap = new Map<string, ClubSubscription>();
+      // 1. Base estática do seed
       defaultLabcardSubs.forEach((s) => {
         if (!deletedSet.has(s.id)) subsMap.set(s.id, s);
       });
-      localSubs.forEach((s) => {
-        if (!deletedSet.has(s.id) && !subsMap.has(s.id)) {
-          subsMap.set(s.id, s);
-        }
-      });
+      // 2. Base da nuvem (Supabase)
       remoteSubs.forEach((s) => {
         if (!deletedSet.has(s.id)) subsMap.set(s.id, s);
+      });
+      // 3. Base local do navegador: preserva qualquer alteração manual ou mais recente que a nuvem
+      localSubs.forEach((s) => {
+        if (!deletedSet.has(s.id)) {
+          const current = subsMap.get(s.id);
+          if (!current) {
+            subsMap.set(s.id, s);
+          } else {
+            const localTime = s.updatedAt ? new Date(s.updatedAt).getTime() : 0;
+            const remoteTime = current.updatedAt ? new Date(current.updatedAt).getTime() : 0;
+            if (localTime >= remoteTime || s.manualStatusOverride || s.transferCompleted) {
+              subsMap.set(s.id, s);
+            }
+          }
+        }
       });
 
       // Preservar pendente p/ transferência na base importada do Labcard salvo quando houver liberação manual explícita ou transferência concluída

@@ -2312,7 +2312,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
   useEffect(() => {
     if (selectedSubForDetail) {
-      if (selectedSubForDetail.status === 'ACTIVE') {
+      if (selectedSubForDetail.status === 'ACTIVE' || selectedSubForDetail.status === 'PENDING_TRANSFER') {
         setSituacaoLiberar('SIM');
         setSituacaoInativar('NAO');
       } else {
@@ -2413,7 +2413,9 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
       const targetStatus: ClubSubscription['status'] = isSemPlano
         ? 'INACTIVE'
-        : situacaoLiberar === 'SIM' && situacaoInativar === 'NAO'
+        : situacaoInativar === 'SIM'
+        ? 'INACTIVE'
+        : situacaoLiberar === 'SIM' || selectedSubForDetail.status === 'PENDING_TRANSFER'
         ? 'ACTIVE'
         : 'INACTIVE';
 
@@ -2672,12 +2674,17 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         s.id === updatedTargetSub.id ? updatedTargetSub : s
       );
 
+      let nextDeleted = [...(state.deletedSubscriptionIds || [])];
+
       if (person.sourceSubscriptionId && person.sourceSubscriptionId !== targetSub.id) {
         const sourceSub = (state.subscriptions || []).find((s) => s.id === person.sourceSubscriptionId);
         if (sourceSub) {
           if (sourceSub.members.length <= 1) {
             // Era uma assinatura solitária só dessa pessoa -> removemos o registro solto
             nextSubs = nextSubs.filter((s) => s.id !== person.sourceSubscriptionId);
+            if (!nextDeleted.includes(person.sourceSubscriptionId)) {
+              nextDeleted.push(person.sourceSubscriptionId);
+            }
           } else {
             // Tinha outros membros -> remove apenas essa pessoa da assinatura de origem
             nextSubs = nextSubs.map((s) =>
@@ -2699,6 +2706,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       const nextState: ClubDatabaseState = {
         ...state,
         subscriptions: nextSubs,
+        deletedSubscriptionIds: nextDeleted,
       };
 
       await persist(nextState);
@@ -2793,9 +2801,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       nextSubs.push(newIndSub);
     }
 
+    const nextDeleted = (state.deletedSubscriptionIds || []).filter((id) => id !== newIndSub.id);
     const nextState: ClubDatabaseState = {
       ...state,
       subscriptions: nextSubs,
+      deletedSubscriptionIds: nextDeleted,
     };
 
     await persist(nextState);
