@@ -1105,6 +1105,17 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
   });
   const [isSavingDependentData, setIsSavingDependentData] = useState(false);
 
+  // Modal de Baixa Manual de Cobrança / Fatura (MARCAR COBRANÇA COMO PAGA)
+  const [manualBaixaModalOpen, setManualBaixaModalOpen] = useState(false);
+  const [baixaInvoice, setBaixaInvoice] = useState<ClubInvoice | null>(null);
+  const [baixaSubId, setBaixaSubId] = useState<string | null>(null);
+  const [baixaDueDate, setBaixaDueDate] = useState('');
+  const [baixaAmount, setBaixaAmount] = useState('');
+  const [baixaNotes, setBaixaNotes] = useState('');
+  const [baixaPaymentMethod, setBaixaPaymentMethod] = useState<'PIX' | 'DINHEIRO' | 'CARTAO_CREDITO' | 'CARTAO_DEBITO' | 'BOLETO' | 'TRANSFERENCIA' | 'CORTESIA'>('PIX');
+  const [baixaReceivedAt, setBaixaReceivedAt] = useState('');
+  const [isSubmittingBaixa, setIsSubmittingBaixa] = useState(false);
+
   // Estados de salvamento para evitar cliques duplicados e congelamento da interface
   const [isSavingClientRegistration, setIsSavingClientRegistration] = useState(false);
   const [isSavingStatus, setIsSavingStatus] = useState(false);
@@ -3862,6 +3873,95 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       });
     } finally {
       setIsSavingDependentData(false);
+    }
+  };
+
+  // Abrir modal de Baixa Manual para uma Fatura/Cobrança
+  const handleOpenManualBaixaModal = (subId: string, invoice: ClubInvoice) => {
+    setBaixaSubId(subId);
+    setBaixaInvoice(invoice);
+    setBaixaDueDate(invoice.dueDate ? formatDateBR(invoice.dueDate) : '');
+    setBaixaAmount(String(invoice.amount ?? 0).replace('.', ','));
+    setBaixaNotes(invoice.notes || '');
+    let initialMethod: typeof baixaPaymentMethod = 'PIX';
+    if (invoice.paymentMethod === 'COURTESY') initialMethod = 'CORTESIA';
+    else if (invoice.paymentMethod === 'BOLETO') initialMethod = 'BOLETO';
+    else if (invoice.paymentMethod === 'CREDIT_CARD') initialMethod = 'CARTAO_CREDITO';
+    else if (invoice.paymentMethod === 'DEBIT_CARD') initialMethod = 'CARTAO_DEBITO';
+    else if (invoice.paymentMethod === 'LOCAL') initialMethod = 'DINHEIRO';
+    setBaixaPaymentMethod(initialMethod);
+    const todayIso = new Date().toISOString().slice(0, 10);
+    setBaixaReceivedAt(invoice.paidAt ? invoice.paidAt.slice(0, 10) : todayIso);
+    setManualBaixaModalOpen(true);
+  };
+
+  // Confirmar recebimento / baixa manual com os dados preenchidos
+  const handleConfirmManualBaixa = async () => {
+    if (!state || !baixaSubId || !baixaInvoice || isSubmittingBaixa) return;
+
+    setIsSubmittingBaixa(true);
+    try {
+      const parsedAmount = Number(baixaAmount.replace(',', '.'));
+      const finalAmount = Number.isFinite(parsedAmount) && parsedAmount >= 0 ? parsedAmount : baixaInvoice.amount;
+
+      let methodEnum: ClubPaymentMethod = 'PIX';
+      if (baixaPaymentMethod === 'DINHEIRO' || baixaPaymentMethod === 'TRANSFERENCIA') methodEnum = 'LOCAL';
+      else if (baixaPaymentMethod === 'CARTAO_CREDITO') methodEnum = 'CREDIT_CARD';
+      else if (baixaPaymentMethod === 'CARTAO_DEBITO') methodEnum = 'DEBIT_CARD';
+      else if (baixaPaymentMethod === 'BOLETO') methodEnum = 'BOLETO';
+      else if (baixaPaymentMethod === 'CORTESIA') methodEnum = 'COURTESY';
+
+      let parsedDueIso = baixaInvoice.dueDate;
+      if (baixaDueDate.includes('/')) {
+        const [d, m, y] = baixaDueDate.split('/');
+        if (d && m && y && y.length === 4) {
+          parsedDueIso = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+        }
+      } else if (/^\d{4}-\d{2}-\d{2}$/.test(baixaDueDate)) {
+        parsedDueIso = baixaDueDate;
+      }
+
+      const receivedDateIso = baixaReceivedAt
+        ? (baixaReceivedAt.includes('T') ? baixaReceivedAt : `${baixaReceivedAt}T12:00:00.000Z`)
+        : new Date().toISOString();
+
+      const next = await markClubInvoicePaid(
+        baixaSubId,
+        baixaInvoice.id,
+        methodEnum,
+        {
+          paidAt: receivedDateIso,
+          amount: finalAmount,
+          dueDate: parsedDueIso,
+          notes: baixaNotes.trim() || undefined,
+        }
+      );
+
+      setState(next);
+      const updatedSub = next.subscriptions.find((s) => s.id === baixaSubId);
+      if (updatedSub && selectedSubForDetail?.id === baixaSubId) {
+        setSelectedSubForDetail(updatedSub);
+        setSituacaoLiberar('SIM');
+        setSituacaoInativar('NAO');
+      }
+
+      setManualBaixaModalOpen(false);
+      setBaixaInvoice(null);
+      setBaixaSubId(null);
+
+      toast({
+        title: 'Recebimento Confirmado!',
+        description: `Parcela ${baixaInvoice.installmentNumber} de ${baixaInvoice.totalInstallments || 12} (${formatCurrency(finalAmount)}) recebida via ${baixaPaymentMethod}.`,
+      });
+    } catch (err) {
+      console.error('Erro ao baixar cobrança:', err);
+      toast({
+        title: 'Erro ao baixar parcela',
+        description: 'Ocorreu um erro ao registrar a baixa manual.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmittingBaixa(false);
     }
   };
 
@@ -8729,19 +8829,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                             </span>
                             <Button
                               size="sm"
-                              onClick={async () => {
-                                const next = await markClubInvoicePaid(
-                                  subscription.id,
-                                  invoice.id,
-                                  'LOCAL'
-                                );
-                                setState(next);
-                                toast({
-                                  title: 'Fatura baixada com sucesso!',
-                                  description: `Assinatura de ${subscription.holderName} ativada.`,
-                                });
-                              }}
-                              className="bg-[#004d00] hover:bg-emerald-900 text-white font-bold text-xs"
+                              onClick={() => handleOpenManualBaixaModal(subscription.id, invoice)}
+                              className="bg-[#004d00] hover:bg-emerald-900 text-white font-bold text-xs cursor-pointer"
                             >
                               Dar Baixa Manual
                             </Button>
@@ -13658,49 +13747,16 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                     <X className="w-3.5 h-3.5" />
                                   </button>
 
-                                  {/* 4. Botão Verde Check (Dar Baixa / PAGO) */}
+                                  {/* 4. Botão Verde Check (Dar Baixa / PAGO - Abre modal com opções) */}
                                   <button
                                     type="button"
-                                    title={
-                                      isPaid
-                                        ? 'Parcela já quitada'
-                                        : 'Dar Baixa (Marcar como PAGO e liberar cliente)'
-                                    }
-                                    onClick={async () => {
-                                      if (isPaid) {
-                                        toast({
-                                          title: `Parcela ${inv.installmentNumber} já está PAGA`,
-                                          description: inv.paidAt
-                                            ? `Recebida em ${formatDateBR(inv.paidAt)}.`
-                                            : undefined,
-                                        });
-                                        return;
-                                      }
-                                      const next = await markClubInvoicePaid(
-                                        selectedSubForDetail.id,
-                                        inv.id,
-                                        'LOCAL'
-                                      );
-                                      setState(next);
-                                      const updated = next.subscriptions.find(
-                                        (s) => s.id === selectedSubForDetail.id
-                                      );
-                                      if (updated) {
-                                        setSelectedSubForDetail(updated);
-                                        setSituacaoLiberar('SIM');
-                                        setSituacaoInativar('NAO');
-                                      }
-                                      toast({
-                                        title: `Parcela ${inv.installmentNumber} baixada como PAGO!`,
-                                        description:
-                                          'Recebimento registrado e cliente liberado.',
-                                      });
-                                    }}
+                                    title="Marcar Cobrança como Paga / Dar Baixa Manual"
+                                    onClick={() => handleOpenManualBaixaModal(selectedSubForDetail.id, inv)}
                                     className={`w-7 h-7 rounded ${
                                       isPaid
                                         ? 'bg-emerald-800/70 opacity-75'
                                         : 'bg-[#5cb85c] hover:bg-emerald-500'
-                                    } text-white flex items-center justify-center shadow-sm border border-white/20`}
+                                    } text-white flex items-center justify-center shadow-sm border border-white/20 cursor-pointer`}
                                   >
                                     <Check className="w-3.5 h-3.5" />
                                   </button>
@@ -20329,6 +20385,132 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 )}
               </Button>
             </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL MARCAR COBRANÇA COMO PAGA (BAIXA MANUAL DE FINANCEIRO) */}
+      <Dialog
+        open={manualBaixaModalOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setManualBaixaModalOpen(false);
+            setBaixaInvoice(null);
+            setBaixaSubId(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-md rounded-2xl border-2 border-emerald-400 p-0 overflow-hidden bg-[#eaf8ec] shadow-2xl">
+          <div className="bg-[#eaf8ec] p-6 pb-2 text-center border-b border-emerald-200/60">
+            <div className="text-base sm:text-lg font-bold text-slate-800">
+              ( Carnê {baixaInvoice?.carneGroup || 1} )
+            </div>
+            <div className="text-sm font-semibold text-slate-700 mt-0.5">
+              Parcela: {baixaInvoice?.installmentNumber} de {baixaInvoice?.totalInstallments || 12}
+            </div>
+            <div className="text-xs font-mono text-slate-600 mt-0.5">
+              Registro: {baixaInvoice?.boletoNumber || (baixaInvoice?.id ? baixaInvoice.id.replace(/\D/g, '').slice(0, 18) : '772817668693268348')}
+            </div>
+            <DialogTitle className="text-base sm:text-lg font-black uppercase tracking-tight text-slate-900 pt-3 pb-1">
+              MARCAR COBRANÇA COMO PAGA
+            </DialogTitle>
+          </div>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleConfirmManualBaixa();
+            }}
+            className="p-6 pt-3 space-y-3.5 bg-[#eaf8ec]"
+          >
+            <div>
+              <Label className="text-xs font-bold text-slate-800 lowercase block mb-1">
+                vencimento:
+              </Label>
+              <Input
+                value={baixaDueDate}
+                onChange={(e) => setBaixaDueDate(e.target.value)}
+                placeholder="dd/mm/aaaa"
+                className="h-10 rounded-lg border-slate-300 bg-white font-medium text-sm text-slate-900"
+              />
+            </div>
+
+            <div>
+              <Label className="text-xs font-bold text-slate-800 block mb-1">
+                Valor:
+              </Label>
+              <Input
+                value={baixaAmount}
+                onChange={(e) => setBaixaAmount(e.target.value)}
+                placeholder="0,00"
+                className="h-10 rounded-lg border-slate-300 bg-white font-medium text-sm text-slate-900"
+              />
+            </div>
+
+            <div>
+              <Label className="text-xs font-bold text-slate-800 block mb-1">
+                Observações:
+              </Label>
+              <Input
+                value={baixaNotes}
+                onChange={(e) => setBaixaNotes(e.target.value)}
+                placeholder=""
+                className="h-10 rounded-lg border-slate-300 bg-white font-medium text-sm text-slate-900"
+              />
+            </div>
+
+            <div>
+              <Label className="text-xs font-black text-slate-800 uppercase block mb-1">
+                FORMA DE PAGAMENTO:
+              </Label>
+              <select
+                value={baixaPaymentMethod}
+                onChange={(e) => setBaixaPaymentMethod(e.target.value as any)}
+                className="w-full h-10 px-3 rounded-lg border border-slate-300 bg-white font-bold text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+              >
+                <option value="PIX">PIX</option>
+                <option value="DINHEIRO">DINHEIRO</option>
+                <option value="CARTAO_CREDITO">CARTÃO DE CRÉDITO</option>
+                <option value="CARTAO_DEBITO">CARTÃO DE DÉBITO</option>
+                <option value="BOLETO">BOLETO</option>
+                <option value="TRANSFERENCIA">TRANSFERÊNCIA BANCÁRIA</option>
+                <option value="CORTESIA">CORTESIA / ISENTO</option>
+              </select>
+            </div>
+
+            <div>
+              <Label className="text-xs font-black text-slate-800 uppercase block mb-1">
+                ESCOLHA A DATA DO RECEBIMENTO:
+              </Label>
+              <Input
+                type="date"
+                value={baixaReceivedAt}
+                onChange={(e) => setBaixaReceivedAt(e.target.value)}
+                className="h-10 rounded-lg border-slate-300 bg-white font-medium text-sm text-slate-900 cursor-pointer"
+                required
+              />
+            </div>
+
+            <div className="flex items-center justify-center gap-4 pt-4 border-t border-emerald-300/60">
+              <Button
+                type="button"
+                onClick={() => {
+                  setManualBaixaModalOpen(false);
+                  setBaixaInvoice(null);
+                  setBaixaSubId(null);
+                }}
+                className="bg-[#d9534f] hover:bg-rose-700 text-white font-bold text-xs uppercase px-6 h-10 rounded-lg shadow-sm cursor-pointer"
+              >
+                FECHAR JANELA
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSubmittingBaixa}
+                className="bg-[#5cb85c] hover:bg-emerald-600 text-white font-black text-xs uppercase px-6 h-10 rounded-lg shadow-md cursor-pointer"
+              >
+                {isSubmittingBaixa ? 'SALVANDO...' : 'CONFIRMAR RECEBIMENTO!'}
+              </Button>
+            </div>
           </form>
         </DialogContent>
       </Dialog>

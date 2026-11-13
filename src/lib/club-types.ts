@@ -112,6 +112,7 @@ export interface ClubInvoice {
   carneGroup?: number;
   invoiceKind?: 'MENSALIDADE' | 'ADESAO' | 'AVULSA';
   asaasSubscriptionId?: string;
+  notes?: string;
   createdAt: string;
 }
 

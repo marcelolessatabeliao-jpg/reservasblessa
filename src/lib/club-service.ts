@@ -2546,7 +2546,13 @@ export const applySelectedAsaasSync = async (
 export const markClubInvoicePaid = async (
   subscriptionId: string,
   invoiceId: string,
-  method?: ClubPaymentMethod
+  method?: ClubPaymentMethod,
+  options?: {
+    paidAt?: string;
+    amount?: number;
+    dueDate?: string;
+    notes?: string;
+  }
 ): Promise<ClubDatabaseState> => {
   const state = await fetchClubState();
   const sub = state.subscriptions.find((s) => s.id === subscriptionId);
@@ -2554,8 +2560,17 @@ export const markClubInvoicePaid = async (
     const inv = sub.invoices.find((i) => i.id === invoiceId);
     if (inv) {
       inv.status = 'PAID';
-      inv.paidAt = new Date().toISOString();
+      inv.paidAt = options?.paidAt || new Date().toISOString();
       if (method) inv.paymentMethod = method;
+      if (options?.amount !== undefined && !isNaN(options.amount)) {
+        inv.amount = options.amount;
+      }
+      if (options?.dueDate) {
+        inv.dueDate = options.dueDate;
+      }
+      if (options?.notes) {
+        inv.notes = options.notes;
+      }
     }
     // Se estava pendente ou vencida e não há mais faturas vencidas, ativa a assinatura e carteirinhas com comprovação em dia
     const hasOverdue = sub.invoices.some((i) => i.status === 'OVERDUE');
@@ -2567,6 +2582,8 @@ export const markClubInvoicePaid = async (
         ? 'INACTIVE'
         : 'ACTIVE';
     }
+    sub.manualStatusOverride = true;
+    sub.transferCompleted = true;
     // Atualiza contrato oficial gerado com a confirmação de quitação / pagamento
     sub.contractContentHtml = renderSubscriptionContractHtml(sub, state.contractTemplates);
     sub.updatedAt = new Date().toISOString();
