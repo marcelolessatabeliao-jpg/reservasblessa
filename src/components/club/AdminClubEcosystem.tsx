@@ -156,6 +156,7 @@ import {
   LabcardApiClientRecord,
   LabcardEnrichStats,
 } from '@/lib/club-service';
+import { ClubDocumentVerificationPanel } from './ClubDocumentVerificationPanel';
 import {
   getSeenClubSubIds,
   markClubSubAsSeen,
@@ -6257,6 +6258,42 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                 ? 'pendente'
                                 : 'inativo'}
                             </span>
+                            {/* SELO DE SITUAÇÃO DA DOCUMENTAÇÃO */}
+                            {(() => {
+                              const membersNeedingDocs = (sub.members || []).filter(
+                                (m) => getPlanDocumentRule(m.modalityCode, m.modalityName).requiresDocument
+                              );
+                              if (membersNeedingDocs.length === 0) return null;
+
+                              const missingDoc = membersNeedingDocs.some((m) => !memberHasProofDocument(m, sub));
+                              const unverified = membersNeedingDocs.some((m) => !m.documentVerified);
+
+                              if (missingDoc) {
+                                return (
+                                  <div className="mt-1">
+                                    <span className="inline-block px-1.5 py-0.5 rounded text-[9.5px] font-black bg-rose-100 text-rose-800 border border-rose-300 whitespace-nowrap">
+                                      📄 Falta Comprovante
+                                    </span>
+                                  </div>
+                                );
+                              }
+                              if (unverified) {
+                                return (
+                                  <div className="mt-1">
+                                    <span className="inline-block px-1.5 py-0.5 rounded text-[9.5px] font-black bg-amber-100 text-amber-900 border border-amber-300 whitespace-nowrap animate-pulse">
+                                      ⏳ Doc. Aguardando Validação
+                                    </span>
+                                  </div>
+                                );
+                              }
+                              return (
+                                <div className="mt-1">
+                                  <span className="inline-block px-1.5 py-0.5 rounded text-[9.5px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 whitespace-nowrap">
+                                    ✓ Doc. Validado
+                                  </span>
+                                </div>
+                              );
+                            })()}
                             <div className="mt-1">
                               <span
                                 className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold border whitespace-nowrap ${
@@ -7103,6 +7140,27 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           ))}
                         </select>
                       </div>
+
+                      {/* INFORMATIVO DO QUE É ACEITO E VÁLIDO PARA A MODALIDADE DO NOVO DEPENDENTE */}
+                      {(() => {
+                        const selMod = (state.modalities || []).find((m) => m.code === newDepModality);
+                        const rule = getPlanDocumentRule(newDepModality, selMod?.name);
+                        if (!rule.requiresDocument) return null;
+                        return (
+                          <div className="sm:col-span-12 bg-amber-50 border border-amber-300 rounded-xl p-3 text-xs text-amber-950 space-y-1">
+                            <strong className="block font-black uppercase text-[11px] text-amber-900 flex items-center gap-1.5">
+                              📄 Comprovação Obrigatória para {selMod?.name || 'esta modalidade'}:
+                            </strong>
+                            <p className="text-slate-700">{rule.summary}</p>
+                            <div className="font-semibold text-slate-800">
+                              Documentos aceitos (basta 1): {rule.acceptedDocs.join(' • ')}
+                            </div>
+                            <div className="text-[10px] text-amber-800 font-bold">
+                              ⚠️ Além do pagamento, o cadastro deste dependente só será ativo após o documento ser anexado e validado pelo Admin.
+                            </div>
+                          </div>
+                        );
+                      })()}
 
                       <div>
                         <Label className="text-xs font-bold text-slate-700 mb-1 block">
@@ -11593,22 +11651,44 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   </span>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge
-                    className={`text-[11px] sm:text-xs py-1 ${
-                      selectedSubForDetail.status === 'ACTIVE'
-                        ? 'bg-emerald-600 text-white'
-                        : !selectedSubForDetail.transferCompleted && selectedSubForDetail.status === 'PENDING_TRANSFER'
-                        ? 'bg-amber-600 text-white'
-                        : 'bg-rose-600 text-white'
-                    }`}
-                  >
-                    STATUS ATUAL:{' '}
-                    {selectedSubForDetail.status === 'ACTIVE'
-                      ? 'ATIVO (LIBERADO)'
-                      : !selectedSubForDetail.transferCompleted && selectedSubForDetail.status === 'PENDING_TRANSFER'
-                      ? 'PENDENTE PARA TRANSFERÊNCIA'
-                      : 'INATIVO (AGUARDANDO PAGTO)'}
-                  </Badge>
+                  {(() => {
+                    const membersNeedingDocs = (selectedSubForDetail.members || []).filter(
+                      (m) => getPlanDocumentRule(m.modalityCode, m.modalityName).requiresDocument
+                    );
+                    const hasDocsRequired = membersNeedingDocs.length > 0;
+                    const anyMissingUpload = membersNeedingDocs.some(
+                      (m) => !memberHasProofDocument(m, selectedSubForDetail)
+                    );
+                    const anyUnverified = membersNeedingDocs.some((m) => !m.documentVerified);
+
+                    let statusLabel = 'INATIVO (AGUARDANDO PAGTO)';
+                    let statusColor = 'bg-rose-600 text-white';
+
+                    if (hasDocsRequired && anyUnverified) {
+                      if (anyMissingUpload) {
+                        statusLabel = 'INATIVO (FALTA DOCUMENTAÇÃO OBRIGATÓRIA)';
+                        statusColor = 'bg-rose-600 text-white';
+                      } else {
+                        statusLabel = 'DOCS EM ANÁLISE (AGUARDANDO VALIDAÇÃO DO ADMIN)';
+                        statusColor = 'bg-amber-600 text-white animate-pulse';
+                      }
+                    } else if (selectedSubForDetail.status === 'ACTIVE') {
+                      statusLabel = 'ATIVO (LIBERADO)';
+                      statusColor = 'bg-emerald-600 text-white';
+                    } else if (
+                      !selectedSubForDetail.transferCompleted &&
+                      selectedSubForDetail.status === 'PENDING_TRANSFER'
+                    ) {
+                      statusLabel = 'PENDENTE PARA TRANSFERÊNCIA';
+                      statusColor = 'bg-teal-600 text-white';
+                    }
+
+                    return (
+                      <Badge className={`text-[11px] sm:text-xs py-1 font-black ${statusColor}`}>
+                        STATUS ATUAL: {statusLabel}
+                      </Badge>
+                    );
+                  })()}
                   {selectedSubForDetail.transferCompleted ? (
                     <Badge className="bg-teal-600 text-white text-[11px] sm:text-xs py-1">
                       ✓ TRANSFERÊNCIA CONCLUÍDA
@@ -11918,6 +11998,21 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                       </Button>
                     </div>
                   </div>
+
+                  {/* PAINEL DE COMPROVAÇÃO DOCUMENTAL OBRIGATÓRIA (TITULAR E DEPENDENTES) */}
+                  <ClubDocumentVerificationPanel
+                    subscription={selectedSubForDetail}
+                    onUpdateSub={(updatedSub) => {
+                      setSelectedSubForDetail(updatedSub);
+                      setState((prevState) => ({
+                        ...prevState,
+                        subscriptions: (prevState.subscriptions || []).map((s) =>
+                          s.id === updatedSub.id ? updatedSub : s
+                        ),
+                      }));
+                    }}
+                    onPreviewAttachment={(att) => setPreviewAttachment(att)}
+                  />
 
                   {/* DADOS PESSOAIS */}
                   <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
@@ -12852,6 +12947,27 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         </select>
                       </div>
 
+                      {/* INFORMATIVO DO QUE É ACEITO E VÁLIDO PARA A MODALIDADE DO NOVO DEPENDENTE */}
+                      {(() => {
+                        const selMod = (state.modalities || []).find((m) => m.code === newDepModality);
+                        const rule = getPlanDocumentRule(newDepModality, selMod?.name);
+                        if (!rule.requiresDocument) return null;
+                        return (
+                          <div className="sm:col-span-12 bg-amber-50 border border-amber-300 rounded-xl p-3 text-xs text-amber-950 space-y-1">
+                            <strong className="block font-black uppercase text-[11px] text-amber-900 flex items-center gap-1.5">
+                              📄 Comprovação Obrigatória para {selMod?.name || 'esta modalidade'}:
+                            </strong>
+                            <p className="text-slate-700">{rule.summary}</p>
+                            <div className="font-semibold text-slate-800">
+                              Documentos aceitos (basta 1): {rule.acceptedDocs.join(' • ')}
+                            </div>
+                            <div className="text-[10px] text-amber-800 font-bold">
+                              ⚠️ Além do pagamento, o cadastro deste dependente só será ativo após o documento ser anexado e validado pelo Admin.
+                            </div>
+                          </div>
+                        );
+                      })()}
+
                       <div className="sm:col-span-4 flex items-center gap-2">
                         <Label className="text-xs font-bold text-slate-600 w-16 text-left sm:text-right shrink-0">
                           Inativar
@@ -12869,6 +12985,27 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           <option value="SIM">SIM</option>
                         </select>
                       </div>
+
+                      {/* INFORMATIVO DO QUE É ACEITO E VÁLIDO PARA A MODALIDADE DO NOVO DEPENDENTE */}
+                      {(() => {
+                        const selMod = (state.modalities || []).find((m) => m.code === newDepModality);
+                        const rule = getPlanDocumentRule(newDepModality, selMod?.name);
+                        if (!rule.requiresDocument) return null;
+                        return (
+                          <div className="sm:col-span-12 bg-amber-50 border border-amber-300 rounded-xl p-3 text-xs text-amber-950 space-y-1">
+                            <strong className="block font-black uppercase text-[11px] text-amber-900 flex items-center gap-1.5">
+                              📄 Comprovação Obrigatória para {selMod?.name || 'esta modalidade'}:
+                            </strong>
+                            <p className="text-slate-700">{rule.summary}</p>
+                            <div className="font-semibold text-slate-800">
+                              Documentos aceitos (basta 1): {rule.acceptedDocs.join(' • ')}
+                            </div>
+                            <div className="text-[10px] text-amber-800 font-bold">
+                              ⚠️ Além do pagamento, o cadastro deste dependente só será ativo após o documento ser anexado e validado pelo Admin.
+                            </div>
+                          </div>
+                        );
+                      })()}
 
                       <div className="sm:col-span-4 flex items-center justify-between gap-2 pt-1 sm:pt-0">
                         <div className="flex items-center gap-2">
@@ -15507,6 +15644,20 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
               ===================================================================== */}
               {clientDetailTool === 'ANEXOS' && (
                 <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-4">
+                  {/* PAINEL DE VALIDAÇÃO DE COMPROVAÇÃO DOCUMENTAL OBRIGATÓRIA */}
+                  <ClubDocumentVerificationPanel
+                    subscription={selectedSubForDetail}
+                    onUpdateSub={(updatedSub) => {
+                      setSelectedSubForDetail(updatedSub);
+                      setState((prevState) => ({
+                        ...prevState,
+                        subscriptions: (prevState.subscriptions || []).map((s) =>
+                          s.id === updatedSub.id ? updatedSub : s
+                        ),
+                      }));
+                    }}
+                    onPreviewAttachment={(att) => setPreviewAttachment(att)}
+                  />
                   <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
                     <div>
                       <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
@@ -16116,6 +16267,21 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     </div>
                   </div>
 
+                  {/* PAINEL DE VALIDAÇÃO DE COMPROVAÇÃO DOCUMENTAL (TITULAR E DEPENDENTES) */}
+                  <ClubDocumentVerificationPanel
+                    subscription={selectedSubForDetail}
+                    onUpdateSub={(updatedSub) => {
+                      setSelectedSubForDetail(updatedSub);
+                      setState((prevState) => ({
+                        ...prevState,
+                        subscriptions: (prevState.subscriptions || []).map((s) =>
+                          s.id === updatedSub.id ? updatedSub : s
+                        ),
+                      }));
+                    }}
+                    onPreviewAttachment={(att) => setPreviewAttachment(att)}
+                  />
+
                   {/* FORMULÁRIO DE CADASTRO DE NOVO DEPENDENTE */}
                   <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
                     <h4 className="text-xs font-black uppercase text-slate-700 tracking-wider">
@@ -16177,6 +16343,27 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           ))}
                         </select>
                       </div>
+
+                      {/* INFORMATIVO DO QUE É ACEITO E VÁLIDO PARA A MODALIDADE DO NOVO DEPENDENTE */}
+                      {(() => {
+                        const selMod = (state.modalities || []).find((m) => m.code === newDepModality);
+                        const rule = getPlanDocumentRule(newDepModality, selMod?.name);
+                        if (!rule.requiresDocument) return null;
+                        return (
+                          <div className="sm:col-span-12 bg-amber-50 border border-amber-300 rounded-xl p-3 text-xs text-amber-950 space-y-1">
+                            <strong className="block font-black uppercase text-[11px] text-amber-900 flex items-center gap-1.5">
+                              📄 Comprovação Obrigatória para {selMod?.name || 'esta modalidade'}:
+                            </strong>
+                            <p className="text-slate-700">{rule.summary}</p>
+                            <div className="font-semibold text-slate-800">
+                              Documentos aceitos (basta 1): {rule.acceptedDocs.join(' • ')}
+                            </div>
+                            <div className="text-[10px] text-amber-800 font-bold">
+                              ⚠️ Além do pagamento, o cadastro deste dependente só será ativo após o documento ser anexado e validado pelo Admin.
+                            </div>
+                          </div>
+                        );
+                      })()}
 
                       {/* CONTROLE DE VENCIMENTO DO DEPENDENTE (EX: CRIANÇA QUE FARÁ ANIVERSÁRIO EM 2 MESES) */}
                       <div className="sm:col-span-3">
@@ -17530,7 +17717,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                           <div className="bg-white p-2.5 rounded-xl border border-emerald-200">
                             <span className="text-[10px] uppercase font-bold text-slate-500 block">Usuário de Login</span>
-                            <span className="font-black text-slate-800 break-all">{access.login}</span>
+                            <span className="font-black text-slate-800 break-all">{access.login || access.loginUser || selectedSubForDetail.holderEmail || selectedSubForDetail.holderCpf}</span>
                           </div>
                           <div className="bg-white p-2.5 rounded-xl border border-emerald-200">
                             <span className="text-[10px] uppercase font-bold text-slate-500 block">Senha Padrão (Nascimento)</span>
@@ -17547,10 +17734,10 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                             type="button"
                             variant="outline"
                             onClick={() => {
-                              navigator.clipboard.writeText(access.text);
+                              navigator.clipboard.writeText(access.message || access.text);
                               toast({
                                 title: 'Dados de acesso copiados!',
-                                description: `Login: ${access.login} | Senha: ${access.password}`,
+                                description: `Login: ${access.login || access.loginUser || selectedSubForDetail.holderEmail || selectedSubForDetail.holderCpf} | Senha: ${access.password}`,
                               });
                             }}
                             className="bg-white hover:bg-emerald-100 text-emerald-800 border-emerald-300 font-bold text-xs h-9"
@@ -18411,6 +18598,27 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           ))}
                         </select>
                       </div>
+
+                      {/* INFORMATIVO DO QUE É ACEITO E VÁLIDO PARA A MODALIDADE DO NOVO DEPENDENTE */}
+                      {(() => {
+                        const selMod = (state.modalities || []).find((m) => m.code === newDepModality);
+                        const rule = getPlanDocumentRule(newDepModality, selMod?.name);
+                        if (!rule.requiresDocument) return null;
+                        return (
+                          <div className="sm:col-span-12 bg-amber-50 border border-amber-300 rounded-xl p-3 text-xs text-amber-950 space-y-1">
+                            <strong className="block font-black uppercase text-[11px] text-amber-900 flex items-center gap-1.5">
+                              📄 Comprovação Obrigatória para {selMod?.name || 'esta modalidade'}:
+                            </strong>
+                            <p className="text-slate-700">{rule.summary}</p>
+                            <div className="font-semibold text-slate-800">
+                              Documentos aceitos (basta 1): {rule.acceptedDocs.join(' • ')}
+                            </div>
+                            <div className="text-[10px] text-amber-800 font-bold">
+                              ⚠️ Além do pagamento, o cadastro deste dependente só será ativo após o documento ser anexado e validado pelo Admin.
+                            </div>
+                          </div>
+                        );
+                      })()}
                       <div className="sm:col-span-1 flex justify-end">
                         <Button
                           type="button"

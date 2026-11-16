@@ -123,6 +123,33 @@ export const getPlanDocumentRule = (
     };
   }
 
+  if (code === 'DOADOR' || name.includes('doador')) {
+    return {
+      requiresDocument: true,
+      title: 'Comprovante / Carteira de Doador de Sangue',
+      summary:
+        'Para aprovar o benefício do plano Lessa Doador, é obrigatório anexar carteirinha de doador de sangue ou comprovante de doação recente.',
+      acceptedDocs: [
+        'Carteira de Doador Regular de Sangue (Hemocentro / Fhemeron)',
+        'Comprovante de doação de sangue emitido nos últimos 6 meses',
+      ],
+    };
+  }
+
+  if (code === 'CONJUGE' || name.includes('cônjuge') || name.includes('conjuge') || name.includes('espos') || name.includes('marido')) {
+    return {
+      requiresDocument: true,
+      title: 'Comprovante de Vínculo Conjugal',
+      summary:
+        'Para aprovar o dependente cônjuge, é obrigatório anexar certidão de casamento ou declaração de união estável.',
+      acceptedDocs: [
+        'Certidão de Casamento',
+        'Escritura pública ou declaração de União Estável',
+        'Certidão de nascimento de filhos em comum',
+      ],
+    };
+  }
+
   return {
     requiresDocument: false,
     title: '',
@@ -131,39 +158,30 @@ export const getPlanDocumentRule = (
   };
 };
 
-export const memberHasProofDocument = (
+export const memberHasProofUploaded = (
   member?: Partial<ClubMember> | null,
   sub?: Partial<ClubSubscription> | null
 ): boolean => {
   if (!member) return false;
-  if (member.documentVerified) return true;
   if (member.documentProofUrl && member.documentProofUrl.trim().length > 0) return true;
-  if (Array.isArray(member.attachments) && member.attachments.length > 0) {
-    return true;
-  }
-  if (Array.isArray(member.proofDocuments) && member.proofDocuments.length > 0) {
-    return true;
-  }
+  if (Array.isArray(member.attachments) && member.attachments.length > 0) return true;
+  if (Array.isArray(member.proofDocuments) && member.proofDocuments.length > 0) return true;
 
   // Verifica nos anexos da assinatura (sub.attachments)
   if (sub?.attachments && Array.isArray(sub.attachments) && sub.attachments.length > 0) {
-    // Se o membro é titular ou a assinatura só tem 1 membro, qualquer anexo cadastrado para o cliente conta como documento dele
     const isHolderOrSolo =
       member.role === 'TITULAR' ||
       !sub.members ||
       sub.members.length <= 1 ||
       (sub.members[0] && sub.members[0].id === member.id);
 
-    if (isHolderOrSolo) {
-      return true;
-    }
+    if (isHolderOrSolo) return true;
 
-    // Para dependentes em famílias com múltiplos integrantes, busca por primeiro nome, cartão ou id
     const firstName = (member.fullName || '').split(' ')[0].toLowerCase().trim();
     const card = (member.cardNumber || '').trim();
     const memId = (member.id || '').trim();
 
-    const matched = sub.attachments.some((att) => {
+    return sub.attachments.some((att) => {
       const attName = (att.name || '').toLowerCase();
       const attId = (att.id || '').toLowerCase();
       return (
@@ -172,11 +190,30 @@ export const memberHasProofDocument = (
         (memId && (attId.includes(memId) || attName.includes(memId)))
       );
     });
-
-    if (matched) return true;
   }
 
   return false;
+};
+
+export const memberHasProofDocument = (
+  member?: Partial<ClubMember> | null,
+  sub?: Partial<ClubSubscription> | null
+): boolean => {
+  return memberHasProofUploaded(member, sub);
+};
+
+export const getMemberDocumentStatus = (
+  member?: Partial<ClubMember> | null,
+  sub?: Partial<ClubSubscription> | null
+): 'DISPENSADO' | 'PENDENTE_ANEXO' | 'EM_ANALISE' | 'APROVADO' | 'REJEITADO' => {
+  if (!member) return 'DISPENSADO';
+  const rule = getPlanDocumentRule(member.modalityCode, member.modalityName);
+  if (!rule.requiresDocument) return 'DISPENSADO';
+
+  if (member.documentVerified) return 'APROVADO';
+  if (member.documentRejectionReason && !member.documentVerified) return 'REJEITADO';
+  if (memberHasProofUploaded(member, sub)) return 'EM_ANALISE';
+  return 'PENDENTE_ANEXO';
 };
 
 export const isMemberBlockedForMissingDoc = (
@@ -189,7 +226,8 @@ export const isMemberBlockedForMissingDoc = (
   }
   const rule = getPlanDocumentRule(member.modalityCode, member.modalityName);
   if (!rule.requiresDocument) return false;
-  return !memberHasProofDocument(member, sub);
+  // Além de ter o anexo enviado, exige que o admin tenha validado
+  return !member.documentVerified;
 };
 
 let cachedLabcardSeedMap: Map<string, ClubSubscription> | null = null;
@@ -2741,7 +2779,8 @@ export const attachMemberProofDocument = async (
 export const verifyMemberProofDocument = async (
   subscriptionId: string,
   memberId: string,
-  verified: boolean
+  verified: boolean,
+  rejectionReason?: string
 ): Promise<ClubDatabaseState> => {
   const state = await fetchClubState();
   const sub = state.subscriptions.find((s) => s.id === subscriptionId);
@@ -2751,6 +2790,18 @@ export const verifyMemberProofDocument = async (
   if (!member) return state;
 
   member.documentVerified = verified;
+  if (verified) {
+    member.documentStatus = 'APROVADO';
+    member.documentRejectionReason = undefined;
+    member.documentVerifiedAt = new Date().toISOString();
+    member.documentVerifiedBy = 'Administrador';
+  } else if (rejectionReason) {
+    member.documentStatus = 'REJEITADO';
+    member.documentRejectionReason = rejectionReason;
+  } else {
+    member.documentStatus = memberHasProofUploaded(member, sub) ? 'EM_ANALISE' : 'PENDENTE_ANEXO';
+  }
+
   const blocked = isMemberBlockedForMissingDoc(member, sub);
   const canActivate =
     sub.monthlyEquivalent === 0 ||
@@ -3466,7 +3517,7 @@ export const trackConsultantClick = async (consultantIdOrCode: string): Promise<
 // ============================================================================
 // DADOS DE ACESSO AO PORTAL DO SÓCIO (USUÁRIO = EMAIL, SENHA = DATA NASC. DDMMAAAA)
 // ============================================================================
-export const getMemberAccessMessage = (sub: ClubSubscription): { message: string; whatsappUrl: string; loginUser: string; password: string } => {
+export const getMemberAccessMessage = (sub: ClubSubscription): { message: string; text: string; whatsappUrl: string; loginUser: string; login: string; password: string } => {
   const loginUser = sub.holderEmail || sub.holderCpf;
   const password = getBirthDatePassword(sub.holderBirthDate);
   const portalUrl = typeof window !== 'undefined' ? `${window.location.origin}/socio` : 'https://balneariolessa.com.br/socio';
@@ -3477,7 +3528,7 @@ export const getMemberAccessMessage = (sub: ClubSubscription): { message: string
   const fullPhone = phone.startsWith('55') ? phone : `55${phone}`;
   const whatsappUrl = `https://wa.me/${fullPhone}?text=${encodeURIComponent(message)}`;
 
-  return { message, whatsappUrl, loginUser, password };
+  return { message, text: message, whatsappUrl, loginUser, login: loginUser, password };
 };
 
 // ============================================================================

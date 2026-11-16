@@ -1530,15 +1530,41 @@ const SocioPortal: React.FC = () => {
                                 <Badge variant="outline" className="font-bold text-xs">
                                   {member.modalityName}
                                 </Badge>
-                                <Badge className={missingDoc ? 'bg-rose-600 text-white text-[10px]' : member.status === 'ACTIVE' ? 'bg-emerald-600 text-white text-[10px]' : 'bg-slate-600 text-white text-[10px]'}>
-                                  {missingDoc
-                                    ? 'INATIVO (FALTA COMPROVAÇÃO)'
-                                    : hasDoc
-                                    ? 'COMPROVAÇÃO ENVIADA'
-                                    : docRule.requiresDocument
-                                    ? 'PENDENTE'
-                                    : 'NÃO EXIGE DOCUMENTO'}
-                                </Badge>
+                                {(() => {
+                                  if (!docRule.requiresDocument) {
+                                    return (
+                                      <Badge className="bg-slate-500 text-white text-[10px] font-bold">
+                                        NÃO EXIGE DOCUMENTO
+                                      </Badge>
+                                    );
+                                  }
+                                  if (member.documentVerified) {
+                                    return (
+                                      <Badge className="bg-emerald-700 text-white text-[10px] font-black shadow-xs">
+                                        ✓ DOCUMENTO APROVADO PELO ADMIN
+                                      </Badge>
+                                    );
+                                  }
+                                  if (member.documentRejectionReason) {
+                                    return (
+                                      <Badge className="bg-rose-700 text-white text-[10px] font-black shadow-xs">
+                                        ✕ DOCUMENTO RECUSADO (ENVIAR NOVO)
+                                      </Badge>
+                                    );
+                                  }
+                                  if (hasDoc) {
+                                    return (
+                                      <Badge className="bg-amber-500 text-slate-950 text-[10px] font-black animate-pulse shadow-xs">
+                                        ⏳ EM ANÁLISE PELO ADMIN
+                                      </Badge>
+                                    );
+                                  }
+                                  return (
+                                    <Badge className="bg-rose-600 text-white text-[10px] font-black shadow-xs">
+                                      ⚠️ COMPROVANTE OBRIGATÓRIO PENDENTE
+                                    </Badge>
+                                  );
+                                })()}
                               </div>
                               <div className="text-xs text-slate-600 mt-1">
                                 Cartão Nº <strong className="font-mono">{member.cardNumber}</strong> • CPF: {member.cpf || 'Não informado'}
@@ -1591,6 +1617,30 @@ const SocioPortal: React.FC = () => {
                                   </li>
                                 ))}
                               </ul>
+                            </div>
+                          )}
+
+                          {member.documentRejectionReason && !member.documentVerified && (
+                            <div className="bg-rose-100 border border-rose-300 text-rose-950 text-xs rounded-xl p-3 font-semibold space-y-1">
+                              <div className="font-black text-rose-900 flex items-center gap-1.5 uppercase">
+                                ⚠️ Motivo da Recusa pela Administração:
+                              </div>
+                              <p>{member.documentRejectionReason}</p>
+                              <div className="text-[11px] text-rose-800 font-bold">
+                                Por favor, tire uma nova foto nítida ou anexe o arquivo correto usando os botões acima.
+                              </div>
+                            </div>
+                          )}
+
+                          {hasDoc && !member.documentVerified && !member.documentRejectionReason && (
+                            <div className="bg-amber-50 border border-amber-300 text-amber-950 text-xs rounded-xl p-3 font-medium">
+                              <strong>⏳ Documentação em Análise:</strong> Seu comprovante foi recebido e está aguardando validação pela administração do clube para ativação final da carteirinha.
+                            </div>
+                          )}
+
+                          {member.documentVerified && (
+                            <div className="bg-emerald-50 border border-emerald-300 text-emerald-950 text-xs rounded-xl p-3 font-medium">
+                              <strong>✓ Documentação Aprovada:</strong> O comprovante deste integrante foi verificado e aprovado pela administração. Carteirinha liberada para acesso!
                             </div>
                           )}
 

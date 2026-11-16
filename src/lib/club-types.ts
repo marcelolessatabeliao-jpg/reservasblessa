@@ -72,6 +72,10 @@ export interface ClubMember {
   documentProofUrl?: string;
   documentProofName?: string;
   documentVerified?: boolean;
+  documentStatus?: 'PENDENTE_ANEXO' | 'EM_ANALISE' | 'APROVADO' | 'REJEITADO';
+  documentRejectionReason?: string;
+  documentVerifiedAt?: string;
+  documentVerifiedBy?: string;
   cardNumber: string; // Ex: 1212252975
   holderCardNumber: string;
   qrToken: string;
