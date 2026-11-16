@@ -264,6 +264,21 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
   const urlRefParam = searchParams.get('ref') || searchParams.get('c') || '';
   const urlConsultorParam = searchParams.get('consultor') || '';
   const urlPlan = searchParams.get('plano');
+  const urlCycleParam = searchParams.get('ciclo') || searchParams.get('cycle') || '';
+
+  // Detecta se é um link de cadastro pré-pago (já pago no balcão/pessoalmente)
+  const isPrePaid = useMemo(() => {
+    const p = (
+      searchParams.get('pago') ||
+      searchParams.get('pre_pago') ||
+      searchParams.get('prepago') ||
+      searchParams.get('sem_pagamento') ||
+      searchParams.get('ja_pago') ||
+      searchParams.get('japago') ||
+      ''
+    ).toLowerCase().trim();
+    return p === '1' || p === 'sim' || p === 'true' || p === 's';
+  }, [searchParams]);
 
   // Persiste referência do consultor durante a sessão do visitante para não perder rastreio ao navegar/recarregar
   useEffect(() => {
@@ -396,7 +411,13 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
         }
       }
     });
-  }, [urlPlan]);
+
+    if (urlCycleParam) {
+      const c = urlCycleParam.trim().toUpperCase();
+      if (c === 'ANNUAL' || c === 'ANUAL') setBillingCycle('ANNUAL');
+      if (c === 'MONTHLY' || c === 'MENSAL') setBillingCycle('MONTHLY');
+    }
+  }, [urlPlan, urlCycleParam]);
 
   // Sempre garante lista de modalidades (mesmo antes do fetch terminar)
   // Se o consultor/influencer possuir permissão específica de planos configurada, exibe ESTRITAMENTE apenas os liberados para ele
@@ -881,9 +902,10 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
     setIsSubmitting(true);
     try {
       const isFree = pricingSummary.totalMonthlyEquivalent === 0;
+      const shouldActivateDirectly = isFree || isPrePaid;
       const chosenInstallments =
         billingCycle === 'ANNUAL'
-          ? paymentMethod === 'PIX' || paymentMethod === 'DEBIT_CARD'
+          ? paymentMethod === 'PIX' || paymentMethod === 'DEBIT_CARD' || isPrePaid
             ? 1
             : installments
           : 12;
@@ -905,10 +927,10 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
         addressCity,
         addressState,
         billingCycle,
-        paymentMethod: isFree ? 'COURTESY' : paymentMethod,
+        paymentMethod: isPrePaid ? 'CASH' : isFree ? 'COURTESY' : paymentMethod,
         installments: chosenInstallments,
-        status: isFree ? 'ACTIVE' : 'INACTIVE',
-        origin: 'SITE',
+        status: shouldActivateDirectly ? 'ACTIVE' : 'INACTIVE',
+        origin: isPrePaid ? 'ADMIN' : 'SITE',
         consultantId: matchedConsultant?.id || '',
         consultantCode: matchedConsultant?.referralCode || effectiveRef || '',
         consultantName:
@@ -994,7 +1016,7 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
         setCardHolderCpf(holderCpf);
       }
 
-      if (!isFree && res.firstInvoice && res.firstInvoice.amount > 0) {
+      if (!isFree && !isPrePaid && res.firstInvoice && res.firstInvoice.amount > 0) {
         try {
           const charge = await generateAsaasChargeForClubInvoice(
             res.subscription,
@@ -1025,10 +1047,14 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
       setStep(4);
       window.scrollTo({ top: 0, behavior: 'smooth' });
       toast({
-        title: isFree
+        title: isPrePaid
+          ? 'Cadastro Concluído com Sucesso!'
+          : isFree
           ? 'Carteirinha Gratuita Ativada!'
           : 'Cadastro registrado (Status: Plano Inativo - Aguardando Pagamento)',
-        description: isFree
+        description: isPrePaid
+          ? 'Seu plano já está ATIVO! Você já pode adicionar fotos 3x4 e baixar suas carteirinhas oficiais abaixo.'
+          : isFree
           ? 'Sua carteirinha gratuita já está ATIVA! Insira sua foto 3x4 abaixo.'
           : 'Conclua o pagamento via Cartão ou PIX abaixo para ATIVAR sua assinatura e liberar a edição das carteirinhas.',
       });
@@ -1295,6 +1321,26 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
       )}
 
       <div className="w-full max-w-[1400px] mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-6">
+        {/* BANNER DE CADASTRO PRÉ-PAGO (SEM PAGAMENTO NO FINAL) */}
+        {isPrePaid && (
+          <div className="bg-gradient-to-r from-emerald-900 via-[#004d00] to-teal-900 text-white rounded-2xl p-4 sm:p-5 max-w-4xl mx-auto mb-6 shadow-xl flex items-start sm:items-center gap-3.5 border-2 border-amber-400 animate-in fade-in">
+            <div className="w-10 h-10 rounded-xl bg-amber-400 text-emerald-950 flex items-center justify-center shrink-0 shadow font-black text-xl">
+              ✓
+            </div>
+            <div className="min-w-0">
+              <span className="font-black text-amber-300 uppercase text-[11px] tracking-wider block">
+                ✨ Cadastro Pré-Pago (Pagamento Já Confirmado)
+              </span>
+              <p className="font-black text-base sm:text-lg text-white mt-0.5 leading-tight">
+                Seu plano já foi quitado pessoalmente ou por outros meios!
+              </p>
+              <p className="text-xs text-emerald-100/90 mt-0.5">
+                Basta preencher os dados dos integrantes e assinar o termo. Suas carteirinhas oficiais serão ativadas e liberadas imediatamente sem nenhuma cobrança no final.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* BANNER DE CONFIRMAÇÃO DO CONSULTOR / INFLUENCER OFICIAL SEMPRE VISÍVEL NO TOPO */}
         {matchedConsultant && (
           <div className="bg-gradient-to-r from-[#004d00] via-emerald-900 to-teal-950 text-white rounded-2xl p-4 sm:p-5 max-w-4xl mx-auto mb-6 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-2 border-amber-400/70">
@@ -1345,7 +1391,7 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                 { num: 1, label: 'Plano' },
                 { num: 2, label: 'Cadastro' },
                 { num: 3, label: 'Termos' },
-                { num: 4, label: 'Pagamento' },
+                { num: 4, label: isPrePaid ? 'Carteirinhas' : 'Pagamento' },
               ].map((item) => {
                 const active = step === item.num;
                 const completed = step > item.num;
@@ -3364,6 +3410,8 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
               >
                 {isSubmitting
                   ? 'Processando Adesão...'
+                  : isPrePaid
+                  ? 'Concluir Cadastro e Emitir Carteirinhas (Já Pago)'
                   : pricingSummary.totalMonthlyEquivalent === 0
                   ? 'Concluir e Gerar Carteirinha Gratuita'
                   : 'Aceitar e Prosseguir para Pagamento'}
@@ -3389,12 +3437,16 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                     }`}
                   >
                     {createdSub.status === 'ACTIVE'
-                      ? '● STATUS ATUAL: PLANO ATIVO (PAGAMENTO IDENTIFICADO • ACESSO E EDIÇÃO LIBERADOS)'
+                      ? isPrePaid
+                        ? '● STATUS ATUAL: PLANO ATIVO (PRÉ-PAGO CONFIRMADO • CARTEIRINHAS LIBERADAS)'
+                        : '● STATUS ATUAL: PLANO ATIVO (PAGAMENTO IDENTIFICADO • ACESSO E EDIÇÃO LIBERADOS)'
                       : '● STATUS ATUAL: PLANO INATIVO (AGUARDANDO PAGAMENTO PARA ATIVAR)'}
                   </div>
                   <h2 className="text-2xl font-black text-slate-900">
                     {createdSub.status === 'ACTIVE'
-                      ? `Assinatura Ativa, ${createdSub.holderName}!`
+                      ? isPrePaid
+                        ? `Cadastro Concluído e Assinatura Ativa, ${createdSub.holderName}!`
+                        : `Assinatura Ativa, ${createdSub.holderName}!`
                       : `Falta apenas o pagamento para ativar seu plano, ${createdSub.holderName}!`}
                   </h2>
                   <p className="text-sm text-slate-600">

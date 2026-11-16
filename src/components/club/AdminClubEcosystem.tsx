@@ -35,6 +35,7 @@ import {
   Paperclip,
   PenTool,
   Link2,
+  Share2,
   Lock,
   ClipboardList,
   Copy,
@@ -1015,6 +1016,43 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
   // Financial filters & batch selection
   const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<string>('ALL');
   const [selectedInvoiceKeys, setSelectedInvoiceKeys] = useState<string[]>([]);
+
+  // Pre-Paid Registration Link Modal (Cadastro com pagamento pré-confirmado / balcão)
+  const [prePaidLinkModalOpen, setPrePaidLinkModalOpen] = useState(false);
+  const [prePaidPlanCode, setPrePaidPlanCode] = useState<string>('');
+  const [prePaidCycle, setPrePaidCycle] = useState<'MONTHLY' | 'ANNUAL'>('MONTHLY');
+  const [prePaidConsultantCode, setPrePaidConsultantCode] = useState<string>('');
+  const [prePaidClientPhone, setPrePaidClientPhone] = useState<string>('');
+  const [prePaidClientName, setPrePaidClientName] = useState<string>('');
+
+  const generatedPrePaidLink = useMemo(() => {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://balneariolessa.com.br';
+    const params = new URLSearchParams();
+    params.set('pago', '1');
+    if (prePaidPlanCode) params.set('plano', prePaidPlanCode);
+    if (prePaidCycle) params.set('ciclo', prePaidCycle === 'ANNUAL' ? 'anual' : 'mensal');
+    if (prePaidConsultantCode) params.set('ref', prePaidConsultantCode);
+    return `${origin}/planos?${params.toString()}`;
+  }, [prePaidPlanCode, prePaidCycle, prePaidConsultantCode]);
+
+  const handleSendPrePaidWhatsApp = () => {
+    const rawPhone = prePaidClientPhone.replace(/\D/g, '');
+    const clientGreeting = prePaidClientName.trim() ? `Olá, ${prePaidClientName.trim()}!` : 'Olá!';
+    const msg = [
+      `${clientGreeting} Seu plano no *Lessa Club* já foi confirmado como pago! 🎟️✨`,
+      ``,
+      `Para emitirmos suas carteirinhas oficiais digitais, por favor complete o passo a passo com seus dados e dependentes no link exclusivo abaixo:`,
+      `👉 ${generatedPrePaidLink}`,
+      ``,
+      `*Aviso:* Não será solicitado nenhum pagamento no final do cadastro. Ao concluir, suas carteirinhas já estarão 100% ativas para uso!`,
+    ].join('\n');
+
+    const cleanNum = rawPhone.length >= 10 ? (rawPhone.startsWith('55') ? rawPhone : `55${rawPhone}`) : '';
+    const waUrl = cleanNum 
+      ? `https://api.whatsapp.com/send?phone=${cleanNum}&text=${encodeURIComponent(msg)}`
+      : `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+    window.open(waUrl, '_blank');
+  };
 
   // Manual Registration Modal & Tab (PF / PJ + Custom Family - Replicating Labcard Layout)
   const [newSubModalOpen, setNewSubModalOpen] = useState(false);
@@ -5853,6 +5891,16 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   className="border-sky-700 text-sky-900 bg-sky-50 hover:bg-sky-100 hover:text-sky-950 font-bold w-full sm:w-auto cursor-pointer"
                 >
                   <Download className="w-4 h-4 mr-1.5" /> API Labcard (Completar Dados)
+                </Button>
+                <Button
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                  onClick={() => setPrePaidLinkModalOpen(true)}
+                  className="border-emerald-600 text-emerald-950 bg-white hover:bg-emerald-50 font-bold w-full sm:w-auto cursor-pointer shadow-sm"
+                  title="Gerar link de cadastro passo a passo sem pedido de pagamento no final (para planos já pagos pessoalmente)"
+                >
+                  <Link2 className="w-4 h-4 mr-1.5 text-emerald-600" /> Link de Cadastro (Já Pago)
                 </Button>
                 <Button
                   size="sm"
@@ -13725,6 +13773,65 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     </div>
                   )}
 
+                  {/* ALERTA DE PARCELAS PENDENTES SEM SINCRONIZAÇÃO NO ASAAS */}
+                  {filteredInvoices.some(
+                    (inv) =>
+                      inv.status !== 'PAID' &&
+                      inv.status !== 'CANCELLED' &&
+                      !inv.asaasPaymentId &&
+                      inv.invoiceKind !== 'AVULSA' &&
+                      inv.invoiceKind !== 'ADESAO' &&
+                      inv.amount > 0
+                  ) && (
+                    <div className="bg-amber-50 border-2 border-amber-400 rounded-xl p-3 sm:p-4 mb-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-md animate-in fade-in">
+                      <div className="flex items-center gap-3">
+                        <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 animate-pulse" />
+                        <div>
+                          <p className="font-black text-amber-950 text-xs sm:text-sm">
+                            Aviso: Existem parcelas registradas neste carnê que ainda não foram geradas no Asaas!
+                          </p>
+                          <p className="text-[11px] text-amber-800">
+                            Isso ocorre quando a conexão oscila durante o cadastro. Você pode emitir as 12 parcelas diretamente no Asaas agora mesmo com 1 clique.
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        onClick={() => {
+                          const eligible = filteredInvoices.filter(
+                            (inv) =>
+                              inv.status !== 'PAID' &&
+                              inv.status !== 'CANCELLED' &&
+                              !inv.asaasPaymentId &&
+                              inv.invoiceKind !== 'AVULSA' &&
+                              inv.invoiceKind !== 'ADESAO' &&
+                              inv.amount > 0
+                          );
+                          const nextDue =
+                            eligible[0]?.dueDate ||
+                            filteredInvoices.find((i) => i.status !== 'PAID' && i.amount > 0)?.dueDate ||
+                            new Date().toISOString().split('T')[0];
+                          const parsedDue = new Date(`${nextDue}T12:00:00`);
+                          setGerarCarneAsaasCount(eligible.length > 0 ? eligible.length : 12);
+                          setGerarCarneAsaasFirstDue(nextDue);
+                          setGerarCarneAsaasDueDay(
+                            selectedSubForDetail.dueDay || parsedDue.getDate() || 10
+                          );
+                          setGerarCarneAsaasBillingType('UNDEFINED');
+                          setGerarCarneAsaasRecurrence(
+                            selectedSubForDetail.registeredCard?.last4Digits
+                              ? 'REGISTERED_CARD'
+                              : 'NONE'
+                          );
+                          setGerarCarneAsaasModalOpen(true);
+                        }}
+                        className="bg-[#5bc0de] hover:bg-sky-600 text-white font-black text-xs px-3.5 py-2 rounded-lg shadow-sm shrink-0 flex items-center gap-1.5 cursor-pointer uppercase"
+                      >
+                        <Receipt className="w-4 h-4" /> Gerar Carnê no Asaas Agora
+                      </Button>
+                    </div>
+                  )}
+
                   {/* TABELA VERDE-ESCURA IDÊNTICA AO PERFIL FINANCEIRO DA IMAGEM */}
                   <div className="overflow-x-auto rounded-md border border-emerald-950 shadow">
                     <table className="w-full text-left border-collapse bg-[#004d00] text-white text-xs">
@@ -17486,6 +17593,144 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
               )}
         </div>
       )}
+
+      {/* =====================================================================
+          MODAL: GERAR LINK DE CADASTRO PRÉ-PAGO (SEM PAGAMENTO NO FINAL)
+      ===================================================================== */}
+      <Dialog open={prePaidLinkModalOpen} onOpenChange={setPrePaidLinkModalOpen}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
+              <div className="w-9 h-9 rounded-xl bg-emerald-700 text-white flex items-center justify-center shrink-0">
+                <Link2 className="w-5 h-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-base sm:text-lg font-black uppercase text-emerald-950">
+                  Link de Cadastro Pré-Pago (Já Pago)
+                </DialogTitle>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Para clientes que já pagaram presencialmente ou por outros meios. O cliente faz o cadastro e as carteirinhas saem ativas sem pedir pagamento no final.
+                </p>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2 text-slate-800">
+            {/* 1. Selecionar Plano */}
+            <div className="space-y-1">
+              <Label className="text-xs font-bold text-slate-700">Plano Pré-Pago</Label>
+              <select
+                value={prePaidPlanCode}
+                onChange={(e) => setPrePaidPlanCode(e.target.value)}
+                className="w-full h-9 rounded-md border border-slate-300 px-3 text-xs font-semibold bg-white text-slate-800"
+              >
+                <option value="">Qualquer Plano (Deixar o cliente escolher no formulário)</option>
+                {(state?.modalities || DEFAULT_CLUB_MODALITIES).map((m) => (
+                  <option key={m.code} value={m.code}>
+                    {m.name} {m.isFreeTier ? '(Gratuidade)' : `(R$ ${m.monthlyPrice.toFixed(2)}/mês ou R$ ${m.annualPrice.toFixed(2)}/ano)`}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* 2. Ciclo de Cobrança */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs font-bold text-slate-700">Ciclo Contratado</Label>
+                <select
+                  value={prePaidCycle}
+                  onChange={(e) => setPrePaidCycle(e.target.value as 'MONTHLY' | 'ANNUAL')}
+                  className="w-full h-9 rounded-md border border-slate-300 px-3 text-xs font-semibold bg-white text-slate-800"
+                >
+                  <option value="MONTHLY">Plano Mensal (12 meses)</option>
+                  <option value="ANNUAL">Plano Anual</option>
+                </select>
+              </div>
+
+              {/* 3. Vendedor / Consultor Responsável */}
+              <div className="space-y-1">
+                <Label className="text-xs font-bold text-slate-700">Vendedor / Consultor (Opcional)</Label>
+                <select
+                  value={prePaidConsultantCode}
+                  onChange={(e) => setPrePaidConsultantCode(e.target.value)}
+                  className="w-full h-9 rounded-md border border-slate-300 px-3 text-xs font-semibold bg-white text-slate-800"
+                >
+                  <option value="">Sem Consultor Específico (Venda Direta)</option>
+                  {(state?.consultants || []).map((c) => (
+                    <option key={c.id} value={c.referralCode}>
+                      {c.name} ({c.referralCode})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* 4. Envio Direto via WhatsApp */}
+            <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-3 space-y-2">
+              <span className="text-[11px] font-black uppercase text-emerald-900 block">
+                📲 Enviar Diretamente ao WhatsApp do Cliente (Opcional)
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <Input
+                  placeholder="Nome do Cliente (ex: João)"
+                  value={prePaidClientName}
+                  onChange={(e) => setPrePaidClientName(e.target.value)}
+                  className="h-9 text-xs bg-white"
+                />
+                <Input
+                  placeholder="WhatsApp com DDD (ex: 69 99999-9999)"
+                  value={prePaidClientPhone}
+                  onChange={(e) => setPrePaidClientPhone(e.target.value)}
+                  className="h-9 text-xs bg-white"
+                />
+              </div>
+            </div>
+
+            {/* 5. Link Gerado e Ações */}
+            <div className="space-y-1.5 pt-1">
+              <Label className="text-xs font-bold text-slate-700">Link Completo de Cadastro Pré-Pago</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  readOnly
+                  value={generatedPrePaidLink}
+                  className="h-9 text-xs font-mono bg-slate-50 text-slate-700 select-all"
+                />
+                <Button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(generatedPrePaidLink);
+                    toast({
+                      title: 'Link Copiado!',
+                      description: 'O link de cadastro pré-pago foi copiado para a área de transferência.',
+                    });
+                  }}
+                  className="bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs h-9 px-3 shrink-0"
+                >
+                  <Copy className="w-3.5 h-3.5 mr-1" /> Copiar
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setPrePaidLinkModalOpen(false)}
+                className="text-xs font-bold h-9"
+              >
+                Fechar
+              </Button>
+              <Button
+                type="button"
+                onClick={handleSendPrePaidWhatsApp}
+                className="bg-[#25D366] hover:bg-emerald-600 text-white font-black text-xs h-9 px-4 shadow-sm"
+              >
+                <Share2 className="w-3.5 h-3.5 mr-1.5" /> Enviar no WhatsApp
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* =====================================================================
           MANUAL CLIENT REGISTRATION MODAL (IDÊNTICO AO LABCARD:
