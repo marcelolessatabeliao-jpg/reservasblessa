@@ -42,7 +42,9 @@ import {
   Loader2,
   ExternalLink,
   Upload,
-  Baby
+  Baby,
+  ClipboardList,
+  FileText
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -95,6 +97,8 @@ export interface ChaleReservation {
   adultNames?: string[];
   childNames?: { name: string; ageLabel: string; ageGroup?: 'under11' | '12plus' }[];
   extraItems?: { name: string; quantity: number; price: number; timeSlot?: string }[];
+  grossPrice?: number;
+  discountAmount?: number;
   totalPrice: number;
   paymentMethod: string;
   status: 'paid' | 'pending' | 'cancelled';
@@ -282,6 +286,8 @@ export function AdminChaleTab({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editingResId, setEditingResId] = useState<string | null>(null);
+  const [selectedOriginalReservation, setSelectedOriginalReservation] = useState<ChaleReservation | null>(null);
+  const [modalTab, setModalTab] = useState<'original' | 'edit'>('original');
   const [isChaleLocked, setIsChaleLocked] = useState(false);
 
   // Form Fields
@@ -608,6 +614,61 @@ export function AdminChaleTab({
           const cInDate = meta.check_in_date || orderDate || format(new Date(), 'yyyy-MM-dd');
           const cOutDate = meta.check_out_date || cInDate;
 
+          // Extrair hóspedes (Adultos e Crianças) a partir de meta.guest_names ou order.metadata
+          let extractedAdultNames: string[] = [];
+          let extractedChildNames: { name: string; ageLabel: string; ageGroup?: 'under11' | '12plus' }[] = [];
+
+          const rawGuests = meta.guest_names || order.metadata?.guest_names;
+          if (rawGuests) {
+            const rawList: string[] = Array.isArray(rawGuests)
+              ? rawGuests
+              : typeof rawGuests === 'object'
+              ? Object.values(rawGuests)
+              : [];
+            const cleanList = rawList.map(n => String(n || '').trim()).filter(Boolean);
+            const isCasal = (meta.occupancy_type || 'casal') === 'casal';
+
+            if (cleanList.length > 0) {
+              const tit = cleanList[0] || order.customer_name;
+              const aco = isCasal ? (cleanList[1] || '') : '';
+              extractedAdultNames = isCasal ? [tit, aco].filter(Boolean) : [tit];
+
+              const kidsStart = isCasal ? 2 : 1;
+              extractedChildNames = cleanList.slice(kidsStart).map(kName => ({
+                name: kName,
+                ageLabel: 'Filho(a) Hóspede',
+                ageGroup: 'under11'
+              }));
+            }
+          }
+
+          if (extractedAdultNames.length === 0 && order.customer_name) {
+            extractedAdultNames = [order.customer_name];
+          }
+
+          // Extrair itens adicionais deste mesmo pedido (pesca esportiva, futebol de sabão, quiosques, quadriciclos, etc.)
+          const orderExtraItems: { name: string; quantity: number; price: number; timeSlot?: string }[] = [];
+          items.forEach((otherIt: any) => {
+            const otherProd = (otherIt.product_id || otherIt.product_name || '').toLowerCase();
+            if (!otherProd.includes('chalé') && !otherProd.includes('chale')) {
+              let oMeta = otherIt.metadata;
+              if (typeof oMeta === 'string') {
+                try { oMeta = JSON.parse(oMeta); } catch (e) { oMeta = {}; }
+              }
+              oMeta = oMeta || {};
+
+              orderExtraItems.push({
+                name: otherIt.product_name || otherIt.product_id,
+                quantity: Number(otherIt.quantity || 1),
+                price: Number((otherIt.unit_price ?? 0) * (otherIt.quantity || 1)),
+                timeSlot: oMeta?.time || oMeta?.time_slot
+              });
+            }
+          });
+
+          const grossPrice = Number(meta.chale_gross_price || (order.total_amount ? Math.round(order.total_amount / 0.9) : 0));
+          const finalPrice = Number(order.total_amount !== undefined && order.total_amount !== null ? order.total_amount : item.unit_price || 0);
+
           list.push({
             id: order.id,
             chaleId: Number(chaleId),
@@ -623,7 +684,11 @@ export function AdminChaleTab({
             occupancyType: meta.occupancy_type || 'casal',
             adults: Math.min(2, Math.max(1, meta.adults || order.adults || 2)),
             children: meta.children || order.children || 0,
-            totalPrice: Number(item.unit_price || order.total_amount || 0),
+            adultNames: extractedAdultNames,
+            childNames: extractedChildNames,
+            extraItems: orderExtraItems,
+            grossPrice,
+            totalPrice: finalPrice,
             paymentMethod: order.payment_method || 'PIX',
             status: order.status === 'paid' ? 'paid' : 'pending',
             isCheckedIn: false,
@@ -964,6 +1029,8 @@ export function AdminChaleTab({
     setFormPaymentMethod('PIX');
     setFormPaymentStatus('paid');
     setFormNotes('');
+    setSelectedOriginalReservation(null);
+    setModalTab('edit');
     setIsModalOpen(true);
   };
 
@@ -971,6 +1038,8 @@ export function AdminChaleTab({
   const handleOpenEditBooking = (reservation: ChaleReservation) => {
     setIsEditing(true);
     setEditingResId(reservation.id);
+    setSelectedOriginalReservation(reservation);
+    setModalTab('original');
     setIsChaleLocked(true);
     setFormChaleId(reservation.chaleId);
     setFormGuestName(reservation.guestName);
@@ -994,10 +1063,43 @@ export function AdminChaleTab({
     );
     setFormApplySiteDiscount(true);
     setFormCustomPriceOverride(reservation.totalPrice);
-    setExtraKioskType('none');
-    setExtraQuadType('none');
-    setExtraPescaQty(0);
-    setExtraSabaoQty(0);
+
+    // Mapear itens extras existentes na reserva
+    let foundKioskType: 'none' | 'familiar' | 'menor' | 'maior' = 'none';
+    let foundKioskNum = 1;
+    let foundQuadType: 'none' | 'individual' | 'dupla' = 'none';
+    let foundQuadTime = '10:00';
+    let foundQuadQty = 1;
+    let foundPesca = 0;
+    let foundSabao = 0;
+
+    (reservation.extraItems || []).forEach(ext => {
+      const low = (ext.name || '').toLowerCase();
+      if (low.includes('quiosque')) {
+        if (low.includes('maior')) foundKioskType = 'maior';
+        else if (low.includes('menor')) foundKioskType = 'menor';
+        else foundKioskType = 'familiar';
+        const numMatch = ext.name.match(/\d+/);
+        if (numMatch) foundKioskNum = Number(numMatch[0]);
+      } else if (low.includes('quad')) {
+        foundQuadType = low.includes('dupla') ? 'dupla' : 'individual';
+        foundQuadQty = ext.quantity || 1;
+        if (ext.timeSlot) foundQuadTime = ext.timeSlot;
+      } else if (low.includes('pesca')) {
+        foundPesca += ext.quantity || 1;
+      } else if (low.includes('futebol') || low.includes('sabao') || low.includes('sabão')) {
+        foundSabao += ext.quantity || 1;
+      }
+    });
+
+    setExtraKioskType(foundKioskType);
+    setExtraKioskNumber(foundKioskNum);
+    setExtraQuadType(foundQuadType);
+    setExtraQuadTime(foundQuadTime);
+    setExtraQuadQty(foundQuadQty);
+    setExtraPescaQty(foundPesca);
+    setExtraSabaoQty(foundSabao);
+
     setFormPaymentMethod(reservation.paymentMethod || 'PIX');
     setFormPaymentStatus(reservation.status === 'paid' ? 'paid' : 'pending');
     setFormNotes(reservation.notes || '');
@@ -1009,7 +1111,7 @@ export function AdminChaleTab({
     const pkgInfo = formPackageType !== 'custom' ? CHALE_PACKAGES[formPackageType] : null;
     const pkgTitle = pkgInfo ? pkgInfo.title : `Hospedagem (${modalStayPricing.nightsCount} Noite${modalStayPricing.nightsCount > 1 ? 's' : ''})`;
     const adultNames = formOccupancyType === 'casal'
-      ? [formGuestName.trim(), formAdult2Name.trim() || 'Acompanhante Adulto 2']
+      ? [formGuestName.trim(), ...(formAdult2Name.trim() ? [formAdult2Name.trim()] : [])]
       : [formGuestName.trim()];
 
     const childNames = formKids.map((k, idx) => ({
@@ -1089,6 +1191,18 @@ export function AdminChaleTab({
       return;
     }
 
+    if (formOccupancyType === 'casal') {
+      const a2 = formAdult2Name.trim();
+      if (!a2 || a2.length < 3 || a2.toLowerCase().includes('acompanhante')) {
+        toast({
+          title: 'Nome do Acompanhante Obrigatório',
+          description: 'Para reservas em modalidade Casal, é obrigatório preencher o nome completo do 2º adulto.',
+          variant: 'destructive'
+        });
+        return;
+      }
+    }
+
     const built = buildReservationFromForm();
 
     if (isEditing && editingResId) {
@@ -1124,6 +1238,18 @@ export function AdminChaleTab({
         variant: 'destructive'
       });
       return;
+    }
+
+    if (formOccupancyType === 'casal') {
+      const a2 = formAdult2Name.trim();
+      if (!a2 || a2.length < 3 || a2.toLowerCase().includes('acompanhante')) {
+        toast({
+          title: 'Nome do Acompanhante Obrigatório',
+          description: 'Para reservas em modalidade Casal, preencha o nome do 2º adulto antes de gerar a cobrança.',
+          variant: 'destructive'
+        });
+        return;
+      }
     }
 
     setGeneratingPayment(true);
@@ -1276,6 +1402,20 @@ export function AdminChaleTab({
   // Toggle Check-in
   const handleToggleCheckIn = (res: ChaleReservation) => {
     const nextCheckIn = !res.isCheckedIn;
+    if (nextCheckIn && res.occupancyType === 'casal') {
+      const a2 = res.adultNames?.[1]?.trim();
+      if (!a2 || a2.length < 3 || a2.toLowerCase().includes('acompanhante')) {
+        toast({
+          title: "⚠️ Acompanhante Obrigatório no Check-in",
+          description: "Para realizar o Check-in no Chalé de Casal, é obrigatório preencher o nome completo do 2º adulto. Abrindo formulário de edição...",
+          variant: "destructive"
+        });
+        handleOpenEditBooking(res);
+        setModalTab('edit');
+        return;
+      }
+    }
+
     setLocalReservations(prev => prev.map(r => {
       if (r.id === res.id || r.chaleId === res.chaleId) {
         return { ...r, isCheckedIn: nextCheckIn };
@@ -2568,7 +2708,215 @@ export function AdminChaleTab({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-2">
+          {/* ABAS DENTRO DO MESMO CARD: PEDIDO ORIGINAL VS EDIÇÃO */}
+          {isEditing && selectedOriginalReservation && (
+            <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-2xl border border-slate-200 mt-2">
+              <button
+                type="button"
+                onClick={() => setModalTab('original')}
+                className={cn(
+                  "flex-1 py-2.5 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer",
+                  modalTab === 'original'
+                    ? "bg-emerald-950 text-white shadow-md ring-2 ring-emerald-500"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/70"
+                )}
+              >
+                <ClipboardList className="w-4 h-4 text-amber-400" />
+                📋 1. Pedido Original do Cliente
+              </button>
+              <button
+                type="button"
+                onClick={() => setModalTab('edit')}
+                className={cn(
+                  "flex-1 py-2.5 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer",
+                  modalTab === 'edit'
+                    ? "bg-amber-400 text-slate-950 shadow-md ring-2 ring-amber-500"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/70"
+                )}
+              >
+                <Edit className="w-4 h-4 text-slate-950" />
+                ✏️ 2. Ajustar / Editar Reserva
+              </button>
+            </div>
+          )}
+
+          {isEditing && selectedOriginalReservation && modalTab === 'original' ? (
+            <div className="space-y-4 py-2">
+              {/* Card Principal: Resumo Oficial do Pedido Escolhido pelo Cliente */}
+              <div className="bg-gradient-to-br from-emerald-950 via-[#042817] to-slate-950 text-white p-4 sm:p-5 rounded-2xl border-2 border-emerald-400/80 shadow-lg space-y-4">
+                {/* Topo do Resumo */}
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-10 h-10 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center font-black">
+                      <Home className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-black uppercase text-amber-300 tracking-wider block">
+                        Chalé Reservado • Unidade {String(selectedOriginalReservation.chaleId).padStart(2, '0')}
+                      </span>
+                      <span className="text-sm sm:text-base font-black text-white">
+                        {selectedOriginalReservation.packageTitle}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Badge className={cn(
+                      "text-[10px] font-black uppercase px-2.5 py-1",
+                      selectedOriginalReservation.status === 'paid' ? "bg-emerald-500 text-slate-950" : "bg-amber-400 text-slate-950"
+                    )}>
+                      {selectedOriginalReservation.status === 'paid' ? 'PAGO ✓' : 'AGUARDANDO PAGTO'}
+                    </Badge>
+                    {selectedOriginalReservation.confirmationCode && (
+                      <Badge variant="outline" className="text-amber-300 border-amber-400/50 font-black text-[10px]">
+                        Cód: {selectedOriginalReservation.confirmationCode}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+
+                {/* Grid: Dados do Comprador e Estadia */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  {/* Comprador / Titular */}
+                  <div className="bg-white/5 p-3 rounded-xl border border-white/10 space-y-1">
+                    <span className="text-[10px] font-black uppercase text-emerald-300 block">👤 Dados do Comprador:</span>
+                    <div className="font-bold text-white text-sm">{selectedOriginalReservation.guestName}</div>
+                    <div className="text-slate-300 text-[11px]">CPF: {selectedOriginalReservation.cpf || 'Não informado'}</div>
+                    <div className="text-slate-300 text-[11px]">WhatsApp: {selectedOriginalReservation.phone}</div>
+                    <div className="text-emerald-300 text-[11px] font-bold">Forma: {selectedOriginalReservation.paymentMethod}</div>
+                  </div>
+
+                  {/* Estadia e Horários */}
+                  <div className="bg-white/5 p-3 rounded-xl border border-white/10 space-y-1">
+                    <span className="text-[10px] font-black uppercase text-emerald-300 block">📅 Período de Estadia:</span>
+                    <div className="text-white text-xs font-bold">
+                      Check-in: <span className="text-amber-300">{selectedOriginalReservation.checkInDate} às {selectedOriginalReservation.checkInTime}</span>
+                    </div>
+                    <div className="text-white text-xs font-bold">
+                      Check-out: <span className="text-amber-300">{selectedOriginalReservation.checkOutDate} às {selectedOriginalReservation.checkOutTime}</span>
+                    </div>
+                    <div className="text-[11px] text-emerald-200">
+                      Modalidade: {selectedOriginalReservation.occupancyType === 'casal' ? 'Casal (2 Adultos)' : 'Individual (1 Adulto)'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Hóspedes Cadastrados */}
+                <div className="bg-white/5 p-3 rounded-xl border border-white/10 space-y-2">
+                  <span className="text-[10px] font-black uppercase text-amber-300 flex items-center gap-1.5">
+                    <Users className="w-3.5 h-3.5" />
+                    Hóspedes Cadastrados para Check-in:
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                    <div className="bg-black/20 p-2.5 rounded-lg border border-white/5">
+                      <span className="text-[10px] text-emerald-300 uppercase block font-bold">Adulto 1 (Titular):</span>
+                      <span className="font-black text-white text-sm">{selectedOriginalReservation.adultNames?.[0] || selectedOriginalReservation.guestName}</span>
+                    </div>
+                    {selectedOriginalReservation.occupancyType === 'casal' && (
+                      <div className="bg-black/20 p-2.5 rounded-lg border border-white/5">
+                        <span className="text-[10px] text-emerald-300 uppercase block font-bold">Adulto 2 (Acompanhante):</span>
+                        {selectedOriginalReservation.adultNames?.[1] && !selectedOriginalReservation.adultNames[1].toLowerCase().includes('acompanhante') ? (
+                          <span className="font-black text-white text-sm">{selectedOriginalReservation.adultNames[1]}</span>
+                        ) : (
+                          <span className="font-bold text-amber-300 italic">⚠️ Pendente de Preenchimento</span>
+                        )}
+                      </div>
+                    )}
+                    {selectedOriginalReservation.childNames && selectedOriginalReservation.childNames.length > 0 && (
+                      <div className="col-span-1 sm:col-span-2 bg-black/20 p-2.5 rounded-lg border border-white/5">
+                        <span className="text-[10px] text-amber-300 uppercase block font-bold">Crianças ({selectedOriginalReservation.childNames.length}):</span>
+                        <div className="space-y-0.5 mt-0.5">
+                          {selectedOriginalReservation.childNames.map((c, i) => (
+                            <div key={i} className="text-white text-xs font-bold">👶 {c.name} ({c.ageLabel})</div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Serviços Adicionais Contratados no Pedido */}
+                <div className="bg-white/5 p-3 rounded-xl border border-white/10 space-y-2">
+                  <span className="text-[10px] font-black uppercase text-emerald-300 flex items-center gap-1.5">
+                    <ShoppingBag className="w-3.5 h-3.5" />
+                    Serviços Adicionais Inclusos no Pedido:
+                  </span>
+                  {selectedOriginalReservation.extraItems && selectedOriginalReservation.extraItems.length > 0 ? (
+                    <div className="space-y-1.5">
+                      {selectedOriginalReservation.extraItems.map((ext, i) => (
+                        <div key={i} className="flex items-center justify-between bg-black/20 px-2.5 py-1.5 rounded-lg border border-white/5 text-xs">
+                          <span className="font-bold text-white">
+                            • {ext.quantity}x {ext.name}{ext.timeSlot ? ` (Horário: ${ext.timeSlot})` : ''}
+                          </span>
+                          <span className="font-black text-amber-300">{formatCurrency(ext.price)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-slate-300 italic bg-black/20 p-2.5 rounded-lg">
+                      ✓ Nenhum serviço extra foi adicionado na compra online (apenas a estadia no chalé com Day Use incluso).
+                    </div>
+                  )}
+                </div>
+
+                {/* Composição Financeira e Cálculo */}
+                <div className="bg-black/40 p-3.5 rounded-xl border border-amber-400/40 space-y-2">
+                  <span className="text-[10px] font-black uppercase text-amber-300 block">
+                    💰 Discriminação Financeira Oficial do Pedido:
+                  </span>
+                  <div className="space-y-1 text-xs">
+                    <div className="flex justify-between text-slate-300">
+                      <span>Hospedagem no Chalé (Valor Tabela):</span>
+                      <span className="font-bold">{formatCurrency(selectedOriginalReservation.grossPrice || Math.round(selectedOriginalReservation.totalPrice / 0.9))}</span>
+                    </div>
+                    {selectedOriginalReservation.extraItems && selectedOriginalReservation.extraItems.length > 0 && (
+                      <div className="flex justify-between text-slate-300">
+                        <span>Serviços Opcionais ({selectedOriginalReservation.extraItems.length}):</span>
+                        <span className="font-bold">
+                          {formatCurrency(selectedOriginalReservation.extraItems.reduce((acc, it) => acc + it.price, 0))}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-emerald-400 font-bold">
+                      <span>Desconto Reserva Online (10% OFF):</span>
+                      <span>- 10% Aplicado</span>
+                    </div>
+                    <div className="border-t border-white/10 pt-1.5 flex justify-between text-sm sm:text-base font-black text-amber-300">
+                      <span>Valor Total da Reserva:</span>
+                      <span>{formatCurrency(selectedOriginalReservation.totalPrice)}</span>
+                    </div>
+                  </div>
+
+                  {/* Caixa de Esclarecimento Amigável */}
+                  <div className="bg-emerald-950/80 border border-emerald-500/40 p-2.5 rounded-lg text-[11px] text-emerald-100 leading-snug">
+                    ℹ️ <strong>Esclarecimento do Valor:</strong> A diária casal contratada custa R$ 340,00 na tabela. Com o desconto automático de 10% do site, o valor final ficou em <strong>{formatCurrency(selectedOriginalReservation.totalPrice)}</strong>. Nenhum serviço extra foi contratado na compra online. Caso deseje incluir Pesca (+R$ 20) ou Futebol de Sabão (+R$ 10) totalizando R$ 333,00 (com 10% OFF), clique no botão abaixo para editar a reserva.
+                  </div>
+                </div>
+              </div>
+
+              {/* Botões do Rodapé na Aba do Pedido Original */}
+              <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-slate-100">
+                <Button
+                  type="button"
+                  onClick={() => setModalTab('edit')}
+                  className="flex-1 h-11 rounded-xl bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Edit className="w-4 h-4 text-slate-950" />
+                  ✏️ Ir para Edição desta Reserva
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsModalOpen(false)}
+                  className="h-11 rounded-xl border-slate-300 text-slate-700 font-bold text-xs"
+                >
+                  Fechar Visualização
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-4 py-2">
             {/* 1. UNIDADE DO CHALÉ (TRAVADO QUANDO SELECIONADO NO CARD ESPECÍFICO) */}
             {isChaleLocked ? (
               <div className="bg-gradient-to-r from-emerald-950 via-[#042817] to-slate-950 text-white p-3.5 rounded-2xl border-2 border-amber-400 flex items-center justify-between gap-3 shadow-sm">
@@ -2773,13 +3121,26 @@ export function AdminChaleTab({
 
                 {formOccupancyType === 'casal' && (
                   <div className="space-y-1">
-                    <Label className="text-xs font-black text-slate-900">Adulto 2 • Acompanhante:</Label>
+                    <Label className="text-xs font-black text-slate-900 flex items-center justify-between">
+                      <span>Adulto 2 • Acompanhante:</span>
+                      <span className="text-[10px] text-red-600 font-black uppercase">* Obrigatório Check-in</span>
+                    </Label>
                     <Input
-                      placeholder="Nome completo do acompanhante"
+                      placeholder="Nome completo do acompanhante..."
                       value={formAdult2Name}
                       onChange={(e) => setFormAdult2Name(e.target.value)}
-                      className="h-10 text-xs font-bold rounded-xl border-slate-300 bg-white text-slate-900"
+                      className={cn(
+                        "h-10 text-xs font-bold rounded-xl bg-white text-slate-900",
+                        !formAdult2Name.trim() || formAdult2Name.trim().toLowerCase().includes('acompanhante')
+                          ? "border-2 border-amber-500 bg-amber-50/50"
+                          : "border-slate-300"
+                      )}
                     />
+                    {(!formAdult2Name.trim() || formAdult2Name.trim().toLowerCase().includes('acompanhante')) && (
+                      <span className="text-[10px] text-amber-700 font-bold block">
+                        ⚠️ Nome real obrigatório para realizar o check-in na portaria.
+                      </span>
+                    )}
                   </div>
                 )}
 
@@ -3175,7 +3536,9 @@ export function AdminChaleTab({
               {isEditing ? 'Salvar Alterações' : '✓ Confirmar Reserva'}
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </>
+      )}
+    </DialogContent>
       </Dialog>
 
       {/* MODAL DE PAGAMENTO PIX / CARTÃO DISPARADO PELA RESERVA INTERNA */}
@@ -3268,15 +3631,35 @@ export function AdminChaleTab({
                   </div>
                   <div className="space-y-1 border-b border-white/10 pb-1.5">
                     <span className="text-emerald-200 font-bold uppercase text-[10px] block">
-                      Nomes dos Hóspedes ({voucherRes.adults} Adulto{voucherRes.adults > 1 ? 's' : ''}{voucherRes.children > 0 ? ` + ${voucherRes.children} Criança(s)` : ''}):
+                      Hóspedes ({voucherRes.adults} Adulto{voucherRes.adults > 1 ? 's' : ''}{voucherRes.children > 0 ? ` + ${voucherRes.children} Criança(s)` : ''}):
                     </span>
-                    <div className="text-[11px] font-bold text-white space-y-0.5 pl-1">
-                      {(voucherRes.adultNames && voucherRes.adultNames.length > 0
-                        ? voucherRes.adultNames
-                        : [voucherRes.guestName, ...(voucherRes.occupancyType === 'casal' ? ['Acompanhante Adulto 2'] : [])]
-                      ).map((name, i) => (
-                        <div key={i}>👤 {name}</div>
-                      ))}
+                    <div className="text-[11px] font-bold text-white space-y-1 pl-1">
+                      {(() => {
+                        const adultList = (voucherRes.adultNames && voucherRes.adultNames.length > 0)
+                          ? voucherRes.adultNames
+                          : [voucherRes.guestName];
+                        const titular = adultList[0] || voucherRes.guestName;
+                        const companion = adultList[1];
+
+                        return (
+                          <>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-amber-400 font-black">👤 Titular:</span>
+                              <span className="font-bold text-white">{titular}</span>
+                            </div>
+                            {voucherRes.occupancyType === 'casal' && (
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-amber-400 font-black">👤 Acompanhante:</span>
+                                {companion && !companion.toLowerCase().includes('acompanhante') ? (
+                                  <span className="font-bold text-white">{companion}</span>
+                                ) : (
+                                  <span className="font-bold text-amber-300 italic">⚠️ Pendente de Identificação (Obrigatório no Check-in)</span>
+                                )}
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
                       {(voucherRes.childNames && voucherRes.childNames.length > 0) ? (
                         voucherRes.childNames.map((c, i) => (
                           <div key={i} className="text-amber-300">👶 {c.name} ({c.ageLabel})</div>
@@ -3286,19 +3669,23 @@ export function AdminChaleTab({
                       ) : null}
                     </div>
                   </div>
-                  {voucherRes.extraItems && voucherRes.extraItems.length > 0 && (
+                  {voucherRes.extraItems && voucherRes.extraItems.length > 0 ? (
                     <div className="space-y-1 border-b border-white/10 pb-1.5">
                       <span className="text-emerald-200 font-bold uppercase text-[10px] block">
-                        Demais Itens Inclusos na Reserva:
+                        Serviços & Itens Extras Inclusos:
                       </span>
                       <div className="text-[11px] font-bold text-amber-200 space-y-0.5 pl-1">
                         {voucherRes.extraItems.map((ext, i) => (
-                          <div key={i} className="flex justify-between">
-                            <span>• {ext.quantity}x {ext.name}{ext.timeSlot ? ` (${ext.timeSlot})` : ''}</span>
-                            <span>{formatCurrency(ext.price)}</span>
+                          <div key={i} className="flex justify-between items-center bg-white/5 px-2 py-0.5 rounded">
+                            <span>• {ext.quantity}x {ext.name}{ext.timeSlot ? ` (Horário: ${ext.timeSlot})` : ''}</span>
+                            <span className="font-black text-white">{formatCurrency(ext.price)}</span>
                           </div>
                         ))}
                       </div>
+                    </div>
+                  ) : (
+                    <div className="border-b border-white/10 pb-1.5 text-[10px] text-emerald-300/80 italic">
+                      ✓ Apenas Hospedagem e Day Use inclusos (sem serviços adicionais extras contratados).
                     </div>
                   )}
                   <div className="flex justify-between pt-1">

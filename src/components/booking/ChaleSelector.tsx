@@ -1762,8 +1762,9 @@ function ChaleSelectorInner({
 
                       {isChaleCasal && (
                         <div className="space-y-1">
-                          <label className="text-[11px] font-bold text-slate-800 block">
-                            Adulto 2 - Acompanhante do Chalé {String(chaleId).padStart(2, '0')}:
+                          <label className="text-[11px] font-bold text-slate-800 flex items-center justify-between">
+                            <span>Adulto 2 - Acompanhante do Chalé {String(chaleId).padStart(2, '0')}:</span>
+                            <span className="text-[10px] text-red-600 font-black uppercase">* Obrigatório</span>
                           </label>
                           <Input
                             placeholder="Nome completo do acompanhante..."

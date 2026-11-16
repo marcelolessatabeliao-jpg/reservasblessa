@@ -286,16 +286,18 @@ export function BookingSection() {
       const uKids = kidsMap[uId] || [];
 
       // Adult 1
-      if (!names[adultIdxCounter] || !names[adultIdxCounter].trim()) {
-        missingNameLabel = `Adulto 1 (Titular do Chalé ${String(uId).padStart(2, '0')})`;
+      const a1Val = names[adultIdxCounter]?.trim() || '';
+      if (!a1Val || a1Val.length < 3) {
+        missingNameLabel = `Adulto 1 (Nome Completo do Titular do Chalé ${String(uId).padStart(2, '0')})`;
         break;
       }
       adultIdxCounter++;
 
-      // Adult 2
+      // Adult 2 (Obrigatório para Casal, sem texto automático)
       if (isCasal) {
-        if (!names[adultIdxCounter] || !names[adultIdxCounter].trim()) {
-          missingNameLabel = `Adulto 2 (Acompanhante do Chalé ${String(uId).padStart(2, '0')})`;
+        const a2Val = names[adultIdxCounter]?.trim() || '';
+        if (!a2Val || a2Val.length < 3 || a2Val.toLowerCase().includes('acompanhante')) {
+          missingNameLabel = `Adulto 2 (Nome Completo do Acompanhante do Chalé ${String(uId).padStart(2, '0')})`;
           break;
         }
         adultIdxCounter++;
