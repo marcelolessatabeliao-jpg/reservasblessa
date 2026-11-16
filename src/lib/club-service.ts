@@ -1342,6 +1342,29 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
                   }
                 }
               }
+              // Preserva faturas emitidas e sincronizadas no Asaas na nuvem, evitando que o cache local desatualizado limpe os asaasPaymentId
+              if (current.invoices && current.invoices.some((i) => i.asaasPaymentId)) {
+                const remoteInvMap = new Map(current.invoices.map((inv) => [inv.id, inv]));
+                s.invoices = (s.invoices || []).map((localInv) => {
+                  const rInv = remoteInvMap.get(localInv.id);
+                  if (rInv && rInv.asaasPaymentId) {
+                    return {
+                      ...localInv,
+                      dueDate: rInv.dueDate || localInv.dueDate,
+                      asaasPaymentId: rInv.asaasPaymentId,
+                      invoiceUrl: rInv.invoiceUrl || localInv.invoiceUrl,
+                      pixPayload: rInv.pixPayload || localInv.pixPayload,
+                      pixQrCode: rInv.pixQrCode || localInv.pixQrCode,
+                      status: rInv.status || localInv.status,
+                      paidAt: rInv.paidAt || localInv.paidAt,
+                    };
+                  }
+                  return localInv;
+                });
+                if (s.invoices.length < current.invoices.length || !s.invoices.some((i) => i.asaasPaymentId)) {
+                  s.invoices = current.invoices;
+                }
+              }
               subsMap.set(s.id, s);
             }
           }
