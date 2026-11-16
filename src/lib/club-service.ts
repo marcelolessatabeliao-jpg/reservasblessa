@@ -1758,9 +1758,9 @@ export const generateAsaasChargeForClubInvoice = async (
 
   const asaasDescription = [
     `Lessa Club (${subscription.subscriptionCode}) - ${invoice.description || subscription.planSummaryLabel}`,
-    `🔐 Portal do Sócio: ${portalUrl}`,
-    `👤 Usuário: ${loginUser}`,
-    `🔑 Senha: ${loginPass}`,
+    `Portal do Socio: ${portalUrl}`,
+    `Usuario: ${loginUser}`,
+    `Senha: ${loginPass}`,
   ].join('\n');
 
   const { data, error } = await supabase.functions.invoke('create-payment', {
@@ -1837,9 +1837,9 @@ export const generateAllAsaasInvoicesForSubscription = async (
 
       const asaasDescription = [
         `Lessa Club (${targetSub.subscriptionCode}) - ${inv.description || targetSub.planSummaryLabel}`,
-        `🔐 Portal do Sócio: ${portalUrl}`,
-        `👤 Usuário: ${loginUser}`,
-        `🔑 Senha: ${loginPass}`,
+        `Portal do Socio: ${portalUrl}`,
+        `Usuario: ${loginUser}`,
+        `Senha: ${loginPass}`,
       ].join('\n');
 
       const { data, error } = await supabase.functions.invoke('create-payment', {
@@ -1998,10 +1998,10 @@ export const emitCarneMonthlyChargesInAsaas = async (
     try {
       const asaasDescription = [
         `Lessa Club (${targetSub.subscriptionCode}) - ${inv.description || 'Mensalidade'} (${inv.installmentNumber}/${inv.totalInstallments})`,
-        params.activateCardRecurrence && params.cardLast4 ? `💳 Recorrência Cartão •••• ${params.cardLast4}` : '',
-        `🔐 Portal do Sócio: ${portalUrl}`,
-        `👤 Usuário: ${loginUser}`,
-        `🔑 Senha: ${loginPass}`,
+        params.activateCardRecurrence && params.cardLast4 ? `Recorrencia Cartao final ${params.cardLast4}` : '',
+        `Portal do Socio: ${portalUrl}`,
+        `Usuario: ${loginUser}`,
+        `Senha: ${loginPass}`,
       ]
         .filter(Boolean)
         .join('\n');
@@ -2090,9 +2090,9 @@ export const processClubCreditCardPayment = async (
 
   const asaasDescription = [
     `Lessa Club (${subscription.subscriptionCode}) - ${invoice.description || subscription.planSummaryLabel}`,
-    `🔐 Portal do Sócio: ${portalUrl}`,
-    `👤 Usuário: ${loginUser}`,
-    `🔑 Senha: ${loginPass}`,
+    `Portal do Socio: ${portalUrl}`,
+    `Usuario: ${loginUser}`,
+    `Senha: ${loginPass}`,
   ].join('\n');
 
   const { data, error } = await supabase.functions.invoke('create-payment', {
@@ -2211,9 +2211,9 @@ export const generateUnifiedPaymentLink = async (
 
   const asaasDescription = [
     `Lessa Club (${subscription.subscriptionCode}) - Quitação Unificada no Cartão (${invoices.length} parcelas)`,
-    `🔐 Portal do Sócio: ${portalUrl}`,
-    `👤 Usuário: ${loginUser}`,
-    `🔑 Senha: ${loginPass}`,
+    `Portal do Socio: ${portalUrl}`,
+    `Usuario: ${loginUser}`,
+    `Senha: ${loginPass}`,
   ].join('\n');
 
   const { data, error } = await supabase.functions.invoke('create-payment', {

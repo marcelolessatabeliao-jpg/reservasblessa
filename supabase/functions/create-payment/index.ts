@@ -186,11 +186,22 @@ Deno.serve(async (req) => {
       sanitizedDueDate = todayStr;
     }
 
+    // Garantir que a descrição não contenha emojis ou caracteres especiais (rejeitados pela API do Asaas)
+    const rawDescription = String(description || 'Reserva Balneário Lessa');
+    const sanitizedDescription = rawDescription
+      .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '')
+      .replace(/[\u2600-\u27BF\uE000-\uF8FF\u2011-\u2027\u2030-\u205E\u2060-\u20CF\u2100-\u214F\u2190-\u21FF\u2300-\u23FF\u2B50-\u2BFF]/g, '')
+      .replace(/[•●▪■]/g, '-')
+      .replace(/[^\w\sÀ-ÿ.,:;()_\-\/\\@#%&*+!?]/g, ' ')
+      .replace(/[ \t]+/g, ' ')
+      .trim()
+      .slice(0, 500);
+
     const paymentBody: Record<string, any> = {
       customer: asaasCustomerId,
       billingType: billingType,
       dueDate: sanitizedDueDate,
-      description: description || `Reserva Balneário Lessa`,
+      description: sanitizedDescription,
       externalReference: orderId,
       postalService: false,
     };
