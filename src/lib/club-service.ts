@@ -1849,7 +1849,7 @@ export interface EmitCarneMonthlyChargesParams {
 const invokeEdgeFunctionWithTimeout = async (
   name: string,
   options: { body: any },
-  timeoutMs = 12000
+  timeoutMs = 30000
 ): Promise<any> => {
   let timeoutId: any;
   const timeoutPromise = new Promise<never>((_, reject) => {
@@ -1964,7 +1964,7 @@ export const emitCarneMonthlyChargesInAsaas = async (
           dueDate: inv.dueDate,
           description: asaasDescription,
         },
-      }, 12000);
+      }, 30000);
 
       if (!error && data?.success && data.data) {
         inv.asaasPaymentId = data.data.paymentId;

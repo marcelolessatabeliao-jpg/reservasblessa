@@ -72,37 +72,44 @@ Deno.serve(async (req) => {
 
     if (!cleanCpf) throw new Error('Para cobranças reais em produção, o CPF é obrigatório.');
     
-    // 2.5 Idempotência: Verificar se já existe um pagamento pendente para este pedido/método
-    const supabaseAdmin = createClient(Deno.env.get('SUPABASE_URL') || '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '');
-    const { data: existingPayment } = await supabaseAdmin
-        .from('payments')
-        .select('*')
-        .eq('order_id', orderId)
-        .eq('metodo', billingType)
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+    // 2.5 Idempotência: Verificar se já existe um pagamento pendente para este pedido/método (apenas se orderId for UUID válido)
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(orderId || ''));
+    if (isUuid) {
+      try {
+        const supabaseAdmin = createClient(Deno.env.get('SUPABASE_URL') || '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '');
+        const { data: existingPayment } = await supabaseAdmin
+            .from('payments')
+            .select('*')
+            .eq('order_id', orderId)
+            .eq('metodo', billingType)
+            .eq('status', 'pending')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
 
-    if (existingPayment?.external_id && existingPayment?.payment_url) {
-        // Se for PIX, precisamos recuperar o QR Code novamente
-        let pixData = null;
-        if (billingType === 'PIX') {
-            const pixReq = await fetch(`${ASAAS_URL}/payments/${existingPayment.external_id}/pixQrCode`, {
-                headers: { 'access_token': ASAAS_API_KEY }
-            });
-            if (pixReq.ok) pixData = await pixReq.json();
-        }
-
-        return new Response(JSON.stringify({
-            success: true,
-            is_reused: true,
-            data: {
-                paymentId: existingPayment.external_id,
-                invoiceUrl: existingPayment.payment_url,
-                pix: pixData ? { encodedImage: pixData.encodedImage, payload: pixData.payload } : null
+        if (existingPayment?.external_id && existingPayment?.payment_url) {
+            // Se for PIX, precisamos recuperar o QR Code novamente
+            let pixData = null;
+            if (billingType === 'PIX') {
+                const pixReq = await fetch(`${ASAAS_URL}/payments/${existingPayment.external_id}/pixQrCode`, {
+                    headers: { 'access_token': ASAAS_API_KEY }
+                });
+                if (pixReq.ok) pixData = await pixReq.json();
             }
-        }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });
+
+            return new Response(JSON.stringify({
+                success: true,
+                is_reused: true,
+                data: {
+                    paymentId: existingPayment.external_id,
+                    invoiceUrl: existingPayment.payment_url,
+                    pix: pixData ? { encodedImage: pixData.encodedImage, payload: pixData.payload } : null
+                }
+            }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });
+        }
+      } catch (errIdemp) {
+        console.warn('Erro ao verificar idempotência no banco:', errIdemp);
+      }
     }
 
     // 3. Obter ou Criar Cliente no Asaas (reutiliza se já existir pelo CPF)
@@ -213,8 +220,10 @@ Deno.serve(async (req) => {
       pixData = await pixReq.json();
     }
 
-    // 6. Registro no Supabase (Opcional - mas ajuda no Dashboard)
-    try {
+    // 6. Registro no Supabase (Opcional - apenas para pedidos com UUID)
+    if (isUuid) {
+      try {
+        const supabaseAdmin = createClient(Deno.env.get('SUPABASE_URL') || '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '');
         await supabaseAdmin.from('payments').insert({
             order_id: orderId,
             gateway: 'asaas',
@@ -223,7 +232,8 @@ Deno.serve(async (req) => {
             external_id: paymentData.id,
             payment_url: paymentData.invoiceUrl
         });
-    } catch (e) { console.warn('Erro ao salvar log de pagamento:', e); }
+      } catch (e) { console.warn('Erro ao salvar log de pagamento:', e); }
+    }
 
     const isPaid = paymentData.status === 'CONFIRMED' || paymentData.status === 'RECEIVED';
 
