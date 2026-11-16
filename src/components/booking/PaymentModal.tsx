@@ -17,15 +17,17 @@ interface Props {
   cpf?: string;
   totalAmount: number;
   initialMethod?: PaymentMethod;
+  initialInstallments?: number;
   onSuccess?: (method: string) => void;
   isClient?: boolean;
 }
 
 type PaymentMethod = 'PIX' | 'CREDIT_CARD';
 
-export function PaymentModal({ open, onOpenChange, orderId, name, email, phone, cpf: initialCpf, totalAmount, initialMethod, onSuccess, isClient }: Props) {
+export function PaymentModal({ open, onOpenChange, orderId, name, email, phone, cpf: initialCpf, totalAmount, initialMethod, initialInstallments, onSuccess, isClient }: Props) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [installments, setInstallments] = useState(initialInstallments || 1);
   const [pixData, setPixData] = useState<{ encodedImage: string; payload: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
@@ -113,15 +115,22 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, phone, 
       // For now, we'll try to find it from the orders table if it's missing, 
       // but let's assume we want to pass it from the form.
       
+      const isCredit = method === 'CREDIT_CARD';
+      const effectiveInstallments = isCredit ? Math.max(1, initialInstallments || installments) : 1;
+      const installmentValue = Number((totalAmount / effectiveInstallments).toFixed(2));
+
       const response = await supabase.functions.invoke('create-payment', {
         body: {
           orderId,
           name,
           email,
           phone,
-          cpf, // Passando o CPF para a função
+          cpf,
           billingType: method,
           value: totalAmount,
+          totalValue: totalAmount,
+          installmentCount: effectiveInstallments,
+          installmentValue,
           description: `Reserva Balneário Lessa - ${name}`,
         }
       });
@@ -333,6 +342,29 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, phone, 
               PAGAR COM PIX
             </Button>
 
+            {totalAmount >= 30 && (
+              <div className="space-y-1 bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                <label className="text-[10px] font-black uppercase text-slate-700 tracking-wider block">
+                  💳 Parcelamento no Cartão (em até 12x):
+                </label>
+                <select
+                  value={installments}
+                  onChange={(e) => setInstallments(Number(e.target.value))}
+                  className="w-full h-11 px-3 rounded-xl border border-slate-300 bg-white text-xs font-bold text-slate-900 focus:outline-none"
+                >
+                  {Array.from({ length: Math.min(12, Math.max(1, Math.floor(totalAmount / 15))) }).map((_, idx) => {
+                    const times = idx + 1;
+                    const val = totalAmount / times;
+                    return (
+                      <option key={times} value={times}>
+                        {times}x de {formatCurrency(val)} {times === 1 ? '(à vista)' : '(sem juros adicionais)'}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+            )}
+
             <Button 
               size="lg" 
               variant="outline"
@@ -341,7 +373,7 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, phone, 
               className="w-full h-14 border-2 border-primary/20 hover:bg-primary/5 text-primary font-bold text-base rounded-2xl flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {loading ? <Loader2 className="animate-spin h-5 w-5" /> : <CreditCard className="h-5 w-5" />}
-              Cartão de Crédito
+              {installments > 1 ? `Pagar em ${installments}x de ${formatCurrency(totalAmount / installments)}` : 'Cartão de Crédito'}
             </Button>
 
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-1">

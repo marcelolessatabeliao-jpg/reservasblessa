@@ -300,6 +300,7 @@ export function AdminChaleTab({
   const [formApplySiteDiscount, setFormApplySiteDiscount] = useState<boolean>(true);
   const [formCustomPriceOverride, setFormCustomPriceOverride] = useState<number | null>(null);
   const [formPaymentMethod, setFormPaymentMethod] = useState('PIX');
+  const [formInstallments, setFormInstallments] = useState(1);
   const [formPaymentStatus, setFormPaymentStatus] = useState<'paid' | 'pending'>('paid');
   const [formNotes, setFormNotes] = useState('');
 
@@ -325,6 +326,7 @@ export function AdminChaleTab({
     cpf: string;
     totalAmount: number;
     initialMethod: 'PIX' | 'CREDIT_CARD';
+    initialInstallments?: number;
     chaleId: number;
   } | null>(null);
   const [generatingPayment, setGeneratingPayment] = useState(false);
@@ -1220,6 +1222,7 @@ export function AdminChaleTab({
         cpf: built.cpf || '',
         totalAmount: built.totalPrice,
         initialMethod: method,
+        initialInstallments: method === 'CREDIT_CARD' ? formInstallments : 1,
         chaleId: built.chaleId
       });
     } finally {
@@ -3097,6 +3100,27 @@ export function AdminChaleTab({
                   </select>
                 </div>
 
+                {formPaymentMethod === 'Cartão de Crédito' && modalPricingBreakdown.totalFinal >= 30 && (
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-black text-amber-300">Parcelas no Cartão:</Label>
+                    <select
+                      value={formInstallments}
+                      onChange={(e) => setFormInstallments(Number(e.target.value))}
+                      className="w-full h-10 px-3 rounded-xl border border-amber-400 bg-white font-bold text-xs text-slate-950"
+                    >
+                      {Array.from({ length: Math.min(12, Math.max(1, Math.floor(modalPricingBreakdown.totalFinal / 15))) }).map((_, idx) => {
+                        const times = idx + 1;
+                        const val = modalPricingBreakdown.totalFinal / times;
+                        return (
+                          <option key={times} value={times}>
+                            {times}x de {formatCurrency(val)} {times === 1 ? '(à vista)' : ''}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                )}
+
                 <div className="space-y-1">
                   <Label className="text-[11px] font-black text-emerald-200">Status da Reserva:</Label>
                   <select
@@ -3166,6 +3190,7 @@ export function AdminChaleTab({
           cpf={adminPaymentData.cpf}
           totalAmount={adminPaymentData.totalAmount}
           initialMethod={adminPaymentData.initialMethod}
+          initialInstallments={adminPaymentData.initialInstallments}
           onSuccess={() => {
             setLocalReservations(prev => prev.map(r => (
               r.chaleId === adminPaymentData.chaleId ? { ...r, status: 'paid' } : r
