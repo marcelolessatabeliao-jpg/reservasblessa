@@ -78,6 +78,7 @@ export function BookingOverview({
   const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
   const [termsErrorHighlight, setTermsErrorHighlight] = useState(false);
   const [cpfError, setCpfError] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   const { getPrice } = useServices();
   const { toast } = useToast();
 
@@ -174,10 +175,20 @@ export function BookingOverview({
   const handleAction = async (method: 'PIX' | 'CREDIT_CARD' | 'LOCAL', installmentsCount: number = 1) => {
     const fullName = booking.entry.name?.trim();
 
-    if (!fullName || !booking.entry.phone?.trim() || booking.entry.phone.length < 10) {
+    if (!fullName || fullName.length < 2) {
       toast({
-        title: 'Dados Incompletos',
-        description: 'Preencha o campo de Nome e WhatsApp.',
+        title: 'Nome Obrigatório',
+        description: 'Por favor, informe seu Nome Completo para registrar a reserva.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    const cleanPhoneDigits = (booking.entry.phone || '').replace(/\D/g, '');
+    if (cleanPhoneDigits.length < 10) {
+      toast({
+        title: 'WhatsApp Obrigatório',
+        description: 'Informe seu WhatsApp com DDD (mínimo 10 dígitos) para receber a confirmação da reserva.',
         variant: 'destructive'
       });
       return;
@@ -379,6 +390,8 @@ export function BookingOverview({
     }
     
     let orderIdToRollback: string | null = null;
+    setActionError(null);
+    setActivePaymentMethod(method !== 'LOCAL' ? method : null);
     setSaving(true);
     try {
       let orderId = persistedOrderId;
@@ -448,16 +461,34 @@ export function BookingOverview({
           }
         });
 
-        if (response.error || response.data?.error) {
-          throw new Error(response.error?.message || response.data?.error || 'Erro ao gerar PIX');
+        let serverError: string | null = null;
+        if (response.error) {
+          try {
+            if (typeof (response.error as any).context?.json === 'function') {
+              const jsonErr = await (response.error as any).context.json();
+              serverError = jsonErr?.error || jsonErr?.message;
+            }
+          } catch (_) {}
+          if (!serverError) serverError = response.error.message;
+        } else if (response.data?.error) {
+          serverError = response.data.error;
         }
 
-        const data = response.data.data;
+        if (serverError) {
+          throw new Error(serverError);
+        }
+
+        const data = response.data?.data;
         if (!data?.pix) throw new Error("A resposta do servidor não contém dados de PIX.");
 
         setPixData(data.pix);
         setActivePaymentMethod('PIX');
+        setActionError(null);
         toast({ title: 'PIX Gerado com Sucesso!', description: 'Finalize o pagamento abaixo.' });
+        setTimeout(() => {
+          const el = document.getElementById('pix-copia-cola-box');
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 150);
       } else if (method === 'CREDIT_CARD') {
         trackFBEvent(
           'InitiateCheckout',
@@ -485,11 +516,24 @@ export function BookingOverview({
           }
         });
 
-        if (response.error || response.data?.error) {
-          throw new Error(response.error?.message || response.data?.error || 'Erro ao preparar Cartão');
+        let serverError: string | null = null;
+        if (response.error) {
+          try {
+            if (typeof (response.error as any).context?.json === 'function') {
+              const jsonErr = await (response.error as any).context.json();
+              serverError = jsonErr?.error || jsonErr?.message;
+            }
+          } catch (_) {}
+          if (!serverError) serverError = response.error.message;
+        } else if (response.data?.error) {
+          serverError = response.data.error;
         }
 
-        const data = response.data.data;
+        if (serverError) {
+          throw new Error(serverError);
+        }
+
+        const data = response.data?.data;
         if (data?.invoiceUrl) {
            toast({ title: 'Redirecionando...', description: 'Aguarde um momento para o pagamento seguro.' });
            setTimeout(() => {
@@ -510,13 +554,16 @@ export function BookingOverview({
       }
     } catch (err: any) {
       console.error("[Booking] Error:", err);
+      setActionError(err.message || 'Erro ao processar o pagamento.');
       // Rollback: se o pedido foi criado mas o pagamento falhou, deletamos o pedido para evitar dados sujos
       // IMPORTANTE: apenas deletamos se for pagamento online (PIX/CARTAO) que falhou agora
       if (orderIdToRollback && method !== 'LOCAL') {
         console.log("[Booking] Rolling back order:", orderIdToRollback);
-        await supabase.from('orders').delete().eq('id', orderIdToRollback);
-        setPersistedOrderId(null);
-        setPersistedConfirmationCode(null);
+        try {
+          await supabase.from('orders').delete().eq('id', orderIdToRollback);
+          setPersistedOrderId(null);
+          setPersistedConfirmationCode(null);
+        } catch (_) {}
       }
       toast({ title: 'Falha no Agendamento', description: err.message || 'Erro desconhecido', variant: 'destructive' });
     } finally {
@@ -1317,6 +1364,18 @@ export function BookingOverview({
                   })()
                 ) : (
                   <>
+                    {/* Alerta de Erro Visual Inline */}
+                    {actionError && (
+                      <div className="bg-rose-50 border-2 border-rose-300 rounded-2xl p-4 flex items-start gap-3 shadow-md animate-in fade-in">
+                        <span className="text-xl shrink-0 mt-0.5">⚠️</span>
+                        <div className="text-xs text-rose-950 font-medium space-y-1">
+                          <p className="font-black text-rose-900 text-sm">Não foi possível gerar o pagamento:</p>
+                          <p className="font-bold text-rose-800">{actionError}</p>
+                          <p className="text-[11px] text-rose-700">Por favor, confira seu CPF e dados acima e clique em "GERAR PIX" novamente.</p>
+                        </div>
+                      </div>
+                    )}
+
                     <div className={cn(
                       "grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4 transition-opacity",
                       hasSelectedChaleBooking && !isChaleTermsAccepted && "opacity-60"
@@ -1326,7 +1385,10 @@ export function BookingOverview({
                         size="lg"
                         onClick={() => handleAction('PIX')}
                         disabled={saving}
-                        className="h-20 sm:h-24 rounded-2xl bg-gradient-to-b from-[#094226] to-[#042817] hover:from-[#0d5531] hover:to-[#063a22] text-white font-black flex flex-row items-center justify-center gap-3 sm:gap-4 shadow-xl hover:shadow-[0_6px_20px_rgba(245,158,11,0.25)] active:scale-[0.98] transition-all border-2 border-amber-400 px-4 sm:px-5 py-3 cursor-pointer"
+                        className={cn(
+                          "h-20 sm:h-24 rounded-2xl bg-gradient-to-b from-[#094226] to-[#042817] hover:from-[#0d5531] hover:to-[#063a22] text-white font-black flex flex-row items-center justify-center gap-3 sm:gap-4 shadow-xl hover:shadow-[0_6px_20px_rgba(245,158,11,0.25)] active:scale-[0.98] transition-all border-2 border-amber-400 px-4 sm:px-5 py-3 cursor-pointer",
+                          saving && activePaymentMethod === 'PIX' && "ring-4 ring-amber-400/50 from-[#0c5934] to-[#083b22]"
+                        )}
                       >
                         <div className="p-2.5 sm:p-3 bg-amber-400/15 rounded-2xl border border-amber-400/30 shrink-0 flex items-center justify-center">
                           {saving && activePaymentMethod === 'PIX' ? (
@@ -1336,11 +1398,14 @@ export function BookingOverview({
                           )}
                         </div>
                         <div className="text-left leading-tight min-w-0">
-                          <span className="inline-block bg-amber-400 text-slate-950 font-black text-[9.5px] sm:text-[11px] px-2.5 py-0.5 rounded-full uppercase tracking-wider mb-1 shadow-2xs whitespace-nowrap">
-                            ⚡ 10% OFF ONLINE
+                          <span className={cn(
+                            "inline-block bg-amber-400 text-slate-950 font-black text-[9.5px] sm:text-[11px] px-2.5 py-0.5 rounded-full uppercase tracking-wider mb-1 shadow-2xs whitespace-nowrap",
+                            saving && activePaymentMethod === 'PIX' && "animate-pulse bg-amber-300 text-amber-950"
+                          )}>
+                            {saving && activePaymentMethod === 'PIX' ? '⏳ GERANDO NOVO PIX...' : '⚡ 10% OFF ONLINE'}
                           </span>
                           <span className="block text-sm sm:text-lg font-black uppercase tracking-wide text-white whitespace-nowrap">
-                            GERAR PIX
+                            {saving && activePaymentMethod === 'PIX' ? 'AGUARDE UM INSTANTE...' : 'GERAR PIX'}
                           </span>
                         </div>
                       </Button>
@@ -1360,7 +1425,10 @@ export function BookingOverview({
                           }
                         }}
                         disabled={saving}
-                        className="h-20 sm:h-24 rounded-2xl bg-gradient-to-b from-[#094226] to-[#042817] hover:from-[#0d5531] hover:to-[#063a22] text-white font-black flex flex-row items-center justify-center gap-3 sm:gap-4 shadow-xl hover:shadow-[0_6px_20px_rgba(245,158,11,0.25)] active:scale-[0.98] transition-all border-2 border-amber-400 px-4 sm:px-5 py-3 cursor-pointer"
+                        className={cn(
+                          "h-20 sm:h-24 rounded-2xl bg-gradient-to-b from-[#094226] to-[#042817] hover:from-[#0d5531] hover:to-[#063a22] text-white font-black flex flex-row items-center justify-center gap-3 sm:gap-4 shadow-xl hover:shadow-[0_6px_20px_rgba(245,158,11,0.25)] active:scale-[0.98] transition-all border-2 border-amber-400 px-4 sm:px-5 py-3 cursor-pointer",
+                          saving && activePaymentMethod === 'CREDIT_CARD' && "ring-4 ring-amber-400/50 from-[#0c5934] to-[#083b22]"
+                        )}
                       >
                         <div className="p-2.5 sm:p-3 bg-amber-400/15 rounded-2xl border border-amber-400/30 shrink-0 flex items-center justify-center">
                           {saving && activePaymentMethod === 'CREDIT_CARD' ? (
@@ -1370,11 +1438,14 @@ export function BookingOverview({
                           )}
                         </div>
                         <div className="text-left leading-tight min-w-0">
-                          <span className="inline-block bg-amber-400 text-slate-950 font-black text-[9.5px] sm:text-[11px] px-2.5 py-0.5 rounded-full uppercase tracking-wider mb-1 shadow-2xs whitespace-nowrap">
-                            💳 ATÉ 12X NO CARTÃO
+                          <span className={cn(
+                            "inline-block bg-amber-400 text-slate-950 font-black text-[9.5px] sm:text-[11px] px-2.5 py-0.5 rounded-full uppercase tracking-wider mb-1 shadow-2xs whitespace-nowrap",
+                            saving && activePaymentMethod === 'CREDIT_CARD' && "animate-pulse bg-amber-300 text-amber-950"
+                          )}>
+                            {saving && activePaymentMethod === 'CREDIT_CARD' ? '⏳ PREPARANDO CARTÃO...' : '💳 ATÉ 12X NO CARTÃO'}
                           </span>
                           <span className="block text-xs sm:text-base md:text-lg font-black uppercase tracking-wide text-white whitespace-nowrap">
-                            CARTÃO DÉBITO E CRÉDITO
+                            {saving && activePaymentMethod === 'CREDIT_CARD' ? 'REDIRECIONANDO...' : 'CARTÃO DÉBITO E CRÉDITO'}
                           </span>
                         </div>
                       </Button>
@@ -1455,6 +1526,7 @@ export function BookingOverview({
 </div>
             ) : (
               <motion.div 
+                id="pix-copia-cola-box"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="bg-white rounded-[2rem] border-2 border-[#00bdae] p-6 space-y-4 shadow-lg w-full"

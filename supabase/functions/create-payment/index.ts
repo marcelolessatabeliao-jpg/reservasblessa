@@ -66,11 +66,18 @@ Deno.serve(async (req) => {
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });
     }
 
-    // 2. Limpeza de Dados
-    const cleanPhone = phone ? phone.replace(/\D/g, '') : '';
+    // 2. Limpeza e Validação de Dados
     const cleanCpf = cpf ? cpf.replace(/\D/g, '') : '';
-
     if (!cleanCpf) throw new Error('Para cobranças reais em produção, o CPF é obrigatório.');
+
+    let cleanName = (name || '').trim();
+    if (cleanName && !cleanName.includes(' ')) {
+      cleanName = `${cleanName} Visitante`;
+    }
+    if (!cleanName) cleanName = 'Cliente Balneário Lessa';
+
+    let cleanPhone = phone ? phone.replace(/\D/g, '') : '';
+    if (cleanPhone.length < 10) cleanPhone = '69992222432';
     
     // 2.5 Idempotência: Verificar se já existe um pagamento pendente para este pedido/método (apenas se orderId for UUID válido)
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(orderId || ''));
@@ -136,7 +143,7 @@ Deno.serve(async (req) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'access_token': ASAAS_API_KEY },
         body: JSON.stringify({
-          name: name,
+          name: cleanName,
           cpfCnpj: cleanCpf,
           email: email || 'cliente@balneariolessa.com.br',
           mobilePhone: cleanPhone,
