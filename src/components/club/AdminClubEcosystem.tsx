@@ -11621,7 +11621,30 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
           8. Gerar link para assinatura digital do contrato
           9. Visualizar termos de uso e condições
       ===================================================================== */}
-      {selectedSubForDetail && (
+      {selectedSubForDetail && (() => {
+        const subAttachments = selectedSubForDetail.attachments || [];
+        const memberProofDocsCount = (selectedSubForDetail.members || []).reduce((acc, m) => {
+          let cnt = 0;
+          if (m.documentProofUrl && !subAttachments.some((a) => a.dataUrl === m.documentProofUrl)) {
+            cnt++;
+          }
+          if (Array.isArray(m.attachments)) {
+            cnt += m.attachments.filter(
+              (a) => !subAttachments.some((sa) => sa.id === a.id || (sa.dataUrl && sa.dataUrl === a.dataUrl))
+            ).length;
+          }
+          return acc + cnt;
+        }, 0);
+        const totalAttachmentsCount = subAttachments.length + memberProofDocsCount;
+
+        const pendingDocsToEvaluate = (selectedSubForDetail.members || []).filter((m) => {
+          const rule = getPlanDocumentRule(m.modalityCode, m.modalityName);
+          if (!rule.requiresDocument) return false;
+          const hasProof = memberHasProofUploaded(m, selectedSubForDetail);
+          return hasProof && !m.documentVerified && !m.documentRejectionReason;
+        }).length;
+
+        return (
         <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 p-3 sm:p-6 sm:pr-10 shadow-sm relative space-y-4 sm:space-y-5 overflow-hidden">
               {/* Aba Vertical Lateral Direita: CONTRATO DO CLIENTE (Apenas em telas médias/grandes) */}
               <button
@@ -11754,7 +11777,10 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     <option value="CADASTRAR_CARTAO_PAGTO">💼 2. Ativar no Cartão de Crédito</option>
                     <option value="FINANCEIRO_CLIENTE">💲 Perfil Financeiro ($)</option>
                     <option value="GERAR_CONTRATO">📄 3. Gerar Contrato / Imprimir</option>
-                    <option value="ANEXOS">📎 4. Anexos e Comprovantes</option>
+                    <option value="ANEXOS">
+                      📎 4. Anexos e Comprovantes ({totalAttachmentsCount})
+                      {pendingDocsToEvaluate > 0 ? ` • ⏳ ${pendingDocsToEvaluate} para avaliar` : ''}
+                    </option>
                     <option value="ADICIONAR_DEPENDENTES">👥 5. Adicionar Dependentes</option>
                     <option value="AGENDA_VISITAS">📅 6. Agenda de Visitas</option>
                     <option value="SERVICOS_ADICIONAIS">📋 7. Serviços Adicionais</option>
@@ -11800,8 +11826,9 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                       },
                       {
                         id: 'ANEXOS',
-                        title: '4. Adicionar Anexos (Imagens, Arquivos, PDF, Comprovantes)',
-                        label: `4. Anexos (${(selectedSubForDetail.attachments || []).length})`,
+                        title: '4. Adicionar Anexos e Validar Comprovações Documentais (Imagens, Arquivos, PDF, Comprovantes)',
+                        label: `4. Anexos (${totalAttachmentsCount})`,
+                        pendingCount: pendingDocsToEvaluate,
                         icon: Paperclip,
                       },
                       {
@@ -11844,6 +11871,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   ).map((btn) => {
                     const IconComp = btn.icon;
                     const isActive = clientDetailTool === btn.id;
+                    const pendingCount = 'pendingCount' in btn ? ((btn as any).pendingCount as number) : 0;
                     return (
                       <button
                         key={btn.id}
@@ -11858,6 +11886,17 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                       >
                         <IconComp className="w-4 h-4 shrink-0" />
                         <span>{btn.label}</span>
+                        {pendingCount > 0 && (
+                          <span
+                            className={`ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-black shadow-sm ${
+                              isActive
+                                ? 'bg-amber-400 text-amber-950'
+                                : 'bg-amber-300 text-amber-950 animate-pulse'
+                            }`}
+                          >
+                            {pendingCount} para avaliar
+                          </span>
+                        )}
                       </button>
                     );
                   })}
@@ -11999,20 +12038,26 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     </div>
                   </div>
 
-                  {/* PAINEL DE COMPROVAÇÃO DOCUMENTAL OBRIGATÓRIA (TITULAR E DEPENDENTES) */}
-                  <ClubDocumentVerificationPanel
-                    subscription={selectedSubForDetail}
-                    onUpdateSub={(updatedSub) => {
-                      setSelectedSubForDetail(updatedSub);
-                      setState((prevState) => ({
-                        ...prevState,
-                        subscriptions: (prevState.subscriptions || []).map((s) =>
-                          s.id === updatedSub.id ? updatedSub : s
-                        ),
-                      }));
-                    }}
-                    onPreviewAttachment={(att) => setPreviewAttachment(att)}
-                  />
+                  {/* ALERTA DISCRETO DE DOCUMENTOS PENDENTES (MANTÉM O FORMULÁRIO DE DADOS PESSOAIS LIMPO) */}
+                  {pendingDocsToEvaluate > 0 && (
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-3 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 text-xs shadow-sm">
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                        <span>
+                          <strong>{pendingDocsToEvaluate} documento(s) com anexo</strong> aguardando validação do administrador. A comprovação obrigatória foi centralizada na aba de Anexos para manter este formulário limpo.
+                        </span>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => setClientDetailTool('ANEXOS')}
+                        className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs h-7 px-3 w-full sm:w-auto shrink-0 shadow-sm"
+                      >
+                        <Paperclip className="w-3.5 h-3.5 mr-1" />
+                        Avaliar em 4. Anexos ({totalAttachmentsCount})
+                      </Button>
+                    </div>
+                  )}
 
                   {/* DADOS PESSOAIS */}
                   <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
@@ -17786,7 +17831,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
             </DialogContent>
           </Dialog>
         </div>
-      )}
+        );
+      })()}
 
       {/* =====================================================================
           MODAL: GERAR LINK DE CADASTRO PRÉ-PAGO (SEM PAGAMENTO NO FINAL)
