@@ -15,7 +15,7 @@ const DEFAULT_SERVICES: ServiceItem[] = [
   { id: '4', name: 'Quadriciclo Individual', type: 'quad_individual', base_price: 130 },
   { id: '5', name: 'Quadriciclo Dupla', type: 'quad_dupla', base_price: 195 },
   { id: '6', name: 'Futebol de Sabão', type: 'add_futebol-sabao', base_price: 10 },
-  { id: '7', name: 'Pesca Esportiva', type: 'add_pesca', base_price: 15 },
+  { id: '7', name: 'Pesca Esportiva', type: 'add_pesca', base_price: 20 },
 ];
 
 export function useServices() {
@@ -49,6 +49,9 @@ export function useServices() {
   const getPrice = (type: string, fallbackPrice: number = 0): number => {
     if (type === 'add_futebol-sabao' || type === 'futebol-sabao') {
       return 10;
+    }
+    if (type === 'add_pesca' || type === 'pesca') {
+      return 20;
     }
     const currentServices = services || DEFAULT_SERVICES;
     const service = currentServices.find((s) => s.type === type);

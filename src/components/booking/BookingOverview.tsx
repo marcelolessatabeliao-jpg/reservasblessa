@@ -1,4 +1,4 @@
-import { MessageCircle, CheckCircle, Loader2, ArrowRight, User, CreditCard, QrCode, Copy, Sparkles, Phone, X, ArrowLeft, Calendar, FileText, ShieldCheck, AlertCircle, Lock } from 'lucide-react';
+import { MessageCircle, CheckCircle, Loader2, ArrowRight, User, CreditCard, QrCode, Copy, Sparkles, Phone, X, ArrowLeft, Calendar, FileText, ShieldCheck, AlertCircle, Lock, ExternalLink } from 'lucide-react';
 import { isValidCPF } from '@/utils/cpf-validator';
 import { Link } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
@@ -91,6 +91,17 @@ export function BookingOverview({
   const [actionError, setActionError] = useState<string | null>(null);
   const { getPrice } = useServices();
   const { toast } = useToast();
+
+  // Travar a rolagem da página de fundo quando o modal de cartão estiver aberto
+  useEffect(() => {
+    if (showCardModal) {
+      const orig = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = orig;
+      };
+    }
+  }, [showCardModal]);
 
   const formatCpfMask = (val: string): string => {
     const digits = (val || '').replace(/\D/g, '').slice(0, 11);
@@ -1283,7 +1294,7 @@ export function BookingOverview({
         )}>
           <div className="flex items-center justify-between">
             <h4 className="text-xs font-black text-emerald-950 uppercase tracking-widest flex items-center gap-2">
-              <User className="h-4 w-4 text-emerald-700" /> CPF do Responsável (Obrigatório para emissão do PIX)
+              <User className="h-4 w-4 text-emerald-700" /> CPF do Responsável (Obrigatório para PIX e Cartão)
             </h4>
             {booking.entry.name && (
               <span className="text-[11px] font-bold text-slate-500">
@@ -1310,7 +1321,7 @@ export function BookingOverview({
             />
             {cpfError && (
               <p className="text-[11px] font-bold text-rose-600 flex items-center gap-1 animate-pulse">
-                ⚠️ Por favor, informe um CPF válido com 11 dígitos para gerar o código PIX registrado.
+                ⚠️ Por favor, informe um CPF válido com 11 dígitos para processar o pagamento registrado.
               </p>
             )}
           </div>
@@ -1518,6 +1529,22 @@ export function BookingOverview({
                       <Button
                         size="lg"
                         onClick={() => {
+                          if (!booking.entry.cpf || !isValidCPF(booking.entry.cpf)) {
+                            setCpfError(true);
+                            const cpfEl = document.getElementById('booking-cpf-input');
+                            if (cpfEl) {
+                              cpfEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                              cpfEl.focus();
+                            }
+                            toast({
+                              title: !booking.entry.cpf ? 'CPF Obrigatório' : 'CPF Inválido',
+                              description: 'Informe um CPF válido com 11 dígitos antes de prosseguir para o pagamento com cartão.',
+                              variant: 'destructive',
+                            });
+                            return;
+                          }
+                          setCpfError(false);
+
                           if (hasSelectedChaleBooking && !isChaleTermsAccepted) {
                             handleAction('CREDIT_CARD', 1);
                             return;
@@ -1563,8 +1590,8 @@ export function BookingOverview({
 
                     {/* MODAL CHECKOUT TRANSPARENTE: CARTÃO DE CRÉDITO E DÉBITO */}
                     {showCardModal && (
-                      <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-                        <div className="bg-white rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl border-2 border-emerald-600 space-y-4 my-auto animate-in fade-in zoom-in-95 max-h-[92vh] overflow-y-auto">
+                      <div className="fixed inset-0 z-[99999] bg-black/85 backdrop-blur-md flex justify-center items-start sm:items-center overflow-y-auto p-2 sm:p-4 overscroll-contain">
+                        <div className="bg-white rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl border-2 border-emerald-600 space-y-4 my-3 sm:my-auto animate-in fade-in zoom-in-95 max-h-[92vh] overflow-y-auto overscroll-contain">
                           {/* Top Header */}
                           <div className="flex items-center justify-between border-b border-slate-200 pb-3">
                             <div className="flex items-center gap-2.5">
@@ -1610,7 +1637,7 @@ export function BookingOverview({
                           </div>
 
                           {/* Seletor de Tipo de Cartão: Crédito vs Débito */}
-                          <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-2xl">
+                          <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
                             <button
                               type="button"
                               onClick={() => {
@@ -1620,11 +1647,11 @@ export function BookingOverview({
                               className={cn(
                                 "py-2.5 px-3 rounded-xl font-black text-xs uppercase transition-all flex items-center justify-center gap-1.5 cursor-pointer",
                                 cardBillingType === 'CREDIT_CARD'
-                                  ? "bg-white text-emerald-950 shadow-sm border border-slate-200"
-                                  : "text-slate-600 hover:text-slate-900"
+                                  ? "bg-emerald-950 text-white shadow-md ring-2 ring-emerald-500"
+                                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
                               )}
                             >
-                              <CreditCard className="w-3.5 h-3.5 text-emerald-700" />
+                              <CreditCard className="w-3.5 h-3.5 text-amber-400" />
                               Crédito (até 12x)
                             </button>
                             <button
@@ -1637,11 +1664,11 @@ export function BookingOverview({
                               className={cn(
                                 "py-2.5 px-3 rounded-xl font-black text-xs uppercase transition-all flex items-center justify-center gap-1.5 cursor-pointer",
                                 cardBillingType === 'DEBIT_CARD'
-                                  ? "bg-white text-emerald-950 shadow-sm border border-slate-200"
-                                  : "text-slate-600 hover:text-slate-900"
+                                  ? "bg-emerald-950 text-white shadow-md ring-2 ring-emerald-500"
+                                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
                               )}
                             >
-                              <CreditCard className="w-3.5 h-3.5 text-emerald-700" />
+                              <CreditCard className="w-3.5 h-3.5 text-amber-400" />
                               Débito (à vista)
                             </button>
                           </div>
@@ -1862,6 +1889,25 @@ export function BookingOverview({
                               )}
                             </Button>
 
+                            <div className="relative flex py-1 items-center">
+                              <div className="flex-grow border-t border-slate-200" />
+                              <span className="flex-shrink mx-3 text-[10px] font-black text-slate-400 uppercase tracking-wider">ou pague com autenticação bancária</span>
+                              <div className="flex-grow border-t border-slate-200" />
+                            </div>
+
+                            <Button
+                              type="button"
+                              disabled={saving}
+                              onClick={async () => {
+                                await handleAction(cardBillingType, cardBillingType === 'CREDIT_CARD' ? selectedInstallments : 1);
+                              }}
+                              variant="outline"
+                              className="w-full h-11 rounded-xl border-2 border-emerald-700 bg-emerald-50/60 hover:bg-emerald-100/80 text-emerald-950 font-black text-xs uppercase flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-all"
+                            >
+                              <ExternalLink className="w-4 h-4 text-emerald-800" />
+                              <span>Pagar na Página Oficial do Asaas ↗</span>
+                            </Button>
+
                             <Button
                               type="button"
                               variant="ghost"
@@ -1892,20 +1938,20 @@ export function BookingOverview({
                 id="pix-copia-cola-box"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white rounded-[2rem] border-2 border-[#00bdae] p-6 space-y-4 shadow-lg w-full"
+                className="bg-white rounded-[2rem] border-2 border-emerald-600 p-5 sm:p-6 space-y-4 shadow-xl w-full"
               >
                 <div className="text-center space-y-2">
-                   <h4 className="text-[#00bdae] font-black text-lg uppercase tracking-wider">PIX Copia e Cola Gerado!</h4>
-                   <p className="text-xs text-muted-foreground font-medium">Escaneie o QR Code ou use o botão abaixo:</p>
+                   <h4 className="text-emerald-950 font-black text-lg uppercase tracking-wider">PIX Copia e Cola Gerado!</h4>
+                   <p className="text-xs text-muted-foreground font-medium">Escaneie o QR Code ou use o botão abaixo para pagar:</p>
                    
-                   <div className="bg-amber-100/50 border border-amber-200 rounded-xl p-2.5">
-                      <p className="text-[10px] text-amber-800 leading-tight font-bold">
-                        ⚠️ Aviso Importante. Sua reserva SÓ SERÁ GARANTIDA após a confirmação do pagamento. O QR Code expira e a sua reserva pode ser ocupada por outro cliente se não for pago agora.
+                   <div className="bg-amber-100/60 border border-amber-300 rounded-xl p-2.5">
+                      <p className="text-[10.5px] text-amber-900 leading-tight font-bold">
+                        ⚠️ Aviso Importante: Sua reserva SÓ SERÁ GARANTIDA após a confirmação do pagamento. Efetue o pagamento agora para garantir sua vaga.
                       </p>
                    </div>
                 </div>
                 
-                <div className="flex justify-center bg-white p-4 rounded-3xl border border-primary/5 shadow-inner">
+                <div className="flex justify-center bg-white p-4 rounded-3xl border border-emerald-100 shadow-inner">
                    <img 
                      src={`data:image/png;base64,${pixData.encodedImage}`} 
                      alt="QR Code PIX" 
@@ -1914,40 +1960,46 @@ export function BookingOverview({
                 </div>
 
                 <div className="space-y-3">
-                  <div className="bg-amber-50 border border-amber-300 rounded-2xl p-3 text-center space-y-1 shadow-xs">
-                    <p className="text-xs font-black text-amber-950 uppercase flex items-center justify-center gap-1.5">
-                      📱 Está pagando pelo celular?
-                    </p>
-                    <p className="text-[11.5px] text-amber-900 font-medium leading-snug">
-                      1. Clique no botão abaixo <strong>"Copiar Código PIX"</strong>.<br />
-                      2. Abra o aplicativo do seu banco e escolha <strong>"Pix Copia e Cola"</strong>.<br />
-                      3. Cole o código e confirme o pagamento.
-                    </p>
+                  {/* Card Único e Limpo de Instruções Passo a Passo */}
+                  <div className="bg-emerald-50/90 border-2 border-emerald-300 rounded-2xl p-4 text-left space-y-2 shadow-xs">
+                    <div className="flex items-center gap-2 text-emerald-950 font-black text-xs uppercase tracking-tight">
+                      <span className="text-base">📱</span>
+                      <span>Passo a passo para pagar e garantir sua vaga:</span>
+                    </div>
+                    <ol className="text-xs text-emerald-950 font-medium space-y-2 list-decimal list-inside leading-relaxed pl-1">
+                      <li>Clique no botão abaixo <strong>"Copiar Código PIX"</strong>.</li>
+                      <li>Abra o aplicativo do seu banco, escolha <strong>Pix Copia e Cola</strong> e conclua o pagamento.</li>
+                      <li>Após pagar, esta página <strong>confirma automaticamente em poucos segundos</strong> e libera seu Voucher oficial.</li>
+                      <li>Se a página fechar, consulte a qualquer momento no menu <strong>Consultar Reserva</strong> no topo do site usando seu WhatsApp ou CPF.</li>
+                    </ol>
                   </div>
 
+                  {/* Botão Copiar PIX com Alto Contraste (Verde Floresta Escuro com Texto Branco e Ícone Dourado) */}
                   <Button 
                     onClick={handleCopyPix}
                     className={cn(
-                      "w-full h-14 rounded-2xl font-black text-base flex items-center justify-center gap-2 transition-all shadow-md",
-                      copied ? "bg-green-600 hover:bg-green-700 text-white" : "bg-[#00bdae] hover:bg-[#009b8f] text-white"
+                      "w-full h-14 rounded-2xl font-black text-sm uppercase tracking-wide flex items-center justify-center gap-2.5 transition-all shadow-lg active:scale-[0.98] cursor-pointer",
+                      copied
+                        ? "bg-emerald-700 hover:bg-emerald-800 text-white border-2 border-emerald-500" 
+                        : "bg-[#064e3b] hover:bg-[#022c22] text-white border-2 border-emerald-600 shadow-emerald-950/20"
                     )}
                   >
-                    {copied ? <CheckCircle className="h-5 w-5" /> : <Copy className="h-5 w-5" />}
-                    {copied ? 'Código PIX Copiado!' : 'Copiar Código PIX (Copia e Cola)'}
+                    {copied ? <CheckCircle className="h-5 w-5 text-amber-300" /> : <Copy className="h-5 w-5 text-amber-400" />}
+                    <span>{copied ? 'Código PIX Copiado com Sucesso!' : 'Copiar Código PIX (Copia e Cola)'}</span>
                   </Button>
 
-                  {/* Card de Orientação de Consulta */}
-                  <div className="bg-emerald-50 border-2 border-emerald-300/80 rounded-2xl p-4 text-left space-y-2 shadow-xs">
-                    <div className="flex items-center gap-2 text-emerald-950 font-black text-xs uppercase tracking-tight">
-                      <span className="text-base">💡</span>
-                      <span>Como acompanhar seu agendamento:</span>
-                    </div>
-                    <ol className="text-[11px] text-emerald-950 font-medium space-y-1.5 list-decimal list-inside leading-relaxed pl-1">
-                      <li>Copie o código acima e pague no app do seu banco via <strong>PIX Copia e Cola</strong>.</li>
-                      <li>Ao retornar para esta página, ela <strong>confirma automaticamente</strong> em segundos.</li>
-                      <li>Se a página fechar, consulte a qualquer momento no menu <strong className="text-emerald-800 underline">Consultar Reserva</strong> no topo do site usando seu <strong>WhatsApp</strong> ou <strong>CPF</strong> para ver seu Voucher com QR Code.</li>
-                    </ol>
-                  </div>
+                  {/* NOVO: Botão para Mudar Forma de Pagamento para Cartão */}
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setPixData(null);
+                      setShowCardModal(true);
+                    }}
+                    className="w-full h-12 rounded-xl bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md cursor-pointer transition-all border border-amber-500"
+                  >
+                    <CreditCard className="w-4 h-4 text-slate-950" />
+                    <span>Mudar Pagamento para Cartão (Crédito ou Débito)</span>
+                  </Button>
 
                   {/* Botão de Enviar Dados para o WhatsApp */}
                   {booking.entry.phone && (
@@ -1961,10 +2013,10 @@ export function BookingOverview({
                         const msg = `*Reserva Balneário Lessa*\n\nOlá, ${booking.entry.name || 'Cliente'}!\n\nSegue seu código PIX para pagamento da reserva:\n\n*PIX Copia e Cola:*\n${pixData.payload}\n${termsNote}\n*Acompanhar / Acessar Voucher e Termos:*\nConsulte a qualquer momento em: https://reservas.balneariolessa.com.br/consultar informando seu WhatsApp (${booking.entry.phone}).\n\n_Aguardamos você para um dia incrível de lazer na natureza!_`;
                         window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(msg)}`, '_blank');
                       }}
-                      className="w-full h-12 flex items-center justify-center gap-2 font-black text-xs sm:text-sm rounded-xl bg-[#25D366] hover:bg-[#128C7E] text-white shadow-md transition-all active:scale-[0.98]"
+                      className="w-full h-12 flex items-center justify-center gap-2 font-black text-xs sm:text-sm rounded-xl bg-[#075E54] hover:bg-[#05463e] text-white shadow-md transition-all active:scale-[0.98] border border-emerald-600/50 cursor-pointer"
                     >
-                      <MessageCircle className="h-5 w-5" />
-                      Salvar / Enviar Dados e Comprovante dos Termos no WhatsApp
+                      <MessageCircle className="h-5 w-5 text-emerald-300" />
+                      <span>Salvar / Enviar Dados no WhatsApp</span>
                     </Button>
                   )}
                   
@@ -1974,7 +2026,7 @@ export function BookingOverview({
                     onClick={() => {
                         setPaymentData({ open: true, orderId: persistedOrderId!, confirmationCode: persistedConfirmationCode || undefined });
                     }}
-                    className="w-full text-xs font-bold text-muted-foreground uppercase"
+                    className="w-full text-xs font-bold text-slate-600 hover:text-slate-900 uppercase cursor-pointer"
                   >
                     Já paguei, ver meu voucher
                   </Button>
