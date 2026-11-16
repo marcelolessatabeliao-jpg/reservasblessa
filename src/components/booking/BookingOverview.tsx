@@ -77,8 +77,17 @@ export function BookingOverview({
   const [chaleTermsAcceptedAt, setChaleTermsAcceptedAt] = useState<Date | null>(null);
   const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
   const [termsErrorHighlight, setTermsErrorHighlight] = useState(false);
+  const [cpfError, setCpfError] = useState(false);
   const { getPrice } = useServices();
   const { toast } = useToast();
+
+  const formatCpfMask = (val: string): string => {
+    const digits = (val || '').replace(/\D/g, '').slice(0, 11);
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
+    if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
+    return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
+  };
 
   const hasSelectedChaleBooking = Boolean(
     booking.chale &&
@@ -187,13 +196,20 @@ export function BookingOverview({
     );
 
     if (!booking.entry.cpf || !isValidCPF(booking.entry.cpf)) {
+       setCpfError(true);
+       const cpfEl = document.getElementById('booking-cpf-input');
+       if (cpfEl) {
+         cpfEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+         cpfEl.focus();
+       }
        toast({
-         title: !booking.entry.cpf ? 'CPF Obrigatório' : 'CPF INVÁLIDO',
-         description: 'Um CPF válido é necessário para sua reserva (inclusive pagamento no local).',
+         title: !booking.entry.cpf ? 'CPF Obrigatório para o PIX' : 'CPF Inválido',
+         description: 'O Banco Central e o sistema bancário exigem um CPF válido para registrar e gerar o código PIX.',
          variant: 'destructive'
        });
        return;
     }
+    setCpfError(false);
 
     if (!booking.entry.visitDate) {
       toast({
@@ -1110,10 +1126,13 @@ export function BookingOverview({
         })()}
 
         {/* Seção de Dados do Pagador */}
-        <div className="bg-white p-4 sm:p-5 rounded-2xl border-2 border-emerald-100 shadow-sm space-y-2">
+        <div className={cn(
+          "bg-white p-4 sm:p-5 rounded-2xl border-2 shadow-sm space-y-2 transition-all",
+          cpfError ? "border-rose-500 ring-2 ring-rose-200 bg-rose-50/30" : "border-emerald-100"
+        )}>
           <div className="flex items-center justify-between">
             <h4 className="text-xs font-black text-emerald-950 uppercase tracking-widest flex items-center gap-2">
-              <User className="h-4 w-4 text-emerald-700" /> CPF do Responsável (para PIX / Reserva)
+              <User className="h-4 w-4 text-emerald-700" /> CPF do Responsável (Obrigatório para emissão do PIX)
             </h4>
             {booking.entry.name && (
               <span className="text-[11px] font-bold text-slate-500">
@@ -1123,14 +1142,26 @@ export function BookingOverview({
           </div>
           <div className="space-y-1">
             <Input
-              value={booking.entry.cpf || ''}
+              id="booking-cpf-input"
+              value={formatCpfMask(booking.entry.cpf || '')}
               onChange={(e) => {
                 const val = e.target.value.replace(/\D/g, '').slice(0, 11);
+                setCpfError(false);
                 updateEntry?.({ cpf: val });
               }}
-              placeholder="000.000.000-00 (apenas números)"
-              className="rounded-xl border-2 border-slate-200 hover:border-emerald-400 focus-visible:border-emerald-600 focus-visible:ring-emerald-600 h-11 font-bold text-slate-800 text-sm shadow-xs transition-all"
+              placeholder="000.000.000-00 (digite seu CPF)"
+              className={cn(
+                "rounded-xl border-2 h-11 font-bold text-slate-800 text-sm shadow-xs transition-all",
+                cpfError 
+                  ? "border-rose-500 focus-visible:border-rose-600 focus-visible:ring-rose-600 bg-white" 
+                  : "border-slate-200 hover:border-emerald-400 focus-visible:border-emerald-600 focus-visible:ring-emerald-600"
+              )}
             />
+            {cpfError && (
+              <p className="text-[11px] font-bold text-rose-600 flex items-center gap-1 animate-pulse">
+                ⚠️ Por favor, informe um CPF válido com 11 dígitos para gerar o código PIX registrado.
+              </p>
+            )}
           </div>
         </div>
 
@@ -1448,6 +1479,17 @@ export function BookingOverview({
                 </div>
 
                 <div className="space-y-3">
+                  <div className="bg-amber-50 border border-amber-300 rounded-2xl p-3 text-center space-y-1 shadow-xs">
+                    <p className="text-xs font-black text-amber-950 uppercase flex items-center justify-center gap-1.5">
+                      📱 Está pagando pelo celular?
+                    </p>
+                    <p className="text-[11.5px] text-amber-900 font-medium leading-snug">
+                      1. Clique no botão abaixo <strong>"Copiar Código PIX"</strong>.<br />
+                      2. Abra o aplicativo do seu banco e escolha <strong>"Pix Copia e Cola"</strong>.<br />
+                      3. Cole o código e confirme o pagamento.
+                    </p>
+                  </div>
+
                   <Button 
                     onClick={handleCopyPix}
                     className={cn(
@@ -1456,7 +1498,7 @@ export function BookingOverview({
                     )}
                   >
                     {copied ? <CheckCircle className="h-5 w-5" /> : <Copy className="h-5 w-5" />}
-                    {copied ? 'Código PIX Copiado!' : 'Copiar Código PIX'}
+                    {copied ? 'Código PIX Copiado!' : 'Copiar Código PIX (Copia e Cola)'}
                   </Button>
 
                   {/* Card de Orientação de Consulta */}
