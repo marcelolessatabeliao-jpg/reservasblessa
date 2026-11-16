@@ -446,6 +446,28 @@ const syncQuadsForOrder = async (orderId: string) => {
   }
 };
 
+const ADMIN_CACHE_KEY = 'balneario_admin_reservations_cache_v1';
+
+const loadAdminCache = () => {
+  try {
+    const raw = typeof window !== 'undefined' ? localStorage.getItem(ADMIN_CACHE_KEY) : null;
+    if (raw) return JSON.parse(raw);
+  } catch (err) {
+    console.warn('[Admin] Erro ao carregar cache local:', err);
+  }
+  return null;
+};
+
+const saveAdminCache = (data: any) => {
+  try {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(ADMIN_CACHE_KEY, JSON.stringify(data));
+    }
+  } catch (err) {
+    console.warn('[Admin] Erro ao salvar cache local:', err);
+  }
+};
+
 export default function Admin() {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('admin_token'));
   const [activeTab, setActiveTab] = useState<TabType>('painel');
@@ -595,11 +617,14 @@ export default function Admin() {
   const { toast } = useToast();
 
   // Data States
-  const [bookings, setBookings] = useState<any[]>([]);
-  const [kioskReservations, setKioskReservations] = useState<any[]>([]);
-  const [quadReservations, setQuadReservations] = useState<any[]>([]);
-  const [orders, setOrders] = useState<any[]>([]);
-  const [credits, setCredits] = useState<any[]>([]);
+  const initialCache = useMemo(() => loadAdminCache(), []);
+  const [bookings, setBookings] = useState<any[]>(() => initialCache?.bookings || []);
+  const [kioskReservations, setKioskReservations] = useState<any[]>(() => initialCache?.kioskReservations || []);
+  const [quadReservations, setQuadReservations] = useState<any[]>(() => initialCache?.quadReservations || []);
+  const [orders, setOrders] = useState<any[]>(() => initialCache?.orders || []);
+  const [credits, setCredits] = useState<any[]>(() => initialCache?.credits || []);
+  const [dbConnectionError, setDbConnectionError] = useState<string | null>(null);
+  const [isUsingCachedData, setIsUsingCachedData] = useState<boolean>(() => !!(initialCache?.orders?.length || initialCache?.bookings?.length));
 
   const agendaMovementsCount = useMemo(() => {
     const seenIds = getSeenReservationIds();
@@ -717,6 +742,12 @@ export default function Admin() {
   const fetchData = useCallback(async (isBackground: boolean | unknown = false) => {
     const silent = isBackground === true;
     if (!silent) setLoading(true);
+
+    const abortController = new AbortController();
+    const abortTimeout = setTimeout(() => {
+      try { abortController.abort(); } catch (_) {}
+    }, 15000);
+
     try {
       const [
         orderDataRes,
@@ -725,14 +756,15 @@ export default function Admin() {
         quadsRes,
         credsRes,
       ] = await Promise.allSettled([
-        getAdminOrders(),
-        supabase.from('bookings').select('*').order('visit_date', { ascending: false }),
-        (supabase.from('kiosk_reservations') as any)
+        getAdminOrders(abortController.signal),
+        ((supabase.from('bookings').select('*').order('visit_date', { ascending: false }) as any).abortSignal?.(abortController.signal) ||
+          supabase.from('bookings').select('*').order('visit_date', { ascending: false })),
+        ((supabase.from('kiosk_reservations') as any)
           .select('*, orders(customer_name, status), bookings(name)')
-          .order('reservation_date', { ascending: false }),
-        (supabase.from('quad_reservations') as any)
+          .order('reservation_date', { ascending: false })),
+        ((supabase.from('quad_reservations') as any)
           .select('*, orders(customer_name, status), bookings(name)')
-          .order('reservation_date', { ascending: false }),
+          .order('reservation_date', { ascending: false })),
         supabase.from('internal_credits').select('*').order('created_at', { ascending: false }),
       ]);
 
@@ -751,14 +783,14 @@ export default function Admin() {
         credsRes.status === 'fulfilled' && !credsRes.value.error ? credsRes.value.data : [];
 
       if (
-        orderDataRes.status === 'rejected' &&
-        (bksRes.status === 'rejected' || bksRes.value?.error)
+        (orderDataRes.status === 'rejected' && (bksRes.status === 'rejected' || bksRes.value?.error)) ||
+        (orderDataRes.status === 'rejected' && (!orderData || orderData.length === 0) && (!bks || bks.length === 0))
       ) {
         throw new Error(
           (orderDataRes.reason as any)?.message ||
             (bksRes.status === 'fulfilled'
               ? bksRes.value?.error?.message
-              : 'Falha de conexão com o banco')
+              : 'Falha de conexão com o banco de dados (Supabase temporariamente indisponível).')
         );
       }
 
@@ -1073,17 +1105,45 @@ export default function Admin() {
       setTotals({ adults: tAdults, children: tChildren });
       setLastSync(new Date());
 
+      // Atualiza o cache local para contingência offline
+      saveAdminCache({
+        bookings: flattenedBks,
+        kioskReservations: parsedKiosks,
+        quadReservations: parsedQuads,
+        orders: orderData || [],
+        credits: creds || [],
+        totals: { adults: tAdults, children: tChildren },
+        savedAt: new Date().toISOString()
+      });
+      setDbConnectionError(null);
+      setIsUsingCachedData(false);
+
     } catch (err: any) {
       console.error('[Admin] Erro ao carregar dados:', err);
       const isAbort = err?.name === 'AbortError' || String(err?.message || '').includes('aborted');
+      setDbConnectionError(err?.message || 'Falha de comunicação com o Supabase');
+
+      // Contingência: se a memória estava vazia, restaura do cache local para não mostrar tela em branco
+      const cached = loadAdminCache();
+      if (cached) {
+        setIsUsingCachedData(true);
+        setBookings(prev => prev.length > 0 ? prev : (cached.bookings || []));
+        setKioskReservations(prev => prev.length > 0 ? prev : (cached.kioskReservations || []));
+        setQuadReservations(prev => prev.length > 0 ? prev : (cached.quadReservations || []));
+        setOrders(prev => prev.length > 0 ? prev : (cached.orders || []));
+        setCredits(prev => prev.length > 0 ? prev : (cached.credits || []));
+        if (cached.totals) setTotals(cached.totals);
+      }
+
       if (isBackground !== true && !isAbort) {
         toast({
-          title: "Erro ao carregar dados",
-          description: err?.message || "Verifique sua conexão e tente atualizar.",
+          title: "Erro ao conectar com o banco",
+          description: "O Supabase está temporariamente reiniciando ou offline. Exibindo dados locais seguros.",
           variant: "destructive",
         });
       }
     } finally {
+      clearTimeout(abortTimeout);
       if (isBackground !== true) setLoading(false);
     }
   }, [toast]);
@@ -3175,6 +3235,34 @@ export default function Admin() {
                   </div>
               </div>
           </div>
+
+          {/* BANNER DE CONTINGÊNCIA / ALERTA DE STATUS DO SUPABASE */}
+          {dbConnectionError && (
+            <div className="bg-amber-950/80 border border-amber-500/50 text-amber-200 px-4 py-3 rounded-2xl mb-6 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-2xl backdrop-blur-md animate-in fade-in duration-300">
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="h-6 w-6 text-amber-400 shrink-0 animate-pulse" />
+                <div>
+                  <p className="font-bold text-sm sm:text-base text-amber-300">
+                    Supabase temporariamente instável ou reiniciando
+                  </p>
+                  <p className="text-xs text-amber-200/80">
+                    {isUsingCachedData 
+                      ? "Exibindo os dados salvos em cache local. Suas reservas NÃO foram perdidas! O Supabase pode levar até 5 minutos para restaurar." 
+                      : "O banco de dados está inicializando os serviços. Aguarde alguns instantes e tente reconectar."}
+                  </p>
+                </div>
+              </div>
+              <Button 
+                onClick={() => fetchData()}
+                disabled={loading}
+                className="bg-amber-500 hover:bg-amber-400 text-stone-950 font-black text-xs px-4 py-2 rounded-xl shadow-lg shrink-0"
+              >
+                {loading ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <RefreshCw className="w-4 h-4 mr-1.5" />}
+                Tentar Reconectar
+              </Button>
+            </div>
+          )}
+
            <div className="flex flex-col lg:flex-row lg:items-center p-2 bg-emerald-950/60 backdrop-blur-xl rounded-2xl md:rounded-3xl w-full border border-white/20 shadow-premium mb-6 gap-3">
               {/* TABS CONTAINER — grade 4x2 no mobile, linha no desktop */}
               <div className="grid grid-cols-4 lg:flex lg:flex-nowrap items-center gap-1.5 w-full lg:w-auto p-1">

@@ -187,8 +187,8 @@ export async function generateVoucher(orderId: string) {
 /**
  * Fetches all orders with their vouchers and items for Admin display.
  */
-export async function getAdminOrders() {
-  const { data, error } = await (supabase
+export async function getAdminOrders(signal?: AbortSignal) {
+  let query = (supabase
     .from('orders') as any)
     .select(`
       *,
@@ -198,6 +198,12 @@ export async function getAdminOrders() {
       quad_reservations (*)
     `)
     .order('created_at', { ascending: false });
+
+  if (signal && typeof query.abortSignal === 'function') {
+    query = query.abortSignal(signal);
+  }
+
+  const { data, error } = await query;
 
   if (error) throw error;
   return data;
