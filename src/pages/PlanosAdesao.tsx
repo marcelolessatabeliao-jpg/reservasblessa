@@ -264,6 +264,9 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
   const urlRefParam = searchParams.get('ref') || searchParams.get('c') || '';
   const urlConsultorParam = searchParams.get('consultor') || '';
   const urlPlan = searchParams.get('plano');
+  const urlTitular = searchParams.get('titular');
+  const urlDeps = searchParams.get('deps') || searchParams.get('dependentes');
+  const urlStep = searchParams.get('step');
   const urlCycleParam = searchParams.get('ciclo') || searchParams.get('cycle') || '';
 
   // Detecta se é um link de cadastro pré-pago (já pago no balcão/pessoalmente)
@@ -399,11 +402,12 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
   useEffect(() => {
     fetchClubState().then((loaded) => {
       setState(loaded);
-      if (urlPlan && loaded?.modalities) {
+      const targetPlan = urlTitular || urlPlan;
+      if (targetPlan && loaded?.modalities) {
         const mod = loaded.modalities.find(
           (m) =>
-            m.code.toLowerCase() === urlPlan.trim().toLowerCase() ||
-            m.id.toLowerCase() === urlPlan.trim().toLowerCase()
+            m.code.toLowerCase() === targetPlan.trim().toLowerCase() ||
+            m.id.toLowerCase() === targetPlan.trim().toLowerCase()
         );
         if (mod) {
           setHolderModalityCode(mod.code);
@@ -417,7 +421,45 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
       if (c === 'ANNUAL' || c === 'ANUAL') setBillingCycle('ANNUAL');
       if (c === 'MONTHLY' || c === 'MENSAL') setBillingCycle('MONTHLY');
     }
-  }, [urlPlan, urlCycleParam]);
+
+    // Processamento de dependentes pré-selecionados via URL (ex: deps=KIDS:2,ESTUDANTE:1 ou deps=KIDS,ESTUDANTE)
+    if (urlDeps) {
+      const depDrafts: DependentDraft[] = [];
+      const parts = urlDeps.split(',');
+      let idx = 0;
+      parts.forEach((part) => {
+        const sub = part.trim().split(':');
+        const code = (sub[0] || '').trim().toUpperCase();
+        const qty = sub.length > 1 ? parseInt(sub[1], 10) || 1 : 1;
+        if (code) {
+          for (let i = 0; i < qty; i++) {
+            idx++;
+            depDrafts.push({
+              id: `dep-${Date.now()}-${idx}`,
+              modalityCode: code,
+              fullName: '',
+              cpf: '',
+              birthDate: '',
+              sex: '',
+              kinship: code === 'KIDS' ? 'Filho(a)' : 'Dependente',
+            });
+          }
+        }
+      });
+      if (depDrafts.length > 0) {
+        setDependentsDraft(depDrafts);
+      }
+    }
+
+    // Se for link de cadastro pré-pago (já pago no balcão) ou se indicado step=2, avança DIRETO para o preenchimento de dados!
+    if (isPrePaid || urlStep === '2') {
+      const targetPlan = urlTitular || urlPlan;
+      if (targetPlan) {
+        setHolderModalityCode(targetPlan.trim().toUpperCase());
+      }
+      setStep(2);
+    }
+  }, [urlPlan, urlTitular, urlDeps, urlStep, urlCycleParam, isPrePaid]);
 
   // Sempre garante lista de modalidades (mesmo antes do fetch terminar)
   // Se o consultor/influencer possuir permissão específica de planos configurada, exibe ESTRITAMENTE apenas os liberados para ele
@@ -2178,13 +2220,26 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                   Total do Plano ({pricingSummary.totalPeople}{' '}
                   {pricingSummary.totalPeople === 1 ? 'pessoa' : 'pessoas'})
                 </span>
-                <span className="text-xl font-black text-white">
-                  {formatCurrency(pricingSummary.totalMonthlyEquivalent)}/mês
-                </span>
-                {billingCycle === 'ANNUAL' && pricingSummary.totalContractValue > 0 && (
-                  <span className="block text-[10px] text-emerald-300 font-semibold">
-                    Total Anual: {formatCurrency(pricingSummary.totalContractValue)} (em até 12x)
-                  </span>
+                {isPrePaid ? (
+                  <>
+                    <span className="text-xl font-black text-amber-300">
+                      R$ 0,00 (QUITADO)
+                    </span>
+                    <span className="block text-[10px] text-emerald-300 font-bold">
+                      ✓ Pagamento já confirmado presencialmente
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-xl font-black text-white">
+                      {formatCurrency(pricingSummary.totalMonthlyEquivalent)}/mês
+                    </span>
+                    {billingCycle === 'ANNUAL' && pricingSummary.totalContractValue > 0 && (
+                      <span className="block text-[10px] text-emerald-300 font-semibold">
+                        Total Anual: {formatCurrency(pricingSummary.totalContractValue)} (em até 12x)
+                      </span>
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -2201,7 +2256,9 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                       Categoria Principal do Titular (Fixa)
                     </span>
                     <Badge className="bg-emerald-700 text-white text-[10px]">
-                      {holderModality.isFreeTier
+                      {isPrePaid
+                        ? 'PRÉ-PAGO (PAGO NO BALCÃO)'
+                        : holderModality.isFreeTier
                         ? 'GRATUIDADE OFICIAL'
                         : billingCycle === 'ANNUAL'
                         ? 'PLANO ANUAL'
@@ -2210,7 +2267,9 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                   </div>
                   <h3 className="text-base sm:text-lg font-black text-slate-900">
                     {holderModality.name} —{' '}
-                    {holderModality.isFreeTier
+                    {isPrePaid
+                      ? 'R$ 0,00 (Quitado Presencialmente)'
+                      : holderModality.isFreeTier
                       ? 'R$ 0,00 (Gratuito / Isento)'
                       : billingCycle === 'ANNUAL'
                       ? `${formatCurrency(holderModality.annualInstallment)}/mês (${formatCurrency(

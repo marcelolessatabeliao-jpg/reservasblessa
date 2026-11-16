@@ -91,6 +91,93 @@ Deno.serve(async (req) => {
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });
     }
 
+    // Consulta de Todas as Cobranças do Cliente no Asaas por CPF, PaymentId ou CustomerId
+    if (action === 'list-customer-charges' || action === 'get-customer-payments') {
+      const cleanCpf = cpf ? String(cpf).replace(/\D/g, '') : '';
+      const targetCustomerIds: string[] = [];
+
+      if (body.customerId) {
+        targetCustomerIds.push(String(body.customerId));
+      }
+
+      if (cleanCpf) {
+        const custReq = await fetch(`${ASAAS_URL}/customers?cpfCnpj=${cleanCpf}`, {
+          headers: { access_token: ASAAS_API_KEY },
+        });
+        const custData = await custReq.json();
+        if (Array.isArray(custData?.data)) {
+          for (const c of custData.data) {
+            if (c.id && !targetCustomerIds.includes(c.id)) {
+              targetCustomerIds.push(c.id);
+            }
+          }
+        }
+      }
+
+      if (paymentId) {
+        const payReq = await fetch(`${ASAAS_URL}/payments/${paymentId}`, {
+          headers: { access_token: ASAAS_API_KEY },
+        });
+        if (payReq.ok) {
+          const payData = await payReq.json();
+          if (payData.customer && !targetCustomerIds.includes(payData.customer)) {
+            targetCustomerIds.push(payData.customer);
+          }
+        }
+      }
+
+      if (targetCustomerIds.length === 0) {
+        return new Response(JSON.stringify({
+          success: true,
+          payments: [],
+          customers: [],
+          message: 'Nenhum cliente encontrado no Asaas com este CPF ou ID.',
+        }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });
+      }
+
+      const allPayments: any[] = [];
+      const customersFound: any[] = [];
+      const allSubscriptions: any[] = [];
+      const debugList: any[] = [];
+
+      for (const custId of targetCustomerIds) {
+        const [cDetailsRes, cPaymentsRes, cSubsRes] = await Promise.all([
+          fetch(`${ASAAS_URL}/customers/${custId}`, { headers: { access_token: ASAAS_API_KEY } }),
+          fetch(`${ASAAS_URL}/payments?customer=${custId}&limit=100`, { headers: { access_token: ASAAS_API_KEY } }),
+          fetch(`${ASAAS_URL}/subscriptions?customer=${custId}&limit=20`, { headers: { access_token: ASAAS_API_KEY } }),
+        ]);
+
+        if (cDetailsRes.ok) {
+          customersFound.push(await cDetailsRes.json());
+        }
+
+        if (cSubsRes.ok) {
+          const subsJson = await cSubsRes.json();
+          if (Array.isArray(subsJson?.data)) {
+            allSubscriptions.push(...subsJson.data);
+          }
+        }
+
+        const payJson = await cPaymentsRes.json().catch((e) => ({ error: e.message }));
+        debugList.push({ custId, status: cPaymentsRes.status, payJson });
+
+        if (cPaymentsRes.ok && Array.isArray(payJson?.data)) {
+          allPayments.push(...payJson.data);
+        }
+      }
+
+      allPayments.sort((a, b) => String(a.dueDate || '').localeCompare(String(b.dueDate || '')));
+
+      return new Response(JSON.stringify({
+        success: true,
+        targetCustomerIds,
+        debugList,
+        customers: customersFound,
+        subscriptions: allSubscriptions,
+        payments: allPayments,
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });
+    }
+
     // 2. Limpeza e Validação de Dados
     const cleanCpf = cpf ? cpf.replace(/\D/g, '') : '';
     if (!cleanCpf) throw new Error('Para cobranças reais em produção, o CPF é obrigatório.');

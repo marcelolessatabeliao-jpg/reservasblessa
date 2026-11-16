@@ -226,10 +226,11 @@ function ChaleSelectorInner({
         );
         setChaleBlockedDatesMap(blockedMap);
 
+        const blockedStatuses = ['paid', 'pago', 'confirmed', 'confirmado', 'checked-in', 'completed'];
         const { data } = await supabase
           .from('orders')
           .select('id, visit_date, order_items(product_id, metadata), status')
-          .neq('status', 'cancelled');
+          .in('status', blockedStatuses);
 
         const list: ChaleReservationDetail[] = [];
         if (data) {
@@ -695,7 +696,15 @@ function ChaleSelectorInner({
       };
     }
     const isBookedDirectly = bookedChaleIds.includes(unitId);
-    const existing = existingReservations.find(r => r.chaleId === unitId);
+    const userInStr = formattedDate;
+    const userOutStr = formattedOutDate;
+    const existing = existingReservations.find(r => {
+      if (r.chaleId !== unitId) return false;
+      const rIn = (r.checkIn || '').split('T')[0];
+      const rOut = (r.checkOut || rIn).split('T')[0];
+      if (!rIn) return false;
+      return rIn < userOutStr && rOut > userInStr;
+    });
     if (isBookedDirectly || existing) {
       let subtext = 'Reservado';
       if (existing?.checkOut) {

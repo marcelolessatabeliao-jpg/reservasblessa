@@ -1023,32 +1023,60 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
   // Pre-Paid Registration Link Modal (Cadastro com pagamento pré-confirmado / balcão)
   const [prePaidLinkModalOpen, setPrePaidLinkModalOpen] = useState(false);
-  const [prePaidPlanCode, setPrePaidPlanCode] = useState<string>('');
+  const [prePaidPlanCode, setPrePaidPlanCode] = useState<string>('ADULTO');
+  const [prePaidDepsCounts, setPrePaidDepsCounts] = useState<Record<string, number>>({
+    KIDS: 0,
+    ESTUDANTE: 0,
+    ADULTO: 0,
+    PROFESSOR: 0,
+    SERVIDOR: 0,
+    IDOSO_60: 0,
+    PCD_TEA: 0,
+    PARCEIRO: 0,
+  });
   const [prePaidCycle, setPrePaidCycle] = useState<'MONTHLY' | 'ANNUAL'>('MONTHLY');
   const [prePaidConsultantCode, setPrePaidConsultantCode] = useState<string>('');
   const [prePaidClientPhone, setPrePaidClientPhone] = useState<string>('');
   const [prePaidClientName, setPrePaidClientName] = useState<string>('');
 
+  const prePaidTotalDeps = useMemo(() => {
+    return Object.values(prePaidDepsCounts).reduce((acc, q) => acc + (Number(q) || 0), 0);
+  }, [prePaidDepsCounts]);
+
   const generatedPrePaidLink = useMemo(() => {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'https://balneariolessa.com.br';
     const params = new URLSearchParams();
     params.set('pago', '1');
-    if (prePaidPlanCode) params.set('plano', prePaidPlanCode);
+    params.set('step', '2');
+    if (prePaidPlanCode) {
+      params.set('titular', prePaidPlanCode);
+      params.set('plano', prePaidPlanCode);
+    }
     if (prePaidCycle) params.set('ciclo', prePaidCycle === 'ANNUAL' ? 'anual' : 'mensal');
     if (prePaidConsultantCode) params.set('ref', prePaidConsultantCode);
+
+    const depParts: string[] = [];
+    Object.entries(prePaidDepsCounts).forEach(([code, count]) => {
+      if (count > 0) depParts.push(`${code}:${count}`);
+    });
+    if (depParts.length > 0) {
+      params.set('deps', depParts.join(','));
+    }
+
     return `${origin}/planos?${params.toString()}`;
-  }, [prePaidPlanCode, prePaidCycle, prePaidConsultantCode]);
+  }, [prePaidPlanCode, prePaidCycle, prePaidConsultantCode, prePaidDepsCounts]);
 
   const handleSendPrePaidWhatsApp = () => {
     const rawPhone = prePaidClientPhone.replace(/\D/g, '');
     const clientGreeting = prePaidClientName.trim() ? `Olá, ${prePaidClientName.trim()}!` : 'Olá!';
+    const depsSummary = prePaidTotalDeps > 0 ? ` (1 Titular + ${prePaidTotalDeps} dependente${prePaidTotalDeps > 1 ? 's' : ''})` : '';
     const msg = [
-      `${clientGreeting} Seu plano no *Lessa Club* já foi confirmado como pago! 🎟️✨`,
+      `${clientGreeting} Seu plano no *Lessa Club*${depsSummary} já foi confirmado como pago! 🎟️✨`,
       ``,
-      `Para emitirmos suas carteirinhas oficiais digitais, por favor complete o passo a passo com seus dados e dependentes no link exclusivo abaixo:`,
+      `Para emitirmos suas carteirinhas oficiais digitais, por favor complete o preenchimento dos dados cadastrais no link exclusivo abaixo:`,
       `👉 ${generatedPrePaidLink}`,
       ``,
-      `*Aviso:* Não será solicitado nenhum pagamento no final do cadastro. Ao concluir, suas carteirinhas já estarão 100% ativas para uso!`,
+      `*Aviso:* O link já abre diretamente na etapa de dados dos integrantes. Não será cobrado nenhum valor adicional no final e as carteirinhas saem ativas!`,
     ].join('\n');
 
     const cleanNum = rawPhone.length >= 10 ? (rawPhone.startsWith('55') ? rawPhone : `55${rawPhone}`) : '';
@@ -18139,15 +18167,14 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
           </DialogHeader>
 
           <div className="space-y-4 py-2 text-slate-800">
-            {/* 1. Selecionar Plano */}
+            {/* 1. Selecionar Modalidade do Titular */}
             <div className="space-y-1">
-              <Label className="text-xs font-bold text-slate-700">Plano Pré-Pago</Label>
+              <Label className="text-xs font-bold text-slate-700">1. Modalidade do Titular Responsável</Label>
               <select
                 value={prePaidPlanCode}
                 onChange={(e) => setPrePaidPlanCode(e.target.value)}
                 className="w-full h-9 rounded-md border border-slate-300 px-3 text-xs font-semibold bg-white text-slate-800"
               >
-                <option value="">Qualquer Plano (Deixar o cliente escolher no formulário)</option>
                 {(state?.modalities || DEFAULT_CLUB_MODALITIES).map((m) => (
                   <option key={m.code} value={m.code}>
                     {m.name} {m.isFreeTier ? '(Gratuidade)' : `(R$ ${m.monthlyPrice.toFixed(2)}/mês ou R$ ${m.annualPrice.toFixed(2)}/ano)`}
@@ -18156,7 +18183,99 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
               </select>
             </div>
 
-            {/* 2. Ciclo de Cobrança */}
+            {/* 2. Dependentes Inclusos (Composição Completa da Família) */}
+            <div className="space-y-2 border border-slate-200 bg-slate-50/70 p-3 rounded-xl">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-xs font-black uppercase text-emerald-950 flex items-center gap-1.5">
+                    👨‍👩‍👧‍👦 2. Dependentes Inclusos no Plano
+                  </Label>
+                  <p className="text-[11px] text-slate-500 font-medium">
+                    Monte o plano completo pré-selecionando os dependentes que virão no contrato:
+                  </p>
+                </div>
+                {prePaidTotalDeps > 0 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setPrePaidDepsCounts({
+                      KIDS: 0, ESTUDANTE: 0, ADULTO: 0, PROFESSOR: 0, SERVIDOR: 0, IDOSO_60: 0, PCD_TEA: 0, PARCEIRO: 0
+                    })}
+                    className="h-6 text-[10px] text-red-600 hover:text-red-700 px-2 hover:bg-red-50 font-bold"
+                  >
+                    Limpar Dependentes
+                  </Button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                {[
+                  { code: 'KIDS', name: 'Lessa Kids (Criança até 11a)', badge: 'Grátis' },
+                  { code: 'ESTUDANTE', name: 'Lessa Student Pass (Estudante)', badge: 'R$ 25/mês' },
+                  { code: 'ADULTO', name: 'Lessa Club (Adulto Integral)', badge: 'R$ 49,90/mês' },
+                  { code: 'IDOSO_60', name: 'Lessa Vitalício 60+ (Idoso)', badge: 'Grátis' },
+                  { code: 'PCD_TEA', name: 'Lessa Inclusão (PCD / TEA)', badge: 'Grátis' },
+                  { code: 'PROFESSOR', name: 'Lessa Professor Pass', badge: 'R$ 25/mês' },
+                  { code: 'SERVIDOR', name: 'Lessa Servidor Pass', badge: 'R$ 25/mês' },
+                  { code: 'PARCEIRO', name: 'Lessa Parceiro Pass', badge: 'R$ 25/mês' },
+                ].map((dep) => {
+                  const count = prePaidDepsCounts[dep.code] || 0;
+                  return (
+                    <div
+                      key={dep.code}
+                      className={cn(
+                        "flex items-center justify-between p-2 rounded-lg border text-xs bg-white transition-all",
+                        count > 0 ? "border-emerald-500 bg-emerald-50/40 ring-1 ring-emerald-300" : "border-slate-200"
+                      )}
+                    >
+                      <div className="min-w-0 pr-1">
+                        <p className="font-bold text-slate-800 text-[11px] truncate">{dep.name}</p>
+                        <span className="text-[10px] text-slate-400 font-medium">{dep.badge}</span>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          disabled={count <= 0}
+                          onClick={() => setPrePaidDepsCounts(prev => ({
+                            ...prev,
+                            [dep.code]: Math.max(0, (prev[dep.code] || 0) - 1)
+                          }))}
+                          className="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 disabled:opacity-30 text-slate-700 font-bold flex items-center justify-center text-xs"
+                        >
+                          -
+                        </button>
+                        <span className="w-5 text-center font-black text-xs text-slate-900">
+                          {count}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setPrePaidDepsCounts(prev => ({
+                            ...prev,
+                            [dep.code]: (prev[dep.code] || 0) + 1
+                          }))}
+                          className="w-6 h-6 rounded bg-emerald-700 hover:bg-emerald-800 text-white font-bold flex items-center justify-center text-xs"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Resumo da Composição */}
+              <div className="bg-emerald-100/70 border border-emerald-300 rounded-lg p-2 text-xs flex items-center justify-between text-emerald-950 font-bold">
+                <span>
+                  📋 Composição: 1 Titular ({prePaidPlanCode}) + {prePaidTotalDeps} Dependente{prePaidTotalDeps !== 1 ? 's' : ''}
+                </span>
+                <span className="bg-emerald-700 text-white text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-black">
+                  Total: {1 + prePaidTotalDeps} integrantes
+                </span>
+              </div>
+            </div>
+
+            {/* 3. Ciclo de Cobrança e Consultor */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs font-bold text-slate-700">Ciclo Contratado</Label>
@@ -18170,7 +18289,6 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 </select>
               </div>
 
-              {/* 3. Vendedor / Consultor Responsável */}
               <div className="space-y-1">
                 <Label className="text-xs font-bold text-slate-700">Vendedor / Consultor (Opcional)</Label>
                 <select

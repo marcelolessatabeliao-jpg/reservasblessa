@@ -796,12 +796,16 @@ export function AdminChaleTab({
 
       const isDateBlocked = (chaleBlockedDatesMap[unit.id] || []).includes(mapTargetDateStr);
       const isManualIndisponivel = statuses[unit.id] === 'indisponivel' || isDateBlocked;
+      const isPaidOrConfirmed = reservation && (reservation.status === 'paid' || reservation.status === 'confirmed');
+      const isPendingReservation = Boolean(reservation && !isPaidOrConfirmed);
+
       let status: 'disponivel' | 'indisponivel' | 'ocupado' = 'disponivel';
-      if (reservation) {
+      if (isPaidOrConfirmed) {
         status = 'ocupado';
       } else if (isManualIndisponivel) {
         status = 'indisponivel';
       }
+      // Se a reserva estiver pendente de pagamento, o status permanece 'disponivel' (não bloqueia novas reservas)
 
       return {
         id: unit.id,
@@ -810,7 +814,8 @@ export function AdminChaleTab({
         modelLabel: unit.modelLabel,
         capacity: unit.capacity,
         status,
-        reservation
+        reservation,
+        isPendingReservation
       };
     });
   }, [allActiveReservations, manualStatuses, mapTargetDateStr]);
@@ -830,11 +835,12 @@ export function AdminChaleTab({
       const onlineRes = onlineList.find(r => r && Number(r.chaleId) === unit.id && r.status !== 'cancelled');
       
       const reservation = localRes || onlineRes;
+      const isPaidOrConfirmed = reservation && (reservation.status === 'paid' || reservation.status === 'confirmed');
       const isDateBlocked = (chaleBlockedDatesMap[unit.id] || []).includes(mapTargetDateStr);
       const isManualIndisponivel = statuses[unit.id] === 'indisponivel' || isDateBlocked;
 
       let status: 'disponivel' | 'indisponivel' | 'ocupado' = 'disponivel';
-      if (reservation) {
+      if (isPaidOrConfirmed) {
         status = 'ocupado';
       } else if (isManualIndisponivel) {
         status = 'indisponivel';
@@ -845,7 +851,8 @@ export function AdminChaleTab({
         name: unit.name,
         type: unit.type,
         status,
-        reservation
+        reservation,
+        isPendingReservation: Boolean(reservation && !isPaidOrConfirmed)
       };
     });
   }, [localReservations, realChaleOrders, manualStatuses]);
@@ -1657,6 +1664,7 @@ export function AdminChaleTab({
     const isOccupied = unit.status === 'ocupado';
     const isAvailable = unit.status === 'disponivel';
     const isMaintenance = unit.status === 'indisponivel';
+    const isPending = Boolean(unit.isPendingReservation && unit.reservation);
     const res = unit.reservation;
 
     return (
@@ -1666,6 +1674,8 @@ export function AdminChaleTab({
           "rounded-3xl border-2 transition-all shadow-sm overflow-hidden flex flex-col justify-between bg-white",
           isOccupied
             ? "border-red-400 ring-2 ring-red-100"
+            : isPending
+            ? "border-amber-400 ring-2 ring-amber-100 bg-amber-50/10"
             : isAvailable
             ? "border-emerald-500 hover:shadow-md"
             : "border-amber-400 bg-amber-50/30"
@@ -1674,12 +1684,24 @@ export function AdminChaleTab({
         {/* CARD TOP HEADER */}
         <div className={cn(
           "p-4 border-b flex items-center justify-between gap-2",
-          isOccupied ? "bg-red-50 border-red-200" : isAvailable ? "bg-emerald-50/80 border-emerald-200" : "bg-amber-100/60 border-amber-200"
+          isOccupied
+            ? "bg-red-50 border-red-200"
+            : isPending
+            ? "bg-amber-100/70 border-amber-300"
+            : isAvailable
+            ? "bg-emerald-50/80 border-emerald-200"
+            : "bg-amber-100/60 border-amber-200"
         )}>
           <div className="flex items-center gap-2.5 min-w-0">
             <span className={cn(
               "w-9 h-9 rounded-xl font-black text-sm flex items-center justify-center shrink-0 shadow-xs",
-              isOccupied ? "bg-red-600 text-white" : isAvailable ? "bg-emerald-600 text-white" : "bg-amber-500 text-slate-950"
+              isOccupied
+                ? "bg-red-600 text-white"
+                : isPending
+                ? "bg-amber-500 text-slate-950 font-black"
+                : isAvailable
+                ? "bg-emerald-600 text-white"
+                : "bg-amber-500 text-slate-950"
             )}>
               {String(unit.id).padStart(2, '0')}
             </span>
@@ -1697,26 +1719,47 @@ export function AdminChaleTab({
             "text-[10px] font-black uppercase px-2.5 py-1 tracking-wider shrink-0 shadow-xs",
             isOccupied
               ? "bg-red-600 hover:bg-red-600 text-white"
+              : isPending
+              ? "bg-amber-500 hover:bg-amber-600 text-slate-950"
               : isAvailable
               ? "bg-emerald-600 hover:bg-emerald-600 text-white"
               : "bg-amber-500 hover:bg-amber-500 text-slate-950"
           )}>
-            {isOccupied ? 'OCUPADO' : isAvailable ? 'LIVRE' : 'MANUTENÇÃO'}
+            {isOccupied
+              ? 'OCUPADO'
+              : isPending
+              ? 'AGUARDANDO PAGTO (DISPONÍVEL)'
+              : isAvailable
+              ? 'LIVRE'
+              : 'MANUTENÇÃO'}
           </Badge>
         </div>
 
         {/* CARD CONTENT */}
         <div className="p-4 space-y-3 flex-1 text-xs">
-          {isOccupied && res ? (
+          {(isOccupied || isPending) && res ? (
             <div className="space-y-2.5">
-              <div className="bg-white rounded-xl border border-red-200 p-3 shadow-xs space-y-1.5">
+              {isPending && (
+                <div className="bg-amber-100/80 border border-amber-300 text-amber-900 rounded-xl p-2 text-[10px] font-bold flex items-center gap-1.5 leading-snug">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0 text-amber-700" />
+                  <span>Pagamento não confirmado. O chalé continua <u>DISPONÍVEL</u> no site até ser pago ou confirmado.</span>
+                </div>
+              )}
+
+              <div className={cn(
+                "bg-white rounded-xl border p-3 shadow-xs space-y-1.5",
+                isOccupied ? "border-red-200" : "border-amber-200"
+              )}>
                 <div className="flex items-start justify-between gap-1">
                   <div>
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight block">Hóspede Titular</span>
                     <h6 className="font-black text-sm text-slate-900">{res.guestName}</h6>
                   </div>
                   {res.confirmationCode && (
-                    <Badge variant="outline" className="border-red-300 text-red-700 font-mono text-[9px] font-black">
+                    <Badge variant="outline" className={cn(
+                      "font-mono text-[9px] font-black",
+                      isOccupied ? "border-red-300 text-red-700" : "border-amber-400 text-amber-800"
+                    )}>
                       {res.confirmationCode}
                     </Badge>
                   )}
@@ -1796,8 +1839,19 @@ export function AdminChaleTab({
 
         {/* CARD FOOTER ACTIONS */}
         <div className="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-1.5 flex-wrap">
-          {isOccupied && res ? (
+          {(isOccupied || isPending) && res ? (
             <>
+              {isPending && (
+                <button
+                  type="button"
+                  onClick={() => handleTogglePayment(res)}
+                  className="text-[11px] font-black text-emerald-950 bg-emerald-400 hover:bg-emerald-500 border border-emerald-500 px-2.5 py-1.5 rounded-lg flex items-center gap-1 shadow-xs cursor-pointer transition-all"
+                  title="Confirmar pagamento e ocupar chalé"
+                >
+                  <CheckCircle className="w-3.5 h-3.5 text-emerald-950" /> Confirmar Pagto
+                </button>
+              )}
+
               <button
                 type="button"
                 onClick={() => handleOpenVoucherModal(res)}
@@ -1818,7 +1872,7 @@ export function AdminChaleTab({
 
               <button
                 type="button"
-                onClick={() => handleMarkAsVacant(res)}
+                onClick={() => handleDesocuparChale(res)}
                 className="text-[11px] font-black text-amber-900 hover:text-white bg-amber-100 hover:bg-amber-600 border border-amber-300 px-2.5 py-1.5 rounded-lg flex items-center gap-1 shadow-xs cursor-pointer transition-all ml-auto"
                 title="Desocupar e liberar chalé imediatamente"
               >
