@@ -131,6 +131,7 @@ import {
   formatBirthDate,
   getMemberAccessMessage,
   updateAsaasPaymentDueDate,
+  deleteAsaasPayment,
   fetchAddressByCep,
   getPlanDocumentRule,
   memberHasProofDocument,
@@ -502,6 +503,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     | { mode: 'BULK'; invoices: ClubInvoice[] }
     | { mode: 'SINGLE'; invoice: ClubInvoice }
   >(null);
+  const [isDeletingInvoice, setIsDeletingInvoice] = useState(false);
 
   // Estado para exclusão segura de clientes (com confirmação)
   const [clientToDelete, setClientToDelete] = useState<ClubSubscription | null>(null);
@@ -15508,11 +15510,18 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                 Atenção: há parcela(s) já marcada(s) como PAGO nesta seleção.
                               </p>
                             )}
+                            {invoiceDeleteConfirm.invoices.some((i) => i.asaasPaymentId) && (
+                              <p className="text-emerald-800 font-bold flex items-center gap-1.5 bg-emerald-50 p-2 rounded-lg border border-emerald-300">
+                                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                                Cobranças geradas no Asaas ({invoiceDeleteConfirm.invoices.filter((i) => i.asaasPaymentId).length}) também serão automaticamente apagadas e canceladas na sua conta oficial do Asaas.
+                              </p>
+                            )}
                           </div>
                           <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200">
                             <Button
                               type="button"
                               variant="outline"
+                              disabled={isDeletingInvoice}
                               onClick={() => setInvoiceDeleteConfirm(null)}
                               className="h-9 text-xs font-bold text-slate-800 hover:bg-slate-100"
                             >
@@ -15520,34 +15529,82 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                             </Button>
                             <Button
                               type="button"
+                              disabled={isDeletingInvoice}
                               onClick={async () => {
-                                const idsToRemove = new Set(
-                                  invoiceDeleteConfirm.invoices.map((i) => i.id)
-                                );
-                                const remaining = selectedSubForDetail.invoices.filter(
-                                  (i) => !idsToRemove.has(i.id)
-                                );
-                                const updatedSub: ClubSubscription = {
-                                  ...selectedSubForDetail,
-                                  invoices: remaining,
-                                };
-                                const nextState: ClubDatabaseState = {
-                                  ...state!,
-                                  subscriptions: (state!.subscriptions || []).map((s) =>
-                                    s.id === updatedSub.id ? updatedSub : s
-                                  ),
-                                };
-                                setSelectedSubForDetail(updatedSub);
-                                setSelectedClientInvoiceIdsForDelete([]);
-                                setInvoiceDeleteConfirm(null);
-                                await persist(nextState);
-                                toast({
-                                  title: `${idsToRemove.size} parcela(s) excluída(s) com sucesso!`,
-                                });
+                                setIsDeletingInvoice(true);
+                                try {
+                                  const idsToRemove = new Set(
+                                    invoiceDeleteConfirm.invoices.map((i) => i.id)
+                                  );
+                                  // Cobranças com Asaas oficial para cancelar/apagar na API
+                                  const asaasInvoices = invoiceDeleteConfirm.invoices.filter(
+                                    (i) => i.asaasPaymentId && i.asaasPaymentId.startsWith('pay_')
+                                  );
+
+                                  let asaasSuccessCount = 0;
+                                  let asaasFailedCount = 0;
+
+                                  if (asaasInvoices.length > 0) {
+                                    for (const inv of asaasInvoices) {
+                                      const res = await deleteAsaasPayment(inv.asaasPaymentId!);
+                                      if (res.success) {
+                                        asaasSuccessCount++;
+                                      } else {
+                                        asaasFailedCount++;
+                                      }
+                                    }
+                                  }
+
+                                  const remaining = selectedSubForDetail.invoices.filter(
+                                    (i) => !idsToRemove.has(i.id)
+                                  );
+                                  const updatedSub: ClubSubscription = {
+                                    ...selectedSubForDetail,
+                                    invoices: remaining,
+                                  };
+                                  const nextState: ClubDatabaseState = {
+                                    ...state!,
+                                    subscriptions: (state!.subscriptions || []).map((s) =>
+                                      s.id === updatedSub.id ? updatedSub : s
+                                    ),
+                                  };
+                                  setSelectedSubForDetail(updatedSub);
+                                  setSelectedClientInvoiceIdsForDelete([]);
+                                  setInvoiceDeleteConfirm(null);
+                                  await persist(nextState);
+
+                                  let toastTitle = `${idsToRemove.size} parcela(s) excluída(s) com sucesso!`;
+                                  if (asaasSuccessCount > 0) {
+                                    toastTitle += ` (${asaasSuccessCount} cancelada(s) no Asaas)`;
+                                  }
+                                  if (asaasFailedCount > 0) {
+                                    toastTitle += ` [${asaasFailedCount} com aviso no Asaas]`;
+                                  }
+
+                                  toast({
+                                    title: toastTitle,
+                                  });
+                                } catch (e: any) {
+                                  toast({
+                                    title: 'Erro ao excluir parcelas',
+                                    description: e.message || 'Erro desconhecido',
+                                    variant: 'destructive',
+                                  });
+                                } finally {
+                                  setIsDeletingInvoice(false);
+                                }
                               }}
-                              className="h-9 bg-red-600 hover:bg-red-700 text-white text-xs font-bold"
+                              className="h-9 bg-red-600 hover:bg-red-700 text-white text-xs font-bold disabled:opacity-60"
                             >
-                              <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Confirmar Exclusão
+                              {isDeletingInvoice ? (
+                                <>
+                                  <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Excluindo (Asaas + Banco)...
+                                </>
+                              ) : (
+                                <>
+                                  <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Confirmar Exclusão
+                                </>
+                              )}
                             </Button>
                           </div>
                         </>
@@ -15567,6 +15624,12 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                               <strong>Status atual:</strong>{' '}
                               {invoiceDeleteConfirm.invoice.status === 'PAID' ? 'PAGO' : 'NÃO PAGA'}
                             </div>
+                            {invoiceDeleteConfirm.invoice.asaasPaymentId && (
+                              <p className="text-emerald-800 font-bold flex items-center gap-1.5 bg-emerald-50 p-2 rounded-lg border border-emerald-300 mt-2">
+                                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                                Esta cobrança possui vínculo oficial com o Asaas ({invoiceDeleteConfirm.invoice.asaasPaymentId}) e será cancelada/excluída automaticamente no Asaas.
+                              </p>
+                            )}
                           </div>
 
                           <div className="flex flex-col gap-2 pt-2 border-t border-slate-200">
@@ -15609,39 +15672,72 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
                             <Button
                               type="button"
+                              disabled={isDeletingInvoice}
                               onClick={async () => {
-                                const target = invoiceDeleteConfirm.invoice;
-                                const remaining = selectedSubForDetail.invoices.filter(
-                                  (i) => i.id !== target.id
-                                );
-                                const updatedSub: ClubSubscription = {
-                                  ...selectedSubForDetail,
-                                  invoices: remaining,
-                                };
-                                const nextState: ClubDatabaseState = {
-                                  ...state!,
-                                  subscriptions: (state!.subscriptions || []).map((s) =>
-                                    s.id === updatedSub.id ? updatedSub : s
-                                  ),
-                                };
-                                setSelectedSubForDetail(updatedSub);
-                                setSelectedClientInvoiceIdsForDelete((prev) =>
-                                  prev.filter((id) => id !== target.id)
-                                );
-                                setInvoiceDeleteConfirm(null);
-                                await persist(nextState);
-                                toast({
-                                  title: `Parcela ${target.installmentNumber} excluída do cadastro!`,
-                                });
+                                setIsDeletingInvoice(true);
+                                try {
+                                  const target = invoiceDeleteConfirm.invoice;
+                                  let asaasCancelled = false;
+
+                                  if (target.asaasPaymentId && target.asaasPaymentId.startsWith('pay_')) {
+                                    const res = await deleteAsaasPayment(target.asaasPaymentId);
+                                    if (res.success) {
+                                      asaasCancelled = true;
+                                    }
+                                  }
+
+                                  const remaining = selectedSubForDetail.invoices.filter(
+                                    (i) => i.id !== target.id
+                                  );
+                                  const updatedSub: ClubSubscription = {
+                                    ...selectedSubForDetail,
+                                    invoices: remaining,
+                                  };
+                                  const nextState: ClubDatabaseState = {
+                                    ...state!,
+                                    subscriptions: (state!.subscriptions || []).map((s) =>
+                                      s.id === updatedSub.id ? updatedSub : s
+                                    ),
+                                  };
+                                  setSelectedSubForDetail(updatedSub);
+                                  setSelectedClientInvoiceIdsForDelete((prev) =>
+                                    prev.filter((id) => id !== target.id)
+                                  );
+                                  setInvoiceDeleteConfirm(null);
+                                  await persist(nextState);
+
+                                  toast({
+                                    title: `Parcela ${target.installmentNumber} excluída do cadastro${
+                                      asaasCancelled ? ' e cancelada no Asaas' : ''
+                                    }!`,
+                                  });
+                                } catch (e: any) {
+                                  toast({
+                                    title: 'Erro ao excluir parcela',
+                                    description: e.message || 'Erro desconhecido',
+                                    variant: 'destructive',
+                                  });
+                                } finally {
+                                  setIsDeletingInvoice(false);
+                                }
                               }}
-                              className="w-full bg-red-600 hover:bg-red-700 text-white font-bold text-xs h-9"
+                              className="w-full bg-red-600 hover:bg-red-700 text-white font-bold text-xs h-9 disabled:opacity-60"
                             >
-                              <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Excluir Parcela Permanentemente
+                              {isDeletingInvoice ? (
+                                <>
+                                  <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Excluindo (Asaas + Banco)...
+                                </>
+                              ) : (
+                                <>
+                                  <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Excluir Parcela Permanentemente
+                                </>
+                              )}
                             </Button>
 
                             <Button
                               type="button"
                               variant="outline"
+                              disabled={isDeletingInvoice}
                               onClick={() => setInvoiceDeleteConfirm(null)}
                               className="w-full text-xs font-bold h-9 text-slate-800 hover:bg-slate-100"
                             >

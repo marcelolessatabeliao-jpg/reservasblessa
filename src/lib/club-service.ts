@@ -2288,6 +2288,34 @@ export const updateAsaasPaymentDueDate = async (
   return data;
 };
 
+export const deleteAsaasPayment = async (
+  paymentId: string
+): Promise<{ success: boolean; data?: any; error?: string }> => {
+  if (!paymentId || !paymentId.startsWith('pay_')) {
+    return { success: true };
+  }
+
+  try {
+    const { data, error } = await supabase.functions.invoke('create-payment', {
+      body: {
+        action: 'delete',
+        paymentId,
+      },
+    });
+
+    if (error || !data?.success) {
+      const msg = data?.error || error?.message || 'Falha ao excluir cobrança no Asaas.';
+      console.warn(`[ClubService] Falha ao excluir ${paymentId} no Asaas:`, msg);
+      return { success: false, error: msg };
+    }
+
+    return { success: true, data };
+  } catch (err: any) {
+    console.warn(`[ClubService] Exceção ao excluir ${paymentId} no Asaas:`, err);
+    return { success: false, error: err.message };
+  }
+};
+
 export const checkClubInvoicePaymentStatus = async (
   subscriptionId: string,
   invoiceId: string

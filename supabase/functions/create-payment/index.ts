@@ -66,6 +66,31 @@ Deno.serve(async (req) => {
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });
     }
 
+    // Exclusão / Cancelamento Oficial de Cobrança no Asaas
+    if (action === 'delete' || action === 'delete-payment') {
+      const targetPaymentId = paymentId || orderId;
+      if (!targetPaymentId) throw new Error('paymentId é obrigatório para excluir cobrança no Asaas.');
+
+      const deleteReq = await fetch(`${ASAAS_URL}/payments/${targetPaymentId}`, {
+        method: 'DELETE',
+        headers: {
+          'access_token': ASAAS_API_KEY,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const deleteData = await deleteReq.json();
+      if (!deleteReq.ok && deleteReq.status !== 404) {
+        const errMsg = deleteData.errors?.[0]?.description || 'Erro ao excluir cobrança no Asaas';
+        throw new Error(`Asaas (Excluir Cobrança): ${errMsg}`);
+      }
+
+      return new Response(JSON.stringify({
+        success: true,
+        data: deleteData,
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });
+    }
+
     // 2. Limpeza e Validação de Dados
     const cleanCpf = cpf ? cpf.replace(/\D/g, '') : '';
     if (!cleanCpf) throw new Error('Para cobranças reais em produção, o CPF é obrigatório.');
