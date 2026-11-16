@@ -14338,9 +14338,9 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 open={!!selectedInvoiceForPixModal}
                 onOpenChange={(o) => !o && setSelectedInvoiceForPixModal(null)}
               >
-                <DialogContent className="max-w-md">
+                <DialogContent className="max-w-md max-h-[92vh] overflow-y-auto">
                   {selectedInvoiceForPixModal && (
-                    <div className="space-y-4">
+                    <div className="space-y-3.5">
                       <DialogHeader>
                         <DialogTitle className="text-base font-black text-slate-800 flex items-center gap-2">
                           <QrCode className="w-5 h-5 text-emerald-700" />
@@ -14372,7 +14372,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                       </div>
 
                       {/* Imagem QR Code */}
-                      <div className="text-center p-4 bg-white border border-slate-200 rounded-2xl shadow-inner">
+                      <div className="text-center p-3 bg-white border border-slate-200 rounded-2xl shadow-inner">
                         <img
                           src={
                             selectedInvoiceForPixModal.pixQrCode
@@ -14385,9 +14385,9 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                 )
                           }
                           alt="PIX QR Code"
-                          className="w-44 h-44 mx-auto rounded-lg object-contain shadow-sm border border-slate-100"
+                          className="w-40 h-40 mx-auto rounded-lg object-contain shadow-sm border border-slate-100"
                         />
-                        <span className="text-[11px] text-slate-400 block mt-2">
+                        <span className="text-[11px] text-slate-400 block mt-1.5">
                           Escaneie com o app do banco ou copie o código abaixo
                         </span>
                       </div>
@@ -16168,89 +16168,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     </div>
                   </div>
 
-                  {/* MODAL DE VISUALIZAÇÃO DE ANEXO */}
-                  <Dialog
-                    open={Boolean(previewAttachment)}
-                    onOpenChange={(open) => !open && setPreviewAttachment(null)}
-                  >
-                    <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
-                      <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2 text-base font-black text-slate-900 pr-6 truncate">
-                          <Eye className="w-4 h-4 text-emerald-700 shrink-0" />
-                          <span className="truncate">{previewAttachment?.name}</span>
-                        </DialogTitle>
-                        {previewAttachment?.createdAt && (
-                          <DialogDescription className="text-xs text-slate-500">
-                            Enviado em {formatDateBR(previewAttachment.createdAt)}
-                          </DialogDescription>
-                        )}
-                      </DialogHeader>
-
-                      {previewAttachment && (
-                        <div className="flex-1 overflow-auto bg-slate-100 rounded-xl border border-slate-200 p-3 flex items-center justify-center min-h-[300px]">
-                          {previewAttachment.dataUrl?.startsWith('data:image/') ||
-                          previewAttachment.mimeType?.startsWith('image/') ||
-                          /\.(png|jpe?g|gif|webp)(\?|$)/i.test(previewAttachment.name || '') ? (
-                            <img
-                              src={previewAttachment.dataUrl}
-                              alt={previewAttachment.name}
-                              className="max-w-full max-h-[65vh] object-contain rounded-lg shadow-md"
-                            />
-                          ) : previewAttachment.dataUrl?.startsWith('data:application/pdf') ||
-                            previewAttachment.mimeType === 'application/pdf' ||
-                            /\.pdf(\?|$)/i.test(previewAttachment.name || '') ? (
-                            <iframe
-                              src={previewAttachment.dataUrl}
-                              title={previewAttachment.name}
-                              className="w-full h-[65vh] rounded-lg border border-slate-300 bg-white"
-                            />
-                          ) : (
-                            <div className="text-center space-y-3 p-6">
-                              <FileText className="w-12 h-12 text-slate-400 mx-auto" />
-                              <p className="text-sm font-bold text-slate-700">
-                                Pré-visualização direta indisponível para este formato ({previewAttachment.mimeType || 'arquivo'}).
-                              </p>
-                              <a
-                                href={previewAttachment.dataUrl}
-                                download={previewAttachment.name}
-                                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#004d00] text-white text-xs font-bold"
-                              >
-                                <Download className="w-4 h-4" /> Baixar Arquivo
-                              </a>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {previewAttachment && (
-                        <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-slate-200">
-                          <a
-                            href={previewAttachment.dataUrl}
-                            download={previewAttachment.name}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            <Button
-                              type="button"
-                              size="sm"
-                              className="bg-[#004d00] hover:bg-emerald-900 text-white font-bold text-xs"
-                            >
-                              <Download className="w-3.5 h-3.5 mr-1.5" /> Baixar Anexo
-                            </Button>
-                          </a>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setPreviewAttachment(null)}
-                            className="font-bold text-xs"
-                          >
-                            Fechar
-                          </Button>
-                        </div>
-                      )}
-                    </DialogContent>
-                  </Dialog>
+                  {/* Modal de visualização de anexo agora é global no perfil do cliente */}
                 </div>
               )}
 
@@ -17783,6 +17701,90 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   </div>
                 </div>
               )}
+
+          {/* MODAL GLOBAL DE VISUALIZAÇÃO DE ANEXO E DOCUMENTOS DO ASSOCIADO */}
+          <Dialog
+            open={Boolean(previewAttachment)}
+            onOpenChange={(open) => !open && setPreviewAttachment(null)}
+          >
+            <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-base font-black text-slate-900 pr-6 truncate">
+                  <Eye className="w-4 h-4 text-emerald-700 shrink-0" />
+                  <span className="truncate">{previewAttachment?.name}</span>
+                </DialogTitle>
+                {previewAttachment?.createdAt && (
+                  <DialogDescription className="text-xs text-slate-500">
+                    Enviado em {formatDateBR(previewAttachment.createdAt)}
+                  </DialogDescription>
+                )}
+              </DialogHeader>
+
+              {previewAttachment && (
+                <div className="flex-1 overflow-auto bg-slate-100 rounded-xl border border-slate-200 p-3 flex items-center justify-center min-h-[300px]">
+                  {previewAttachment.dataUrl?.startsWith('data:image/') ||
+                  previewAttachment.mimeType?.startsWith('image/') ||
+                  /\.(png|jpe?g|gif|webp)(\?|$)/i.test(previewAttachment.name || '') ? (
+                    <img
+                      src={previewAttachment.dataUrl}
+                      alt={previewAttachment.name}
+                      className="max-w-full max-h-[65vh] object-contain rounded-lg shadow-md"
+                    />
+                  ) : previewAttachment.dataUrl?.startsWith('data:application/pdf') ||
+                    previewAttachment.mimeType === 'application/pdf' ||
+                    /\.pdf(\?|$)/i.test(previewAttachment.name || '') ? (
+                    <iframe
+                      src={previewAttachment.dataUrl}
+                      title={previewAttachment.name}
+                      className="w-full h-[65vh] rounded-lg border border-slate-300 bg-white"
+                    />
+                  ) : (
+                    <div className="text-center space-y-3 p-6">
+                      <FileText className="w-12 h-12 text-slate-400 mx-auto" />
+                      <p className="text-sm font-bold text-slate-700">
+                        Pré-visualização direta indisponível para este formato ({previewAttachment.mimeType || 'arquivo'}).
+                      </p>
+                      <a
+                        href={previewAttachment.dataUrl}
+                        download={previewAttachment.name}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#004d00] text-white text-xs font-bold"
+                      >
+                        <Download className="w-4 h-4" /> Baixar Arquivo
+                      </a>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {previewAttachment && (
+                <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-slate-200">
+                  <a
+                    href={previewAttachment.dataUrl}
+                    download={previewAttachment.name}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="bg-[#004d00] hover:bg-emerald-900 text-white font-bold text-xs"
+                    >
+                      <Download className="w-3.5 h-3.5 mr-1.5" /> Baixar Anexo
+                    </Button>
+                  </a>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setPreviewAttachment(null)}
+                    className="font-bold text-xs"
+                  >
+                    Fechar
+                  </Button>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
         </div>
       )}
 

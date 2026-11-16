@@ -401,19 +401,32 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
                             key={doc.id}
                             className="inline-flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-slate-300 shadow-2xs text-xs font-bold text-slate-800"
                           >
-                            {doc.mimeType?.startsWith('image/') ? (
-                              <img
-                                src={doc.dataUrl}
-                                alt={doc.name}
-                                className="w-6 h-6 rounded object-cover border border-slate-200"
-                              />
-                            ) : (
-                              <FileText className="w-4 h-4 text-emerald-700" />
-                            )}
-                            <span className="max-w-[180px] sm:max-w-[240px] truncate" title={doc.name}>
-                              {doc.name}
-                            </span>
-                            <div className="flex items-center gap-1 ml-1 border-l pl-2 border-slate-200">
+                            <div
+                              onClick={() =>
+                                onPreviewAttachment?.({
+                                  name: doc.name,
+                                  dataUrl: doc.dataUrl,
+                                  mimeType: doc.mimeType,
+                                  createdAt: doc.createdAt,
+                                })
+                              }
+                              className="inline-flex items-center gap-2 cursor-pointer hover:text-emerald-800"
+                              title="Clique para visualizar o documento em tela cheia"
+                            >
+                              {doc.mimeType?.startsWith('image/') || doc.dataUrl?.startsWith('data:image/') ? (
+                                <img
+                                  src={doc.dataUrl}
+                                  alt={doc.name}
+                                  className="w-6 h-6 rounded object-cover border border-slate-200"
+                                />
+                              ) : (
+                                <FileText className="w-4 h-4 text-emerald-700" />
+                              )}
+                              <span className="max-w-[180px] sm:max-w-[240px] truncate" title={doc.name}>
+                                {doc.name}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1.5 ml-1 border-l pl-2 border-slate-200">
                               <button
                                 type="button"
                                 onClick={() =>
@@ -424,20 +437,20 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
                                     createdAt: doc.createdAt,
                                   })
                                 }
-                                className="text-emerald-800 hover:text-emerald-950 font-bold hover:underline"
+                                className="p-1 rounded hover:bg-emerald-50 text-emerald-800 hover:text-emerald-950 font-bold"
                                 title="Visualizar documento"
                               >
-                                <Eye className="w-3.5 h-3.5" />
+                                <Eye className="w-4 h-4" />
                               </button>
                               <a
                                 href={doc.dataUrl}
                                 download={doc.name}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="text-slate-600 hover:text-slate-900"
+                                className="p-1 rounded hover:bg-slate-100 text-slate-600 hover:text-slate-900"
                                 title="Baixar arquivo"
                               >
-                                <Download className="w-3.5 h-3.5" />
+                                <Download className="w-4 h-4" />
                               </a>
                             </div>
                           </div>
