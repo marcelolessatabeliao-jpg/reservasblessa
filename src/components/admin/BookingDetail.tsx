@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { formatCurrency } from '@/lib/booking-types';
-import { CheckCircle2, Circle, Trash2, Eye, X, FileText, ExternalLink, Check, RotateCcw, Phone } from 'lucide-react';
+import { CheckCircle2, Circle, Trash2, Eye, X, FileText, ExternalLink, Check, RotateCcw, Phone, CreditCard, RefreshCw, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
@@ -49,6 +49,73 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
   const [showResumo, setShowResumo] = useState(false);
   const [loadingItems, setLoadingItems] = useState(false);
   const [isAddItemsOpen, setIsAddItemsOpen] = useState(false);
+
+  // Estados e controle de cobranças ativas no Asaas para este cliente
+  const [asaasCharges, setAsaasCharges] = useState<any[]>([]);
+  const [loadingAsaasCharges, setLoadingAsaasCharges] = useState(false);
+  const [hasLoadedAsaasCharges, setHasLoadedAsaasCharges] = useState(false);
+  const [deletingAsaasId, setDeletingAsaasId] = useState<string | null>(null);
+
+  const fetchAsaasCharges = async () => {
+    const cleanCpf = (cpf || '').replace(/\D/g, '');
+    if (!cleanCpf && !booking.id) return;
+    setLoadingAsaasCharges(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-payment', {
+        body: {
+          action: 'list-customer-charges',
+          cpf: cleanCpf || undefined,
+          orderId: booking.id,
+        },
+      });
+      if (!error && data?.payments) {
+        setAsaasCharges(data.payments.filter((p: any) => !p.deleted));
+      }
+      setHasLoadedAsaasCharges(true);
+    } catch (err) {
+      console.warn('[BookingDetail] Erro ao carregar cobranças Asaas:', err);
+    } finally {
+      setLoadingAsaasCharges(false);
+    }
+  };
+
+  const handleDeleteAsaasCharge = async (paymentId: string) => {
+    if (!confirm('Deseja realmente cancelar e excluir esta cobrança diretamente no Asaas? Esta ação não pode ser desfeita.')) {
+      return;
+    }
+    setDeletingAsaasId(paymentId);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-payment', {
+        body: {
+          action: 'delete',
+          paymentId,
+        },
+      });
+      if (error || !data?.success) {
+        throw new Error(data?.error || error?.message || 'Falha ao cancelar cobrança no Asaas.');
+      }
+
+      await supabase
+        .from('payments')
+        .update({ status: 'cancelled' })
+        .eq('external_id', paymentId);
+
+      setAsaasCharges((prev) => prev.filter((p) => p.id !== paymentId));
+      toast({
+        title: 'Cobrança cancelada no Asaas!',
+        description: `A cobrança ${paymentId} foi removida da conta do cliente no Asaas.`,
+      });
+      if (onRefresh) onRefresh();
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao cancelar cobrança',
+        description: err.message || 'Erro ao comunicar com Asaas.',
+        variant: 'destructive',
+      });
+    } finally {
+      setDeletingAsaasId(null);
+    }
+  };
 
   // Fetch items from DB fresh every time the booking changes, so state persists across navigations
   useEffect(() => {
@@ -610,6 +677,137 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
           </div>
         )}
       </div>
+      {/* ROW 4: Cobranças Asaas do Cliente na Agenda */}
+      <div className="space-y-3 bg-emerald-950/5 border-2 border-emerald-800/20 p-4 rounded-2xl mt-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+          <div className="flex items-center gap-2">
+            <CreditCard className="w-4 h-4 text-emerald-800" />
+            <h4 className="font-black text-emerald-900 uppercase text-[11px] tracking-wider">
+              Cobranças Asaas no CPF / Pedido {cpf ? `(${cpf})` : ''}
+            </h4>
+            {asaasCharges.length > 0 && (
+              <Badge className="bg-emerald-800 text-white font-black text-[10px] px-2">
+                {asaasCharges.length} no Asaas
+              </Badge>
+            )}
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={loadingAsaasCharges}
+            onClick={fetchAsaasCharges}
+            className="h-7 text-[10px] font-black uppercase tracking-wider bg-white border-emerald-300 text-emerald-900 hover:bg-emerald-50"
+          >
+            {loadingAsaasCharges ? (
+              <>
+                <Loader2 className="w-3 h-3 mr-1 animate-spin" /> Verificando...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="w-3 h-3 mr-1" /> {hasLoadedAsaasCharges ? 'Atualizar Asaas' : 'Buscar Cobranças no Asaas'}
+              </>
+            )}
+          </Button>
+        </div>
+
+        {hasLoadedAsaasCharges ? (
+          asaasCharges.length > 0 ? (
+            <div className="space-y-2 mt-2">
+              <p className="text-[11px] text-slate-600">
+                Abaixo estão as cobranças ativas no Asaas no nome/CPF deste cliente. Se ele pagou no balcão ou desistiu, cancele a cobrança aqui para desocupar o CPF:
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {asaasCharges.map((pay) => {
+                  const isPending = pay.status === 'PENDING';
+                  const isPaid = pay.status === 'RECEIVED' || pay.status === 'CONFIRMED';
+                  return (
+                    <div
+                      key={pay.id}
+                      className={cn(
+                        "p-3 rounded-xl border flex flex-col justify-between gap-2 text-xs bg-white shadow-sm",
+                        isPending ? "border-amber-300 bg-amber-50/50" : isPaid ? "border-emerald-300" : "border-slate-200"
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-bold text-slate-800 text-[11px]">{pay.id}</span>
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                "text-[9px] font-bold px-1.5 py-0 h-4 uppercase",
+                                isPaid
+                                  ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                                  : isPending
+                                  ? "bg-amber-100 text-amber-900 border-amber-300 animate-pulse"
+                                  : "bg-slate-100 text-slate-700"
+                              )}
+                            >
+                              {isPaid ? "PAGO / CONFIRMADO" : isPending ? "PENDENTE (NÃO PAGO)" : pay.status}
+                            </Badge>
+                            <Badge variant="secondary" className="text-[9px] font-bold px-1.5 py-0 h-4">
+                              {pay.billingType || "PIX"}
+                            </Badge>
+                          </div>
+                          <p className="text-[11px] text-slate-600 font-medium mt-1 line-clamp-2">
+                            {pay.description || 'Cobrança Balneário Lessa'}
+                          </p>
+                          <div className="text-[10px] text-slate-500 mt-1">
+                            Vencimento: <strong>{pay.dueDate ? pay.dueDate.split('-').reverse().join('/') : '-'}</strong> • Valor: <strong className="text-emerald-900 text-xs">{formatCurrency(pay.value)}</strong>
+                          </div>
+                        </div>
+
+                        {pay.invoiceUrl && (
+                          <a
+                            href={pay.invoiceUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="p-1 rounded text-slate-500 hover:text-emerald-700 hover:bg-slate-100 shrink-0"
+                            title="Abrir fatura / PIX no Asaas"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                        )}
+                      </div>
+
+                      {isPending && (
+                        <div className="pt-2 border-t border-slate-200/80 flex items-center justify-between gap-2 flex-wrap">
+                          <span className="text-[10px] text-amber-800 font-semibold">
+                            Pagou no balcão? Cancele no Asaas:
+                          </span>
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={deletingAsaasId === pay.id}
+                            onClick={() => handleDeleteAsaasCharge(pay.id)}
+                            className="h-6 px-2 text-[10px] bg-red-600 hover:bg-red-700 text-white font-bold rounded shadow-sm flex items-center gap-1"
+                          >
+                            {deletingAsaasId === pay.id ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <Trash2 className="w-3 h-3" />
+                            )}
+                            Cancelar no Asaas
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <p className="text-[11px] text-slate-500 italic">
+              Nenhuma cobrança ativa encontrada no Asaas para este CPF/pedido.
+            </p>
+          )
+        ) : (
+          <p className="text-[11px] text-slate-500">
+            Clique no botão acima para verificar se este cliente possui cobranças PIX ou boletos abertos no Asaas.
+          </p>
+        )}
+      </div>
+
       {loadingItems && (
         <div className="text-center py-4 text-emerald-600 text-xs font-bold animate-pulse">Carregando itens...</div>
       )}

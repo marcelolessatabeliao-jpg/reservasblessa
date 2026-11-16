@@ -1612,6 +1612,24 @@ export default function Admin() {
       else if (type === 'reservas') table = 'bookings';
 
       // 1. Delete the reservation row
+      if (type === 'order' && item.id) {
+        // Cancela eventuais cobranças PIX/Boleto pendentes no Asaas deste pedido para desocupar o CPF do cliente
+        const { data: pendingPays } = await supabase
+          .from('payments')
+          .select('external_id')
+          .eq('order_id', item.id)
+          .eq('status', 'pending');
+        if (pendingPays && pendingPays.length > 0) {
+          for (const p of pendingPays) {
+            if (p.external_id && p.external_id.startsWith('pay_')) {
+              await supabase.functions.invoke('create-payment', {
+                body: { action: 'delete', paymentId: p.external_id },
+              }).catch(console.warn);
+            }
+          }
+        }
+      }
+
       const { error } = await supabase.from(table).delete().eq('id', item.id);
       if (error) throw error;
 

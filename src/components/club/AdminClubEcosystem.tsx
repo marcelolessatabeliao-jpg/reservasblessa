@@ -504,6 +504,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     | { mode: 'SINGLE'; invoice: ClubInvoice }
   >(null);
   const [isDeletingInvoice, setIsDeletingInvoice] = useState(false);
+  const [isSyncingCustomerAsaas, setIsSyncingCustomerAsaas] = useState(false);
 
   // Estado para exclusão segura de clientes (com confirmação)
   const [clientToDelete, setClientToDelete] = useState<ClubSubscription | null>(null);
@@ -13707,6 +13708,159 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         (inv) => String(Number(inv.carneGroup) || 1) === selectedCarneNumber
                       );
 
+                const handleSyncCustomerAsaasCharges = async () => {
+                  if (!selectedSubForDetail) return;
+                  setIsSyncingCustomerAsaas(true);
+                  try {
+                    const cleanCpf = (selectedSubForDetail.holderCpf || '').replace(/\D/g, '');
+                    const firstAsaasId =
+                      selectedSubForDetail.invoices?.find((i) => i.asaasPaymentId)?.asaasPaymentId ||
+                      selectedSubForDetail.asaasPaymentId;
+
+                    const { data, error } = await supabase.functions.invoke('create-payment', {
+                      body: {
+                        action: 'list-customer-charges',
+                        cpf: cleanCpf,
+                        paymentId: firstAsaasId,
+                      },
+                    });
+
+                    if (error || !data?.success) {
+                      throw new Error(data?.message || error?.message || 'Falha ao buscar cobranças no Asaas.');
+                    }
+
+                    const rawPayments: any[] = data.payments || [];
+                    if (rawPayments.length === 0) {
+                      toast({
+                        title: 'Nenhuma cobrança encontrada no Asaas',
+                        description: 'Não foram localizadas cobranças ativas para este cliente no Asaas.',
+                      });
+                      return;
+                    }
+
+                    const currentInvoices = [...(selectedSubForDetail.invoices || [])];
+                    const subCode = selectedSubForDetail.subscriptionCode || '';
+                    let addedCount = 0;
+                    let updatedCount = 0;
+
+                    for (const p of rawPayments) {
+                      if (p.deleted) continue;
+
+                      const desc = String(p.description || '');
+                      const codeMatch = desc.match(/Lessa Club \((\d+)\)/i);
+                      const paymentSubCode = codeMatch ? codeMatch[1] : '';
+
+                      // Se o código for diferente do cartão ativo atual, separa em Carnê 2
+                      let carneGroup = 1;
+                      if (paymentSubCode && paymentSubCode !== subCode) {
+                        carneGroup = 2;
+                      } else if (p.billingType === 'CREDIT_CARD' && !desc.includes('/12')) {
+                        carneGroup = 3;
+                      }
+
+                      const existingInvIndex = currentInvoices.findIndex(
+                        (i) =>
+                          i.asaasPaymentId === p.id ||
+                          (i.dueDate === p.dueDate &&
+                            Number(i.amount) === Number(p.value) &&
+                            (paymentSubCode ? i.description?.includes(paymentSubCode) : true))
+                      );
+
+                      if (existingInvIndex >= 0) {
+                        const existing = currentInvoices[existingInvIndex];
+                        const newStatus =
+                          p.status === 'RECEIVED' ||
+                          p.status === 'CONFIRMED' ||
+                          p.status === 'RECEIVED_IN_CASH'
+                            ? ('PAID' as const)
+                            : p.status === 'OVERDUE'
+                            ? ('PENDING' as const)
+                            : existing.status;
+
+                        currentInvoices[existingInvIndex] = {
+                          ...existing,
+                          asaasPaymentId: p.id,
+                          carneGroup,
+                          status: newStatus,
+                          paymentUrl: p.bankSlipUrl || p.invoiceUrl || existing.paymentUrl,
+                        };
+                        updatedCount++;
+                      } else {
+                        const installmentMatch = desc.match(/\((\d+)\/(\d+)\)/);
+                        const instNum = installmentMatch
+                          ? Number(installmentMatch[1])
+                          : currentInvoices.length + 1;
+                        const totalInst = installmentMatch ? Number(installmentMatch[2]) : 12;
+
+                        const newInvoice: ClubInvoice = {
+                          id: `inv_asaas_${p.id}`,
+                          subscriptionId: selectedSubForDetail.id,
+                          memberId: selectedSubForDetail.members[0]?.id || selectedSubForDetail.id,
+                          installmentNumber: instNum,
+                          totalInstallments: totalInst,
+                          dueDate: p.dueDate,
+                          amount: Number(p.value || 0),
+                          status:
+                            p.status === 'RECEIVED' || p.status === 'CONFIRMED' ? 'PAID' : 'PENDING',
+                          paymentMethod:
+                            p.billingType === 'CREDIT_CARD'
+                              ? 'CREDIT_CARD'
+                              : p.billingType === 'PIX'
+                              ? 'PIX'
+                              : 'BOLETO',
+                          description:
+                            desc.split('\n')[0] || `Mensalidade ${instNum}/${totalInst}`,
+                          carneGroup,
+                          asaasPaymentId: p.id,
+                          paymentUrl: p.bankSlipUrl || p.invoiceUrl,
+                          createdAt: p.dateCreated || new Date().toISOString(),
+                          paidAt: p.clientPaymentDate || p.paymentDate || undefined,
+                        };
+
+                        currentInvoices.push(newInvoice);
+                        addedCount++;
+                      }
+                    }
+
+                    // Ordena por grupo e vencimento
+                    currentInvoices.sort((a, b) => {
+                      if ((a.carneGroup || 1) !== (b.carneGroup || 1)) {
+                        return (a.carneGroup || 1) - (b.carneGroup || 1);
+                      }
+                      return String(a.dueDate).localeCompare(String(b.dueDate));
+                    });
+
+                    const updatedSub: ClubSubscription = {
+                      ...selectedSubForDetail,
+                      invoices: currentInvoices,
+                    };
+
+                    const nextState: ClubDatabaseState = {
+                      ...state!,
+                      subscriptions: (state!.subscriptions || []).map((s) =>
+                        s.id === updatedSub.id ? updatedSub : s
+                      ),
+                    };
+
+                    setSelectedSubForDetail(updatedSub);
+                    setSelectedCarneNumber('ALL');
+                    await persist(nextState);
+
+                    toast({
+                      title: 'Sincronização com Asaas Concluída!',
+                      description: `${rawPayments.length} cobranças analisadas no Asaas (${addedCount} novas adicionadas ao perfil e agrupadas em carnês).`,
+                    });
+                  } catch (err: any) {
+                    toast({
+                      title: 'Erro ao sincronizar com Asaas',
+                      description: err.message || 'Erro desconhecido',
+                      variant: 'destructive',
+                    });
+                  } finally {
+                    setIsSyncingCustomerAsaas(false);
+                  }
+                };
+
                 return (
                 <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-4 shadow-sm">
                   {/* Título Perfil financeiro - NOME DO CLIENTE */}
@@ -13725,7 +13879,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     </div>
                   </div>
 
-                  {/* Faixa verde-clara superior com botões ADD CARNÊ e VOLTAR */}
+                  {/* Faixa verde-clara superior com botões ADD CARNÊ, SINCRONIZAR ASAAS e VOLTAR */}
                   <div className="bg-[#dff0d8] border border-[#d6e9c6] rounded-md py-3 px-4 flex flex-wrap items-center justify-center gap-3">
                     <button
                       type="button"
@@ -13761,6 +13915,23 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     </button>
                     <button
                       type="button"
+                      disabled={isSyncingCustomerAsaas}
+                      onClick={handleSyncCustomerAsaasCharges}
+                      className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs uppercase px-4 py-2 rounded shadow-sm flex items-center gap-1.5 disabled:opacity-60"
+                      title="Consultar todas as cobranças vinculadas ao CPF deste cliente no Asaas e atualizar a lista de carnês"
+                    >
+                      {isSyncingCustomerAsaas ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" /> Buscando no Asaas...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5" /> Sincronizar Carnês com Asaas
+                        </>
+                      )}
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => setClientDetailTool('DADOS_CADASTRAIS')}
                       className="bg-[#2b6cb0] hover:bg-blue-800 text-white font-bold text-xs uppercase px-4 py-2 rounded shadow-sm"
                     >
@@ -13777,16 +13948,32 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                       <select
                         value={selectedCarneNumber}
                         onChange={(e) => setSelectedCarneNumber(e.target.value)}
-                        className="h-9 w-56 rounded border border-slate-300 px-3 text-xs font-semibold bg-white text-slate-800"
+                        className="h-9 min-w-64 max-w-sm rounded border border-slate-300 px-3 text-xs font-semibold bg-white text-slate-800"
                       >
                         <option value="ALL">Todos os Carnês ({allInvoices.length})</option>
                         {availableCarneGroups.map((grp) => {
-                          const cnt = allInvoices.filter(
+                          const groupInvs = allInvoices.filter(
                             (inv) => String(Number(inv.carneGroup) || 1) === grp
-                          ).length;
+                          );
+                          const cnt = groupInvs.length;
+                          const firstDueDay = groupInvs[0]?.dueDate
+                            ? groupInvs[0].dueDate.split('-')[2]
+                            : '14';
+                          const isDuplicate = groupInvs.some(
+                            (i) =>
+                              i.description &&
+                              selectedSubForDetail.subscriptionCode &&
+                              !i.description.includes(selectedSubForDetail.subscriptionCode)
+                          );
+                          const label =
+                            grp === '1'
+                              ? `Carnê 1 (${cnt} parcelas - Dia ${firstDueDay})`
+                              : isDuplicate
+                              ? `Carnê ${grp} (${cnt} parcelas - Dia ${firstDueDay}) [Duplicado no Asaas]`
+                              : `Carnê ${grp} (${cnt} parcelas - Dia ${firstDueDay})`;
                           return (
                             <option key={grp} value={grp}>
-                              Carnê {grp} ({cnt} parcelas)
+                              {label}
                             </option>
                           );
                         })}
