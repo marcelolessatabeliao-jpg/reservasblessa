@@ -135,6 +135,7 @@ import {
   fetchAddressByCep,
   getPlanDocumentRule,
   memberHasProofDocument,
+  memberHasProofUploaded,
   isMemberBlockedForMissingDoc,
   attachMemberProofDocument,
   verifyMemberProofDocument,
