@@ -619,12 +619,19 @@ export const ClubMemberCardView: React.FC<ClubMemberCardViewProps> = ({
 
             {/* Moldura da Foto 3x4 do Associado */}
             <div
-              onClick={() =>
-                onUpdatePhoto &&
-                (member.photoUrl ? handleOpenRepositionEditor() : fileInputRef.current?.click())
-              }
+              onClick={() => {
+                if (locked) return;
+                if (!onUpdatePhoto) return;
+                if (member.photoUrl) {
+                  handleOpenRepositionEditor();
+                } else {
+                  fileInputRef.current?.click();
+                }
+              }}
               title={
-                onUpdatePhoto
+                locked
+                  ? (lockReason || 'Carteirinha bloqueada aguardando ativação do plano')
+                  : onUpdatePhoto
                   ? 'Clique para enviar ou reposicionar a foto de perfil do sócio'
                   : member.fullName
               }
@@ -640,7 +647,7 @@ export const ClubMemberCardView: React.FC<ClubMemberCardViewProps> = ({
                 overflow: 'hidden',
                 zIndex: 10,
               }}
-              className={onUpdatePhoto ? 'cursor-pointer group' : ''}
+              className={!locked && onUpdatePhoto ? 'cursor-pointer group' : ''}
             >
               {member.photoUrl ? (
                 <img
@@ -653,7 +660,7 @@ export const ClubMemberCardView: React.FC<ClubMemberCardViewProps> = ({
                 <div className="w-full h-full flex flex-col items-center justify-center text-center p-2 bg-gradient-to-b from-emerald-800 to-emerald-950 text-emerald-100">
                   <Camera className="w-7 h-7 mb-1 opacity-75" />
                   <span className="text-[9px] font-black uppercase tracking-wider leading-tight">
-                    {onUpdatePhoto ? 'Clique p/ Foto' : 'Sem Foto'}
+                    {!locked && onUpdatePhoto ? 'Clique p/ Foto' : 'Sem Foto'}
                   </span>
                 </div>
               )}

@@ -307,6 +307,14 @@ const SocioPortal: React.FC = () => {
 
   const handleUpdateMemberPhoto = async (memberId: string, photoDataUrl: string) => {
     if (!state || !subscription) return;
+    if (subscription.status !== 'ACTIVE') {
+      toast({
+        title: 'Plano Inativo (Aguardando Ativação)',
+        description: 'A edição e download da carteirinha só são liberados após a confirmação do pagamento ou ativação do plano pela administração.',
+        variant: 'destructive',
+      });
+      return;
+    }
     const updatedSub: ClubSubscription = {
       ...subscription,
       updatedAt: new Date().toISOString(),
@@ -1204,7 +1212,7 @@ const SocioPortal: React.FC = () => {
                                 ? 'Aguardando liberação do cadastro'
                                 : undefined
                             }
-                            onUpdatePhoto={handleUpdateMemberPhoto}
+                            onUpdatePhoto={isLockedMember || !isSubscriptionActive ? undefined : handleUpdateMemberPhoto}
                           />
 
                           {(docRule.requiresDocument || hasDoc) && (
@@ -1368,7 +1376,7 @@ const SocioPortal: React.FC = () => {
                                     ? 'Dependente inativo no momento'
                                     : undefined
                                 }
-                                onUpdatePhoto={handleUpdateMemberPhoto}
+                                onUpdatePhoto={isLockedMember || !isSubscriptionActive ? undefined : handleUpdateMemberPhoto}
                               />
 
                               {(docRule.requiresDocument || hasDoc) && (
