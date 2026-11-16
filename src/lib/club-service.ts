@@ -716,6 +716,35 @@ export const compressImageFile = (
   });
 };
 
+/**
+ * Converte e comprime automaticamente qualquer imagem enviada (fotos de celular de 10MB a 20MB)
+ * para um arquivo JPEG leve (~80KB a 120KB) em alta legibilidade antes de enviar ao Supabase Storage.
+ * Arquivos não-imagem (como PDF) são mantidos sem alteração.
+ */
+export const compressImageToFile = async (
+  file: File,
+  maxWidth = 1280,
+  maxHeight = 1280,
+  quality = 0.75
+): Promise<{ file: File; fileName: string }> => {
+  if (!file.type || !file.type.startsWith('image/')) {
+    const ext = file.name.split('.').pop() || 'bin';
+    return { file, fileName: `${crypto.randomUUID()}.${ext}` };
+  }
+  try {
+    const dataUrl = await compressImageFile(file, maxWidth, maxHeight, quality);
+    const res = await fetch(dataUrl);
+    const blob = await res.blob();
+    const fileName = `${crypto.randomUUID()}.jpg`;
+    const compressed = new File([blob], fileName, { type: 'image/jpeg' });
+    return { file: compressed, fileName };
+  } catch (err) {
+    console.warn('[compressImageToFile] Fallback to original file:', err);
+    const ext = file.name.split('.').pop() || 'jpg';
+    return { file, fileName: `${crypto.randomUUID()}.${ext}` };
+  }
+};
+
 export const getQrCodeImageUrl = (payload: string, size = 240): string =>
   `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&margin=4&data=${encodeURIComponent(
     payload

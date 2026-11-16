@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { isValidCPF } from '@/utils/cpf-validator';
 import { saveBooking, getBookedKioskIds, getQuadAvailability, getGlobalSetting, updateGlobalSetting, type OrderItemInput } from '@/lib/booking-service';
 import { format, isToday, isTomorrow, isThisWeek, parseISO, isBefore, startOfDay, addDays } from 'date-fns';
@@ -33,7 +33,7 @@ import { AdminCreditsTab } from '@/components/admin/AdminCreditsTab';
 import { AdminDashboardTab } from '@/components/admin/AdminDashboardTab';
 import { AdminRelatoriosTab } from '@/components/admin/AdminRelatoriosTab';
 import { AdminClubEcosystem } from '@/components/club/AdminClubEcosystem';
-import { fetchClubState } from '@/lib/club-service';
+import { fetchClubState, compressImageToFile } from '@/lib/club-service';
 import {
   getSeenReservationIds,
   markReservationAsSeen,
@@ -1088,17 +1088,30 @@ export default function Admin() {
     }
   }, [toast]);
 
+  const lastSyncTimeRef = useRef<number>(0);
+
   const syncAllPendingPayments = useCallback(async () => {
     try {
-      // Get orders that might need a payment status check
+      // Evita requisições se a aba do navegador estiver em segundo plano / minimizada
+      if (typeof document !== 'undefined' && document.hidden) return;
+
+      // Throttle: não executa mais de uma vez a cada 3 minutos
+      const now = Date.now();
+      if (now - lastSyncTimeRef.current < 3 * 60 * 1000) return;
+      lastSyncTimeRef.current = now;
+
+      // Busca somente pedidos recentes (últimas 48 horas) com status pendente (evita varrer pedidos antigos/abandonados)
+      const recentThreshold = new Date(Date.now() - 48 * 3600 * 1000).toISOString();
       const { data: pendingOrders } = await supabase
         .from('orders')
         .select('id')
-        .in('status', ['pending', 'awaiting_payment', 'aguardando pgto', 'waiting_local', 'waiting_confirmation']);
+        .in('status', ['pending', 'awaiting_payment', 'aguardando pgto', 'waiting_local', 'waiting_confirmation'])
+        .gte('created_at', recentThreshold)
+        .limit(10);
 
       if (!pendingOrders || pendingOrders.length === 0) return;
 
-      console.log(`[Admin] Auto-syncing ${pendingOrders.length} pending payments...`);
+      console.log(`[Admin] Auto-syncing ${pendingOrders.length} recent pending payments...`);
       
       // Process syncs
       for (const order of pendingOrders) {
@@ -1138,16 +1151,20 @@ export default function Admin() {
         }
       });
 
-    // Fallback: Refresh data and sync payments every 30s silently in background
+    // Fallback: Realtime já ouve alterações via WebSocket. Polling suave a cada 5 minutos e apenas quando a aba estiver ativa!
     const pollInterval = setInterval(() => {
-      console.log("[Admin] Periodic sync...");
+      if (typeof document !== 'undefined' && document.hidden) return;
+      console.log("[Admin] Periodic gentle sync...");
       fetchData(true);
       syncAllPendingPayments();
       refreshClubNotifications();
-    }, 30 * 1000);
+    }, 5 * 60 * 1000);
 
-    // Sync silently when window regains focus
+    // Sync silencioso quando a janela volta ao foco (se passou mais de 1 minuto)
+    let lastFocusTime = Date.now();
     const handleFocus = () => {
+      if (Date.now() - lastFocusTime < 60 * 1000) return;
+      lastFocusTime = Date.now();
       console.log("[Admin] Window focused, syncing data...");
       fetchData(true);
       syncAllPendingPayments();
@@ -1504,14 +1521,13 @@ export default function Admin() {
   const handleFileUpload = async (file: File) => {
     setIsUploading(true);
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${crypto.randomUUID()}.${fileExt}`;
-      const { error: uploadError } = await supabase.storage.from('receipts').upload(fileName, file);
+      const { file: optimizedFile, fileName } = await compressImageToFile(file);
+      const { error: uploadError } = await supabase.storage.from('receipts').upload(fileName, optimizedFile);
       if (uploadError) throw uploadError;
 
       const { data: { publicUrl } } = supabase.storage.from('receipts').getPublicUrl(fileName);
       setEditData((prev: any) => ({ ...prev, receipt_url: publicUrl }));
-      toast({ title: "Comprovante enviado!" });
+      toast({ title: "Comprovante otimizado e enviado com sucesso!" });
     } catch (err) {
       toast({ title: "Erro no upload", variant: "destructive" });
     } finally {
@@ -1821,9 +1837,8 @@ export default function Admin() {
   const handleKioskFileUpload = async (file: File, resId: string) => {
     setIsUploading(true);
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${crypto.randomUUID()}.${fileExt}`;
-      const { error: uploadError } = await supabase.storage.from('receipts').upload(fileName, file);
+      const { file: optimizedFile, fileName } = await compressImageToFile(file);
+      const { error: uploadError } = await supabase.storage.from('receipts').upload(fileName, optimizedFile);
       if (uploadError) throw uploadError;
       const { data: { publicUrl } } = supabase.storage.from('receipts').getPublicUrl(fileName);
       
@@ -1834,7 +1849,7 @@ export default function Admin() {
       } else {
          const { error: updateError } = await supabase.from('kiosk_reservations').update({ receipt_url: publicUrl }).eq('id', resId);
          if (updateError) throw updateError;
-         toast({ title: "Comprovante salvo!" });
+         toast({ title: "Comprovante otimizado e salvo!" });
          fetchData();
       }
     } catch (err) { toast({ title: "Erro no upload", variant: "destructive" }); }
@@ -1844,9 +1859,8 @@ export default function Admin() {
   const handleQuadFileUpload = async (file: File, resId: string) => {
     setIsUploading(true);
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${crypto.randomUUID()}.${fileExt}`;
-      const { error: uploadError } = await supabase.storage.from('receipts').upload(fileName, file);
+      const { file: optimizedFile, fileName } = await compressImageToFile(file);
+      const { error: uploadError } = await supabase.storage.from('receipts').upload(fileName, optimizedFile);
       if (uploadError) throw uploadError;
       const { data: { publicUrl } } = supabase.storage.from('receipts').getPublicUrl(fileName);
       
@@ -1856,7 +1870,7 @@ export default function Admin() {
       } else {
          const { error: updateError } = await supabase.from('quad_reservations').update({ receipt_url: publicUrl }).eq('id', resId);
          if (updateError) throw updateError;
-         toast({ title: "Comprovante salvo!" });
+         toast({ title: "Comprovante otimizado e salvo!" });
          fetchData();
       }
     } catch (err) { toast({ title: "Erro no upload", variant: "destructive" }); }
@@ -3386,15 +3400,14 @@ export default function Admin() {
                       onFileUpload={async (file, id, isOrder) => {
                         setIsUploading(true);
                         try {
-                           const fileExt = file.name.split('.').pop();
-                           const fileName = `${crypto.randomUUID()}.${fileExt}`;
-                           const { error: uploadError } = await supabase.storage.from('receipts').upload(fileName, file);
+                           const { file: optimizedFile, fileName } = await compressImageToFile(file);
+                           const { error: uploadError } = await supabase.storage.from('receipts').upload(fileName, optimizedFile);
                            if (uploadError) throw uploadError;
                            const { data: { publicUrl } } = supabase.storage.from('receipts').getPublicUrl(fileName);
                            const table = isOrder ? 'orders' : 'bookings';
                            const { error } = await supabase.from(table).update({ receipt_url: publicUrl }).eq('id', id);
                            if (error) throw error;
-                           toast({ title: "Comprovante anexado!" });
+                           toast({ title: "Comprovante otimizado e anexado com sucesso!" });
                            fetchData();
                         } catch (err) { 
                            toast({ title: "Erro ao anexar comprovante", variant: "destructive" });

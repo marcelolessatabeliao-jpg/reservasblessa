@@ -222,7 +222,7 @@ export const ClubMemberCardView: React.FC<ClubMemberCardViewProps> = ({
 
   const handleSaveCroppedPhoto = () => {
     if (!previewCanvasRef.current || !onUpdatePhoto) return;
-    const finalDataUrl = previewCanvasRef.current.toDataURL('image/jpeg', 0.92);
+    const finalDataUrl = previewCanvasRef.current.toDataURL('image/jpeg', 0.80);
     onUpdatePhoto(member.id, finalDataUrl);
     setEditingPhotoUrl(null);
   };

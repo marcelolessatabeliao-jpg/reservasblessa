@@ -1372,7 +1372,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     return list;
   }, [state]);
 
-  // Filtered subscriptions (supports Clientes PF, Empresas PJ, Status, Via Site)
+  // Filtered subscriptions (supports Clientes PF, Empresas PJ, Status, Via Site, Não visualizados)
   // Ordena do mais recente primeiro com data do cadastro e busca inteligente que prioriza quem começa pelo nome
   const filteredSubscriptions = useMemo(() => {
     if (!state) return [];
@@ -1384,7 +1384,9 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         return false;
       }
       if (subStatusFilter !== 'ALL') {
-        if (subStatusFilter === 'PENDING') {
+        if (subStatusFilter === 'UNSEEN') {
+          if (seenClubSubIds.has(sub.id)) return false;
+        } else if (subStatusFilter === 'PENDING') {
           if (sub.status !== 'PENDING' && sub.status !== 'PENDING_TRANSFER') return false;
         } else if (subStatusFilter === 'PENDING_TRANSFER') {
           if (sub.status !== 'PENDING_TRANSFER' && !(sub.origin === 'IMPORT_LABCARD' && !sub.transferCompleted)) return false;
@@ -1407,6 +1409,20 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       );
     });
 
+    const getSubTimestamp = (sub: ClubSubscription): number => {
+      const raw = sub.createdAt || sub.contractSignedAt || sub.startDate;
+      if (!raw) return 0;
+      const str = String(raw).trim();
+      if (/^\d{2}\/\d{2}\/\d{4}/.test(str)) {
+        const [datePart, timePart] = str.split(' ');
+        const [d, m, y] = datePart.split('/').map(Number);
+        const [hh, mm, ss] = timePart ? timePart.split(':').map(Number) : [0, 0, 0];
+        return new Date(y, m - 1, d, hh || 0, mm || 0, ss || 0).getTime();
+      }
+      const t = new Date(str).getTime();
+      return isNaN(t) ? 0 : t;
+    };
+
     if (subSearch.trim()) {
       const q = subSearch.toLowerCase().trim();
       return [...baseList].sort((a, b) => {
@@ -1419,19 +1435,25 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
           ...(b.members || []).map((m) => scoreSearchMatch(m.fullName || '', q))
         );
         if (scoreB !== scoreA) return scoreB - scoreA;
-        const dateA = new Date(a.createdAt || a.startDate || 0).getTime();
-        const dateB = new Date(b.createdAt || b.startDate || 0).getTime();
-        return dateB - dateA;
+        const timeA = getSubTimestamp(a);
+        const timeB = getSubTimestamp(b);
+        if (timeB !== timeA) return timeB - timeA;
+        const numA = parseInt(String(a.subscriptionCode).replace(/\D/g, ''), 10) || 0;
+        const numB = parseInt(String(b.subscriptionCode).replace(/\D/g, ''), 10) || 0;
+        return numB - numA;
       });
     }
 
     // Padrão: Mais recente primeiro com data do cadastro!
     return [...baseList].sort((a, b) => {
-      const dateA = new Date(a.createdAt || a.startDate || 0).getTime();
-      const dateB = new Date(b.createdAt || b.startDate || 0).getTime();
-      return dateB - dateA;
+      const timeA = getSubTimestamp(a);
+      const timeB = getSubTimestamp(b);
+      if (timeB !== timeA) return timeB - timeA;
+      const numA = parseInt(String(a.subscriptionCode).replace(/\D/g, ''), 10) || 0;
+      const numB = parseInt(String(b.subscriptionCode).replace(/\D/g, ''), 10) || 0;
+      return numB - numA;
     });
-  }, [state, subSearch, subStatusFilter, personFilter, originFilter]);
+  }, [state, subSearch, subStatusFilter, personFilter, originFilter, seenClubSubIds]);
 
   // Reset pagination when search or filters change
   useEffect(() => {
@@ -5936,6 +5958,23 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     {st.label}
                   </Button>
                 ))}
+                {unseenClubCount > 0 && (
+                  <Button
+                    size="sm"
+                    variant={subStatusFilter === 'UNSEEN' ? 'default' : 'outline'}
+                    onClick={() => {
+                      setOriginFilter('ALL');
+                      setSubStatusFilter(subStatusFilter === 'UNSEEN' ? 'ALL' : 'UNSEEN');
+                    }}
+                    className={`shrink-0 whitespace-nowrap text-xs ${
+                      subStatusFilter === 'UNSEEN'
+                        ? 'bg-rose-700 text-white font-bold'
+                        : 'border-rose-300 text-rose-700 hover:bg-rose-50'
+                    }`}
+                  >
+                    🔥 Novos ({unseenClubCount})
+                  </Button>
+                )}
                 <Button
                   size="sm"
                   variant={originFilter === 'SITE' ? 'default' : 'outline'}
@@ -5973,7 +6012,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
             {unseenClubCount > 0 && (
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-rose-50 border border-rose-200/80 rounded-2xl px-4 py-2.5 shadow-sm mb-4">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="relative flex h-2.5 w-2.5">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-600"></span>
@@ -5981,6 +6020,23 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   <span className="text-xs font-bold text-rose-950">
                     {unseenClubCount} {unseenClubCount === 1 ? 'novo associado cadastrado não visualizado' : 'novos associados cadastrados não visualizados'}
                   </span>
+                  <button
+                    onClick={() => {
+                      if (subStatusFilter === 'UNSEEN') {
+                        setSubStatusFilter('ALL');
+                      } else {
+                        setSubStatusFilter('UNSEEN');
+                        setOriginFilter('ALL');
+                      }
+                    }}
+                    className={`ml-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer ${
+                      subStatusFilter === 'UNSEEN'
+                        ? 'bg-rose-700 text-white ring-2 ring-rose-400'
+                        : 'bg-rose-100 hover:bg-rose-200 text-rose-900 border border-rose-300'
+                    }`}
+                  >
+                    🔍 {subStatusFilter === 'UNSEEN' ? 'Mostrando Novos (Clique p/ Voltar)' : 'Filtrar Somente Novos'}
+                  </button>
                 </div>
                 <button
                   onClick={() => {
@@ -6012,6 +6068,9 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     <tr className="bg-[#004d00] text-white text-xs uppercase tracking-wider font-black">
                       <th className="py-3 px-4 border-r border-emerald-800">
                         Nº Cartão
+                      </th>
+                      <th className="py-3 px-4 border-r border-emerald-800 whitespace-nowrap">
+                        Data Cadastro
                       </th>
                       <th className="py-3 px-4 border-r border-emerald-800">
                         Nome (Titular)
@@ -6060,6 +6119,30 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                             className="py-3 px-4 font-mono font-bold text-slate-800 border-r border-slate-200 cursor-pointer hover:text-emerald-700"
                           >
                             {sub.subscriptionCode}
+                          </td>
+                          <td
+                            onClick={() => {
+                              setClientDetailTool('DADOS_CADASTRAIS');
+                              setSelectedSubForDetail(sub);
+                            }}
+                            className="py-3 px-4 border-r border-slate-200 cursor-pointer whitespace-nowrap"
+                          >
+                            <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                              <Calendar className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                              <span>{formatDateBR(sub.createdAt || sub.startDate)}</span>
+                            </div>
+                            {sub.createdAt && sub.createdAt.includes('T') ? (
+                              <div className="text-[10px] text-slate-500 font-medium pl-5">
+                                às {new Date(sub.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                              </div>
+                            ) : null}
+                            {!seenClubSubIds.has(sub.id) && (
+                              <div className="pl-5 mt-1">
+                                <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-black bg-rose-600 text-white uppercase tracking-wider animate-pulse">
+                                  Novo
+                                </span>
+                              </div>
+                            )}
                           </td>
                           <td
                             onClick={() => {
