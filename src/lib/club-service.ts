@@ -1897,10 +1897,19 @@ const invokeEdgeFunctionWithTimeout = async (
   });
 
   try {
-    const result = await Promise.race([
+    const result: any = await Promise.race([
       supabase.functions.invoke(name, options),
       timeoutPromise,
     ]);
+    if (result?.error && (result.error as any).context) {
+      try {
+        const text = await (result.error as any).context.text();
+        const json = JSON.parse(text);
+        if (json?.error) {
+          result.error.message = json.error;
+        }
+      } catch (_) {}
+    }
     return result;
   } finally {
     if (timeoutId) clearTimeout(timeoutId);
@@ -1962,7 +1971,14 @@ export const emitCarneMonthlyChargesInAsaas = async (
     const yyyy = due.getFullYear();
     const mm = String(due.getMonth() + 1).padStart(2, '0');
     const dd = String(due.getDate()).padStart(2, '0');
-    inv.dueDate = `${yyyy}-${mm}-${dd}`;
+    
+    // O Asaas proíbe vencimento inferior a hoje. Clampa para no mínimo hoje.
+    const todayStr = new Date().toISOString().split('T')[0];
+    let computedDue = `${yyyy}-${mm}-${dd}`;
+    if (computedDue < todayStr) {
+      computedDue = todayStr;
+    }
+    inv.dueDate = computedDue;
     inv.referenceMonth = `${mm}/${yyyy}`;
 
     if (typeof params.equalizedAmount === 'number' && Number.isFinite(params.equalizedAmount) && params.equalizedAmount > 0) {

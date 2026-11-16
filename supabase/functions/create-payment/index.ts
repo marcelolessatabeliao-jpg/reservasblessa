@@ -178,10 +178,18 @@ Deno.serve(async (req) => {
 
     // 4. Gerar Cobrança (PIX, CARTÃO CRÉDITO/DÉBITO ou CARNÊ com Parcelas)
     const isInstallment = billingType === 'CREDIT_CARD' && Number(installmentCount) > 1;
+
+    // Garantir que a data de vencimento nunca seja inferior a hoje (exigência estrita do Asaas)
+    const todayStr = new Date().toISOString().split('T')[0];
+    let sanitizedDueDate = dueDate || todayStr;
+    if (sanitizedDueDate < todayStr) {
+      sanitizedDueDate = todayStr;
+    }
+
     const paymentBody: Record<string, any> = {
       customer: asaasCustomerId,
       billingType: billingType,
-      dueDate: dueDate || new Date().toISOString().split('T')[0],
+      dueDate: sanitizedDueDate,
       description: description || `Reserva Balneário Lessa`,
       externalReference: orderId,
       postalService: false,

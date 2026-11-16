@@ -13944,10 +13944,12 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                               inv.invoiceKind !== 'ADESAO' &&
                               inv.amount > 0
                           );
-                          const nextDue =
+                          const todayStr = new Date().toISOString().split('T')[0];
+                          const rawDue =
                             eligible[0]?.dueDate ||
                             filteredInvoices.find((i) => i.status !== 'PAID' && i.amount > 0)?.dueDate ||
-                            new Date().toISOString().split('T')[0];
+                            todayStr;
+                          const nextDue = rawDue < todayStr ? todayStr : rawDue;
                           const parsedDue = new Date(`${nextDue}T12:00:00`);
                           setGerarCarneAsaasCount(eligible.length > 0 ? eligible.length : 12);
                           setGerarCarneAsaasFirstDue(nextDue);
@@ -14278,10 +14280,12 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                             inv.invoiceKind !== 'ADESAO' &&
                             inv.amount > 0
                         );
-                        const nextDue =
+                        const todayStr = new Date().toISOString().split('T')[0];
+                        const rawDue =
                           eligible[0]?.dueDate ||
                           filteredInvoices.find((i) => i.status !== 'PAID' && i.amount > 0)?.dueDate ||
-                          new Date().toISOString().split('T')[0];
+                          todayStr;
+                        const nextDue = rawDue < todayStr ? todayStr : rawDue;
                         const parsedDue = new Date(`${nextDue}T12:00:00`);
                         setGerarCarneAsaasCount(eligible.length > 0 ? eligible.length : 12);
                         setGerarCarneAsaasFirstDue(nextDue);
@@ -15280,6 +15284,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                             <Label className="text-xs font-bold text-slate-700">1º Vencimento Base</Label>
                             <Input
                               type="date"
+                              min={new Date().toISOString().split('T')[0]}
                               value={gerarCarneAsaasFirstDue}
                               onChange={(e) => {
                                 setGerarCarneAsaasFirstDue(e.target.value);
