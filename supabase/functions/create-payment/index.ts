@@ -176,8 +176,8 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 4. Gerar Cobrança (PIX, CARTÃO ou CARNÊ com Parcelas)
-    const isInstallment = Number(installmentCount) > 1;
+    // 4. Gerar Cobrança (PIX, CARTÃO CRÉDITO/DÉBITO ou CARNÊ com Parcelas)
+    const isInstallment = billingType === 'CREDIT_CARD' && Number(installmentCount) > 1;
     const paymentBody: Record<string, any> = {
       customer: asaasCustomerId,
       billingType: billingType,
@@ -194,10 +194,10 @@ Deno.serve(async (req) => {
       } else if (installmentValue) {
         paymentBody.installmentValue = Number(Number(installmentValue).toFixed(2));
       } else {
-        paymentBody.installmentValue = Number(Number(value).toFixed(2));
+        paymentBody.totalValue = Number(Number(value).toFixed(2));
       }
     } else {
-      paymentBody.value = Number(Number(value).toFixed(2));
+      paymentBody.value = Number(Number(value || totalValue).toFixed(2));
     }
 
     if (body.creditCard) {
@@ -227,6 +227,8 @@ Deno.serve(async (req) => {
       pixData = await pixReq.json();
     }
 
+    const isPaid = paymentData.status === 'CONFIRMED' || paymentData.status === 'RECEIVED';
+
     // 6. Registro no Supabase (Opcional - apenas para pedidos com UUID)
     if (isUuid) {
       try {
@@ -235,14 +237,19 @@ Deno.serve(async (req) => {
             order_id: orderId,
             gateway: 'asaas',
             metodo: billingType,
-            status: paymentData.status === 'CONFIRMED' || paymentData.status === 'RECEIVED' ? 'paid' : 'pending',
+            status: isPaid ? 'paid' : 'pending',
             external_id: paymentData.id,
             payment_url: paymentData.invoiceUrl
         });
+
+        if (isPaid) {
+          await supabaseAdmin.from('orders').update({
+            status: 'paid',
+            updated_at: new Date().toISOString()
+          }).eq('id', orderId);
+        }
       } catch (e) { console.warn('Erro ao salvar log de pagamento:', e); }
     }
-
-    const isPaid = paymentData.status === 'CONFIRMED' || paymentData.status === 'RECEIVED';
 
     return new Response(JSON.stringify({
       success: true,

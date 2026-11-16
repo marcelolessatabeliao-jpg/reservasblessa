@@ -1,4 +1,4 @@
-import { MessageCircle, CheckCircle, Loader2, ArrowRight, User, CreditCard, QrCode, Copy, Sparkles, Phone, X, ArrowLeft, Calendar, FileText, ShieldCheck } from 'lucide-react';
+import { MessageCircle, CheckCircle, Loader2, ArrowRight, User, CreditCard, QrCode, Copy, Sparkles, Phone, X, ArrowLeft, Calendar, FileText, ShieldCheck, AlertCircle, Lock } from 'lucide-react';
 import { isValidCPF } from '@/utils/cpf-validator';
 import { Link } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
@@ -67,9 +67,19 @@ export function BookingOverview({
 }: Props) {
   const [saving, setSaving] = useState(false);
   const [paymentData, setPaymentData] = useState<{ open: boolean; orderId: string; confirmationCode?: string } | null>(null);
-  const [activePaymentMethod, setActivePaymentMethod] = useState<'PIX' | 'CREDIT_CARD' | null>(null);
-  const [showCardInstallmentModal, setShowCardInstallmentModal] = useState(false);
+  const [activePaymentMethod, setActivePaymentMethod] = useState<'PIX' | 'CREDIT_CARD' | 'DEBIT_CARD' | null>(null);
+  const [showCardModal, setShowCardModal] = useState(false);
+  const [cardBillingType, setCardBillingType] = useState<'CREDIT_CARD' | 'DEBIT_CARD'>('CREDIT_CARD');
   const [selectedInstallments, setSelectedInstallments] = useState(1);
+  const [cardHolderName, setCardHolderName] = useState('');
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
+  const [cardCvv, setCardCvv] = useState('');
+  const [cardHolderCpf, setCardHolderCpf] = useState('');
+  const [cardHolderPhone, setCardHolderPhone] = useState('');
+  const [cardPostalCode, setCardPostalCode] = useState('76870-000');
+  const [cardAddressNumber, setCardAddressNumber] = useState('S/N');
+  const [cardError, setCardError] = useState<string | null>(null);
   const [pixData, setPixData] = useState<{ encodedImage: string; payload: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
@@ -88,6 +98,30 @@ export function BookingOverview({
     if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
     if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
     return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
+  };
+
+  const formatCardNumberMask = (val: string): string => {
+    const digits = (val || '').replace(/\D/g, '').slice(0, 19);
+    return digits.replace(/(\d{4})(?=\d)/g, '$1 ');
+  };
+
+  const formatCardExpiryMask = (val: string): string => {
+    const digits = (val || '').replace(/\D/g, '').slice(0, 4);
+    if (digits.length <= 2) return digits;
+    return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  };
+
+  const formatPhoneMask = (val: string): string => {
+    const digits = (val || '').replace(/\D/g, '').slice(0, 11);
+    if (digits.length <= 2) return digits;
+    if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+  };
+
+  const formatCepMask = (val: string): string => {
+    const digits = (val || '').replace(/\D/g, '').slice(0, 8);
+    if (digits.length <= 5) return digits;
+    return `${digits.slice(0, 5)}-${digits.slice(5)}`;
   };
 
   const hasSelectedChaleBooking = Boolean(
@@ -172,7 +206,20 @@ export function BookingOverview({
     });
   };
 
-  const handleAction = async (method: 'PIX' | 'CREDIT_CARD' | 'LOCAL', installmentsCount: number = 1) => {
+  const handleAction = async (
+    method: 'PIX' | 'CREDIT_CARD' | 'DEBIT_CARD' | 'LOCAL',
+    installmentsCount: number = 1,
+    cardData?: {
+      holderName: string;
+      number: string;
+      expiry: string;
+      ccv: string;
+      cpfCnpj: string;
+      postalCode: string;
+      addressNumber: string;
+      installments: number;
+    }
+  ) => {
     const fullName = booking.entry.name?.trim();
 
     if (!fullName || fullName.length < 2) {
@@ -489,13 +536,13 @@ export function BookingOverview({
           const el = document.getElementById('pix-copia-cola-box');
           if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }, 150);
-      } else if (method === 'CREDIT_CARD') {
+      } else if (method === 'CREDIT_CARD' || method === 'DEBIT_CARD') {
         trackFBEvent(
           'InitiateCheckout',
           {
             value: totals.total,
             currency: 'BRL',
-            content_name: 'Reserva Balneário Lessa - Cartão',
+            content_name: method === 'DEBIT_CARD' ? 'Reserva Balneário Lessa - Débito' : 'Reserva Balneário Lessa - Cartão',
             content_category: 'Parque Aquático, Day Use e Reservas',
             content_type: 'product',
             content_ids: orderId ? [orderId] : undefined,
@@ -503,17 +550,52 @@ export function BookingOverview({
           orderId ? { eventId: `ic_${orderId}`, dedupeKey: `ic_${orderId}` } : undefined
         );
 
+        const isCredit = method === 'CREDIT_CARD';
+        const effectiveInstallments = isCredit ? Math.max(1, installmentsCount) : 1;
+        const installmentValue = Number((totals.total / effectiveInstallments).toFixed(2));
+
+        const cardRequestBody: any = {
+          orderId,
+          name: cardData?.holderName || fullName,
+          email: booking.entry.email || 'reserva@balneariolessa.com.br',
+          phone: booking.entry.phone,
+          cpf: (cardData?.cpfCnpj || booking.entry.cpf || '').replace(/\D/g, ''),
+          billingType: method,
+          value: totals.total,
+          totalValue: totals.total,
+          installmentCount: effectiveInstallments,
+          installmentValue: installmentValue,
+          description: `Reserva Balneário Lessa (${confCode || orderId}) - ${fullName}`,
+        };
+
+        if (cardData) {
+          const rawExpiry = (cardData.expiry || '').trim();
+          const expiryParts = rawExpiry.split('/');
+          const expiryMonth = (expiryParts[0] || '').padStart(2, '0');
+          const rawYear = (expiryParts[1] || '').trim();
+          const expiryYear = rawYear.length === 2 ? `20${rawYear}` : rawYear;
+
+          cardRequestBody.creditCard = {
+            holderName: cardData.holderName.toUpperCase().trim(),
+            number: cardData.number.replace(/\D/g, ''),
+            expiryMonth,
+            expiryYear,
+            ccv: cardData.ccv.trim(),
+          };
+
+          cardRequestBody.creditCardHolderInfo = {
+            name: cardData.holderName.toUpperCase().trim(),
+            email: booking.entry.email || 'reserva@balneariolessa.com.br',
+            cpfCnpj: (cardData.cpfCnpj || booking.entry.cpf || '').replace(/\D/g, ''),
+            postalCode: (cardData.postalCode || '76870000').replace(/\D/g, ''),
+            addressNumber: cardData.addressNumber || 'S/N',
+            phone: cleanPhoneDigits,
+            mobilePhone: cleanPhoneDigits,
+          };
+        }
+
         const response = await supabase.functions.invoke('create-payment', {
-          body: {
-            orderId,
-            name: fullName,
-            email: booking.entry.email || '',
-            phone: booking.entry.phone,
-            cpf: booking.entry.cpf,
-            billingType: 'CREDIT_CARD',
-            value: totals.total,
-            description: `Reserva Balneário Lessa - ${fullName}`,
-          }
+          body: cardRequestBody
         });
 
         let serverError: string | null = null;
@@ -534,13 +616,31 @@ export function BookingOverview({
         }
 
         const data = response.data?.data;
-        if (data?.invoiceUrl) {
-           toast({ title: 'Redirecionando...', description: 'Aguarde um momento para o pagamento seguro.' });
-           setTimeout(() => {
-              window.location.href = data.invoiceUrl;
-           }, 500);
+        const isPaid = data?.isPaid || data?.status === 'CONFIRMED' || data?.status === 'RECEIVED';
+
+        if (isPaid) {
+          setPaymentConfirmed(true);
+          setShowCardModal(false);
+          setActionError(null);
+          setCardError(null);
+          toast({ 
+            title: 'Pagamento Aprovado com Sucesso!', 
+            description: 'Sua reserva foi confirmada e debitada no cartão.' 
+          });
+        } else if (data?.invoiceUrl) {
+          toast({ title: 'Redirecionando...', description: 'Aguarde um momento para a autenticação segura do seu banco.' });
+          setTimeout(() => {
+            window.location.href = data.invoiceUrl;
+          }, 600);
         } else {
-           throw new Error("URL do checkout não encontrada.");
+          setPaymentConfirmed(true);
+          setShowCardModal(false);
+          setActionError(null);
+          setCardError(null);
+          toast({ 
+            title: 'Reserva Registrada!', 
+            description: 'O pagamento está em análise pela sua operadora.' 
+          });
         }
       } else {
         await (supabase as any).from('orders').update({ 
@@ -554,10 +654,14 @@ export function BookingOverview({
       }
     } catch (err: any) {
       console.error("[Booking] Error:", err);
-      setActionError(err.message || 'Erro ao processar o pagamento.');
+      const friendlyMsg = err.message || 'Erro ao processar o pagamento.';
+      setActionError(friendlyMsg);
+      if (showCardModal) {
+        setCardError(friendlyMsg);
+      }
       // Rollback: se o pedido foi criado mas o pagamento falhou, deletamos o pedido para evitar dados sujos
-      // IMPORTANTE: apenas deletamos se for pagamento online (PIX/CARTAO) que falhou agora
-      if (orderIdToRollback && method !== 'LOCAL') {
+      // IMPORTANTE: apenas deletamos se for pagamento online fora do modal de cartão
+      if (orderIdToRollback && method !== 'LOCAL' && !showCardModal) {
         console.log("[Booking] Rolling back order:", orderIdToRollback);
         try {
           await supabase.from('orders').delete().eq('id', orderIdToRollback);
@@ -565,7 +669,7 @@ export function BookingOverview({
           setPersistedConfirmationCode(null);
         } catch (_) {}
       }
-      toast({ title: 'Falha no Agendamento', description: err.message || 'Erro desconhecido', variant: 'destructive' });
+      toast({ title: 'Falha no Agendamento', description: friendlyMsg, variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -1377,7 +1481,7 @@ export function BookingOverview({
                     )}
 
                     <div className={cn(
-                      "grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4 transition-opacity",
+                      "grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 transition-opacity",
                       hasSelectedChaleBooking && !isChaleTermsAccepted && "opacity-60"
                     )}>
                       {/* Botão PIX */}
@@ -1386,31 +1490,31 @@ export function BookingOverview({
                         onClick={() => handleAction('PIX')}
                         disabled={saving}
                         className={cn(
-                          "h-20 sm:h-24 rounded-2xl bg-gradient-to-b from-[#094226] to-[#042817] hover:from-[#0d5531] hover:to-[#063a22] text-white font-black flex flex-row items-center justify-center gap-3 sm:gap-4 shadow-xl hover:shadow-[0_6px_20px_rgba(245,158,11,0.25)] active:scale-[0.98] transition-all border-2 border-amber-400 px-4 sm:px-5 py-3 cursor-pointer",
+                          "min-h-[5.5rem] py-3 px-4 rounded-2xl bg-gradient-to-b from-[#094226] to-[#042817] hover:from-[#0d5531] hover:to-[#063a22] text-white font-black flex items-center justify-center gap-3 sm:gap-4 shadow-xl active:scale-[0.98] transition-all border-2 border-amber-400 cursor-pointer w-full",
                           saving && activePaymentMethod === 'PIX' && "ring-4 ring-amber-400/50 from-[#0c5934] to-[#083b22]"
                         )}
                       >
-                        <div className="p-2.5 sm:p-3 bg-amber-400/15 rounded-2xl border border-amber-400/30 shrink-0 flex items-center justify-center">
+                        <div className="p-2 sm:p-2.5 bg-amber-400/15 rounded-xl border border-amber-400/30 shrink-0 flex items-center justify-center">
                           {saving && activePaymentMethod === 'PIX' ? (
-                            <Loader2 className="h-6 w-6 sm:h-8 sm:w-8 animate-spin text-amber-400" />
+                            <Loader2 className="h-6 w-6 sm:h-7 sm:w-7 animate-spin text-amber-400" />
                           ) : (
-                            <QrCode className="h-6 w-6 sm:h-8 sm:w-8 text-amber-400" />
+                            <QrCode className="h-6 w-6 sm:h-7 sm:w-7 text-amber-400" />
                           )}
                         </div>
-                        <div className="text-left leading-tight min-w-0">
+                        <div className="text-left leading-tight min-w-0 flex-1">
                           <span className={cn(
-                            "inline-block bg-amber-400 text-slate-950 font-black text-[9.5px] sm:text-[11px] px-2.5 py-0.5 rounded-full uppercase tracking-wider mb-1 shadow-2xs whitespace-nowrap",
+                            "inline-block bg-amber-400 text-slate-950 font-black text-[10px] sm:text-[11px] px-2.5 py-0.5 rounded-full uppercase tracking-wider mb-1 shadow-xs truncate max-w-full",
                             saving && activePaymentMethod === 'PIX' && "animate-pulse bg-amber-300 text-amber-950"
                           )}>
-                            {saving && activePaymentMethod === 'PIX' ? '⏳ GERANDO NOVO PIX...' : '⚡ 10% OFF ONLINE'}
+                            {saving && activePaymentMethod === 'PIX' ? '⏳ Gerando PIX...' : '⚡ 10% OFF ONLINE'}
                           </span>
-                          <span className="block text-sm sm:text-lg font-black uppercase tracking-wide text-white whitespace-nowrap">
-                            {saving && activePaymentMethod === 'PIX' ? 'AGUARDE UM INSTANTE...' : 'GERAR PIX'}
+                          <span className="block text-sm sm:text-base md:text-lg font-black uppercase tracking-wide text-white truncate">
+                            {saving && activePaymentMethod === 'PIX' ? 'Aguarde um instante...' : 'GERAR PIX'}
                           </span>
                         </div>
                       </Button>
 
-                      {/* Botão CARTÃO DÉBITO E CRÉDITO (com suporte a parcelamento em até 12x) */}
+                      {/* Botão CARTÃO DÉBITO E CRÉDITO */}
                       <Button
                         size="lg"
                         onClick={() => {
@@ -1418,105 +1522,364 @@ export function BookingOverview({
                             handleAction('CREDIT_CARD', 1);
                             return;
                           }
-                          if (totals.total >= 50) {
-                            setShowCardInstallmentModal(true);
-                          } else {
-                            handleAction('CREDIT_CARD', 1);
+                          if (!cardHolderName && booking.entry.name) {
+                            setCardHolderName(booking.entry.name);
                           }
+                          if (!cardHolderCpf && booking.entry.cpf) {
+                            setCardHolderCpf(booking.entry.cpf);
+                          }
+                          if (!cardHolderPhone && booking.entry.phone) {
+                            setCardHolderPhone(booking.entry.phone);
+                          }
+                          setCardError(null);
+                          setShowCardModal(true);
                         }}
                         disabled={saving}
                         className={cn(
-                          "h-20 sm:h-24 rounded-2xl bg-gradient-to-b from-[#094226] to-[#042817] hover:from-[#0d5531] hover:to-[#063a22] text-white font-black flex flex-row items-center justify-center gap-3 sm:gap-4 shadow-xl hover:shadow-[0_6px_20px_rgba(245,158,11,0.25)] active:scale-[0.98] transition-all border-2 border-amber-400 px-4 sm:px-5 py-3 cursor-pointer",
-                          saving && activePaymentMethod === 'CREDIT_CARD' && "ring-4 ring-amber-400/50 from-[#0c5934] to-[#083b22]"
+                          "min-h-[5.5rem] py-3 px-4 rounded-2xl bg-gradient-to-b from-[#094226] to-[#042817] hover:from-[#0d5531] hover:to-[#063a22] text-white font-black flex items-center justify-center gap-3 sm:gap-4 shadow-xl active:scale-[0.98] transition-all border-2 border-amber-400 cursor-pointer w-full",
+                          saving && (activePaymentMethod === 'CREDIT_CARD' || activePaymentMethod === 'DEBIT_CARD') && "ring-4 ring-amber-400/50 from-[#0c5934] to-[#083b22]"
                         )}
                       >
-                        <div className="p-2.5 sm:p-3 bg-amber-400/15 rounded-2xl border border-amber-400/30 shrink-0 flex items-center justify-center">
-                          {saving && activePaymentMethod === 'CREDIT_CARD' ? (
-                            <Loader2 className="h-6 w-6 sm:h-8 sm:w-8 animate-spin text-amber-400" />
+                        <div className="p-2 sm:p-2.5 bg-amber-400/15 rounded-xl border border-amber-400/30 shrink-0 flex items-center justify-center">
+                          {saving && (activePaymentMethod === 'CREDIT_CARD' || activePaymentMethod === 'DEBIT_CARD') ? (
+                            <Loader2 className="h-6 w-6 sm:h-7 sm:w-7 animate-spin text-amber-400" />
                           ) : (
-                            <CreditCard className="h-6 w-6 sm:h-8 sm:w-8 text-amber-400" />
+                            <CreditCard className="h-6 w-6 sm:h-7 sm:w-7 text-amber-400" />
                           )}
                         </div>
-                        <div className="text-left leading-tight min-w-0">
+                        <div className="text-left leading-tight min-w-0 flex-1">
                           <span className={cn(
-                            "inline-block bg-amber-400 text-slate-950 font-black text-[9.5px] sm:text-[11px] px-2.5 py-0.5 rounded-full uppercase tracking-wider mb-1 shadow-2xs whitespace-nowrap",
-                            saving && activePaymentMethod === 'CREDIT_CARD' && "animate-pulse bg-amber-300 text-amber-950"
+                            "inline-block bg-amber-400 text-slate-950 font-black text-[10px] sm:text-[11px] px-2.5 py-0.5 rounded-full uppercase tracking-wider mb-1 shadow-xs truncate max-w-full",
+                            saving && (activePaymentMethod === 'CREDIT_CARD' || activePaymentMethod === 'DEBIT_CARD') && "animate-pulse bg-amber-300 text-amber-950"
                           )}>
-                            {saving && activePaymentMethod === 'CREDIT_CARD' ? '⏳ PREPARANDO CARTÃO...' : '💳 ATÉ 12X NO CARTÃO'}
+                            {saving && (activePaymentMethod === 'CREDIT_CARD' || activePaymentMethod === 'DEBIT_CARD') ? '⏳ Processando...' : '💳 ATÉ 12X NO CARTÃO'}
                           </span>
-                          <span className="block text-xs sm:text-base md:text-lg font-black uppercase tracking-wide text-white whitespace-nowrap">
-                            {saving && activePaymentMethod === 'CREDIT_CARD' ? 'REDIRECIONANDO...' : 'CARTÃO DÉBITO E CRÉDITO'}
+                          <span className="block text-sm sm:text-base md:text-lg font-black uppercase tracking-wide text-white truncate">
+                            {saving && (activePaymentMethod === 'CREDIT_CARD' || activePaymentMethod === 'DEBIT_CARD') ? 'Processando Cartão...' : 'CARTÃO DÉBITO E CRÉDITO'}
                           </span>
                         </div>
                       </Button>
                     </div>
 
-                    {/* MODAL / DIALOG DE SELEÇÃO DE PARCELAS NO CARTÃO DE CRÉDITO */}
-                    {showCardInstallmentModal && (
-                      <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-                        <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border-2 border-emerald-600 space-y-4 animate-in fade-in zoom-in-95">
-                          <div className="flex items-center justify-between border-b pb-3">
-                            <div className="flex items-center gap-2">
-                              <CreditCard className="w-5 h-5 text-emerald-700" />
-                              <h3 className="font-sans font-black text-base uppercase text-emerald-950">
-                                Parcelamento no Cartão
-                              </h3>
+                    {/* MODAL CHECKOUT TRANSPARENTE: CARTÃO DE CRÉDITO E DÉBITO */}
+                    {showCardModal && (
+                      <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+                        <div className="bg-white rounded-3xl max-w-lg w-full p-5 sm:p-6 shadow-2xl border-2 border-emerald-600 space-y-4 my-auto animate-in fade-in zoom-in-95 max-h-[92vh] overflow-y-auto">
+                          {/* Top Header */}
+                          <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-800">
+                                <CreditCard className="w-5 h-5" />
+                              </div>
+                              <div>
+                                <h3 className="font-sans font-black text-base uppercase text-emerald-950 leading-tight">
+                                  Pagamento com Cartão
+                                </h3>
+                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                                  Ambiente Seguro & Criptografado Asaas
+                                </span>
+                              </div>
                             </div>
                             <button 
-                              onClick={() => setShowCardInstallmentModal(false)}
-                              className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-700"
+                              type="button"
+                              onClick={() => {
+                                if (!saving) {
+                                  setShowCardModal(false);
+                                  setCardError(null);
+                                }
+                              }}
+                              className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
                             >
                               <X className="w-5 h-5" />
                             </button>
                           </div>
 
-                          <div className="bg-emerald-50/70 p-3.5 rounded-2xl border border-emerald-200 space-y-1 text-center">
-                            <span className="text-[11px] font-black uppercase text-emerald-800 tracking-wider block">
-                              Valor Total da Reserva (com 10% OFF Online):
-                            </span>
-                            <span className="text-2xl font-black text-emerald-950 block">
-                              {formatCurrency(totals.total)}
+                          {/* Resumo do Valor */}
+                          <div className="bg-gradient-to-r from-emerald-950 to-emerald-900 text-white p-3.5 rounded-2xl flex items-center justify-between shadow-sm">
+                            <div>
+                              <span className="text-[10px] uppercase font-bold text-emerald-300 block">
+                                Total da Reserva (10% OFF Online)
+                              </span>
+                              <span className="text-xl sm:text-2xl font-black text-white">
+                                {formatCurrency(totals.total)}
+                              </span>
+                            </div>
+                            <span className="text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-amber-400 text-slate-950">
+                              {cardBillingType === 'CREDIT_CARD' ? `${selectedInstallments}x de ${formatCurrency(totals.total / selectedInstallments)}` : 'À Vista no Débito'}
                             </span>
                           </div>
 
-                          <div className="space-y-2">
-                            <label className="text-xs font-black uppercase text-slate-800 block">
-                              Em quantas vezes deseja pagar no Cartão?
-                            </label>
-                            <select
-                              value={selectedInstallments}
-                              onChange={(e) => setSelectedInstallments(Number(e.target.value))}
-                              className="w-full h-12 rounded-xl border-2 border-emerald-400 bg-white font-bold text-sm px-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                            >
-                              {Array.from({ length: Math.min(12, Math.max(1, Math.floor(totals.total / 30))) }).map((_, idx) => {
-                                const times = idx + 1;
-                                const valueEach = totals.total / times;
-                                return (
-                                  <option key={times} value={times}>
-                                    {times}x de {formatCurrency(valueEach)} {times === 1 ? '(à vista com 10% OFF)' : '(sem juros adicionais)'}
-                                  </option>
-                                );
-                              })}
-                            </select>
-                          </div>
-
-                          <div className="pt-2 flex flex-col gap-2">
-                            <Button
+                          {/* Seletor de Tipo de Cartão: Crédito vs Débito */}
+                          <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-2xl">
+                            <button
+                              type="button"
                               onClick={() => {
-                                setShowCardInstallmentModal(false);
-                                handleAction('CREDIT_CARD', selectedInstallments);
+                                setCardBillingType('CREDIT_CARD');
+                                setCardError(null);
                               }}
-                              className="w-full h-14 rounded-2xl bg-gradient-to-r from-emerald-700 to-emerald-800 hover:from-emerald-600 hover:to-emerald-700 text-white font-black text-sm uppercase tracking-wide shadow-lg border-b-4 border-emerald-950"
+                              className={cn(
+                                "py-2.5 px-3 rounded-xl font-black text-xs uppercase transition-all flex items-center justify-center gap-1.5 cursor-pointer",
+                                cardBillingType === 'CREDIT_CARD'
+                                  ? "bg-white text-emerald-950 shadow-sm border border-slate-200"
+                                  : "text-slate-600 hover:text-slate-900"
+                              )}
                             >
-                              Prosseguir para Pagamento Seguro ({selectedInstallments}x de {formatCurrency(totals.total / selectedInstallments)})
-                            </Button>
+                              <CreditCard className="w-3.5 h-3.5 text-emerald-700" />
+                              Crédito (até 12x)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCardBillingType('DEBIT_CARD');
+                                setSelectedInstallments(1);
+                                setCardError(null);
+                              }}
+                              className={cn(
+                                "py-2.5 px-3 rounded-xl font-black text-xs uppercase transition-all flex items-center justify-center gap-1.5 cursor-pointer",
+                                cardBillingType === 'DEBIT_CARD'
+                                  ? "bg-white text-emerald-950 shadow-sm border border-slate-200"
+                                  : "text-slate-600 hover:text-slate-900"
+                              )}
+                            >
+                              <CreditCard className="w-3.5 h-3.5 text-emerald-700" />
+                              Débito (à vista)
+                            </button>
+                          </div>
+
+                          {/* Seletor de Parcelamento (Se Cartão de Crédito) */}
+                          {cardBillingType === 'CREDIT_CARD' && (
+                            <div className="space-y-1.5">
+                              <label className="text-[11px] font-black uppercase text-slate-700 block">
+                                Escolha o Número de Parcelas:
+                              </label>
+                              <select
+                                value={selectedInstallments}
+                                onChange={(e) => setSelectedInstallments(Number(e.target.value))}
+                                className="w-full h-11 rounded-xl border-2 border-emerald-400 bg-white font-bold text-xs sm:text-sm px-3 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                              >
+                                {Array.from({ length: Math.min(12, Math.max(1, Math.floor(totals.total / 10))) }).map((_, idx) => {
+                                  const times = idx + 1;
+                                  const valueEach = totals.total / times;
+                                  return (
+                                    <option key={times} value={times}>
+                                      {times}x de {formatCurrency(valueEach)} {times === 1 ? '(à vista com 10% OFF)' : '(sem juros adicionais)'}
+                                    </option>
+                                  );
+                                })}
+                              </select>
+                            </div>
+                          )}
+
+                          {/* Formulário de Dados do Cartão */}
+                          <div className="space-y-3 pt-1">
+                            <div>
+                              <label className="text-[11px] font-black uppercase text-slate-700 block mb-1">
+                                Nome impresso no Cartão *
+                              </label>
+                              <Input
+                                type="text"
+                                placeholder="EX: JOAO P SILVA"
+                                value={cardHolderName}
+                                onChange={(e) => setCardHolderName(e.target.value.toUpperCase())}
+                                className="h-11 rounded-xl border-slate-300 font-bold uppercase text-xs sm:text-sm"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-[11px] font-black uppercase text-slate-700 block mb-1">
+                                Número do Cartão *
+                              </label>
+                              <Input
+                                type="text"
+                                inputMode="numeric"
+                                placeholder="0000 0000 0000 0000"
+                                value={cardNumber}
+                                onChange={(e) => setCardNumber(formatCardNumberMask(e.target.value))}
+                                className="h-11 rounded-xl border-slate-300 font-mono font-bold text-sm tracking-wider"
+                              />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2.5">
+                              <div>
+                                <label className="text-[11px] font-black uppercase text-slate-700 block mb-1">
+                                  Validade (MM/AA) *
+                                </label>
+                                <Input
+                                  type="text"
+                                  inputMode="numeric"
+                                  placeholder="MM/AA"
+                                  value={cardExpiry}
+                                  onChange={(e) => setCardExpiry(formatCardExpiryMask(e.target.value))}
+                                  className="h-11 rounded-xl border-slate-300 font-mono font-bold text-xs sm:text-sm text-center"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[11px] font-black uppercase text-slate-700 block mb-1">
+                                  CVV / Cód. Segurança *
+                                </label>
+                                <Input
+                                  type="password"
+                                  inputMode="numeric"
+                                  placeholder="123"
+                                  maxLength={4}
+                                  value={cardCvv}
+                                  onChange={(e) => setCardCvv(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                                  className="h-11 rounded-xl border-slate-300 font-mono font-bold text-xs sm:text-sm text-center"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                              <div>
+                                <label className="text-[11px] font-black uppercase text-slate-700 block mb-1">
+                                  CPF do Titular do Cartão *
+                                </label>
+                                <Input
+                                  type="text"
+                                  inputMode="numeric"
+                                  placeholder="000.000.000-00"
+                                  value={cardHolderCpf}
+                                  onChange={(e) => setCardHolderCpf(formatCpfMask(e.target.value))}
+                                  className="h-11 rounded-xl border-slate-300 font-mono font-bold text-xs"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[11px] font-black uppercase text-slate-700 block mb-1">
+                                  Telefone do Titular
+                                </label>
+                                <Input
+                                  type="text"
+                                  inputMode="numeric"
+                                  placeholder="(69) 99999-9999"
+                                  value={cardHolderPhone}
+                                  onChange={(e) => setCardHolderPhone(formatPhoneMask(e.target.value))}
+                                  className="h-11 rounded-xl border-slate-300 font-mono font-bold text-xs"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2.5">
+                              <div>
+                                <label className="text-[11px] font-black uppercase text-slate-700 block mb-1">
+                                  CEP de Fatura
+                                </label>
+                                <Input
+                                  type="text"
+                                  inputMode="numeric"
+                                  placeholder="76870-000"
+                                  value={cardPostalCode}
+                                  onChange={(e) => setCardPostalCode(formatCepMask(e.target.value))}
+                                  className="h-11 rounded-xl border-slate-300 font-mono font-bold text-xs"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[11px] font-black uppercase text-slate-700 block mb-1">
+                                  Nº Residência
+                                </label>
+                                <Input
+                                  type="text"
+                                  placeholder="Ex: 123 ou S/N"
+                                  value={cardAddressNumber}
+                                  onChange={(e) => setCardAddressNumber(e.target.value)}
+                                  className="h-11 rounded-xl border-slate-300 font-bold text-xs"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Mensagem de Erro Inline no Modal */}
+                          {cardError && (
+                            <div className="bg-rose-50 border-2 border-rose-300 rounded-xl p-3 flex items-start gap-2 shadow-xs">
+                              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                              <div className="text-xs text-rose-950 font-medium">
+                                <span className="font-black text-rose-900 block">Falha ao processar cartão:</span>
+                                {cardError}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Botões de Ação do Modal */}
+                          <div className="pt-2 space-y-2">
                             <Button
-                              variant="ghost"
-                              onClick={() => setShowCardInstallmentModal(false)}
-                              className="font-bold text-xs text-slate-500"
+                              type="button"
+                              disabled={saving}
+                              onClick={async () => {
+                                setCardError(null);
+                                const cleanCard = cardNumber.replace(/\D/g, '');
+                                if (cleanCard.length < 13 || cleanCard.length > 19) {
+                                  setCardError('Número do cartão inválido. Digite os números completos do cartão.');
+                                  return;
+                                }
+                                const cleanName = cardHolderName.trim();
+                                if (cleanName.length < 3) {
+                                  setCardError('Informe o nome impresso no cartão.');
+                                  return;
+                                }
+                                const expiryParts = cardExpiry.split('/');
+                                const month = parseInt(expiryParts[0] || '0', 10);
+                                if (!month || month < 1 || month > 12 || !expiryParts[1] || expiryParts[1].length < 2) {
+                                  setCardError('Validade inválida. Utilize o formato MM/AA (ex: 08/29).');
+                                  return;
+                                }
+                                const cleanCvv = cardCvv.trim();
+                                if (cleanCvv.length < 3 || cleanCvv.length > 4) {
+                                  setCardError('Código de segurança (CVV) inválido.');
+                                  return;
+                                }
+                                const cleanCpf = (cardHolderCpf || booking.entry.cpf || '').replace(/\D/g, '');
+                                if (cleanCpf.length !== 11) {
+                                  setCardError('CPF do titular do cartão é obrigatório (11 dígitos).');
+                                  return;
+                                }
+
+                                await handleAction(cardBillingType, cardBillingType === 'CREDIT_CARD' ? selectedInstallments : 1, {
+                                  holderName: cleanName,
+                                  number: cleanCard,
+                                  expiry: cardExpiry,
+                                  ccv: cleanCvv,
+                                  cpfCnpj: cleanCpf,
+                                  postalCode: cardPostalCode,
+                                  addressNumber: cardAddressNumber,
+                                  installments: cardBillingType === 'CREDIT_CARD' ? selectedInstallments : 1,
+                                });
+                              }}
+                              className="w-full h-13 rounded-2xl bg-gradient-to-r from-emerald-700 to-emerald-800 hover:from-emerald-600 hover:to-emerald-700 text-white font-black text-xs sm:text-sm uppercase tracking-wide shadow-lg border-b-4 border-emerald-950 transition-all flex items-center justify-center gap-2 cursor-pointer"
                             >
-                              Cancelar
+                              {saving ? (
+                                <>
+                                  <Loader2 className="w-5 h-5 animate-spin" />
+                                  <span>Processando Pagamento...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Lock className="w-4 h-4 text-emerald-300" />
+                                  <span>
+                                    {cardBillingType === 'CREDIT_CARD' 
+                                      ? `Confirmar Pagamento (${selectedInstallments}x de ${formatCurrency(totals.total / selectedInstallments)})` 
+                                      : `Confirmar Débito (${formatCurrency(totals.total)})`}
+                                  </span>
+                                </>
+                              )}
                             </Button>
+
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              disabled={saving}
+                              onClick={() => {
+                                setShowCardModal(false);
+                                setCardError(null);
+                              }}
+                              className="w-full font-bold text-xs text-slate-500 hover:text-slate-800 h-9 cursor-pointer"
+                            >
+                              Cancelar e Voltar
+                            </Button>
+                          </div>
+
+                          <div className="pt-1 text-center">
+                            <span className="text-[10px] text-slate-400 font-medium inline-flex items-center justify-center gap-1">
+                              <ShieldCheck className="w-3 h-3 text-emerald-600" /> Processamento seguro certificado PCI-DSS via Asaas Pagamentos S.A.
+                            </span>
                           </div>
                         </div>
                       </div>

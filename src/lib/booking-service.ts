@@ -66,10 +66,12 @@ export async function saveBooking(
       if (orderError) throw orderError;
       confirmationCode = orderData.confirmation_code;
 
-      // Limpar itens antigos para evitar duplicatas nos itens
-      await (supabase as any).from('order_items').delete().eq('order_id', finalOrderId);
-      await (supabase as any).from('quad_reservations').delete().eq('order_id', finalOrderId);
-      await (supabase as any).from('kiosk_reservations').delete().eq('order_id', finalOrderId);
+      // Limpar itens antigos em paralelo para máxima velocidade
+      await Promise.allSettled([
+        (supabase as any).from('order_items').delete().eq('order_id', finalOrderId),
+        (supabase as any).from('quad_reservations').delete().eq('order_id', finalOrderId),
+        (supabase as any).from('kiosk_reservations').delete().eq('order_id', finalOrderId)
+      ]);
 
     } else {
       // INSERT new order
@@ -215,11 +217,16 @@ export async function saveBooking(
     }
   } catch (err: any) {
     console.error('Master sync process failed:', err);
+    const msg = String(err?.message || '');
+    if (msg.includes('statement timeout') || msg.includes('timeout') || msg.includes('57014')) {
+      throw new Error('Instabilidade temporária de conexão com o banco de dados. Por favor, tente novamente em alguns segundos.');
+    }
     throw new Error(`Erro Crítico no Sistema: ${err.message || 'Falha ao sincronizar dados'}`); 
   }
 
-  // 3. Save quad reservations for slot tracking
+  // 3 e 4. Salvar quadriciclos e quiosques em paralelo para velocidade máxima
   try {
+    const parallelReservations: Promise<any>[] = [];
     const activeQuads = booking.quads.filter(q => q.quantity > 0 && q.time);
     if (activeQuads.length > 0 && finalOrderId) {
       const quadReservations = activeQuads.map(q => {
@@ -233,14 +240,11 @@ export async function saveBooking(
         };
       });
 
-      await (supabase.from('quad_reservations') as any).insert(quadReservations);
+      parallelReservations.push(
+        (supabase.from('quad_reservations') as any).insert(quadReservations)
+      );
     }
-  } catch (err) {
-    console.warn('Failed to save quad reservations:', err);
-  }
 
-  // 4. Save kiosk reservations for availability tracking
-  try {
     const activeKiosks = booking.kiosks.filter(k => k.quantity > 0);
     if (activeKiosks.length > 0 && finalOrderId) {
       const kioskReservations: any[] = [];
@@ -266,10 +270,16 @@ export async function saveBooking(
         }
       });
 
-      await (supabase.from('kiosk_reservations') as any).insert(kioskReservations);
+      parallelReservations.push(
+        (supabase.from('kiosk_reservations') as any).insert(kioskReservations)
+      );
+    }
+
+    if (parallelReservations.length > 0) {
+      await Promise.allSettled(parallelReservations);
     }
   } catch (err) {
-    console.warn('Failed to save kiosk reservations:', err);
+    console.warn('Failed to save ancillary reservations:', err);
   }
 
   return { 
