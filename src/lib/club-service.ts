@@ -21,9 +21,66 @@ import {
 
 const STORAGE_KEY = 'lessa_club_ecosystem_v1';
 const SUPABASE_SETTINGS_KEY = 'lessa_club_ecosystem_v1';
+const ADMIN_CONFIRMED_CARDS_STORAGE_KEY = 'lessa_club_admin_confirmed_transfers_v1';
 
 // Cache em memória para abertura instantânea do painel e evitar bloqueio de tela
 let memoryClubState: ClubDatabaseState | null = null;
+
+export const getAdminConfirmedCardsSet = (): Set<string> => {
+  const set = new Set<string>();
+  if (typeof window === 'undefined') return set;
+  try {
+    const raw = localStorage.getItem(ADMIN_CONFIRMED_CARDS_STORAGE_KEY);
+    if (raw) {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr)) {
+        arr.forEach((c) => {
+          if (c && typeof c === 'string') set.add(c.trim());
+        });
+      }
+    }
+  } catch {}
+  return set;
+};
+
+export const markCardAsAdminConfirmed = (cardCode: string, confirmed: boolean) => {
+  if (typeof window === 'undefined' || !cardCode) return;
+  try {
+    const set = getAdminConfirmedCardsSet();
+    const clean = cardCode.trim();
+    if (confirmed) {
+      set.add(clean);
+    } else {
+      set.delete(clean);
+    }
+    localStorage.setItem(ADMIN_CONFIRMED_CARDS_STORAGE_KEY, JSON.stringify(Array.from(set)));
+  } catch {}
+};
+
+export const isSubscriptionRegularizedOrActive = (
+  sub: Partial<ClubSubscription>,
+  adminConfirmedCards?: Set<string>
+): boolean => {
+  const confirmedSet = adminConfirmedCards || getAdminConfirmedCardsSet();
+  const code = (sub.subscriptionCode || '').trim();
+  const subId = (sub.id || '').replace('sub-labcard-', '').trim();
+  const isLabcard = sub.origin === 'IMPORT_LABCARD' || (sub.id || '').startsWith('sub-labcard-');
+
+  if (!isLabcard) {
+    return sub.status === 'ACTIVE' || Boolean(sub.manualStatusOverride);
+  }
+
+  // Para cadastros importados do Labcard, NUNCA ativa em massa automaticamente.
+  // SOMENTE pode ser ATIVO se:
+  // 1. Estiver na lista oficial de regularizados (REGULARIZED_ACTIVE_CARDS)
+  // 2. Ou foi confirmado explicitamente e individualmente pelo Administrador no sistema (confirmedSet)
+  return (
+    REGULARIZED_ACTIVE_CARDS.has(code) ||
+    REGULARIZED_ACTIVE_CARDS.has(subId) ||
+    confirmedSet.has(code) ||
+    confirmedSet.has(subId)
+  );
+};
 
 export interface PlanDocumentRule {
   requiresDocument: boolean;
@@ -1099,27 +1156,27 @@ export const normalizeClubDatabaseState = (
         backUrl = '/cards/24.png';
       }
 
+      const adminConfirmedCards = getAdminConfirmedCardsSet();
+      const isExplicitlyRegularized = isSubscriptionRegularizedOrActive(sub, adminConfirmedCards);
+
       const missingRequiredDoc =
         !isLabcard &&
         getPlanDocumentRule(m.modalityCode, m.modalityName).requiresDocument &&
         !memberHasProofDocument(m, sub);
 
-      const isManualOrTransferred =
-        Boolean(m.manualStatusOverride) ||
-        Boolean(sub.manualStatusOverride) ||
-        Boolean(sub.transferCompleted) ||
-        Boolean(sub.manuallyConfirmedTransfer) ||
-        Boolean(sub.isModifiedFromSeed) ||
-        sub.status === 'ACTIVE' ||
-        m.status === 'ACTIVE' ||
-        REGULARIZED_ACTIVE_CARDS.has(sub.subscriptionCode) ||
-        REGULARIZED_ACTIVE_CARDS.has(m.cardNumber);
+      const isMemberRegularized =
+        isExplicitlyRegularized ||
+        REGULARIZED_ACTIVE_CARDS.has(m.cardNumber) ||
+        adminConfirmedCards.has(m.cardNumber) ||
+        (!isLabcard && (Boolean(m.manualStatusOverride) || Boolean(sub.manualStatusOverride) || Boolean(sub.transferCompleted)));
 
       const resolvedStatus: SubscriptionStatus =
-        isLabcard && !sub.transferCompleted && !isManualOrTransferred
+        isLabcard && !isMemberRegularized
           ? ('PENDING_TRANSFER' as SubscriptionStatus)
-          : missingRequiredDoc && !isManualOrTransferred
+          : missingRequiredDoc && !isMemberRegularized
           ? 'INACTIVE'
+          : isMemberRegularized
+          ? 'ACTIVE'
           : m.status;
 
       // Para cadastros Kids: calcula automaticamente expiração no 12º aniversário da criança
@@ -1144,21 +1201,18 @@ export const normalizeClubDatabaseState = (
       };
     });
 
-    const isSubManualOrTransferred =
-      Boolean(sub.manualStatusOverride) ||
-      Boolean(sub.transferCompleted) ||
-      Boolean(sub.manuallyConfirmedTransfer) ||
-      Boolean(sub.isModifiedFromSeed) ||
-      sub.status === 'ACTIVE' ||
-      REGULARIZED_ACTIVE_CARDS.has(sub.subscriptionCode);
+    const adminConfirmedCardsSub = getAdminConfirmedCardsSet();
+    const isSubExplicitlyRegularized = isSubscriptionRegularizedOrActive(sub, adminConfirmedCardsSub);
 
     const resolvedSubStatus: SubscriptionStatus =
-      isLabcard && !sub.transferCompleted && !isSubManualOrTransferred
+      isLabcard && !isSubExplicitlyRegularized
         ? ('PENDING_TRANSFER' as SubscriptionStatus)
         : normalizedMembers.length > 0 &&
           normalizedMembers.every((m) => m.status === 'INACTIVE') &&
-          !isSubManualOrTransferred
+          !isSubExplicitlyRegularized
         ? 'INACTIVE'
+        : isSubExplicitlyRegularized
+        ? 'ACTIVE'
         : sub.status;
 
     const hasPublicidade =
@@ -1169,6 +1223,9 @@ export const normalizeClubDatabaseState = (
       ...sub,
       contractType: hasPublicidade ? 'FAMILY_PUBLICIDADE' : sub.contractType,
       status: resolvedSubStatus,
+      transferCompleted: isLabcard ? isSubExplicitlyRegularized : (sub.transferCompleted ?? false),
+      manuallyConfirmedTransfer: isLabcard ? isSubExplicitlyRegularized : (sub.manuallyConfirmedTransfer ?? false),
+      manualStatusOverride: isLabcard ? isSubExplicitlyRegularized : (sub.manualStatusOverride ?? false),
       members: normalizedMembers,
       invoices: Array.isArray(sub.invoices) ? sub.invoices : [],
       attachments: Array.isArray(sub.attachments) ? sub.attachments : [],
@@ -1280,34 +1337,35 @@ export const loadClubStateLocal = (): ClubDatabaseState => {
       }
     });
 
-    // Assegura que cadastros do Labcard não fiquem como "transferência concluída" prematuramente
+    // Assegura que NENHUM cadastro do Labcard fique ativo automaticamente em massa
+    const adminConfirmedCards = getAdminConfirmedCardsSet();
     subsMap.forEach((sub) => {
       if (sub.origin === 'IMPORT_LABCARD' || sub.id.startsWith('sub-labcard-')) {
-        const hasCustomClientData =
-          Boolean(sub.holderEmail) ||
-          Boolean(sub.addressStreet) ||
-          (Boolean(sub.addressCep) && sub.addressCep !== '76870-000') ||
-          (Boolean(sub.endDate) && sub.endDate !== '2027-10-31') ||
-          (sub.attachments?.length || 0) > 0 ||
-          Boolean(sub.vehiclePlate);
-        if (hasCustomClientData) {
-          sub.isModifiedFromSeed = true;
-        }
+        const isAlreadyRegularized = isSubscriptionRegularizedOrActive(sub, adminConfirmedCards);
 
-        const isAlreadyRegularizedOrActive =
-          REGULARIZED_ACTIVE_CARDS.has(sub.subscriptionCode) ||
-          Boolean(sub.manuallyConfirmedTransfer) ||
-          Boolean(sub.transferCompleted) ||
-          Boolean(sub.manualStatusOverride) ||
-          sub.status === 'ACTIVE' ||
-          Boolean(sub.isModifiedFromSeed);
-
-        if (!isAlreadyRegularizedOrActive) {
+        if (!isAlreadyRegularized) {
           sub.transferCompleted = false;
+          sub.manuallyConfirmedTransfer = false;
+          sub.manualStatusOverride = false;
+          sub.transferredAt = undefined;
           sub.status = 'PENDING_TRANSFER';
           if (sub.members) {
             sub.members.forEach((m) => {
-              m.status = 'PENDING_TRANSFER';
+              if (!REGULARIZED_ACTIVE_CARDS.has(m.cardNumber) && !adminConfirmedCards.has(m.cardNumber)) {
+                m.status = 'PENDING_TRANSFER';
+                m.manualStatusOverride = false;
+              }
+            });
+          }
+        } else {
+          sub.transferCompleted = true;
+          sub.manuallyConfirmedTransfer = true;
+          sub.manualStatusOverride = true;
+          sub.status = 'ACTIVE';
+          if (sub.members) {
+            sub.members.forEach((m) => {
+              m.status = 'ACTIVE';
+              m.manualStatusOverride = true;
             });
           }
         }
@@ -1507,8 +1565,8 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
                 documentStatus: fm.documentStatus || m.documentStatus,
                 documentVerifiedAt: fm.documentVerifiedAt || m.documentVerifiedAt,
                 documentVerifiedBy: fm.documentVerifiedBy || m.documentVerifiedBy,
-                status: (fm.status === 'ACTIVE' || m.status === 'ACTIVE') ? 'ACTIVE' : m.status,
-                manualStatusOverride: fm.manualStatusOverride ?? m.manualStatusOverride,
+                status: REGULARIZED_ACTIVE_CARDS.has(m.cardNumber) || adminConfirmedCards.has(m.cardNumber) || (s.origin !== 'IMPORT_LABCARD' && !s.id.startsWith('sub-labcard-') && (fm.status === 'ACTIVE' || m.status === 'ACTIVE')) ? 'ACTIVE' : (s.origin === 'IMPORT_LABCARD' || s.id.startsWith('sub-labcard-') ? 'PENDING_TRANSFER' : m.status),
+                manualStatusOverride: REGULARIZED_ACTIVE_CARDS.has(m.cardNumber) || adminConfirmedCards.has(m.cardNumber) ? true : (fm.manualStatusOverride ?? m.manualStatusOverride),
               };
             });
           }
@@ -1548,11 +1606,19 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
             if (full.notes && !full.notes.startsWith('Cadastrado por')) s.notes = full.notes;
             if (full.planSummaryLabel) s.planSummaryLabel = full.planSummaryLabel;
             if (full.endDate && full.endDate !== '2027-10-31') s.endDate = full.endDate;
-            if (full.status === 'ACTIVE' || full.manualStatusOverride || full.transferCompleted) {
+
+            const isAlreadyRegularized = isSubscriptionRegularizedOrActive(s, adminConfirmedCards);
+            if (isAlreadyRegularized) {
               s.status = 'ACTIVE';
               s.manualStatusOverride = true;
               s.transferCompleted = true;
               s.manuallyConfirmedTransfer = true;
+            } else if (s.origin === 'IMPORT_LABCARD' || s.id.startsWith('sub-labcard-')) {
+              s.status = 'PENDING_TRANSFER';
+              s.manualStatusOverride = false;
+              s.transferCompleted = false;
+              s.manuallyConfirmedTransfer = false;
+              s.transferredAt = undefined;
             }
             s.isModifiedFromSeed = true;
           } else {
@@ -1713,11 +1779,18 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
               if (s.vehicleColor && !current.vehicleColor) current.vehicleColor = s.vehicleColor;
               if (s.notes && !current.notes) current.notes = s.notes;
               if (s.endDate && s.endDate !== '2027-10-31') current.endDate = s.endDate;
-              if (s.status === 'ACTIVE' || s.manualStatusOverride || s.transferCompleted) {
+              const isAlreadyRegularizedCur = isSubscriptionRegularizedOrActive(current, adminConfirmedCards);
+              if (isAlreadyRegularizedCur) {
                 current.status = 'ACTIVE';
                 current.manualStatusOverride = true;
                 current.transferCompleted = true;
                 current.manuallyConfirmedTransfer = true;
+              } else if (current.origin === 'IMPORT_LABCARD' || current.id.startsWith('sub-labcard-')) {
+                current.status = 'PENDING_TRANSFER';
+                current.manualStatusOverride = false;
+                current.transferCompleted = false;
+                current.manuallyConfirmedTransfer = false;
+                current.transferredAt = undefined;
               }
               if ((s.attachments?.length || 0) > (current.attachments?.length || 0)) {
                 current.attachments = s.attachments;
@@ -1733,14 +1806,16 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
                     localMemMap.get(cm.id) ||
                     s.members.find((x) => (x.cardNumber && x.cardNumber === cm.cardNumber) || (x.cpf && x.cpf === cm.cpf));
                   if (!lm) return cm;
+                  const isMemReg = REGULARIZED_ACTIVE_CARDS.has(cm.cardNumber) || adminConfirmedCards.has(cm.cardNumber);
                   return {
                     ...cm,
                     photoUrl: cm.photoUrl || lm.photoUrl,
                     documentProofUrl: cm.documentProofUrl || lm.documentProofUrl,
                     documentProofName: cm.documentProofName || lm.documentProofName,
-                    status: (lm.status === 'ACTIVE' || cm.status === 'ACTIVE') ? 'ACTIVE' : cm.status,
-                    documentVerified: lm.documentVerified || cm.documentVerified,
-                    documentStatus: lm.documentStatus || cm.documentStatus,
+                    status: isMemReg || (current.origin !== 'IMPORT_LABCARD' && !current.id.startsWith('sub-labcard-') && (lm.status === 'ACTIVE' || cm.status === 'ACTIVE')) ? 'ACTIVE' : (current.origin === 'IMPORT_LABCARD' || current.id.startsWith('sub-labcard-') ? 'PENDING_TRANSFER' : cm.status),
+                    manualStatusOverride: isMemReg ? true : (lm.manualStatusOverride ?? cm.manualStatusOverride),
+                    documentVerified: isMemReg ? true : (lm.documentVerified || cm.documentVerified),
+                    documentStatus: isMemReg ? ('APROVADO' as const) : (lm.documentStatus || cm.documentStatus),
                     expirationDate: lm.expirationDate || cm.expirationDate,
                     validityLabel: lm.validityLabel || cm.validityLabel,
                     attachments:
@@ -1765,37 +1840,31 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
       // Preservar pendente p/ transferência na base importada do Labcard enquanto a transferência não for concluída
       subsMap.forEach((sub) => {
         if (sub.origin === 'IMPORT_LABCARD' || sub.id.startsWith('sub-labcard-')) {
-          const hasCustomClientData =
-            Boolean(sub.holderEmail) ||
-            Boolean(sub.addressStreet) ||
-            (Boolean(sub.addressCep) && sub.addressCep !== '76870-000') ||
-            (Boolean(sub.endDate) && sub.endDate !== '2027-10-31') ||
-            (sub.attachments?.length || 0) > 0 ||
-            Boolean(sub.vehiclePlate);
-          if (hasCustomClientData) {
-            sub.isModifiedFromSeed = true;
-          }
+          const isExplicitlyRegularized = isSubscriptionRegularizedOrActive(sub, adminConfirmedCards);
 
-          const isAlreadyRegularizedOrActive =
-            REGULARIZED_ACTIVE_CARDS.has(sub.subscriptionCode) ||
-            Boolean(sub.manuallyConfirmedTransfer) ||
-            Boolean(sub.transferCompleted) ||
-            Boolean(sub.manualStatusOverride) ||
-            sub.status === 'ACTIVE' ||
-            Boolean(sub.isModifiedFromSeed);
-            REGULARIZED_ACTIVE_CARDS.has(sub.subscriptionCode) ||
-            Boolean(sub.manuallyConfirmedTransfer) ||
-            Boolean(sub.transferCompleted) ||
-            Boolean(sub.manualStatusOverride) ||
-            sub.status === 'ACTIVE' ||
-            Boolean(sub.isModifiedFromSeed);
-
-          if (!isAlreadyRegularizedOrActive) {
+          if (!isExplicitlyRegularized) {
             sub.transferCompleted = false;
+            sub.manuallyConfirmedTransfer = false;
+            sub.manualStatusOverride = false;
+            sub.transferredAt = undefined;
             sub.status = 'PENDING_TRANSFER';
             if (sub.members) {
               sub.members.forEach((m) => {
-                m.status = 'PENDING_TRANSFER';
+                if (!REGULARIZED_ACTIVE_CARDS.has(m.cardNumber) && !adminConfirmedCards.has(m.cardNumber)) {
+                  m.status = 'PENDING_TRANSFER';
+                  m.manualStatusOverride = false;
+                }
+              });
+            }
+          } else {
+            sub.transferCompleted = true;
+            sub.manuallyConfirmedTransfer = true;
+            sub.manualStatusOverride = true;
+            sub.status = 'ACTIVE';
+            if (sub.members) {
+              sub.members.forEach((m) => {
+                m.status = 'ACTIVE';
+                m.manualStatusOverride = true;
               });
             }
           }

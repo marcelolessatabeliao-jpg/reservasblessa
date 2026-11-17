@@ -138,6 +138,7 @@ import {
   updateAsaasPaymentDueDate,
   deleteAsaasPayment,
   fetchAddressByCep,
+  markCardAsAdminConfirmed,
   getPlanDocumentRule,
   memberHasProofDocument,
   memberHasProofUploaded,
@@ -3347,6 +3348,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     const isLab = sub.origin === 'IMPORT_LABCARD' || sub.id.startsWith('sub-labcard-');
     const targetStatus: SubscriptionStatus = completed ? 'ACTIVE' : (isLab ? 'PENDING_TRANSFER' : sub.status);
 
+    markCardAsAdminConfirmed(sub.subscriptionCode, completed);
+
     const updatedSub: ClubSubscription = {
       ...sub,
       transferCompleted: completed,
@@ -3939,9 +3942,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         })),
       };
       if (newStatus === 'ACTIVE') {
+        markCardAsAdminConfirmed(sub.subscriptionCode, true);
         setSituacaoLiberar('SIM');
         setSituacaoInativar('NAO');
       } else {
+        markCardAsAdminConfirmed(sub.subscriptionCode, false);
         setSituacaoLiberar('NAO');
         setSituacaoInativar('SIM');
       }

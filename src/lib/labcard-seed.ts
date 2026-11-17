@@ -406,17 +406,12 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
     if (upName.includes('IZABEL CRISTYNA')) {
       finalCreatedAt = '2026-04-30T10:00:00.000Z';
       finalEndDate = '2026-12-30';
-      finalStatus = 'ACTIVE';
     } else if (upName.includes('JAINE SANTOS')) {
       finalCreatedAt = '2026-05-24T10:00:00.000Z';
       finalEndDate = '2026-12-24';
-      finalStatus = 'ACTIVE';
     } else if (upName.includes('CINTIA DE JESUS')) {
       finalCreatedAt = '2026-04-21T10:00:00.000Z';
       finalEndDate = '2026-12-30';
-      finalStatus = 'ACTIVE';
-    } else if (upName.includes('HARLAN APARECIDO')) {
-      finalStatus = 'ACTIVE';
     }
 
     const invoices: ClubInvoice[] = [];
