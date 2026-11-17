@@ -21,7 +21,8 @@ import {
   ShieldCheck,
   CreditCard,
   Sparkles,
-  FileText
+  FileText,
+  AlertTriangle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from "@/hooks/use-toast";
@@ -35,7 +36,8 @@ import {
   formatDateSafe,
   formatShortDateSafe,
   formatCpfDisplay,
-  formatPhoneDisplay
+  formatPhoneDisplay,
+  getChaleInclusions,
 } from '@/lib/chale-voucher-utils';
 import { ChaleTermsModal } from '@/components/booking/ChaleTermsModal';
 
@@ -495,25 +497,71 @@ export default function Voucher() {
                   </div>
 
                   {/* Card 3: Benefícios Inclusos na Hospedagem */}
-                  <div className="bg-emerald-950 text-white rounded-3xl p-4 space-y-2.5">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5" /> Benefícios Já Inclusos na Sua Hospedagem
-                    </span>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-                      <div className="bg-white/10 rounded-xl p-2.5 border border-white/10 flex items-center gap-2 font-bold">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                        <span>Entradas e Day Use 100% Inclusos</span>
-                      </div>
-                      <div className="bg-white/10 rounded-xl p-2.5 border border-white/10 flex items-center gap-2 font-bold">
-                        <Coffee className="w-4 h-4 text-amber-400 shrink-0" />
-                        <span>Café da manhã: Sex a Dom, 7h às 9h</span>
-                      </div>
-                      <div className="bg-white/10 rounded-xl p-2.5 border border-white/10 flex items-center gap-2 font-bold">
-                        <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-                        <span>Chalé privativo com ar, TV e frigobar</span>
-                      </div>
-                    </div>
-                  </div>
+                  {(() => {
+                    const inclusions = getChaleInclusions(chaleDetails.checkInDateStr, chaleDetails.checkOutDateStr);
+                    return (
+                      <>
+                        <div className="bg-emerald-950 text-white rounded-3xl p-4 sm:p-5 space-y-2.5 shadow-sm">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 flex items-center gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5" /> Benefícios Já Inclusos na Sua Hospedagem
+                          </span>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                            <div className="bg-white/10 rounded-xl p-2.5 border border-white/10 flex items-center gap-2 font-bold">
+                              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                              <div>
+                                <span className="block text-[10px] text-emerald-300 uppercase">Day Use Balneário</span>
+                                <span>{inclusions.dayUseText}</span>
+                              </div>
+                            </div>
+                            <div className="bg-white/10 rounded-xl p-2.5 border border-white/10 flex items-center gap-2 font-bold">
+                              <Coffee className="w-4 h-4 text-amber-400 shrink-0" />
+                              <div>
+                                <span className="block text-[10px] text-amber-300 uppercase">Café da Manhã</span>
+                                <span>{inclusions.cafeText}</span>
+                              </div>
+                            </div>
+                            <div className="bg-white/10 rounded-xl p-2.5 border border-white/10 flex items-center gap-2 font-bold">
+                              <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                              <div>
+                                <span className="block text-[10px] text-emerald-300 uppercase">Acomodação</span>
+                                <span>Chalé privativo c/ ar, TV e frigobar</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Card: Regras Essenciais e Horários da Hospedagem */}
+                        <div className="bg-amber-50 border-2 border-amber-400/60 rounded-3xl p-4 sm:p-5 space-y-3 shadow-sm">
+                          <div className="flex items-center gap-2 border-b border-amber-300/60 pb-2">
+                            <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0" />
+                            <span className="font-black uppercase tracking-wider text-[11px] text-amber-950">
+                              Regras Essenciais e Horários da Hospedagem
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-800">
+                            <div className="bg-white p-3 rounded-2xl border border-amber-200/80 shadow-xs">
+                              <span className="font-black text-rose-700 block mb-0.5">🚫 Bebidas Alcoólicas</span>
+                              Totalmente proibida a entrada e o consumo no balneário e chalés.
+                            </div>
+                            <div className="bg-white p-3 rounded-2xl border border-amber-200/80 shadow-xs">
+                              <span className="font-black text-amber-900 block mb-0.5">🍽️ Restaurante e Alimentação</span>
+                              Atendimento e vendas até as 17h (sem alimentação servida ou vendida após esse horário).
+                            </div>
+                            <div className="bg-white p-3 rounded-2xl border border-amber-200/80 shadow-xs sm:col-span-2">
+                              <span className="font-black text-emerald-950 block mb-0.5">🥩 Churrasco e Alimentos dos Hóspedes</span>
+                              Permitido trazer alimentos prontos para consumo. Quiosques liberados para churrasco exclusivamente entre 17h e 8h da manhã. O uso no Day Use (9h às 17h) é cobrado à parte.
+                            </div>
+                            {inclusions.quintaNotice && (
+                              <div className="bg-amber-100/90 p-3 rounded-2xl border border-amber-300 sm:col-span-2 text-amber-950">
+                                <span className="font-black block mb-0.5">ℹ️ Entrada na Quinta-feira</span>
+                                {inclusions.quintaNotice}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
 
                   {/* Card 4: Serviços e Itens Extras Adicionados à Estadia (Apenas se houver itens avulsos contratados) */}
                   {chaleDetails.otherItems.length > 0 && (

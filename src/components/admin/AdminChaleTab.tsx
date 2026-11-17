@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { getChaleInclusions } from '@/lib/chale-voucher-utils';
 import { 
   Home,
   DoorOpen,
@@ -1683,6 +1684,7 @@ export function AdminChaleTab({
   // Enviar texto no WhatsApp
   const handleSendVoucherWhatsApp = () => {
     if (!voucherRes) return;
+    const inclusions = getChaleInclusions(voucherRes.checkInDate, voucherRes.checkOutDate);
     const msg = `*BALNEÁRIO LESSA - COMPROVANTE OFICIAL DE HOSPEDAGEM* 🌿\n\n` +
       `*Titular:* ${voucherRes.guestName}\n` +
       `*Chalé:* Chalé ${String(voucherRes.chaleId).padStart(2, '0')}\n` +
@@ -1690,10 +1692,15 @@ export function AdminChaleTab({
       `*Entrada (Check-in):* ${voucherRes.checkInDate} às ${voucherRes.checkInTime}\n` +
       `*Saída (Check-out):* ${voucherRes.checkOutDate} às ${voucherRes.checkOutTime}\n` +
       `*Pacote:* ${voucherRes.packageTitle}\n` +
-      `*Café da manhã:* Incluso das 07h às 09h (Sex, Sáb e Dom)\n` +
-      `*Day Use:* Conforme regras do pacote\n` +
+      `*Café da manhã:* ${inclusions.cafeText}\n` +
+      `*Day Use Balneário:* ${inclusions.dayUseText}\n` +
       `*Total:* ${formatCurrency(voucherRes.totalPrice)} (${voucherRes.status === 'paid' ? 'PAGO ✓' : 'A PAGAR'})\n\n` +
-      `Apresente este voucher na recepção. Estamos ansiosos para recebê-los! ✨`;
+      `*REGRAS ESSENCIAIS DA HOSPEDAGEM:*\n` +
+      `• 🚫 Proibida a entrada e consumo de bebidas alcoólicas no local.\n` +
+      `• 🍽️ Restaurante/Bar aberto até as 17h (sem alimentação após as 17h).\n` +
+      `• 🥩 Permitido alimentos prontos. Quiosques liberados para churrasco exclusivamente entre 17h e 8h da manhã (uso das 9h às 17h requer locação à parte).\n` +
+      (inclusions.quintaNotice ? `• ℹ️ ${inclusions.quintaNotice}\n` : '') +
+      `\nApresente este voucher na recepção. Estamos ansiosos para recebê-los! ✨`;
 
     const phoneDigits = (voucherRes.phone || '').replace(/\D/g, '');
     const waLink = `https://api.whatsapp.com/send?phone=55${phoneDigits}&text=${encodeURIComponent(msg)}`;
@@ -3907,10 +3914,46 @@ export function AdminChaleTab({
                       ✓ Apenas Hospedagem e Day Use inclusos (sem serviços adicionais extras contratados).
                     </div>
                   )}
-                  <div className="flex justify-between pt-1">
-                    <span style={{ color: '#a7f3d0' }} className="font-bold uppercase text-[10px]">Café (Sex-Dom 7h-9h) & Day Use:</span>
-                    <span style={{ color: '#6ee7b7' }} className="font-black">100% Inclusos ✓</span>
-                  </div>
+                  {(() => {
+                    const inclusions = getChaleInclusions(voucherRes.checkInDate, voucherRes.checkOutDate);
+                    return (
+                      <>
+                        <div style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '0.375rem' }} className="space-y-1">
+                          <div className="flex justify-between items-center text-[10px]">
+                            <span style={{ color: '#a7f3d0' }} className="font-bold uppercase">☕ Café da Manhã:</span>
+                            <span style={{ color: '#6ee7b7' }} className="font-black text-right">{inclusions.cafeText}</span>
+                          </div>
+                          <div className="flex justify-between items-center text-[10px]">
+                            <span style={{ color: '#a7f3d0' }} className="font-bold uppercase">🏊 Day Use Balneário:</span>
+                            <span style={{ color: '#6ee7b7' }} className="font-black text-right">{inclusions.dayUseText}</span>
+                          </div>
+                        </div>
+
+                        {/* Regras Essenciais da Hospedagem */}
+                        <div 
+                          style={{ 
+                            backgroundColor: 'rgba(0, 0, 0, 0.35)', 
+                            borderColor: 'rgba(245, 158, 11, 0.45)',
+                            borderWidth: '1px',
+                            borderStyle: 'solid',
+                            borderRadius: '0.75rem',
+                            padding: '0.625rem'
+                          }} 
+                          className="space-y-1 text-[9.5px] leading-tight"
+                        >
+                          <div style={{ color: '#f59e0b' }} className="font-black uppercase tracking-wider text-[9px]">
+                            ⚠️ Regras Essenciais da Estadia:
+                          </div>
+                          <p style={{ color: '#ffffff' }}>🚫 <strong>Bebidas alcoólicas:</strong> Totalmente proibida a entrada e consumo no local.</p>
+                          <p style={{ color: '#ffffff' }}>🍽️ <strong>Alimentação:</strong> Restaurante/bar com vendas até as 17h (sem alimentação após as 17h).</p>
+                          <p style={{ color: '#ffffff' }}>🥩 <strong>Churrasco:</strong> Permitido trazer alimentos prontos. Quiosques liberados para churrasco exclusivamente das 17h às 8h da manhã. O uso no Day Use (9h às 17h) é cobrado à parte.</p>
+                          {inclusions.quintaNotice && (
+                            <p style={{ color: '#fde047' }}>ℹ️ <strong>Quinta-feira:</strong> {inclusions.quintaNotice}</p>
+                          )}
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
 
                 {/* QR Code e Status */}

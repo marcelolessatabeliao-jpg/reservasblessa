@@ -21,6 +21,103 @@ Deno.serve(async (req) => {
     const DEFAULT_URL = isProd ? 'https://www.asaas.com/api/v3' : 'https://sandbox.asaas.com/api/v3';
     const ASAAS_URL = Deno.env.get('ASAAS_BASE_URL') || DEFAULT_URL;
 
+    // AÇÃO: Sincronizar todos os pagamentos confirmados recentemente no Asaas com as faturas do Lessa Club
+    if (action === 'sync-recent-club-payments') {
+      const fetchAsaasJson = async (path: string) => {
+        const res = await fetch(`${ASAAS_URL}${path}`, {
+          headers: { access_token: ASAAS_API_KEY },
+        });
+        const json = await res.json();
+        if (!res.ok) {
+          throw new Error(`Asaas (${path}): ${json.errors?.[0]?.description || res.statusText}`);
+        }
+        return json;
+      };
+
+      const [confirmedJson, receivedJson] = await Promise.all([
+        fetchAsaasJson('/payments?status=CONFIRMED&limit=100').catch(() => ({ data: [] })),
+        fetchAsaasJson('/payments?status=RECEIVED&limit=100').catch(() => ({ data: [] })),
+      ]);
+
+      const paidPayments = [
+        ...(Array.isArray(confirmedJson?.data) ? confirmedJson.data : []),
+        ...(Array.isArray(receivedJson?.data) ? receivedJson.data : [])
+      ].filter((p: any) => !p.deleted);
+
+      const paidById = new Map<string, any>();
+      for (const p of paidPayments) {
+        paidById.set(p.id, p);
+      }
+
+      const supabaseAdmin = createClient(
+        Deno.env.get('SUPABASE_URL') || '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
+      );
+
+      const { data: settingsRow } = await supabaseAdmin
+        .from('site_settings')
+        .select('value')
+        .eq('key', 'lessa_club_ecosystem_v1')
+        .maybeSingle();
+
+      let updatedCount = 0;
+      let activatedCount = 0;
+
+      if (settingsRow?.value) {
+        const clubState = settingsRow.value;
+        let stateChanged = false;
+
+        for (const sub of (clubState.subscriptions || [])) {
+          let subHasNewlyPaidInvoice = false;
+
+          for (const inv of (sub.invoices || [])) {
+            if (inv.status === 'PAID') continue;
+
+            const paidMatch = inv.asaasPaymentId ? paidById.get(inv.asaasPaymentId) : null;
+            if (paidMatch) {
+              inv.status = 'PAID';
+              inv.paidAt = paidMatch.confirmedDate || paidMatch.paymentDate || paidMatch.clientPaymentDate || new Date().toISOString();
+              inv.paymentMethod = paidMatch.billingType || inv.paymentMethod || 'PIX';
+              subHasNewlyPaidInvoice = true;
+              updatedCount++;
+              stateChanged = true;
+            }
+          }
+
+          if (subHasNewlyPaidInvoice || sub.status !== 'ACTIVE') {
+            const hasOverdue = (sub.invoices || []).some((i: any) => i.status === 'OVERDUE');
+            const hasPaidAtLeastOne = (sub.invoices || []).some((i: any) => i.status === 'PAID');
+            if (!hasOverdue && hasPaidAtLeastOne && sub.status !== 'ACTIVE') {
+              sub.status = 'ACTIVE';
+              (sub.members || []).forEach((m: any) => {
+                m.status = 'ACTIVE';
+              });
+              sub.updatedAt = new Date().toISOString();
+              activatedCount++;
+              stateChanged = true;
+            }
+          }
+        }
+
+        if (stateChanged) {
+          await supabaseAdmin
+            .from('site_settings')
+            .update({ value: clubState, updated_at: new Date().toISOString() })
+            .eq('key', 'lessa_club_ecosystem_v1');
+        }
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          updatedCount,
+          activatedCount,
+          totalPaidInspected: paidById.size
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      );
+    }
+
     // AÇÃO EM LOTE: Listar clientes com assinaturas/parcelas ativas ou em aberto no Asaas (somente leitura/prévia)
     if (action === 'list-asaas-installments') {
       const fetchAsaasJson = async (path: string) => {

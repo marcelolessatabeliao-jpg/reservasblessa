@@ -695,6 +695,37 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
   >('ALL');
   const [asaasSearchQuery, setAsaasSearchQuery] = useState('');
   const [expandedAsaasCustomerId, setExpandedAsaasCustomerId] = useState<string | null>(null);
+  const [isSyncingRecentPayments, setIsSyncingRecentPayments] = useState(false);
+
+  const handleSyncRecentPayments = async () => {
+    setIsSyncingRecentPayments(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('check-payment', {
+        body: { action: 'sync-recent-club-payments' }
+      });
+      if (error) throw error;
+      const reloaded = await fetchClubState();
+      setState(reloaded);
+      if (selectedSubForDetail) {
+        const found = reloaded.subscriptions?.find((s) => s.id === selectedSubForDetail.id);
+        if (found) setSelectedSubForDetail(found);
+      }
+      toast({
+        title: 'Sincronização com Asaas Concluída!',
+        description: data?.updatedCount > 0
+          ? `${data.updatedCount} fatura(s) baixada(s) automaticamente! ${data.activatedCount} cadastro(s) ativado(s).`
+          : 'Tudo atualizado! Todas as faturas confirmadas no Asaas já estão refletidas no sistema.',
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao sincronizar baixas do Asaas',
+        description: err?.message || 'Falha ao comunicar com o servidor.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSyncingRecentPayments(false);
+    }
+  };
 
   const handleLoadAsaasCandidates = async () => {
     if (!state) return;
@@ -4600,12 +4631,25 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                       onClick={() => {
                         setOpenMenu(null);
                         setOpenSubMenu(null);
+                        handleSyncRecentPayments();
+                      }}
+                      className="w-full px-4 py-2 mt-1 text-left bg-emerald-700 hover:bg-emerald-600 flex items-center gap-2 text-white font-black"
+                    >
+                      <RefreshCw className={`w-4 h-4 shrink-0 ${isSyncingRecentPayments ? 'animate-spin' : ''}`} />
+                      <span>Baixar Pagamentos Asaas</span>
+                    </button>
+                    <button
+                      type="button"
+                      onMouseEnter={() => setOpenSubMenu(null)}
+                      onClick={() => {
+                        setOpenMenu(null);
+                        setOpenSubMenu(null);
                         handleOpenAsaasSyncModal();
                       }}
                       className="w-full px-4 py-2 mt-1 text-left bg-amber-400 hover:bg-amber-300 flex items-center gap-2 text-emerald-950 font-black"
                     >
                       <RefreshCw className="w-4 h-4 shrink-0" />
-                      <span>Sincronizar Asaas</span>
+                      <span>Importar Carnês Asaas</span>
                     </button>
                     <button
                       type="button"
@@ -5971,10 +6015,12 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   size="sm"
                   type="button"
                   variant="outline"
-                  onClick={handleOpenAsaasSyncModal}
+                  disabled={isSyncingRecentPayments}
+                  onClick={handleSyncRecentPayments}
                   className="border-emerald-700 text-emerald-900 bg-emerald-50 hover:bg-emerald-100 hover:text-emerald-950 font-bold w-full sm:w-auto cursor-pointer"
+                  title="Buscar pagamentos confirmados recentemente no Asaas e atualizar cadastros"
                 >
-                  <RefreshCw className="w-4 h-4 mr-1.5" /> Sincronizar Asaas
+                  <RefreshCw className={`w-4 h-4 mr-1.5 ${isSyncingRecentPayments ? 'animate-spin' : ''}`} /> Sincronizar Asaas
                 </Button>
                 <Button
                   size="sm"
@@ -8056,10 +8102,12 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 size="sm"
                 type="button"
                 variant="outline"
-                onClick={handleOpenAsaasSyncModal}
+                disabled={isSyncingRecentPayments}
+                onClick={handleSyncRecentPayments}
                 className="shrink-0 whitespace-nowrap text-xs border-emerald-700 text-emerald-900 bg-emerald-50 hover:bg-emerald-100 hover:text-emerald-950 font-bold ml-auto cursor-pointer"
+                title="Sincronizar baixas e pagamentos recentes confirmados no Asaas"
               >
-                <RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Sincronizar Asaas (Mensalidades)
+                <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isSyncingRecentPayments ? 'animate-spin' : ''}`} /> Sincronizar Baixas (Asaas)
               </Button>
             </div>
 
@@ -13829,20 +13877,25 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
                       if (existingInvIndex >= 0) {
                         const existing = currentInvoices[existingInvIndex];
-                        const newStatus =
+                        const isPaid =
                           p.status === 'RECEIVED' ||
                           p.status === 'CONFIRMED' ||
-                          p.status === 'RECEIVED_IN_CASH'
-                            ? ('PAID' as const)
-                            : p.status === 'OVERDUE'
-                            ? ('PENDING' as const)
-                            : existing.status;
+                          p.status === 'RECEIVED_IN_CASH';
+                        const newStatus = isPaid
+                          ? ('PAID' as const)
+                          : p.status === 'OVERDUE'
+                          ? ('OVERDUE' as const)
+                          : existing.status;
 
                         currentInvoices[existingInvIndex] = {
                           ...existing,
                           asaasPaymentId: p.id,
                           carneGroup,
                           status: newStatus,
+                          paidAt: isPaid
+                            ? p.clientPaymentDate || p.paymentDate || p.confirmedDate || existing.paidAt || new Date().toISOString()
+                            : existing.paidAt,
+                          paymentMethod: p.billingType || existing.paymentMethod,
                           paymentUrl: p.bankSlipUrl || p.invoiceUrl || existing.paymentUrl,
                         };
                         updatedCount++;
@@ -13891,8 +13944,23 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                       return String(a.dueDate).localeCompare(String(b.dueDate));
                     });
 
+                    const hasOverdue = currentInvoices.some((i) => i.status === 'OVERDUE');
+                    const hasPaid = currentInvoices.some((i) => i.status === 'PAID');
+                    let nextSubStatus = selectedSubForDetail.status;
+                    let nextMembers = selectedSubForDetail.members;
+
+                    if (!hasOverdue && hasPaid && nextSubStatus !== 'ACTIVE') {
+                      nextSubStatus = 'ACTIVE';
+                      nextMembers = (selectedSubForDetail.members || []).map((m) => ({
+                        ...m,
+                        status: 'ACTIVE',
+                      }));
+                    }
+
                     const updatedSub: ClubSubscription = {
                       ...selectedSubForDetail,
+                      status: nextSubStatus,
+                      members: nextMembers,
                       invoices: currentInvoices,
                     };
 

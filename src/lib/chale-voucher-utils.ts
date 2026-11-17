@@ -413,3 +413,97 @@ export function extractChaleDetailsFromOrder(order: any): ParsedChaleDetails | n
     otherItems
   };
 }
+
+export interface ChaleInclusionsInfo {
+  cafeText: string;
+  dayUseText: string;
+  quintaNotice: string | null;
+  isQuintaIn: boolean;
+  essentialRules: {
+    icon: string;
+    title: string;
+    text: string;
+  }[];
+}
+
+export function getChaleInclusions(checkInDateStr?: string, checkOutDateStr?: string): ChaleInclusionsInfo {
+  const dayNames = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+
+  let cafeDays: string[] = [];
+  let dayUseDays: string[] = [];
+  let isQuintaIn = false;
+
+  if (checkInDateStr) {
+    const cleanIn = checkInDateStr.split('T')[0];
+    const cleanOut = checkOutDateStr ? checkOutDateStr.split('T')[0] : cleanIn;
+
+    const inDate = new Date(cleanIn + 'T12:00:00');
+    const outDate = new Date(cleanOut + 'T12:00:00');
+
+    isQuintaIn = inDate.getDay() === 4;
+
+    const cur = new Date(inDate);
+    while (cur <= outDate) {
+      const dow = cur.getDay(); // 0..6
+      // Café é servido de sexta a domingo nas manhãs da estadia (apenas para manhãs após a noite dormida)
+      if (cur > inDate && (dow === 5 || dow === 6 || dow === 0)) {
+        cafeDays.push(dayNames[dow]);
+      }
+      // Day use é nos dias de funcionamento do parque (sex a dom)
+      if (dow === 5 || dow === 6 || dow === 0) {
+        dayUseDays.push(dayNames[dow]);
+      }
+      cur.setDate(cur.getDate() + 1);
+    }
+  }
+
+  // Remove duplicatas mantendo a ordem
+  cafeDays = Array.from(new Set(cafeDays));
+  dayUseDays = Array.from(new Set(dayUseDays));
+
+  const cafeText = cafeDays.length > 0
+    ? `Incluso: ${cafeDays.join(' e ')} (das 7h às 9h)`
+    : 'Servido Sex a Dom (7h às 9h)';
+
+  const dayUseText = dayUseDays.length > 0
+    ? `Incluso: ${dayUseDays.join(' e ')} (9h às 17h)`
+    : 'Disponível nos dias de abertura do parque (Sex a Dom)';
+
+  const quintaNotice = isQuintaIn
+    ? 'Na quinta-feira a entrada no Balneário só é permitida no horário do check-in (15h). Não há serviço de Day Use na quinta (parque inativo).'
+    : null;
+
+  const essentialRules = [
+    {
+      icon: '🚫',
+      title: 'Bebidas Alcoólicas',
+      text: 'Totalmente proibida a entrada e o consumo no local.'
+    },
+    {
+      icon: '🍽️',
+      title: 'Alimentação',
+      text: 'Restaurante/lanchonete aberto com vendas até as 17h (sem alimentação após as 17h).'
+    },
+    {
+      icon: '🥩',
+      title: 'Churrasco & Alimentos',
+      text: 'Permitido trazer alimentos prontos. Quiosques liberados para churrasco exclusivamente entre 17h e 8h da manhã. O uso no Day Use (9h às 17h) é cobrado à parte.'
+    }
+  ];
+
+  if (quintaNotice) {
+    essentialRules.push({
+      icon: 'ℹ️',
+      title: 'Entrada na Quinta-feira',
+      text: 'Check-in direto no chalé às 15h. Sem Day Use na quinta (parque inativo).'
+    });
+  }
+
+  return {
+    cafeText,
+    dayUseText,
+    quintaNotice,
+    isQuintaIn,
+    essentialRules
+  };
+}
