@@ -427,71 +427,70 @@ export default function Voucher() {
                     </div>
                   </div>
 
-                  {/* Card 2: Nomes dos Adultos e das Crianças + Detalhes */}
+                  {/* Card 2: Hóspedes */}
                   <div className="bg-white border-2 border-slate-200 rounded-3xl p-4 md:p-5 space-y-3 shadow-sm">
                     <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
                       <div className="flex items-center gap-2">
                         <Users className="w-4 h-4 text-emerald-700" />
                         <h3 className="text-xs md:text-sm font-black uppercase tracking-wider text-emerald-950">
-                          Relação Nominal de Hóspedes (Adultos e Crianças)
+                          Hóspedes
                         </h3>
                       </div>
                       <span className="text-[11px] font-black text-emerald-900 bg-emerald-100 px-2.5 py-0.5 rounded-full">
-                        {chaleDetails.adultsCount + chaleDetails.childrenCount} Hóspede(s)
+                        {chaleDetails.adultsCount + chaleDetails.childrenCount} {chaleDetails.adultsCount + chaleDetails.childrenCount === 1 ? 'Hóspede' : 'Hóspedes'}
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {/* Lista de Adultos */}
-                      <div className="bg-slate-50 rounded-2xl p-3.5 border border-slate-200/80 space-y-2">
-                        <span className="text-[10px] font-black uppercase tracking-wider text-emerald-950 flex items-center gap-1.5">
-                          👤 Adultos Responsáveis / Hóspedes ({chaleDetails.adultsList.length})
-                        </span>
-                        <div className="space-y-1.5">
-                          {chaleDetails.adultsList.map((adult, idx) => (
-                            <div key={idx} className="bg-white rounded-xl p-2.5 border border-slate-200/80 flex items-center justify-between gap-2">
-                              <div>
-                                <span className="text-[10px] font-bold text-slate-500 block">{adult.label}</span>
-                                <span className="text-xs font-black text-slate-900">{adult.name}</span>
-                              </div>
-                              <span className="text-[10px] font-black uppercase bg-emerald-100 text-emerald-900 px-2 py-0.5 rounded-full shrink-0">
-                                Chalé {String(adult.chaleId).padStart(2, '0')}
+                    <div className="space-y-2">
+                      {/* Adultos */}
+                      {chaleDetails.adultsList.map((adult, idx) => (
+                        <div key={`adult-${idx}`} className="bg-slate-50 hover:bg-slate-100/80 rounded-xl p-2.5 border border-slate-200/80 flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0 font-bold text-xs">
+                              👤
+                            </div>
+                            <div className="min-w-0">
+                              <span className="text-xs md:text-sm font-black text-slate-900 block truncate">
+                                {adult.name}
+                              </span>
+                              <span className="text-[10px] font-semibold text-slate-500">
+                                {adult.label}
                               </span>
                             </div>
-                          ))}
+                          </div>
+                          <span className="text-[10px] font-black uppercase bg-emerald-100 text-emerald-900 px-2 py-0.5 rounded-md shrink-0 border border-emerald-200">
+                            Chalé {String(adult.chaleId).padStart(2, '0')}
+                          </span>
                         </div>
-                      </div>
+                      ))}
 
-                      {/* Lista de Crianças */}
-                      <div className="bg-amber-50/60 rounded-2xl p-3.5 border border-amber-200/80 space-y-2">
-                        <span className="text-[10px] font-black uppercase tracking-wider text-amber-950 flex items-center gap-1.5">
-                          👶 Crianças Adicionais ({chaleDetails.childrenList.length})
-                        </span>
-                        {chaleDetails.childrenList.length > 0 ? (
-                          <div className="space-y-1.5">
-                            {chaleDetails.childrenList.map((child, idx) => (
-                              <div key={idx} className="bg-white rounded-xl p-2.5 border border-amber-200 flex items-center justify-between gap-2">
-                                <div>
-                                  <span className="text-[10px] font-bold text-amber-800 block">
-                                    {child.label} • {child.ageLabel}
-                                  </span>
-                                  <span className="text-xs font-black text-slate-900">{child.name}</span>
-                                </div>
-                                <span className="text-[10px] font-black uppercase bg-amber-100 text-amber-950 px-2 py-0.5 rounded-full shrink-0">
-                                  Filho(a) Hóspede
-                                </span>
-                              </div>
-                            ))}
+                      {/* Crianças */}
+                      {chaleDetails.childrenList.map((child, idx) => (
+                        <div key={`child-${idx}`} className="bg-amber-50/70 hover:bg-amber-100/70 rounded-xl p-2.5 border border-amber-200/80 flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-900 flex items-center justify-center shrink-0 font-bold text-xs">
+                              👶
+                            </div>
+                            <div className="min-w-0">
+                              <span className="text-xs md:text-sm font-black text-slate-900 block truncate">
+                                {child.name}
+                              </span>
+                              <span className="text-[10px] font-semibold text-amber-800">
+                                {child.label} • {child.ageLabel}
+                              </span>
+                            </div>
                           </div>
-                        ) : (
-                          <div className="bg-white/80 rounded-xl p-3 border border-amber-200/50 text-xs font-semibold text-slate-500">
-                            Nenhuma criança adicional vinculada a esta reserva.
-                          </div>
-                        )}
-                        <p className="text-[10px] font-bold text-amber-900 leading-snug pt-0.5">
+                          <span className="text-[10px] font-black uppercase bg-amber-100 text-amber-950 px-2 py-0.5 rounded-md shrink-0 border border-amber-300">
+                            Filho(a) Hóspede
+                          </span>
+                        </div>
+                      ))}
+
+                      {chaleDetails.childrenList.length > 0 && (
+                        <p className="text-[10px] font-bold text-amber-900 leading-snug pt-1">
                           ⚠️ O adicional de crianças é exclusivo e permitido apenas para filhos dos hóspedes.
                         </p>
-                      </div>
+                      )}
                     </div>
                   </div>
 

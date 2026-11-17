@@ -128,6 +128,18 @@ export function AdminChaleTab({
   const [filterStatus, setFilterStatus] = useState<'todos' | 'disponivel' | 'indisponivel' | 'ocupado'>('todos');
   const [activeSubTab, setActiveSubTab] = useState<'mapa' | 'chales' | 'camping'>('mapa');
 
+  // Permitir que navegações externas (ex: Agenda) filtrem diretamente o cliente e abram a lista
+  useEffect(() => {
+    const handleFilterChales = (e: any) => {
+      if (e?.detail?.search !== undefined) {
+        setSearchTerm(e.detail.search);
+        setActiveSubTab('chales');
+      }
+    };
+    window.addEventListener('admin:filter-chales', handleFilterChales);
+    return () => window.removeEventListener('admin:filter-chales', handleFilterChales);
+  }, []);
+
   // RESERVAS MANUAIS SALVAS LOCALMENTE
   const [localReservations, setLocalReservations] = useState<ChaleReservation[]>(() => {
     try {

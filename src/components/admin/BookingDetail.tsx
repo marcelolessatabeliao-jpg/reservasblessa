@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { formatCurrency } from '@/lib/booking-types';
-import { CheckCircle2, Circle, Trash2, Eye, X, FileText, ExternalLink, Check, RotateCcw, Phone, CreditCard, RefreshCw, Loader2 } from 'lucide-react';
+import { CheckCircle2, Circle, Trash2, Eye, X, FileText, ExternalLink, Check, RotateCcw, Phone, CreditCard, RefreshCw, Loader2, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
@@ -742,36 +742,85 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
         
         {localItems.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {localItems.map((item, i) => (
-              <div
-                key={i}
-                className={cn(
-                  'flex items-center justify-between border-4 p-4 rounded-[1.5rem] transition-all text-xs shadow-md',
-                  item.is_redeemed
-                    ? 'bg-emerald-100 border-emerald-400 opacity-95'
-                    : 'bg-white border-slate-300 hover:border-emerald-500 hover:shadow-xl'
-                )}
-              >
-                <div className="flex flex-col min-w-0 flex-1 mr-3 overflow-hidden">
-                  <span className={cn('font-black text-[11px] md:text-[13px] whitespace-normal transition-colors uppercase leading-tight md:leading-normal', item.is_redeemed ? 'text-emerald-900 line-through' : 'text-slate-950')}>
-                    {item.quantity}x {formatProductDisplayName(item.product_id, item.unit_price, item.product_name)}
-                    {((item.product_name || item.product_id || '').toLowerCase().includes('quad')) && (
-                      <span className="ml-1 text-blue-600 font-black lowercase text-[10px] bg-blue-50 px-1.5 py-0.5 rounded-md border border-blue-100">
-                        {(() => {
-                           const searchStr = `${item.product_name} ${item.product_id} ${JSON.stringify(item.metadata || {})}`.toUpperCase();
-                           const match = searchStr.match(/(\d{1,2}[:H]\d{2})/);
-                           if (match) return match[1].replace('H', ':');
-                           // Tentar buscar no array principal se matchear modelo
-                           const qMatch = quads.find((q: any) => (q.quad_type || q.type || '').toUpperCase() === (item.product_id || '').toUpperCase() || (item.product_name || '').toUpperCase().includes((q.quad_type || q.type || '').toUpperCase()));
-                           return qMatch?.time_slot || '';
-                        })()}
-                      </span>
+            {localItems.map((item, i) => {
+              const itemLower = ((item.product_name || '') + ' ' + (item.product_id || '')).toLowerCase();
+              const isChaleItem = itemLower.includes('chalé') || itemLower.includes('chale') || itemLower.includes('hospedagem');
+
+              let itemMeta: any = item.metadata;
+              if (typeof itemMeta === 'string') {
+                try { itemMeta = JSON.parse(itemMeta); } catch(e) { itemMeta = {}; }
+              }
+              const itemChaleId = itemMeta?.chale_id || (booking as any)?.chale_id || (booking as any)?.metadata?.chale_id || (() => {
+                const match = ((item.product_name || '') + ' ' + (item.product_id || '')).match(/chal[ée]\s*0?(\d+)/i);
+                return match ? match[1] : null;
+              })();
+
+              let displayName = formatProductDisplayName(item.product_id, item.unit_price, item.product_name);
+              if (isChaleItem && itemChaleId) {
+                const padChale = `Chalé ${String(itemChaleId).padStart(2, '0')}`;
+                if (!displayName.toLowerCase().includes(padChale.toLowerCase())) {
+                  displayName = displayName
+                    .replace(/CHAL[ÉE]:/i, `${padChale}:`)
+                    .replace(/CHAL[ÉE] —/i, `${padChale} —`)
+                    .replace(/^CHAL[ÉE]\b/i, padChale);
+                  if (!displayName.toLowerCase().includes(padChale.toLowerCase())) {
+                    displayName = `${padChale} — ${displayName}`;
+                  }
+                }
+              }
+
+              const navigateToChales = (e: React.MouseEvent) => {
+                e.stopPropagation();
+                window.dispatchEvent(new CustomEvent('admin:navigate-tab', { detail: { tab: 'chales' } }));
+                const q = booking.name || booking.id || cpf || '';
+                window.dispatchEvent(new CustomEvent('admin:filter-chales', { detail: { search: q } }));
+              };
+
+              return (
+                <div
+                  key={i}
+                  onClick={isChaleItem ? navigateToChales : undefined}
+                  className={cn(
+                    'flex items-center justify-between border-4 p-4 rounded-[1.5rem] transition-all text-xs shadow-md',
+                    isChaleItem && 'cursor-pointer hover:ring-2 hover:ring-amber-400 hover:border-amber-500',
+                    item.is_redeemed
+                      ? 'bg-emerald-100 border-emerald-400 opacity-95'
+                      : 'bg-white border-slate-300 hover:border-emerald-500 hover:shadow-xl'
+                  )}
+                >
+                  <div className="flex flex-col min-w-0 flex-1 mr-3 overflow-hidden">
+                    <span className={cn('font-black text-[11px] md:text-[13px] whitespace-normal transition-colors uppercase leading-tight md:leading-normal', item.is_redeemed ? 'text-emerald-900 line-through' : 'text-slate-950')}>
+                      {item.quantity}x {displayName}
+                      {((item.product_name || item.product_id || '').toLowerCase().includes('quad')) && (
+                        <span className="ml-1 text-blue-600 font-black lowercase text-[10px] bg-blue-50 px-1.5 py-0.5 rounded-md border border-blue-100">
+                          {(() => {
+                             const searchStr = `${item.product_name} ${item.product_id} ${JSON.stringify(item.metadata || {})}`.toUpperCase();
+                             const match = searchStr.match(/(\d{1,2}[:H]\d{2})/);
+                             if (match) return match[1].replace('H', ':');
+                             // Tentar buscar no array principal se matchear modelo
+                             const qMatch = quads.find((q: any) => (q.quad_type || q.type || '').toUpperCase() === (item.product_id || '').toUpperCase() || (item.product_name || '').toUpperCase().includes((q.quad_type || q.type || '').toUpperCase()));
+                             return qMatch?.time_slot || '';
+                          })()}
+                        </span>
+                      )}
+                    </span>
+
+                    {isChaleItem && (
+                      <button
+                        type="button"
+                        onClick={navigateToChales}
+                        className="mt-1.5 inline-flex items-center gap-1.5 text-[9.5px] font-black uppercase tracking-wider text-amber-900 bg-amber-100 hover:bg-amber-200 border border-amber-300 rounded-lg px-2 py-0.5 transition-all shadow-xs w-fit"
+                        title="Ir para a aba Hospedagem & Chalés e ver detalhes desta reserva"
+                      >
+                        <Home className="w-3 h-3 text-amber-700" />
+                        <span>Ver no Mapa de Hospedagem ➔</span>
+                      </button>
                     )}
-                  </span>
-                  <span className={cn('text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 mt-1.5', item.is_redeemed ? 'text-emerald-800' : 'text-slate-400')}>
-                    {item.is_redeemed ? (<><CheckCircle2 className="w-4 h-4 text-emerald-600 shadow-sm" /> UTILIZADO</>) : (<><Circle className="w-4 h-4 text-slate-300" /> AGUARDANDO</>)}
-                  </span>
-                </div>
+
+                    <span className={cn('text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 mt-1.5', item.is_redeemed ? 'text-emerald-800' : 'text-slate-400')}>
+                      {item.is_redeemed ? (<><CheckCircle2 className="w-4 h-4 text-emerald-600 shadow-sm" /> UTILIZADO</>) : (<><Circle className="w-4 h-4 text-slate-300" /> AGUARDANDO</>)}
+                    </span>
+                  </div>
                   <div className="flex gap-1.5 shrink-0">
                     <Button
                       size="sm"
@@ -798,8 +847,9 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
-              </div>
-            ))}
+                </div>
+              );
+            })}
           </div>
         ) : (
           <div className="text-center py-6 text-slate-400 text-xs font-bold uppercase tracking-widest border-2 border-dashed border-slate-200 rounded-xl">

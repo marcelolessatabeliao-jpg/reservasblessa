@@ -55,7 +55,7 @@ export type DayUseSubTab = 'entradas' | 'quiosques' | 'quads' | 'diversoes';
 export type HospedagemSubTab = 'chales' | 'quiosques' | 'quads' | 'diversoes';
 export type CampingSubTab = 'camping' | 'quiosques' | 'quads' | 'diversoes';
 
-export function BookingSection() {
+export function BookingSection({ onBookingActiveChange }: { onBookingActiveChange?: (isActive: boolean) => void } = {}) {
   const { 
     booking, 
     updateEntry, 
@@ -85,6 +85,18 @@ export function BookingSection() {
   const [hospedagemTab, setHospedagemTab] = useState<HospedagemSubTab>('chales');
   const [namesValidationError, setNamesValidationError] = useState<boolean>(false);
   const [campingTab, setCampingTab] = useState<CampingSubTab>('camping');
+
+  // Estado para acordeom mobile das opções de cada modalidade
+  const [mobileDetailsOpen, setMobileDetailsOpen] = useState<{
+    dayuse?: boolean;
+    hospedagem?: boolean;
+    camping?: boolean;
+  }>({});
+
+  // Notificar página pai quando o processo de reserva estiver em andamento (ocultando conteúdo extra abaixo)
+  useEffect(() => {
+    onBookingActiveChange?.(currentStep !== 'data');
+  }, [currentStep, onBookingActiveChange]);
 
   // Modal de troca de modalidade para evitar confusão
   const [isSwitchModalOpen, setIsSwitchModalOpen] = useState(false);
@@ -1115,19 +1127,19 @@ export function BookingSection() {
                       </p>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-2">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-5 pt-2">
                       {/* CARD MODALIDADE 1: DAY USE */}
                       <div
                         onClick={() => executeModalidadeSwitch('dayuse')}
-                        className="group relative rounded-[2.5rem] bg-gradient-to-br from-emerald-950 via-[#042817] to-slate-950 text-white p-6 cursor-pointer shadow-2xl border-2 border-emerald-600/60 hover:border-amber-400 transition-all duration-300 flex flex-col justify-between overflow-hidden hover:scale-[1.01]"
+                        className="group relative rounded-3xl md:rounded-[2.5rem] bg-gradient-to-br from-emerald-950 via-[#042817] to-slate-950 text-white p-4 sm:p-5 md:p-6 cursor-pointer shadow-2xl border-2 border-emerald-600/60 hover:border-amber-400 transition-all duration-300 flex flex-col justify-between overflow-hidden hover:scale-[1.01]"
                       >
-                        <div className="relative z-10 space-y-3.5">
-                          <div className="inline-flex items-center gap-2 bg-emerald-500/20 text-emerald-300 px-3.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border border-emerald-400/30">
+                        <div className="relative z-10 space-y-2.5 md:space-y-3.5">
+                          <div className="inline-flex items-center gap-2 bg-emerald-500/20 text-emerald-300 px-3 py-0.5 md:px-3.5 md:py-1 rounded-full text-[10px] font-black uppercase tracking-wider border border-emerald-400/30">
                             <Sun className="w-3.5 h-3.5 text-amber-400" />
                             PASSAR O DIA (9h às 17h)
                           </div>
 
-                          <h4 className="font-sans font-black text-xl sm:text-2xl text-white group-hover:text-amber-300 transition-colors">
+                          <h4 className="font-sans font-black text-lg sm:text-xl md:text-2xl text-white group-hover:text-amber-300 transition-colors">
                             Day Use no Balneário
                           </h4>
 
@@ -1135,7 +1147,25 @@ export function BookingSection() {
                             Aproveite as piscinas, cachoeiras naturais, novo toboágua espiral e área de lazer completa durante o dia.
                           </p>
 
-                          <div className="space-y-2 pt-3 border-t border-emerald-800/60 text-xs font-bold text-emerald-200">
+                          {/* Botão acordeom exclusivo mobile */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setMobileDetailsOpen((prev) => ({ ...prev, dayuse: !prev.dayuse }));
+                            }}
+                            className="md:hidden flex items-center justify-between w-full py-2 px-3 rounded-xl bg-white/10 hover:bg-white/15 text-emerald-200 text-xs font-bold border border-emerald-500/30 transition-all"
+                          >
+                            <span>{mobileDetailsOpen.dayuse ? '▴ Ocultar o que está incluso' : '✨ Ver tudo o que inclui ▾'}</span>
+                            <span className="text-[10px] bg-emerald-400/20 text-emerald-300 px-2 py-0.5 rounded-full font-black">
+                              5 itens
+                            </span>
+                          </button>
+
+                          <div className={cn(
+                            "space-y-2 pt-2 border-t border-emerald-800/60 text-xs font-bold text-emerald-200",
+                            mobileDetailsOpen.dayuse ? "block" : "hidden md:block"
+                          )}>
                             <div className="flex items-center gap-2">
                               <Check className="w-4 h-4 text-amber-400 shrink-0" />
                               <span>Entradas para o Day Use</span>
@@ -1159,7 +1189,7 @@ export function BookingSection() {
                           </div>
                         </div>
 
-                        <Button className="mt-6 w-full h-12 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white font-black uppercase text-xs tracking-wider shadow-lg">
+                        <Button className="mt-3 md:mt-6 w-full h-11 md:h-12 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white font-black uppercase text-xs tracking-wider shadow-lg">
                           Escolher Day Use <ArrowRight className="w-4 h-4 ml-1.5" />
                         </Button>
                       </div>
@@ -1167,15 +1197,15 @@ export function BookingSection() {
                       {/* CARD MODALIDADE 2: HOSPEDAGEM EM CHALÉS */}
                       <div
                         onClick={() => executeModalidadeSwitch('hospedagem')}
-                        className="group relative rounded-[2.5rem] bg-gradient-to-br from-emerald-950 via-[#042817] to-slate-950 text-white p-6 cursor-pointer shadow-2xl border-2 border-amber-400 ring-4 ring-amber-400/20 hover:border-amber-300 transition-all duration-300 flex flex-col justify-between overflow-hidden hover:scale-[1.01]"
+                        className="group relative rounded-3xl md:rounded-[2.5rem] bg-gradient-to-br from-emerald-950 via-[#042817] to-slate-950 text-white p-4 sm:p-5 md:p-6 cursor-pointer shadow-2xl border-2 border-amber-400 ring-2 sm:ring-4 ring-amber-400/20 hover:border-amber-300 transition-all duration-300 flex flex-col justify-between overflow-hidden hover:scale-[1.01]"
                       >
-                        <div className="relative z-10 space-y-3.5">
-                          <div className="inline-flex items-center gap-2 bg-amber-400 text-emerald-950 px-3.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shadow-lg">
+                        <div className="relative z-10 space-y-2.5 md:space-y-3.5">
+                          <div className="inline-flex items-center gap-2 bg-amber-400 text-emerald-950 px-3 py-0.5 md:px-3.5 md:py-1 rounded-full text-[10px] font-black uppercase tracking-wider shadow-lg">
                             <Crown className="w-3.5 h-3.5 fill-emerald-950" />
                             EXCLUSIVO • SUÍTES & CHALÉS
                           </div>
 
-                          <h4 className="font-sans font-black text-xl sm:text-2xl text-white group-hover:text-amber-300 transition-colors">
+                          <h4 className="font-sans font-black text-lg sm:text-xl md:text-2xl text-white group-hover:text-amber-300 transition-colors">
                             Hospedagem em Chalés
                           </h4>
 
@@ -1183,7 +1213,25 @@ export function BookingSection() {
                             Pernoite privativo em chalé com suíte, cama casal, ar-condicionado, TV, frigobar, café da manhã e entradas já inclusas!
                           </p>
 
-                          <div className="space-y-2 pt-3 border-t border-emerald-800/60 text-xs font-bold text-emerald-200">
+                          {/* Botão acordeom exclusivo mobile */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setMobileDetailsOpen((prev) => ({ ...prev, hospedagem: !prev.hospedagem }));
+                            }}
+                            className="md:hidden flex items-center justify-between w-full py-2 px-3 rounded-xl bg-amber-400/15 hover:bg-amber-400/25 text-amber-300 text-xs font-bold border border-amber-400/30 transition-all"
+                          >
+                            <span>{mobileDetailsOpen.hospedagem ? '▴ Ocultar o que está incluso' : '✨ Ver tudo o que inclui ▾'}</span>
+                            <span className="text-[10px] bg-amber-400 text-slate-950 px-2 py-0.5 rounded-full font-black">
+                              Inclusos
+                            </span>
+                          </button>
+
+                          <div className={cn(
+                            "space-y-2 pt-2 border-t border-emerald-800/60 text-xs font-bold text-emerald-200",
+                            mobileDetailsOpen.hospedagem ? "block" : "hidden md:block"
+                          )}>
                             <div className="flex items-center gap-2">
                               <Check className="w-4 h-4 text-amber-400 shrink-0" />
                               <span className="text-amber-300 font-black">Entradas e Day Use 100% Inclusos</span>
@@ -1203,7 +1251,7 @@ export function BookingSection() {
                           </div>
                         </div>
 
-                        <Button className="mt-6 w-full h-12 rounded-xl bg-amber-400 hover:bg-amber-500 text-slate-950 font-black uppercase text-xs tracking-wider shadow-lg">
+                        <Button className="mt-3 md:mt-6 w-full h-11 md:h-12 rounded-xl bg-amber-400 hover:bg-amber-500 text-slate-950 font-black uppercase text-xs tracking-wider shadow-lg">
                           Escolher Hospedagem <ArrowRight className="w-4 h-4 ml-1.5" />
                         </Button>
                       </div>
@@ -1211,15 +1259,15 @@ export function BookingSection() {
                       {/* CARD MODALIDADE 3: ÁREA DE CAMPING */}
                       <div
                         onClick={() => executeModalidadeSwitch('camping')}
-                        className="group relative rounded-[2.5rem] bg-gradient-to-br from-emerald-950 via-[#042817] to-slate-950 text-white p-6 cursor-pointer shadow-2xl border-2 border-emerald-500/70 hover:border-amber-400 transition-all duration-300 flex flex-col justify-between overflow-hidden hover:scale-[1.01]"
+                        className="group relative rounded-3xl md:rounded-[2.5rem] bg-gradient-to-br from-emerald-950 via-[#042817] to-slate-950 text-white p-4 sm:p-5 md:p-6 cursor-pointer shadow-2xl border-2 border-emerald-500/70 hover:border-amber-400 transition-all duration-300 flex flex-col justify-between overflow-hidden hover:scale-[1.01]"
                       >
-                        <div className="relative z-10 space-y-3.5">
-                          <div className="inline-flex items-center gap-2 bg-emerald-500/30 text-emerald-200 px-3.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border border-emerald-400/30">
+                        <div className="relative z-10 space-y-2.5 md:space-y-3.5">
+                          <div className="inline-flex items-center gap-2 bg-emerald-500/30 text-emerald-200 px-3 py-0.5 md:px-3.5 md:py-1 rounded-full text-[10px] font-black uppercase tracking-wider border border-emerald-400/30">
                             <Tent className="w-3.5 h-3.5 text-amber-400" />
                             NATUREZA • SOB AS ESTRELAS
                           </div>
 
-                          <h4 className="font-sans font-black text-xl sm:text-2xl text-white group-hover:text-amber-300 transition-colors">
+                          <h4 className="font-sans font-black text-lg sm:text-xl md:text-2xl text-white group-hover:text-amber-300 transition-colors">
                             Área de Camping
                           </h4>
 
@@ -1227,7 +1275,25 @@ export function BookingSection() {
                             Acampe com sua barraca em meio à natureza com estrutura completa de banheiros, duchas e acesso ao balneário.
                           </p>
 
-                          <div className="space-y-2 pt-3 border-t border-emerald-800/60 text-xs font-bold text-emerald-200">
+                          {/* Botão acordeom exclusivo mobile */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setMobileDetailsOpen((prev) => ({ ...prev, camping: !prev.camping }));
+                            }}
+                            className="md:hidden flex items-center justify-between w-full py-2 px-3 rounded-xl bg-white/10 hover:bg-white/15 text-emerald-200 text-xs font-bold border border-emerald-500/30 transition-all"
+                          >
+                            <span>{mobileDetailsOpen.camping ? '▴ Ocultar o que está incluso' : '✨ Ver tudo o que inclui ▾'}</span>
+                            <span className="text-[10px] bg-emerald-400/20 text-emerald-300 px-2 py-0.5 rounded-full font-black">
+                              Detalhes
+                            </span>
+                          </button>
+
+                          <div className={cn(
+                            "space-y-2 pt-2 border-t border-emerald-800/60 text-xs font-bold text-emerald-200",
+                            mobileDetailsOpen.camping ? "block" : "hidden md:block"
+                          )}>
                             <div className="flex items-center gap-2">
                               <Check className="w-4 h-4 text-amber-400 shrink-0" />
                               <span className="text-amber-300 font-black">Apenas R$ 100 por pessoa</span>
@@ -1247,7 +1313,7 @@ export function BookingSection() {
                           </div>
                         </div>
 
-                        <Button className="mt-6 w-full h-12 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase text-xs tracking-wider shadow-lg">
+                        <Button className="mt-3 md:mt-6 w-full h-11 md:h-12 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase text-xs tracking-wider shadow-lg">
                           Escolher Camping <ArrowRight className="w-4 h-4 ml-1.5" />
                         </Button>
                       </div>

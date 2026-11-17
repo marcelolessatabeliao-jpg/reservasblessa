@@ -491,6 +491,16 @@ export default function Admin() {
     return () => window.removeEventListener('admin_notifications_updated', handler);
   }, []);
 
+  useEffect(() => {
+    const handleNavigateTab = (e: any) => {
+      if (e?.detail?.tab) {
+        setActiveTab(e.detail.tab);
+      }
+    };
+    window.addEventListener('admin:navigate-tab', handleNavigateTab);
+    return () => window.removeEventListener('admin:navigate-tab', handleNavigateTab);
+  }, []);
+
   const refreshClubNotifications = useCallback(async () => {
     try {
       const clubState = await fetchClubState();

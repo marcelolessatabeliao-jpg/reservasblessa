@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Navbar } from '@/components/Navbar';
 import { HeroSection } from '@/components/HeroSection';
@@ -17,6 +17,7 @@ import { Footer } from '@/components/Footer';
 
 const Index = () => {
   const { hash } = useLocation();
+  const [isBookingActive, setIsBookingActive] = useState(false);
 
   useEffect(() => {
     if (hash) {
@@ -36,18 +37,22 @@ const Index = () => {
     <div className="min-h-screen bg-gradient-to-br from-emerald-100/80 via-emerald-50 to-teal-100/80 bg-fixed">
       <Navbar />
       <HeroSection />
-      <BookingSection />
-      <SpecialPlansSection />
-      <PricingComparisonSection />
-      <AboutSection />
-      <DayUsePricing />
-      <DayUseRules />
-      <SpecialPlansCards />
-      <ServicesSection />
-      <TestimonialsSection />
-      <FAQSection />
-      <ContactSection />
-      <LocationSection />
+      <BookingSection onBookingActiveChange={setIsBookingActive} />
+      {!isBookingActive && (
+        <>
+          <SpecialPlansSection />
+          <PricingComparisonSection />
+          <AboutSection />
+          <DayUsePricing />
+          <DayUseRules />
+          <SpecialPlansCards />
+          <ServicesSection />
+          <TestimonialsSection />
+          <FAQSection />
+          <ContactSection />
+          <LocationSection />
+        </>
+      )}
       <Footer />
     </div>
   );
