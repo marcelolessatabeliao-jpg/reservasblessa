@@ -193,6 +193,40 @@ export function AdminChaleTab({
     }
   }, [localReservations]);
 
+  // Sincronização e Limpeza: Remove de localReservations qualquer reserva pendente ou cancelada que colida com pedidos online reais
+  useEffect(() => {
+    if (!orders) return;
+    setLocalReservations(prev => {
+      let changed = false;
+      const filtered = prev.filter(localRes => {
+        // Se a reserva local tiver correspondência com pedido cancelado no Supabase
+        const isCancelledInDb = (orders || []).some(o => 
+          (o.id === localRes.orderId || o.confirmation_code === localRes.confirmationCode || (localRes.guestName && o.customer_name && o.customer_name.trim().toLowerCase() === localRes.guestName.trim().toLowerCase())) &&
+          ['cancelled', 'canceled', 'desocupado'].includes((o.status || '').toLowerCase())
+        );
+        if (isCancelledInDb) {
+          changed = true;
+          return false;
+        }
+
+        // Se for pendente e houver pedido online PAGO para a mesma unidade
+        if (localRes.status === 'pending') {
+          const hasPaidConflict = (realChaleOrders || []).some(onlineRes => 
+            onlineRes.chaleId === localRes.chaleId &&
+            (onlineRes.status === 'paid' || onlineRes.status === 'confirmed') &&
+            onlineRes.checkInDate === localRes.checkInDate
+          );
+          if (hasPaidConflict) {
+            changed = true;
+            return false;
+          }
+        }
+        return true;
+      });
+      return changed ? filtered : prev;
+    });
+  }, [orders, realChaleOrders]);
+
   // Status de bloqueio manual (Manutenção: amarelo) - Default: Chalé 06 e Vidros 07 a 12 indisponíveis
   const [manualStatuses, setManualStatuses] = useState<Record<number, 'disponivel' | 'indisponivel'>>(() => {
     try {
@@ -748,11 +782,17 @@ export function AdminChaleTab({
     return { realChaleOrders: list, campingBookings: campings };
   }, [orders]);
 
-  // TODAS AS RESERVAS ATIVAS (Locais + Supabase Online)
+  // TODAS AS RESERVAS ATIVAS (Prioriza Pedidos Online Supabase e em seguida Reservas Locais)
   const allActiveReservations = useMemo(() => {
     const localList = Array.isArray(localReservations) ? localReservations : [];
     const onlineList = Array.isArray(realChaleOrders) ? realChaleOrders : [];
-    return [...localList, ...onlineList].filter(r => r && r.status !== 'cancelled');
+    const combined = [...onlineList, ...localList].filter(r => r && r.status !== 'cancelled');
+    // Ordenar de forma que reservas pagas/confirmadas venham com maior precedência
+    return combined.sort((a, b) => {
+      const aPaid = (a.status === 'paid' || a.status === 'confirmed') ? 1 : 0;
+      const bPaid = (b.status === 'paid' || b.status === 'confirmed') ? 1 : 0;
+      return bPaid - aPaid;
+    });
   }, [localReservations, realChaleOrders]);
 
   // MAPA DE OCUPAÇÃO: DATA SELECIONADA (Inicia a partir do dia 20/11/2026 - Primeira sexta disponível)
@@ -774,8 +814,17 @@ export function AdminChaleTab({
         while (curr <= outD) {
           const dStr = format(curr, 'yyyy-MM-dd');
           if (!map[dStr]) map[dStr] = [];
-          if (!map[dStr].some(x => x.chaleId === r.chaleId)) {
+          const existingIdx = map[dStr].findIndex(x => x.chaleId === r.chaleId);
+          if (existingIdx === -1) {
             map[dStr].push({ chaleId: r.chaleId, guestName: r.guestName, code: r.confirmationCode, res: r });
+          } else {
+            // Se já tem registro nessa data para essa unidade mas a atual for PAGA e a anterior PENDENTE, substitui
+            const existing = map[dStr][existingIdx];
+            const isCurrPaid = r.status === 'paid' || r.status === 'confirmed';
+            const isPrevPaid = existing.res.status === 'paid' || existing.res.status === 'confirmed';
+            if (isCurrPaid && !isPrevPaid) {
+              map[dStr][existingIdx] = { chaleId: r.chaleId, guestName: r.guestName, code: r.confirmationCode, res: r };
+            }
           }
           curr = addDays(curr, 1);
         }
@@ -801,7 +850,8 @@ export function AdminChaleTab({
     const statuses = (manualStatuses && typeof manualStatuses === 'object') ? manualStatuses : {};
 
     return (CHALE_UNITS || []).map(unit => {
-      const reservation = allActiveReservations.find(r => {
+      // Filtrar todas as reservas que englobam a data do mapa
+      const matchingReservations = allActiveReservations.filter(r => {
         if (!r || Number(r.chaleId) !== unit.id) return false;
         const inStr = (r.checkInDate || '').split('T')[0];
         const outStr = (r.checkOutDate || inStr).split('T')[0];
@@ -809,6 +859,29 @@ export function AdminChaleTab({
         return mapTargetDateStr >= inStr && mapTargetDateStr <= outStr;
       });
 
+      // Ordenar por prioridade estrita:
+      // 1. Reservas PAGAS ou CONFIRMADAS
+      // 2. Check-in na data de hoje (hóspede que vai pernoitar hoje) sobre quem está fazendo check-out hoje
+      // 3. Pedidos online reais (isOrder)
+      matchingReservations.sort((a, b) => {
+        const aPaid = (a.status === 'paid' || a.status === 'confirmed') ? 1 : 0;
+        const bPaid = (b.status === 'paid' || b.status === 'confirmed') ? 1 : 0;
+        if (aPaid !== bPaid) return bPaid - aPaid;
+
+        const aIn = (a.checkInDate || '').split('T')[0];
+        const bIn = (b.checkInDate || '').split('T')[0];
+        const aIsCheckInToday = (aIn === mapTargetDateStr) ? 1 : 0;
+        const bIsCheckInToday = (bIn === mapTargetDateStr) ? 1 : 0;
+        if (aIsCheckInToday !== bIsCheckInToday) return bIsCheckInToday - aIsCheckInToday;
+
+        const aOrder = a.isOrder ? 1 : 0;
+        const bOrder = b.isOrder ? 1 : 0;
+        if (aOrder !== bOrder) return bOrder - aOrder;
+
+        return 0;
+      });
+
+      const reservation = matchingReservations[0] || null;
       const isDateBlocked = (chaleBlockedDatesMap[unit.id] || []).includes(mapTargetDateStr);
       const isManualIndisponivel = statuses[unit.id] === 'indisponivel' || isDateBlocked;
       const isPaidOrConfirmed = reservation && (reservation.status === 'paid' || reservation.status === 'confirmed');
@@ -841,15 +914,36 @@ export function AdminChaleTab({
 
   // NO PAINEL ADMIN: MOSTRA TODOS OS 12 CHALÉS (Chalés 01 a 12: 6 Alvenaria + 6 Vidro)
   const chalesList = useMemo(() => {
-    const localList = Array.isArray(localReservations) ? localReservations : [];
-    const onlineList = Array.isArray(realChaleOrders) ? realChaleOrders : [];
     const statuses = (manualStatuses && typeof manualStatuses === 'object') ? manualStatuses : {};
 
     return (CHALE_UNITS || []).map(unit => {
-      const localRes = localList.find(r => r && Number(r.chaleId) === unit.id && r.status !== 'cancelled');
-      const onlineRes = onlineList.find(r => r && Number(r.chaleId) === unit.id && r.status !== 'cancelled');
-      
-      const reservation = localRes || onlineRes;
+      const matchingReservations = allActiveReservations.filter(r => {
+        if (!r || Number(r.chaleId) !== unit.id) return false;
+        const inStr = (r.checkInDate || '').split('T')[0];
+        const outStr = (r.checkOutDate || inStr).split('T')[0];
+        if (!inStr) return false;
+        return mapTargetDateStr >= inStr && mapTargetDateStr <= outStr;
+      });
+
+      matchingReservations.sort((a, b) => {
+        const aPaid = (a.status === 'paid' || a.status === 'confirmed') ? 1 : 0;
+        const bPaid = (b.status === 'paid' || b.status === 'confirmed') ? 1 : 0;
+        if (aPaid !== bPaid) return bPaid - aPaid;
+
+        const aIn = (a.checkInDate || '').split('T')[0];
+        const bIn = (b.checkInDate || '').split('T')[0];
+        const aIsCheckInToday = (aIn === mapTargetDateStr) ? 1 : 0;
+        const bIsCheckInToday = (bIn === mapTargetDateStr) ? 1 : 0;
+        if (aIsCheckInToday !== bIsCheckInToday) return bIsCheckInToday - aIsCheckInToday;
+
+        const aOrder = a.isOrder ? 1 : 0;
+        const bOrder = b.isOrder ? 1 : 0;
+        if (aOrder !== bOrder) return bOrder - aOrder;
+
+        return 0;
+      });
+
+      const reservation = matchingReservations[0] || allActiveReservations.find(r => r && Number(r.chaleId) === unit.id && (r.status === 'paid' || r.status === 'confirmed')) || allActiveReservations.find(r => r && Number(r.chaleId) === unit.id) || null;
       const isPaidOrConfirmed = reservation && (reservation.status === 'paid' || reservation.status === 'confirmed');
       const isDateBlocked = (chaleBlockedDatesMap[unit.id] || []).includes(mapTargetDateStr);
       const isManualIndisponivel = statuses[unit.id] === 'indisponivel' || isDateBlocked;
@@ -870,7 +964,7 @@ export function AdminChaleTab({
         isPendingReservation: Boolean(reservation && !isPaidOrConfirmed)
       };
     });
-  }, [localReservations, realChaleOrders, manualStatuses]);
+  }, [allActiveReservations, manualStatuses, mapTargetDateStr]);
 
   // Filtragem
   const filteredChales = useMemo(() => {
