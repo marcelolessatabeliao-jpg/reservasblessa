@@ -132,6 +132,7 @@ import {
   cleanDigits,
   formatCpf,
   formatPhone,
+  calculateKidsExpirationDate,
   formatBirthDate,
   getMemberAccessMessage,
   updateAsaasPaymentDueDate,
@@ -4045,6 +4046,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
       const updatedMembers = selectedSubForDetail.members.map((m) => {
         if (m.id === editingDependentMember.id || m.cardNumber === editingDependentMember.cardNumber) {
+          const isKids =
+            m.modalityCode === 'KIDS' ||
+            (m.planCycleLabel || '').toLowerCase().includes('kids');
+          const calculatedKidsExp = isKids ? calculateKidsExpirationDate(formattedBirthVal) : undefined;
+
           return {
             ...m,
             fullName: trimmedName,
@@ -4052,6 +4058,10 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
             birthDate: formattedBirthVal,
             rg: editDependentData.rg.trim() || m.rg,
             phone: editDependentData.phone.trim() ? formatPhone(editDependentData.phone) : m.phone,
+            expirationDate: calculatedKidsExp || m.expirationDate,
+            expirationNotes: calculatedKidsExp
+              ? 'Expira ao completar 12 anos (transição para plano pago)'
+              : m.expirationNotes,
             manualStatusOverride: true,
           };
         }
@@ -16774,7 +16784,17 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           placeholder="DD/MM/AAAA"
                           maxLength={10}
                           value={newDepBirth}
-                          onChange={(e) => setNewDepBirth(formatBirthDate(e.target.value))}
+                          onChange={(e) => {
+                            const formatted = formatBirthDate(e.target.value);
+                            setNewDepBirth(formatted);
+                            if (newDepModality === 'KIDS' && formatted.length === 10) {
+                              const exp12 = calculateKidsExpirationDate(formatted);
+                              if (exp12) {
+                                setNewDepExpirationDate(exp12);
+                                setNewDepExpirationNotes('Expira ao completar 12 anos (transição para plano pago)');
+                              }
+                            }
+                          }}
                           className="h-9 text-xs bg-white"
                         />
                       </div>
@@ -16784,7 +16804,17 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         </Label>
                         <select
                           value={newDepModality}
-                          onChange={(e) => setNewDepModality(e.target.value)}
+                          onChange={(e) => {
+                            const modCode = e.target.value;
+                            setNewDepModality(modCode);
+                            if (modCode === 'KIDS' && newDepBirth.length === 10) {
+                              const exp12 = calculateKidsExpirationDate(newDepBirth);
+                              if (exp12) {
+                                setNewDepExpirationDate(exp12);
+                                setNewDepExpirationNotes('Expira ao completar 12 anos (transição para plano pago)');
+                              }
+                            }
+                          }}
                           className="w-full h-9 rounded-lg border border-slate-300 px-2 text-xs font-bold bg-white"
                         >
                           {(state.modalities || []).map((m) => (

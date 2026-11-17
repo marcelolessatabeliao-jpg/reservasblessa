@@ -683,6 +683,59 @@ export const formatDateBR = (isoOrDate?: string | null): string => {
   return isoOrDate;
 };
 
+/**
+ * Calcula a data exata em que a criança completa 12 anos a partir da data de nascimento.
+ * Até os 11 anos e 12 meses (11 anos e 364 dias), o plano Kids permanece gratuito/ativo.
+ * No dia do 12º aniversário (ao completar 12 anos), vence e transiciona para plano pagante.
+ * Aceita formatos DD/MM/AAAA ou AAAA-MM-DD.
+ * Retorna formato ISO YYYY-MM-DD.
+ */
+export const calculateKidsExpirationDate = (birthDateStr?: string | null): string | undefined => {
+  if (!birthDateStr) return undefined;
+  const trimmed = birthDateStr.trim();
+  let day = 0;
+  let month = 0;
+  let year = 0;
+
+  if (trimmed.includes('/')) {
+    const parts = trimmed.split('/');
+    if (parts.length === 3) {
+      day = parseInt(parts[0], 10);
+      month = parseInt(parts[1], 10);
+      year = parseInt(parts[2], 10);
+    }
+  } else if (trimmed.includes('-')) {
+    const parts = trimmed.split('T')[0].split('-');
+    if (parts.length === 3) {
+      year = parseInt(parts[0], 10);
+      month = parseInt(parts[1], 10);
+      day = parseInt(parts[2], 10);
+    }
+  }
+
+  if (
+    !day ||
+    !month ||
+    !year ||
+    isNaN(day) ||
+    isNaN(month) ||
+    isNaN(year) ||
+    year < 1900 ||
+    year > 2100 ||
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > 31
+  ) {
+    return undefined;
+  }
+
+  const expYear = year + 12;
+  const mm = String(month).padStart(2, '0');
+  const dd = String(day).padStart(2, '0');
+  return `${expYear}-${mm}-${dd}`;
+};
+
 export const formatDateExtenso = (dateStr?: string): string => {
   const months = [
     'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
@@ -980,8 +1033,22 @@ export const normalizeClubDatabaseState = (
           ? 'INACTIVE'
           : m.status;
 
+      // Para cadastros Kids: calcula automaticamente expiração no 12º aniversário da criança
+      let resolvedExpDate = m.expirationDate;
+      let resolvedExpNotes = m.expirationNotes;
+      const isKids = m.modalityCode === 'KIDS' || (m.planCycleLabel || '').toLowerCase().includes('kids');
+      if (isKids && m.birthDate) {
+        const kids12Exp = calculateKidsExpirationDate(m.birthDate);
+        if (kids12Exp) {
+          resolvedExpDate = kids12Exp;
+          resolvedExpNotes = resolvedExpNotes || 'Expira ao completar 12 anos (transição para plano pago)';
+        }
+      }
+
       return {
         ...m,
+        expirationDate: resolvedExpDate,
+        expirationNotes: resolvedExpNotes,
         status: resolvedStatus,
         frontCardUrl: frontUrl || '/cards/44.png',
         backCardUrl: backUrl || '/cards/24.png',
@@ -1674,6 +1741,14 @@ export const createClubSubscription = async (
       frontCardUrl: frontUrl,
       backCardUrl: backUrl,
       validityLabel,
+      expirationDate:
+        mod.code === 'KIDS' && (m.birthDate || (isHolder ? input.holderBirthDate : ''))
+          ? calculateKidsExpirationDate(m.birthDate || (isHolder ? input.holderBirthDate : ''))
+          : undefined,
+      expirationNotes:
+        mod.code === 'KIDS'
+          ? 'Expira ao completar 12 anos (transição para plano pago)'
+          : undefined,
       monthlyValue: Number(memberMonthly.toFixed(2)),
       status: input.status || (monthlyEquivalent === 0 ? 'ACTIVE' : 'PENDING'),
       createdAt: now.toISOString(),
