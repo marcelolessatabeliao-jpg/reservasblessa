@@ -228,6 +228,8 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
         ...subscription,
         attachments: [newAtt, ...(subscription.attachments || [])],
         members: updatedMembers,
+        updatedAt: new Date().toISOString(),
+        isModifiedFromSeed: true,
       };
 
       onUpdateSub(updatedSub);

@@ -244,6 +244,7 @@ const isLabcardSubscriptionModified = (
   seedSub?: ClubSubscription
 ): boolean => {
   if (!seedSub) return true;
+  if (sub.isModifiedFromSeed) return true;
   if (
     sub.status !== 'PENDING_TRANSFER' ||
     Boolean(sub.manualStatusOverride) ||
@@ -269,7 +270,7 @@ const isLabcardSubscriptionModified = (
   ) {
     return true;
   }
-  if (sub.updatedAt && sub.updatedAt !== seedSub.updatedAt) {
+  if (sub.updatedAt && (!seedSub.updatedAt || sub.updatedAt !== seedSub.updatedAt)) {
     return true;
   }
   if ((sub.invoices?.length || 0) !== (seedSub.invoices?.length || 0)) return true;
@@ -316,7 +317,9 @@ const isLabcardSubscriptionModified = (
       Boolean(m.manualStatusOverride) ||
       Boolean(m.photoUrl) ||
       Boolean(m.documentProofUrl) ||
+      Boolean(m.documentProofName) ||
       Boolean(m.expirationDate) ||
+      Boolean(m.expirationNotes) ||
       Boolean(m.cardStatus) ||
       (m.attachments?.length || 0) > 0 ||
       m.fullName !== sm.fullName ||
@@ -708,9 +711,9 @@ export const fileToDataUrl = (file: File): Promise<string> => {
 
 export const compressImageFile = (
   file: File,
-  maxWidth = 1200,
-  maxHeight = 1200,
-  quality = 0.75
+  maxWidth = 900,
+  maxHeight = 900,
+  quality = 0.65
 ): Promise<string> => {
   return new Promise((resolve, reject) => {
     if (!file.type || !file.type.startsWith('image/')) {
@@ -1267,17 +1270,95 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
       local.subscriptions.forEach((s) => {
         const full = idbMap.get(s.id);
         if (full) {
-          if ((full.attachments?.length || 0) > (s.attachments?.length || 0)) {
+          // 1. Restaurar anexos gerais se o IndexedDB tiver anexos com mídia real ou mais anexos
+          const hasRealIdbAtts = (full.attachments || []).some(
+            (a) => a.dataUrl && !a.dataUrl.includes('[COMPACTED_LOCAL]') && a.dataUrl !== 'HAS_DOC_ATTACHED'
+          );
+          if (hasRealIdbAtts || (full.attachments?.length || 0) > (s.attachments?.length || 0)) {
             s.attachments = full.attachments;
+          } else if ((s.attachments?.length || 0) > 0 && (full.attachments?.length || 0) > 0) {
+            const fullAttMap = new Map((full.attachments || []).map((a) => [a.name, a.dataUrl]));
+            s.attachments = s.attachments.map((att) => {
+              if (
+                (!att.dataUrl || att.dataUrl.includes('[COMPACTED_LOCAL]') || att.dataUrl === 'HAS_DOC_ATTACHED') &&
+                fullAttMap.has(att.name)
+              ) {
+                return { ...att, dataUrl: fullAttMap.get(att.name)! };
+              }
+              return att;
+            });
           }
+
+          // 2. Restaurar dependentes e integrantes mapeados
+          if ((full.members?.length || 0) > (s.members?.length || 0)) {
+            s.members = full.members;
+          } else if (full.members && s.members) {
+            const fullMemMap = new Map(full.members.map((m) => [m.id, m]));
+            s.members = s.members.map((m) => {
+              const fm =
+                fullMemMap.get(m.id) ||
+                full.members.find(
+                  (x) => (x.cardNumber && x.cardNumber === m.cardNumber) || (x.cpf && x.cpf === m.cpf)
+                );
+              if (!fm) return m;
+              return {
+                ...m,
+                photoUrl: (!m.photoUrl || m.photoUrl.length < 50) && fm.photoUrl ? fm.photoUrl : m.photoUrl,
+                documentProofUrl:
+                  (!m.documentProofUrl ||
+                    m.documentProofUrl === 'HAS_DOC_ATTACHED' ||
+                    m.documentProofUrl === 'HAS_DOC_REMOTE') &&
+                  fm.documentProofUrl &&
+                  !fm.documentProofUrl.includes('[COMPACTED_LOCAL]')
+                    ? fm.documentProofUrl
+                    : m.documentProofUrl,
+                documentProofName: m.documentProofName || fm.documentProofName,
+                attachments:
+                  (fm.attachments?.length || 0) > (m.attachments?.length || 0) ||
+                  (fm.attachments || []).some((a) => a.dataUrl && !a.dataUrl.includes('[COMPACTED_LOCAL]'))
+                    ? fm.attachments
+                    : m.attachments,
+                rg: m.rg || fm.rg,
+                birthDate: m.birthDate || fm.birthDate,
+                sex: m.sex || fm.sex,
+                phone: m.phone || fm.phone,
+                expirationDate: m.expirationDate || fm.expirationDate,
+                expirationNotes: m.expirationNotes || fm.expirationNotes,
+              };
+            });
+          }
+
+          // 3. Restaurar campos cadastrais se ausentes no cache local
           if (full.addressCep && !s.addressCep) s.addressCep = full.addressCep;
           if (full.addressStreet && !s.addressStreet) s.addressStreet = full.addressStreet;
           if (full.addressNumber && !s.addressNumber) s.addressNumber = full.addressNumber;
+          if (full.addressComplement && !s.addressComplement) s.addressComplement = full.addressComplement;
           if (full.addressNeighborhood && !s.addressNeighborhood) s.addressNeighborhood = full.addressNeighborhood;
+          if (full.addressCity && !s.addressCity) s.addressCity = full.addressCity;
+          if (full.addressState && !s.addressState) s.addressState = full.addressState;
           if (full.vehicleModel && !s.vehicleModel) s.vehicleModel = full.vehicleModel;
           if (full.vehiclePlate && !s.vehiclePlate) s.vehiclePlate = full.vehiclePlate;
           if (full.vehicleColor && !s.vehicleColor) s.vehicleColor = full.vehicleColor;
           if (full.holderRg && !s.holderRg) s.holderRg = full.holderRg;
+          if (full.holderBirthDate && !s.holderBirthDate) s.holderBirthDate = full.holderBirthDate;
+          if (full.holderSex && !s.holderSex) s.holderSex = full.holderSex;
+          if (full.holderMaritalStatus && !s.holderMaritalStatus) s.holderMaritalStatus = full.holderMaritalStatus;
+          if (full.holderPhone && !s.holderPhone) s.holderPhone = full.holderPhone;
+          if (full.holderEmail && !s.holderEmail) s.holderEmail = full.holderEmail;
+          if (full.consultantName && !s.consultantName) s.consultantName = full.consultantName;
+          if (full.companyName && !s.companyName) s.companyName = full.companyName;
+          if (full.notes && !s.notes) s.notes = full.notes;
+          if (full.planSummaryLabel && !s.planSummaryLabel) s.planSummaryLabel = full.planSummaryLabel;
+          if (full.isModifiedFromSeed) s.isModifiedFromSeed = true;
+        }
+      });
+
+      // 4. Restaurar assinaturas que estavam salvas no IndexedDB mas foram omitidas do localStorage por limite de cota
+      const localIds = new Set(local.subscriptions.map((s) => s.id));
+      idbState.subscriptions.forEach((idbSub) => {
+        if (!localIds.has(idbSub.id)) {
+          local.subscriptions.push(idbSub);
+          localIds.add(idbSub.id);
         }
       });
     }
@@ -1330,7 +1411,12 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
           } else {
             const localTime = s.updatedAt ? new Date(s.updatedAt).getTime() : 0;
             const remoteTime = current.updatedAt ? new Date(current.updatedAt).getTime() : 0;
-            if (localTime >= remoteTime || s.manualStatusOverride || s.transferCompleted) {
+            if (
+              localTime >= remoteTime ||
+              s.manualStatusOverride ||
+              s.transferCompleted ||
+              s.isModifiedFromSeed
+            ) {
               if (current.members && current.members.length > (s.members?.length || 0)) {
                 // Restaura dependentes mapeados da família (como Lorraine, Nilceia e Larissa de Wagner) caso o cache local tenha ficado com menos integrantes
                 const existingCards = new Set((s.members || []).map((m) => m.cardNumber));
@@ -1366,6 +1452,36 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
                 }
               }
               subsMap.set(s.id, s);
+            } else {
+              // Remote venceu no tempo, mas preserva mídias, anexos e dependentes locais
+              if ((s.attachments?.length || 0) > (current.attachments?.length || 0)) {
+                current.attachments = s.attachments;
+              }
+              if (s.members && current.members) {
+                const localMemMap = new Map(s.members.map((m) => [m.id, m]));
+                current.members = current.members.map((cm) => {
+                  const lm =
+                    localMemMap.get(cm.id) ||
+                    s.members.find((x) => (x.cardNumber && x.cardNumber === cm.cardNumber) || (x.cpf && x.cpf === cm.cpf));
+                  if (!lm) return cm;
+                  return {
+                    ...cm,
+                    photoUrl: cm.photoUrl || lm.photoUrl,
+                    documentProofUrl: cm.documentProofUrl || lm.documentProofUrl,
+                    documentProofName: cm.documentProofName || lm.documentProofName,
+                    attachments:
+                      (lm.attachments?.length || 0) > (cm.attachments?.length || 0)
+                        ? lm.attachments
+                        : cm.attachments,
+                  };
+                });
+                if (s.members.length > current.members.length) {
+                  const currentCards = new Set(current.members.map((m) => m.cardNumber));
+                  const missingFromCurrent = s.members.filter((m) => !currentCards.has(m.cardNumber));
+                  current.members = [...current.members, ...missingFromCurrent];
+                }
+              }
+              subsMap.set(current.id, current);
             }
           }
         }
@@ -2905,6 +3021,7 @@ export const verifyMemberProofDocument = async (
     ? 'ACTIVE'
     : sub.status;
   sub.updatedAt = new Date().toISOString();
+  sub.isModifiedFromSeed = true;
   return saveClubState(state);
 };
 

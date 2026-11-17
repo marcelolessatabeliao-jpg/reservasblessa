@@ -220,6 +220,7 @@ export interface ClubSubscription {
   visits?: ClubVisitRecord[];
   additionalServices?: ClubAdditionalService[];
   registeredCard?: ClubRegisteredCard;
+  isModifiedFromSeed?: boolean;
   createdAt: string;
   updatedAt: string;
 }

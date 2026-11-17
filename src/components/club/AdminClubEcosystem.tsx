@@ -16176,6 +16176,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                             ...(selectedSubForDetail.attachments || []),
                           ],
                           members: updatedMembers,
+                          updatedAt: new Date().toISOString(),
+                          isModifiedFromSeed: true,
                         };
                         const nextState: ClubDatabaseState = {
                           ...state,
@@ -16261,6 +16263,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                   attachments: (
                                     selectedSubForDetail.attachments || []
                                   ).filter((a) => a.id !== att.id),
+                                  updatedAt: new Date().toISOString(),
+                                  isModifiedFromSeed: true,
                                 };
                                 const nextState: ClubDatabaseState = {
                                   ...state,
@@ -16636,6 +16640,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                           const updatedSub: ClubSubscription = {
                                             ...selectedSubForDetail,
                                             members: updatedMembers,
+                                            updatedAt: new Date().toISOString(),
+                                            isModifiedFromSeed: true,
                                           };
                                           const nextState: ClubDatabaseState = {
                                             ...state,
@@ -16907,6 +16913,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                 selectedSubForDetail.billingCycle === 'ANNUAL'
                                   ? Number((newMonthlyTotal * 12).toFixed(2))
                                   : newMonthlyTotal,
+                              updatedAt: new Date().toISOString(),
+                              isModifiedFromSeed: true,
                             };
                             const nextState: ClubDatabaseState = {
                               ...state,
@@ -17473,6 +17481,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                       const updatedSub: ClubSubscription = {
                                         ...selectedSubForDetail,
                                         members: updatedMembers,
+                                        updatedAt: new Date().toISOString(),
+                                        isModifiedFromSeed: true,
                                       };
                                       const nextState: ClubDatabaseState = {
                                         ...state,
