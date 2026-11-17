@@ -463,7 +463,7 @@ export async function getChaleBlockedDatesMap(): Promise<Record<number, string[]
   }
 }
 
-export async function getBookedChaleIds(date?: string | null): Promise<number[]> {
+export async function getBookedChaleIds(date?: string | null, outDate?: string | null): Promise<number[]> {
   // Chalés indisponíveis por padrão (6 de alvenaria onde apenas 5 estão disponíveis -> Chalé 06 indisponível; e todos os 6 de vidro 07-12 indisponíveis)
   const defaultUnavailable = [6, 7, 8, 9, 10, 11, 12];
   
@@ -501,16 +501,30 @@ export async function getBookedChaleIds(date?: string | null): Promise<number[]>
           const prod = (item.product_id || '').toLowerCase();
           if (prod.includes('chalé') || prod.includes('chale') || prod.includes('hospedagem')) {
             const chaleId = item.metadata?.chale_id;
-            const checkIn = item.metadata?.check_in_date || orderDate;
-            const checkOut = item.metadata?.check_out_date;
+            const checkIn = (item.metadata?.check_in_date || orderDate || '').split('T')[0];
+            const checkOut = (item.metadata?.check_out_date || checkIn || '').split('T')[0];
 
             let isMatching = false;
+            // Regra Hoteleira: O hóspede sai ao meio-dia e o próximo entra às 15h.
+            // Portanto, a data de check-out NÃO colide com uma nova entrada no mesmo dia.
             if (checkIn && checkOut) {
-              isMatching = date >= checkIn && date <= checkOut;
+              if (outDate) {
+                // Intervalo [date, outDate) contra [checkIn, checkOut)
+                if (checkIn === checkOut) {
+                  isMatching = (checkIn >= date && checkIn < outDate);
+                } else {
+                  isMatching = (checkIn < outDate && checkOut > date);
+                }
+              } else {
+                // Verificação de uma única noite `date`
+                if (checkIn === checkOut) {
+                  isMatching = (date === checkIn);
+                } else {
+                  isMatching = (date >= checkIn && date < checkOut);
+                }
+              }
             } else if (orderDate) {
-              isMatching = date === orderDate;
-            } else {
-              isMatching = true;
+              isMatching = (date === orderDate);
             }
 
             if (isMatching && chaleId) {

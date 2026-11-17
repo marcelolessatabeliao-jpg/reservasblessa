@@ -811,7 +811,10 @@ export function AdminChaleTab({
         const inD = parseISO(inStr);
         const outD = parseISO(outStr);
         let curr = new Date(inD);
-        while (curr <= outD) {
+        // Regra Hoteleira: A hospedagem ocupa a noite da data de check-in até o dia anterior ao check-out.
+        // No dia do check-out (12:00), o chalé é liberado para novo hóspede entrar às 15:00.
+        const lastNight = inStr === outStr ? outD : addDays(outD, -1);
+        while (curr <= lastNight) {
           const dStr = format(curr, 'yyyy-MM-dd');
           if (!map[dStr]) map[dStr] = [];
           const existingIdx = map[dStr].findIndex(x => x.chaleId === r.chaleId);
@@ -850,18 +853,23 @@ export function AdminChaleTab({
     const statuses = (manualStatuses && typeof manualStatuses === 'object') ? manualStatuses : {};
 
     return (CHALE_UNITS || []).map(unit => {
-      // Filtrar todas as reservas que englobam a data do mapa
+      // Filtrar todas as reservas que ocupam a noite da data do mapa
+      // Regra Hoteleira: O pernoite ocupa mapTargetDateStr >= inStr && mapTargetDateStr < outStr
+      // No dia de saída (outStr às 12h), o chalé está livre para novo check-in às 15h
       const matchingReservations = allActiveReservations.filter(r => {
         if (!r || Number(r.chaleId) !== unit.id) return false;
         const inStr = (r.checkInDate || '').split('T')[0];
         const outStr = (r.checkOutDate || inStr).split('T')[0];
         if (!inStr) return false;
-        return mapTargetDateStr >= inStr && mapTargetDateStr <= outStr;
+        if (inStr === outStr) {
+          return mapTargetDateStr === inStr;
+        }
+        return mapTargetDateStr >= inStr && mapTargetDateStr < outStr;
       });
 
       // Ordenar por prioridade estrita:
       // 1. Reservas PAGAS ou CONFIRMADAS
-      // 2. Check-in na data de hoje (hóspede que vai pernoitar hoje) sobre quem está fazendo check-out hoje
+      // 2. Check-in na data de hoje (hóspede que vai pernoitar hoje)
       // 3. Pedidos online reais (isOrder)
       matchingReservations.sort((a, b) => {
         const aPaid = (a.status === 'paid' || a.status === 'confirmed') ? 1 : 0;
@@ -893,7 +901,6 @@ export function AdminChaleTab({
       } else if (isManualIndisponivel) {
         status = 'indisponivel';
       }
-      // Se a reserva estiver pendente de pagamento, o status permanece 'disponivel' (não bloqueia novas reservas)
 
       return {
         id: unit.id,
@@ -922,7 +929,10 @@ export function AdminChaleTab({
         const inStr = (r.checkInDate || '').split('T')[0];
         const outStr = (r.checkOutDate || inStr).split('T')[0];
         if (!inStr) return false;
-        return mapTargetDateStr >= inStr && mapTargetDateStr <= outStr;
+        if (inStr === outStr) {
+          return mapTargetDateStr === inStr;
+        }
+        return mapTargetDateStr >= inStr && mapTargetDateStr < outStr;
       });
 
       matchingReservations.sort((a, b) => {
@@ -943,7 +953,7 @@ export function AdminChaleTab({
         return 0;
       });
 
-      const reservation = matchingReservations[0] || allActiveReservations.find(r => r && Number(r.chaleId) === unit.id && (r.status === 'paid' || r.status === 'confirmed')) || allActiveReservations.find(r => r && Number(r.chaleId) === unit.id) || null;
+      const reservation = matchingReservations[0] || null;
       const isPaidOrConfirmed = reservation && (reservation.status === 'paid' || reservation.status === 'confirmed');
       const isDateBlocked = (chaleBlockedDatesMap[unit.id] || []).includes(mapTargetDateStr);
       const isManualIndisponivel = statuses[unit.id] === 'indisponivel' || isDateBlocked;
@@ -1909,28 +1919,42 @@ export function AdminChaleTab({
                 </Badge>
               </div>
             </div>
-          ) : isAvailable ? (
-            <div className="space-y-3 py-2 text-center">
-              <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center mx-auto shadow-xs">
-                <DoorOpen className="w-5 h-5" />
+          ) : isAvailable ? (() => {
+            const departingRes = allActiveReservations.find(r => {
+              if (!r || Number(r.chaleId) !== unit.id) return false;
+              const inStr = (r.checkInDate || '').split('T')[0];
+              const outStr = (r.checkOutDate || inStr).split('T')[0];
+              return outStr === mapTargetDateStr && inStr !== outStr;
+            });
+
+            return (
+              <div className="space-y-3 py-2 text-center">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center mx-auto shadow-xs">
+                  <DoorOpen className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="font-black text-slate-900 text-xs uppercase tracking-tight">
+                    Chalé Totalmente Disponível
+                  </p>
+                  <p className="text-[11px] text-slate-500 font-medium">
+                    {unit.capacity} • Cama casal, ar-condicionado, café e Day Use.
+                  </p>
+                  {departingRes && (
+                    <span className="inline-block mt-1.5 text-[10px] font-bold text-teal-900 bg-teal-50 border border-teal-200 px-2.5 py-0.5 rounded-md shadow-xs">
+                      ✓ Desocupação às 12h ({departingRes.guestName}) · Livre para nova entrada às 15h
+                    </span>
+                  )}
+                </div>
+                <Button
+                  type="button"
+                  onClick={() => handleOpenNewBooking(unit.id, mapTargetDateStr, format(addDays(mapTargetDate, 1), 'yyyy-MM-dd'))}
+                  className="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs uppercase tracking-wider rounded-xl h-10 shadow-xs cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <Plus className="w-4 h-4 stroke-[3]" /> Reservar Este Chalé
+                </Button>
               </div>
-              <div>
-                <p className="font-black text-slate-900 text-xs uppercase tracking-tight">
-                  Chalé Totalmente Disponível
-                </p>
-                <p className="text-[11px] text-slate-500 font-medium">
-                  {unit.capacity} • Cama casal, ar-condicionado, café e Day Use.
-                </p>
-              </div>
-              <Button
-                type="button"
-                onClick={() => handleOpenNewBooking(unit.id, mapTargetDateStr, format(addDays(mapTargetDate, 2), 'yyyy-MM-dd'))}
-                className="w-full bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs uppercase tracking-wider rounded-xl h-10 shadow-xs cursor-pointer flex items-center justify-center gap-1.5"
-              >
-                <Plus className="w-4 h-4 stroke-[3]" /> Reservar Este Chalé
-              </Button>
-            </div>
-          ) : (
+            );
+          })() : (
             <div className="space-y-3 py-3 text-center">
               <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center mx-auto shadow-xs">
                 <AlertCircle className="w-5 h-5" />

@@ -214,7 +214,7 @@ function ChaleSelectorInner({
       setIsLoadingBooked(true);
       try {
         const [ids, disabledIds, blockedMap] = await Promise.all([
-          getBookedChaleIds(formattedDate),
+          getBookedChaleIds(formattedDate, formattedOutDate),
           getGlobalSetting('disabled_chale_ids', [6, 7, 8, 9, 10, 11, 12]),
           getChaleBlockedDatesMap()
         ]);
