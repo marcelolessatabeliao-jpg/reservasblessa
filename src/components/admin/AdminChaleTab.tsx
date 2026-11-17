@@ -764,6 +764,17 @@ export function AdminChaleTab({
           return false;
         }
 
+        // Se a reserva local tiver correspondência com pedido online real ativo no Supabase, remover local para usar a do banco como verdade absoluta
+        const hasRealOnlineOrder = (realChaleOrders || []).some(onlineRes =>
+          onlineRes.id === localRes.orderId ||
+          (onlineRes.confirmationCode && onlineRes.confirmationCode === localRes.confirmationCode) ||
+          (localRes.guestName && onlineRes.guestName && onlineRes.guestName.trim().toLowerCase() === localRes.guestName.trim().toLowerCase())
+        );
+        if (hasRealOnlineOrder) {
+          changed = true;
+          return false;
+        }
+
         // Se for pendente e houver pedido online PAGO para a mesma unidade
         if (localRes.status === 'pending') {
           const hasPaidConflict = (realChaleOrders || []).some(onlineRes => 
