@@ -55,6 +55,7 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
   const [loadingAsaasCharges, setLoadingAsaasCharges] = useState(false);
   const [hasLoadedAsaasCharges, setHasLoadedAsaasCharges] = useState(false);
   const [deletingAsaasId, setDeletingAsaasId] = useState<string | null>(null);
+  const [syncingAsaasId, setSyncingAsaasId] = useState<string | null>(null);
 
   const fetchAsaasCharges = async () => {
     const cleanCpf = (cpf || '').replace(/\D/g, '');
@@ -69,7 +70,46 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
         },
       });
       if (!error && data?.payments) {
-        setAsaasCharges(data.payments.filter((p: any) => !p.deleted));
+        const activePayments = data.payments.filter((p: any) => !p.deleted);
+        setAsaasCharges(activePayments);
+
+        // Se houver alguma cobrança paga/confirmada no Asaas e a reserva ainda não estiver marcada como paga:
+        const paidCharge = activePayments.find((p: any) => p.status === 'RECEIVED' || p.status === 'CONFIRMED');
+        const isCurrentUnpaid = !booking.status || ['pending', 'awaiting_payment', 'aguardando pgto', 'waiting_local', 'waiting_confirmation'].includes(booking.status.toLowerCase());
+        
+        if (paidCharge && isCurrentUnpaid) {
+          console.log('[BookingDetail] Cobrança Paga encontrada no Asaas:', paidCharge.id);
+          try {
+            await supabase.functions.invoke('check-payment', {
+              body: { orderId: booking.id, paymentId: paidCharge.id }
+            });
+
+            await supabase
+              .from('orders')
+              .update({
+                status: 'paid',
+                payment_id: paidCharge.id,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', booking.id);
+
+            await supabase.from('payments').upsert({
+              order_id: booking.id,
+              external_id: paidCharge.id,
+              metodo: paidCharge.billingType || 'PIX',
+              status: 'paid',
+              payment_url: paidCharge.invoiceUrl || undefined
+            }, { onConflict: 'external_id' });
+
+            toast({
+              title: 'Pagamento Confirmado no Asaas!',
+              description: `Cobrança ${paidCharge.id} (${paidCharge.billingType || 'PIX'}) confirmada. O status da reserva foi alterado para PAGO.`,
+            });
+            if (onRefresh) onRefresh();
+          } catch (autoErr) {
+            console.warn('[BookingDetail] Erro no auto-sync de pagamento:', autoErr);
+          }
+        }
       }
       setHasLoadedAsaasCharges(true);
     } catch (err) {
@@ -78,6 +118,54 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
       setLoadingAsaasCharges(false);
     }
   };
+
+  const handleConfirmAsaasPayment = async (pay: any) => {
+    setSyncingAsaasId(pay.id);
+    try {
+      await supabase.functions.invoke('check-payment', {
+        body: { orderId: booking.id, paymentId: pay.id }
+      });
+
+      await supabase
+        .from('orders')
+        .update({
+          status: 'paid',
+          payment_id: pay.id,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', booking.id);
+
+      await supabase.from('payments').upsert({
+        order_id: booking.id,
+        external_id: pay.id,
+        metodo: pay.billingType || 'PIX',
+        status: 'paid',
+        payment_url: pay.invoiceUrl || undefined
+      }, { onConflict: 'external_id' });
+
+      toast({
+        title: 'Reserva Marcada como PAGA!',
+        description: `Status atualizado com base no pagamento Asaas ${pay.id}.`,
+      });
+      if (onRefresh) onRefresh();
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao sincronizar',
+        description: err?.message || 'Falha ao confirmar pagamento.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSyncingAsaasId(null);
+    }
+  };
+
+  // Auto-consulta no Asaas ao expandir uma reserva não paga
+  useEffect(() => {
+    const isUnpaid = !booking.status || ['pending', 'awaiting_payment', 'aguardando pgto', 'waiting_local', 'waiting_confirmation'].includes(booking.status.toLowerCase());
+    if (isUnpaid && (cpf || booking.id)) {
+      fetchAsaasCharges();
+    }
+  }, [booking.id, booking.status]);
 
   const handleDeleteAsaasCharge = async (paymentId: string) => {
     if (!confirm('Deseja realmente cancelar e excluir esta cobrança diretamente no Asaas? Esta ação não pode ser desfeita.')) {
@@ -968,6 +1056,29 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
                               <Trash2 className="w-3 h-3" />
                             )}
                             Cancelar no Asaas
+                          </Button>
+                        </div>
+                      )}
+
+                      {isPaid && (booking.status !== 'paid' && booking.status !== 'pago') && (
+                        <div className="pt-2 border-t border-emerald-200 flex items-center justify-between gap-2 flex-wrap bg-emerald-50/60 p-2 rounded-lg">
+                          <span className="text-[10px] text-emerald-900 font-black flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                            Pagamento Confirmado no Asaas!
+                          </span>
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={syncingAsaasId === pay.id}
+                            onClick={() => handleConfirmAsaasPayment(pay)}
+                            className="h-6 px-2.5 text-[10px] bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded shadow-sm flex items-center gap-1 active:scale-95 transition-all"
+                          >
+                            {syncingAsaasId === pay.id ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <Check className="w-3 h-3" />
+                            )}
+                            Confirmar Reserva Como Paga
                           </Button>
                         </div>
                       )}

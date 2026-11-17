@@ -211,20 +211,54 @@ Deno.serve(async (req) => {
     let payStatus = 'pending';
 
     if (!externalId && orderId) {
-      // 1. Buscar o external_id do pagamento
+      // 1. Buscar o external_id do pagamento na tabela payments
       const { data: payData, error: payError } = await supabaseAdmin
         .from('payments')
         .select('external_id, status')
         .eq('order_id', orderId)
-        .eq('gateway', 'asaas')
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle()
 
-      if (payError) throw payError
       if (payData?.external_id) {
         externalId = payData.external_id;
         payStatus = payData.status;
+      } else {
+        // 1b. Tentar direto na coluna payment_id de orders
+        const { data: orderData } = await supabaseAdmin
+          .from('orders')
+          .select('payment_id, customer_cpf, total_amount')
+          .eq('id', orderId)
+          .maybeSingle();
+
+        if (orderData?.payment_id) {
+          externalId = orderData.payment_id;
+        } else if (orderData?.customer_cpf) {
+          // 1c. Tentar buscar cobrança correspondente no Asaas pelo CPF do cliente
+          try {
+            const cleanCpf = orderData.customer_cpf.replace(/\D/g, '');
+            if (cleanCpf) {
+              const custRes = await fetch(`${ASAAS_URL}/customers?cpfCnpj=${cleanCpf}`, {
+                headers: { access_token: ASAAS_API_KEY },
+              });
+              const custJson = await custRes.json();
+              const custId = custJson?.data?.[0]?.id;
+              if (custId) {
+                const paysRes = await fetch(`${ASAAS_URL}/payments?customer=${custId}&limit=10`, {
+                  headers: { access_token: ASAAS_API_KEY },
+                });
+                const paysJson = await paysRes.json();
+                const pays = paysJson?.data || [];
+                const confirmedPay = pays.find((p: any) => !p.deleted && (p.status === 'RECEIVED' || p.status === 'CONFIRMED')) || pays[0];
+                if (confirmedPay?.id) {
+                  externalId = confirmedPay.id;
+                }
+              }
+            }
+          } catch (eCpf) {
+            console.warn('[check-payment] Falha ao consultar Asaas por CPF:', eCpf);
+          }
+        }
       }
     }
 
@@ -255,15 +289,24 @@ Deno.serve(async (req) => {
         if (orderId) {
           await supabaseAdmin
             .from('orders')
-            .update({ status: 'paid', updated_at: new Date().toISOString() })
+            .update({ 
+              status: 'paid', 
+              payment_id: externalId,
+              updated_at: new Date().toISOString() 
+            })
             .eq('id', orderId);
         }
 
         if (externalId) {
           await supabaseAdmin
             .from('payments')
-            .update({ status: 'paid', updated_at: new Date().toISOString() })
-            .eq('external_id', externalId);
+            .upsert({
+              order_id: orderId || null,
+              external_id: externalId,
+              metodo: asaasData.billingType || 'PIX',
+              status: 'paid',
+              updated_at: new Date().toISOString()
+            }, { onConflict: 'external_id' });
         }
 
         if (orderId) {

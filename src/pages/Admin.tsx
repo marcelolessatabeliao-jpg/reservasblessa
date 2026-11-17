@@ -1186,48 +1186,78 @@ export default function Admin() {
 
   const lastSyncTimeRef = useRef<number>(0);
 
-  const syncAllPendingPayments = useCallback(async () => {
+  const syncAllPendingPayments = useCallback(async (force = false) => {
     try {
-      // Evita requisições se a aba do navegador estiver em segundo plano / minimizada
-      if (typeof document !== 'undefined' && document.hidden) return;
+      // Evita requisições se a aba do navegador estiver em segundo plano / minimizada (a menos que forçado)
+      if (!force && typeof document !== 'undefined' && document.hidden) return;
 
-      // Throttle: não executa mais de uma vez a cada 3 minutos
+      // Throttle: não executa em loop curto (a menos que forçado)
       const now = Date.now();
-      if (now - lastSyncTimeRef.current < 3 * 60 * 1000) return;
+      if (!force && now - lastSyncTimeRef.current < 60 * 1000) return;
       lastSyncTimeRef.current = now;
 
-      // Busca somente pedidos recentes (últimas 48 horas) com status pendente (evita varrer pedidos antigos/abandonados)
-      const recentThreshold = new Date(Date.now() - 48 * 3600 * 1000).toISOString();
+      // Busca pedidos recentes (últimas 72 horas) OU com visita futura pendente
+      const recentThreshold = new Date(Date.now() - 72 * 3600 * 1000).toISOString();
+      const todayStr = format(new Date(), 'yyyy-MM-dd');
+
       const { data: pendingOrders } = await supabase
         .from('orders')
-        .select('id')
+        .select('id, visit_date, created_at')
         .in('status', ['pending', 'awaiting_payment', 'aguardando pgto', 'waiting_local', 'waiting_confirmation'])
-        .gte('created_at', recentThreshold)
-        .limit(10);
+        .or(`created_at.gte.${recentThreshold},visit_date.gte.${todayStr}`)
+        .order('created_at', { ascending: false })
+        .limit(20);
 
       if (!pendingOrders || pendingOrders.length === 0) return;
 
-      console.log(`[Admin] Auto-syncing ${pendingOrders.length} recent pending payments...`);
+      console.log(`[Admin] Sincronizando ${pendingOrders.length} pagamentos pendentes com Asaas...`);
       
-      // Process syncs
+      let anyUpdated = false;
       for (const order of pendingOrders) {
-        await supabase.functions.invoke('check-payment', {
-          body: { orderId: order.id }
-        });
+        try {
+          const { data } = await supabase.functions.invoke('check-payment', {
+            body: { orderId: order.id }
+          });
+          if (data?.updated) {
+            anyUpdated = true;
+          }
+        } catch (_) {}
       }
       
-      // Refresh UI with updated statuses
-      fetchData(true);
+      // Refresh UI com status atualizados
+      if (anyUpdated || force) {
+        fetchData(true);
+      }
     } catch (err) {
       console.error('[Admin] Error in auto-payment sync:', err);
     }
   }, [fetchData]);
+
+  const handleFullRefresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      await Promise.allSettled([
+        fetchData(false),
+        syncAllPendingPayments(true),
+        refreshClubNotifications()
+      ]);
+      toast({
+        title: "Atualização Concluída",
+        description: "Dados locais e pagamentos do Asaas sincronizados com sucesso.",
+      });
+    } catch (e: any) {
+      console.error("Full refresh error:", e);
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchData, syncAllPendingPayments, refreshClubNotifications, toast]);
 
   useEffect(() => {
     if (!token) return;
 
     console.log("[Admin] Setting up initial data and subscriptions...");
     fetchData(false);
+    syncAllPendingPayments(true);
     refreshClubNotifications();
 
     const channel = supabase.channel("admin_db_changes")
@@ -3274,8 +3304,9 @@ export default function Admin() {
                          <Button 
                            variant="outline"
                            className="w-9 h-9 rounded-xl bg-white/10 border border-white/20 p-0 text-[#FFF033] shadow-lg backdrop-blur-md hover:bg-white/20 shrink-0" 
-                           onClick={fetchData} 
+                           onClick={handleFullRefresh} 
                            disabled={loading}
+                           title="Atualizar Dados e Sincronizar com Asaas"
                          >
                             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
                          </Button>
