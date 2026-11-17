@@ -16341,31 +16341,68 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           );
                         });
 
-                        const combinedAttachments = [
-                          ...(memberItem.documentProofUrl &&
-                          !(memberItem.attachments || []).some(
-                            (a) => a.dataUrl === memberItem.documentProofUrl
+                        const memberAtts = memberItem.attachments || [];
+                        const validProofFromAtt = memberAtts.find(
+                          (a) => a.dataUrl && a.dataUrl !== 'HAS_DOC_ATTACHED' && (a.dataUrl.startsWith('data:') || a.dataUrl.startsWith('http') || a.dataUrl.startsWith('/'))
+                        );
+
+                        const hasValidProofUrl =
+                          Boolean(memberItem.documentProofUrl) &&
+                          memberItem.documentProofUrl !== 'HAS_DOC_ATTACHED' &&
+                          !memberItem.documentProofUrl.startsWith('HAS_DOC_ATTACHED') &&
+                          (memberItem.documentProofUrl.startsWith('data:') ||
+                            memberItem.documentProofUrl.startsWith('http') ||
+                            memberItem.documentProofUrl.startsWith('/'));
+
+                        const effectiveProofUrl = hasValidProofUrl
+                          ? memberItem.documentProofUrl
+                          : validProofFromAtt?.dataUrl || '';
+
+                        const combinedAttachments: ClubAttachment[] = [];
+
+                        for (const att of memberAtts) {
+                          const safeUrl =
+                            att.dataUrl &&
+                            att.dataUrl !== 'HAS_DOC_ATTACHED' &&
+                            (att.dataUrl.startsWith('data:') || att.dataUrl.startsWith('http') || att.dataUrl.startsWith('/'))
+                              ? att.dataUrl
+                              : effectiveProofUrl;
+                          combinedAttachments.push({
+                            ...att,
+                            dataUrl: safeUrl,
+                          });
+                        }
+
+                        if (
+                          effectiveProofUrl &&
+                          !combinedAttachments.some(
+                            (a) =>
+                              a.dataUrl === effectiveProofUrl ||
+                              (memberItem.documentProofName && a.name === memberItem.documentProofName)
                           )
-                            ? [
-                                {
-                                  id: `primary_${memberItem.id}`,
-                                  name: memberItem.documentProofName || 'Documento Comprobatório',
-                                  dataUrl: memberItem.documentProofUrl,
-                                  mimeType: memberItem.documentProofUrl.startsWith('data:image/')
-                                    ? 'image/jpeg'
-                                    : 'application/pdf',
-                                  createdAt: memberItem.createdAt,
-                                },
-                              ]
-                            : []),
-                          ...(memberItem.attachments || []),
-                          ...memberSubAttachments.filter(
-                            (sa) =>
-                              !(memberItem.attachments || []).some(
-                                (ma) => ma.id === sa.id || (ma.dataUrl && ma.dataUrl === sa.dataUrl)
-                              )
-                          ),
-                        ];
+                        ) {
+                          combinedAttachments.unshift({
+                            id: `primary_${memberItem.id}`,
+                            name: memberItem.documentProofName || 'Documento Comprobatório',
+                            dataUrl: effectiveProofUrl,
+                            mimeType:
+                              effectiveProofUrl.startsWith('data:image/') ||
+                              /\.(jpe?g|png|webp|gif)/i.test(memberItem.documentProofName || '')
+                                ? 'image/jpeg'
+                                : 'application/pdf',
+                            createdAt: memberItem.createdAt,
+                          });
+                        }
+
+                        for (const sa of memberSubAttachments) {
+                          if (
+                            !combinedAttachments.some(
+                              (ma) => ma.id === sa.id || (ma.dataUrl && ma.dataUrl === sa.dataUrl) || ma.name === sa.name
+                            )
+                          ) {
+                            combinedAttachments.push(sa);
+                          }
+                        }
 
                         return (
                           <div
@@ -18177,69 +18214,103 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 )}
               </DialogHeader>
 
-              {previewAttachment && (
-                <div className="flex-1 overflow-auto bg-slate-100 rounded-xl border border-slate-200 p-3 flex items-center justify-center min-h-[300px]">
-                  {previewAttachment.dataUrl?.startsWith('data:image/') ||
-                  previewAttachment.mimeType?.startsWith('image/') ||
-                  /\.(png|jpe?g|gif|webp)(\?|$)/i.test(previewAttachment.name || '') ? (
-                    <img
-                      src={previewAttachment.dataUrl}
-                      alt={previewAttachment.name}
-                      className="max-w-full max-h-[65vh] object-contain rounded-lg shadow-md"
-                    />
-                  ) : previewAttachment.dataUrl?.startsWith('data:application/pdf') ||
-                    previewAttachment.mimeType === 'application/pdf' ||
-                    /\.pdf(\?|$)/i.test(previewAttachment.name || '') ? (
-                    <iframe
-                      src={previewAttachment.dataUrl}
-                      title={previewAttachment.name}
-                      className="w-full h-[65vh] rounded-lg border border-slate-300 bg-white"
-                    />
-                  ) : (
-                    <div className="text-center space-y-3 p-6">
-                      <FileText className="w-12 h-12 text-slate-400 mx-auto" />
-                      <p className="text-sm font-bold text-slate-700">
-                        Pré-visualização direta indisponível para este formato ({previewAttachment.mimeType || 'arquivo'}).
-                      </p>
-                      <a
-                        href={previewAttachment.dataUrl}
-                        download={previewAttachment.name}
-                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#004d00] text-white text-xs font-bold"
-                      >
-                        <Download className="w-4 h-4" /> Baixar Arquivo
-                      </a>
-                    </div>
-                  )}
-                </div>
-              )}
+              {previewAttachment && (() => {
+                // Se por algum motivo dataUrl for placeholder "HAS_DOC_ATTACHED" ou vazio, resolve do titular ou dependentes
+                let effectiveUrl = previewAttachment.dataUrl;
+                if (!effectiveUrl || effectiveUrl === 'HAS_DOC_ATTACHED' || effectiveUrl.startsWith('HAS_DOC_ATTACHED')) {
+                  const allAtts: ClubAttachment[] = [
+                    ...(selectedSubForDetail?.attachments || []),
+                    ...(selectedSubForDetail?.members?.flatMap((m) => m.attachments || []) || []),
+                  ];
+                  const found = allAtts.find(
+                    (a) =>
+                      a.name === previewAttachment.name &&
+                      a.dataUrl &&
+                      a.dataUrl !== 'HAS_DOC_ATTACHED' &&
+                      (a.dataUrl.startsWith('data:') || a.dataUrl.startsWith('http') || a.dataUrl.startsWith('/'))
+                  ) || allAtts.find(
+                    (a) =>
+                      a.dataUrl &&
+                      a.dataUrl !== 'HAS_DOC_ATTACHED' &&
+                      (a.dataUrl.startsWith('data:') || a.dataUrl.startsWith('http') || a.dataUrl.startsWith('/'))
+                  );
+                  if (found) effectiveUrl = found.dataUrl;
+                }
 
-              {previewAttachment && (
-                <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-slate-200">
-                  <a
-                    href={previewAttachment.dataUrl}
-                    download={previewAttachment.name}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="bg-[#004d00] hover:bg-emerald-900 text-white font-bold text-xs"
-                    >
-                      <Download className="w-3.5 h-3.5 mr-1.5" /> Baixar Anexo
-                    </Button>
-                  </a>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setPreviewAttachment(null)}
-                    className="font-bold text-xs"
-                  >
-                    Fechar
-                  </Button>
-                </div>
-              )}
+                const isImage =
+                  effectiveUrl?.startsWith('data:image/') ||
+                  previewAttachment.mimeType?.startsWith('image/') ||
+                  /\.(png|jpe?g|gif|webp)(\?|$)/i.test(previewAttachment.name || '');
+
+                const isPdf =
+                  effectiveUrl?.startsWith('data:application/pdf') ||
+                  previewAttachment.mimeType === 'application/pdf' ||
+                  /\.pdf(\?|$)/i.test(previewAttachment.name || '');
+
+                return (
+                  <>
+                    <div className="flex-1 overflow-auto bg-slate-100 rounded-xl border border-slate-200 p-3 flex items-center justify-center min-h-[300px]">
+                      {isImage && effectiveUrl ? (
+                        <img
+                          src={effectiveUrl}
+                          alt={previewAttachment.name}
+                          className="max-w-full max-h-[65vh] object-contain rounded-lg shadow-md"
+                        />
+                      ) : isPdf && effectiveUrl ? (
+                        <iframe
+                          src={effectiveUrl}
+                          title={previewAttachment.name}
+                          className="w-full h-[65vh] rounded-lg border border-slate-300 bg-white"
+                        />
+                      ) : (
+                        <div className="text-center space-y-3 p-6">
+                          <FileText className="w-12 h-12 text-slate-400 mx-auto" />
+                          <p className="text-sm font-bold text-slate-700">
+                            Pré-visualização direta indisponível para este formato ({previewAttachment.mimeType || 'arquivo'}).
+                          </p>
+                          {effectiveUrl && (
+                            <a
+                              href={effectiveUrl}
+                              download={previewAttachment.name}
+                              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#004d00] text-white text-xs font-bold"
+                            >
+                              <Download className="w-4 h-4" /> Baixar Arquivo
+                            </a>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-slate-200">
+                      {effectiveUrl ? (
+                        <a
+                          href={effectiveUrl}
+                          download={previewAttachment.name}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="bg-[#004d00] hover:bg-emerald-900 text-white font-bold text-xs"
+                          >
+                            <Download className="w-3.5 h-3.5 mr-1.5" /> Baixar Anexo
+                          </Button>
+                        </a>
+                      ) : null}
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setPreviewAttachment(null)}
+                        className="font-bold text-xs"
+                      >
+                        Fechar
+                      </Button>
+                    </div>
+                  </>
+                );
+              })()}
             </DialogContent>
           </Dialog>
         </div>

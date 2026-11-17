@@ -276,22 +276,74 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
           const isRejectingThis = rejectingMemberId === member.id;
 
           // Anexos vinculados a este integrante
-          const memberDocs: ClubAttachment[] = [
-            ...(member.documentProofUrl
-              ? [
-                  {
-                    id: `primary_${member.id}`,
-                    name: member.documentProofName || 'Documento Comprobatório Principal',
-                    dataUrl: member.documentProofUrl,
-                    mimeType: member.documentProofUrl.startsWith('data:image/')
-                      ? 'image/jpeg'
-                      : 'application/pdf',
-                    createdAt: member.createdAt,
-                  },
-                ]
-              : []),
-            ...(member.attachments || []),
-          ];
+          const rawMemberAttachments: ClubAttachment[] = member.attachments || [];
+          const validProofFromAtt = rawMemberAttachments.find(
+            (a) => a.dataUrl && a.dataUrl !== 'HAS_DOC_ATTACHED' && (a.dataUrl.startsWith('data:') || a.dataUrl.startsWith('http') || a.dataUrl.startsWith('/'))
+          );
+
+          const hasValidProofUrl =
+            Boolean(member.documentProofUrl) &&
+            member.documentProofUrl !== 'HAS_DOC_ATTACHED' &&
+            !member.documentProofUrl.startsWith('HAS_DOC_ATTACHED') &&
+            (member.documentProofUrl.startsWith('data:') ||
+              member.documentProofUrl.startsWith('http') ||
+              member.documentProofUrl.startsWith('/'));
+
+          const effectiveProofUrl = hasValidProofUrl
+            ? member.documentProofUrl
+            : validProofFromAtt?.dataUrl || '';
+
+          const memberDocs: ClubAttachment[] = [];
+
+          // 1. Adiciona os anexos reais do integrante com URL válida
+          for (const att of rawMemberAttachments) {
+            const resolvedUrl =
+              att.dataUrl &&
+              att.dataUrl !== 'HAS_DOC_ATTACHED' &&
+              (att.dataUrl.startsWith('data:') || att.dataUrl.startsWith('http') || att.dataUrl.startsWith('/'))
+                ? att.dataUrl
+                : effectiveProofUrl;
+
+            memberDocs.push({
+              ...att,
+              dataUrl: resolvedUrl,
+            });
+          }
+
+          // 2. Se o integrante tiver documentProofUrl/documentProofName e não constar em memberDocs, adiciona
+          if (
+            effectiveProofUrl &&
+            !memberDocs.some(
+              (d) =>
+                d.dataUrl === effectiveProofUrl ||
+                (member.documentProofName && d.name === member.documentProofName)
+            )
+          ) {
+            memberDocs.unshift({
+              id: `primary_${member.id}`,
+              name: member.documentProofName || 'Documento Comprobatório Principal',
+              dataUrl: effectiveProofUrl,
+              mimeType:
+                effectiveProofUrl.startsWith('data:image/') ||
+                /\.(jpe?g|png|webp|gif)/i.test(member.documentProofName || '')
+                  ? 'image/jpeg'
+                  : 'application/pdf',
+              createdAt: member.createdAt,
+            });
+          }
+
+          // 3. Fallback: se ainda estiver sem anexo com URL válida, busca em subscription.attachments
+          if (memberDocs.length === 0 || memberDocs.every((d) => !d.dataUrl || d.dataUrl === 'HAS_DOC_ATTACHED')) {
+            const subMatch = (subscription.attachments || []).find((sa) => {
+              if (member.documentProofName && sa.name === member.documentProofName) return true;
+              const firstName = (member.fullName || '').split(' ')[0].toLowerCase().trim();
+              const attName = (sa.name || '').toLowerCase();
+              return firstName.length >= 3 && attName.includes(firstName);
+            });
+            if (subMatch && subMatch.dataUrl && subMatch.dataUrl !== 'HAS_DOC_ATTACHED') {
+              memberDocs.push(subMatch);
+            }
+          }
 
           return (
             <div
