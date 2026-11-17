@@ -19,6 +19,7 @@ import {
   Printer,
   Upload,
   FileCheck,
+  AlertTriangle,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -41,6 +42,8 @@ import {
   formatBirthDate,
   getMemberAccessMessage,
   isValidCpf,
+  cleanDigits,
+  getClubStateSync,
   generateAsaasChargeForClubInvoice,
   generateAllAsaasInvoicesForSubscription,
   checkClubInvoicePaymentStatus,
@@ -110,6 +113,19 @@ export const CustomFamilyCheckoutModal: React.FC<CustomFamilyCheckoutModalProps>
   // Resultado da Assinatura & Cobrança Asaas
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdSubscription, setCreatedSubscription] = useState<ClubSubscription | null>(null);
+
+  const duplicateCpfSub = useMemo(() => {
+    const digits = cleanDigits(holderCpf);
+    if (digits.length !== 11) return null;
+    const state = getClubStateSync();
+    if (!state || !state.subscriptions) return null;
+    const deletedSet = new Set(state.deletedSubscriptionIds || []);
+    return state.subscriptions.find((s) => {
+      if (deletedSet.has(s.id) || s.status === 'CANCELLED') return false;
+      if (cleanDigits(s.holderCpf) === digits) return true;
+      return (s.members || []).some((m) => cleanDigits(m.cpf) === digits);
+    });
+  }, [holderCpf]);
   const [createdInvoice, setCreatedInvoice] = useState<ClubInvoice | null>(null);
   const [asaasPayment, setAsaasPayment] = useState<{
     paymentId: string;
@@ -301,6 +317,25 @@ export const CustomFamilyCheckoutModal: React.FC<CustomFamilyCheckoutModalProps>
         variant: 'destructive',
       });
       return false;
+    }
+
+    const digits = cleanDigits(holderCpf);
+    const state = getClubStateSync();
+    if (state && state.subscriptions) {
+      const deletedSet = new Set(state.deletedSubscriptionIds || []);
+      const existing = state.subscriptions.find((s) => {
+        if (deletedSet.has(s.id) || s.status === 'CANCELLED') return false;
+        if (cleanDigits(s.holderCpf) === digits) return true;
+        return (s.members || []).some((m) => cleanDigits(m.cpf) === digits);
+      });
+      if (existing) {
+        toast({
+          title: 'CPF Já Cadastrado no Lessa Club',
+          description: `O CPF ${formatCpf(holderCpf)} já possui cadastro em nosso sistema (Cartão #${existing.subscriptionCode}). Não é permitido criar cadastro duplicado. Acesse a Área do Sócio para gerenciar seu plano.`,
+          variant: 'destructive',
+        });
+        return false;
+      }
     }
     if (holderPhone.replace(/\D/g, '').length < 10) {
       toast({
@@ -647,8 +682,19 @@ export const CustomFamilyCheckoutModal: React.FC<CustomFamilyCheckoutModalProps>
                     onChange={(e) => setHolderCpf(formatCpf(e.target.value))}
                     placeholder="000.000.000-00"
                     maxLength={14}
-                    className="bg-white font-bold"
+                    className={`bg-white font-bold ${duplicateCpfSub ? 'border-rose-500 focus-visible:ring-rose-500 bg-rose-50/20' : ''}`}
                   />
+                  {duplicateCpfSub && (
+                    <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-300 mt-2 text-rose-900 text-[11px] font-bold animate-in fade-in">
+                      <div className="flex items-center gap-1.5 text-rose-700">
+                        <AlertTriangle className="w-4 h-4 shrink-0" />
+                        <span>Este CPF já existe em nosso sistema!</span>
+                      </div>
+                      <p className="font-normal text-[10px] text-rose-700 mt-1">
+                        Associado(a): <strong>{duplicateCpfSub.holderName}</strong> (Cartão <strong>#{duplicateCpfSub.subscriptionCode}</strong>).
+                      </p>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <Label className="text-xs font-bold">Data de Nascimento *</Label>
@@ -678,8 +724,19 @@ export const CustomFamilyCheckoutModal: React.FC<CustomFamilyCheckoutModalProps>
                     onChange={(e) => setHolderPhone(formatPhone(e.target.value))}
                     placeholder="(69) 99999-9999"
                     maxLength={15}
-                    className="bg-white font-bold"
+                    className={`bg-white font-bold ${duplicateCpfSub ? 'border-rose-500 focus-visible:ring-rose-500 bg-rose-50/20' : ''}`}
                   />
+                  {duplicateCpfSub && (
+                    <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-300 mt-2 text-rose-900 text-[11px] font-bold animate-in fade-in">
+                      <div className="flex items-center gap-1.5 text-rose-700">
+                        <AlertTriangle className="w-4 h-4 shrink-0" />
+                        <span>Este CPF já existe em nosso sistema!</span>
+                      </div>
+                      <p className="font-normal text-[10px] text-rose-700 mt-1">
+                        Associado(a): <strong>{duplicateCpfSub.holderName}</strong> (Cartão <strong>#{duplicateCpfSub.subscriptionCode}</strong>).
+                      </p>
+                    </div>
+                  )}
                 </div>
                 <div className="sm:col-span-2">
                   <Label className="text-xs font-bold">E-mail</Label>

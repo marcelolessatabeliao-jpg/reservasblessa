@@ -1461,6 +1461,24 @@ export const createClubSubscription = async (
   input: CreateSubscriptionInput
 ): Promise<{ subscription: ClubSubscription; firstInvoice?: ClubInvoice }> => {
   const state = await fetchClubState();
+
+  // Validação rigorosa: Não permitir duplicidade de CPF de titular já cadastrado
+  const cleanHolderCpf = cleanDigits(input.holderCpf);
+  if (cleanHolderCpf && cleanHolderCpf.length === 11) {
+    const deletedSet = new Set(state.deletedSubscriptionIds || []);
+    const existingSub = state.subscriptions.find((s) => {
+      if (deletedSet.has(s.id) || s.status === 'CANCELLED') return false;
+      if (cleanDigits(s.holderCpf) === cleanHolderCpf) return true;
+      return (s.members || []).some((m) => cleanDigits(m.cpf) === cleanHolderCpf);
+    });
+
+    if (existingSub) {
+      throw new Error(
+        `Este CPF (${formatCpf(input.holderCpf)}) já está cadastrado em nosso sistema no cartão #${existingSub.subscriptionCode} (${existingSub.holderName}). Não é permitido cadastrar o mesmo CPF mais de uma vez.`
+      );
+    }
+  }
+
   let seq = state.lastCardSequence || 3000;
 
   const now = new Date();

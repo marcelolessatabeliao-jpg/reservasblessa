@@ -1118,6 +1118,18 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
   const [number, setNumber] = useState('');
   const [complement, setComplement] = useState('');
   const [neighborhood, setNeighborhood] = useState('');
+
+  const duplicateCpfSub = useMemo(() => {
+    if (personType !== 'PF') return null;
+    const digits = cleanDigits(holderCpfCnpj);
+    if (digits.length !== 11) return null;
+    const deletedSet = new Set(state.deletedSubscriptionIds || []);
+    return (state.subscriptions || []).find((s) => {
+      if (deletedSet.has(s.id) || s.status === 'CANCELLED') return false;
+      if (cleanDigits(s.holderCpf) === digits) return true;
+      return (s.members || []).some((m) => cleanDigits(m.cpf) === digits);
+    });
+  }, [holderCpfCnpj, personType, state.subscriptions, state.deletedSubscriptionIds]);
   const [city, setCity] = useState('Ariquemes');
   const [uf, setUf] = useState('RO');
   const [vehicleModel, setVehicleModel] = useState('');
@@ -3579,6 +3591,22 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         toast({
           title: 'CPF do Titular Inválido',
           description: 'Por favor, informe um CPF válido com 11 dígitos para o titular.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const cleanHolderCpfDigits = cleanDigits(holderCpfCnpj);
+      const deletedSet = new Set(state.deletedSubscriptionIds || []);
+      const existingSub = (state.subscriptions || []).find((s) => {
+        if (deletedSet.has(s.id) || s.status === 'CANCELLED') return false;
+        if (cleanDigits(s.holderCpf) === cleanHolderCpfDigits) return true;
+        return (s.members || []).some((m) => cleanDigits(m.cpf) === cleanHolderCpfDigits);
+      });
+      if (existingSub) {
+        toast({
+          title: 'CPF Já Cadastrado no Lessa Club',
+          description: `O CPF ${formatCpf(holderCpfCnpj)} já pertence ao associado ${existingSub.holderName} (Cartão #${existingSub.subscriptionCode}). Não é permitido criar cadastro duplicado.`,
           variant: 'destructive',
         });
         return;
@@ -18570,6 +18598,17 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           ⚠️ CPF inválido. Verifique os dígitos digitados.
                         </p>
                       )}
+                    {duplicateCpfSub && (
+                      <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-300 mt-2 text-rose-900 text-[11px] font-bold animate-in fade-in">
+                        <div className="flex items-center gap-1.5 text-rose-700">
+                          <AlertTriangle className="w-4 h-4 shrink-0" />
+                          <span>Este CPF já existe em nosso sistema!</span>
+                        </div>
+                        <p className="font-normal text-[10px] text-rose-700 mt-1">
+                          Associado: <strong>{duplicateCpfSub.holderName}</strong> (Cartão <strong>#{duplicateCpfSub.subscriptionCode}</strong>) • Status: <span className="uppercase font-bold">{duplicateCpfSub.status}</span>.
+                        </p>
+                      </div>
+                    )}
                   </div>
                   <div className="sm:col-span-5" />
 
