@@ -4,6 +4,7 @@ import {
   DoorOpen,
   ShoppingBag, 
   CheckCircle2, 
+  CheckCircle,
   XCircle, 
   Users, 
   Clock, 

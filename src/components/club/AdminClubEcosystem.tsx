@@ -83,6 +83,8 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
 import {
   BillingCycle,
   ClubAdditionalService,
@@ -100,6 +102,8 @@ import {
   ContractTemplateType,
   ALL_CONSULTANT_PLANS,
   ConsultantPlanPermission,
+  SubscriptionStatus,
+  DEFAULT_CLUB_MODALITIES,
 } from '@/lib/club-types';
 import {
   ClubDatabaseState,

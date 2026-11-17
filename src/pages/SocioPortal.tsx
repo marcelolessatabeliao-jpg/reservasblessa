@@ -1376,7 +1376,7 @@ const SocioPortal: React.FC = () => {
                                     ? 'Dependente inativo no momento'
                                     : undefined
                                 }
-                                onUpdatePhoto={isLockedMember || !isSubscriptionActive ? undefined : handleUpdateMemberPhoto}
+                                onUpdatePhoto={isLockedDep || !isSubscriptionActive ? undefined : handleUpdateMemberPhoto}
                               />
 
                               {(docRule.requiresDocument || hasDoc) && (
