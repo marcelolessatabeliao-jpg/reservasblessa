@@ -485,7 +485,7 @@ export function getChaleInclusions(checkInDateStr?: string, checkOutDateStr?: st
       text: 'Restaurante/lanchonete aberto com vendas até as 17h (sem alimentação após as 17h).'
     },
     {
-      icon: '🥩',
+      icon: '🛖',
       title: 'Churrasco & Alimentos',
       text: 'Permitido trazer alimentos prontos. Quiosques liberados para churrasco exclusivamente entre 17h e 8h da manhã. O uso no Day Use (9h às 17h) é cobrado à parte.'
     }

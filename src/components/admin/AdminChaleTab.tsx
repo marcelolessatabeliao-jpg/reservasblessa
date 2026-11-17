@@ -110,6 +110,7 @@ export interface ChaleReservation {
   isOrder?: boolean;
   orderId?: string;
   confirmationCode?: string;
+  last_voucher_sent_at?: string | null;
 }
 
 interface AdminChaleTabProps {
@@ -712,7 +713,8 @@ export function AdminChaleTab({
             receiptUrl: order.receipt_url || null,
             isOrder: true,
             orderId: order.id,
-            confirmationCode: order.confirmation_code
+            confirmationCode: order.confirmation_code,
+            last_voucher_sent_at: order.last_voucher_sent_at || (order.notes?.includes('[VOUCHER ENVIADO]') ? order.updated_at || new Date().toISOString() : null)
           });
         }
 
@@ -1637,6 +1639,51 @@ export function AdminChaleTab({
     setIsVoucherModalOpen(true);
   };
 
+  // Marcação de voucher gerado / enviado
+  const markVoucherAsSent = async (res: ChaleReservation) => {
+    const nowIso = new Date().toISOString();
+
+    // Atualiza estado local de reservas
+    setLocalReservations(prev => prev.map(r => {
+      if (r.id === res.id || (r.orderId && r.orderId === res.orderId) || (r.confirmationCode && r.confirmationCode === res.confirmationCode)) {
+        return { ...r, last_voucher_sent_at: nowIso };
+      }
+      return r;
+    }));
+
+    if (voucherRes) {
+      setVoucherRes(prev => prev ? { ...prev, last_voucher_sent_at: nowIso } : null);
+    }
+
+    // Persiste no banco Supabase
+    try {
+      const orderTargetId = res.orderId || (res.isOrder ? res.id : null);
+      if (orderTargetId) {
+        await supabase.from('orders').update({
+          last_voucher_sent_at: nowIso,
+          notes: (res.notes || '').includes('[VOUCHER ENVIADO]') ? res.notes : ((res.notes ? res.notes + ' ' : '') + '[VOUCHER ENVIADO]')
+        }).eq('id', orderTargetId);
+      } else if (res.confirmationCode) {
+        await supabase.from('orders').update({
+          last_voucher_sent_at: nowIso,
+          notes: (res.notes || '').includes('[VOUCHER ENVIADO]') ? res.notes : ((res.notes ? res.notes + ' ' : '') + '[VOUCHER ENVIADO]')
+        }).eq('confirmation_code', res.confirmationCode);
+      }
+
+      if (res.id) {
+        await supabase.from('bookings').update({
+          last_voucher_sent_at: nowIso
+        }).eq('id', res.id);
+      }
+
+      if (onRefresh) {
+        onRefresh();
+      }
+    } catch (e) {
+      console.warn('Erro ao salvar last_voucher_sent_at:', e);
+    }
+  };
+
   // Gerar Imagem do Voucher via html2canvas (como Day Use)
   const handleGenerateVoucherImage = async () => {
     if (!voucherPrintRef.current) return;
@@ -1653,6 +1700,10 @@ export function AdminChaleTab({
       const dataUrl = canvas.toDataURL('image/png');
       setVoucherImageGenerated(dataUrl);
 
+      if (voucherRes) {
+        await markVoucherAsSent(voucherRes);
+      }
+
       // Copiar para área de transferência
       try {
         const res = await fetch(dataUrl);
@@ -1660,9 +1711,9 @@ export function AdminChaleTab({
         await navigator.clipboard.write([
           new ClipboardItem({ 'image/png': blob })
         ]);
-        toast({ title: "✓ Imagem do Voucher Copiada!", description: "Cole diretamente na conversa do WhatsApp do cliente." });
+        toast({ title: "✓ Voucher Gerado e Copiado!", description: "Marcado como ENVIADO e copiado para colar no WhatsApp do cliente." });
       } catch (clipErr) {
-        toast({ title: "✓ Imagem Gerada!", description: "Clique no botão Baixar Imagem para salvar o arquivo." });
+        toast({ title: "✓ Voucher Gerado!", description: "Marcado como ENVIADO. Clique no botão Baixar Imagem para salvar." });
       }
     } catch (err: any) {
       console.error('Erro ao gerar imagem do voucher:', err);
@@ -1673,8 +1724,9 @@ export function AdminChaleTab({
   };
 
   // Baixar imagem do voucher gerada
-  const handleDownloadVoucherImage = () => {
+  const handleDownloadVoucherImage = async () => {
     if (!voucherImageGenerated || !voucherRes) return;
+    await markVoucherAsSent(voucherRes);
     const link = document.createElement('a');
     link.href = voucherImageGenerated;
     link.download = `voucher-chale-${voucherRes.chaleId}-${voucherRes.confirmationCode || 'ok'}.png`;
@@ -1682,8 +1734,9 @@ export function AdminChaleTab({
   };
 
   // Enviar texto no WhatsApp
-  const handleSendVoucherWhatsApp = () => {
+  const handleSendVoucherWhatsApp = async () => {
     if (!voucherRes) return;
+    await markVoucherAsSent(voucherRes);
     const inclusions = getChaleInclusions(voucherRes.checkInDate, voucherRes.checkOutDate);
     const msg = `*BALNEÁRIO LESSA - COMPROVANTE OFICIAL DE HOSPEDAGEM* 🌿\n\n` +
       `*Titular:* ${voucherRes.guestName}\n` +
@@ -1698,7 +1751,7 @@ export function AdminChaleTab({
       `*REGRAS ESSENCIAIS DA HOSPEDAGEM:*\n` +
       `• 🚫 Proibida a entrada e consumo de bebidas alcoólicas no local.\n` +
       `• 🍽️ Restaurante/Bar aberto até as 17h (sem alimentação após as 17h).\n` +
-      `• 🥩 Permitido alimentos prontos. Quiosques liberados para churrasco exclusivamente entre 17h e 8h da manhã (uso das 9h às 17h requer locação à parte).\n` +
+      `• 🛖 Permitido alimentos prontos. Quiosques liberados para churrasco exclusivamente entre 17h e 8h da manhã (uso das 9h às 17h requer locação à parte).\n` +
       (inclusions.quintaNotice ? `• ℹ️ ${inclusions.quintaNotice}\n` : '') +
       `\nApresente este voucher na recepção. Estamos ansiosos para recebê-los! ✨`;
 
@@ -2007,10 +2060,20 @@ export function AdminChaleTab({
               <button
                 type="button"
                 onClick={() => handleOpenVoucherModal(res)}
-                className="text-[11px] font-bold text-slate-700 hover:text-emerald-800 bg-white hover:bg-emerald-50 border border-slate-200 px-2.5 py-1.5 rounded-lg flex items-center gap-1 shadow-xs cursor-pointer transition-all"
-                title="Visualizar e Imprimir Voucher"
+                className={cn(
+                  "text-[11px] font-bold px-2.5 py-1.5 rounded-lg flex items-center gap-1 shadow-xs cursor-pointer transition-all",
+                  res.last_voucher_sent_at
+                    ? "bg-emerald-50 text-emerald-800 border-2 border-emerald-500 hover:bg-emerald-100 font-black"
+                    : "text-slate-700 hover:text-emerald-800 bg-white hover:bg-emerald-50 border border-slate-200"
+                )}
+                title={res.last_voucher_sent_at ? "Voucher já enviado para o hóspede" : "Visualizar e Imprimir Voucher"}
               >
                 <FileCheck className="w-3.5 h-3.5 text-emerald-600" /> Voucher
+                {res.last_voucher_sent_at && (
+                  <span className="text-[7.5px] font-black uppercase px-1 py-0.2 rounded bg-emerald-600 text-white ml-0.5">
+                    ENVIADO
+                  </span>
+                )}
               </button>
 
               <button
@@ -2693,12 +2756,17 @@ export function AdminChaleTab({
                                 size="sm"
                                 variant="outline"
                                 onClick={() => handleOpenVoucherModal(res)}
-                                className="h-10 rounded-xl font-black flex items-center justify-center gap-1.5 px-2 border-2 border-purple-500 bg-white hover:bg-purple-50 shadow-xs"
-                                title="Gerar e compartilhar voucher oficial em imagem"
+                                className={cn(
+                                  "h-10 rounded-xl font-black flex items-center justify-center gap-1.5 px-2 border-2 shadow-xs",
+                                  res.last_voucher_sent_at
+                                    ? "border-emerald-500 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+                                    : "border-purple-500 bg-white hover:bg-purple-50 text-slate-900"
+                                )}
+                                title={res.last_voucher_sent_at ? "Voucher já gerado/enviado (clique para reenviar)" : "Gerar e compartilhar voucher oficial em imagem"}
                               >
-                                <ImageIcon className="w-3.5 h-3.5 text-purple-600 shrink-0" />
-                                <span className="text-slate-900 font-black text-[8.5px] uppercase tracking-wider">
-                                  VOUCHER
+                                <ImageIcon className={cn("w-3.5 h-3.5 shrink-0", res.last_voucher_sent_at ? "text-emerald-600" : "text-purple-600")} />
+                                <span className="font-black text-[8.5px] uppercase tracking-wider">
+                                  {res.last_voucher_sent_at ? "REENVIAR" : "VOUCHER"}
                                 </span>
                               </Button>
 
@@ -3778,10 +3846,17 @@ export function AdminChaleTab({
       <Dialog open={isVoucherModalOpen} onOpenChange={setIsVoucherModalOpen}>
         <DialogContent className="max-w-md bg-white rounded-3xl p-6 border-none shadow-2xl flex flex-col max-h-[95vh] overflow-y-auto">
           <DialogHeader className="space-y-1 pb-3 border-b border-slate-100">
-            <DialogTitle className="text-lg font-black text-emerald-950 flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-              Comprovante & Voucher do Chalé {voucherRes?.chaleId}
-            </DialogTitle>
+            <div className="flex items-center justify-between gap-2">
+              <DialogTitle className="text-lg font-black text-emerald-950 flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                Comprovante & Voucher do Chalé {voucherRes?.chaleId}
+              </DialogTitle>
+              {voucherRes?.last_voucher_sent_at && (
+                <span className="bg-emerald-600 text-white text-[9px] font-black uppercase px-2.5 py-1 rounded-full shadow-xs shrink-0">
+                  ENVIADO ✓
+                </span>
+              )}
+            </div>
             <DialogDescription className="text-xs text-slate-500">
               Gere a imagem oficial do voucher para salvar ou enviar diretamente no WhatsApp.
             </DialogDescription>
@@ -3805,15 +3880,30 @@ export function AdminChaleTab({
                 className="space-y-4 relative overflow-hidden text-white"
               >
                 {/* Cabeçalho */}
-                <div style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.2)', paddingBottom: '0.75rem' }} className="text-center space-y-1">
+                <div style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.2)', paddingBottom: '0.75rem' }} className="text-center space-y-1.5">
                   <span style={{ color: '#f59e0b' }} className="text-[10px] font-black uppercase tracking-widest block">
                     🌿 Balneário Lessa • Hospedagem
                   </span>
                   <h3 style={{ color: '#ffffff' }} className="font-sans font-black text-xl tracking-tight">
                     VOUCHER DE HOSPEDAGEM
                   </h3>
-                  <div style={{ backgroundColor: '#f59e0b', color: '#02170c' }} className="inline-block text-[10px] font-black uppercase px-3 py-0.5 rounded-full">
-                    Chalé {String(voucherRes.chaleId).padStart(2, '0')} · {voucherRes.confirmationCode || 'CHA-OK'}
+                  <div
+                    style={{
+                      backgroundColor: '#f59e0b',
+                      color: '#02170c',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '4px 16px',
+                      borderRadius: '9999px',
+                      fontSize: '11px',
+                      fontWeight: 900,
+                      lineHeight: '1.2',
+                      letterSpacing: '0.05em',
+                      textTransform: 'uppercase'
+                    }}
+                  >
+                    Chalé {String(voucherRes.chaleId).padStart(2, '0')}
                   </div>
                 </div>
 
@@ -3946,7 +4036,7 @@ export function AdminChaleTab({
                           </div>
                           <p style={{ color: '#ffffff' }}>🚫 <strong>Bebidas alcoólicas:</strong> Totalmente proibida a entrada e consumo no local.</p>
                           <p style={{ color: '#ffffff' }}>🍽️ <strong>Alimentação:</strong> Restaurante/bar com vendas até as 17h (sem alimentação após as 17h).</p>
-                          <p style={{ color: '#ffffff' }}>🥩 <strong>Churrasco:</strong> Permitido trazer alimentos prontos. Quiosques liberados para churrasco exclusivamente das 17h às 8h da manhã. O uso no Day Use (9h às 17h) é cobrado à parte.</p>
+                          <p style={{ color: '#ffffff' }}>🛖 <strong>Churrasco:</strong> Permitido trazer alimentos prontos. Quiosques liberados para churrasco exclusivamente das 17h às 8h da manhã. O uso no Day Use (9h às 17h) é cobrado à parte.</p>
                           {inclusions.quintaNotice && (
                             <p style={{ color: '#fde047' }}>ℹ️ <strong>Quinta-feira:</strong> {inclusions.quintaNotice}</p>
                           )}
@@ -3958,20 +4048,24 @@ export function AdminChaleTab({
 
                 {/* QR Code e Status */}
                 <div className="flex items-center justify-between pt-1">
-                  <div className="space-y-0.5">
+                  <div className="space-y-1">
                     <span style={{ color: '#a7f3d0' }} className="text-[10px] uppercase font-bold block">Status Pagamento:</span>
-                    <span style={{
+                    <div style={{
                       backgroundColor: voucherRes.status === 'paid' ? '#10b981' : '#f59e0b',
                       color: '#02170c',
-                      padding: '2px 8px',
+                      padding: '4px 10px',
                       borderRadius: '8px',
                       fontSize: '11px',
                       fontWeight: 900,
-                      display: 'inline-block'
+                      lineHeight: '1.2',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      letterSpacing: '0.02em'
                     }}>
                       {voucherRes.status === 'paid' ? 'PAGO OK ✓' : 'A PAGAR'}
-                    </span>
-                    <span style={{ color: '#ffffff' }} className="text-[11px] font-black block pt-1">
+                    </div>
+                    <span style={{ color: '#ffffff', lineHeight: '1.3' }} className="text-[12px] font-black block pt-1">
                       Total: {formatCurrency(voucherRes.totalPrice)}
                     </span>
                   </div>
@@ -3990,6 +4084,14 @@ export function AdminChaleTab({
                   Apresente este voucher na portaria do Balneário Lessa.
                 </div>
               </div>
+
+              {/* Status de Voucher Enviado */}
+              {voucherRes.last_voucher_sent_at && (
+                <div className="bg-emerald-50 border border-emerald-300 rounded-xl p-2.5 flex items-center justify-center gap-2 text-emerald-900 text-xs font-black shadow-xs">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>Voucher marcado como ENVIADO ✓</span>
+                </div>
+              )}
 
               {/* Ações do Voucher: Gerar Imagem, Baixar e WhatsApp */}
               <div className="space-y-2 pt-2">

@@ -548,7 +548,7 @@ export default function Voucher() {
                               Atendimento e vendas até as 17h (sem alimentação servida ou vendida após esse horário).
                             </div>
                             <div className="bg-white p-3 rounded-2xl border border-amber-200/80 shadow-xs sm:col-span-2">
-                              <span className="font-black text-emerald-950 block mb-0.5">🥩 Churrasco e Alimentos dos Hóspedes</span>
+                              <span className="font-black text-emerald-950 block mb-0.5">🛖 Churrasco e Alimentos dos Hóspedes</span>
                               Permitido trazer alimentos prontos para consumo. Quiosques liberados para churrasco exclusivamente entre 17h e 8h da manhã. O uso no Day Use (9h às 17h) é cobrado à parte.
                             </div>
                             {inclusions.quintaNotice && (
