@@ -470,7 +470,20 @@ const saveAdminCache = (data: any) => {
 
 export default function Admin() {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('admin_token'));
-  const [activeTab, setActiveTab] = useState<TabType>('painel');
+  const [activeTab, setActiveTab] = useState<TabType>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = sessionStorage.getItem('admin_active_tab') as TabType;
+      const validTabs: TabType[] = ['painel', 'reservas', 'quiosques', 'chales', 'quads', 'vendas', 'relatorios', 'creditos', 'disponibilidade', 'clube'];
+      if (saved && validTabs.includes(saved)) return saved;
+    }
+    return 'painel';
+  });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && activeTab) {
+      sessionStorage.setItem('admin_active_tab', activeTab);
+    }
+  }, [activeTab]);
   const [search, setSearch] = useState('');
   const [filterDate, setFilterDate] = useState<string>('');
   const [totals, setTotals] = useState({ adults: 0, children: 0 });

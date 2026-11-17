@@ -89,12 +89,40 @@ const SocioPortal: React.FC = () => {
     location.pathname.toLowerCase().includes('/consultor') ||
     location.pathname.toLowerCase().includes('/influencer');
   const initialCpfOrCard = searchParams.get('cpf') || searchParams.get('card') || '';
+  const isDirectLogin = searchParams.get('direct') === '1' || searchParams.get('auto') === '1';
 
   const [state, setState] = useState<ClubDatabaseState>(() => getClubStateSync());
   const [loginInput, setLoginInput] = useState(initialCpfOrCard);
   const [passwordInput, setPasswordInput] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [subscription, setSubscription] = useState<ClubSubscription | null>(null);
+  const [activePortalTab, setActivePortalTab] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = sessionStorage.getItem('lessa_socio_portal_tab');
+      if (saved) return saved;
+    }
+    return 'carteirinhas';
+  });
+
+  const [subscription, setSubscription] = useState<ClubSubscription | null>(() => {
+    if (typeof window !== 'undefined') {
+      const syncState = getClubStateSync();
+      if (isDirectLogin && initialCpfOrCard && syncState) {
+        const matches = findMemberOrSubscriptionByQuery(syncState, initialCpfOrCard);
+        if (matches.length > 0) {
+          sessionStorage.setItem('lessa_socio_sub_id', matches[0].subscription.id);
+          return matches[0].subscription;
+        }
+      }
+      const savedSubId = sessionStorage.getItem('lessa_socio_sub_id');
+      if (savedSubId && syncState) {
+        const found = syncState.subscriptions?.find(
+          (s) => s.id === savedSubId || s.subscriptionCode === savedSubId || s.holderCpf === savedSubId
+        );
+        if (found) return found;
+      }
+    }
+    return null;
+  });
   const [loggedConsultant, setLoggedConsultant] = useState<ClubConsultant | null>(null);
   const [portalType, setPortalType] = useState<'ASSOCIADO' | 'CONSULTOR'>(
     isConsultantRoute ? 'CONSULTOR' : 'ASSOCIADO'
@@ -151,11 +179,30 @@ const SocioPortal: React.FC = () => {
       .then((loaded) => {
         if (!active) return;
         setState(loaded);
-        if (initialCpfOrCard) {
-          const matches = findMemberOrSubscriptionByQuery(loaded, initialCpfOrCard);
-          if (matches.length > 0) {
-            setSubscription(matches[0].subscription);
+        if (typeof window !== 'undefined') {
+          const isDirect = searchParams.get('direct') === '1' || searchParams.get('auto') === '1';
+          if (isDirect && initialCpfOrCard) {
+            const matches = findMemberOrSubscriptionByQuery(loaded, initialCpfOrCard);
+            if (matches.length > 0) {
+              setSubscription(matches[0].subscription);
+              sessionStorage.setItem('lessa_socio_sub_id', matches[0].subscription.id);
+              return;
+            }
           }
+          const savedSubId = sessionStorage.getItem('lessa_socio_sub_id');
+          if (savedSubId) {
+            const found = loaded.subscriptions?.find(
+              (s) => s.id === savedSubId || s.subscriptionCode === savedSubId || s.holderCpf === savedSubId
+            );
+            if (found) {
+              setSubscription(found);
+              return;
+            }
+          }
+        }
+        if (subscription?.id) {
+          const fresh = loaded.subscriptions?.find((s) => s.id === subscription.id);
+          if (fresh) setSubscription(fresh);
         }
       })
       .catch((err) => {
@@ -167,7 +214,16 @@ const SocioPortal: React.FC = () => {
     return () => {
       active = false;
     };
-  }, [initialCpfOrCard]);
+  }, [initialCpfOrCard, searchParams]);
+
+  useEffect(() => {
+    if (subscription?.id && state?.subscriptions) {
+      const fresh = state.subscriptions.find((s) => s.id === subscription.id);
+      if (fresh && fresh !== subscription) {
+        setSubscription(fresh);
+      }
+    }
+  }, [state?.subscriptions]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -293,6 +349,9 @@ const SocioPortal: React.FC = () => {
       }
 
       setSubscription(foundSub);
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('lessa_socio_sub_id', foundSub.id);
+      }
       toast({
         title: `Bem-vindo(a), ${foundSub.holderName.split(' ')[0]}!`,
         description: 'Acesse suas carteirinhas, faturas e contrato abaixo.',
@@ -306,6 +365,15 @@ const SocioPortal: React.FC = () => {
       });
     } finally {
       setIsLoggingIn(false);
+    }
+  };
+
+  const handleLogout = () => {
+    setSubscription(null);
+    setLoggedConsultant(null);
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('lessa_socio_sub_id');
+      sessionStorage.removeItem('lessa_socio_portal_tab');
     }
   };
 
@@ -497,10 +565,7 @@ const SocioPortal: React.FC = () => {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => {
-                  setSubscription(null);
-                  setLoggedConsultant(null);
-                }}
+                onClick={handleLogout}
                 className="text-slate-300 hover:text-white hover:bg-slate-800 text-xs"
               >
                 <LogOut className="w-3.5 h-3.5 mr-1.5" /> Sair
@@ -578,10 +643,7 @@ const SocioPortal: React.FC = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => {
-                      setLoggedConsultant(null);
-                      setSubscription(null);
-                    }}
+                    onClick={handleLogout}
                     className="border-slate-300 text-slate-700 hover:bg-slate-100 font-bold text-xs"
                   >
                     <LogOut className="w-3.5 h-3.5 mr-1.5" /> Sair do Painel
@@ -1027,7 +1089,16 @@ const SocioPortal: React.FC = () => {
             </div>
 
               {/* Main Tabs */}
-              <Tabs defaultValue="carteirinhas" className="space-y-6">
+              <Tabs
+                value={activePortalTab}
+                onValueChange={(val) => {
+                  setActivePortalTab(val);
+                  if (typeof window !== 'undefined') {
+                    sessionStorage.setItem('lessa_socio_portal_tab', val);
+                  }
+                }}
+                className="space-y-6"
+              >
                 <TabsList className="grid grid-cols-2 sm:grid-cols-5 w-full max-w-4xl bg-slate-200/80 p-1 rounded-2xl h-auto sm:h-12 gap-1">
                   <TabsTrigger
                     value="carteirinhas"
@@ -1248,7 +1319,7 @@ const SocioPortal: React.FC = () => {
                                     <Badge className={missingDoc ? 'bg-rose-600 text-white text-[10px]' : 'bg-emerald-600 text-white text-[10px]'}>
                                       {missingDoc ? 'OBRIGATÓRIO ANEXAR' : memberDocs.length > 0 ? `${memberDocs.length} DOCUMENTO(S) ANEXADO(S)` : 'DOCUMENTO REGULARIZADO'}
                                     </Badge>
-                                    {member.documentVerified && (
+                                    {(member.documentVerified || member.documentStatus === 'APROVADO') && (
                                       <Badge className="bg-teal-700 text-white text-[10px] font-black">
                                         ✓ APROVADO PELO ADMIN
                                       </Badge>
@@ -1311,7 +1382,7 @@ const SocioPortal: React.FC = () => {
                                                 {doc.name}
                                               </div>
                                               <div className="text-[10px] text-emerald-700 font-semibold">
-                                                {member.documentVerified ? '✓ Validado pela Administração' : 'Anexado ao cadastro'}
+                                                {member.documentVerified || member.documentStatus === 'APROVADO' ? '✓ Validado pela Administração' : 'Anexado ao cadastro'}
                                               </div>
                                             </div>
                                           </div>
@@ -1440,7 +1511,7 @@ const SocioPortal: React.FC = () => {
                                         <Badge className={missingDoc ? 'bg-rose-600 text-white text-[10px]' : 'bg-emerald-600 text-white text-[10px]'}>
                                           {missingDoc ? 'OBRIGATÓRIO ANEXAR' : memberDocs.length > 0 ? `${memberDocs.length} DOCUMENTO(S) ANEXADO(S)` : 'DOCUMENTO REGULARIZADO'}
                                         </Badge>
-                                        {member.documentVerified && (
+                                        {(member.documentVerified || member.documentStatus === 'APROVADO') && (
                                           <Badge className="bg-teal-700 text-white text-[10px] font-black">
                                             ✓ APROVADO PELO ADMIN
                                           </Badge>
@@ -1501,7 +1572,7 @@ const SocioPortal: React.FC = () => {
                                                     {doc.name}
                                                   </div>
                                                   <div className="text-[10px] text-emerald-700 font-semibold">
-                                                    {member.documentVerified ? '✓ Validado pela Administração' : 'Anexado ao cadastro'}
+                                                    {member.documentVerified || member.documentStatus === 'APROVADO' ? '✓ Validado pela Administração' : 'Anexado ao cadastro'}
                                                   </div>
                                                 </div>
                                               </div>
@@ -1601,7 +1672,7 @@ const SocioPortal: React.FC = () => {
                                       </Badge>
                                     );
                                   }
-                                  if (member.documentVerified) {
+                                  if (member.documentVerified || member.documentStatus === 'APROVADO') {
                                     return (
                                       <Badge className="bg-emerald-700 text-white text-[10px] font-black shadow-xs">
                                         ✓ DOCUMENTO APROVADO PELO ADMIN
@@ -1683,7 +1754,7 @@ const SocioPortal: React.FC = () => {
                             </div>
                           )}
 
-                          {member.documentRejectionReason && !member.documentVerified && (
+                          {member.documentRejectionReason && !member.documentVerified && member.documentStatus !== 'APROVADO' && (
                             <div className="bg-rose-100 border border-rose-300 text-rose-950 text-xs rounded-xl p-3 font-semibold space-y-1">
                               <div className="font-black text-rose-900 flex items-center gap-1.5 uppercase">
                                 ⚠️ Motivo da Recusa pela Administração:
@@ -1695,13 +1766,13 @@ const SocioPortal: React.FC = () => {
                             </div>
                           )}
 
-                          {hasDoc && !member.documentVerified && !member.documentRejectionReason && (
+                          {hasDoc && !member.documentVerified && member.documentStatus !== 'APROVADO' && !member.documentRejectionReason && (
                             <div className="bg-amber-50 border border-amber-300 text-amber-950 text-xs rounded-xl p-3 font-medium">
                               <strong>⏳ Documentação em Análise:</strong> Seu comprovante foi recebido e está aguardando validação pela administração do clube para ativação final da carteirinha.
                             </div>
                           )}
 
-                          {member.documentVerified && (
+                          {(member.documentVerified || member.documentStatus === 'APROVADO') && (
                             <div className="bg-emerald-50 border border-emerald-300 text-emerald-950 text-xs rounded-xl p-3 font-medium">
                               <strong>✓ Documentação Aprovada:</strong> O comprovante deste integrante foi verificado e aprovado pela administração. Carteirinha liberada para acesso!
                             </div>

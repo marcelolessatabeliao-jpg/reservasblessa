@@ -331,6 +331,8 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
       monthlyValue: mod.price,
       status: titStatus,
       manualStatusOverride: isTitularAtivo,
+      documentVerified: isTitularAtivo ? true : undefined,
+      documentStatus: isTitularAtivo ? 'APROVADO' : undefined,
       createdAt: '2025-01-01T00:00:00.000Z',
     };
 
@@ -360,6 +362,8 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
         monthlyValue: 0,
         status: depStatus,
         manualStatusOverride: isDepAtivo,
+        documentVerified: isDepAtivo ? true : undefined,
+        documentStatus: isDepAtivo ? 'APROVADO' : undefined,
         createdAt: '2025-01-01T00:00:00.000Z',
       };
     });

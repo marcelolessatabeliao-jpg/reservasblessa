@@ -308,7 +308,7 @@ export const isMemberBlockedForMissingDoc = (
   const rule = getPlanDocumentRule(member.modalityCode, member.modalityName);
   if (!rule.requiresDocument) return false;
   // Além de ter o anexo enviado, exige que o admin tenha validado
-  return !member.documentVerified;
+  return !member.documentVerified && member.documentStatus !== 'APROVADO';
 };
 
 let cachedLabcardSeedMap: Map<string, ClubSubscription> | null = null;
@@ -1503,6 +1503,12 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
                 phone: m.phone || fm.phone,
                 expirationDate: m.expirationDate || fm.expirationDate,
                 expirationNotes: m.expirationNotes || fm.expirationNotes,
+                documentVerified: fm.documentVerified ?? m.documentVerified,
+                documentStatus: fm.documentStatus || m.documentStatus,
+                documentVerifiedAt: fm.documentVerifiedAt || m.documentVerifiedAt,
+                documentVerifiedBy: fm.documentVerifiedBy || m.documentVerifiedBy,
+                status: (fm.status === 'ACTIVE' || m.status === 'ACTIVE') ? 'ACTIVE' : m.status,
+                manualStatusOverride: fm.manualStatusOverride ?? m.manualStatusOverride,
               };
             });
           }

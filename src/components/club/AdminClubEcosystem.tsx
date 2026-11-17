@@ -202,7 +202,19 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
   const [state, setState] = useState<ClubDatabaseState | null>(() => getClubStateSync());
   const [loading, setLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(true);
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = sessionStorage.getItem('club_admin_active_tab');
+      if (saved) return saved;
+    }
+    return 'dashboard';
+  });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && activeTab) {
+      sessionStorage.setItem('club_admin_active_tab', activeTab);
+    }
+  }, [activeTab]);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
 
   // Quick search (Lupa Labcard)
@@ -218,7 +230,29 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
   const [clientPageSize, setClientPageSize] = useState<number | 'ALL'>(50);
   const [empresaStatusFilter, setEmpresaStatusFilter] = useState<string>('ALL');
   const [selectedSubForDetail, setSelectedSubForDetail] =
-    useState<ClubSubscription | null>(null);
+    useState<ClubSubscription | null>(() => {
+      if (typeof window !== 'undefined') {
+        const savedSubId = sessionStorage.getItem('club_admin_selected_sub_id');
+        if (savedSubId) {
+          const syncState = getClubStateSync();
+          const found = syncState?.subscriptions?.find(
+            (s) => s.id === savedSubId || s.subscriptionCode === savedSubId
+          );
+          if (found) return found;
+        }
+      }
+      return null;
+    });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (selectedSubForDetail?.id) {
+        sessionStorage.setItem('club_admin_selected_sub_id', selectedSubForDetail.id);
+      } else {
+        sessionStorage.removeItem('club_admin_selected_sub_id');
+      }
+    }
+  }, [selectedSubForDetail?.id]);
 
   // Active tool inside existing client record (selectedSubForDetail)
   const [clientDetailTool, setClientDetailTool] = useState<
@@ -234,7 +268,19 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     | 'LINK_ASSINATURA'
     | 'TERMOS_USO'
     | 'SMS_CLIENTE'
-  >('DADOS_CADASTRAIS');
+  >(() => {
+    if (typeof window !== 'undefined') {
+      const saved = sessionStorage.getItem('club_admin_client_detail_tool');
+      if (saved) return saved as any;
+    }
+    return 'DADOS_CADASTRAIS';
+  });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && clientDetailTool) {
+      sessionStorage.setItem('club_admin_client_detail_tool', clientDetailTool);
+    }
+  }, [clientDetailTool]);
 
   // Editable form state for existing client registration (DADOS_CADASTRAIS)
   const [editClientData, setEditClientData] = useState({
@@ -1264,6 +1310,17 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
           setSiteTermsText(loaded.siteTermsText);
         } else {
           setSiteTermsText(DEFAULT_SITE_TERMS_TEXT);
+        }
+        if (typeof window !== 'undefined') {
+          const savedSubId = sessionStorage.getItem('club_admin_selected_sub_id');
+          if (savedSubId) {
+            const found = loaded.subscriptions?.find(
+              (s) => s.id === savedSubId || s.subscriptionCode === savedSubId
+            );
+            if (found) {
+              setSelectedSubForDetail(found);
+            }
+          }
         }
       })
       .finally(() => {
@@ -2624,7 +2681,12 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     }
   }, [selectedSubForDetail?.id]);
 
+  const isFirstMountFiltersRef = useRef(true);
   useEffect(() => {
+    if (isFirstMountFiltersRef.current) {
+      isFirstMountFiltersRef.current = false;
+      return;
+    }
     setSelectedSubForDetail(null);
   }, [
     activeTab,
@@ -2636,6 +2698,15 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     configSection,
     perfilSection,
   ]);
+
+  useEffect(() => {
+    if (selectedSubForDetail && state?.subscriptions) {
+      const fresh = state.subscriptions.find((s) => s.id === selectedSubForDetail.id);
+      if (fresh && fresh !== selectedSubForDetail) {
+        setSelectedSubForDetail(fresh);
+      }
+    }
+  }, [state?.subscriptions]);
 
   const handleSaveClientRegistrationEdits = async () => {
     if (!state || !selectedSubForDetail || isSavingClientRegistration) return;
@@ -11935,6 +12006,18 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   <Button
                     type="button"
                     size="sm"
+                    onClick={() => {
+                      const cardOrCpf = selectedSubForDetail.subscriptionCode || selectedSubForDetail.holderCpf;
+                      window.open(`/socio?card=${encodeURIComponent(cardOrCpf)}&direct=1`, '_blank');
+                    }}
+                    className="h-8 bg-[#004d00] hover:bg-emerald-900 text-white font-black text-xs w-full sm:w-auto shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                    title="Entrar diretamente no Painel do Usuário (Portal do Sócio)"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" /> Entrar no Painel do Usuário
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
                     variant="outline"
                     onClick={() => setSelectedSubForDetail(null)}
                     className="h-8 border-slate-300 bg-white text-slate-800 hover:bg-slate-100 hover:text-slate-950 font-bold text-xs w-full sm:w-auto"
@@ -18294,6 +18377,16 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                             className="bg-white hover:bg-emerald-100 text-emerald-800 border-emerald-300 font-bold text-xs h-9"
                           >
                             <Copy className="w-3.5 h-3.5 mr-1.5" /> Copiar Mensagem de Acesso
+                          </Button>
+                          <Button
+                            type="button"
+                            onClick={() => {
+                              const cardOrCpf = selectedSubForDetail.subscriptionCode || selectedSubForDetail.holderCpf;
+                              window.open(`/socio?card=${encodeURIComponent(cardOrCpf)}&direct=1`, '_blank');
+                            }}
+                            className="bg-[#004d00] hover:bg-emerald-900 text-white font-black text-xs h-9 cursor-pointer"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5 mr-1.5" /> Entrar no Painel do Usuário
                           </Button>
                         </div>
                       </div>
