@@ -45,6 +45,25 @@ interface ClubDocumentVerificationPanelProps {
   compact?: boolean;
 }
 
+const isRealMediaUrl = (url?: string | null): boolean => {
+  if (!url) return false;
+  if (
+    url === 'HAS_DOC_ATTACHED' ||
+    url === 'HAS_DOC_REMOTE' ||
+    url.startsWith('HAS_DOC_') ||
+    url.includes('[COMPACTED_LOCAL]')
+  ) {
+    return false;
+  }
+  return (
+    url.startsWith('data:') ||
+    url.startsWith('http:') ||
+    url.startsWith('https:') ||
+    url.startsWith('/') ||
+    url.startsWith('blob:')
+  );
+};
+
 export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPanelProps> = ({
   subscription,
   onUpdateSub,
@@ -297,27 +316,17 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
 
           // 1. Adiciona os anexos reais do integrante com URL válida
           for (const att of rawMemberAttachments) {
-            const resolvedUrl =
-              att.dataUrl &&
-              att.dataUrl !== 'HAS_DOC_ATTACHED' &&
-              (att.dataUrl.startsWith('data:') || att.dataUrl.startsWith('http') || att.dataUrl.startsWith('/'))
-                ? att.dataUrl
-                : effectiveProofUrl;
-
+            const resolvedUrl = isRealMediaUrl(att.dataUrl) ? att.dataUrl : effectiveProofUrl;
             memberDocs.push({
               ...att,
               dataUrl: resolvedUrl,
             });
           }
 
-          // 2. Se o integrante tiver documentProofUrl/documentProofName e não constar em memberDocs, adiciona
+          // 2. Se o integrante tiver documentProofName e não constar em memberDocs, adiciona para que o documento apareça na lista de conferência
           if (
-            effectiveProofUrl &&
-            !memberDocs.some(
-              (d) =>
-                d.dataUrl === effectiveProofUrl ||
-                (member.documentProofName && d.name === member.documentProofName)
-            )
+            member.documentProofName &&
+            !memberDocs.some((d) => d.name === member.documentProofName)
           ) {
             memberDocs.unshift({
               id: `primary_${member.id}`,
@@ -333,14 +342,14 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
           }
 
           // 3. Fallback: se ainda estiver sem anexo com URL válida, busca em subscription.attachments
-          if (memberDocs.length === 0 || memberDocs.every((d) => !d.dataUrl || d.dataUrl === 'HAS_DOC_ATTACHED')) {
+          if (memberDocs.length === 0 || memberDocs.every((d) => !isRealMediaUrl(d.dataUrl))) {
             const subMatch = (subscription.attachments || []).find((sa) => {
               if (member.documentProofName && sa.name === member.documentProofName) return true;
               const firstName = (member.fullName || '').split(' ')[0].toLowerCase().trim();
               const attName = (sa.name || '').toLowerCase();
               return firstName.length >= 3 && attName.includes(firstName);
             });
-            if (subMatch && subMatch.dataUrl && subMatch.dataUrl !== 'HAS_DOC_ATTACHED') {
+            if (subMatch && isRealMediaUrl(subMatch.dataUrl)) {
               memberDocs.push(subMatch);
             }
           }
@@ -465,7 +474,7 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
                               className="inline-flex items-center gap-2 cursor-pointer hover:text-emerald-800"
                               title="Clique para visualizar o documento em tela cheia"
                             >
-                              {doc.mimeType?.startsWith('image/') || doc.dataUrl?.startsWith('data:image/') ? (
+                              {isRealMediaUrl(doc.dataUrl) && (doc.mimeType?.startsWith('image/') || doc.dataUrl?.startsWith('data:image/')) ? (
                                 <img
                                   src={doc.dataUrl}
                                   alt={doc.name}
@@ -494,16 +503,18 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
                               >
                                 <Eye className="w-4 h-4" />
                               </button>
-                              <a
-                                href={doc.dataUrl}
-                                download={doc.name}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="p-1 rounded hover:bg-slate-100 text-slate-600 hover:text-slate-900"
-                                title="Baixar arquivo"
-                              >
-                                <Download className="w-4 h-4" />
-                              </a>
+                              {isRealMediaUrl(doc.dataUrl) && (
+                                <a
+                                  href={doc.dataUrl}
+                                  download={doc.name}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="p-1 rounded hover:bg-slate-100 text-slate-600 hover:text-slate-900"
+                                  title="Baixar arquivo"
+                                >
+                                  <Download className="w-4 h-4" />
+                                </a>
+                              )}
                             </div>
                           </div>
                         ))}

@@ -18215,9 +18215,27 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
               </DialogHeader>
 
               {previewAttachment && (() => {
-                // Se por algum motivo dataUrl for placeholder "HAS_DOC_ATTACHED" ou vazio, resolve do titular ou dependentes
+                const isRealMediaUrl = (u?: string | null): boolean => {
+                  if (!u) return false;
+                  if (
+                    u === 'HAS_DOC_ATTACHED' ||
+                    u === 'HAS_DOC_REMOTE' ||
+                    u.startsWith('HAS_DOC_') ||
+                    u.includes('[COMPACTED_LOCAL]')
+                  ) {
+                    return false;
+                  }
+                  return (
+                    u.startsWith('data:') ||
+                    u.startsWith('http:') ||
+                    u.startsWith('https:') ||
+                    u.startsWith('/') ||
+                    u.startsWith('blob:')
+                  );
+                };
+
                 let effectiveUrl = previewAttachment.dataUrl;
-                if (!effectiveUrl || effectiveUrl === 'HAS_DOC_ATTACHED' || effectiveUrl.startsWith('HAS_DOC_ATTACHED')) {
+                if (!isRealMediaUrl(effectiveUrl)) {
                   const allAtts: ClubAttachment[] = [
                     ...(selectedSubForDetail?.attachments || []),
                     ...(selectedSubForDetail?.members?.flatMap((m) => m.attachments || []) || []),
@@ -18225,64 +18243,92 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   const found = allAtts.find(
                     (a) =>
                       a.name === previewAttachment.name &&
-                      a.dataUrl &&
-                      a.dataUrl !== 'HAS_DOC_ATTACHED' &&
-                      (a.dataUrl.startsWith('data:') || a.dataUrl.startsWith('http') || a.dataUrl.startsWith('/'))
+                      isRealMediaUrl(a.dataUrl)
                   ) || allAtts.find(
-                    (a) =>
-                      a.dataUrl &&
-                      a.dataUrl !== 'HAS_DOC_ATTACHED' &&
-                      (a.dataUrl.startsWith('data:') || a.dataUrl.startsWith('http') || a.dataUrl.startsWith('/'))
+                    (a) => isRealMediaUrl(a.dataUrl)
                   );
                   if (found) effectiveUrl = found.dataUrl;
+                  else effectiveUrl = '';
                 }
 
+                const hasValidMedia = isRealMediaUrl(effectiveUrl);
+
                 const isImage =
-                  effectiveUrl?.startsWith('data:image/') ||
+                  hasValidMedia &&
+                  (effectiveUrl.startsWith('data:image/') ||
                   previewAttachment.mimeType?.startsWith('image/') ||
-                  /\.(png|jpe?g|gif|webp)(\?|$)/i.test(previewAttachment.name || '');
+                  /\.(png|jpe?g|gif|webp)(\?|$)/i.test(previewAttachment.name || ''));
 
                 const isPdf =
-                  effectiveUrl?.startsWith('data:application/pdf') ||
+                  hasValidMedia &&
+                  (effectiveUrl.startsWith('data:application/pdf') ||
                   previewAttachment.mimeType === 'application/pdf' ||
-                  /\.pdf(\?|$)/i.test(previewAttachment.name || '');
+                  /\.pdf(\?|$)/i.test(previewAttachment.name || ''));
 
                 return (
                   <>
                     <div className="flex-1 overflow-auto bg-slate-100 rounded-xl border border-slate-200 p-3 flex items-center justify-center min-h-[300px]">
-                      {isImage && effectiveUrl ? (
+                      {isImage ? (
                         <img
                           src={effectiveUrl}
                           alt={previewAttachment.name}
                           className="max-w-full max-h-[65vh] object-contain rounded-lg shadow-md"
                         />
-                      ) : isPdf && effectiveUrl ? (
+                      ) : isPdf ? (
                         <iframe
                           src={effectiveUrl}
                           title={previewAttachment.name}
                           className="w-full h-[65vh] rounded-lg border border-slate-300 bg-white"
                         />
                       ) : (
-                        <div className="text-center space-y-3 p-6">
-                          <FileText className="w-12 h-12 text-slate-400 mx-auto" />
-                          <p className="text-sm font-bold text-slate-700">
-                            Pré-visualização direta indisponível para este formato ({previewAttachment.mimeType || 'arquivo'}).
-                          </p>
-                          {effectiveUrl && (
-                            <a
-                              href={effectiveUrl}
-                              download={previewAttachment.name}
-                              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#004d00] text-white text-xs font-bold"
-                            >
-                              <Download className="w-4 h-4" /> Baixar Arquivo
-                            </a>
+                        <div className="text-center space-y-4 p-5 sm:p-7 bg-amber-50/90 rounded-2xl border-2 border-amber-300 max-w-md w-full shadow-xs">
+                          <div className="w-13 h-13 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center mx-auto shadow-2xs">
+                            <FileText className="w-7 h-7 text-amber-700" />
+                          </div>
+                          <div className="space-y-1">
+                            <span className="text-[10px] font-black uppercase tracking-wider text-amber-800 bg-amber-200/80 px-2.5 py-0.5 rounded-full inline-block">
+                              Comprovante Registrado Online
+                            </span>
+                            <h4 className="text-xs sm:text-sm font-black text-slate-900 break-all pt-1">
+                              {previewAttachment.name}
+                            </h4>
+                            <p className="text-xs text-slate-600 leading-relaxed max-w-xs mx-auto">
+                              Comprovante anexado pelo associado no formulário de adesão online.
+                            </p>
+                          </div>
+
+                          {selectedSubForDetail && (
+                            <div className="bg-white rounded-xl p-3 border border-amber-200/80 text-left text-xs space-y-1.5 shadow-2xs">
+                              <div className="flex justify-between items-center border-b border-slate-100 pb-1">
+                                <span className="text-slate-500 font-bold text-[11px]">Titular:</span>
+                                <span className="font-black text-slate-900">{selectedSubForDetail.holderName}</span>
+                              </div>
+                              <div className="flex justify-between items-center border-b border-slate-100 pb-1">
+                                <span className="text-slate-500 font-bold text-[11px]">CPF:</span>
+                                <span className="font-mono font-bold text-slate-800">{selectedSubForDetail.holderCpf}</span>
+                              </div>
+                              {selectedSubForDetail.holderBirthDate && (
+                                <div className="flex justify-between items-center border-b border-slate-100 pb-1">
+                                  <span className="text-slate-500 font-bold text-[11px]">Nascimento:</span>
+                                  <span className="font-bold text-slate-800">{formatDateBR(selectedSubForDetail.holderBirthDate)}</span>
+                                </div>
+                              )}
+                              <div className="flex justify-between items-center">
+                                <span className="text-slate-500 font-bold text-[11px]">Plano:</span>
+                                <span className="font-black text-emerald-950">{selectedSubForDetail.planSummaryLabel}</span>
+                              </div>
+                            </div>
                           )}
+
+                          <div className="bg-emerald-50 border border-emerald-300 rounded-xl p-3 text-emerald-950 text-xs font-semibold leading-relaxed">
+                            ✓ Se os dados cadastrais (ex: nascimento / idade 60+) atendem ao benefício, você pode <strong>Aprovar Documento e Liberar</strong> diretamente no painel.
+                          </div>
                         </div>
                       )}
                     </div>
 
                     <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-slate-200">
-                      {effectiveUrl ? (
+                      {hasValidMedia && (
                         <a
                           href={effectiveUrl}
                           download={previewAttachment.name}
@@ -18297,7 +18343,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                             <Download className="w-3.5 h-3.5 mr-1.5" /> Baixar Anexo
                           </Button>
                         </a>
-                      ) : null}
+                      )}
                       <Button
                         type="button"
                         size="sm"
