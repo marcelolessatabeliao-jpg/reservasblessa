@@ -585,6 +585,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
   const [servicePriceInput, setServicePriceInput] = useState('');
   const [serviceNotesInput, setServiceNotesInput] = useState('');
   const [editingExpirationDate, setEditingExpirationDate] = useState(false);
+  const [tempExpirationDate, setTempExpirationDate] = useState('');
 
   // Consultores & Influencers state (Screenshot 2 e 4)
   const [consultantRoleFilter, setConsultantRoleFilter] = useState<
@@ -3260,11 +3261,14 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       manuallyConfirmedTransfer: completed,
       transferredAt: completed ? new Date().toISOString() : undefined,
       manualStatusOverride: completed,
+      isModifiedFromSeed: true,
       status: targetStatus,
       members: (sub.members || []).map((m) => ({
         ...m,
         status: completed ? 'ACTIVE' : (isLab ? 'PENDING_TRANSFER' : m.status),
         manualStatusOverride: completed,
+        documentVerified: completed ? true : m.documentVerified,
+        documentStatus: completed ? ('APROVADO' as const) : m.documentStatus,
       })),
       updatedAt: new Date().toISOString(),
     };
@@ -3890,7 +3894,15 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
     const updatedMembers = sub.members.map((m) =>
       m.id === memberId
-        ? { ...m, status: nextMemberStatus, manualStatusOverride: true }
+        ? {
+            ...m,
+            status: nextMemberStatus,
+            manualStatusOverride: true,
+            documentVerified: nextMemberStatus === 'ACTIVE' ? true : m.documentVerified,
+            documentStatus: nextMemberStatus === 'ACTIVE' ? ('APROVADO' as const) : m.documentStatus,
+            documentVerifiedAt: nextMemberStatus === 'ACTIVE' ? new Date().toISOString() : m.documentVerifiedAt,
+            documentVerifiedBy: nextMemberStatus === 'ACTIVE' ? 'Administrador' : m.documentVerifiedBy,
+          }
         : m
     );
     const hasActiveTitular = updatedMembers.some((m) => m.role === 'TITULAR' && m.status === 'ACTIVE');
@@ -3903,6 +3915,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       transferCompleted: true,
       transferredAt: sub.transferredAt || new Date().toISOString(),
       manualStatusOverride: true,
+      isModifiedFromSeed: true,
       members: updatedMembers,
     };
     const nextState: ClubDatabaseState = {
@@ -3950,6 +3963,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     const updatedSub: ClubSubscription = {
       ...sub,
       updatedAt: new Date().toISOString(),
+      isModifiedFromSeed: true,
       members: sub.members.map((m) =>
         m.id === memberId
           ? {
@@ -11799,7 +11813,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     let statusLabel = 'INATIVO (AGUARDANDO PAGTO)';
                     let statusColor = 'bg-rose-600 text-white';
 
-                    if (hasDocsRequired && anyUnverified) {
+                    if (hasDocsRequired && anyUnverified && selectedSubForDetail.status !== 'ACTIVE' && !selectedSubForDetail.manualStatusOverride) {
                       if (anyMissingUpload) {
                         statusLabel = 'INATIVO (FALTA DOCUMENTAÇÃO OBRIGATÓRIA)';
                         statusColor = 'bg-rose-600 text-white';
@@ -12023,19 +12037,35 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <Input
                             type="date"
-                            value={selectedSubForDetail.endDate}
-                            onChange={async (e) => {
-                              const newEnd = e.target.value;
-                              if (!newEnd) return;
-                              const [yyyy, mm] = newEnd.split('-');
+                            value={tempExpirationDate}
+                            onChange={(e) => setTempExpirationDate(e.target.value)}
+                            className="h-8 text-xs w-36 bg-white"
+                          />
+                          <Button
+                            size="sm"
+                            type="button"
+                            onClick={async () => {
+                              if (!tempExpirationDate) return;
+                              const parts = tempExpirationDate.split('-');
+                              if (parts.length !== 3 || parts[0].length !== 4) {
+                                toast({
+                                  title: 'Data inválida',
+                                  description: 'Por favor, selecione uma data completa com ano válido de 4 dígitos.',
+                                  variant: 'destructive',
+                                });
+                                return;
+                              }
+                              const [yyyy, mm] = parts;
                               const newValidity = `${mm}/${yyyy}`;
                               const updatedSub: ClubSubscription = {
                                 ...selectedSubForDetail,
-                                endDate: newEnd,
+                                endDate: tempExpirationDate,
                                 members: selectedSubForDetail.members.map((m) => ({
                                   ...m,
                                   validityLabel: newValidity,
                                 })),
+                                updatedAt: new Date().toISOString(),
+                                isModifiedFromSeed: true,
                               };
                               const nextState: ClubDatabaseState = {
                                 ...state,
@@ -12048,18 +12078,20 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                               setEditingExpirationDate(false);
                               toast({
                                 title: 'Vencimento do cartão atualizado!',
-                                description: `Nova validade: ${formatDateBR(newEnd)}`,
+                                description: `Nova validade: ${formatDateBR(tempExpirationDate)}`,
                               });
                             }}
-                            className="h-8 text-xs w-36 bg-white"
-                          />
+                            className="h-7 text-xs px-3 bg-[#004d00] hover:bg-emerald-900 text-white font-bold"
+                          >
+                            Salvar
+                          </Button>
                           <Button
                             size="sm"
                             variant="ghost"
                             onClick={() => setEditingExpirationDate(false)}
                             className="h-7 text-xs px-2"
                           >
-                            Fechar
+                            Cancelar
                           </Button>
                         </div>
                       ) : (
@@ -12067,7 +12099,10 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           <span>{formatDateBR(selectedSubForDetail.endDate)}</span>
                           <button
                             type="button"
-                            onClick={() => setEditingExpirationDate(true)}
+                            onClick={() => {
+                              setTempExpirationDate(selectedSubForDetail.endDate || '2027-10-31');
+                              setEditingExpirationDate(true);
+                            }}
                             title="Alterar data de vencimento do cartão"
                             className="bg-[#004d00] hover:bg-emerald-800 text-white p-1.5 rounded shadow-sm"
                           >
@@ -12552,7 +12587,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           const effExp = m.expirationDate || selectedSubForDetail.endDate;
                           const isExpired = isClubDateExpired(effExp);
                           const isDep = m.role === 'DEPENDENTE';
-                          const draftExp = depExpDrafts[m.id] ?? m.expirationDate ?? '';
+                          const draftExp = depExpDrafts[m.id] ?? m.expirationDate ?? selectedSubForDetail.endDate ?? '';
                           const isMemEligibleForTransfer =
                             (['KIDS', 'PCD_TEA', 'VITALICIO', 'SEM_PLANO'].includes(m.modalityCode || '') ||
                              (m.planCycleLabel || '').toLowerCase().includes('kids') ||
@@ -16795,7 +16830,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         </Label>
                         <Input
                           type="date"
-                          value={newDepExpirationDate}
+                          value={newDepExpirationDate || selectedSubForDetail.endDate || ''}
                           onChange={(e) => setNewDepExpirationDate(e.target.value)}
                           className="h-9 text-xs bg-white"
                         />
@@ -16890,7 +16925,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                 '10/2027',
                               monthlyValue: addMonthly,
                               status: selectedSubForDetail.status,
-                              expirationDate: newDepExpirationDate || undefined,
+                              expirationDate: newDepExpirationDate || selectedSubForDetail.endDate || undefined,
                               expirationNotes:
                                 newDepExpirationNotes.trim() || undefined,
                               attachments: [],
@@ -17174,7 +17209,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                 <div className="flex flex-wrap items-center gap-1.5">
                                   <Input
                                     type="date"
-                                    value={depExpDrafts[dep.id] ?? dep.expirationDate ?? ''}
+                                    value={depExpDrafts[dep.id] ?? dep.expirationDate ?? selectedSubForDetail.endDate ?? ''}
                                     onChange={(e) =>
                                       setDepExpDrafts((prev) => ({
                                         ...prev,
@@ -17190,7 +17225,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                       handleUpdateMemberExpirationDate(
                                         selectedSubForDetail,
                                         dep.id,
-                                        depExpDrafts[dep.id] ?? dep.expirationDate ?? ''
+                                        depExpDrafts[dep.id] ?? dep.expirationDate ?? selectedSubForDetail.endDate ?? ''
                                       )
                                     }
                                     className="h-8 text-xs font-bold bg-[#004d00] hover:bg-emerald-900 text-white cursor-pointer"

@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Ticket, Calculator, ChevronRight, Search } from 'lucide-react';
+import { Sparkles, Ticket, Calculator, ChevronRight, Search, UserPlus, CreditCard } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const containerVariants = {
@@ -83,44 +83,61 @@ export function HeroSection() {
 
         <motion.div
           variants={itemVariants}
-          className="grid grid-cols-2 sm:flex sm:flex-row gap-2.5 sm:gap-6 justify-center items-center px-1 sm:px-0 relative z-10 sm:flex-wrap max-w-md sm:max-w-none mx-auto"
+          className="grid grid-cols-2 gap-2 sm:gap-4 justify-center items-center px-1 sm:px-0 relative z-10 max-w-sm sm:max-w-2xl mx-auto"
         >
+          {/* Linha 1 - Esquerda: Fazer Reserva */}
           <Button
             asChild
             size="lg"
-            className="order-1 sm:order-1 col-span-1 relative group bg-sun hover:bg-sun-light text-slate-950 text-xs sm:text-xl px-3 sm:px-12 py-5 sm:py-8 font-display font-black shadow-[0_20px_50px_rgba(234,179,8,0.3)] w-full sm:w-auto rounded-2xl sm:rounded-[2rem] transition-all duration-300 hover:-translate-y-1 active:scale-95 overflow-hidden whitespace-nowrap"
+            className="relative group bg-sun hover:bg-sun-light text-slate-950 text-xs sm:text-lg px-2 sm:px-6 py-4 sm:py-7 font-display font-black shadow-[0_20px_50px_rgba(234,179,8,0.3)] w-full rounded-2xl sm:rounded-3xl transition-all duration-300 hover:-translate-y-1 active:scale-95 overflow-hidden whitespace-nowrap"
           >
-            <a href="#reservas" className="flex items-center justify-center gap-1.5 sm:gap-3">
-              <Ticket className="h-4 w-4 sm:h-6 sm:w-6 shrink-0" />
+            <a href="#reservas" className="flex items-center justify-center gap-1 sm:gap-2">
+              <Ticket className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
               <span>Fazer Reserva</span>
-              <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 group-hover:translate-x-1 transition-transform shrink-0" />
+              <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 group-hover:translate-x-1 transition-transform shrink-0" />
               <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out" />
             </a>
           </Button>
 
+          {/* Linha 1 - Direita: Consultar Reserva */}
           <MotionButton 
             asChild 
             size="lg" 
             variants={itemVariants}
             animate={{ backdropFilter: "blur(12px)" }}
-            className="order-3 sm:order-2 col-span-2 bg-emerald-800/60 hover:bg-emerald-700/80 text-white border-2 border-emerald-400/30 text-xs sm:text-xl px-4 sm:px-10 py-5 sm:py-8 font-display font-bold w-full sm:w-auto rounded-2xl sm:rounded-[2rem] shadow-xl transition-all hover:-translate-y-1 active:scale-95 whitespace-nowrap"
+            className="bg-blue-800/70 hover:bg-blue-700/80 text-white border-2 border-blue-400/30 text-xs sm:text-lg px-2 sm:px-6 py-4 sm:py-7 font-display font-bold w-full rounded-2xl sm:rounded-3xl shadow-xl transition-all hover:-translate-y-1 active:scale-95 whitespace-nowrap"
           >
-            <a href="#especiais" className="flex items-center justify-center gap-2 sm:gap-3">
-              <Calculator className="h-4 w-4 sm:h-6 sm:w-6 shrink-0" />
-              <span>Simule seu Plano de Associado</span>
+            <Link to="/consultar" className="flex items-center justify-center gap-1.5 sm:gap-2.5">
+              <Search className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
+              <span>Consultar Reserva</span>
+            </Link>
+          </MotionButton>
+
+          {/* Linha 2 - Esquerda: Se torne Associado (abaixo de Fazer Reserva) */}
+          <MotionButton 
+            asChild 
+            size="lg" 
+            variants={itemVariants}
+            animate={{ backdropFilter: "blur(12px)" }}
+            className="bg-emerald-800/70 hover:bg-emerald-700/80 text-white border-2 border-emerald-400/30 text-xs sm:text-lg px-2 sm:px-6 py-4 sm:py-7 font-display font-bold w-full rounded-2xl sm:rounded-3xl shadow-xl transition-all hover:-translate-y-1 active:scale-95 whitespace-nowrap"
+          >
+            <a href="#especiais" className="flex items-center justify-center gap-1.5 sm:gap-2.5">
+              <UserPlus className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-emerald-300" />
+              <span>Se torne Associado</span>
             </a>
           </MotionButton>
-          
+
+          {/* Linha 2 - Direita: Portal do Sócio (abaixo de Consultar Reserva) */}
           <MotionButton 
             asChild 
             size="lg" 
             variants={itemVariants}
             animate={{ backdropFilter: "blur(12px)" }}
-            className="order-2 sm:order-3 col-span-1 bg-blue-800/60 hover:bg-blue-700/80 text-white border-2 border-blue-400/30 text-xs sm:text-xl px-3 sm:px-10 py-5 sm:py-8 font-display font-bold w-full sm:w-auto rounded-2xl sm:rounded-[2rem] shadow-xl transition-all hover:-translate-y-1 active:scale-95 whitespace-nowrap"
+            className="bg-teal-800/80 hover:bg-teal-700/90 text-white border-2 border-teal-400/40 text-xs sm:text-lg px-2 sm:px-6 py-4 sm:py-7 font-display font-bold w-full rounded-2xl sm:rounded-3xl shadow-xl transition-all hover:-translate-y-1 active:scale-95 whitespace-nowrap"
           >
-            <Link to="/consultar" className="flex items-center justify-center gap-1.5 sm:gap-3">
-              <Search className="h-4 w-4 sm:h-6 sm:w-6 shrink-0" />
-              <span>Consultar Reserva</span>
+            <Link to="/socio" className="flex items-center justify-center gap-1.5 sm:gap-2.5">
+              <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-teal-300" />
+              <span>Portal do Sócio</span>
             </Link>
           </MotionButton>
         </motion.div>

@@ -3007,19 +3007,30 @@ export const verifyMemberProofDocument = async (
   const canActivate =
     sub.monthlyEquivalent === 0 ||
     sub.paymentMethod === 'COURTESY' ||
+    sub.status === 'ACTIVE' ||
+    Boolean(sub.manualStatusOverride) ||
+    Boolean(sub.transferCompleted) ||
+    sub.origin === 'IMPORT_LABCARD' ||
+    sub.id.startsWith('sub-labcard-') ||
     sub.invoices.some((i) => i.status === 'PAID');
 
-  if (blocked) {
+  if (blocked && !verified) {
     member.status = 'INACTIVE';
-  } else if (canActivate) {
+  } else if (canActivate || verified) {
     member.status = 'ACTIVE';
   }
 
-  sub.status = sub.members.every((m) => m.status === 'INACTIVE')
-    ? 'INACTIVE'
-    : sub.members.some((m) => m.status === 'ACTIVE')
-    ? 'ACTIVE'
-    : sub.status;
+  if (verified) {
+    sub.status = 'ACTIVE';
+    sub.manualStatusOverride = true;
+    sub.transferCompleted = true;
+  } else {
+    sub.status = sub.members.every((m) => m.status === 'INACTIVE')
+      ? 'INACTIVE'
+      : sub.members.some((m) => m.status === 'ACTIVE')
+      ? 'ACTIVE'
+      : sub.status;
+  }
   sub.updatedAt = new Date().toISOString();
   sub.isModifiedFromSeed = true;
   return saveClubState(state);
