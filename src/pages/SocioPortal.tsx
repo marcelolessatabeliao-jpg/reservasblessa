@@ -68,6 +68,7 @@ import {
   getQrCodeImageUrl,
   getPlanDocumentRule,
   memberHasProofDocument,
+  getMemberResolvedAttachments,
   isMemberBlockedForMissingDoc,
   isClubDateExpired,
   attachMemberProofDocument,
@@ -124,15 +125,18 @@ const SocioPortal: React.FC = () => {
 
   const isSubscriptionActive = useMemo(() => {
     if (!subscription) return false;
+    // Se o plano estiver explicitamente ativo ou marcado com liberação manual/transferência concluída
+    if (subscription.status === 'ACTIVE' || subscription.manualStatusOverride) return true;
+
     // Cadastros que ainda estão pendentes de transferência e alterações não são ativos até a conclusão pela administração
     if (
       subscription.status === 'PENDING_TRANSFER' ||
       (!subscription.transferCompleted &&
+        !subscription.manuallyConfirmedTransfer &&
         (subscription.origin === 'IMPORT_LABCARD' || subscription.id.startsWith('sub-labcard-')))
     ) {
       return false;
     }
-    if (subscription.status === 'ACTIVE') return true;
     if (subscription.monthlyEquivalent === 0 || subscription.paymentMethod === 'COURTESY') return true;
     if (subscription.contractType === 'FAMILY_PUBLICIDADE') return true;
     if (subscription.planSummaryLabel && /publicidade|permuta/i.test(subscription.planSummaryLabel)) return true;
@@ -968,6 +972,7 @@ const SocioPortal: React.FC = () => {
                         ? 'bg-emerald-600 text-white font-black'
                         : subscription.status === 'PENDING_TRANSFER' ||
                           (!subscription.transferCompleted &&
+                            !subscription.manuallyConfirmedTransfer &&
                             (subscription.origin === 'IMPORT_LABCARD' ||
                               subscription.id.startsWith('sub-labcard-')))
                         ? 'bg-amber-600 text-white font-black'
@@ -978,6 +983,7 @@ const SocioPortal: React.FC = () => {
                       ? '● STATUS ATUAL: PLANO ATIVO (LIBERADO)'
                       : subscription.status === 'PENDING_TRANSFER' ||
                         (!subscription.transferCompleted &&
+                          !subscription.manuallyConfirmedTransfer &&
                           (subscription.origin === 'IMPORT_LABCARD' ||
                             subscription.id.startsWith('sub-labcard-')))
                       ? '● STATUS ATUAL: CADASTRO EM TRANSFERÊNCIA (EM CONFERÊNCIA)'
@@ -1124,6 +1130,7 @@ const SocioPortal: React.FC = () => {
                   <div className={`border-2 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
                     subscription.status === 'PENDING_TRANSFER' ||
                     (!subscription.transferCompleted &&
+                      !subscription.manuallyConfirmedTransfer &&
                       (subscription.origin === 'IMPORT_LABCARD' ||
                         subscription.id.startsWith('sub-labcard-')))
                       ? 'bg-amber-50 border-amber-300'
@@ -1133,6 +1140,7 @@ const SocioPortal: React.FC = () => {
                       <h4 className={`font-black text-sm sm:text-base ${
                         subscription.status === 'PENDING_TRANSFER' ||
                         (!subscription.transferCompleted &&
+                          !subscription.manuallyConfirmedTransfer &&
                           (subscription.origin === 'IMPORT_LABCARD' ||
                             subscription.id.startsWith('sub-labcard-')))
                           ? 'text-amber-950'
@@ -1140,6 +1148,7 @@ const SocioPortal: React.FC = () => {
                       }`}>
                         {subscription.status === 'PENDING_TRANSFER' ||
                         (!subscription.transferCompleted &&
+                          !subscription.manuallyConfirmedTransfer &&
                           (subscription.origin === 'IMPORT_LABCARD' ||
                             subscription.id.startsWith('sub-labcard-')))
                           ? '⏳ Cadastro em Transferência — Em Conferência / Organização'
@@ -1148,6 +1157,7 @@ const SocioPortal: React.FC = () => {
                       <p className={`text-xs ${
                         subscription.status === 'PENDING_TRANSFER' ||
                         (!subscription.transferCompleted &&
+                          !subscription.manuallyConfirmedTransfer &&
                           (subscription.origin === 'IMPORT_LABCARD' ||
                             subscription.id.startsWith('sub-labcard-')))
                           ? 'text-amber-900'
@@ -1155,6 +1165,7 @@ const SocioPortal: React.FC = () => {
                       }`}>
                         {subscription.status === 'PENDING_TRANSFER' ||
                         (!subscription.transferCompleted &&
+                          !subscription.manuallyConfirmedTransfer &&
                           (subscription.origin === 'IMPORT_LABCARD' ||
                             subscription.id.startsWith('sub-labcard-')))
                           ? 'Os dados e dependentes deste cadastro estão sendo organizados e transferidos pela administração do balneário. A liberação ocorrerá assim que a transferência for concluída.'
@@ -1215,105 +1226,135 @@ const SocioPortal: React.FC = () => {
                             onUpdatePhoto={isLockedMember || !isSubscriptionActive ? undefined : handleUpdateMemberPhoto}
                           />
 
-                          {(docRule.requiresDocument || hasDoc) && (
-                            <div
-                              className={`rounded-2xl border p-4 space-y-2.5 ${
-                                missingDoc
-                                  ? 'bg-amber-50 border-amber-300'
-                                  : 'bg-emerald-50/70 border-emerald-200'
-                              }`}
-                            >
-                              <div className="flex flex-wrap items-center justify-between gap-2">
-                                <div className="text-xs font-black text-slate-900 flex items-center gap-2">
-                                  <FileCheck className={`w-4 h-4 ${missingDoc ? 'text-amber-600' : 'text-emerald-700'}`} />
-                                  <span>
-                                    Comprovação do Plano ({member.modalityName})
-                                  </span>
-                                  <Badge className={missingDoc ? 'bg-rose-600 text-white text-[10px]' : 'bg-emerald-600 text-white text-[10px]'}>
-                                    {missingDoc ? 'OBRIGATÓRIO ANEXAR' : 'DOCUMENTO ANEXADO'}
-                                  </Badge>
+                          {(() => {
+                            const memberDocs = getMemberResolvedAttachments(member, subscription);
+                            const showSection = docRule.requiresDocument || memberDocs.length > 0 || hasDoc;
+                            if (!showSection) return null;
+
+                            return (
+                              <div
+                                className={`rounded-2xl border p-4 space-y-2.5 ${
+                                  missingDoc
+                                    ? 'bg-amber-50 border-amber-300'
+                                    : 'bg-emerald-50/70 border-emerald-200'
+                                }`}
+                              >
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <div className="text-xs font-black text-slate-900 flex items-center gap-2">
+                                    <FileCheck className={`w-4 h-4 ${missingDoc ? 'text-amber-600' : 'text-emerald-700'}`} />
+                                    <span>
+                                      Comprovação do Plano ({member.modalityName})
+                                    </span>
+                                    <Badge className={missingDoc ? 'bg-rose-600 text-white text-[10px]' : 'bg-emerald-600 text-white text-[10px]'}>
+                                      {missingDoc ? 'OBRIGATÓRIO ANEXAR' : memberDocs.length > 0 ? `${memberDocs.length} DOCUMENTO(S) ANEXADO(S)` : 'DOCUMENTO REGULARIZADO'}
+                                    </Badge>
+                                    {member.documentVerified && (
+                                      <Badge className="bg-teal-700 text-white text-[10px] font-black">
+                                        ✓ APROVADO PELO ADMIN
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#004d00] hover:bg-emerald-900 text-white text-xs font-bold cursor-pointer shadow-xs">
+                                      <Upload className="w-3.5 h-3.5" />
+                                      {uploadingDocMemberId === member.id
+                                        ? 'Enviando...'
+                                        : memberDocs.length > 0
+                                        ? 'Enviar Novo Comprovante'
+                                        : 'Importar / Anexar Documento'}
+                                      <input
+                                        type="file"
+                                        accept="image/*,.pdf"
+                                        className="hidden"
+                                        disabled={uploadingDocMemberId === member.id}
+                                        onChange={(e) => {
+                                          const f = e.target.files?.[0];
+                                          if (f) handleUploadMemberDocument(member, f);
+                                        }}
+                                      />
+                                    </label>
+                                  </div>
                                 </div>
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#004d00] hover:bg-emerald-900 text-white text-xs font-bold cursor-pointer">
-                                    <Upload className="w-3.5 h-3.5" />
-                                    {uploadingDocMemberId === member.id
-                                      ? 'Enviando...'
-                                      : hasDoc
-                                      ? 'Enviar Novo Comprovante'
-                                      : 'Importar / Anexar Documento'}
-                                    <input
-                                      type="file"
-                                      accept="image/*,.pdf"
-                                      className="hidden"
-                                      disabled={uploadingDocMemberId === member.id}
-                                      onChange={(e) => {
-                                        const f = e.target.files?.[0];
-                                        if (f) handleUploadMemberDocument(member, f);
-                                      }}
-                                    />
-                                  </label>
-                                </div>
+                                {missingDoc && (
+                                  <div className="text-[11px] text-amber-900 bg-white/90 rounded-xl p-2.5 border border-amber-200 space-y-1">
+                                    <div className="font-bold">Documentos aceitos para {member.modalityName}:</div>
+                                    {docRule.acceptedDocs.map((d, di) => (
+                                      <div key={di}>✅ {d}</div>
+                                    ))}
+                                  </div>
+                                )}
+                                {memberDocs.length > 0 && (
+                                  <div className="space-y-2 pt-1">
+                                    <div className="text-[11px] font-bold text-slate-700">
+                                      Documentos e comprovantes deste titular ({memberDocs.length}):
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                      {memberDocs.map((doc) => (
+                                        <div
+                                          key={doc.id}
+                                          className="flex items-center justify-between gap-2.5 bg-white rounded-xl p-2.5 border border-emerald-200 shadow-xs"
+                                        >
+                                          <div className="flex items-center gap-2 min-w-0">
+                                            {doc.dataUrl.startsWith('data:image/') || doc.mimeType?.startsWith('image/') ? (
+                                              <img
+                                                src={doc.dataUrl}
+                                                alt={doc.name}
+                                                className="w-10 h-10 object-cover rounded-lg border border-slate-200 shrink-0"
+                                              />
+                                            ) : (
+                                              <div className="w-10 h-10 rounded-lg bg-emerald-800 text-white font-black text-xs flex items-center justify-center shrink-0">
+                                                PDF
+                                              </div>
+                                            )}
+                                            <div className="min-w-0">
+                                              <div className="font-bold text-xs text-slate-900 truncate" title={doc.name}>
+                                                {doc.name}
+                                              </div>
+                                              <div className="text-[10px] text-emerald-700 font-semibold">
+                                                {member.documentVerified ? '✓ Validado pela Administração' : 'Anexado ao cadastro'}
+                                              </div>
+                                            </div>
+                                          </div>
+                                          <div className="flex items-center gap-1 shrink-0">
+                                            <Button
+                                              type="button"
+                                              size="sm"
+                                              variant="outline"
+                                              onClick={() =>
+                                                setPreviewDocModal({
+                                                  name: doc.name,
+                                                  dataUrl: doc.dataUrl,
+                                                  mimeType: doc.mimeType,
+                                                })
+                                              }
+                                              className="h-7 px-2 text-xs font-bold border-emerald-600 bg-white text-emerald-800 hover:bg-emerald-50 hover:text-emerald-950"
+                                            >
+                                              <Eye className="w-3.5 h-3.5 mr-1" /> Visualizar
+                                            </Button>
+                                            <a
+                                              href={doc.dataUrl}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              download={doc.name}
+                                            >
+                                              <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                className="h-7 px-2 text-xs font-bold"
+                                              >
+                                                <Download className="w-3.5 h-3.5 mr-1" /> Baixar
+                                              </Button>
+                                            </a>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
-                              {missingDoc && (
-                                <div className="text-[11px] text-amber-900 bg-white/90 rounded-xl p-2.5 border border-amber-200 space-y-1">
-                                  <div className="font-bold">Documentos aceitos para {member.modalityName}:</div>
-                                  {docRule.acceptedDocs.map((d, di) => (
-                                    <div key={di}>✅ {d}</div>
-                                  ))}
-                                </div>
-                              )}
-                              {hasDoc && member.documentProofUrl && (
-                                <div className="flex flex-wrap items-center gap-3 text-xs bg-white rounded-xl p-2.5 border border-emerald-200">
-                                  {member.documentProofUrl.startsWith('data:image/') && (
-                                    <img
-                                      src={member.documentProofUrl}
-                                      alt={member.documentProofName || 'Documento'}
-                                      className="w-12 h-12 object-cover rounded-lg border border-slate-200"
-                                    />
-                                  )}
-                                  <div className="flex-1 min-w-0">
-                                    <div className="font-bold text-slate-900 truncate">
-                                      {member.documentProofName || 'Documento comprobatório enviado'}
-                                    </div>
-                                    <div className="text-[11px] text-emerald-700 font-medium">
-                                      Comprovação anexada ao cadastro do titular
-                                    </div>
-                                  </div>
-                                  <div className="flex flex-wrap items-center gap-1.5 shrink-0">
-                                    <Button
-                                      type="button"
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() =>
-                                        setPreviewDocModal({
-                                          name: member.documentProofName || 'comprovante-titular',
-                                          dataUrl: member.documentProofUrl!,
-                                        })
-                                      }
-                                      className="h-7 px-2 text-xs font-bold border-emerald-600 bg-white text-emerald-800 hover:bg-emerald-50 hover:text-emerald-950"
-                                    >
-                                      <Eye className="w-3.5 h-3.5 mr-1" /> Visualizar
-                                    </Button>
-                                    <a
-                                      href={member.documentProofUrl}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      download={member.documentProofName || 'comprovante-titular'}
-                                    >
-                                      <Button
-                                        type="button"
-                                        size="sm"
-                                        variant="outline"
-                                        className="h-7 px-2 text-xs font-bold"
-                                      >
-                                        <Download className="w-3.5 h-3.5 mr-1" /> Baixar
-                                      </Button>
-                                    </a>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
+                            );
+                          })()}
                         </div>
                       );
                     })}
@@ -1379,101 +1420,131 @@ const SocioPortal: React.FC = () => {
                                 onUpdatePhoto={isLockedDep || !isSubscriptionActive ? undefined : handleUpdateMemberPhoto}
                               />
 
-                              {(docRule.requiresDocument || hasDoc) && (
-                                <div
-                                  className={`rounded-2xl border p-4 space-y-2.5 ${
-                                    missingDoc
-                                      ? 'bg-amber-50 border-amber-300'
-                                      : 'bg-emerald-50/70 border-emerald-200'
-                                  }`}
-                                >
-                                  <div className="flex flex-wrap items-center justify-between gap-2">
-                                    <div className="text-xs font-black text-slate-900 flex items-center gap-2">
-                                      <FileCheck className={`w-4 h-4 ${missingDoc ? 'text-amber-600' : 'text-emerald-700'}`} />
-                                      <span>Comprovação ({member.modalityName})</span>
-                                      <Badge className={missingDoc ? 'bg-rose-600 text-white text-[10px]' : 'bg-emerald-600 text-white text-[10px]'}>
-                                        {missingDoc ? 'OBRIGATÓRIO ANEXAR' : 'DOCUMENTO ANEXADO'}
-                                      </Badge>
-                                    </div>
-                                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#004d00] hover:bg-emerald-900 text-white text-xs font-bold cursor-pointer">
-                                      <Upload className="w-3.5 h-3.5" />
-                                      {uploadingDocMemberId === member.id
-                                        ? 'Enviando...'
-                                        : hasDoc
-                                        ? 'Enviar Novo Comprovante'
-                                        : 'Importar / Anexar Documento'}
-                                      <input
-                                        type="file"
-                                        accept="image/*,.pdf"
-                                        className="hidden"
-                                        disabled={uploadingDocMemberId === member.id}
-                                        onChange={(e) => {
-                                          const f = e.target.files?.[0];
-                                          if (f) handleUploadMemberDocument(member, f);
-                                        }}
-                                      />
-                                    </label>
-                                  </div>
-                                  {missingDoc && (
-                                    <div className="text-[11px] text-amber-900 bg-white/90 rounded-xl p-2.5 border border-amber-200 space-y-1">
-                                      <div className="font-bold">Documentos aceitos para {member.modalityName}:</div>
-                                      {docRule.acceptedDocs.map((d, di) => (
-                                        <div key={di}>✅ {d}</div>
-                                      ))}
-                                    </div>
-                                  )}
-                                  {hasDoc && member.documentProofUrl && (
-                                    <div className="flex flex-wrap items-center gap-3 text-xs bg-white rounded-xl p-2.5 border border-emerald-200">
-                                      {member.documentProofUrl.startsWith('data:image/') && (
-                                        <img
-                                          src={member.documentProofUrl}
-                                          alt={member.documentProofName || 'Documento'}
-                                          className="w-12 h-12 object-cover rounded-lg border border-slate-200"
+                              {(() => {
+                                const memberDocs = getMemberResolvedAttachments(member, subscription);
+                                const showSection = docRule.requiresDocument || memberDocs.length > 0 || hasDoc;
+                                if (!showSection) return null;
+
+                                return (
+                                  <div
+                                    className={`rounded-2xl border p-4 space-y-2.5 ${
+                                      missingDoc
+                                        ? 'bg-amber-50 border-amber-300'
+                                        : 'bg-emerald-50/70 border-emerald-200'
+                                    }`}
+                                  >
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                      <div className="text-xs font-black text-slate-900 flex items-center gap-2">
+                                        <FileCheck className={`w-4 h-4 ${missingDoc ? 'text-amber-600' : 'text-emerald-700'}`} />
+                                        <span>Comprovação ({member.modalityName})</span>
+                                        <Badge className={missingDoc ? 'bg-rose-600 text-white text-[10px]' : 'bg-emerald-600 text-white text-[10px]'}>
+                                          {missingDoc ? 'OBRIGATÓRIO ANEXAR' : memberDocs.length > 0 ? `${memberDocs.length} DOCUMENTO(S) ANEXADO(S)` : 'DOCUMENTO REGULARIZADO'}
+                                        </Badge>
+                                        {member.documentVerified && (
+                                          <Badge className="bg-teal-700 text-white text-[10px] font-black">
+                                            ✓ APROVADO PELO ADMIN
+                                          </Badge>
+                                        )}
+                                      </div>
+                                      <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#004d00] hover:bg-emerald-900 text-white text-xs font-bold cursor-pointer shadow-xs">
+                                        <Upload className="w-3.5 h-3.5" />
+                                        {uploadingDocMemberId === member.id
+                                          ? 'Enviando...'
+                                          : memberDocs.length > 0
+                                          ? 'Enviar Novo Comprovante'
+                                          : 'Importar / Anexar Documento'}
+                                        <input
+                                          type="file"
+                                          accept="image/*,.pdf"
+                                          className="hidden"
+                                          disabled={uploadingDocMemberId === member.id}
+                                          onChange={(e) => {
+                                            const f = e.target.files?.[0];
+                                            if (f) handleUploadMemberDocument(member, f);
+                                          }}
                                         />
-                                      )}
-                                      <div className="flex-1 min-w-0">
-                                        <div className="font-bold text-slate-900 truncate">
-                                          {member.documentProofName || 'Documento comprobatório enviado'}
-                                        </div>
-                                        <div className="text-[11px] text-emerald-700 font-medium">
-                                          Comprovação anexada ao cadastro do dependente
-                                        </div>
-                                      </div>
-                                      <div className="flex flex-wrap items-center gap-1.5 shrink-0">
-                                        <Button
-                                          type="button"
-                                          size="sm"
-                                          variant="outline"
-                                          onClick={() =>
-                                            setPreviewDocModal({
-                                              name: member.documentProofName || 'comprovante-dependente',
-                                              dataUrl: member.documentProofUrl!,
-                                            })
-                                          }
-                                          className="h-7 px-2 text-xs font-bold border-emerald-600 bg-white text-emerald-800 hover:bg-emerald-50 hover:text-emerald-950"
-                                        >
-                                          <Eye className="w-3.5 h-3.5 mr-1" /> Visualizar
-                                        </Button>
-                                        <a
-                                          href={member.documentProofUrl}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          download={member.documentProofName || 'comprovante-dependente'}
-                                        >
-                                          <Button
-                                            type="button"
-                                            size="sm"
-                                            variant="outline"
-                                            className="h-7 px-2 text-xs font-bold"
-                                          >
-                                            <Download className="w-3.5 h-3.5 mr-1" /> Baixar
-                                          </Button>
-                                        </a>
-                                      </div>
+                                      </label>
                                     </div>
-                                  )}
-                                </div>
-                              )}
+                                    {missingDoc && (
+                                      <div className="text-[11px] text-amber-900 bg-white/90 rounded-xl p-2.5 border border-amber-200 space-y-1">
+                                        <div className="font-bold">Documentos aceitos para {member.modalityName}:</div>
+                                        {docRule.acceptedDocs.map((d, di) => (
+                                          <div key={di}>✅ {d}</div>
+                                        ))}
+                                      </div>
+                                    )}
+                                    {memberDocs.length > 0 && (
+                                      <div className="space-y-2 pt-1">
+                                        <div className="text-[11px] font-bold text-slate-700">
+                                          Documentos e comprovantes deste dependente ({memberDocs.length}):
+                                        </div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                          {memberDocs.map((doc) => (
+                                            <div
+                                              key={doc.id}
+                                              className="flex items-center justify-between gap-2.5 bg-white rounded-xl p-2.5 border border-emerald-200 shadow-xs"
+                                            >
+                                              <div className="flex items-center gap-2 min-w-0">
+                                                {doc.dataUrl.startsWith('data:image/') || doc.mimeType?.startsWith('image/') ? (
+                                                  <img
+                                                    src={doc.dataUrl}
+                                                    alt={doc.name}
+                                                    className="w-10 h-10 object-cover rounded-lg border border-slate-200 shrink-0"
+                                                  />
+                                                ) : (
+                                                  <div className="w-10 h-10 rounded-lg bg-emerald-800 text-white font-black text-xs flex items-center justify-center shrink-0">
+                                                    PDF
+                                                  </div>
+                                                )}
+                                                <div className="min-w-0">
+                                                  <div className="font-bold text-xs text-slate-900 truncate" title={doc.name}>
+                                                    {doc.name}
+                                                  </div>
+                                                  <div className="text-[10px] text-emerald-700 font-semibold">
+                                                    {member.documentVerified ? '✓ Validado pela Administração' : 'Anexado ao cadastro'}
+                                                  </div>
+                                                </div>
+                                              </div>
+                                              <div className="flex items-center gap-1 shrink-0">
+                                                <Button
+                                                  type="button"
+                                                  size="sm"
+                                                  variant="outline"
+                                                  onClick={() =>
+                                                    setPreviewDocModal({
+                                                      name: doc.name,
+                                                      dataUrl: doc.dataUrl,
+                                                      mimeType: doc.mimeType,
+                                                    })
+                                                  }
+                                                  className="h-7 px-2 text-xs font-bold border-emerald-600 bg-white text-emerald-800 hover:bg-emerald-50 hover:text-emerald-950"
+                                                >
+                                                  <Eye className="w-3.5 h-3.5 mr-1" /> Visualizar
+                                                </Button>
+                                                <a
+                                                  href={doc.dataUrl}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  download={doc.name}
+                                                >
+                                                  <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="h-7 px-2 text-xs font-bold"
+                                                  >
+                                                    <Download className="w-3.5 h-3.5 mr-1" /> Baixar
+                                                  </Button>
+                                                </a>
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })()}
                             </div>
                           );
                         })}
@@ -1499,23 +1570,7 @@ const SocioPortal: React.FC = () => {
                       const docRule = getPlanDocumentRule(member.modalityCode, member.modalityName);
                       const hasDoc = memberHasProofDocument(member, subscription);
                       const missingDoc = isMemberBlockedForMissingDoc(member, subscription);
-                      const allDocs = [
-                        ...(member.documentProofUrl
-                          ? [
-                              {
-                                id: 'primary',
-                                name: member.documentProofName || 'Comprovante Principal',
-                                dataUrl: member.documentProofUrl,
-                                mimeType: member.documentProofUrl.startsWith('data:image/')
-                                  ? 'image/jpeg'
-                                  : 'application/pdf',
-                              },
-                            ]
-                          : []),
-                        ...(member.attachments || []).filter(
-                          (a) => a.dataUrl && a.dataUrl !== member.documentProofUrl
-                        ),
-                      ];
+                      const allDocs = getMemberResolvedAttachments(member, subscription);
 
                       return (
                         <div

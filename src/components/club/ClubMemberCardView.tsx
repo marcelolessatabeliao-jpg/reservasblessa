@@ -36,7 +36,19 @@ export const formatTwoFirstNames = (fullName?: string | null): string => {
     .trim()
     .split(/\s+/)
     .filter(Boolean);
-  if (parts.length <= 2) return parts.join(' ').toUpperCase();
+  if (parts.length <= 1) return (parts[0] || '').toUpperCase();
+  if (parts.length === 2) return parts.join(' ').toUpperCase();
+
+  const PREPOSITIONS = new Set(['de', 'da', 'do', 'das', 'dos', 'e', 'del', 'di', "d'"]);
+  // Se a segunda palavra for preposição (ex: "Marli da Silva Ribeiro", "Carlos de Oliveira"):
+  // inclui o sobrenome seguinte para não ficar "Marli da"
+  if (PREPOSITIONS.has(parts[1].toLowerCase()) && parts[2]) {
+    if (PREPOSITIONS.has(parts[2].toLowerCase()) && parts[3]) {
+      return `${parts[0]} ${parts[1]} ${parts[2]} ${parts[3]}`.toUpperCase();
+    }
+    return `${parts[0]} ${parts[1]} ${parts[2]}`.toUpperCase();
+  }
+
   return `${parts[0]} ${parts[1]}`.toUpperCase();
 };
 

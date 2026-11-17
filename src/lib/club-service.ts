@@ -195,6 +195,83 @@ export const memberHasProofUploaded = (
   return false;
 };
 
+/**
+ * Retorna todos os anexos e comprovantes associados a um integrante (titular ou dependente),
+ * unificando o comprovante principal (documentProofUrl), anexos individuais do membro
+ * e anexos vinculados na assinatura (sub.attachments).
+ */
+export const getMemberResolvedAttachments = (
+  member?: Partial<ClubMember> | null,
+  sub?: Partial<ClubSubscription> | null
+): Array<{ id: string; name: string; dataUrl: string; mimeType: string; createdAt?: string }> => {
+  if (!member) return [];
+  const list: Array<{ id: string; name: string; dataUrl: string; mimeType: string; createdAt?: string }> = [];
+  const seenUrls = new Set<string>();
+
+  if (member.documentProofUrl && member.documentProofUrl.trim().length > 0) {
+    seenUrls.add(member.documentProofUrl);
+    list.push({
+      id: 'primary-doc',
+      name: member.documentProofName || 'Documento Comprobatório',
+      dataUrl: member.documentProofUrl,
+      mimeType: member.documentProofUrl.startsWith('data:image/') ? 'image/jpeg' : 'application/pdf',
+      createdAt: member.documentVerifiedAt,
+    });
+  }
+
+  if (Array.isArray(member.attachments)) {
+    for (const att of member.attachments) {
+      if (att && att.dataUrl && !seenUrls.has(att.dataUrl)) {
+        seenUrls.add(att.dataUrl);
+        list.push({
+          id: att.id || `att-${list.length}`,
+          name: att.name || 'Anexo do Integrante',
+          dataUrl: att.dataUrl,
+          mimeType: att.mimeType || (att.dataUrl.startsWith('data:image/') ? 'image/jpeg' : 'application/pdf'),
+          createdAt: att.createdAt,
+        });
+      }
+    }
+  }
+
+  if (sub?.attachments && Array.isArray(sub.attachments)) {
+    const isHolderOrSolo =
+      member.role === 'TITULAR' ||
+      !sub.members ||
+      sub.members.length <= 1 ||
+      (sub.members[0] && sub.members[0].id === member.id);
+
+    const firstName = (member.fullName || '').split(' ')[0].toLowerCase().trim();
+    const card = (member.cardNumber || '').trim();
+    const memId = (member.id || '').trim();
+
+    for (const att of sub.attachments) {
+      if (!att || !att.dataUrl || seenUrls.has(att.dataUrl)) continue;
+      const attName = (att.name || '').toLowerCase();
+      const attId = (att.id || '').toLowerCase();
+
+      const matches =
+        isHolderOrSolo ||
+        (firstName.length >= 3 && attName.includes(firstName)) ||
+        (card && attName.includes(card)) ||
+        (memId && (attId.includes(memId) || attName.includes(memId)));
+
+      if (matches) {
+        seenUrls.add(att.dataUrl);
+        list.push({
+          id: att.id || `sub-att-${list.length}`,
+          name: att.name || 'Anexo do Cadastro',
+          dataUrl: att.dataUrl,
+          mimeType: att.mimeType || (att.dataUrl.startsWith('data:image/') ? 'image/jpeg' : 'application/pdf'),
+          createdAt: att.createdAt,
+        });
+      }
+    }
+  }
+
+  return list;
+};
+
 export const memberHasProofDocument = (
   member?: Partial<ClubMember> | null,
   sub?: Partial<ClubSubscription> | null
@@ -1024,10 +1101,16 @@ export const normalizeClubDatabaseState = (
       const isManualOrTransferred =
         Boolean(m.manualStatusOverride) ||
         Boolean(sub.manualStatusOverride) ||
-        Boolean(sub.transferCompleted);
+        Boolean(sub.transferCompleted) ||
+        Boolean(sub.manuallyConfirmedTransfer) ||
+        Boolean(sub.isModifiedFromSeed) ||
+        sub.status === 'ACTIVE' ||
+        m.status === 'ACTIVE' ||
+        REGULARIZED_ACTIVE_CARDS.has(sub.subscriptionCode) ||
+        REGULARIZED_ACTIVE_CARDS.has(m.cardNumber);
 
       const resolvedStatus: SubscriptionStatus =
-        isLabcard && !sub.transferCompleted
+        isLabcard && !sub.transferCompleted && !isManualOrTransferred
           ? ('PENDING_TRANSFER' as SubscriptionStatus)
           : missingRequiredDoc && !isManualOrTransferred
           ? 'INACTIVE'
@@ -1057,10 +1140,14 @@ export const normalizeClubDatabaseState = (
 
     const isSubManualOrTransferred =
       Boolean(sub.manualStatusOverride) ||
-      Boolean(sub.transferCompleted);
+      Boolean(sub.transferCompleted) ||
+      Boolean(sub.manuallyConfirmedTransfer) ||
+      Boolean(sub.isModifiedFromSeed) ||
+      sub.status === 'ACTIVE' ||
+      REGULARIZED_ACTIVE_CARDS.has(sub.subscriptionCode);
 
     const resolvedSubStatus: SubscriptionStatus =
-      isLabcard && !sub.transferCompleted
+      isLabcard && !sub.transferCompleted && !isSubManualOrTransferred
         ? ('PENDING_TRANSFER' as SubscriptionStatus)
         : normalizedMembers.length > 0 &&
           normalizedMembers.every((m) => m.status === 'INACTIVE') &&
@@ -1190,7 +1277,15 @@ export const loadClubStateLocal = (): ClubDatabaseState => {
     // Assegura que cadastros do Labcard não fiquem como "transferência concluída" prematuramente
     subsMap.forEach((sub) => {
       if (sub.origin === 'IMPORT_LABCARD' || sub.id.startsWith('sub-labcard-')) {
-        if (!REGULARIZED_ACTIVE_CARDS.has(sub.subscriptionCode) && !sub.manuallyConfirmedTransfer) {
+        const isAlreadyRegularizedOrActive =
+          REGULARIZED_ACTIVE_CARDS.has(sub.subscriptionCode) ||
+          Boolean(sub.manuallyConfirmedTransfer) ||
+          Boolean(sub.transferCompleted) ||
+          Boolean(sub.manualStatusOverride) ||
+          sub.status === 'ACTIVE' ||
+          Boolean(sub.isModifiedFromSeed);
+
+        if (!isAlreadyRegularizedOrActive) {
           sub.transferCompleted = false;
           sub.status = 'PENDING_TRANSFER';
           if (sub.members) {
@@ -1557,7 +1652,15 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
       // Preservar pendente p/ transferência na base importada do Labcard enquanto a transferência não for concluída
       subsMap.forEach((sub) => {
         if (sub.origin === 'IMPORT_LABCARD' || sub.id.startsWith('sub-labcard-')) {
-          if (!REGULARIZED_ACTIVE_CARDS.has(sub.subscriptionCode) && !sub.manuallyConfirmedTransfer) {
+          const isAlreadyRegularizedOrActive =
+            REGULARIZED_ACTIVE_CARDS.has(sub.subscriptionCode) ||
+            Boolean(sub.manuallyConfirmedTransfer) ||
+            Boolean(sub.transferCompleted) ||
+            Boolean(sub.manualStatusOverride) ||
+            sub.status === 'ACTIVE' ||
+            Boolean(sub.isModifiedFromSeed);
+
+          if (!isAlreadyRegularizedOrActive) {
             sub.transferCompleted = false;
             sub.status = 'PENDING_TRANSFER';
             if (sub.members) {

@@ -2781,9 +2781,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
               }
         ),
         updatedAt: new Date().toISOString(),
-        transferCompleted: selectedSubForDetail.transferCompleted ?? false,
-        manualStatusOverride: isLiberandoManualmente || Boolean(selectedSubForDetail.manualStatusOverride),
-        transferredAt: selectedSubForDetail.transferredAt,
+        transferCompleted: targetStatus === 'ACTIVE' ? true : (selectedSubForDetail.transferCompleted ?? false),
+        manuallyConfirmedTransfer: targetStatus === 'ACTIVE' ? true : Boolean(selectedSubForDetail.manuallyConfirmedTransfer),
+        manualStatusOverride: isLiberandoManualmente || targetStatus === 'ACTIVE' || Boolean(selectedSubForDetail.manualStatusOverride),
+        isModifiedFromSeed: true,
+        transferredAt: targetStatus === 'ACTIVE' ? (selectedSubForDetail.transferredAt || new Date().toISOString()) : selectedSubForDetail.transferredAt,
       };
 
       // Atualiza imediatamente na tela antes da persistência
@@ -3808,6 +3810,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         ...sub,
         status: newStatus,
         manualStatusOverride: true,
+        isModifiedFromSeed: true,
+        manuallyConfirmedTransfer: newStatus === 'ACTIVE' ? true : Boolean(sub.manuallyConfirmedTransfer),
         endDate: nextEndDate,
         updatedAt: new Date().toISOString(),
         transferCompleted: newStatus === 'ACTIVE',
@@ -3816,6 +3820,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
           ...m,
           status: newStatus === 'ACTIVE' ? 'ACTIVE' : 'INACTIVE',
           manualStatusOverride: true,
+          documentVerified: newStatus === 'ACTIVE' ? true : m.documentVerified,
+          documentStatus: newStatus === 'ACTIVE' ? ('APROVADO' as const) : m.documentStatus,
           validityLabel: m.expirationDate
             ? getValidityLabelFromDate(m.expirationDate, m.validityLabel)
             : nextValidity || m.validityLabel,
