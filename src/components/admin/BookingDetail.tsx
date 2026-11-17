@@ -577,6 +577,18 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
               </div>
               {/* Status info */}
               <div className="flex flex-wrap gap-2">
+                {(() => {
+                  const paidPay = booking.payments?.find((p: any) => p.status === 'paid' || p.status === 'confirmed');
+                  if (paidPay) {
+                    const isCard = paidPay.metodo === 'CREDIT_CARD' || paidPay.metodo === 'cartao';
+                    return (
+                      <Badge className={isCard ? "bg-purple-100 text-purple-900 border-2 border-purple-300 font-black text-[10px]" : "bg-emerald-100 text-emerald-900 border-2 border-emerald-300 font-black text-[10px]"}>
+                        {isCard ? '💳 Pago via Cartão de Crédito (Parcelado)' : '📱 Pago via PIX'}
+                      </Badge>
+                    );
+                  }
+                  return null;
+                })()}
                 {booking.is_associado && <Badge className="bg-amber-100 text-amber-800 border-amber-200">Sócio Clube</Badge>}
                 {booking.has_donation && <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">Solidário</Badge>}
                 {booking.receipt_url && (

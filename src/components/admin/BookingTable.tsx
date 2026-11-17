@@ -188,7 +188,7 @@ const getStatusConfig = (booking: any) => {
   const baseConfig = STATUS_CONFIG[booking.status] || STATUS_CONFIG.pending;
 
   if (booking.status === "paid" || booking.status === "confirmed") {
-    const payment = booking.payments?.[0];
+    const payment = booking.payments?.find((p: any) => p.status === 'paid' || p.status === 'confirmed') || booking.payments?.[0];
     if (payment) {
       if (payment.metodo === "PIX")
         return { ...baseConfig, label: "PAGO VIA PIX" };
