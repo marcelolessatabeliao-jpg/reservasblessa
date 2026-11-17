@@ -358,6 +358,8 @@ const isLabcardSubscriptionModified = (
   if ((sub.members?.length || 0) !== (seedSub.members?.length || 0)) return true;
 
   if (
+    sub.endDate !== seedSub.endDate ||
+    sub.startDate !== seedSub.startDate ||
     sub.holderName !== seedSub.holderName ||
     sub.holderCpf !== seedSub.holderCpf ||
     sub.holderRg !== seedSub.holderRg ||
@@ -1281,6 +1283,17 @@ export const loadClubStateLocal = (): ClubDatabaseState => {
     // Assegura que cadastros do Labcard não fiquem como "transferência concluída" prematuramente
     subsMap.forEach((sub) => {
       if (sub.origin === 'IMPORT_LABCARD' || sub.id.startsWith('sub-labcard-')) {
+        const hasCustomClientData =
+          Boolean(sub.holderEmail) ||
+          Boolean(sub.addressStreet) ||
+          (Boolean(sub.addressCep) && sub.addressCep !== '76870-000') ||
+          (Boolean(sub.endDate) && sub.endDate !== '2027-10-31') ||
+          (sub.attachments?.length || 0) > 0 ||
+          Boolean(sub.vehiclePlate);
+        if (hasCustomClientData) {
+          sub.isModifiedFromSeed = true;
+        }
+
         const isAlreadyRegularizedOrActive =
           REGULARIZED_ACTIVE_CARDS.has(sub.subscriptionCode) ||
           Boolean(sub.manuallyConfirmedTransfer) ||
@@ -1494,28 +1507,71 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
             });
           }
 
-          // 3. Restaurar campos cadastrais se ausentes no cache local
-          if (full.addressCep && !s.addressCep) s.addressCep = full.addressCep;
-          if (full.addressStreet && !s.addressStreet) s.addressStreet = full.addressStreet;
-          if (full.addressNumber && !s.addressNumber) s.addressNumber = full.addressNumber;
-          if (full.addressComplement && !s.addressComplement) s.addressComplement = full.addressComplement;
-          if (full.addressNeighborhood && !s.addressNeighborhood) s.addressNeighborhood = full.addressNeighborhood;
-          if (full.addressCity && !s.addressCity) s.addressCity = full.addressCity;
-          if (full.addressState && !s.addressState) s.addressState = full.addressState;
-          if (full.vehicleModel && !s.vehicleModel) s.vehicleModel = full.vehicleModel;
-          if (full.vehiclePlate && !s.vehiclePlate) s.vehiclePlate = full.vehiclePlate;
-          if (full.vehicleColor && !s.vehicleColor) s.vehicleColor = full.vehicleColor;
-          if (full.holderRg && !s.holderRg) s.holderRg = full.holderRg;
-          if (full.holderBirthDate && !s.holderBirthDate) s.holderBirthDate = full.holderBirthDate;
-          if (full.holderSex && !s.holderSex) s.holderSex = full.holderSex;
-          if (full.holderMaritalStatus && !s.holderMaritalStatus) s.holderMaritalStatus = full.holderMaritalStatus;
-          if (full.holderPhone && !s.holderPhone) s.holderPhone = full.holderPhone;
-          if (full.holderEmail && !s.holderEmail) s.holderEmail = full.holderEmail;
-          if (full.consultantName && !s.consultantName) s.consultantName = full.consultantName;
-          if (full.companyName && !s.companyName) s.companyName = full.companyName;
-          if (full.notes && !s.notes) s.notes = full.notes;
-          if (full.planSummaryLabel && !s.planSummaryLabel) s.planSummaryLabel = full.planSummaryLabel;
-          if (full.isModifiedFromSeed) s.isModifiedFromSeed = true;
+          // 3. Restaurar campos cadastrais salvos no IndexedDB
+          const isFullModified =
+            Boolean(full.isModifiedFromSeed) ||
+            Boolean(full.manualStatusOverride) ||
+            Boolean(full.transferCompleted) ||
+            Boolean(full.manuallyConfirmedTransfer) ||
+            full.status === 'ACTIVE' ||
+            Boolean(full.holderEmail) ||
+            (Boolean(full.addressCep) && full.addressCep !== '76870-000') ||
+            Boolean(full.addressStreet) ||
+            (Boolean(full.endDate) && full.endDate !== '2027-10-31') ||
+            (full.attachments?.length || 0) > 0;
+
+          if (isFullModified) {
+            if (full.holderEmail) s.holderEmail = full.holderEmail;
+            if (full.addressCep && full.addressCep !== '76870-000') s.addressCep = full.addressCep;
+            if (full.addressStreet) s.addressStreet = full.addressStreet;
+            if (full.addressNumber) s.addressNumber = full.addressNumber;
+            if (full.addressComplement) s.addressComplement = full.addressComplement;
+            if (full.addressNeighborhood) s.addressNeighborhood = full.addressNeighborhood;
+            if (full.addressCity) s.addressCity = full.addressCity;
+            if (full.addressState) s.addressState = full.addressState;
+            if (full.vehicleModel) s.vehicleModel = full.vehicleModel;
+            if (full.vehiclePlate) s.vehiclePlate = full.vehiclePlate;
+            if (full.vehicleColor) s.vehicleColor = full.vehicleColor;
+            if (full.holderRg) s.holderRg = full.holderRg;
+            if (full.holderBirthDate) s.holderBirthDate = full.holderBirthDate;
+            if (full.holderSex) s.holderSex = full.holderSex;
+            if (full.holderMaritalStatus) s.holderMaritalStatus = full.holderMaritalStatus;
+            if (full.holderPhone) s.holderPhone = full.holderPhone;
+            if (full.consultantName) s.consultantName = full.consultantName;
+            if (full.companyName) s.companyName = full.companyName;
+            if (full.notes && !full.notes.startsWith('Cadastrado por')) s.notes = full.notes;
+            if (full.planSummaryLabel) s.planSummaryLabel = full.planSummaryLabel;
+            if (full.endDate && full.endDate !== '2027-10-31') s.endDate = full.endDate;
+            if (full.status === 'ACTIVE' || full.manualStatusOverride || full.transferCompleted) {
+              s.status = 'ACTIVE';
+              s.manualStatusOverride = true;
+              s.transferCompleted = true;
+              s.manuallyConfirmedTransfer = true;
+            }
+            s.isModifiedFromSeed = true;
+          } else {
+            if (full.addressCep && !s.addressCep) s.addressCep = full.addressCep;
+            if (full.addressStreet && !s.addressStreet) s.addressStreet = full.addressStreet;
+            if (full.addressNumber && !s.addressNumber) s.addressNumber = full.addressNumber;
+            if (full.addressComplement && !s.addressComplement) s.addressComplement = full.addressComplement;
+            if (full.addressNeighborhood && !s.addressNeighborhood) s.addressNeighborhood = full.addressNeighborhood;
+            if (full.addressCity && !s.addressCity) s.addressCity = full.addressCity;
+            if (full.addressState && !s.addressState) s.addressState = full.addressState;
+            if (full.vehicleModel && !s.vehicleModel) s.vehicleModel = full.vehicleModel;
+            if (full.vehiclePlate && !s.vehiclePlate) s.vehiclePlate = full.vehiclePlate;
+            if (full.vehicleColor && !s.vehicleColor) s.vehicleColor = full.vehicleColor;
+            if (full.holderRg && !s.holderRg) s.holderRg = full.holderRg;
+            if (full.holderBirthDate && !s.holderBirthDate) s.holderBirthDate = full.holderBirthDate;
+            if (full.holderSex && !s.holderSex) s.holderSex = full.holderSex;
+            if (full.holderMaritalStatus && !s.holderMaritalStatus) s.holderMaritalStatus = full.holderMaritalStatus;
+            if (full.holderPhone && !s.holderPhone) s.holderPhone = full.holderPhone;
+            if (full.holderEmail && !s.holderEmail) s.holderEmail = full.holderEmail;
+            if (full.consultantName && !s.consultantName) s.consultantName = full.consultantName;
+            if (full.companyName && !s.companyName) s.companyName = full.companyName;
+            if (full.notes && !s.notes) s.notes = full.notes;
+            if (full.planSummaryLabel && !s.planSummaryLabel) s.planSummaryLabel = full.planSummaryLabel;
+            if (full.isModifiedFromSeed) s.isModifiedFromSeed = true;
+          }
         }
       });
 
@@ -1577,11 +1633,21 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
           } else {
             const localTime = s.updatedAt ? new Date(s.updatedAt).getTime() : 0;
             const remoteTime = current.updatedAt ? new Date(current.updatedAt).getTime() : 0;
+            const isLocallyModified =
+              Boolean(s.isModifiedFromSeed) ||
+              Boolean(s.manualStatusOverride) ||
+              Boolean(s.transferCompleted) ||
+              Boolean(s.manuallyConfirmedTransfer) ||
+              s.status === 'ACTIVE' ||
+              Boolean(s.holderEmail) ||
+              (Boolean(s.addressCep) && s.addressCep !== '76870-000') ||
+              Boolean(s.addressStreet) ||
+              (Boolean(s.endDate) && s.endDate !== '2027-10-31') ||
+              (s.attachments?.length || 0) > 0;
+
             if (
               localTime >= remoteTime ||
-              s.manualStatusOverride ||
-              s.transferCompleted ||
-              s.isModifiedFromSeed
+              isLocallyModified
             ) {
               if (current.members && current.members.length > (s.members?.length || 0)) {
                 // Restaura dependentes mapeados da família (como Lorraine, Nilceia e Larissa de Wagner) caso o cache local tenha ficado com menos integrantes
@@ -1592,6 +1658,14 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
                   if (current.planSummaryLabel && (!s.planSummaryLabel || !s.planSummaryLabel.includes('pessoas'))) {
                     s.planSummaryLabel = current.planSummaryLabel;
                   }
+                }
+              }
+              // Preserva anexos da nuvem se houver novos
+              if ((current.attachments?.length || 0) > 0) {
+                const sAttKeys = new Set((s.attachments || []).map((a) => a.dataUrl || a.name));
+                const missingAtts = (current.attachments || []).filter((a) => !sAttKeys.has(a.dataUrl || a.name));
+                if (missingAtts.length > 0) {
+                  s.attachments = [...(s.attachments || []), ...missingAtts];
                 }
               }
               // Preserva faturas emitidas e sincronizadas no Asaas na nuvem, evitando que o cache local desatualizado limpe os asaasPaymentId
@@ -1619,9 +1693,32 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
               }
               subsMap.set(s.id, s);
             } else {
-              // Remote venceu no tempo, mas preserva mídias, anexos e dependentes locais
+              // Remote venceu no tempo, mas preserva TODOS os campos preenchidos localmente pelo usuário!
+              if (s.holderEmail && !current.holderEmail) current.holderEmail = s.holderEmail;
+              if (s.addressCep && s.addressCep !== '76870-000') current.addressCep = s.addressCep;
+              if (s.addressStreet && !current.addressStreet) current.addressStreet = s.addressStreet;
+              if (s.addressNumber && !current.addressNumber) current.addressNumber = s.addressNumber;
+              if (s.addressComplement && !current.addressComplement) current.addressComplement = s.addressComplement;
+              if (s.addressNeighborhood && !current.addressNeighborhood) current.addressNeighborhood = s.addressNeighborhood;
+              if (s.addressCity && !current.addressCity) current.addressCity = s.addressCity;
+              if (s.addressState && !current.addressState) current.addressState = s.addressState;
+              if (s.vehiclePlate && !current.vehiclePlate) current.vehiclePlate = s.vehiclePlate;
+              if (s.vehicleModel && !current.vehicleModel) current.vehicleModel = s.vehicleModel;
+              if (s.vehicleColor && !current.vehicleColor) current.vehicleColor = s.vehicleColor;
+              if (s.notes && !current.notes) current.notes = s.notes;
+              if (s.endDate && s.endDate !== '2027-10-31') current.endDate = s.endDate;
+              if (s.status === 'ACTIVE' || s.manualStatusOverride || s.transferCompleted) {
+                current.status = 'ACTIVE';
+                current.manualStatusOverride = true;
+                current.transferCompleted = true;
+                current.manuallyConfirmedTransfer = true;
+              }
               if ((s.attachments?.length || 0) > (current.attachments?.length || 0)) {
                 current.attachments = s.attachments;
+              } else if ((s.attachments?.length || 0) > 0) {
+                const curAttKeys = new Set((current.attachments || []).map((a) => a.dataUrl || a.name));
+                const missingAtts = (s.attachments || []).filter((a) => !curAttKeys.has(a.dataUrl || a.name));
+                current.attachments = [...(current.attachments || []), ...missingAtts];
               }
               if (s.members && current.members) {
                 const localMemMap = new Map(s.members.map((m) => [m.id, m]));
@@ -1635,6 +1732,11 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
                     photoUrl: cm.photoUrl || lm.photoUrl,
                     documentProofUrl: cm.documentProofUrl || lm.documentProofUrl,
                     documentProofName: cm.documentProofName || lm.documentProofName,
+                    status: (lm.status === 'ACTIVE' || cm.status === 'ACTIVE') ? 'ACTIVE' : cm.status,
+                    documentVerified: lm.documentVerified || cm.documentVerified,
+                    documentStatus: lm.documentStatus || cm.documentStatus,
+                    expirationDate: lm.expirationDate || cm.expirationDate,
+                    validityLabel: lm.validityLabel || cm.validityLabel,
                     attachments:
                       (lm.attachments?.length || 0) > (cm.attachments?.length || 0)
                         ? lm.attachments
@@ -1647,6 +1749,7 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
                   current.members = [...current.members, ...missingFromCurrent];
                 }
               }
+              current.isModifiedFromSeed = true;
               subsMap.set(current.id, current);
             }
           }
@@ -1656,7 +1759,24 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
       // Preservar pendente p/ transferência na base importada do Labcard enquanto a transferência não for concluída
       subsMap.forEach((sub) => {
         if (sub.origin === 'IMPORT_LABCARD' || sub.id.startsWith('sub-labcard-')) {
+          const hasCustomClientData =
+            Boolean(sub.holderEmail) ||
+            Boolean(sub.addressStreet) ||
+            (Boolean(sub.addressCep) && sub.addressCep !== '76870-000') ||
+            (Boolean(sub.endDate) && sub.endDate !== '2027-10-31') ||
+            (sub.attachments?.length || 0) > 0 ||
+            Boolean(sub.vehiclePlate);
+          if (hasCustomClientData) {
+            sub.isModifiedFromSeed = true;
+          }
+
           const isAlreadyRegularizedOrActive =
+            REGULARIZED_ACTIVE_CARDS.has(sub.subscriptionCode) ||
+            Boolean(sub.manuallyConfirmedTransfer) ||
+            Boolean(sub.transferCompleted) ||
+            Boolean(sub.manualStatusOverride) ||
+            sub.status === 'ACTIVE' ||
+            Boolean(sub.isModifiedFromSeed);
             REGULARIZED_ACTIVE_CARDS.has(sub.subscriptionCode) ||
             Boolean(sub.manuallyConfirmedTransfer) ||
             Boolean(sub.transferCompleted) ||

@@ -2551,7 +2551,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
   useEffect(() => {
     if (selectedSubForDetail) {
-      if (selectedSubForDetail.status === 'ACTIVE') {
+      const isSubActive =
+        selectedSubForDetail.status === 'ACTIVE' ||
+        Boolean(selectedSubForDetail.transferCompleted) ||
+        Boolean(selectedSubForDetail.manuallyConfirmedTransfer);
+      if (isSubActive) {
         setSituacaoLiberar('SIM');
         setSituacaoInativar('NAO');
       } else if (selectedSubForDetail.status === 'PENDING_TRANSFER') {
@@ -2561,6 +2565,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         setSituacaoLiberar('NAO');
         setSituacaoInativar('SIM');
       }
+      setTempExpirationDate(selectedSubForDetail.endDate || '2027-10-31');
       const rawPlanDesc = selectedSubForDetail.planSummaryLabel || '';
       const titularMember =
         selectedSubForDetail.members.find((m) => m.role === 'TITULAR') ||
@@ -2682,7 +2687,10 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       }
 
       const nextEndDate =
-        editClientData.endDate.trim() || selectedSubForDetail.endDate;
+        editClientData.endDate.trim() ||
+        tempExpirationDate.trim() ||
+        selectedSubForDetail.endDate ||
+        '2027-10-31';
       const nextValidityLabel = getValidityLabelFromDate(nextEndDate);
       const parsedEditMonthly = Number(String(editClientData.monthlyEquivalent).replace(',', '.'));
       const monthlyVal =
@@ -2799,6 +2807,16 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       };
 
       await persist(nextState);
+
+      setEditClientData((prev) => ({ ...prev, endDate: nextEndDate }));
+      setTempExpirationDate(nextEndDate);
+      if (targetStatus === 'ACTIVE') {
+        setSituacaoLiberar('SIM');
+        setSituacaoInativar('NAO');
+      } else if (targetStatus === 'INACTIVE') {
+        setSituacaoLiberar('NAO');
+        setSituacaoInativar('SIM');
+      }
 
       const prevLabel = prevStatus === 'ACTIVE' ? 'ATIVO' : 'INATIVO';
       const newLabel = targetStatus === 'ACTIVE' ? 'ATIVO' : 'INATIVO';
@@ -3803,11 +3821,32 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     try {
       const prevLabel = sub.status === 'ACTIVE' ? 'ATIVO' : 'INATIVO';
       const newLabel = newStatus === 'ACTIVE' ? 'ATIVO' : 'INATIVO';
-      const nextEndDate = editClientData.endDate.trim() || sub.endDate;
+      const nextEndDate =
+        editClientData.endDate.trim() ||
+        tempExpirationDate.trim() ||
+        sub.endDate ||
+        '2027-10-31';
       const nextValidity = getValidityLabelFromDate(nextEndDate);
 
       const updatedSub: ClubSubscription = {
         ...sub,
+        holderEmail: editClientData.holderEmail.trim() || sub.holderEmail,
+        addressCep: editClientData.addressCep.trim() || sub.addressCep,
+        addressStreet: editClientData.addressStreet.trim() || sub.addressStreet,
+        addressNumber: editClientData.addressNumber.trim() || sub.addressNumber,
+        addressComplement: editClientData.addressComplement.trim() || sub.addressComplement,
+        addressNeighborhood: editClientData.addressNeighborhood.trim() || sub.addressNeighborhood,
+        addressCity: editClientData.addressCity.trim() || sub.addressCity,
+        addressState: editClientData.addressState.trim() || sub.addressState,
+        vehicleModel: editClientData.vehicleModel.trim() || sub.vehicleModel,
+        vehiclePlate: editClientData.vehiclePlate.trim().toUpperCase() || sub.vehiclePlate,
+        vehicleColor: editClientData.vehicleColor.trim() || sub.vehicleColor,
+        notes: editClientData.notes.trim() || sub.notes,
+        holderRg: editClientData.holderRg.trim() || sub.holderRg,
+        holderPhone: editClientData.holderPhone.trim() || sub.holderPhone,
+        holderBirthDate: editClientData.holderBirthDate || sub.holderBirthDate,
+        holderSex: editClientData.holderSex || sub.holderSex,
+        holderMaritalStatus: editClientData.holderMaritalStatus || sub.holderMaritalStatus,
         status: newStatus,
         manualStatusOverride: true,
         isModifiedFromSeed: true,
@@ -3822,6 +3861,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
           manualStatusOverride: true,
           documentVerified: newStatus === 'ACTIVE' ? true : m.documentVerified,
           documentStatus: newStatus === 'ACTIVE' ? ('APROVADO' as const) : m.documentStatus,
+          expirationDate: m.role === 'TITULAR' ? nextEndDate : (m.expirationDate || nextEndDate),
           validityLabel: m.expirationDate
             ? getValidityLabelFromDate(m.expirationDate, m.validityLabel)
             : nextValidity || m.validityLabel,
@@ -3834,6 +3874,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         setSituacaoLiberar('NAO');
         setSituacaoInativar('SIM');
       }
+      setEditClientData((prev) => ({ ...prev, endDate: nextEndDate }));
+      setTempExpirationDate(nextEndDate);
 
       if (selectedSubForDetail?.id === updatedSub.id) {
         setSelectedSubForDetail(updatedSub);
@@ -12079,10 +12121,12 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                 members: selectedSubForDetail.members.map((m) => ({
                                   ...m,
                                   validityLabel: newValidity,
+                                  expirationDate: m.role === 'TITULAR' ? tempExpirationDate : (m.expirationDate || tempExpirationDate),
                                 })),
                                 updatedAt: new Date().toISOString(),
                                 isModifiedFromSeed: true,
                               };
+                              setEditClientData((prev) => ({ ...prev, endDate: tempExpirationDate }));
                               const nextState: ClubDatabaseState = {
                                 ...state,
                                 subscriptions: (state.subscriptions || []).map((s) =>
@@ -12116,7 +12160,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           <button
                             type="button"
                             onClick={() => {
-                              setTempExpirationDate(selectedSubForDetail.endDate || '2027-10-31');
+                              const curEnd = editClientData.endDate || selectedSubForDetail.endDate || '2027-10-31';
+                              setTempExpirationDate(curEnd);
                               setEditingExpirationDate(true);
                             }}
                             title="Alterar data de vencimento do cartão"
@@ -12867,12 +12912,14 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                       <Input
                         type="date"
                         value={editClientData.endDate}
-                        onChange={(e) =>
-                          setEditClientData({
-                            ...editClientData,
-                            endDate: e.target.value,
-                          })
-                        }
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setEditClientData((prev) => ({
+                            ...prev,
+                            endDate: val,
+                          }));
+                          setTempExpirationDate(val);
+                        }}
                         className="mt-1 font-semibold bg-white"
                       />
                     </div>
