@@ -16160,14 +16160,17 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   {/* PAINEL DE VALIDAÇÃO DE COMPROVAÇÃO DOCUMENTAL OBRIGATÓRIA */}
                   <ClubDocumentVerificationPanel
                     subscription={selectedSubForDetail}
-                    onUpdateSub={(updatedSub) => {
+                    onUpdateSub={async (updatedSub) => {
                       setSelectedSubForDetail(updatedSub);
-                      setState((prevState) => ({
-                        ...prevState,
-                        subscriptions: (prevState.subscriptions || []).map((s) =>
-                          s.id === updatedSub.id ? updatedSub : s
-                        ),
-                      }));
+                      if (state) {
+                        const nextState: ClubDatabaseState = {
+                          ...state,
+                          subscriptions: (state.subscriptions || []).map((s) =>
+                            s.id === updatedSub.id ? updatedSub : s
+                          ),
+                        };
+                        await persist(nextState);
+                      }
                     }}
                     onPreviewAttachment={(att) => setPreviewAttachment(att)}
                   />
@@ -16744,14 +16747,17 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   {/* PAINEL DE VALIDAÇÃO DE COMPROVAÇÃO DOCUMENTAL (TITULAR E DEPENDENTES) */}
                   <ClubDocumentVerificationPanel
                     subscription={selectedSubForDetail}
-                    onUpdateSub={(updatedSub) => {
+                    onUpdateSub={async (updatedSub) => {
                       setSelectedSubForDetail(updatedSub);
-                      setState((prevState) => ({
-                        ...prevState,
-                        subscriptions: (prevState.subscriptions || []).map((s) =>
-                          s.id === updatedSub.id ? updatedSub : s
-                        ),
-                      }));
+                      if (state) {
+                        const nextState: ClubDatabaseState = {
+                          ...state,
+                          subscriptions: (state.subscriptions || []).map((s) =>
+                            s.id === updatedSub.id ? updatedSub : s
+                          ),
+                        };
+                        await persist(nextState);
+                      }
                     }}
                     onPreviewAttachment={(att) => setPreviewAttachment(att)}
                   />

@@ -424,9 +424,9 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
       let novStatus: 'PAID' | 'PENDING' = 'PENDING';
       let novPaidAt: string | undefined = undefined;
 
-      if (upName.includes('HARLAN APARECIDO')) {
+      if (upName.includes('HARLAN APARECIDO') || holderCard === '121225817' || upName.includes('MARLI DA SILVA')) {
         novStatus = 'PAID';
-        novPaidAt = '2026-11-01T10:00:00.000Z';
+        novPaidAt = '2026-11-10T10:00:00.000Z';
       } else if (upName.includes('EMILLY RAMOS') || holderCard === '121225234') {
         novDueDate = '2026-11-15';
         novInstallment = 11;

@@ -31,6 +31,9 @@ import {
   compressImageFile,
   fileToDataUrl,
   formatDateBR,
+  fetchClubState,
+  saveClubState,
+  getMemberResolvedAttachments,
 } from '@/lib/club-service';
 
 interface ClubDocumentVerificationPanelProps {
@@ -111,11 +114,86 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
   const handleApprove = async (member: ClubMember) => {
     try {
       setIsProcessing(true);
-      const updatedState = await verifyMemberProofDocument(subscription.id, member.id, true);
-      const updatedSub = (updatedState.subscriptions || []).find((s) => s.id === subscription.id);
-      if (updatedSub) {
-        onUpdateSub(updatedSub);
+      const allState = await fetchClubState();
+      const currentSub = allState.subscriptions.find((s) => s.id === subscription.id) || subscription;
+
+      // Unifica anexos existentes em subscription (painel) e currentSub (banco)
+      const mergedAttachments = [
+        ...(subscription.attachments || []),
+        ...(currentSub.attachments || []).filter(
+          (ca) => !subscription.attachments?.some((la) => la.dataUrl === ca.dataUrl)
+        ),
+      ];
+
+      const updatedMembers = currentSub.members.map((m) => {
+        if (m.id === member.id) {
+          const localMember = subscription.members.find((lm) => lm.id === member.id);
+          const effectiveProofUrl =
+            localMember?.documentProofUrl ||
+            m.documentProofUrl ||
+            mergedAttachments.find((a) => a.dataUrl)?.dataUrl ||
+            '';
+          const effectiveProofName =
+            localMember?.documentProofName ||
+            m.documentProofName ||
+            mergedAttachments.find((a) => a.dataUrl)?.name ||
+            'Documento Aprovado';
+
+          const mergedMemAtts = [
+            ...(localMember?.attachments || []),
+            ...(m.attachments || []).filter(
+              (ma) => !localMember?.attachments?.some((la) => la.dataUrl === ma.dataUrl)
+            ),
+          ];
+
+          return {
+            ...m,
+            documentProofUrl: effectiveProofUrl,
+            documentProofName: effectiveProofName,
+            documentVerified: true,
+            documentStatus: 'APROVADO' as const,
+            documentRejectionReason: undefined,
+            documentVerifiedAt: new Date().toISOString(),
+            documentVerifiedBy: 'Administrador',
+            status: 'ACTIVE' as const,
+            manualStatusOverride: true,
+            attachments: mergedMemAtts,
+          };
+        }
+        return m;
+      });
+
+      const updatedSub: ClubSubscription = {
+        ...currentSub,
+        attachments: mergedAttachments,
+        members: updatedMembers,
+        status: 'ACTIVE',
+        manualStatusOverride: true,
+        transferCompleted: true,
+        manuallyConfirmedTransfer: true,
+        isModifiedFromSeed: true,
+        updatedAt: new Date().toISOString(),
+      };
+
+      // Se for o titular sendo aprovado, ativa também os integrantes regulares
+      if (member.role === 'TITULAR') {
+        updatedSub.members = updatedSub.members.map((m) => ({
+          ...m,
+          status: 'ACTIVE',
+          manualStatusOverride: true,
+          documentVerified: true,
+          documentStatus: 'APROVADO' as const,
+        }));
       }
+
+      const nextSubs = allState.subscriptions.map((s) => (s.id === updatedSub.id ? updatedSub : s));
+      const nextState: ClubDatabaseState = {
+        ...allState,
+        subscriptions: nextSubs,
+      };
+      await saveClubState(nextState);
+      onUpdateSub(updatedSub);
+
       toast({
         title: 'Documento Validado e Aprovado!',
         description: `Comprovação de ${member.fullName} validada com sucesso. Carteirinha liberada.`,
@@ -143,16 +221,38 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
 
     try {
       setIsProcessing(true);
-      const updatedState = await verifyMemberProofDocument(
-        subscription.id,
-        member.id,
-        false,
-        rejectionReason.trim()
-      );
-      const updatedSub = (updatedState.subscriptions || []).find((s) => s.id === subscription.id);
-      if (updatedSub) {
-        onUpdateSub(updatedSub);
-      }
+      const allState = await fetchClubState();
+      const currentSub = allState.subscriptions.find((s) => s.id === subscription.id) || subscription;
+
+      const updatedMembers = currentSub.members.map((m) => {
+        if (m.id === member.id) {
+          return {
+            ...m,
+            documentVerified: false,
+            documentStatus: 'REJEITADO' as const,
+            documentRejectionReason: rejectionReason.trim(),
+            status: 'INACTIVE' as const,
+            manualStatusOverride: true,
+          };
+        }
+        return m;
+      });
+
+      const updatedSub: ClubSubscription = {
+        ...currentSub,
+        members: updatedMembers,
+        status: updatedMembers.every((m) => m.status === 'INACTIVE') ? 'INACTIVE' : currentSub.status,
+        updatedAt: new Date().toISOString(),
+        isModifiedFromSeed: true,
+      };
+
+      const nextSubs = allState.subscriptions.map((s) => (s.id === updatedSub.id ? updatedSub : s));
+      const nextState: ClubDatabaseState = {
+        ...allState,
+        subscriptions: nextSubs,
+      };
+      await saveClubState(nextState);
+      onUpdateSub(updatedSub);
       setRejectingMemberId(null);
       setRejectionReason('');
       toast({
@@ -174,11 +274,35 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
   const handleRevoke = async (member: ClubMember) => {
     try {
       setIsProcessing(true);
-      const updatedState = await verifyMemberProofDocument(subscription.id, member.id, false);
-      const updatedSub = (updatedState.subscriptions || []).find((s) => s.id === subscription.id);
-      if (updatedSub) {
-        onUpdateSub(updatedSub);
-      }
+      const allState = await fetchClubState();
+      const currentSub = allState.subscriptions.find((s) => s.id === subscription.id) || subscription;
+
+      const updatedMembers = currentSub.members.map((m) => {
+        if (m.id === member.id) {
+          return {
+            ...m,
+            documentVerified: false,
+            documentStatus: memberHasProofUploaded(m, currentSub) ? ('EM_ANALISE' as const) : ('PENDENTE_ANEXO' as const),
+            documentRejectionReason: undefined,
+          };
+        }
+        return m;
+      });
+
+      const updatedSub: ClubSubscription = {
+        ...currentSub,
+        members: updatedMembers,
+        updatedAt: new Date().toISOString(),
+        isModifiedFromSeed: true,
+      };
+
+      const nextSubs = allState.subscriptions.map((s) => (s.id === updatedSub.id ? updatedSub : s));
+      const nextState: ClubDatabaseState = {
+        ...allState,
+        subscriptions: nextSubs,
+      };
+      await saveClubState(nextState);
+      onUpdateSub(updatedSub);
       toast({
         title: 'Validação Revogada',
         description: `O documento de ${member.fullName} voltou para o status de análise.`,
@@ -231,6 +355,17 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
         updatedAt: new Date().toISOString(),
         isModifiedFromSeed: true,
       };
+
+      // Persiste IMEDIATAMENTE no banco de dados local e nuvem
+      const allState = await fetchClubState();
+      const nextSubs = (allState.subscriptions || []).map((s) =>
+        s.id === updatedSub.id ? updatedSub : s
+      );
+      const nextState: ClubDatabaseState = {
+        ...allState,
+        subscriptions: nextSubs,
+      };
+      await saveClubState(nextState);
 
       onUpdateSub(updatedSub);
       toast({
@@ -296,65 +431,8 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
           const isHolder = member.role === 'TITULAR' || index === 0;
           const isRejectingThis = rejectingMemberId === member.id;
 
-          // Anexos vinculados a este integrante
-          const rawMemberAttachments: ClubAttachment[] = member.attachments || [];
-          const validProofFromAtt = rawMemberAttachments.find(
-            (a) => a.dataUrl && a.dataUrl !== 'HAS_DOC_ATTACHED' && (a.dataUrl.startsWith('data:') || a.dataUrl.startsWith('http') || a.dataUrl.startsWith('/'))
-          );
-
-          const hasValidProofUrl =
-            Boolean(member.documentProofUrl) &&
-            member.documentProofUrl !== 'HAS_DOC_ATTACHED' &&
-            !member.documentProofUrl.startsWith('HAS_DOC_ATTACHED') &&
-            (member.documentProofUrl.startsWith('data:') ||
-              member.documentProofUrl.startsWith('http') ||
-              member.documentProofUrl.startsWith('/'));
-
-          const effectiveProofUrl = hasValidProofUrl
-            ? member.documentProofUrl
-            : validProofFromAtt?.dataUrl || '';
-
-          const memberDocs: ClubAttachment[] = [];
-
-          // 1. Adiciona os anexos reais do integrante com URL válida
-          for (const att of rawMemberAttachments) {
-            const resolvedUrl = isRealMediaUrl(att.dataUrl) ? att.dataUrl : effectiveProofUrl;
-            memberDocs.push({
-              ...att,
-              dataUrl: resolvedUrl,
-            });
-          }
-
-          // 2. Se o integrante tiver documentProofName e não constar em memberDocs, adiciona para que o documento apareça na lista de conferência
-          if (
-            member.documentProofName &&
-            !memberDocs.some((d) => d.name === member.documentProofName)
-          ) {
-            memberDocs.unshift({
-              id: `primary_${member.id}`,
-              name: member.documentProofName || 'Documento Comprobatório Principal',
-              dataUrl: effectiveProofUrl,
-              mimeType:
-                effectiveProofUrl.startsWith('data:image/') ||
-                /\.(jpe?g|png|webp|gif)/i.test(member.documentProofName || '')
-                  ? 'image/jpeg'
-                  : 'application/pdf',
-              createdAt: member.createdAt,
-            });
-          }
-
-          // 3. Fallback: se ainda estiver sem anexo com URL válida, busca em subscription.attachments
-          if (memberDocs.length === 0 || memberDocs.every((d) => !isRealMediaUrl(d.dataUrl))) {
-            const subMatch = (subscription.attachments || []).find((sa) => {
-              if (member.documentProofName && sa.name === member.documentProofName) return true;
-              const firstName = (member.fullName || '').split(' ')[0].toLowerCase().trim();
-              const attName = (sa.name || '').toLowerCase();
-              return firstName.length >= 3 && attName.includes(firstName);
-            });
-            if (subMatch && isRealMediaUrl(subMatch.dataUrl)) {
-              memberDocs.push(subMatch);
-            }
-          }
+          // Anexos vinculados a este integrante (unifica comprovante principal, anexos individuais e anexos da assinatura)
+          const memberDocs: ClubAttachment[] = getMemberResolvedAttachments(member, subscription);
 
           return (
             <div

@@ -221,14 +221,16 @@ export const getMemberResolvedAttachments = (
 
   if (Array.isArray(member.attachments)) {
     for (const att of member.attachments) {
-      if (att && att.dataUrl && !seenUrls.has(att.dataUrl)) {
-        seenUrls.add(att.dataUrl);
+      const effUrl = att.dataUrl || (att as any).fileUrl;
+      const effName = att.name || (att as any).fileName || 'Anexo do Integrante';
+      if (att && effUrl && !seenUrls.has(effUrl)) {
+        seenUrls.add(effUrl);
         list.push({
           id: att.id || `att-${list.length}`,
-          name: att.name || 'Anexo do Integrante',
-          dataUrl: att.dataUrl,
-          mimeType: att.mimeType || (att.dataUrl.startsWith('data:image/') ? 'image/jpeg' : 'application/pdf'),
-          createdAt: att.createdAt,
+          name: effName,
+          dataUrl: effUrl,
+          mimeType: att.mimeType || (effUrl.startsWith('data:image/') ? 'image/jpeg' : 'application/pdf'),
+          createdAt: att.createdAt || (att as any).uploadedAt,
         });
       }
     }
@@ -246,8 +248,10 @@ export const getMemberResolvedAttachments = (
     const memId = (member.id || '').trim();
 
     for (const att of sub.attachments) {
-      if (!att || !att.dataUrl || seenUrls.has(att.dataUrl)) continue;
-      const attName = (att.name || '').toLowerCase();
+      const effUrl = att.dataUrl || (att as any).fileUrl;
+      const effName = att.name || (att as any).fileName || (att as any).title || 'Anexo do Cadastro';
+      if (!att || !effUrl || seenUrls.has(effUrl)) continue;
+      const attName = (effName || '').toLowerCase();
       const attId = (att.id || '').toLowerCase();
 
       const matches =
@@ -257,13 +261,13 @@ export const getMemberResolvedAttachments = (
         (memId && (attId.includes(memId) || attName.includes(memId)));
 
       if (matches) {
-        seenUrls.add(att.dataUrl);
+        seenUrls.add(effUrl);
         list.push({
           id: att.id || `sub-att-${list.length}`,
-          name: att.name || 'Anexo do Cadastro',
-          dataUrl: att.dataUrl,
-          mimeType: att.mimeType || (att.dataUrl.startsWith('data:image/') ? 'image/jpeg' : 'application/pdf'),
-          createdAt: att.createdAt,
+          name: effName,
+          dataUrl: effUrl,
+          mimeType: att.mimeType || (effUrl.startsWith('data:image/') ? 'image/jpeg' : 'application/pdf'),
+          createdAt: att.createdAt || (att as any).uploadedAt,
         });
       }
     }
@@ -3129,11 +3133,14 @@ export const attachMemberProofDocument = async (
     ...subAtts,
     {
       id: `sub_doc_${member.id}_${Date.now()}`,
+      name: payload.fileName,
+      dataUrl: payload.dataUrl,
       title: `Comprovante [${member.role === 'TITULAR' ? 'Titular' : 'Dependente'}: ${member.fullName}] (${member.modalityName})`,
       category: 'DOCUMENTO_COMPROBATORIO',
       fileUrl: payload.dataUrl,
       fileName: payload.fileName,
       uploadedAt: nowIso,
+      createdAt: nowIso,
       notes: `MEMBER_ID:${member.id}`,
     },
   ];
