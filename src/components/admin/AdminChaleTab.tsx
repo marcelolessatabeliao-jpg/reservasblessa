@@ -193,40 +193,6 @@ export function AdminChaleTab({
     }
   }, [localReservations]);
 
-  // Sincronização e Limpeza: Remove de localReservations qualquer reserva pendente ou cancelada que colida com pedidos online reais
-  useEffect(() => {
-    if (!orders) return;
-    setLocalReservations(prev => {
-      let changed = false;
-      const filtered = prev.filter(localRes => {
-        // Se a reserva local tiver correspondência com pedido cancelado no Supabase
-        const isCancelledInDb = (orders || []).some(o => 
-          (o.id === localRes.orderId || o.confirmation_code === localRes.confirmationCode || (localRes.guestName && o.customer_name && o.customer_name.trim().toLowerCase() === localRes.guestName.trim().toLowerCase())) &&
-          ['cancelled', 'canceled', 'desocupado'].includes((o.status || '').toLowerCase())
-        );
-        if (isCancelledInDb) {
-          changed = true;
-          return false;
-        }
-
-        // Se for pendente e houver pedido online PAGO para a mesma unidade
-        if (localRes.status === 'pending') {
-          const hasPaidConflict = (realChaleOrders || []).some(onlineRes => 
-            onlineRes.chaleId === localRes.chaleId &&
-            (onlineRes.status === 'paid' || onlineRes.status === 'confirmed') &&
-            onlineRes.checkInDate === localRes.checkInDate
-          );
-          if (hasPaidConflict) {
-            changed = true;
-            return false;
-          }
-        }
-        return true;
-      });
-      return changed ? filtered : prev;
-    });
-  }, [orders, realChaleOrders]);
-
   // Status de bloqueio manual (Manutenção: amarelo) - Default: Chalé 06 e Vidros 07 a 12 indisponíveis
   const [manualStatuses, setManualStatuses] = useState<Record<number, 'disponivel' | 'indisponivel'>>(() => {
     try {
@@ -781,6 +747,40 @@ export function AdminChaleTab({
 
     return { realChaleOrders: list, campingBookings: campings };
   }, [orders]);
+
+  // Sincronização e Limpeza: Remove de localReservations qualquer reserva pendente ou cancelada que colida com pedidos online reais
+  useEffect(() => {
+    if (!orders) return;
+    setLocalReservations(prev => {
+      let changed = false;
+      const filtered = prev.filter(localRes => {
+        // Se a reserva local tiver correspondência com pedido cancelado no Supabase
+        const isCancelledInDb = (orders || []).some(o => 
+          (o.id === localRes.orderId || o.confirmation_code === localRes.confirmationCode || (localRes.guestName && o.customer_name && o.customer_name.trim().toLowerCase() === localRes.guestName.trim().toLowerCase())) &&
+          ['cancelled', 'canceled', 'desocupado'].includes((o.status || '').toLowerCase())
+        );
+        if (isCancelledInDb) {
+          changed = true;
+          return false;
+        }
+
+        // Se for pendente e houver pedido online PAGO para a mesma unidade
+        if (localRes.status === 'pending') {
+          const hasPaidConflict = (realChaleOrders || []).some(onlineRes => 
+            onlineRes.chaleId === localRes.chaleId &&
+            (onlineRes.status === 'paid' || onlineRes.status === 'confirmed') &&
+            onlineRes.checkInDate === localRes.checkInDate
+          );
+          if (hasPaidConflict) {
+            changed = true;
+            return false;
+          }
+        }
+        return true;
+      });
+      return changed ? filtered : prev;
+    });
+  }, [orders, realChaleOrders]);
 
   // TODAS AS RESERVAS ATIVAS (Prioriza Pedidos Online Supabase e em seguida Reservas Locais)
   const allActiveReservations = useMemo(() => {
