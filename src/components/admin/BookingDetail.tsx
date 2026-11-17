@@ -211,10 +211,25 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
      const gratuityKeywords = ['criança', 'kids', 'idoso', 'pcd', 'aniversariante'];
      
      localItems.forEach((item: any) => {
-        const name = (item.product_id || '').toLowerCase();
+        const pId = (item.product_id || '').toLowerCase();
+        const pName = (item.product_name || '').toLowerCase();
         const qty = Number(item.quantity) || 1;
-        if (adultKeywords.some(k => name.includes(k))) defaultAdults += qty;
-        else if (gratuityKeywords.some(k => name.includes(k))) defaultChildren += qty;
+        
+        const isChale = pId.includes('chalé') || pId.includes('chale') || pId.includes('hospedagem') || pName.includes('chalé') || pName.includes('chale') || pName.includes('hospedagem');
+
+        if (isChale) {
+          let meta = item.metadata;
+          if (typeof meta === 'string') { try { meta = JSON.parse(meta); } catch(e) { meta = {}; } }
+          meta = meta || {};
+          const chAdults = Number(meta.adults || (meta.occupancy_type === 'individual' ? 1 : 2));
+          const chChildren = Number(meta.children || 0);
+          defaultAdults += chAdults;
+          defaultChildren += chChildren;
+        } else if (adultKeywords.some(k => pName.includes(k) || pId.includes(k))) {
+          defaultAdults += qty;
+        } else if (gratuityKeywords.some(k => pName.includes(k) || pId.includes(k))) {
+          defaultChildren += qty;
+        }
      });
   }
   
@@ -231,7 +246,20 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
         const qty = Number(item.quantity) || 1;
         const price = Number(item.unit_price) || 0;
 
-        if (pName.includes('professor') || pId.includes('professor')) {
+        const isChale = pId.includes('chalé') || pId.includes('chale') || pId.includes('hospedagem') || pName.includes('chalé') || pName.includes('chale') || pName.includes('hospedagem');
+        if (isChale) {
+          let meta = item.metadata;
+          if (typeof meta === 'string') { try { meta = JSON.parse(meta); } catch(e) { meta = {}; } }
+          meta = meta || {};
+          const cId = meta.chale_id || (Array.isArray(meta.chale_ids) ? meta.chale_ids[0] : 1);
+          const cAdults = Number(meta.adults || (meta.occupancy_type === 'individual' ? 1 : 2));
+          const cKids = Number(meta.children || 0);
+          const occ = meta.occupancy_type === 'individual' ? 'Individual' : 'Casal';
+          counts[`Chalé ${String(cId).padStart(2, '0')} (${occ}) • Adultos`] = (counts[`Chalé ${String(cId).padStart(2, '0')} (${occ}) • Adultos`] || 0) + cAdults;
+          if (cKids > 0) {
+            counts[`Chalé ${String(cId).padStart(2, '0')} • Crianças Adicionais`] = (counts[`Chalé ${String(cId).padStart(2, '0')} • Crianças Adicionais`] || 0) + cKids;
+          }
+        } else if (pName.includes('professor') || pId.includes('professor')) {
           counts['Meia-Entrada (Professor)'] = (counts['Meia-Entrada (Professor)'] || 0) + qty;
         } else if (pName.includes('estudante') || pId.includes('estudante')) {
           counts['Meia-Entrada (Estudante)'] = (counts['Meia-Entrada (Estudante)'] || 0) + qty;
@@ -343,6 +371,96 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
                   <p className="text-[7px] md:text-[9px] font-black uppercase text-slate-600 tracking-wider mt-1 leading-tight">Total Pessoas</p>
                 </div>
               </div>
+
+              {/* CARD DE HOSPEDAGEM EM CHALÉ COM DETALHES COMPLETOS E VOUCHER */}
+              {(() => {
+                const chaleItem = localItems.find((i: any) => {
+                  const n = ((i.product_name || '') + ' ' + (i.product_id || '')).toLowerCase();
+                  return n.includes('chalé') || n.includes('chale') || n.includes('hospedagem');
+                });
+                if (!chaleItem) return null;
+                let meta = chaleItem.metadata;
+                if (typeof meta === 'string') { try { meta = JSON.parse(meta); } catch(e) { meta = {}; } }
+                meta = meta || {};
+                const cId = meta.chale_id || (Array.isArray(meta.chale_ids) ? meta.chale_ids[0] : 1);
+                const pkgTitle = meta.package_title || chaleItem.product_name || 'Hospedagem em Chalé';
+                const cIn = meta.check_in_date || booking.visit_date;
+                const cInTime = meta.check_in_time || '15:00';
+                const cOut = meta.check_out_date || cIn;
+                const cOutTime = meta.check_out_time || '12:00';
+                const guestList = Array.isArray(meta.guest_names) && meta.guest_names.length > 0 
+                  ? meta.guest_names 
+                  : [booking.name || (booking as any).customer_name];
+                const voucherCode = booking.confirmation_code || (booking as any).confirmation_code;
+
+                return (
+                  <div className="bg-gradient-to-r from-[#022c16] via-[#043d1f] to-[#01170c] text-white rounded-2xl p-4 border-2 border-amber-400 shadow-md space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/15 pb-2.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl">🏡</span>
+                        <div>
+                          <span className="text-[10px] font-black uppercase tracking-widest text-amber-300 block">
+                            Hospedagem em Chalé
+                          </span>
+                          <h4 className="text-base font-black text-white">
+                            Chalé {String(cId).padStart(2, '0')} — Alvenaria Tradicional
+                          </h4>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge className="bg-amber-400 text-slate-950 font-black text-xs uppercase px-3 py-1 border-none shadow-xs">
+                          {pkgTitle} ({meta.occupancy_type === 'individual' ? '1 Adulto' : 'Casal'})
+                        </Badge>
+                        {voucherCode && (
+                          <Button
+                            size="sm"
+                            onClick={() => window.open(`/voucher/${voucherCode}`, '_blank')}
+                            className="bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase h-8 px-3 rounded-xl border border-emerald-400 flex items-center gap-1.5 shadow-sm"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            Ver Voucher Oficial ({voucherCode})
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                      <div className="bg-white/10 rounded-xl p-2.5 border border-white/10">
+                        <span className="text-[10px] font-black uppercase text-emerald-300 block">Check-in (Entrada)</span>
+                        <span className="font-bold text-white text-sm">{cIn}</span>
+                        <span className="text-[11px] text-emerald-200 block">a partir das {cInTime}</span>
+                      </div>
+                      <div className="bg-white/10 rounded-xl p-2.5 border border-white/10">
+                        <span className="text-[10px] font-black uppercase text-amber-300 block">Check-out (Saída)</span>
+                        <span className="font-bold text-white text-sm">{cOut}</span>
+                        <span className="text-[11px] text-amber-200 block">até as {cOutTime}</span>
+                      </div>
+                    </div>
+
+                    {/* Relação Nominal de Hóspedes */}
+                    <div className="bg-white/5 rounded-xl p-3 border border-white/10 space-y-1.5">
+                      <span className="text-[10px] font-black uppercase text-amber-300 tracking-wider block">
+                        👥 Relação Nominal de Hóspedes ({guestList.length}):
+                      </span>
+                      <div className="space-y-1 pl-1 text-xs">
+                        {guestList.map((gName: string, gIdx: number) => {
+                          const isTitular = gIdx === 0;
+                          const isAcomp = gIdx === 1 && meta.occupancy_type !== 'individual';
+                          const role = isTitular ? 'Titular Responsável' : (isAcomp ? 'Acompanhante Adulto' : 'Criança Adicional');
+                          return (
+                            <div key={gIdx} className="flex items-center justify-between bg-white/10 px-2.5 py-1 rounded-lg">
+                              <span className="font-bold text-white">👤 {gName}</span>
+                              <span className="text-[10px] font-black uppercase bg-emerald-400/20 text-emerald-200 px-2 py-0.5 rounded">
+                                {role}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Guest Detailed Breakdown */}
               {guestBreakdown.length > 0 && (

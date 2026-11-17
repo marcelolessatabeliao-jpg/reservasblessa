@@ -593,6 +593,8 @@ export function AdminChaleTab({
 
     (orders || []).forEach((order: any) => {
       if (!order) return;
+      const orderStatus = (order.status || '').toLowerCase();
+      if (['cancelled', 'canceled', 'desocupado'].includes(orderStatus)) return;
       const items = Array.isArray(order.order_items) ? order.order_items : [];
       const orderDate = order.visit_date || (typeof order.created_at === 'string' ? order.created_at.split('T')[0] : '');
 
@@ -690,7 +692,7 @@ export function AdminChaleTab({
             grossPrice,
             totalPrice: finalPrice,
             paymentMethod: order.payment_method || 'PIX',
-            status: order.status === 'paid' ? 'paid' : 'pending',
+            status: ['paid', 'pago', 'confirmed', 'confirmado'].includes(orderStatus) ? 'paid' : 'pending',
             isCheckedIn: false,
             notes: order.notes || 'Reserva online realizada pelo cliente',
             receiptUrl: order.receipt_url || null,
@@ -1513,9 +1515,10 @@ export function AdminChaleTab({
     try {
       await new Promise(r => setTimeout(r, 100));
       const canvas = await html2canvas(voucherPrintRef.current, {
-        backgroundColor: '#ffffff',
-        scale: 2,
+        backgroundColor: '#022112',
+        scale: 3,
         useCORS: true,
+        allowTaint: true,
         logging: false
       });
       const dataUrl = canvas.toDataURL('image/png');
@@ -3640,54 +3643,74 @@ export function AdminChaleTab({
               {/* CARTÃO DO VOUCHER PRONTO PARA CAPTURA POR HTML2CANVAS */}
               <div
                 ref={voucherPrintRef}
-                className="bg-gradient-to-br from-[#022112] via-[#04331c] to-[#01170c] text-white rounded-[2rem] p-6 shadow-2xl border-4 border-amber-400 space-y-4 relative overflow-hidden"
+                style={{
+                  backgroundColor: '#022112',
+                  backgroundImage: 'linear-gradient(135deg, #022112 0%, #04331c 50%, #01170c 100%)',
+                  color: '#ffffff',
+                  fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                  border: '4px solid #f59e0b',
+                  borderRadius: '2rem',
+                  padding: '1.5rem',
+                  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+                }}
+                className="space-y-4 relative overflow-hidden text-white"
               >
                 {/* Cabeçalho */}
-                <div className="text-center space-y-1 pb-3 border-b border-white/20">
-                  <span className="text-[10px] font-black uppercase text-amber-400 tracking-widest block">
+                <div style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.2)', paddingBottom: '0.75rem' }} className="text-center space-y-1">
+                  <span style={{ color: '#f59e0b' }} className="text-[10px] font-black uppercase tracking-widest block">
                     🌿 Balneário Lessa • Hospedagem
                   </span>
-                  <h3 className="font-sans font-black text-xl text-white tracking-tight">
+                  <h3 style={{ color: '#ffffff' }} className="font-sans font-black text-xl tracking-tight">
                     VOUCHER DE HOSPEDAGEM
                   </h3>
-                  <div className="inline-block bg-amber-400 text-slate-950 text-[10px] font-black uppercase px-3 py-0.5 rounded-full">
+                  <div style={{ backgroundColor: '#f59e0b', color: '#02170c' }} className="inline-block text-[10px] font-black uppercase px-3 py-0.5 rounded-full">
                     Chalé {String(voucherRes.chaleId).padStart(2, '0')} · {voucherRes.confirmationCode || 'CHA-OK'}
                   </div>
                 </div>
 
                 {/* Dados da Estadia */}
-                <div className="bg-white/10 rounded-2xl p-3.5 space-y-2 text-xs border border-white/15">
-                  <div className="flex justify-between border-b border-white/10 pb-1.5">
-                    <span className="text-emerald-200 font-bold uppercase text-[10px]">Titular:</span>
-                    <span className="font-black text-white">{voucherRes.guestName}</span>
+                <div 
+                  style={{ 
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)', 
+                    borderColor: 'rgba(255, 255, 255, 0.15)',
+                    borderWidth: '1px',
+                    borderStyle: 'solid',
+                    borderRadius: '1rem',
+                    padding: '0.875rem'
+                  }} 
+                  className="space-y-2 text-xs"
+                >
+                  <div style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '0.375rem' }} className="flex justify-between">
+                    <span style={{ color: '#a7f3d0' }} className="font-bold uppercase text-[10px]">Titular:</span>
+                    <span style={{ color: '#ffffff' }} className="font-black">{voucherRes.guestName}</span>
                   </div>
-                  <div className="flex justify-between border-b border-white/10 pb-1.5">
-                    <span className="text-emerald-200 font-bold uppercase text-[10px]">CPF:</span>
-                    <span className="font-black text-amber-300">{voucherRes.cpf || '123.456.789-00'}</span>
+                  <div style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '0.375rem' }} className="flex justify-between">
+                    <span style={{ color: '#a7f3d0' }} className="font-bold uppercase text-[10px]">CPF:</span>
+                    <span style={{ color: '#fde047' }} className="font-black">{voucherRes.cpf || '123.456.789-00'}</span>
                   </div>
-                  <div className="flex justify-between border-b border-white/10 pb-1.5">
-                    <span className="text-emerald-200 font-bold uppercase text-[10px]">Telefone / WhatsApp:</span>
-                    <span className="font-bold text-white">{voucherRes.phone}</span>
+                  <div style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '0.375rem' }} className="flex justify-between">
+                    <span style={{ color: '#a7f3d0' }} className="font-bold uppercase text-[10px]">Telefone / WhatsApp:</span>
+                    <span style={{ color: '#ffffff' }} className="font-bold">{voucherRes.phone}</span>
                   </div>
-                  <div className="flex justify-between border-b border-white/10 pb-1.5">
-                    <span className="text-emerald-200 font-bold uppercase text-[10px]">Check-in (Entrada):</span>
-                    <span className="font-black text-white">{voucherRes.checkInDate} às {voucherRes.checkInTime || '15:00'}</span>
+                  <div style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '0.375rem' }} className="flex justify-between">
+                    <span style={{ color: '#a7f3d0' }} className="font-bold uppercase text-[10px]">Check-in (Entrada):</span>
+                    <span style={{ color: '#ffffff' }} className="font-black">{voucherRes.checkInDate} às {voucherRes.checkInTime || '15:00'}</span>
                   </div>
-                  <div className="flex justify-between border-b border-white/10 pb-1.5">
-                    <span className="text-emerald-200 font-bold uppercase text-[10px]">Check-out (Saída):</span>
-                    <span className="font-black text-amber-300">{voucherRes.checkOutDate} às {voucherRes.checkOutTime || '12:00'}</span>
+                  <div style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '0.375rem' }} className="flex justify-between">
+                    <span style={{ color: '#a7f3d0' }} className="font-bold uppercase text-[10px]">Check-out (Saída):</span>
+                    <span style={{ color: '#fde047' }} className="font-black">{voucherRes.checkOutDate} às {voucherRes.checkOutTime || '12:00'}</span>
                   </div>
-                  <div className="flex justify-between border-b border-white/10 pb-1.5">
-                    <span className="text-emerald-200 font-bold uppercase text-[10px]">Pacote & Modalidade:</span>
-                    <span className="font-black text-amber-400 text-right">
+                  <div style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '0.375rem' }} className="flex justify-between">
+                    <span style={{ color: '#a7f3d0' }} className="font-bold uppercase text-[10px]">Pacote & Modalidade:</span>
+                    <span style={{ color: '#f59e0b' }} className="font-black text-right">
                       {voucherRes.packageTitle} ({voucherRes.occupancyType === 'individual' ? 'Individual' : 'Casal'})
                     </span>
                   </div>
-                  <div className="space-y-1 border-b border-white/10 pb-1.5">
-                    <span className="text-emerald-200 font-bold uppercase text-[10px] block">
+                  <div style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '0.375rem' }} className="space-y-1">
+                    <span style={{ color: '#a7f3d0' }} className="font-bold uppercase text-[10px] block">
                       Hóspedes ({voucherRes.adults} Adulto{voucherRes.adults > 1 ? 's' : ''}{voucherRes.children > 0 ? ` + ${voucherRes.children} Criança(s)` : ''}):
                     </span>
-                    <div className="text-[11px] font-bold text-white space-y-1 pl-1">
+                    <div className="text-[11px] font-bold space-y-1 pl-1">
                       {(() => {
                         const adultList = (voucherRes.adultNames && voucherRes.adultNames.length > 0)
                           ? voucherRes.adultNames
@@ -3698,16 +3721,16 @@ export function AdminChaleTab({
                         return (
                           <>
                             <div className="flex items-center gap-1.5">
-                              <span className="text-amber-400 font-black">👤 Titular:</span>
-                              <span className="font-bold text-white">{titular}</span>
+                              <span style={{ color: '#fde047' }} className="font-black">👤 Titular:</span>
+                              <span style={{ color: '#ffffff' }} className="font-bold">{titular}</span>
                             </div>
                             {voucherRes.occupancyType === 'casal' && (
                               <div className="flex items-center gap-1.5">
-                                <span className="text-amber-400 font-black">👤 Acompanhante:</span>
+                                <span style={{ color: '#fde047' }} className="font-black">👤 Acompanhante:</span>
                                 {companion && !companion.toLowerCase().includes('acompanhante') ? (
-                                  <span className="font-bold text-white">{companion}</span>
+                                  <span style={{ color: '#ffffff' }} className="font-bold">{companion}</span>
                                 ) : (
-                                  <span className="font-bold text-amber-300 italic">⚠️ Pendente de Identificação (Obrigatório no Check-in)</span>
+                                  <span style={{ color: '#fde047' }} className="font-bold italic">⚠️ Pendente de Identificação (Obrigatório no Check-in)</span>
                                 )}
                               </div>
                             )}
@@ -3716,63 +3739,69 @@ export function AdminChaleTab({
                       })()}
                       {(voucherRes.childNames && voucherRes.childNames.length > 0) ? (
                         voucherRes.childNames.map((c, i) => (
-                          <div key={i} className="text-amber-300">👶 {c.name} ({c.ageLabel})</div>
+                          <div key={i} style={{ color: '#fde047' }}>👶 {c.name} ({c.ageLabel})</div>
                         ))
                       ) : voucherRes.children > 0 ? (
-                        <div className="text-amber-300">👶 {voucherRes.children}x Criança adicional (Filho(a) do Hóspede)</div>
+                        <div style={{ color: '#fde047' }}>👶 {voucherRes.children}x Criança adicional (Filho(a) do Hóspede)</div>
                       ) : null}
                     </div>
                   </div>
                   {voucherRes.extraItems && voucherRes.extraItems.length > 0 ? (
-                    <div className="space-y-1 border-b border-white/10 pb-1.5">
-                      <span className="text-emerald-200 font-bold uppercase text-[10px] block">
+                    <div style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '0.375rem' }} className="space-y-1">
+                      <span style={{ color: '#a7f3d0' }} className="font-bold uppercase text-[10px] block">
                         Serviços & Itens Extras Inclusos:
                       </span>
-                      <div className="text-[11px] font-bold text-amber-200 space-y-0.5 pl-1">
+                      <div className="text-[11px] font-bold space-y-0.5 pl-1">
                         {voucherRes.extraItems.map((ext, i) => (
-                          <div key={i} className="flex justify-between items-center bg-white/5 px-2 py-0.5 rounded">
+                          <div key={i} style={{ backgroundColor: 'rgba(255, 255, 255, 0.05)', color: '#fde047' }} className="flex justify-between items-center px-2 py-0.5 rounded">
                             <span>• {ext.quantity}x {ext.name}{ext.timeSlot ? ` (Horário: ${ext.timeSlot})` : ''}</span>
-                            <span className="font-black text-white">{formatCurrency(ext.price)}</span>
+                            <span style={{ color: '#ffffff' }} className="font-black">{formatCurrency(ext.price)}</span>
                           </div>
                         ))}
                       </div>
                     </div>
                   ) : (
-                    <div className="border-b border-white/10 pb-1.5 text-[10px] text-emerald-300/80 italic">
+                    <div style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '0.375rem', color: '#6ee7b7' }} className="text-[10px] italic">
                       ✓ Apenas Hospedagem e Day Use inclusos (sem serviços adicionais extras contratados).
                     </div>
                   )}
                   <div className="flex justify-between pt-1">
-                    <span className="text-emerald-200 font-bold uppercase text-[10px]">Café (Sex-Dom 7h-9h) & Day Use:</span>
-                    <span className="font-black text-emerald-300">100% Inclusos ✓</span>
+                    <span style={{ color: '#a7f3d0' }} className="font-bold uppercase text-[10px]">Café (Sex-Dom 7h-9h) & Day Use:</span>
+                    <span style={{ color: '#6ee7b7' }} className="font-black">100% Inclusos ✓</span>
                   </div>
                 </div>
 
                 {/* QR Code e Status */}
                 <div className="flex items-center justify-between pt-1">
                   <div className="space-y-0.5">
-                    <span className="text-[10px] uppercase font-bold text-emerald-300 block">Status Pagamento:</span>
-                    <span className={cn(
-                      "text-xs font-black px-2.5 py-0.5 rounded-lg inline-block uppercase",
-                      voucherRes.status === 'paid' ? "bg-emerald-500 text-slate-950" : "bg-amber-400 text-slate-950"
-                    )}>
+                    <span style={{ color: '#a7f3d0' }} className="text-[10px] uppercase font-bold block">Status Pagamento:</span>
+                    <span style={{
+                      backgroundColor: voucherRes.status === 'paid' ? '#10b981' : '#f59e0b',
+                      color: '#02170c',
+                      padding: '2px 8px',
+                      borderRadius: '8px',
+                      fontSize: '11px',
+                      fontWeight: 900,
+                      display: 'inline-block'
+                    }}>
                       {voucherRes.status === 'paid' ? 'PAGO OK ✓' : 'A PAGAR'}
                     </span>
-                    <span className="text-[11px] font-black text-white block pt-1">
+                    <span style={{ color: '#ffffff' }} className="text-[11px] font-black block pt-1">
                       Total: {formatCurrency(voucherRes.totalPrice)}
                     </span>
                   </div>
 
-                  <div className="bg-white p-1.5 rounded-xl shadow-md">
+                  <div style={{ backgroundColor: '#ffffff', padding: '6px', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
                     <img 
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=90x90&data=https://reservas.balneariolessa.com.br/voucher/${voucherRes.confirmationCode || 'CHA-OK'}`}
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=https://reservas.balneariolessa.com.br/voucher/${voucherRes.confirmationCode || 'CHA-OK'}`}
                       alt="QR Code do Voucher"
                       className="w-16 h-16"
+                      crossOrigin="anonymous"
                     />
                   </div>
                 </div>
 
-                <div className="text-center pt-1 border-t border-white/10 text-[9px] text-emerald-200/80 font-medium">
+                <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.15)', color: '#a7f3d0', paddingTop: '4px' }} className="text-center text-[9px] font-medium">
                   Apresente este voucher na portaria do Balneário Lessa.
                 </div>
               </div>

@@ -906,13 +906,27 @@ export default function Admin() {
               const pName = (item.product_name || '').toLowerCase();
               const qty = item.quantity || 1;
               
-              const isAdult = adultKeywords.some(key => pName.includes(key) || pId.includes(key));
-              const isGratuity = gratuityKeywords.some(key => pName.includes(key) || pId.includes(key));
+              const isChale = pId.includes('chalé') || pId.includes('chale') || pId.includes('hospedagem') || pName.includes('chalé') || pName.includes('chale') || pName.includes('hospedagem');
 
-              if (isAdult && !isGratuity) {
-                orderAdults += qty;
-              } else if (isGratuity) {
-                orderChildren += qty;
+              if (isChale) {
+                let meta = item.metadata;
+                if (typeof meta === 'string') {
+                  try { meta = JSON.parse(meta); } catch(e) { meta = {}; }
+                }
+                meta = meta || {};
+                const chAdults = Number(meta.adults || (meta.occupancy_type === 'individual' ? 1 : 2));
+                const chChildren = Number(meta.children || 0);
+                orderAdults += chAdults;
+                orderChildren += chChildren;
+              } else {
+                const isAdult = adultKeywords.some(key => pName.includes(key) || pId.includes(key));
+                const isGratuity = gratuityKeywords.some(key => pName.includes(key) || pId.includes(key));
+
+                if (isAdult && !isGratuity) {
+                  orderAdults += qty;
+                } else if (isGratuity) {
+                  orderChildren += qty;
+                }
               }
             });
 
@@ -1092,13 +1106,25 @@ export default function Admin() {
           
           const items = b.order_items || [];
           items.forEach((item: any) => {
-            const name = normalizeString(item.product_name || '');
+            const pId = (item.product_id || '').toLowerCase();
+            const pName = (item.product_name || '').toLowerCase();
+            const name = normalizeString(pName || pId);
             const qty = Number(item.quantity) || 1;
-            const isAdult = adultKeywords.some(k => name.includes(k));
-            const isGratuity = gratuityKeywords.some(k => name.includes(k));
-            if (isAdult) tAdults += qty;
-            else if (isGratuity) tChildren += qty;
-            else if (name.includes('entrada')) tAdults += qty;
+            const isChale = pId.includes('chalé') || pId.includes('chale') || pId.includes('hospedagem') || pName.includes('chalé') || pName.includes('chale') || pName.includes('hospedagem');
+
+            if (isChale) {
+              let meta = item.metadata;
+              if (typeof meta === 'string') { try { meta = JSON.parse(meta); } catch(e) { meta = {}; } }
+              meta = meta || {};
+              tAdults += Number(meta.adults || (meta.occupancy_type === 'individual' ? 1 : 2));
+              tChildren += Number(meta.children || 0);
+            } else {
+              const isAdult = adultKeywords.some(k => name.includes(k));
+              const isGratuity = gratuityKeywords.some(k => name.includes(k));
+              if (isAdult) tAdults += qty;
+              else if (isGratuity) tChildren += qty;
+              else if (name.includes('entrada')) tAdults += qty;
+            }
           });
         }
       });

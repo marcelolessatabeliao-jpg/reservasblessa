@@ -32,7 +32,7 @@ import {
   Calendar as CalendarIcon,
   RotateCcw,
   Wallet,
-  RefreshCw, Share2, Tent, Bike
+  RefreshCw, Share2, Tent, Bike, Home, Bed
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -351,12 +351,25 @@ export function BookingTable({
             const bookingDate = parseSafeDate(
               booking.visit_date || booking.created_at,
             );
+            
+            const itemChale = booking.order_items?.find((i: any) => {
+              const n = ((i.product_name || '') + ' ' + (i.product_id || '')).toLowerCase();
+              return n.includes('chalé') || n.includes('chale') || n.includes('hospedagem');
+            });
+            let chaleMeta: any = itemChale?.metadata;
+            if (typeof chaleMeta === 'string') { try { chaleMeta = JSON.parse(chaleMeta); } catch(e) { chaleMeta = {}; } }
+            chaleMeta = chaleMeta || {};
+            const chaleId = itemChale ? (chaleMeta.chale_id || (Array.isArray(chaleMeta.chale_ids) ? chaleMeta.chale_ids[0] : 1)) : null;
+            const chaleAdults = itemChale ? Number(chaleMeta.adults || (chaleMeta.occupancy_type === 'individual' ? 1 : 2)) : 0;
+            const chaleKids = itemChale ? Number(chaleMeta.children || 0) : 0;
+
             const childrenCount = Array.isArray(booking.children)
               ? booking.children.length
               : typeof booking.children === "number"
                 ? booking.children
-                : 0;
-            const totalPeople = (booking.adults || 0) + childrenCount;
+                : (chaleKids || 0);
+            const adultsCount = (booking.adults || 0) || (chaleAdults || 0);
+            const totalPeople = adultsCount + childrenCount;
 
             return (
               <div
@@ -496,11 +509,18 @@ export function BookingTable({
 
                 {!expanded && (
                   <div className="flex items-center justify-between bg-emerald-50/50 p-2 rounded-xl border border-emerald-100/50">
-                    <div className="flex items-center gap-2">
-                      <Users className="w-3.5 h-3.5 text-emerald-700" />
-                      <span className="text-xs font-black text-emerald-950">
-                        {totalPeople} Pessoas
-                      </span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex items-center gap-1.5">
+                        <Users className="w-3.5 h-3.5 text-emerald-700" />
+                        <span className="text-xs font-black text-emerald-950">
+                          {totalPeople} Pessoas
+                        </span>
+                      </div>
+                      {chaleId && (
+                        <span className="text-[10px] font-black uppercase bg-amber-100 text-amber-950 px-2 py-0.5 rounded-md border border-amber-300 flex items-center gap-1">
+                          <Home className="w-3 h-3 text-amber-700" /> Chalé {String(chaleId).padStart(2, '0')}
+                        </span>
+                      )}
                     </div>
                     {(() => {
                       const isPaid = ['paid', 'pago', 'confirmed', 'checked-in'].includes((booking.status || '').toLowerCase());
@@ -906,12 +926,25 @@ export function BookingTable({
                 const bookingDate = parseSafeDate(
                   booking.visit_date || booking.created_at,
                 );
+
+                const itemChale = booking.order_items?.find((i: any) => {
+                  const n = ((i.product_name || '') + ' ' + (i.product_id || '')).toLowerCase();
+                  return n.includes('chalé') || n.includes('chale') || n.includes('hospedagem');
+                });
+                let chaleMeta: any = itemChale?.metadata;
+                if (typeof chaleMeta === 'string') { try { chaleMeta = JSON.parse(chaleMeta); } catch(e) { chaleMeta = {}; } }
+                chaleMeta = chaleMeta || {};
+                const chaleId = itemChale ? (chaleMeta.chale_id || (Array.isArray(chaleMeta.chale_ids) ? chaleMeta.chale_ids[0] : 1)) : null;
+                const chaleAdults = itemChale ? Number(chaleMeta.adults || (chaleMeta.occupancy_type === 'individual' ? 1 : 2)) : 0;
+                const chaleKids = itemChale ? Number(chaleMeta.children || 0) : 0;
+
                 const childrenCount = Array.isArray(booking.children)
                   ? booking.children.length
                   : typeof booking.children === "number"
                     ? booking.children
-                    : 0;
-                const totalPeople = (booking.adults || 0) + childrenCount;
+                    : (chaleKids || 0);
+                const adultsCount = (booking.adults || 0) || (chaleAdults || 0);
+                const totalPeople = adultsCount + childrenCount;
 
                 return (
                   <React.Fragment key={booking.id}>
@@ -1093,7 +1126,12 @@ export function BookingTable({
                               )}
                             </div>
                           )}
-                          <div className="flex items-center gap-2 mt-1">
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                             {chaleId && (
+                               <span className="bg-amber-100 text-amber-950 border border-amber-300 text-[9px] font-black uppercase px-2 py-0.5 rounded-full flex items-center gap-1 shadow-xs">
+                                 <Home className="w-3 h-3 text-amber-700" /> Chalé {String(chaleId).padStart(2, '0')}
+                               </span>
+                             )}
                              {booking.is_associado && (
                                <Badge className="bg-amber-100 text-amber-700 border-none text-[8px] font-black uppercase px-2 h-4 rounded-full">
                                  Sócio
@@ -1115,6 +1153,11 @@ export function BookingTable({
                           </div>
                           
                           <div className="flex flex-col gap-1.5 justify-center max-w-[40px]">
+                            {chaleId && (
+                              <div className="bg-amber-100 text-amber-900 p-1.5 rounded-md border border-amber-300 flex items-center justify-center" title={`Hospedagem em Chalé ${String(chaleId).padStart(2, '0')}`}>
+                                <Home className="w-3 h-3 text-amber-700" />
+                              </div>
+                            )}
                             {booking.order_items?.some(i => {
                                const n = ((i.product_name || '') + ' ' + (i.product_id || '')).toLowerCase();
                                return n.includes('quiosque') || n.includes('camping');

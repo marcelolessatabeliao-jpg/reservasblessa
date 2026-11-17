@@ -199,10 +199,30 @@ export default function Voucher() {
 
   return (
     <div className="min-h-screen bg-[#f8fafc] p-4 md:p-8 font-sans flex items-center justify-center">
+      <style>{`
+        @media print {
+          @page {
+            margin: 8mm;
+            size: auto;
+          }
+          body {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            background: #ffffff !important;
+          }
+          .no-print, .voucher-buttons, .top-nav-bar, button {
+            display: none !important;
+          }
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+        }
+      `}</style>
       <div className="max-w-4xl w-full relative">
 
         {/* Top Navigation Bar */}
-        <div className="flex items-center justify-between mb-4 px-1">
+        <div className="top-nav-bar flex items-center justify-between mb-4 px-1 no-print">
           <button
             onClick={() => navigate(-1)}
             className="inline-flex items-center gap-1.5 text-xs font-black text-emerald-950 bg-white hover:bg-emerald-50 border border-emerald-200 px-3.5 py-2 rounded-full uppercase tracking-wider shadow-sm transition-colors cursor-pointer"
@@ -367,9 +387,15 @@ export default function Voucher() {
                         <span className="text-lg font-black text-amber-400 leading-tight mt-0.5">
                           {formatCurrency(order.total_amount || chaleDetails.chalePrice)}
                         </span>
-                        <span className="text-[10px] font-bold text-emerald-200">
-                          Hospedagem: {formatCurrency(chaleDetails.chalePrice)}
-                        </span>
+                        {onlineDiscountAmount > 0 ? (
+                          <span className="text-[10px] font-bold text-emerald-300">
+                            10% OFF aplicado ({formatCurrency(onlineDiscountAmount)} economia)
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold text-emerald-200">
+                            Hospedagem: {formatCurrency(chaleDetails.chalePrice)}
+                          </span>
+                        )}
                       </div>
                     </div>
 
@@ -490,39 +516,20 @@ export default function Voucher() {
                     </div>
                   </div>
 
-                  {/* Card 4: Demais Itens Inclusos na Reserva (Quiosques, Quadriciclos, Diversões, etc.) */}
-                  <div className="bg-white border-2 border-slate-200 rounded-3xl p-4 md:p-5 space-y-3 shadow-sm">
-                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                      <span className="text-xs font-black uppercase tracking-wider text-emerald-950">
-                        🛒 Resumo Financeiro & Demais Itens Inclusos na Reserva
-                      </span>
-                      <span className="text-[11px] font-bold text-slate-500">
-                        {1 + chaleDetails.otherItems.length} item(ns) na reserva
-                      </span>
-                    </div>
-
-                    <div className="space-y-2">
-                      {/* Item Principal: Hospedagem */}
-                      <div className="flex items-center justify-between gap-3 bg-emerald-50/70 p-3 rounded-2xl border border-emerald-200">
-                        <div className="flex items-start gap-2.5">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
-                          <div>
-                            <p className="text-xs font-black text-emerald-950">
-                              1x {chaleDetails.chaleLabel} — {chaleDetails.packageTitle}
-                            </p>
-                            <p className="text-[11px] font-bold text-emerald-800">
-                              Modalidade: {chaleDetails.occupancyLabel} • Check-in {formatShortDateSafe(chaleDetails.checkInDateStr)} ({chaleDetails.checkInTime}) até {formatShortDateSafe(chaleDetails.checkOutDateStr)} (12:00)
-                            </p>
-                          </div>
-                        </div>
-                        <span className="text-xs font-black text-emerald-950 shrink-0">
-                          {formatCurrency(chaleDetails.chalePrice)}
+                  {/* Card 4: Serviços e Itens Extras Adicionados à Estadia (Apenas se houver itens avulsos contratados) */}
+                  {chaleDetails.otherItems.length > 0 && (
+                    <div className="bg-white border-2 border-slate-200 rounded-3xl p-4 md:p-5 space-y-3 shadow-sm">
+                      <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                        <span className="text-xs font-black uppercase tracking-wider text-emerald-950">
+                          🛒 Serviços e Itens Extras Adicionados à Estadia
+                        </span>
+                        <span className="text-[11px] font-bold text-slate-500">
+                          {chaleDetails.otherItems.length} item(ns) adicional(is)
                         </span>
                       </div>
 
-                      {/* Demais Itens (Quiosque, Quadriciclo, Diversões, etc.) */}
-                      {chaleDetails.otherItems.length > 0 ? (
-                        chaleDetails.otherItems.map((extra, idx) => (
+                      <div className="space-y-2">
+                        {chaleDetails.otherItems.map((extra, idx) => (
                           <div key={idx} className="flex items-center justify-between gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-200">
                             <div className="flex items-start gap-2.5">
                               <CheckCircle2 className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
@@ -541,31 +548,10 @@ export default function Voucher() {
                               {formatCurrency(extra.totalPrice)}
                             </span>
                           </div>
-                        ))
-                      ) : (
-                        <p className="text-xs text-slate-500 font-semibold italic px-1">
-                          Nenhum item opcional avulso (quiosque/quadriciclo) adicionado além da hospedagem completa.
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Barra Final de Valor Total */}
-                    <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-slate-200">
-                      <div>
-                        <span className="text-[10px] font-black uppercase text-slate-500 block">
-                          Valor Total da Reserva ({isPaid ? 'Pago' : 'A Pagar'})
-                        </span>
-                        {onlineDiscountAmount > 0 && (
-                          <span className="text-[11px] font-bold text-emerald-700">
-                            Economia de {formatCurrency(onlineDiscountAmount)} (10% OFF aplicado)
-                          </span>
-                        )}
+                        ))}
                       </div>
-                      <span className="text-xl font-black text-emerald-950">
-                        {formatCurrency(order.total_amount || chaleDetails.chalePrice)}
-                      </span>
                     </div>
-                  </div>
+                  )}
 
                   {/* Card 5: Comprovante de Aceite Eletrônico dos Termos de Hospedagem */}
                   <div className="bg-slate-950 text-white rounded-3xl p-4 sm:p-5 border-2 border-amber-400/70 space-y-2.5 shadow-sm">
