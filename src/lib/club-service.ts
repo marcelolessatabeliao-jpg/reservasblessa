@@ -3771,116 +3771,150 @@ export const printDocumentHtml = (title: string, bodyHtml: string): boolean => {
 // ============================================================================
 // BUSCA RÁPIDA (LUPA FLUTUANTE / PORTARIA / QR CODE)
 // ============================================================================
+export const normalizeSearchText = (str?: string | null): string => {
+  if (!str) return '';
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
 export const scoreSearchMatch = (
   text: string,
   query: string
 ): number => {
-  const t = text.trim().toLowerCase();
-  const q = query.trim().toLowerCase();
-  if (!t || !q) return 0;
-  if (t === q) return 1000;
-  if (t.startsWith(q)) return 950;
+  const tNorm = normalizeSearchText(text);
+  const qNorm = normalizeSearchText(query);
+  if (!tNorm || !qNorm) return 0;
 
-  const tWords = t.split(/\s+/).filter(Boolean);
-  const qWords = q.split(/\s+/).filter(Boolean);
+  // 1. Igualdade exata
+  if (tNorm === qNorm) return 1000;
 
+  // 2. O texto completo começa exatamente com o termo pesquisado (ex: "elsa buenos aires" começa com "elsa bue")
+  if (tNorm.startsWith(qNorm)) return 980;
+
+  const tWords = tNorm.split(' ').filter(Boolean);
+  const qWords = qNorm.split(' ').filter(Boolean);
+  if (qWords.length === 0 || tWords.length === 0) return 0;
+
+  // 3. Busca com termo único (ex: "elsa", "bueno", "silva")
   if (qWords.length === 1) {
     const qw = qWords[0];
-    // Primeiro nome começa exatamente com a busca (Ex: "Maria Clara" ao buscar "maria")
-    if (tWords[0]?.startsWith(qw)) return 850;
-    // Sobrenome começa com a busca (Ex: "Ana Maria" ao buscar "maria")
-    if (tWords.slice(1).some((w) => w.startsWith(qw))) return 700;
-    // Subtermo no texto
-    if (t.includes(qw)) return 400;
+    // Primeiro nome começa exatamente com o termo (ex: "Elsa" ao digitar "els")
+    if (tWords[0].startsWith(qw)) return 920;
+    // Sobrenome começa exatamente com o termo (ex: "Buenos" ao digitar "bue")
+    if (tWords.slice(1).some((tw) => tw.startsWith(qw))) return 860;
+    // Algum nome ou sobrenome contém o termo (a partir de 3 caracteres)
+    if (qw.length >= 3 && tWords.some((tw) => tw.includes(qw))) return 600;
     return 0;
   }
 
-  // Múltiplas palavras (Ex: "Maria Silva")
-  const matchesFirst = tWords[0]?.startsWith(qWords[0]);
-  const allPrefixes = qWords.every((qw) => tWords.some((tw) => tw.startsWith(qw)));
-  if (matchesFirst && allPrefixes) return 900;
-  if (allPrefixes) return 800;
-  if (t.includes(q)) return 500;
+  // 4. Busca com múltiplos termos (ex: "elsa bue", "maria silva", "silva joao")
+  // Todas as palavras digitadas DEVEM ser satisfeitas por palavras do nome
+  let allPrefixes = true;
+  let allSubstrings = true;
 
-  return 0;
+  for (const qw of qWords) {
+    const hasPrefix = tWords.some((tw) => tw.startsWith(qw));
+    const hasSubstring = hasPrefix || (qw.length >= 2 && tWords.some((tw) => tw.includes(qw)));
+    if (!hasPrefix) allPrefixes = false;
+    if (!hasSubstring) {
+      allSubstrings = false;
+      break;
+    }
+  }
+
+  if (!allSubstrings) return 0;
+
+  const firstWordMatches = tWords[0].startsWith(qWords[0]);
+  if (firstWordMatches && allPrefixes) return 950;
+  if (allPrefixes) return 900;
+  if (firstWordMatches) return 850;
+  return 750;
 };
 
 export const findMemberOrSubscriptionByQuery = (
   state: ClubDatabaseState,
   query: string
 ): Array<{ member: ClubMember; subscription: ClubSubscription }> => {
-  const q = query.trim().toLowerCase();
-  const qDigits = cleanDigits(query);
-  if (!q) return [];
+  const qRaw = (query || '').trim();
+  if (!qRaw) return [];
+  const qNorm = normalizeSearchText(qRaw);
+  const qDigits = cleanDigits(qRaw);
+  if (!qNorm && !qDigits) return [];
 
   const scoredResults: Array<{
     member: ClubMember;
     subscription: ClubSubscription;
     score: number;
+    isDirectNameMatch: boolean;
     createdAt: number;
   }> = [];
 
-  for (const sub of state.subscriptions) {
+  for (const sub of (state.subscriptions || [])) {
     const subCreatedTime = new Date(sub.createdAt || sub.startDate || 0).getTime();
-    for (const member of sub.members) {
+    const holderScore = scoreSearchMatch(sub.holderName, qRaw);
+
+    for (const member of (sub.members || [])) {
       let maxScore = 0;
+      let isDirectNameMatch = false;
 
-      // 1. Prioridade por Nome (Primeiro nome > Sobrenome > Substring)
-      const nameScore = Math.max(
-        scoreSearchMatch(member.fullName, q),
-        scoreSearchMatch(sub.holderName, q)
-      );
-      if (nameScore > maxScore) maxScore = nameScore;
+      // 1. Busca pelo nome do próprio integrante (prioridade total)
+      const ownNameScore = scoreSearchMatch(member.fullName, qRaw);
+      if (ownNameScore > 0) {
+        maxScore = ownNameScore;
+        isDirectNameMatch = true;
+      }
 
-      // 2. Email exato ou prefixo
+      // 2. Se o próprio nome não casou, mas o titular da assinatura casou:
+      // Concede pontuação secundária para que o dependente apareça após quem realmente tem o nome buscado
+      if (!isDirectNameMatch && holderScore > 0) {
+        maxScore = Math.max(maxScore, Math.max(300, holderScore - 250));
+      }
+
+      // 3. E-mail
       if (sub.holderEmail) {
-        const em = sub.holderEmail.toLowerCase().trim();
-        if (em === q) maxScore = Math.max(maxScore, 920);
-        else if (em.startsWith(q)) maxScore = Math.max(maxScore, 800);
-        else if (em.includes(q)) maxScore = Math.max(maxScore, 300);
+        const emNorm = normalizeSearchText(sub.holderEmail);
+        if (emNorm === qNorm) maxScore = Math.max(maxScore, 950);
+        else if (emNorm.startsWith(qNorm)) maxScore = Math.max(maxScore, 850);
+        else if (qNorm.length >= 3 && emNorm.includes(qNorm)) maxScore = Math.max(maxScore, 500);
       }
 
-      // 3. Carteirinha / Código (aceita texto exato ou apenas dígitos, ex: #1212253016 ou 1212253016)
-      const cardNum = (member.cardNumber || '').toLowerCase();
-      const holderCardNum = (member.holderCardNumber || '').toLowerCase();
-      const code = (sub.subscriptionCode || '').toLowerCase();
-      const qrTok = (member.qrToken || '').toLowerCase();
-      const cardDigits = cleanDigits(member.cardNumber);
-      const codeDigits = cleanDigits(sub.subscriptionCode);
-      const qrDigits = cleanDigits(member.qrToken);
-      if (
-        cardNum === q ||
-        code === q ||
-        qrTok === q ||
-        holderCardNum === q ||
-        (qDigits.length >= 4 &&
-          (cardDigits === qDigits || codeDigits === qDigits || qrDigits === qDigits))
-      ) {
-        maxScore = Math.max(maxScore, 980);
-      } else if (
-        cardNum.startsWith(q) ||
-        code.startsWith(q) ||
-        (qDigits.length >= 4 && (cardDigits.startsWith(qDigits) || codeDigits.startsWith(qDigits)))
-      ) {
-        maxScore = Math.max(maxScore, 850);
-      } else if (
-        cardNum.includes(q) ||
-        code.includes(q) ||
-        (qDigits.length >= 4 && (cardDigits.includes(qDigits) || codeDigits.includes(qDigits)))
-      ) {
-        maxScore = Math.max(maxScore, 400);
-      }
+      // 4. Carteirinha / Código / Token
+      const mCard = (member.cardNumber || '').trim().toLowerCase();
+      const sCode = (sub.subscriptionCode || '').trim().toLowerCase();
+      const mCardDigits = cleanDigits(member.cardNumber);
+      const sCodeDigits = cleanDigits(sub.subscriptionCode);
 
-      // 4. CPF
-      if (qDigits.length >= 3) {
-        const memberCpf = cleanDigits(member.cpf);
-        const holderCpf = cleanDigits(sub.holderCpf);
-        if (memberCpf === qDigits || holderCpf === qDigits) {
-          maxScore = Math.max(maxScore, 980);
-        } else if (memberCpf.startsWith(qDigits) || holderCpf.startsWith(qDigits)) {
+      if (qDigits && qDigits.length >= 3) {
+        if (mCardDigits === qDigits || sCodeDigits === qDigits) {
+          maxScore = Math.max(maxScore, 1000);
+        } else if (mCardDigits.startsWith(qDigits) || sCodeDigits.startsWith(qDigits)) {
+          maxScore = Math.max(maxScore, 880);
+        } else if (qDigits.length >= 4 && (mCardDigits.endsWith(qDigits) || sCodeDigits.endsWith(qDigits))) {
           maxScore = Math.max(maxScore, 860);
-        } else if (memberCpf.includes(qDigits) || holderCpf.includes(qDigits)) {
-          maxScore = Math.max(maxScore, 450);
+        }
+      }
+
+      if (qNorm && (mCard === qNorm || sCode === qNorm)) {
+        maxScore = Math.max(maxScore, 1000);
+      } else if (qNorm && (mCard.startsWith(qNorm) || sCode.startsWith(qNorm))) {
+        maxScore = Math.max(maxScore, 880);
+      }
+
+      // 5. CPF
+      if (qDigits && qDigits.length >= 3) {
+        const mCpfDigits = cleanDigits(member.cpf);
+        const hCpfDigits = cleanDigits(sub.holderCpf);
+        if (mCpfDigits === qDigits || hCpfDigits === qDigits) {
+          maxScore = Math.max(maxScore, 1000);
+        } else if (mCpfDigits.startsWith(qDigits) || hCpfDigits.startsWith(qDigits)) {
+          maxScore = Math.max(maxScore, 880);
+        } else if (qDigits.length >= 4 && (mCpfDigits.includes(qDigits) || hCpfDigits.includes(qDigits))) {
+          maxScore = Math.max(maxScore, 650);
         }
       }
 
@@ -3889,17 +3923,21 @@ export const findMemberOrSubscriptionByQuery = (
           member,
           subscription: sub,
           score: maxScore,
+          isDirectNameMatch,
           createdAt: subCreatedTime,
         });
       }
     }
   }
 
-  // Ordenar pelo score mais alto (quem começa com o nome primeiro), e em caso de empate, pelo cadastro mais recente
   scoredResults.sort((a, b) => {
-    if (b.score !== a.score) {
-      return b.score - a.score;
-    }
+    // 1º Prioridade: Score maior
+    if (b.score !== a.score) return b.score - a.score;
+    // 2º Prioridade: Quem tem match direto no próprio nome ganha de vínculo familiar
+    if (a.isDirectNameMatch !== b.isDirectNameMatch) return a.isDirectNameMatch ? -1 : 1;
+    // 3º Prioridade: Titular antes de dependente
+    if (a.member.role !== b.member.role) return a.member.role === 'TITULAR' ? -1 : 1;
+    // 4º Prioridade: Mais recente
     return b.createdAt - a.createdAt;
   });
 
