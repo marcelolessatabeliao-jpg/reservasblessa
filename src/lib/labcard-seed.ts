@@ -225,6 +225,7 @@ export const REGULARIZED_ACTIVE_CARDS = new Set([
   '121225261', // Rosimeire S Lessa
   '121225271', // Eduardo Rodrigues
   '121225817', // Marli da Silva Ribeiro
+  '1212251327', // Roksiane Alves de Barros
 ]);
 
 let cachedLabcardSubs: ClubSubscription[] | null = null;

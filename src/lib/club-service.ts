@@ -1422,6 +1422,18 @@ export const loadClubStateLocal = (): ClubDatabaseState => {
           if (seedSub.addressCep && (!s.addressCep || s.addressCep === '76870-000')) s.addressCep = seedSub.addressCep;
           if (seedSub.addressStreet && !s.addressStreet) s.addressStreet = seedSub.addressStreet;
           if (seedSub.addressNeighborhood && !s.addressNeighborhood) s.addressNeighborhood = seedSub.addressNeighborhood;
+
+          // Restaura carnê completo de mensalidades do seed (ex: 12 parcelas da Roksiane) caso o cache local tenha menos parcelas
+          if (
+            (seedSub.invoices?.length || 0) > (s.invoices?.length || 0) ||
+            (seedSub.invoices && seedSub.invoices.some((i) => i.asaasPaymentId) && !s.invoices?.some((i) => i.asaasPaymentId))
+          ) {
+            const localInvMap = new Map((s.invoices || []).map((inv) => [inv.id, inv]));
+            s.invoices = seedSub.invoices.map((sInv) => {
+              const localInv = localInvMap.get(sInv.id);
+              return localInv ? { ...sInv, ...localInv } : sInv;
+            });
+          }
         }
         subsMap.set(s.id, s);
       }
@@ -1879,8 +1891,28 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
                   return mergeMemberMediaSafely(m, cm);
                 });
               }
-              // Preserva faturas emitidas e sincronizadas no Asaas na nuvem
-              if (current.invoices && current.invoices.some((i) => i.asaasPaymentId)) {
+              // Preserva faturas emitidas e sincronizadas no Asaas na nuvem ou no seed
+              const seedSubForInv = defaultLabcardSubs.find((x) => x.id === s.id);
+              const fullInvoicesSource =
+                ((seedSubForInv?.invoices?.length || 0) > (s.invoices?.length || 0))
+                  ? seedSubForInv?.invoices
+                  : ((current.invoices?.length || 0) > (s.invoices?.length || 0))
+                  ? current.invoices
+                  : (seedSubForInv?.invoices && seedSubForInv.invoices.some((i) => i.asaasPaymentId) && (!s.invoices || !s.invoices.some((i) => i.asaasPaymentId)))
+                  ? seedSubForInv.invoices
+                  : (current.invoices && current.invoices.some((i) => i.asaasPaymentId))
+                  ? current.invoices
+                  : null;
+
+              if (fullInvoicesSource) {
+                const localInvMap = new Map((s.invoices || []).map((inv) => [inv.id, inv]));
+                const remoteInvMap = new Map((current.invoices || []).map((inv) => [inv.id, inv]));
+                s.invoices = fullInvoicesSource.map((fInv) => {
+                  const lInv = localInvMap.get(fInv.id);
+                  const rInv = remoteInvMap.get(fInv.id);
+                  return { ...fInv, ...(rInv || {}), ...(lInv || {}) };
+                });
+              } else if (current.invoices && current.invoices.some((i) => i.asaasPaymentId)) {
                 const remoteInvMap = new Map(current.invoices.map((inv) => [inv.id, inv]));
                 s.invoices = (s.invoices || []).map((localInv) => {
                   const rInv = remoteInvMap.get(localInv.id);
