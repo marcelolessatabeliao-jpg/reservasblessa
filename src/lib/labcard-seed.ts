@@ -410,7 +410,10 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
 
     if (upName.includes('ROKSIANE') || holderCard === '1212251327') {
       finalCreatedAt = '2026-04-04T00:00:00.000Z';
-      finalEndDate = '2026-12-21';
+      finalEndDate = '2027-04-04';
+    } else if (upName.includes('ELSA BUENO') || holderCard === '1212251781') {
+      finalCreatedAt = '2026-02-19T00:00:00.000Z';
+      finalEndDate = '2027-02-19';
     } else if (upName.includes('MARLI DA SILVA') || holderCard === '121225817') {
       finalCreatedAt = '2025-01-01T00:00:00.000Z';
       finalEndDate = '2026-12-15';
@@ -513,6 +516,45 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
             invoiceKind: 'MENSALIDADE',
             carneGroup: 1,
             createdAt: '2026-04-04T00:00:00.000Z',
+          });
+        });
+      } else if (upName.includes('ELSA BUENO') || holderCard === '1212251781') {
+        const elsaCarnes = [
+          { num: 1, ref: '02/2026', due: '2026-02-20', paid: '2026-02-19T10:00:00.000Z', status: 'PAID' as const, asaasPaymentId: 'pay_76sve9lhfkclynmg', invoiceUrl: 'https://www.asaas.com/i/76sve9lhfkclynmg', amount: 25 },
+          { num: 2, ref: '03/2026', due: '2026-03-20', paid: '2026-03-10T10:00:00.000Z', status: 'PAID' as const, asaasPaymentId: 'pay_scwdc8qy9rwlfj2l', invoiceUrl: 'https://www.asaas.com/i/scwdc8qy9rwlfj2l', amount: 25 },
+          { num: 3, ref: '04/2026', due: '2026-04-20', paid: '2026-04-20T10:00:00.000Z', status: 'PAID' as const, asaasPaymentId: 'pay_n24oa640uprr4a2v', invoiceUrl: 'https://www.asaas.com/i/n24oa640uprr4a2v', amount: 25 },
+          { num: 4, ref: '05/2026', due: '2026-05-20', paid: '2026-05-31T10:00:00.000Z', status: 'PAID' as const, asaasPaymentId: 'pay_lwk7mxqubjhgonva', invoiceUrl: 'https://www.asaas.com/i/lwk7mxqubjhgonva', amount: 25 },
+          { num: 5, ref: '06/2026', due: '2026-06-20', paid: '2026-06-20T10:00:00.000Z', status: 'PAID' as const, asaasPaymentId: 'pay_qe3uo1sxbax1y998', invoiceUrl: 'https://www.asaas.com/i/qe3uo1sxbax1y998', amount: 25 },
+          { num: 6, ref: '07/2026', due: '2026-07-20', paid: '2026-07-12T10:00:00.000Z', status: 'PAID' as const, asaasPaymentId: 'pay_n3ssnqkolzjpxy6b', invoiceUrl: 'https://www.asaas.com/i/n3ssnqkolzjpxy6b', amount: 25 },
+          { num: 7, ref: '08/2026', due: '2026-08-20', paid: '2026-09-13T10:00:00.000Z', status: 'PAID' as const, asaasPaymentId: 'pay_tu55p66gftwzxv9a', invoiceUrl: 'https://www.asaas.com/i/tu55p66gftwzxv9a', amount: 25 },
+          { num: 8, ref: '09/2026', due: '2026-09-20', paid: '2026-09-27T10:00:00.000Z', status: 'PAID' as const, asaasPaymentId: 'pay_wq824m1ocjwb4rh2', invoiceUrl: 'https://www.asaas.com/i/wq824m1ocjwb4rh2', amount: 25.36 },
+          { num: 9, ref: '10/2026', due: '2026-10-10', paid: undefined, status: 'OVERDUE' as const, asaasPaymentId: 'pay_6pnijr32q176lic6', invoiceUrl: 'https://www.asaas.com/i/6pnijr32q176lic6', amount: 25 },
+          { num: 10, ref: '11/2026', due: '2026-11-10', paid: undefined, status: 'OVERDUE' as const, asaasPaymentId: 'pay_8aa9qpvtvoqd8ebb', invoiceUrl: 'https://www.asaas.com/i/8aa9qpvtvoqd8ebb', amount: 25 },
+          { num: 11, ref: '12/2026', due: '2026-12-10', paid: undefined, status: 'PENDING' as const, asaasPaymentId: 'pay_o58qntvl6bzgbl28', invoiceUrl: 'https://www.asaas.com/i/o58qntvl6bzgbl28', amount: 25 },
+          { num: 12, ref: '01/2027', due: '2027-01-10', paid: undefined, status: 'PENDING' as const, asaasPaymentId: 'pay_njoas2na5toab364', invoiceUrl: 'https://www.asaas.com/i/njoas2na5toab364', amount: 25 },
+        ];
+        elsaCarnes.forEach((c) => {
+          invoices.push({
+            id: `inv_asaas_elsa_${c.num}`,
+            subscriptionId: subId,
+            subscriptionCode: subCode,
+            holderName: name.trim(),
+            holderCpf: formatCpf(cpf),
+            holderPhone: formatPhone(phone),
+            installmentNumber: c.num,
+            totalInstallments: 12,
+            referenceMonth: c.ref,
+            amount: c.amount,
+            dueDate: c.due,
+            paidAt: c.paid,
+            paymentMethod: 'PIX',
+            status: c.status,
+            asaasPaymentId: c.asaasPaymentId,
+            invoiceUrl: c.invoiceUrl,
+            description: `${mod.name} (Mensalidade ${c.ref})`,
+            invoiceKind: 'MENSALIDADE',
+            carneGroup: 1,
+            createdAt: '2026-02-19T00:00:00.000Z',
           });
         });
       } else {
@@ -620,6 +662,8 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
             status: 'INACTIVE',
             inactivityReason: 'MENSALIDADE_VENCIDA',
             inactivityNotes: 'Mensalidades 10/2026 e 11/2026 em atraso',
+            expirationDate: '2027-02-19',
+            validityLabel: '02/2027',
             manualStatusOverride: true,
           };
         }
@@ -632,8 +676,8 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
             documentProofName: savedMedia?.documentProofName || 'img_1769286738.webp',
             documentProofUrl: savedMedia?.documentProofUrl,
             attachments: savedMedia?.attachments || [],
-            expirationDate: '2026-12-21',
-            validityLabel: '12/2026',
+            expirationDate: '2027-04-04',
+            validityLabel: '04/2027',
             manualStatusOverride: true,
           };
         }

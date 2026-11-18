@@ -78,6 +78,7 @@ import {
   doesConsultantAllowModality,
   getSelectablePlansForConsultants,
   getConsultantSubscriptionMetrics,
+  syncSubscriptionInvoicesWithAsaas,
 } from '@/lib/club-service';
 import { ClubMemberCardView } from '@/components/club/ClubMemberCardView';
 
@@ -265,6 +266,53 @@ const SocioPortal: React.FC = () => {
       }
     }
   }, [state?.subscriptions]);
+
+  const [isSyncingAsaas, setIsSyncingAsaas] = useState(false);
+
+  const handleManualSyncAsaas = async () => {
+    if (!subscription) return;
+    setIsSyncingAsaas(true);
+    try {
+      const res = await syncSubscriptionInvoicesWithAsaas(subscription);
+      if (res.updatedSub) {
+        setSubscription(res.updatedSub);
+      }
+      if (res.state) {
+        setState(res.state);
+      }
+      toast({
+        title: 'Faturas Sincronizadas!',
+        description: `${res.updatedSub?.invoices?.length || 0} mensalidade(s) sincronizadas com a base oficial do Asaas.`,
+      });
+    } catch (err: any) {
+      console.error('[SocioPortal] Erro ao sincronizar com Asaas:', err);
+      toast({
+        title: 'Aviso de Sincronização',
+        description: 'Não foi possível contatar o Asaas no momento. Exibindo dados em cache.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSyncingAsaas(false);
+    }
+  };
+
+  // Sincronização automática em segundo plano das cobranças originais do Asaas para qualquer associado
+  useEffect(() => {
+    if (!subscription || !subscription.holderCpf) return;
+    let active = true;
+    syncSubscriptionInvoicesWithAsaas(subscription).then((res) => {
+      if (!active) return;
+      if (res.updatedSub) {
+        setSubscription(res.updatedSub);
+      }
+      if (res.state) {
+        setState(res.state);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [subscription?.id]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1135,6 +1183,15 @@ const SocioPortal: React.FC = () => {
                   </Badge>
                   <span className="text-xs font-semibold text-slate-500">
                     Ciclo: {subscription.billingCycle === 'ANNUAL' ? 'Anual' : 'Mensal Recorrente'}
+                  </span>
+                  <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 flex items-center gap-1.5 shadow-xs">
+                    <Calendar className="w-3.5 h-3.5 text-emerald-600 inline" />
+                    Validade do Plano:{' '}
+                    <strong className="text-emerald-950 font-black">
+                      {subscription.endDate
+                        ? formatDateBR(subscription.endDate)
+                        : (subscription.members?.[0]?.validityLabel || '12/2027')}
+                    </strong>
                   </span>
                 </div>
                 <h1 className="text-2xl font-black text-slate-900">
@@ -2142,9 +2199,28 @@ const SocioPortal: React.FC = () => {
               {/* TAB 2: FATURAS */}
               <TabsContent value="faturas" className="space-y-4">
                 <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
-                  <h3 className="text-lg font-black text-slate-900">
-                    Histórico de Faturas e Mensalidades
-                  </h3>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                    <div>
+                      <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                        <Receipt className="w-5 h-5 text-emerald-700" />
+                        Histórico de Faturas e Mensalidades
+                      </h3>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Cobranças vinculadas diretamente ao Asaas Oficial. Ao efetuar o pagamento da fatura ou via PIX, a baixa é realizada automaticamente no Asaas e no sistema do Balneário.
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={handleManualSyncAsaas}
+                      disabled={isSyncingAsaas}
+                      className="border-emerald-600 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 font-bold text-xs shrink-0 h-9"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isSyncingAsaas ? 'animate-spin' : ''}`} />
+                      {isSyncingAsaas ? 'Sincronizando...' : 'Atualizar Faturas do Asaas'}
+                    </Button>
+                  </div>
 
                   <div className="space-y-3">
                     {sortedInvoices.map((inv) => {

@@ -2739,6 +2739,125 @@ export const generateAsaasChargeForClubInvoice = async (
   };
 };
 
+export const syncSubscriptionInvoicesWithAsaas = async (
+  subscriptionIdOrSub: string | ClubSubscription
+): Promise<{ state: ClubDatabaseState; updatedSub: ClubSubscription | null; syncedCount: number }> => {
+  const subId = typeof subscriptionIdOrSub === 'string' ? subscriptionIdOrSub : subscriptionIdOrSub.id;
+  const state = await fetchClubState();
+  const subIdx = state.subscriptions.findIndex((s) => s.id === subId);
+  if (subIdx < 0) return { state, updatedSub: null, syncedCount: 0 };
+
+  const targetSub = state.subscriptions[subIdx];
+  const cleanCpf = cleanDigits(targetSub.holderCpf);
+  if (!cleanCpf || cleanCpf.length !== 11) {
+    return { state, updatedSub: targetSub, syncedCount: 0 };
+  }
+
+  try {
+    const { data, error } = await supabase.functions.invoke('create-payment', {
+      body: {
+        action: 'list-customer-charges',
+        cpf: cleanCpf,
+      },
+    });
+
+    if (error || !data || !Array.isArray(data.payments) || data.payments.length === 0) {
+      return { state, updatedSub: targetSub, syncedCount: 0 };
+    }
+
+    const rawPayments: any[] = data.payments;
+    // Ordena as cobranças por data de vencimento crescente
+    const sortedPayments = [...rawPayments].sort((a, b) =>
+      (a.dueDate || '').localeCompare(b.dueDate || '')
+    );
+
+    const existingInvMap = new Map((targetSub.invoices || []).map((i) => [i.asaasPaymentId || i.id, i]));
+
+    const syncedInvoices: ClubInvoice[] = sortedPayments.map((p, idx) => {
+      const existing = existingInvMap.get(p.id);
+      const isPaid = p.status === 'RECEIVED' || p.status === 'CONFIRMED' || p.status === 'RECEIVED_IN_CASH';
+      const isOverdue = p.status === 'OVERDUE';
+      const status: 'PAID' | 'PENDING' | 'OVERDUE' = isPaid ? 'PAID' : isOverdue ? 'OVERDUE' : 'PENDING';
+
+      const dueParts = (p.dueDate || '').split('-');
+      const refMonth = dueParts.length === 3 ? `${dueParts[1]}/${dueParts[0]}` : `Parcela ${idx + 1}`;
+
+      return {
+        id: existing?.id || `inv_asaas_${p.id}`,
+        subscriptionId: targetSub.id,
+        subscriptionCode: targetSub.subscriptionCode,
+        holderName: targetSub.holderName,
+        holderCpf: targetSub.holderCpf,
+        holderPhone: targetSub.holderPhone,
+        installmentNumber: idx + 1,
+        totalInstallments: sortedPayments.length,
+        referenceMonth: refMonth,
+        amount: Number(p.value) || targetSub.monthlyEquivalent || 25,
+        dueDate: p.dueDate,
+        paidAt: isPaid ? (p.paymentDate || p.clientPaymentDate || existing?.paidAt || `${p.dueDate}T12:00:00.000Z`) : undefined,
+        paymentMethod: p.billingType === 'BOLETO' ? 'BOLETO' : p.billingType === 'PIX' ? 'PIX' : 'CARTAO',
+        status,
+        asaasPaymentId: p.id,
+        invoiceUrl: p.invoiceUrl,
+        boletoNumber: p.nossoNumero || p.bankSlipUrl || existing?.boletoNumber,
+        description: `${targetSub.planSummaryLabel || 'Lessa Club'} (Mensalidade ${refMonth})`,
+        invoiceKind: 'MENSALIDADE',
+        carneGroup: 1,
+        createdAt: p.dateCreated ? `${p.dateCreated}T00:00:00.000Z` : targetSub.createdAt,
+      };
+    });
+
+    targetSub.invoices = syncedInvoices;
+
+    const lastDue = sortedPayments[sortedPayments.length - 1]?.dueDate;
+    if (lastDue) {
+      const lastDate = new Date(lastDue + 'T00:00:00');
+      lastDate.setMonth(lastDate.getMonth() + 1);
+      const endIso = lastDate.toISOString().split('T')[0];
+      targetSub.endDate = endIso;
+      const endMonth = String(lastDate.getMonth() + 1).padStart(2, '0');
+      const endYear = lastDate.getFullYear();
+      const valLabel = `${endMonth}/${endYear}`;
+      targetSub.members = (targetSub.members || []).map((m) => ({
+        ...m,
+        expirationDate: endIso,
+        validityLabel: valLabel,
+      }));
+    }
+
+    const hasOverdue = syncedInvoices.some((i) => i.status === 'OVERDUE');
+    if (hasOverdue) {
+      targetSub.status = 'INACTIVE';
+      targetSub.inactivityReason = 'MENSALIDADE_VENCIDA';
+      targetSub.inactivityNotes = 'Mensalidade(s) em atraso identificada(s) no Asaas';
+      targetSub.members = (targetSub.members || []).map((m) => ({
+        ...m,
+        status: 'INACTIVE',
+        inactivityReason: 'MENSALIDADE_VENCIDA',
+      }));
+    } else {
+      targetSub.status = 'ACTIVE';
+      targetSub.inactivityReason = undefined;
+      targetSub.inactivityNotes = undefined;
+      targetSub.transferCompleted = true;
+      targetSub.manuallyConfirmedTransfer = true;
+      targetSub.members = (targetSub.members || []).map((m) => ({
+        ...m,
+        status: 'ACTIVE',
+        inactivityReason: undefined,
+      }));
+    }
+
+    targetSub.updatedAt = new Date().toISOString();
+    state.subscriptions[subIdx] = targetSub;
+    const saved = await saveClubState(state, { waitForCloud: true });
+    return { state: saved, updatedSub: targetSub, syncedCount: syncedInvoices.length };
+  } catch (err) {
+    console.warn('[ClubService] Erro ao sincronizar faturas com o Asaas:', err);
+    return { state, updatedSub: targetSub, syncedCount: 0 };
+  }
+};
+
 export const generateAllAsaasInvoicesForSubscription = async (
   subscription: ClubSubscription,
   billingType: 'PIX' | 'CREDIT_CARD' | 'DEBIT_CARD' | 'BOLETO' = 'PIX',

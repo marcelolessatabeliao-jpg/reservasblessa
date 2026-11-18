@@ -82,6 +82,17 @@ export const ClubMemberCardView: React.FC<ClubMemberCardViewProps> = ({
   const isHolder = member.role === 'TITULAR';
   const isCardActive = !locked && member.status === 'ACTIVE';
 
+  const cardValidity = React.useMemo(() => {
+    if (member.expirationDate) {
+      const raw = String(member.expirationDate).split('T')[0];
+      const parts = raw.split('-');
+      if (parts.length === 3) {
+        return `${parts[1]}/${parts[0]}`; // Ex: 04/2027
+      }
+    }
+    return member.validityLabel || '12/2027';
+  }, [member.expirationDate, member.validityLabel]);
+
   // ============================================================================
   // EDITOR DE ENQUADRAMENTO E REPOSICIONAMENTO DE FOTO 3x4 (FOCO PERFIL / ROSTO)
   // ============================================================================
@@ -864,7 +875,7 @@ export const ClubMemberCardView: React.FC<ClubMemberCardViewProps> = ({
                   textShadow: '0 2px 4px rgba(0,0,0,0.5)',
                 }}
               >
-                {member.validityLabel}
+                {cardValidity}
               </div>
             </div>
 
