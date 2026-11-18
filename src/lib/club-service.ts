@@ -2809,20 +2809,28 @@ export const syncSubscriptionInvoicesWithAsaas = async (
 
     targetSub.invoices = syncedInvoices;
 
-    const lastDue = sortedPayments[sortedPayments.length - 1]?.dueDate;
-    if (lastDue) {
-      const lastDate = new Date(lastDue + 'T00:00:00');
-      lastDate.setMonth(lastDate.getMonth() + 1);
-      const endIso = lastDate.toISOString().split('T')[0];
-      targetSub.endDate = endIso;
-      const endMonth = String(lastDate.getMonth() + 1).padStart(2, '0');
-      const endYear = lastDate.getFullYear();
-      const valLabel = `${endMonth}/${endYear}`;
-      targetSub.members = (targetSub.members || []).map((m) => ({
-        ...m,
-        expirationDate: endIso,
-        validityLabel: valLabel,
-      }));
+    // Se o Administrador já definiu uma data de vigência no Lessa Club (ex: 2026-12-30), PRESERVA INTEGRALMENTE a data do Admin!
+    // A decisão soberana do administrador no Lessa Club sempre prevalece sobre estimativas automáticas.
+    if (!targetSub.endDate || targetSub.endDate === '2027-10-31') {
+      const lastDue = sortedPayments[sortedPayments.length - 1]?.dueDate;
+      if (lastDue) {
+        const lastDate = new Date(lastDue + 'T00:00:00');
+        lastDate.setMonth(lastDate.getMonth() + 1);
+        targetSub.endDate = lastDate.toISOString().split('T')[0];
+      }
+    }
+
+    // A validade na carteirinha acompanha a data soberana de vigência definida no Lessa Club (targetSub.endDate)
+    if (targetSub.endDate) {
+      const p = targetSub.endDate.split('-');
+      if (p.length === 3) {
+        const valLabel = `${p[1]}/${p[0]}`;
+        targetSub.members = (targetSub.members || []).map((m) => ({
+          ...m,
+          expirationDate: m.expirationDate && m.expirationDate !== '2027-10-31' ? m.expirationDate : targetSub.endDate,
+          validityLabel: m.validityLabel && m.validityLabel !== '10/2027' ? m.validityLabel : valLabel,
+        }));
+      }
     }
 
     const hasOverdue = syncedInvoices.some((i) => i.status === 'OVERDUE');

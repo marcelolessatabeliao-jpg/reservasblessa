@@ -413,7 +413,7 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
       finalEndDate = '2027-04-04';
     } else if (upName.includes('ELSA BUENO') || holderCard === '1212251781') {
       finalCreatedAt = '2026-02-19T00:00:00.000Z';
-      finalEndDate = '2027-02-19';
+      finalEndDate = '2026-12-30';
     } else if (upName.includes('MARLI DA SILVA') || holderCard === '121225817') {
       finalCreatedAt = '2025-01-01T00:00:00.000Z';
       finalEndDate = '2026-12-15';
@@ -662,8 +662,8 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
             status: 'INACTIVE',
             inactivityReason: 'MENSALIDADE_VENCIDA',
             inactivityNotes: 'Mensalidades 10/2026 e 11/2026 em atraso',
-            expirationDate: '2027-02-19',
-            validityLabel: '02/2027',
+            expirationDate: '2026-12-30',
+            validityLabel: '12/2026',
             manualStatusOverride: true,
           };
         }
