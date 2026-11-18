@@ -304,8 +304,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     addressCity: 'Ariquemes',
     addressState: 'RO',
     vehicleModel: '',
+    vehicleBrand: '',
     vehiclePlate: '',
     vehicleColor: '',
+    vehicleStickerPhotoUrl: '',
+    vehicleStickerPhotoName: '',
     notes: '',
     dueDay: 10,
     billingCycle: 'ANNUAL' as BillingCycle,
@@ -609,6 +612,9 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
   const [newDepPhoto, setNewDepPhoto] = useState('');
   const [newDepExpirationDate, setNewDepExpirationDate] = useState('');
   const [newDepExpirationNotes, setNewDepExpirationNotes] = useState('');
+  const [newDepKinship, setNewDepKinship] = useState('Cônjuge');
+  const [newDepDocUrl, setNewDepDocUrl] = useState('');
+  const [newDepDocName, setNewDepDocName] = useState('');
   const [editingDepModalityMemberId, setEditingDepModalityMemberId] = useState<string | null>(null);
   const [targetNewModalityCode, setTargetNewModalityCode] = useState('');
 
@@ -2657,8 +2663,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         addressCity: selectedSubForDetail.addressCity || 'Ariquemes',
         addressState: selectedSubForDetail.addressState || 'RO',
         vehicleModel: selectedSubForDetail.vehicleModel || '',
+        vehicleBrand: selectedSubForDetail.vehicleBrand || '',
         vehiclePlate: selectedSubForDetail.vehiclePlate || '',
         vehicleColor: selectedSubForDetail.vehicleColor || '',
+        vehicleStickerPhotoUrl: selectedSubForDetail.vehicleStickerPhotoUrl || '',
+        vehicleStickerPhotoName: selectedSubForDetail.vehicleStickerPhotoName || '',
         notes: selectedSubForDetail.notes || '',
         dueDay: selectedSubForDetail.dueDay || 10,
         billingCycle: selectedSubForDetail.billingCycle || 'ANNUAL',
@@ -2760,6 +2769,57 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         ? 'ACTIVE'
         : selectedSubForDetail.status || 'INACTIVE';
 
+      // Validação estrita do Plano Lessa Family:
+      // O plano é para o dono do carro e dependentes apenas cônjuge e filhos.
+      // O plano só será ativado após ter os documentos de cada dependente anexado e a foto do carro adesivado.
+      const isLessaFamily =
+        isPublicidade ||
+        selectedSubForDetail.contractType === 'FAMILY_PUBLICIDADE' ||
+        (selectedSubForDetail.planSummaryLabel && /family|adesiv/i.test(selectedSubForDetail.planSummaryLabel));
+
+      if (isLessaFamily && targetStatus === 'ACTIVE') {
+        const hasCarPhoto = Boolean(
+          editClientData.vehicleStickerPhotoUrl ||
+          selectedSubForDetail.vehicleStickerPhotoUrl ||
+          (selectedSubForDetail.attachments || []).some((a) => /carro|adesiv/i.test(a.name))
+        );
+        if (!hasCarPhoto) {
+          toast({
+            title: 'Não é possível ativar o Plano Lessa Family',
+            description: 'É obrigatório anexar a foto do carro adesivado antes de ativar o plano.',
+            variant: 'destructive',
+          });
+          setIsSavingClientRegistration(false);
+          return;
+        }
+
+        const deps = (selectedSubForDetail.members || []).filter((m) => m.role === 'DEPENDENTE');
+        const invalidKinshipDep = deps.find((m) => {
+          const k = (m.kinship || '').trim().toLowerCase();
+          return k && !k.includes('cônjuge') && !k.includes('conjuge') && !k.includes('filho') && !k.includes('filha');
+        });
+        if (invalidKinshipDep) {
+          toast({
+            title: 'Parentesco Inválido no Lessa Family',
+            description: `O dependente ${invalidKinshipDep.fullName} possui parentesco "${invalidKinshipDep.kinship}". No Plano Lessa Family apenas cônjuge e filhos são permitidos.`,
+            variant: 'destructive',
+          });
+          setIsSavingClientRegistration(false);
+          return;
+        }
+
+        const missingDocDep = deps.find((m) => !m.documentProofUrl && (!m.attachments || m.attachments.length === 0));
+        if (missingDocDep) {
+          toast({
+            title: 'RG Obrigatório do Dependente',
+            description: `O dependente ${missingDocDep.fullName} precisa do documento (RG com foto) anexado para validação e ativação do plano.`,
+            variant: 'destructive',
+          });
+          setIsSavingClientRegistration(false);
+          return;
+        }
+      }
+
       if (isSemPlano) {
         setSituacaoLiberar('NAO');
         setSituacaoInativar('SIM');
@@ -2808,8 +2868,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         addressCity: editClientData.addressCity.trim() || 'Ariquemes',
         addressState: editClientData.addressState.trim() || 'RO',
         vehicleModel: editClientData.vehicleModel.trim(),
+        vehicleBrand: editClientData.vehicleBrand.trim(),
         vehiclePlate: editClientData.vehiclePlate.trim().toUpperCase(),
         vehicleColor: editClientData.vehicleColor.trim(),
+        vehicleStickerPhotoUrl: editClientData.vehicleStickerPhotoUrl || selectedSubForDetail.vehicleStickerPhotoUrl,
+        vehicleStickerPhotoName: editClientData.vehicleStickerPhotoName || selectedSubForDetail.vehicleStickerPhotoName,
         notes: editClientData.notes.trim(),
         dueDay: Number(editClientData.dueDay) || 10,
         billingCycle: editClientData.billingCycle,
@@ -13183,7 +13246,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
                   {/* VEÍCULO E OBSERVAÇÕES */}
                   <div className="pt-3 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-12 gap-3">
-                    <div className="sm:col-span-4">
+                    <div className="sm:col-span-3">
                       <Label className="text-xs font-bold text-slate-700">
                         Modelo do Veículo
                       </Label>
@@ -13199,7 +13262,23 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         className="mt-1"
                       />
                     </div>
-                    <div className="sm:col-span-4">
+                    <div className="sm:col-span-3">
+                      <Label className="text-xs font-bold text-slate-700">
+                        Marca / Fabricante
+                      </Label>
+                      <Input
+                        value={editClientData.vehicleBrand}
+                        onChange={(e) =>
+                          setEditClientData({
+                            ...editClientData,
+                            vehicleBrand: e.target.value,
+                          })
+                        }
+                        placeholder="Ex: Toyota / Chevrolet / VW"
+                        className="mt-1"
+                      />
+                    </div>
+                    <div className="sm:col-span-3">
                       <Label className="text-xs font-bold text-slate-700">
                         Placa do Veículo
                       </Label>
@@ -13212,10 +13291,10 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           })
                         }
                         placeholder="ABC-1D23"
-                        className="mt-1"
+                        className="mt-1 uppercase font-mono font-bold"
                       />
                     </div>
-                    <div className="sm:col-span-4">
+                    <div className="sm:col-span-3">
                       <Label className="text-xs font-bold text-slate-700">
                         Cor do Veículo
                       </Label>
@@ -13230,6 +13309,99 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         placeholder="Branco / Prata / Preto"
                         className="mt-1"
                       />
+                    </div>
+
+                    {/* FOTO DO CARRO ADESIVADO */}
+                    <div className="sm:col-span-12 p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2.5">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <Label className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                          🚗 Foto do Carro Adesivado (Obrigatório para Ativação no Lessa Family)
+                          {editClientData.vehicleStickerPhotoUrl ? (
+                            <Badge className="bg-emerald-600 text-white text-[10px] font-bold">
+                              ✓ ANEXADO
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-amber-500 text-slate-950 text-[10px] font-bold">
+                              PENDENTE
+                            </Badge>
+                          )}
+                        </Label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            id="admin-sticker-photo-upload"
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={async (e) => {
+                              const f = e.target.files?.[0];
+                              if (!f) return;
+                              const dataUrl = await fileToDataUrl(f);
+                              setEditClientData({
+                                ...editClientData,
+                                vehicleStickerPhotoUrl: dataUrl,
+                                vehicleStickerPhotoName: f.name,
+                              });
+                            }}
+                          />
+                          <Label
+                            htmlFor="admin-sticker-photo-upload"
+                            className="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold rounded border border-slate-300 cursor-pointer shadow-xs flex items-center gap-1 transition-all"
+                          >
+                            <Upload className="w-3.5 h-3.5" /> Enviar Foto do Carro Adesivado
+                          </Label>
+                          {editClientData.vehicleStickerPhotoUrl && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={() =>
+                                setEditClientData({
+                                  ...editClientData,
+                                  vehicleStickerPhotoUrl: '',
+                                  vehicleStickerPhotoName: '',
+                                })
+                              }
+                              className="text-rose-600 hover:text-rose-700 h-7 text-xs font-bold"
+                            >
+                              <Trash2 className="w-3.5 h-3.5 mr-1" /> Remover
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      {editClientData.vehicleStickerPhotoUrl && (
+                        <div className="flex items-center gap-3 pt-1">
+                          <img
+                            src={editClientData.vehicleStickerPhotoUrl}
+                            alt="Carro Adesivado"
+                            className="w-20 h-14 object-cover rounded-lg border border-slate-300 shadow cursor-pointer hover:opacity-90 transition-opacity"
+                            onClick={() =>
+                              setPreviewAttachment({
+                                id: 'sticker',
+                                name: editClientData.vehicleStickerPhotoName || 'Foto Carro Adesivado',
+                                mimeType: 'image/jpeg',
+                                dataUrl: editClientData.vehicleStickerPhotoUrl!,
+                                createdAt: new Date().toISOString(),
+                              })
+                            }
+                          />
+                          <div className="text-xs text-slate-600">
+                            <span className="font-bold text-slate-800 block">
+                              {editClientData.vehicleStickerPhotoName || 'Foto do Carro Adesivado'}
+                            </span>
+                            <span className="text-[11px] text-emerald-700 font-semibold cursor-pointer hover:underline" onClick={() =>
+                              setPreviewAttachment({
+                                id: 'sticker',
+                                name: editClientData.vehicleStickerPhotoName || 'Foto Carro Adesivado',
+                                mimeType: 'image/jpeg',
+                                dataUrl: editClientData.vehicleStickerPhotoUrl!,
+                                createdAt: new Date().toISOString(),
+                              })
+                            }>
+                              🔍 Clique para visualizar em tamanho grande
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <div className="sm:col-span-12">
                       <Label className="text-xs font-bold text-slate-700">
@@ -17074,6 +17246,58 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         />
                       </div>
 
+                      {/* PARENTESCO (RESTRITO NO PLANO LESSA FAMILY) */}
+                      <div className="sm:col-span-3">
+                        <Label className="text-xs font-bold text-slate-700">
+                          Parentesco {selectedSubForDetail.contractType === 'FAMILY_PUBLICIDADE' || (selectedSubForDetail.planSummaryLabel && /family/i.test(selectedSubForDetail.planSummaryLabel)) ? '(Apenas Cônjuge ou Filhos) *' : '*'}
+                        </Label>
+                        {selectedSubForDetail.contractType === 'FAMILY_PUBLICIDADE' || (selectedSubForDetail.planSummaryLabel && /family/i.test(selectedSubForDetail.planSummaryLabel)) ? (
+                          <select
+                            value={newDepKinship}
+                            onChange={(e) => setNewDepKinship(e.target.value)}
+                            className="w-full h-9 rounded-lg border-2 border-amber-400 px-2 text-xs font-black bg-amber-50 text-emerald-950"
+                          >
+                            <option value="Cônjuge">Cônjuge</option>
+                            <option value="Filho(a)">Filho(a)</option>
+                          </select>
+                        ) : (
+                          <select
+                            value={newDepKinship}
+                            onChange={(e) => setNewDepKinship(e.target.value)}
+                            className="w-full h-9 rounded-lg border border-slate-300 px-2 text-xs font-bold bg-white"
+                          >
+                            <option value="Cônjuge">Cônjuge</option>
+                            <option value="Filho(a)">Filho(a)</option>
+                            <option value="Pai/Mãe">Pai/Mãe</option>
+                            <option value="Outro Familiar">Outro Familiar</option>
+                          </select>
+                        )}
+                      </div>
+
+                      <div className="sm:col-span-5">
+                        <Label className="text-xs font-bold text-slate-700">
+                          Documento Oficial (RG com Foto e Nome) {selectedSubForDetail.contractType === 'FAMILY_PUBLICIDADE' || (selectedSubForDetail.planSummaryLabel && /family/i.test(selectedSubForDetail.planSummaryLabel)) ? '*' : ''}
+                        </Label>
+                        <Input
+                          type="file"
+                          accept="image/*,application/pdf"
+                          onChange={async (e) => {
+                            const f = e.target.files?.[0];
+                            if (f) {
+                              const url = await fileToDataUrl(f);
+                              setNewDepDocUrl(url);
+                              setNewDepDocName(f.name);
+                            }
+                          }}
+                          className="h-9 text-xs bg-white"
+                        />
+                        {newDepDocName && (
+                          <span className="text-[10px] text-emerald-700 font-bold block mt-0.5 truncate">
+                            ✓ {newDepDocName}
+                          </span>
+                        )}
+                      </div>
+
                       <div className="sm:col-span-12 flex justify-end pt-1">
                         <Button
                           type="button"
@@ -17093,6 +17317,31 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                               });
                               return;
                             }
+
+                            const isFamilyPlanSelected =
+                              selectedSubForDetail.contractType === 'FAMILY_PUBLICIDADE' ||
+                              (selectedSubForDetail.planSummaryLabel && /family|publicidade/i.test(selectedSubForDetail.planSummaryLabel));
+
+                            if (isFamilyPlanSelected) {
+                              const k = (newDepKinship || '').toLowerCase();
+                              if (!k.includes('cônjuge') && !k.includes('conjuge') && !k.includes('filho') && !k.includes('filha')) {
+                                toast({
+                                  title: 'Parentesco Inválido no Lessa Family',
+                                  description: 'No Plano Lessa Family apenas cônjuge e filhos são permitidos.',
+                                  variant: 'destructive',
+                                });
+                                return;
+                              }
+                              if (!newDepDocUrl) {
+                                toast({
+                                  title: 'RG com foto obrigatório',
+                                  description: 'No Plano Lessa Family é obrigatório anexar o documento (RG com foto) do dependente para validação.',
+                                  variant: 'destructive',
+                                });
+                                return;
+                              }
+                            }
+
                             const mod =
                               (state.modalities || []).find(
                                 (m) => m.code === newDepModality
@@ -17102,24 +17351,45 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                 selectedSubForDetail.members.length
                             );
                             const addMonthly =
-                              selectedSubForDetail.billingCycle === 'ANNUAL'
+                              isFamilyPlanSelected
+                                ? 0
+                                : selectedSubForDetail.billingCycle === 'ANNUAL'
                                 ? mod.annualInstallment
                                 : mod.monthlyPrice;
+
+                            const depAtts: ClubAttachment[] = [];
+                            if (newDepDocUrl) {
+                              depAtts.push({
+                                id: `att_dep_${Date.now()}`,
+                                name: newDepDocName || `Documento_${mod.name}`,
+                                dataUrl: newDepDocUrl,
+                                mimeType: 'image/jpeg',
+                                createdAt: new Date().toISOString(),
+                              });
+                            }
+
                             const newMember: ClubMember = {
                               id: `mem_${Date.now()}`,
                               subscriptionId: selectedSubForDetail.id,
                               role: 'DEPENDENTE',
-                              modalityCode: mod.code,
-                              modalityName: mod.name,
-                              planCycleLabel: `${mod.name} (${
-                                selectedSubForDetail.billingCycle === 'ANNUAL'
-                                  ? 'Anual'
-                                  : 'Mensal'
-                              })`,
+                              modalityCode: isFamilyPlanSelected ? 'PUBLICIDADE' : mod.code,
+                              modalityName: isFamilyPlanSelected ? 'Lessa Family Dependente' : mod.name,
+                              planCycleLabel: isFamilyPlanSelected
+                                ? 'Lessa Family Dependente'
+                                : `${mod.name} (${
+                                    selectedSubForDetail.billingCycle === 'ANNUAL'
+                                      ? 'Anual'
+                                      : 'Mensal'
+                                  })`,
                               fullName: newDepName.trim(),
                               cpf: newDepCpf.trim(),
                               birthDate: newDepBirth,
+                              kinship: newDepKinship || 'Cônjuge',
                               photoUrl: newDepPhoto || undefined,
+                              documentProofUrl: newDepDocUrl || undefined,
+                              documentProofName: newDepDocName || undefined,
+                              documentStatus: newDepDocUrl ? 'APROVADO' : 'PENDENTE_ANEXO',
+                              documentVerified: Boolean(newDepDocUrl),
                               cardNumber: newCardNum,
                               holderCardNumber:
                                 selectedSubForDetail.subscriptionCode,
@@ -17136,7 +17406,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                               expirationDate: newDepExpirationDate || selectedSubForDetail.endDate || undefined,
                               expirationNotes:
                                 newDepExpirationNotes.trim() || undefined,
-                              attachments: [],
+                              attachments: depAtts,
                               createdAt: new Date().toISOString(),
                             };
                             const updatedMembers = [

@@ -237,6 +237,27 @@ const CATALOG_PLANS: CatalogPlanCard[] = [
       'Mediante documento ou certidão de nascimento da criança',
     ],
   },
+  {
+    id: 'lessa-family',
+    title: 'Lessa Family',
+    subtitle: 'Exclusivo para Dono do Veículo Adesivado (Titular + Cônjuge e Filhos)',
+    modalityCode: 'PUBLICIDADE',
+    cardImage: '/cards/29.png',
+    backCardUrl: '/cards/33.png',
+    monthlyPrice: 0.0,
+    annualPrice: 0.0,
+    annualInstallment: 0.0,
+    badge: 'PARCERIA • VEÍCULO ADESIVADO',
+    isFreePlan: true,
+    benefits: [
+      'Isenção de mensalidade e adesão (R$ 0,00) mediante veículo adesivado',
+      'Plano exclusivo para o proprietário do veículo e seus dependentes diretos (apenas cônjuge e filhos)',
+      'Obrigatório cadastro do veículo e foto do carro adesivado',
+      'Obrigatório RG com foto e nome de cada dependente para validação',
+      'Acesso ilimitado às áreas de lazer do Balneário Lessa',
+      'Carteirinhas oficiais individuais com QR Code exclusivo para toda a família',
+    ],
+  },
 ];
 
 const UF_LIST = [
@@ -377,6 +398,25 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
   // Lista de Dependentes adicionados à assinatura
   const [dependentsDraft, setDependentsDraft] = useState<DependentDraft[]>([]);
 
+  // Dados do Veículo e Adesivagem (Obrigatório para Plano Lessa Family)
+  const [vehicleModel, setVehicleModel] = useState('');
+  const [vehicleBrand, setVehicleBrand] = useState('');
+  const [vehiclePlate, setVehiclePlate] = useState('');
+  const [vehicleColor, setVehicleColor] = useState('');
+  const [vehicleStickerPhoto, setVehicleStickerPhoto] = useState<ClubAttachment | null>(null);
+
+  const isFamilyPlan = useMemo(() => {
+    const code = (holderModalityCode || '').toUpperCase();
+    const title = (selectedPlanTitle || '').toUpperCase();
+    return (
+      code === 'PUBLICIDADE' ||
+      code === 'FAMILY' ||
+      code === 'FAMILY_PUBLICIDADE' ||
+      title.includes('FAMILY') ||
+      title.includes('ADESIV')
+    );
+  }, [holderModalityCode, selectedPlanTitle]);
+
   // Passo 3: Termos
   const [contractAccepted, setContractAccepted] = useState(false);
 
@@ -404,14 +444,20 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
       setState(loaded);
       const targetPlan = urlTitular || urlPlan;
       if (targetPlan && loaded?.modalities) {
+        const cleanTarget = targetPlan.trim().toLowerCase();
         const mod = loaded.modalities.find(
           (m) =>
-            m.code.toLowerCase() === targetPlan.trim().toLowerCase() ||
-            m.id.toLowerCase() === targetPlan.trim().toLowerCase()
+            m.code.toLowerCase() === cleanTarget ||
+            m.id.toLowerCase() === cleanTarget ||
+            ((cleanTarget.includes('family') || cleanTarget.includes('publicidade')) &&
+              (m.code === 'PUBLICIDADE' || m.code === 'FAMILY' || m.name.toLowerCase().includes('family')))
         );
         if (mod) {
           setHolderModalityCode(mod.code);
           setSelectedPlanTitle(mod.name);
+        } else if (cleanTarget.includes('family') || cleanTarget.includes('publicidade')) {
+          setHolderModalityCode('PUBLICIDADE');
+          setSelectedPlanTitle('Lessa Family');
         }
       }
     });
@@ -768,6 +814,52 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
       return;
     }
 
+    // Validação específica para o Plano Lessa Family (Dono do Carro + Cônjuge e Filhos)
+    if (isFamilyPlan) {
+      if (!vehicleModel.trim() || !vehiclePlate.trim()) {
+        toast({
+          title: 'Dados do Veículo Obrigatórios',
+          description: 'No Plano Lessa Family, é obrigatório preencher o modelo e a placa do veículo adesivado.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      if (!vehicleStickerPhoto) {
+        toast({
+          title: 'Foto do Carro Adesivado Obrigatória',
+          description: 'Para validar e ativar o Plano Lessa Family, é obrigatório anexar a foto do veículo com o adesivo oficial.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Validar parentesco: estritamente Cônjuge e Filhos
+      const invalidKinship = dependentsDraft.find((d) => {
+        const k = (d.kinship || '').trim().toLowerCase();
+        return !k.includes('cônjuge') && !k.includes('conjuge') && !k.includes('filho') && !k.includes('filha');
+      });
+      if (invalidKinship) {
+        toast({
+          title: 'Parentesco não permitido no Lessa Family',
+          description: `O dependente ${invalidKinship.fullName || ''} possui parentesco "${invalidKinship.kinship}". No Plano Lessa Family são permitidos exclusivamente cônjuge e filhos.`,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Validar documentos de cada dependente: RG com foto obrigatório
+      const depMissingRg = dependentsDraft.find((d) => !d.docAttachment);
+      if (depMissingRg) {
+        toast({
+          title: 'RG com foto obrigatório do dependente',
+          description: `Anexe o documento (RG com foto e nome) do dependente ${depMissingRg.fullName || ''} para validação no Plano Lessa Family.`,
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
     // Validação de Documento Obrigatório para o Titular (qualquer plano que exija comprovação)
     const holderDocRule = getPlanDocumentRule(holderModality.code, holderModality.name);
     const isHolderFreeOrDoc =
@@ -944,13 +1036,18 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
     setIsSubmitting(true);
     try {
       const isFree = pricingSummary.totalMonthlyEquivalent === 0;
-      const shouldActivateDirectly = isFree || isPrePaid;
+      // Regra estrita: O plano Lessa Family só será ativado após validação dos documentos dos dependentes e foto do carro adesivado
+      const shouldActivateDirectly = isFamilyPlan ? false : (isFree || isPrePaid);
       const chosenInstallments =
         billingCycle === 'ANNUAL'
           ? paymentMethod === 'PIX' || paymentMethod === 'DEBIT_CARD' || isPrePaid
             ? 1
             : installments
           : 12;
+
+      const subAttachments: ClubAttachment[] = [];
+      if (holderDocAttachment) subAttachments.push(holderDocAttachment);
+      if (isFamilyPlan && vehicleStickerPhoto) subAttachments.push(vehicleStickerPhoto);
 
       const res = await createClubSubscription({
         personType: 'PF',
@@ -979,7 +1076,14 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
           matchedConsultant?.role === 'INFLUENCER' ? '' : matchedConsultant?.name || '',
         influencerName:
           matchedConsultant?.role === 'INFLUENCER' ? matchedConsultant.name : '',
-        attachments: holderDocAttachment ? [holderDocAttachment] : [],
+        vehicleModel: isFamilyPlan ? vehicleModel.trim() : undefined,
+        vehicleBrand: isFamilyPlan ? vehicleBrand.trim() : undefined,
+        vehiclePlate: isFamilyPlan ? vehiclePlate.trim().toUpperCase() : undefined,
+        vehicleColor: isFamilyPlan ? vehicleColor.trim() : undefined,
+        vehicleStickerPhotoUrl: isFamilyPlan ? vehicleStickerPhoto?.dataUrl : undefined,
+        vehicleStickerPhotoName: isFamilyPlan ? vehicleStickerPhoto?.name : undefined,
+        contractType: isFamilyPlan ? 'FAMILY_PUBLICIDADE' : undefined,
+        attachments: subAttachments,
         members: [
           {
             role: 'TITULAR',
@@ -995,12 +1099,13 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
           },
           ...dependentsDraft.map((d) => ({
             role: 'DEPENDENTE' as const,
-            modalityCode: d.modalityCode,
+            modalityCode: isFamilyPlan ? 'PUBLICIDADE' : d.modalityCode,
             fullName: d.fullName,
             cpf: d.cpf || holderCpf,
             birthDate: d.birthDate,
             sex: d.sex,
             phone: holderPhone,
+            kinship: d.kinship || 'Cônjuge',
             documentProofUrl: d.docAttachment?.dataUrl,
             documentProofName: d.docAttachment?.name,
             attachments: d.docAttachment ? [d.docAttachment] : [],
@@ -2650,16 +2755,193 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
             </div>
 
             {/* =================================================================
+                DADOS DO VEÍCULO E ADESIVAGEM (EXCLUSIVO PLANO LESSA FAMILY)
+            ================================================================= */}
+            {isFamilyPlan && (
+              <div className="mt-6 p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-emerald-950 via-[#004d00] to-teal-950 text-white border-2 border-amber-400 shadow-xl space-y-4">
+                <div className="flex items-start sm:items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-400 text-emerald-950 flex items-center justify-center font-black text-xl shrink-0 shadow">
+                    🚗
+                  </div>
+                  <div>
+                    <span className="font-black text-amber-300 uppercase text-[11px] tracking-wider block">
+                      Exclusivo Plano Lessa Family • Dono do Veículo
+                    </span>
+                    <h3 className="font-black text-base sm:text-lg text-white leading-tight">
+                      Dados do Veículo e Foto do Carro Adesivado
+                    </h3>
+                    <p className="text-xs text-emerald-100/90 mt-0.5">
+                      O Plano Lessa Family é restrito ao dono do veículo e seus dependentes diretos (apenas cônjuge e filhos). É obrigatório o preenchimento dos dados do carro e o envio da foto do veículo adesivado.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 pt-2">
+                  <div>
+                    <Label className="text-xs font-bold text-amber-200 block mb-1">
+                      Modelo do Veículo *
+                    </Label>
+                    <Input
+                      value={vehicleModel}
+                      onChange={(e) => setVehicleModel(e.target.value)}
+                      placeholder="Ex: Onix, Hilux, Gol..."
+                      className="h-10 bg-white text-slate-900 font-bold text-xs"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <Label className="text-xs font-bold text-amber-200 block mb-1">
+                      Marca / Fabricante
+                    </Label>
+                    <Input
+                      value={vehicleBrand}
+                      onChange={(e) => setVehicleBrand(e.target.value)}
+                      placeholder="Ex: Chevrolet, Toyota, VW..."
+                      className="h-10 bg-white text-slate-900 font-bold text-xs"
+                    />
+                  </div>
+
+                  <div>
+                    <Label className="text-xs font-bold text-amber-200 block mb-1">
+                      Placa do Veículo *
+                    </Label>
+                    <Input
+                      value={vehiclePlate}
+                      onChange={(e) => setVehiclePlate(e.target.value.toUpperCase())}
+                      placeholder="Ex: ABC-1234 ou ABC1D23"
+                      className="h-10 bg-white text-slate-900 font-mono font-black text-xs uppercase"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <Label className="text-xs font-bold text-amber-200 block mb-1">
+                      Cor do Veículo
+                    </Label>
+                    <Input
+                      value={vehicleColor}
+                      onChange={(e) => setVehicleColor(e.target.value)}
+                      placeholder="Ex: Prata, Branco, Preto..."
+                      className="h-10 bg-white text-slate-900 font-bold text-xs"
+                    />
+                  </div>
+                </div>
+
+                {/* ANEXO DA FOTO DO CARRO ADESIVADO */}
+                <div className="bg-white/10 rounded-xl p-3.5 border border-amber-400/40 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <span className="font-black text-xs text-amber-300 uppercase flex items-center gap-1.5">
+                        📸 Foto do Carro Adesivado (Obrigatório para Validação e Ativação)
+                        <Badge className="bg-amber-400 text-emerald-950 font-black text-[10px]">
+                          OBRIGATÓRIO
+                        </Badge>
+                      </span>
+                      <p className="text-[11px] text-emerald-100 mt-0.5">
+                        Tire ou envie uma foto nítida do seu carro mostrando o adesivo oficial do Balneário Lessa.
+                      </p>
+                    </div>
+
+                    {!vehicleStickerPhoto ? (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Label
+                          htmlFor="car-sticker-camera"
+                          className="px-3 py-2 bg-amber-400 hover:bg-amber-300 text-emerald-950 font-black rounded-lg text-xs cursor-pointer shadow flex items-center gap-1.5 transition-all"
+                        >
+                          <Camera className="w-3.5 h-3.5" /> Tirar Foto (Câmera)
+                        </Label>
+                        <input
+                          id="car-sticker-camera"
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const f = e.target.files?.[0];
+                            if (!f) return;
+                            const dataUrl = await fileToDataUrl(f);
+                            setVehicleStickerPhoto({
+                              id: `att_sticker_${Date.now()}`,
+                              name: `Carro_Adesivado_${f.name}`,
+                              mimeType: f.type || 'image/jpeg',
+                              dataUrl,
+                              createdAt: new Date().toISOString(),
+                            });
+                          }}
+                        />
+
+                        <Label
+                          htmlFor="car-sticker-upload"
+                          className="px-3 py-2 bg-white/20 hover:bg-white/30 text-white font-bold rounded-lg text-xs cursor-pointer border border-white/30 flex items-center gap-1.5 transition-all"
+                        >
+                          <Upload className="w-3.5 h-3.5" /> Escolher Arquivo
+                        </Label>
+                        <input
+                          id="car-sticker-upload"
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const f = e.target.files?.[0];
+                            if (!f) return;
+                            const dataUrl = await fileToDataUrl(f);
+                            setVehicleStickerPhoto({
+                              id: `att_sticker_${Date.now()}`,
+                              name: `Carro_Adesivado_${f.name}`,
+                              mimeType: f.type || 'image/jpeg',
+                              dataUrl,
+                              createdAt: new Date().toISOString(),
+                            });
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2.5 bg-black/40 p-2 rounded-xl border border-amber-400/50">
+                        <img
+                          src={vehicleStickerPhoto.dataUrl}
+                          alt="Carro Adesivado"
+                          className="w-14 h-11 object-cover rounded-lg border border-amber-400 shadow shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <span className="text-xs text-amber-200 font-bold block truncate max-w-[200px]">
+                            {vehicleStickerPhoto.name}
+                          </span>
+                          <span className="text-[10px] text-emerald-300 font-medium block">
+                            Foto pronta para envio
+                          </span>
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setVehicleStickerPhoto(null)}
+                          className="text-rose-300 hover:text-rose-100 hover:bg-rose-900/50 h-8 text-xs font-bold ml-auto shrink-0"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 mr-1" /> Trocar
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* =================================================================
                 ADIÇÃO DE DEPENDENTES E AJUSTE DE VALORES EM TEMPO REAL
             ================================================================= */}
             <div className="pt-4 border-t border-slate-200 space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <h3 className="font-black text-base text-slate-900">
-                    Dependentes / Familiares Vinculados ({dependentsDraft.length})
+                    {isFamilyPlan
+                      ? `Dependentes Permitidos no Lessa Family (${dependentsDraft.length})`
+                      : `Dependentes / Familiares Vinculados (${dependentsDraft.length})`}
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Adicione cônjuge, filhos estudantes, servidores, crianças até 11 anos (Grátis), idosos 60+ (Grátis) ou PCD/TEA (Grátis).
+                    {isFamilyPlan
+                      ? 'No Plano Lessa Family são permitidos exclusivamente CÔNJUGE e FILHOS do proprietário do veículo, com RG obrigatório.'
+                      : 'Adicione cônjuge, filhos estudantes, servidores, crianças até 11 anos (Grátis), idosos 60+ (Grátis) ou PCD/TEA (Grátis).'}
                   </p>
                 </div>
 
@@ -2670,12 +2952,12 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                       ...prev,
                       {
                         id: `dep-${Date.now()}-${prev.length}`,
-                        modalityCode: 'ADULTO',
+                        modalityCode: isFamilyPlan ? 'PUBLICIDADE' : 'ADULTO',
                         fullName: '',
                         cpf: '',
                         birthDate: '',
                         sex: '',
-                        kinship: 'Familiar / Dependente',
+                        kinship: isFamilyPlan ? 'Cônjuge' : 'Familiar / Dependente',
                       },
                     ])
                   }
@@ -2689,10 +2971,11 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                 <div className="space-y-3">
                   {dependentsDraft.map((dep, idx) => {
                     const depMod = findModality(dep.modalityCode);
-                    const depMonthly =
-                      billingCycle === 'ANNUAL'
-                        ? depMod.annualInstallment
-                        : depMod.monthlyPrice;
+                    const depMonthly = isFamilyPlan
+                      ? 0
+                      : billingCycle === 'ANNUAL'
+                      ? depMod.annualInstallment
+                      : depMod.monthlyPrice;
                     return (
                       <div
                         key={dep.id}
@@ -2702,7 +2985,7 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                           <span className="text-xs font-black uppercase text-slate-700">
                             Dependente #{idx + 1} —{' '}
                             <span className="text-emerald-700">
-                              {depMod.isFreeTier
+                              {isFamilyPlan || depMod.isFreeTier
                                 ? 'ISENTO / GRÁTIS (R$ 0,00)'
                                 : `+ ${formatCurrency(depMonthly)}/mês`}
                             </span>
@@ -2723,38 +3006,45 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
-                          <div className="sm:col-span-4">
+                          <div className="sm:col-span-3">
                             <Label className="text-xs font-bold">
-                              Modalidade do Dependente *
+                              Parentesco {isFamilyPlan ? '(Apenas Cônjuge ou Filhos) *' : '*'}
                             </Label>
-                            <select
-                              value={dep.modalityCode}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setDependentsDraft((prev) =>
-                                  prev.map((d, i) =>
-                                    i === idx ? { ...d, modalityCode: val } : d
-                                  )
-                                );
-                              }}
-                              className="w-full h-10 rounded-md border border-slate-300 px-3 text-xs font-bold bg-white mt-1"
-                            >
-                              {activeModalities
-                                .filter((m) => m.visibleInSimulator)
-                                .map((m) => (
-                                  <option key={m.code} value={m.code}>
-                                    {m.name} (
-                                    {m.isFreeTier
-                                      ? 'Grátis'
-                                      : `${formatCurrency(
-                                          billingCycle === 'ANNUAL'
-                                            ? m.annualInstallment
-                                            : m.monthlyPrice
-                                        )}/mês`}
+                            {isFamilyPlan ? (
+                              <select
+                                value={dep.kinship || 'Cônjuge'}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setDependentsDraft((prev) =>
+                                    prev.map((d, i) =>
+                                      i === idx ? { ...d, kinship: val } : d
                                     )
-                                  </option>
-                                ))}
-                            </select>
+                                  );
+                                }}
+                                className="w-full h-10 rounded-md border-2 border-amber-400 px-3 text-xs font-black bg-amber-50 text-emerald-950 mt-1"
+                              >
+                                <option value="Cônjuge">Cônjuge</option>
+                                <option value="Filho(a)">Filho(a)</option>
+                              </select>
+                            ) : (
+                              <select
+                                value={dep.kinship || 'Cônjuge'}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setDependentsDraft((prev) =>
+                                    prev.map((d, i) =>
+                                      i === idx ? { ...d, kinship: val } : d
+                                    )
+                                  );
+                                }}
+                                className="w-full h-10 rounded-md border border-slate-300 px-3 text-xs bg-white mt-1"
+                              >
+                                <option value="Cônjuge">Cônjuge</option>
+                                <option value="Filho(a)">Filho(a)</option>
+                                <option value="Pai/Mãe">Pai/Mãe</option>
+                                <option value="Outro Familiar">Outro Familiar</option>
+                              </select>
+                            )}
                           </div>
 
                           <div className="sm:col-span-4">
@@ -2766,7 +3056,7 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                               onChange={(e) => {
                                 const val = e.target.value;
                                 setDependentsDraft((prev) =>
-                                  prev.map((d, i) =>
+                                    prev.map((d, i) =>
                                     i === idx ? { ...d, fullName: val } : d
                                   )
                                 );
@@ -2777,7 +3067,7 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                             />
                           </div>
 
-                          <div className="sm:col-span-2">
+                          <div className="sm:col-span-3">
                             <Label className="text-xs font-bold">CPF</Label>
                             <Input
                               value={dep.cpf}
@@ -2826,40 +3116,54 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                           </div>
                         </div>
 
-                        {/* COMPROVAÇÃO DE DOCUMENTO DO DEPENDENTE (PARA TODOS OS PLANOS QUE EXIGEM COMPROVAÇÃO) */}
+                        {/* COMPROVAÇÃO DE DOCUMENTO DO DEPENDENTE (OBRIGATÓRIO NO PLANO LESSA FAMILY) */}
                         {(() => {
                           const depRule = getPlanDocumentRule(dep.modalityCode, depMod.name);
-                          if (!depMod.requiresDocument && !depRule.requiresDocument) return null;
+                          const isMandatoryDoc = isFamilyPlan || depMod.requiresDocument || depRule.requiresDocument;
+                          if (!isMandatoryDoc) return null;
                           return (
                             <div className="bg-amber-50/90 border border-amber-300 rounded-xl p-3.5 space-y-2.5 mt-2 shadow-sm">
                               <div className="flex items-start justify-between gap-2">
                                 <div>
                                   <span className="font-black text-xs text-amber-950 uppercase flex items-center gap-1.5">
-                                    📄 Comprovante Obrigatório ({depMod.name})
+                                    {isFamilyPlan
+                                      ? `📄 Documento com Foto (RG) — ${dep.fullName || dep.kinship || 'Dependente'}`
+                                      : `📄 Comprovante Obrigatório (${depMod.name})`}
                                     <Badge className="bg-amber-400 text-amber-950 text-[9px] font-black">
                                       OBRIGATÓRIO
                                     </Badge>
                                   </span>
                                   <p className="text-[11px] text-amber-900 mt-0.5 font-medium">
-                                    {depRule.summary ||
-                                      'Para liberar a carteirinha deste dependente, é necessário anexar ou tirar uma foto do documento comprobatório.'}
+                                    {isFamilyPlan
+                                      ? 'Para validar o dependente no Plano Lessa Family, é obrigatório anexar foto nítida do documento oficial com foto e nome (RG/CNH).'
+                                      : depRule.summary ||
+                                        'Para liberar a carteirinha deste dependente, é necessário anexar ou tirar uma foto do documento comprobatório.'}
                                   </p>
                                 </div>
                               </div>
 
                               <div className="bg-white/80 p-2.5 rounded-lg border border-amber-200 text-[11px] text-slate-800 space-y-1">
                                 <strong className="text-amber-950 block text-[11px]">
-                                  {depRule.title || 'Documentos aceitos para comprovação'} (basta 1):
+                                  {isFamilyPlan
+                                    ? 'Documento oficial aceito para validação deste dependente:'
+                                    : `${depRule.title || 'Documentos aceitos para comprovação'} (basta 1):`}
                                 </strong>
-                                {(depRule.acceptedDocs.length > 0
-                                  ? depRule.acceptedDocs
-                                  : [
-                                      depMod.documentLabel ||
-                                        'Documento oficial com foto que comprove o benefício do plano selecionado',
-                                    ]
-                                ).map((docDesc, dIdx) => (
-                                  <div key={dIdx}>✅ {docDesc}</div>
-                                ))}
+                                {isFamilyPlan ? (
+                                  <div>
+                                    <div>✅ RG original com foto e nome legível</div>
+                                    <div>✅ CNH com foto ou Certidão de Nascimento (se menor sem RG)</div>
+                                  </div>
+                                ) : (
+                                  (depRule.acceptedDocs.length > 0
+                                    ? depRule.acceptedDocs
+                                    : [
+                                        depMod.documentLabel ||
+                                          'Documento oficial com foto que comprove o benefício do plano selecionado',
+                                      ]
+                                  ).map((docDesc, dIdx) => (
+                                    <div key={dIdx}>✅ {docDesc}</div>
+                                  ))
+                                )}
                               </div>
 
                             <div>

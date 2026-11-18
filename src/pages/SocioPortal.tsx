@@ -154,11 +154,12 @@ const SocioPortal: React.FC = () => {
   const isSubscriptionActive = useMemo(() => {
     if (!subscription) return false;
 
-    // Se o status da assinatura foi definido como INATIVO, SUSPENSO ou CANCELADO pelo admin, DEVE SER FALSO!
+    // Se o status da assinatura foi definido como INATIVO, SUSPENSO, CANCELADO ou PENDENTE pelo admin, DEVE SER FALSO!
     if (
       subscription.status === 'INACTIVE' ||
       subscription.status === 'SUSPENDED' ||
-      subscription.status === 'CANCELLED'
+      subscription.status === 'CANCELLED' ||
+      subscription.status === 'PENDING'
     ) {
       return false;
     }
@@ -171,6 +172,19 @@ const SocioPortal: React.FC = () => {
         (subscription.origin === 'IMPORT_LABCARD' || subscription.id.startsWith('sub-labcard-')))
     ) {
       return false;
+    }
+
+    const isFamily =
+      subscription.contractType === 'FAMILY_PUBLICIDADE' ||
+      (subscription.planSummaryLabel && /family|adesiv|publicidade/i.test(subscription.planSummaryLabel));
+
+    if (isFamily) {
+      const hasSticker = !!subscription.vehicleStickerPhotoUrl;
+      const dependents = subscription.members?.filter((m, idx) => m.role === 'DEPENDENTE' && idx > 0) || [];
+      const hasAllDepDocs = dependents.length === 0 || dependents.every((d) => memberHasProofDocument(d, subscription));
+      if (!hasSticker || !hasAllDepDocs) {
+        return false;
+      }
     }
 
     // Se estiver explicitamente ativo
@@ -470,6 +484,47 @@ const SocioPortal: React.FC = () => {
       });
     } finally {
       setUploadingDocMemberId(null);
+    }
+  };
+
+  const [uploadingVehicleSticker, setUploadingVehicleSticker] = useState(false);
+
+  const handleUploadVehicleStickerPhoto = async (file: File) => {
+    if (!subscription || !state) return;
+    setUploadingVehicleSticker(true);
+    try {
+      const dataUrl = file.type.startsWith('image/')
+        ? await compressImageFile(file)
+        : await fileToDataUrl(file);
+      const updatedSub: ClubSubscription = {
+        ...subscription,
+        vehicleStickerPhotoUrl: dataUrl,
+        vehicleStickerPhotoName: file.name,
+        vehicleStickerStatus: 'PENDENTE',
+        updatedAt: new Date().toISOString(),
+      };
+      const nextState: ClubDatabaseState = {
+        ...state,
+        subscriptions: state.subscriptions.map((s) =>
+          s.id === updatedSub.id ? updatedSub : s
+        ),
+        lastSyncTimestamp: new Date().toISOString(),
+      };
+      const saved = await saveClubState(nextState);
+      setState(saved);
+      setSubscription(updatedSub);
+      toast({
+        title: 'Foto do veículo anexada com sucesso!',
+        description: 'A foto do carro adesivado foi salva e enviada para conferência da administração.',
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao anexar foto do veículo',
+        description: err?.message || 'Não foi possível salvar a imagem. Tente novamente.',
+        variant: 'destructive',
+      });
+    } finally {
+      setUploadingVehicleSticker(false);
     }
   };
 
@@ -1681,6 +1736,118 @@ const SocioPortal: React.FC = () => {
                   </div>
 
                   <div className="space-y-4">
+                    {/* SEÇÃO VEÍCULO ADESIVADO PARA PLANO LESSA FAMILY */}
+                    {(() => {
+                      const isFamily =
+                        subscription.contractType === 'FAMILY_PUBLICIDADE' ||
+                        (subscription.planSummaryLabel && /family|adesiv|publicidade/i.test(subscription.planSummaryLabel));
+                      if (!isFamily) return null;
+
+                      const hasSticker = !!subscription.vehicleStickerPhotoUrl;
+
+                      return (
+                        <div
+                          className={`rounded-2xl border-2 p-4 sm:p-5 space-y-3 ${
+                            !hasSticker
+                              ? 'border-amber-400 bg-amber-50/70'
+                              : 'border-emerald-200 bg-emerald-50/40'
+                          }`}
+                        >
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Badge className="bg-amber-800 text-white font-black text-xs">
+                                  🚗 VEÍCULO DO TITULAR
+                                </Badge>
+                                <span className="font-black text-sm text-slate-900">
+                                  {subscription.vehicleBrand || ''} {subscription.vehicleModel || 'Veículo Cadastrado'}
+                                </span>
+                                {subscription.vehiclePlate && (
+                                  <Badge variant="outline" className="font-mono font-bold text-xs bg-white">
+                                    Placa: {subscription.vehiclePlate}
+                                  </Badge>
+                                )}
+                                {subscription.vehicleColor && (
+                                  <span className="text-xs text-slate-600">
+                                    Cor: {subscription.vehicleColor}
+                                  </span>
+                                )}
+                                {hasSticker ? (
+                                  <Badge className="bg-emerald-700 text-white text-[10px] font-black">
+                                    ✓ FOTO DO CARRO ADESIVADO ENVIADA
+                                  </Badge>
+                                ) : (
+                                  <Badge className="bg-rose-600 text-white text-[10px] font-black animate-pulse">
+                                    ⚠️ FOTO DO CARRO ADESIVADO OBRIGATÓRIA PENDENTE
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-xs text-slate-600 mt-1">
+                                O Plano Lessa Family exige a comprovação do veículo adesivado para ativação do titular e seus dependentes.
+                              </p>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-2">
+                              <label className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-700 hover:bg-amber-800 text-white text-xs font-black cursor-pointer shadow-sm">
+                                <Camera className="w-3.5 h-3.5" />
+                                Câmera
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  capture="environment"
+                                  className="hidden"
+                                  disabled={uploadingVehicleSticker}
+                                  onChange={(e) => {
+                                    const f = e.target.files?.[0];
+                                    if (f) handleUploadVehicleStickerPhoto(f);
+                                  }}
+                                />
+                              </label>
+                              <label className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 border border-slate-300 text-slate-900 text-xs font-black cursor-pointer shadow-sm">
+                                <Upload className="w-3.5 h-3.5" />
+                                {uploadingVehicleSticker ? 'Enviando...' : hasSticker ? 'Substituir Foto' : 'Enviar Foto do Carro'}
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  disabled={uploadingVehicleSticker}
+                                  onChange={(e) => {
+                                    const f = e.target.files?.[0];
+                                    if (f) handleUploadVehicleStickerPhoto(f);
+                                  }}
+                                />
+                              </label>
+                            </div>
+                          </div>
+
+                          {subscription.vehicleStickerPhotoUrl && (
+                            <div className="pt-2">
+                              <div className="text-xs font-bold text-slate-700 mb-1.5">Foto do veículo cadastrada:</div>
+                              <div
+                                onClick={() =>
+                                  setPreviewDocModal({
+                                    name: subscription.vehicleStickerPhotoName || 'Foto do Carro Adesivado',
+                                    dataUrl: subscription.vehicleStickerPhotoUrl!,
+                                    mimeType: 'image/jpeg',
+                                  })
+                                }
+                                className="w-36 h-24 rounded-xl border border-slate-300 overflow-hidden cursor-pointer hover:opacity-90 relative group shadow-xs"
+                              >
+                                <img
+                                  src={subscription.vehicleStickerPhotoUrl}
+                                  alt="Carro adesivado"
+                                  className="w-full h-full object-cover"
+                                />
+                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white text-[11px] font-bold">
+                                  <Eye className="w-4 h-4 mr-1" /> Ver foto
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+
                     {subscription.members.map((member, mIdx) => {
                       const docRule = getPlanDocumentRule(member.modalityCode, member.modalityName);
                       const hasDoc = memberHasProofDocument(member, subscription);

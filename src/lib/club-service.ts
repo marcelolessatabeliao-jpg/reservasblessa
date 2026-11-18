@@ -2173,6 +2173,7 @@ export interface CreateSubscriptionMemberInput {
   photoUrl?: string;
   documentProofUrl?: string;
   documentProofName?: string;
+  kinship?: string;
   attachments?: ClubAttachment[];
 }
 
@@ -2204,8 +2205,12 @@ export interface CreateSubscriptionInput {
   consultantId?: string;
   influencerName?: string;
   vehicleModel?: string;
+  vehicleBrand?: string;
   vehiclePlate?: string;
   vehicleColor?: string;
+  vehicleStickerPhotoUrl?: string;
+  vehicleStickerPhotoName?: string;
+  vehicleStickerStatus?: 'PENDENTE' | 'APROVADO' | 'REJEITADO';
   notes?: string;
   contractType?: ContractTemplateType;
   attachments?: ClubAttachment[];
@@ -2321,6 +2326,8 @@ export const createClubSubscription = async (
         mod.code === 'KIDS'
           ? 'Expira ao completar 12 anos (transição para plano pago)'
           : undefined,
+      kinship: m.kinship || (isHolder ? 'Titular' : undefined),
+      documentStatus: m.documentProofUrl ? 'EM_ANALISE' : 'PENDENTE_ANEXO',
       monthlyValue: Number(memberMonthly.toFixed(2)),
       status: input.status || (monthlyEquivalent === 0 ? 'ACTIVE' : 'PENDING'),
       createdAt: now.toISOString(),
@@ -2438,14 +2445,33 @@ export const createClubSubscription = async (
     }
   });
 
-  const finalStatus: SubscriptionStatus =
-    builtMembers.length > 0 && builtMembers.every((m) => m.status === 'INACTIVE')
-      ? 'INACTIVE'
-      : builtMembers[0]?.status === 'INACTIVE' && isFreePlan
-      ? 'INACTIVE'
-      : baseStatus;
+  const isFamilyPublicidade =
+    hasPublicidade ||
+    input.contractType === 'FAMILY_PUBLICIDADE' ||
+    Boolean(input.vehicleStickerPhotoUrl);
 
-  const hasPublicidade = builtMembers.some((m) => m.modalityCode === 'PUBLICIDADE');
+  const familyMissingSticker = isFamilyPublicidade && !input.vehicleStickerPhotoUrl;
+  const familyMissingDepDoc =
+    isFamilyPublicidade &&
+    builtMembers
+      .filter((m) => m.role === 'DEPENDENTE')
+      .some(
+        (m) =>
+          !m.documentProofUrl &&
+          (!m.attachments || m.attachments.length === 0)
+      );
+
+  const shouldHoldForFamilyValidation =
+    isFamilyPublicidade && (familyMissingSticker || familyMissingDepDoc || input.origin === 'SITE');
+
+  const finalStatus: SubscriptionStatus = shouldHoldForFamilyValidation
+    ? 'PENDING'
+    : builtMembers.length > 0 && builtMembers.every((m) => m.status === 'INACTIVE')
+    ? 'INACTIVE'
+    : builtMembers[0]?.status === 'INACTIVE' && isFreePlan
+    ? 'INACTIVE'
+    : baseStatus;
+
   const contractType: ContractTemplateType =
     input.contractType || (hasPublicidade ? 'FAMILY_PUBLICIDADE' : 'ADESAO_PF');
 
@@ -2489,6 +2515,10 @@ export const createClubSubscription = async (
     totalContractValue: Number(totalContractValue.toFixed(2)),
     dueDay: input.dueDay || now.getDate(),
     status: finalStatus,
+    inactivityReason: shouldHoldForFamilyValidation ? 'FALTA_DOCUMENTOS' : undefined,
+    inactivityNotes: shouldHoldForFamilyValidation
+      ? 'Aguardando validação dos documentos dos dependentes (RG com foto) e foto do carro adesivado pela administração'
+      : undefined,
     origin: input.origin || 'SITE',
     consultantId: input.consultantId || matchedCons?.id || '',
     consultantCode: input.consultantCode || matchedCons?.referralCode || '',
@@ -2496,8 +2526,12 @@ export const createClubSubscription = async (
     influencerName: resolvedInfName,
     planSummaryLabel,
     vehicleModel: input.vehicleModel || '',
+    vehicleBrand: input.vehicleBrand || '',
     vehiclePlate: input.vehiclePlate || '',
     vehicleColor: input.vehicleColor || '',
+    vehicleStickerPhotoUrl: input.vehicleStickerPhotoUrl || '',
+    vehicleStickerPhotoName: input.vehicleStickerPhotoName || '',
+    vehicleStickerStatus: input.vehicleStickerStatus || (input.vehicleStickerPhotoUrl ? 'PENDENTE' : undefined),
     notes: input.notes || '',
     contractType,
     contractAccepted: true,

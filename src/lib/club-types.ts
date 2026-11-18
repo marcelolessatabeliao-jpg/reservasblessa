@@ -96,6 +96,7 @@ export interface ClubMember {
   cardStatus?: ClubCardStatus;
   expirationDate?: string; // YYYY-MM-DD - Vencimento individual do cadastro/benefício do dependente (ex: quando a criança completa idade pagante ou expira comprovação)
   expirationNotes?: string; // Motivo do vencimento (ex: "Completa idade em 2 meses - passa a ser pagante")
+  kinship?: string;
   attachments?: ClubAttachment[]; // Anexos e documentos individuais do dependente
   createdAt: string;
 }
@@ -209,8 +210,12 @@ export interface ClubSubscription {
   consultantId?: string;
   planSummaryLabel: string; // Ex: "Família Personalizado (1 Integral + 1 Estudante + 1 Kids)"
   vehicleModel?: string;
+  vehicleBrand?: string;
   vehiclePlate?: string;
   vehicleColor?: string;
+  vehicleStickerPhotoUrl?: string;
+  vehicleStickerPhotoName?: string;
+  vehicleStickerStatus?: 'PENDENTE' | 'APROVADO' | 'REJEITADO';
   notes?: string;
   asaasCustomerId?: string;
   asaasSubscriptionId?: string;
@@ -602,8 +607,8 @@ export const DEFAULT_CLUB_MODALITIES: ClubModality[] = [
   {
     id: 'mod-family-publicidade',
     code: 'PUBLICIDADE',
-    name: 'Lessa Family Publicidade',
-    subtitle: 'ENTRADA GRATUITA + DEPENDENTES',
+    name: 'Lessa Family',
+    subtitle: 'PLANO EXCLUSIVO VEÍCULO ADESIVADO',
     verse: '“Anunciai entre as nações a sua glória.” – Salmos 96:3',
     monthlyPrice: 0.00,
     annualInstallment: 0.00,
@@ -619,8 +624,8 @@ export const DEFAULT_CLUB_MODALITIES: ClubModality[] = [
     documentLabel: 'Documento do Veículo (CRLV) e CNH',
     isFreeTier: true,
     requiresVehicle: true,
-    visibleOnSite: false,
-    visibleInSimulator: false,
+    visibleOnSite: true,
+    visibleInSimulator: true,
     visibleToConsultants: true,
     visibleToInfluencers: true,
     contractType: 'FAMILY_PUBLICIDADE',
