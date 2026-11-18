@@ -329,13 +329,13 @@ export const ClubMemberCardView: React.FC<ClubMemberCardViewProps> = ({
             </span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 max-w-full">
             <Badge
-              className={
+              className={`font-black text-[11px] whitespace-normal text-left max-w-full leading-tight ${
                 isCardActive
-                  ? 'bg-emerald-500 text-slate-950 font-black text-[11px]'
-                  : 'bg-rose-600 text-white font-black text-[11px]'
-              }
+                  ? 'bg-emerald-500 text-slate-950'
+                  : 'bg-rose-600 text-white'
+              }`}
             >
               {isCardActive
                 ? '● PLANO ATIVO (LIBERADO)'
@@ -345,15 +345,15 @@ export const ClubMemberCardView: React.FC<ClubMemberCardViewProps> = ({
             </Badge>
 
             <Badge
-              className={
+              className={`font-black text-[11px] whitespace-normal text-left ${
                 member.cardStatus === 'Entregue'
-                  ? 'bg-emerald-600 text-white font-black text-[11px]'
+                  ? 'bg-emerald-600 text-white'
                   : member.cardStatus === 'Impresso'
-                  ? 'bg-blue-600 text-white font-black text-[11px]'
+                  ? 'bg-blue-600 text-white'
                   : member.cardStatus === 'em produção'
-                  ? 'bg-amber-400 text-slate-950 font-black text-[11px]'
-                  : 'bg-slate-600 text-white font-medium text-[11px]'
-              }
+                  ? 'bg-amber-400 text-slate-950'
+                  : 'bg-slate-600 text-white font-medium'
+              }`}
             >
               🪪 {member.cardStatus || 'Não produzida'}
             </Badge>
@@ -362,14 +362,14 @@ export const ClubMemberCardView: React.FC<ClubMemberCardViewProps> = ({
       )}
 
       {!sideBySidePrintMode && !compact && (
-        <div className="flex flex-wrap items-center justify-between gap-2 bg-emerald-950/5 p-2.5 rounded-xl border border-emerald-900/10">
-          <div className="flex items-center gap-1.5">
+        <div className="flex flex-wrap items-center justify-between gap-2 bg-emerald-950/5 p-2 rounded-xl border border-emerald-900/10 w-full max-w-full overflow-hidden">
+          <div className="flex flex-wrap items-center gap-1">
             <Button
               type="button"
               size="sm"
               variant={viewMode === 'BOTH' ? 'default' : 'outline'}
               onClick={() => setViewMode('BOTH')}
-              className="h-8 text-xs font-bold"
+              className="h-7 sm:h-8 text-[11px] sm:text-xs font-bold px-2 sm:px-3"
             >
               Frente + Verso
             </Button>
@@ -378,7 +378,7 @@ export const ClubMemberCardView: React.FC<ClubMemberCardViewProps> = ({
               size="sm"
               variant={viewMode === 'FRONT' ? 'default' : 'outline'}
               onClick={() => setViewMode('FRONT')}
-              className="h-8 text-xs font-bold"
+              className="h-7 sm:h-8 text-[11px] sm:text-xs font-bold px-2 sm:px-3"
             >
               Só Frente
             </Button>
@@ -387,19 +387,19 @@ export const ClubMemberCardView: React.FC<ClubMemberCardViewProps> = ({
               size="sm"
               variant={viewMode === 'BACK' ? 'default' : 'outline'}
               onClick={() => setViewMode('BACK')}
-              className="h-8 text-xs font-bold"
+              className="h-7 sm:h-8 text-[11px] sm:text-xs font-bold px-2 sm:px-3"
             >
               Só Verso
             </Button>
           </div>
 
           {locked ? (
-            <div className="flex items-center gap-2 bg-rose-50 border border-rose-200 text-rose-800 px-3 py-1.5 rounded-lg text-xs font-bold">
+            <div className="flex items-center gap-1.5 bg-rose-50 border border-rose-200 text-rose-800 px-2.5 py-1.5 rounded-lg text-xs font-bold max-w-full min-w-0">
               <Lock className="w-3.5 h-3.5 text-rose-600 shrink-0" />
-              <span>
+              <span className="text-[11px] sm:text-xs leading-tight break-words" title={lockReason || 'Plano Inativo'}>
                 {lockReason
-                  ? `Edição de foto e download bloqueados: ${lockReason}`
-                  : 'Edição de foto e download bloqueados até a confirmação do pagamento ou envio da comprovação (Plano Inativo)'}
+                  ? `Bloqueado: ${lockReason}`
+                  : 'Carteirinha bloqueada aguardando regularização (Plano Inativo)'}
               </span>
             </div>
           ) : (
@@ -617,8 +617,8 @@ export const ClubMemberCardView: React.FC<ClubMemberCardViewProps> = ({
           sideBySidePrintMode
             ? 'grid grid-cols-2 gap-0 w-full max-w-full bg-white'
             : viewMode === 'BOTH'
-            ? 'grid grid-cols-1 xl:grid-cols-2 gap-3 w-full max-w-full'
-            : 'w-full max-w-full mx-auto'
+            ? 'grid grid-cols-1 xl:grid-cols-2 gap-3 w-full max-w-full overflow-hidden'
+            : 'w-full max-w-full mx-auto overflow-hidden'
         }
       >
         {/* FRENTE DA CARTEIRINHA */}

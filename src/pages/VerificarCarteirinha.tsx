@@ -261,31 +261,32 @@ const VerificarCarteirinha: React.FC = () => {
     matchedSub?.members.filter((m, idx) => m.role === 'DEPENDENTE' || idx > 0) || [];
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white pb-16">
+    <div className="min-h-screen bg-slate-950 text-white pb-16 w-full max-w-full overflow-x-hidden">
       {/* Top Bar */}
-      <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur-md sticky top-0 z-30">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+      <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur-md sticky top-0 z-30 w-full overflow-hidden">
+        <div className="container mx-auto px-3 sm:px-4 min-h-14 sm:h-16 py-2 flex items-center justify-between gap-2">
           <Link
             to="/assinatura"
-            className="flex items-center gap-2 text-slate-300 hover:text-white text-sm font-medium"
+            className="flex items-center gap-1.5 text-slate-300 hover:text-white text-xs sm:text-sm font-medium shrink-0"
           >
-            <ArrowLeft className="w-4 h-4" /> Voltar para Lessa Club
+            <ArrowLeft className="w-4 h-4 shrink-0" />
+            <span className="hidden sm:inline">Voltar para</span> Lessa Club
           </Link>
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="w-5 h-5 text-emerald-400" />
-            <span className="font-black tracking-tight text-sm md:text-base">
-              VALIDADOR DE PORTARIA • RESERVA LESSA
+          <div className="flex items-center gap-1.5 min-w-0">
+            <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400 shrink-0" />
+            <span className="font-black tracking-tight text-xs sm:text-sm md:text-base truncate">
+              VALIDADOR DE PORTARIA
             </span>
           </div>
-          <Link to="/socio">
-            <Button size="sm" variant="outline" className="border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 hover:text-white">
+          <Link to="/socio" className="shrink-0">
+            <Button size="sm" variant="outline" className="border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 hover:text-white text-xs h-7 sm:h-8 px-2 sm:px-3">
               Área do Sócio
             </Button>
           </Link>
         </div>
       </header>
 
-      <div className="container mx-auto px-4 pt-8 max-w-4xl">
+      <div className="container mx-auto px-3 sm:px-4 pt-4 sm:pt-8 max-w-4xl w-full overflow-hidden">
         {/* Tela Privada: Orientação para Leitura do QR Code pelo Celular */}
         {!initialQuery && !matchedMember && (
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 sm:p-12 shadow-2xl text-center space-y-5 max-w-xl mx-auto my-8">
@@ -365,14 +366,14 @@ const VerificarCarteirinha: React.FC = () => {
           <div className="space-y-6">
             {/* Gate Status Banner */}
             <div
-              className={`rounded-3xl p-6 md:p-8 border-2 shadow-2xl flex flex-col md:flex-row items-center gap-6 ${
+              className={`rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 border-2 shadow-2xl flex flex-col md:flex-row items-center gap-4 sm:gap-6 w-full max-w-full overflow-hidden ${
                 isSubActive
                   ? 'bg-emerald-950/60 border-emerald-500 text-emerald-50'
                   : 'bg-red-950/60 border-red-500 text-red-50'
               }`}
             >
               <div className="relative shrink-0">
-                <div className="w-28 h-36 md:w-32 md:h-40 rounded-2xl overflow-hidden border-4 border-white shadow-xl bg-slate-800">
+                <div className="w-24 h-32 sm:w-28 sm:h-36 md:w-32 md:h-40 rounded-2xl overflow-hidden border-4 border-white shadow-xl bg-slate-800">
                   {matchedMember.photoUrl ? (
                     <img
                       src={matchedMember.photoUrl}
@@ -386,7 +387,7 @@ const VerificarCarteirinha: React.FC = () => {
                   )}
                 </div>
                 <div
-                  className={`absolute -bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider shadow-lg whitespace-nowrap ${
+                  className={`absolute -bottom-3 left-1/2 -translate-x-1/2 px-2.5 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-[11px] font-black uppercase tracking-wider shadow-lg whitespace-nowrap ${
                     isSubActive
                       ? 'bg-emerald-500 text-slate-950'
                       : 'bg-red-500 text-white'
@@ -396,24 +397,24 @@ const VerificarCarteirinha: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex-1 text-center md:text-left space-y-2.5">
+              <div className="flex-1 text-center md:text-left space-y-2.5 w-full min-w-0">
                 <div className="flex flex-wrap items-center justify-center md:justify-start gap-2">
                   {isSubActive ? (
-                    <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-emerald-500 text-slate-950 font-black text-sm uppercase tracking-wide">
-                      <CheckCircle2 className="w-5 h-5" /> STATUS: ATIVO • ACESSO LIBERADO
+                    <span className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-full bg-emerald-500 text-slate-950 font-black text-xs sm:text-sm uppercase tracking-wide text-center">
+                      <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" /> STATUS: ATIVO • ACESSO LIBERADO
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-red-600 text-white font-black text-sm uppercase tracking-wide">
-                      <AlertTriangle className="w-5 h-5" /> STATUS: {gateStatus.statusLabel} • ACESSO BLOQUEADO
+                    <span className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-full bg-red-600 text-white font-black text-xs sm:text-sm uppercase tracking-wide text-center">
+                      <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" /> STATUS: {gateStatus.statusLabel} • ACESSO BLOQUEADO
                     </span>
                   )}
 
-                  <Badge variant="outline" className="border-white/30 text-white font-mono">
+                  <Badge variant="outline" className="border-white/30 text-white font-mono text-xs">
                     Cartão #{matchedMember.cardNumber}
                   </Badge>
                 </div>
 
-                <h2 className="text-2xl md:text-3xl font-black text-white">
+                <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-white break-words">
                   {matchedMember.fullName}
                 </h2>
 
@@ -510,7 +511,7 @@ const VerificarCarteirinha: React.FC = () => {
 
             {/* SE IDENTIFICADO COMO TITULAR E HOUVER DEPENDENTES: MOSTRAR STATUS DE TODOS OS DEPENDENTES EM DESTAQUE */}
             {matchedMember.role === 'TITULAR' && dependentsList.length > 0 && (
-              <div className="bg-slate-900 border-2 border-emerald-500/40 rounded-2xl p-5 space-y-3">
+              <div className="bg-slate-900 border-2 border-emerald-500/40 rounded-2xl p-3 sm:p-5 space-y-3 w-full max-w-full overflow-hidden">
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
                   <div className="flex items-center gap-2">
                     <Users className="w-5 h-5 text-emerald-400" />
@@ -584,8 +585,8 @@ const VerificarCarteirinha: React.FC = () => {
             )}
 
             {/* Carteirinha Digital + Todos os Integrantes da Assinatura */}
-            <div className="grid lg:grid-cols-12 gap-6">
-              <div className="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
+            <div className="grid lg:grid-cols-12 gap-5 w-full max-w-full">
+              <div className="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-2xl p-3 sm:p-5 space-y-3 w-full max-w-full overflow-hidden">
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
                   <h3 className="font-black text-white text-sm flex items-center gap-2">
                     <CreditCard className="w-4 h-4 text-emerald-400" /> Carteirinha Digital Oficial
@@ -600,7 +601,7 @@ const VerificarCarteirinha: React.FC = () => {
                     {gateStatus.statusLabel}
                   </Badge>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="w-full max-w-full overflow-hidden flex flex-col items-center">
                   <ClubMemberCardView
                     member={matchedMember}
                     showBackSide={true}
@@ -610,7 +611,7 @@ const VerificarCarteirinha: React.FC = () => {
                 </div>
               </div>
 
-              <div className="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+              <div className="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-2xl p-3 sm:p-5 space-y-4 w-full max-w-full overflow-hidden">
                 <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                   <div className="flex items-center gap-2">
                     <Users className="w-5 h-5 text-emerald-400" />
