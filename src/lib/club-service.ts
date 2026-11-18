@@ -61,23 +61,37 @@ export const isSubscriptionRegularizedOrActive = (
   sub: Partial<ClubSubscription>,
   adminConfirmedCards?: Set<string>
 ): boolean => {
+  // A decisão do administrador tem prioridade soberana:
+  // Se o cadastro foi marcado como INATIVO, SUSPENSO ou CANCELADO, JAMAIS deve ser considerado ativo
+  if (
+    sub.status === 'INACTIVE' ||
+    sub.status === 'SUSPENDED' ||
+    sub.status === 'CANCELLED'
+  ) {
+    return false;
+  }
+
   const confirmedSet = adminConfirmedCards || getAdminConfirmedCardsSet();
   const code = (sub.subscriptionCode || '').trim();
   const subId = (sub.id || '').replace('sub-labcard-', '').trim();
   const isLabcard = sub.origin === 'IMPORT_LABCARD' || (sub.id || '').startsWith('sub-labcard-');
 
   if (!isLabcard) {
-    return sub.status === 'ACTIVE' || Boolean(sub.manualStatusOverride);
+    return sub.status === 'ACTIVE' || (sub.status !== 'PENDING_TRANSFER' && Boolean(sub.manualStatusOverride));
   }
 
-  // Prioridade total para ações e alterações manuais do Administrador gravadas no banco de dados
+  // Se o admin explicitamente ativou a assinatura
+  if (sub.status === 'ACTIVE') {
+    return true;
+  }
+
+  // Prioridade para ações e confirmações manuais do Administrador no banco de dados
   if (
-    Boolean(sub.manualStatusOverride) ||
     Boolean(sub.transferCompleted) ||
     Boolean(sub.manuallyConfirmedTransfer) ||
     Boolean(sub.transferredAt) ||
     (Boolean(sub.isModifiedFromSeed) && sub.status === 'ACTIVE') ||
-    (sub.members && sub.members.some((m) => m.documentVerified || m.documentStatus === 'APROVADO' || m.manualStatusOverride || m.status === 'ACTIVE'))
+    (sub.members && sub.members.some((m) => m.status === 'ACTIVE' && (m.documentVerified || m.documentStatus === 'APROVADO' || m.manualStatusOverride)))
   ) {
     return true;
   }
@@ -396,12 +410,14 @@ const isLabcardSubscriptionModified = (
   if (!seedSub) return true;
   if (sub.isModifiedFromSeed) return true;
   if (
-    sub.status !== 'PENDING_TRANSFER' ||
-    Boolean(sub.manualStatusOverride) ||
-    Boolean(sub.transferCompleted) ||
-    Boolean(sub.manuallyConfirmedTransfer) ||
-    Boolean(sub.transferredAt) ||
-    Boolean(sub.cardStatus)
+    sub.status !== seedSub.status ||
+    sub.inactivityReason !== seedSub.inactivityReason ||
+    sub.dueDay !== seedSub.dueDay ||
+    Boolean(sub.manualStatusOverride) !== Boolean(seedSub.manualStatusOverride) ||
+    Boolean(sub.transferCompleted) !== Boolean(seedSub.transferCompleted) ||
+    Boolean(sub.manuallyConfirmedTransfer) !== Boolean(seedSub.manuallyConfirmedTransfer) ||
+    Boolean(sub.transferredAt) !== Boolean(seedSub.transferredAt) ||
+    Boolean(sub.cardStatus) !== Boolean(seedSub.cardStatus)
   ) {
     return true;
   }
@@ -1184,15 +1200,20 @@ export const normalizeClubDatabaseState = (
         isExplicitlyRegularized ||
         REGULARIZED_ACTIVE_CARDS.has(m.cardNumber) ||
         adminConfirmedCards.has(m.cardNumber) ||
-        Boolean(m.manualStatusOverride) ||
-        Boolean(sub.manualStatusOverride) ||
-        Boolean(sub.transferCompleted) ||
-        Boolean(m.documentVerified) ||
-        m.documentStatus === 'APROVADO' ||
-        (m.status === 'ACTIVE' && Boolean(sub.isModifiedFromSeed));
+        (m.status === 'ACTIVE' && (Boolean(m.manualStatusOverride) || Boolean(m.documentVerified) || m.documentStatus === 'APROVADO'));
+
+      const isSubDirectlyInactive =
+        sub.status === 'INACTIVE' || sub.status === 'SUSPENDED' || sub.status === 'CANCELLED';
+
+      const isMemberDirectlyInactive =
+        m.status === 'INACTIVE' || m.status === 'SUSPENDED' || m.status === 'CANCELLED';
 
       const resolvedStatus: SubscriptionStatus =
-        isLabcard && !isMemberRegularized
+        isSubDirectlyInactive
+          ? (sub.status as SubscriptionStatus)
+          : isMemberDirectlyInactive
+          ? m.status
+          : isLabcard && !isMemberRegularized
           ? ('PENDING_TRANSFER' as SubscriptionStatus)
           : missingRequiredDoc && !isMemberRegularized
           ? 'INACTIVE'
@@ -1217,6 +1238,8 @@ export const normalizeClubDatabaseState = (
         expirationDate: resolvedExpDate,
         expirationNotes: resolvedExpNotes,
         status: resolvedStatus,
+        inactivityReason: m.inactivityReason || sub.inactivityReason,
+        inactivityNotes: m.inactivityNotes || sub.inactivityNotes,
         frontCardUrl: frontUrl || '/cards/44.png',
         backCardUrl: backUrl || '/cards/24.png',
       };
@@ -1225,8 +1248,13 @@ export const normalizeClubDatabaseState = (
     const adminConfirmedCardsSub = getAdminConfirmedCardsSet();
     const isSubExplicitlyRegularized = isSubscriptionRegularizedOrActive(sub, adminConfirmedCardsSub);
 
+    const isSubDirectlyInactive =
+      sub.status === 'INACTIVE' || sub.status === 'SUSPENDED' || sub.status === 'CANCELLED';
+
     const resolvedSubStatus: SubscriptionStatus =
-      isLabcard && !isSubExplicitlyRegularized
+      isSubDirectlyInactive
+        ? (sub.status as SubscriptionStatus)
+        : isLabcard && !isSubExplicitlyRegularized
         ? ('PENDING_TRANSFER' as SubscriptionStatus)
         : normalizedMembers.length > 0 &&
           normalizedMembers.every((m) => m.status === 'INACTIVE') &&
@@ -1244,8 +1272,10 @@ export const normalizeClubDatabaseState = (
       ...sub,
       contractType: hasPublicidade ? 'FAMILY_PUBLICIDADE' : sub.contractType,
       status: resolvedSubStatus,
-      transferCompleted: isLabcard ? (isSubExplicitlyRegularized || Boolean(sub.transferCompleted)) : (sub.transferCompleted ?? false),
-      manuallyConfirmedTransfer: isLabcard ? (isSubExplicitlyRegularized || Boolean(sub.manuallyConfirmedTransfer)) : (sub.manuallyConfirmedTransfer ?? false),
+      inactivityReason: sub.inactivityReason,
+      inactivityNotes: sub.inactivityNotes,
+      transferCompleted: isSubDirectlyInactive ? false : isLabcard ? (isSubExplicitlyRegularized || Boolean(sub.transferCompleted)) : (sub.transferCompleted ?? false),
+      manuallyConfirmedTransfer: isSubDirectlyInactive ? false : isLabcard ? (isSubExplicitlyRegularized || Boolean(sub.manuallyConfirmedTransfer)) : (sub.manuallyConfirmedTransfer ?? false),
       manualStatusOverride: isLabcard ? (isSubExplicitlyRegularized || Boolean(sub.manualStatusOverride)) : (sub.manualStatusOverride ?? false),
       members: normalizedMembers,
       invoices: Array.isArray(sub.invoices) ? sub.invoices : [],

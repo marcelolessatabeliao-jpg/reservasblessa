@@ -467,25 +467,64 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
         novBoleto = '232917687461088338';
       }
 
-      invoices.push({
-        id: `inv_${holderCard}_11_2026`,
-        subscriptionId: subId,
-        subscriptionCode: subCode,
-        holderName: name.trim(),
-        holderCpf: formatCpf(cpf),
-        holderPhone: formatPhone(phone),
-        installmentNumber: novInstallment,
-        totalInstallments: 12,
-        referenceMonth: '11/2026',
-        amount: mod.price,
-        dueDate: novDueDate,
-        paidAt: novPaidAt,
-        paymentMethod: 'BOLETO',
-        status: novStatus,
-        boletoNumber: novBoleto,
-        description: `${mod.name} (Mensalidade 11/2026)`,
-        createdAt: '2026-11-01T00:00:00.000Z',
-      });
+      if (upName.includes('ROKSIANE') || holderCard === '1212251327') {
+        const roksianeCarnes = [
+          { num: 1, ref: '04/2026', due: '2026-04-05', paid: '2026-04-05T10:00:00.000Z', status: 'PAID' as const },
+          { num: 2, ref: '05/2026', due: '2026-05-05', paid: '2026-06-04T10:00:00.000Z', status: 'PAID' as const },
+          { num: 3, ref: '06/2026', due: '2026-06-05', paid: '2026-06-05T10:00:00.000Z', status: 'PAID' as const },
+          { num: 4, ref: '07/2026', due: '2026-07-05', paid: '2026-07-04T10:00:00.000Z', status: 'PAID' as const },
+          { num: 5, ref: '08/2026', due: '2026-08-05', paid: '2026-08-07T10:00:00.000Z', status: 'PAID' as const },
+          { num: 6, ref: '09/2026', due: '2026-09-05', paid: '2026-09-09T10:00:00.000Z', status: 'PAID' as const },
+          { num: 7, ref: '10/2026', due: '2026-10-05', paid: '2026-09-05T10:00:00.000Z', status: 'PAID' as const },
+          { num: 8, ref: '11/2026', due: '2026-11-05', paid: undefined, status: 'OVERDUE' as const },
+          { num: 9, ref: '12/2026', due: '2026-12-05', paid: undefined, status: 'PENDING' as const },
+          { num: 10, ref: '01/2027', due: '2027-01-05', paid: undefined, status: 'PENDING' as const },
+          { num: 11, ref: '02/2027', due: '2027-02-05', paid: undefined, status: 'PENDING' as const },
+          { num: 12, ref: '03/2027', due: '2027-03-05', paid: undefined, status: 'PENDING' as const },
+        ];
+        roksianeCarnes.forEach((c) => {
+          invoices.push({
+            id: `inv_asaas_roksiane_${c.num}`,
+            subscriptionId: subId,
+            subscriptionCode: subCode,
+            holderName: name.trim(),
+            holderCpf: formatCpf(cpf),
+            holderPhone: formatPhone(phone),
+            installmentNumber: c.num,
+            totalInstallments: 12,
+            referenceMonth: c.ref,
+            amount: 25,
+            dueDate: c.due,
+            paidAt: c.paid,
+            paymentMethod: 'PIX',
+            status: c.status,
+            description: `${mod.name} (Mensalidade ${c.ref})`,
+            invoiceKind: 'MENSALIDADE',
+            carneGroup: 1,
+            createdAt: '2026-04-04T00:00:00.000Z',
+          });
+        });
+      } else {
+        invoices.push({
+          id: `inv_${holderCard}_11_2026`,
+          subscriptionId: subId,
+          subscriptionCode: subCode,
+          holderName: name.trim(),
+          holderCpf: formatCpf(cpf),
+          holderPhone: formatPhone(phone),
+          installmentNumber: novInstallment,
+          totalInstallments: 12,
+          referenceMonth: '11/2026',
+          amount: mod.price,
+          dueDate: novDueDate,
+          paidAt: novPaidAt,
+          paymentMethod: 'BOLETO',
+          status: novStatus,
+          boletoNumber: novBoleto,
+          description: `${mod.name} (Mensalidade 11/2026)`,
+          createdAt: '2026-11-01T00:00:00.000Z',
+        });
+      }
 
       // 2. Cobranças em Atraso (Junho/2026 - Screenshot 4)
       if (
@@ -521,6 +560,9 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
     }
 
     const isMarli = holderCard === '121225817';
+    const isRoksiane = upName.includes('ROKSIANE') || holderCard === '1212251327';
+    const isElsa = upName.includes('ELSA BUENOS') || holderCard === '1212251781';
+
     return {
       id: subId,
       subscriptionCode: subCode,
@@ -540,8 +582,14 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
       installments: isAnnual ? 12 : 1,
       monthlyEquivalent: mod.price,
       totalContractValue: isAnnual ? mod.price * 12 : mod.price,
-      dueDay: 10,
-      status: finalStatus,
+      dueDay: isRoksiane ? 5 : 10,
+      status: isRoksiane || isElsa ? 'INACTIVE' : finalStatus,
+      inactivityReason: isRoksiane || isElsa ? 'MENSALIDADE_VENCIDA' : undefined,
+      inactivityNotes: isRoksiane
+        ? 'Mensalidade 11/2026 vencida em 05/11/2026'
+        : isElsa
+        ? 'Mensalidades 10/2026 e 11/2026 em atraso'
+        : undefined,
       origin: 'IMPORT_LABCARD',
       planSummaryLabel: plan + (depMembers.length > 0 ? ` (${depMembers.length + 1} pessoas)` : ''),
       notes: `Cadastrado por ${by} no Labcard`,
@@ -550,7 +598,19 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
       contractSignedAt: '2025-01-01T00:00:00.000Z',
       startDate: '2025-01-01',
       endDate: finalEndDate,
-      members: allMembers,
+      members: allMembers.map((m) =>
+        isRoksiane || isElsa
+          ? {
+              ...m,
+              status: 'INACTIVE',
+              inactivityReason: 'MENSALIDADE_VENCIDA',
+              inactivityNotes: isRoksiane
+                ? 'Mensalidade 11/2026 vencida em 05/11/2026'
+                : 'Mensalidades 10/2026 e 11/2026 em atraso',
+              manualStatusOverride: true,
+            }
+          : m
+      ),
       invoices,
       attachments: [],
       visits: [],
@@ -558,10 +618,10 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
       registeredCard,
       createdAt: finalCreatedAt,
       updatedAt: isMarli ? '2026-11-17T21:31:52.054Z' : '2026-11-10T00:00:00.000Z',
-      transferCompleted: isTitularAtivo,
-      manualStatusOverride: isTitularAtivo,
-      transferredAt: isTitularAtivo ? '2026-11-13T00:00:00.000Z' : undefined,
-      isModifiedFromSeed: isMarli ? true : undefined,
+      transferCompleted: isRoksiane || isElsa ? false : isTitularAtivo,
+      manualStatusOverride: isRoksiane || isElsa ? true : isTitularAtivo,
+      transferredAt: isRoksiane || isElsa ? undefined : isTitularAtivo ? '2026-11-13T00:00:00.000Z' : undefined,
+      isModifiedFromSeed: isMarli || isRoksiane || isElsa ? true : undefined,
     };
   });
 

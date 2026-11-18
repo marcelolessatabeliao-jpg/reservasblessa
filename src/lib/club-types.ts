@@ -55,6 +55,12 @@ export interface ClubModality {
   deleted?: boolean;
 }
 
+export type InactivityReason =
+  | 'MENSALIDADE_VENCIDA'
+  | 'FALTA_DOCUMENTOS'
+  | 'SOLICITACAO_CLIENTE'
+  | 'ADMINISTRATIVO';
+
 export interface ClubMember {
   id: string;
   subscriptionId: string;
@@ -85,6 +91,8 @@ export interface ClubMember {
   monthlyValue: number;
   status: SubscriptionStatus;
   manualStatusOverride?: boolean;
+  inactivityReason?: InactivityReason;
+  inactivityNotes?: string;
   cardStatus?: ClubCardStatus;
   expirationDate?: string; // YYYY-MM-DD - Vencimento individual do cadastro/benefício do dependente (ex: quando a criança completa idade pagante ou expira comprovação)
   expirationNotes?: string; // Motivo do vencimento (ex: "Completa idade em 2 meses - passa a ser pagante")
@@ -188,6 +196,8 @@ export interface ClubSubscription {
   dueDay: number;
   status: SubscriptionStatus;
   manualStatusOverride?: boolean;
+  inactivityReason?: InactivityReason;
+  inactivityNotes?: string;
   cardStatus?: ClubCardStatus;
   origin: 'SITE' | 'ADMIN' | 'IMPORT_LABCARD';
   transferCompleted?: boolean;

@@ -103,6 +103,7 @@ import {
   ALL_CONSULTANT_PLANS,
   ConsultantPlanPermission,
   SubscriptionStatus,
+  InactivityReason,
   DEFAULT_CLUB_MODALITIES,
 } from '@/lib/club-types';
 import {
@@ -1238,6 +1239,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
   // Situação (Liberar / Inativar / Status) para cadastro já existente
   const [situacaoLiberar, setSituacaoLiberar] = useState<'SIM' | 'NAO'>('SIM');
   const [situacaoInativar, setSituacaoInativar] = useState<'NAO' | 'SIM'>('NAO');
+  const [situacaoMotivoInativo, setSituacaoMotivoInativo] = useState<InactivityReason>('MENSALIDADE_VENCIDA');
+  const [situacaoNotasInativo, setSituacaoNotasInativo] = useState<string>('');
   const [depExpDrafts, setDepExpDrafts] = useState<Record<string, string>>({});
   const [lastRegistrationChangeBox, setLastRegistrationChangeBox] = useState<{
     title: string;
@@ -2609,11 +2612,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
   useEffect(() => {
     if (selectedSubForDetail) {
-      const isSubActive =
-        selectedSubForDetail.status === 'ACTIVE' ||
-        Boolean(selectedSubForDetail.transferCompleted) ||
-        Boolean(selectedSubForDetail.manuallyConfirmedTransfer);
-      if (isSubActive) {
+      if (selectedSubForDetail.status === 'ACTIVE') {
         setSituacaoLiberar('SIM');
         setSituacaoInativar('NAO');
       } else if (selectedSubForDetail.status === 'PENDING_TRANSFER') {
@@ -2623,6 +2622,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         setSituacaoLiberar('NAO');
         setSituacaoInativar('SIM');
       }
+      setSituacaoMotivoInativo(selectedSubForDetail.inactivityReason || 'MENSALIDADE_VENCIDA');
+      setSituacaoNotasInativo(selectedSubForDetail.inactivityNotes || '');
       setTempExpirationDate(selectedSubForDetail.endDate || '2027-10-31');
       const rawPlanDesc = selectedSubForDetail.planSummaryLabel || '';
       const titularMember =
@@ -2848,6 +2849,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 sex: editClientData.holderSex || m.sex,
                 phone: editClientData.holderPhone.trim() || m.phone,
                 status: targetStatus,
+                inactivityReason: targetStatus === 'ACTIVE' ? undefined : (situacaoMotivoInativo || 'MENSALIDADE_VENCIDA'),
+                inactivityNotes: targetStatus === 'ACTIVE' ? undefined : (situacaoNotasInativo || undefined),
                 manualStatusOverride: true,
                 expirationDate: nextEndDate || m.expirationDate,
                 validityLabel: nextValidityLabel || m.validityLabel,
@@ -2855,21 +2858,25 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
             : {
                 ...m,
                 // Preserva o status individual do dependente quando o titular já permanece ATIVO;
-                // se o cadastro mudou entre ATIVO e INATIVO, sincroniza com a alteração solicitada.
+                // se o cadastro mudou para INATIVO, sincroniza com a alteração solicitada.
                 status:
                   prevStatus !== targetStatus || targetStatus !== 'ACTIVE'
                     ? targetStatus
                     : m.status,
+                inactivityReason: targetStatus === 'ACTIVE' ? undefined : (situacaoMotivoInativo || 'MENSALIDADE_VENCIDA'),
+                inactivityNotes: targetStatus === 'ACTIVE' ? undefined : (situacaoNotasInativo || undefined),
                 manualStatusOverride: true,
                 validityLabel: m.expirationDate
                   ? getValidityLabelFromDate(m.expirationDate, m.validityLabel)
                   : nextValidityLabel || m.validityLabel,
               }
         ),
+        inactivityReason: targetStatus === 'ACTIVE' ? undefined : (situacaoMotivoInativo || 'MENSALIDADE_VENCIDA'),
+        inactivityNotes: targetStatus === 'ACTIVE' ? undefined : (situacaoNotasInativo || undefined),
         updatedAt: new Date().toISOString(),
-        transferCompleted: targetStatus === 'ACTIVE' ? true : (selectedSubForDetail.transferCompleted ?? false),
-        manuallyConfirmedTransfer: targetStatus === 'ACTIVE' ? true : Boolean(selectedSubForDetail.manuallyConfirmedTransfer),
-        manualStatusOverride: isLiberandoManualmente || targetStatus === 'ACTIVE' || Boolean(selectedSubForDetail.manualStatusOverride),
+        transferCompleted: targetStatus === 'ACTIVE' ? true : false,
+        manuallyConfirmedTransfer: targetStatus === 'ACTIVE' ? true : false,
+        manualStatusOverride: true,
         isModifiedFromSeed: true,
         transferredAt: targetStatus === 'ACTIVE' ? (selectedSubForDetail.transferredAt || new Date().toISOString()) : selectedSubForDetail.transferredAt,
       };
@@ -3894,13 +3901,17 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
   // Toggle Subscription Active/Inactive Status
   const handleToggleSubStatus = async (
     sub: ClubSubscription,
-    newStatus: ClubSubscription['status']
+    newStatus: ClubSubscription['status'],
+    reasonOverride?: InactivityReason,
+    notesOverride?: string
   ) => {
     if (!state || isSavingStatus) return;
     setIsSavingStatus(true);
     try {
       const prevLabel = sub.status === 'ACTIVE' ? 'ATIVO' : 'INATIVO';
       const newLabel = newStatus === 'ACTIVE' ? 'ATIVO' : 'INATIVO';
+      const effectiveReason = reasonOverride || situacaoMotivoInativo || 'MENSALIDADE_VENCIDA';
+      const effectiveNotes = notesOverride !== undefined ? notesOverride : situacaoNotasInativo;
       const nextEndDate =
         editClientData.endDate.trim() ||
         tempExpirationDate.trim() ||
@@ -3928,9 +3939,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         holderSex: editClientData.holderSex || sub.holderSex,
         holderMaritalStatus: editClientData.holderMaritalStatus || sub.holderMaritalStatus,
         status: newStatus,
+        inactivityReason: newStatus === 'ACTIVE' ? undefined : effectiveReason,
+        inactivityNotes: newStatus === 'ACTIVE' ? undefined : (effectiveNotes || undefined),
         manualStatusOverride: true,
         isModifiedFromSeed: true,
-        manuallyConfirmedTransfer: newStatus === 'ACTIVE' ? true : Boolean(sub.manuallyConfirmedTransfer),
+        manuallyConfirmedTransfer: newStatus === 'ACTIVE' ? true : false,
         endDate: nextEndDate,
         updatedAt: new Date().toISOString(),
         transferCompleted: newStatus === 'ACTIVE',
@@ -3938,6 +3951,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         members: sub.members.map((m) => ({
           ...m,
           status: newStatus === 'ACTIVE' ? 'ACTIVE' : 'INACTIVE',
+          inactivityReason: newStatus === 'ACTIVE' ? undefined : effectiveReason,
+          inactivityNotes: newStatus === 'ACTIVE' ? undefined : (effectiveNotes || undefined),
           manualStatusOverride: true,
           documentVerified: newStatus === 'ACTIVE' ? true : m.documentVerified,
           documentStatus: newStatus === 'ACTIVE' ? ('APROVADO' as const) : m.documentStatus,
@@ -13296,27 +13311,6 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         </select>
                       </div>
 
-                      {/* INFORMATIVO DO QUE É ACEITO E VÁLIDO PARA A MODALIDADE DO NOVO DEPENDENTE */}
-                      {(() => {
-                        const selMod = (state.modalities || []).find((m) => m.code === newDepModality);
-                        const rule = getPlanDocumentRule(newDepModality, selMod?.name);
-                        if (!rule.requiresDocument) return null;
-                        return (
-                          <div className="sm:col-span-12 bg-amber-50 border border-amber-300 rounded-xl p-3 text-xs text-amber-950 space-y-1">
-                            <strong className="block font-black uppercase text-[11px] text-amber-900 flex items-center gap-1.5">
-                              📄 Comprovação Obrigatória para {selMod?.name || 'esta modalidade'}:
-                            </strong>
-                            <p className="text-slate-700">{rule.summary}</p>
-                            <div className="font-semibold text-slate-800">
-                              Documentos aceitos (basta 1): {rule.acceptedDocs.join(' • ')}
-                            </div>
-                            <div className="text-[10px] text-amber-800 font-bold">
-                              ⚠️ Além do pagamento, o cadastro deste dependente só será ativo após o documento ser anexado e validado pelo Admin.
-                            </div>
-                          </div>
-                        );
-                      })()}
-
                       <div className="sm:col-span-4 flex items-center gap-2">
                         <Label className="text-xs font-bold text-slate-600 w-16 text-left sm:text-right shrink-0">
                           Inativar
@@ -13334,27 +13328,6 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           <option value="SIM">SIM</option>
                         </select>
                       </div>
-
-                      {/* INFORMATIVO DO QUE É ACEITO E VÁLIDO PARA A MODALIDADE DO NOVO DEPENDENTE */}
-                      {(() => {
-                        const selMod = (state.modalities || []).find((m) => m.code === newDepModality);
-                        const rule = getPlanDocumentRule(newDepModality, selMod?.name);
-                        if (!rule.requiresDocument) return null;
-                        return (
-                          <div className="sm:col-span-12 bg-amber-50 border border-amber-300 rounded-xl p-3 text-xs text-amber-950 space-y-1">
-                            <strong className="block font-black uppercase text-[11px] text-amber-900 flex items-center gap-1.5">
-                              📄 Comprovação Obrigatória para {selMod?.name || 'esta modalidade'}:
-                            </strong>
-                            <p className="text-slate-700">{rule.summary}</p>
-                            <div className="font-semibold text-slate-800">
-                              Documentos aceitos (basta 1): {rule.acceptedDocs.join(' • ')}
-                            </div>
-                            <div className="text-[10px] text-amber-800 font-bold">
-                              ⚠️ Além do pagamento, o cadastro deste dependente só será ativo após o documento ser anexado e validado pelo Admin.
-                            </div>
-                          </div>
-                        );
-                      })()}
 
                       <div className="sm:col-span-4 flex items-center justify-between gap-2 pt-1 sm:pt-0">
                         <div className="flex items-center gap-2">
@@ -13393,7 +13366,12 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                 : selectedSubForDetail.status === 'PENDING_TRANSFER'
                                 ? 'PENDING_TRANSFER'
                                 : 'INACTIVE';
-                            handleToggleSubStatus(selectedSubForDetail, targetStatus);
+                            handleToggleSubStatus(
+                              selectedSubForDetail,
+                              targetStatus,
+                              targetStatus === 'INACTIVE' ? situacaoMotivoInativo : undefined,
+                              targetStatus === 'INACTIVE' ? situacaoNotasInativo : undefined
+                            );
                           }}
                           className="bg-[#004d00] hover:bg-emerald-900 text-white font-black uppercase tracking-wider px-4 sm:px-5 h-9 rounded-md shadow shrink-0 text-xs cursor-pointer disabled:opacity-60"
                         >
@@ -13406,6 +13384,42 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           )}
                         </Button>
                       </div>
+
+                      {/* OPÇÕES DOS MOTIVOS DE INATIVIDADE */}
+                      {situacaoInativar === 'SIM' && (
+                        <div className="sm:col-span-12 bg-rose-50 border-2 border-rose-200 rounded-xl p-3.5 space-y-2.5">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                            <Label className="text-xs font-black text-rose-950 shrink-0 flex items-center gap-1.5">
+                              ⚠️ Motivo da Inativação:
+                            </Label>
+                            <select
+                              value={situacaoMotivoInativo}
+                              onChange={(e) => setSituacaoMotivoInativo(e.target.value as InactivityReason)}
+                              className="w-full flex-1 h-9 rounded-lg border border-rose-300 px-3 text-xs font-bold bg-white text-rose-950 focus:ring-rose-500"
+                            >
+                              <option value="MENSALIDADE_VENCIDA">Mensalidades Vencidas / Pagamento Pendente</option>
+                              <option value="FALTA_DOCUMENTOS">Falta de Documentos / Documentação Pendente</option>
+                              <option value="SOLICITACAO_CLIENTE">Solicitação do Associado (Pausa / Cancelamento)</option>
+                              <option value="ADMINISTRATIVO">Decisão Administrativa / Bloqueio Interno</option>
+                            </select>
+                          </div>
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                            <Label className="text-xs font-bold text-rose-900 shrink-0">
+                              Observações do Admin:
+                            </Label>
+                            <input
+                              type="text"
+                              placeholder="Ex: Pagamentos em aberto no carnê Asaas / falta comprovante escolar"
+                              value={situacaoNotasInativo}
+                              onChange={(e) => setSituacaoNotasInativo(e.target.value)}
+                              className="w-full flex-1 h-8 rounded-lg border border-rose-300 px-3 text-xs bg-white text-rose-950 placeholder:text-rose-400"
+                            />
+                          </div>
+                          <p className="text-[11px] text-rose-800 font-medium">
+                            💡 O motivo selecionado será exibido imediatamente no Portal do Sócio para que o associado visualize a pendência e regularize.
+                          </p>
+                        </div>
+                      )}
                     </div>
 
                     {lastRegistrationChangeBox && (

@@ -153,10 +153,17 @@ const SocioPortal: React.FC = () => {
 
   const isSubscriptionActive = useMemo(() => {
     if (!subscription) return false;
-    // Se o plano estiver explicitamente ativo ou marcado com liberação manual/transferência concluída
-    if (subscription.status === 'ACTIVE' || subscription.manualStatusOverride) return true;
 
-    // Cadastros que ainda estão pendentes de transferência e alterações não são ativos até a conclusão pela administração
+    // Se o status da assinatura foi definido como INATIVO, SUSPENSO ou CANCELADO pelo admin, DEVE SER FALSO!
+    if (
+      subscription.status === 'INACTIVE' ||
+      subscription.status === 'SUSPENDED' ||
+      subscription.status === 'CANCELLED'
+    ) {
+      return false;
+    }
+
+    // Cadastros que ainda estão pendentes de transferência e não confirmados não são ativos até a conclusão pela administração
     if (
       subscription.status === 'PENDING_TRANSFER' ||
       (!subscription.transferCompleted &&
@@ -165,10 +172,13 @@ const SocioPortal: React.FC = () => {
     ) {
       return false;
     }
+
+    // Se estiver explicitamente ativo
+    if (subscription.status === 'ACTIVE') return true;
+
     if (subscription.monthlyEquivalent === 0 || subscription.paymentMethod === 'COURTESY') return true;
     if (subscription.contractType === 'FAMILY_PUBLICIDADE') return true;
     if (subscription.planSummaryLabel && /publicidade|permuta/i.test(subscription.planSummaryLabel)) return true;
-    if (subscription.members && subscription.members.some((m) => m.status === 'ACTIVE')) return true;
     return false;
   }, [subscription]);
 
@@ -1049,6 +1059,14 @@ const SocioPortal: React.FC = () => {
                           (subscription.origin === 'IMPORT_LABCARD' ||
                             subscription.id.startsWith('sub-labcard-')))
                       ? '● STATUS ATUAL: CADASTRO EM TRANSFERÊNCIA (EM CONFERÊNCIA)'
+                      : subscription.inactivityReason === 'MENSALIDADE_VENCIDA'
+                      ? '● STATUS ATUAL: PLANO INATIVO (MENSALIDADE VENCIDA / PENDENTE)'
+                      : subscription.inactivityReason === 'FALTA_DOCUMENTOS'
+                      ? '● STATUS ATUAL: PLANO INATIVO (PENDÊNCIA DE DOCUMENTOS)'
+                      : subscription.inactivityReason === 'SOLICITACAO_CLIENTE'
+                      ? '● STATUS ATUAL: PLANO INATIVO (A PEDIDO DO ASSOCIADO)'
+                      : subscription.inactivityReason === 'ADMINISTRATIVO'
+                      ? '● STATUS ATUAL: PLANO INATIVO (BLOQUEIO ADMINISTRATIVO)'
                       : '● STATUS ATUAL: PLANO INATIVO (AGUARDANDO PAGAMENTO)'}
                   </Badge>
                   <span className="text-xs font-semibold text-slate-500">
@@ -1223,6 +1241,14 @@ const SocioPortal: React.FC = () => {
                           (subscription.origin === 'IMPORT_LABCARD' ||
                             subscription.id.startsWith('sub-labcard-')))
                           ? '⏳ Cadastro em Transferência — Em Conferência / Organização'
+                          : subscription.inactivityReason === 'MENSALIDADE_VENCIDA'
+                          ? '🔒 Plano Inativo — Mensalidade Vencida / Pendente'
+                          : subscription.inactivityReason === 'FALTA_DOCUMENTOS'
+                          ? '📑 Plano Inativo — Falta de Documentos Obrigatórios'
+                          : subscription.inactivityReason === 'SOLICITACAO_CLIENTE'
+                          ? '⏸️ Plano Pausado / Inativo a Pedido do Associado'
+                          : subscription.inactivityReason === 'ADMINISTRATIVO'
+                          ? '⚠️ Plano Inativo — Bloqueio Administrativo'
                           : '🔒 Plano Inativo — Aguardando Ativação do Cadastro'}
                       </h4>
                       <p className={`text-xs ${
@@ -1240,6 +1266,14 @@ const SocioPortal: React.FC = () => {
                           (subscription.origin === 'IMPORT_LABCARD' ||
                             subscription.id.startsWith('sub-labcard-')))
                           ? 'Os dados e dependentes deste cadastro estão sendo organizados e transferidos pela administração do balneário. A liberação ocorrerá assim que a transferência for concluída.'
+                          : subscription.inactivityReason === 'MENSALIDADE_VENCIDA'
+                          ? 'Identificamos mensalidade(s) pendente(s) ou em atraso para este cadastro. Regularize através da aba "Mensalidades" para liberar o acesso ao clube e suas carteirinhas.'
+                          : subscription.inactivityReason === 'FALTA_DOCUMENTOS'
+                          ? 'Existem documentos obrigatórios pendentes de envio ou aprovação cadastral. Acesse a aba "Dependentes e Documentos" ou procure a administração para regularizar.'
+                          : subscription.inactivityReason === 'SOLICITACAO_CLIENTE'
+                          ? 'Este cadastro encontra-se suspenso/inativado a pedido do titular. Entre em contato com a secretaria do balneário para reativação.'
+                          : subscription.inactivityReason === 'ADMINISTRATIVO'
+                          ? 'O cadastro encontra-se bloqueado temporariamente pela administração do clube. Para orientações, contate o suporte ou a secretaria.'
                           : 'A edição da foto 3x4 e o download das carteirinhas só são liberados após a confirmação do pagamento (aba "Mensalidades") ou ativação do plano pela administração.'}
                       </p>
                     </div>
@@ -1273,7 +1307,8 @@ const SocioPortal: React.FC = () => {
                       const effExp = member.expirationDate || subscription.endDate;
                       const isExpiredMember = isClubDateExpired(effExp);
                       const isLockedMember =
-                        (!isSubscriptionActive && member.status !== 'ACTIVE') ||
+                        !isSubscriptionActive ||
+                        member.status !== 'ACTIVE' ||
                         isExpiredMember ||
                         missingDoc;
                       return (
@@ -1290,8 +1325,18 @@ const SocioPortal: React.FC = () => {
                                 ? `Falta anexar: ${docRule.title || 'comprovante do plano'}`
                                 : isExpiredMember
                                 ? `Cadastro expirado em ${formatDateBR(effExp)}`
-                                : !isSubscriptionActive && member.status !== 'ACTIVE'
-                                ? 'Aguardando liberação do cadastro'
+                                : !isSubscriptionActive || member.status !== 'ACTIVE'
+                                ? (
+                                    subscription.inactivityReason === 'MENSALIDADE_VENCIDA'
+                                      ? 'Bloqueado por mensalidade pendente'
+                                      : subscription.inactivityReason === 'FALTA_DOCUMENTOS'
+                                      ? 'Bloqueado por pendência documental'
+                                      : subscription.inactivityReason === 'SOLICITACAO_CLIENTE'
+                                      ? 'Plano pausado a pedido'
+                                      : subscription.inactivityReason === 'ADMINISTRATIVO'
+                                      ? 'Bloqueio administrativo'
+                                      : 'Aguardando liberação do cadastro'
+                                  )
                                 : undefined
                             }
                             onUpdatePhoto={isLockedMember || !isSubscriptionActive ? undefined : handleUpdateMemberPhoto}
@@ -1461,10 +1506,10 @@ const SocioPortal: React.FC = () => {
                           const missingDoc = isMemberBlockedForMissingDoc(member, subscription);
                           const effExp = member.expirationDate || subscription.endDate;
                           const isExpiredDep = isClubDateExpired(effExp);
-                          const isDepInactive = member.status === 'INACTIVE';
                           const isLockedDep =
-                            (!isSubscriptionActive && member.status !== 'ACTIVE') ||
+                            !isSubscriptionActive ||
                             isDepInactive ||
+                            member.status !== 'ACTIVE' ||
                             isExpiredDep ||
                             missingDoc;
                           return (
@@ -1482,10 +1527,20 @@ const SocioPortal: React.FC = () => {
                                     ? `Falta anexar: ${docRule.title || 'comprovante do plano'}`
                                     : isExpiredDep
                                     ? `Cadastro expirado em ${formatDateBR(effExp)}`
-                                    : !isSubscriptionActive && member.status !== 'ACTIVE'
-                                    ? 'Aguardando liberação do titular'
                                     : isDepInactive
                                     ? 'Dependente inativo no momento'
+                                    : !isSubscriptionActive || member.status !== 'ACTIVE'
+                                    ? (
+                                        subscription.inactivityReason === 'MENSALIDADE_VENCIDA'
+                                          ? 'Bloqueado por mensalidade pendente'
+                                          : subscription.inactivityReason === 'FALTA_DOCUMENTOS'
+                                          ? 'Bloqueado por pendência documental'
+                                          : subscription.inactivityReason === 'SOLICITACAO_CLIENTE'
+                                          ? 'Plano pausado a pedido'
+                                          : subscription.inactivityReason === 'ADMINISTRATIVO'
+                                          ? 'Bloqueio administrativo'
+                                          : 'Aguardando liberação do titular'
+                                      )
                                     : undefined
                                 }
                                 onUpdatePhoto={isLockedDep || !isSubscriptionActive ? undefined : handleUpdateMemberPhoto}
