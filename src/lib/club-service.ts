@@ -1378,10 +1378,20 @@ export const loadClubStateLocal = (): ClubDatabaseState => {
       }
     });
 
-    // Assegura que NENHUM cadastro do Labcard fique ativo automaticamente em massa
+    // Assegura que cadastros do Labcard não fiquem ativos em massa automaticamente,
+    // mas PRESERVA INTEGRALMENTE decisões soberanas do admin (INATIVO, SUSPENSO, CANCELADO, override manual)
     const adminConfirmedCards = getAdminConfirmedCardsSet();
     subsMap.forEach((sub) => {
       if (sub.origin === 'IMPORT_LABCARD' || sub.id.startsWith('sub-labcard-')) {
+        if (
+          sub.status === 'INACTIVE' ||
+          sub.status === 'SUSPENDED' ||
+          sub.status === 'CANCELLED' ||
+          sub.manualStatusOverride
+        ) {
+          return;
+        }
+
         const isAlreadyRegularized = isSubscriptionRegularizedOrActive(sub, adminConfirmedCards);
 
         if (!isAlreadyRegularized) {
@@ -1392,7 +1402,14 @@ export const loadClubStateLocal = (): ClubDatabaseState => {
           sub.status = 'PENDING_TRANSFER';
           if (sub.members) {
             sub.members.forEach((m) => {
-              if (!REGULARIZED_ACTIVE_CARDS.has(m.cardNumber) && !adminConfirmedCards.has(m.cardNumber)) {
+              if (
+                m.status !== 'INACTIVE' &&
+                m.status !== 'SUSPENDED' &&
+                m.status !== 'CANCELLED' &&
+                !m.manualStatusOverride &&
+                !REGULARIZED_ACTIVE_CARDS.has(m.cardNumber) &&
+                !adminConfirmedCards.has(m.cardNumber)
+              ) {
                 m.status = 'PENDING_TRANSFER';
                 m.manualStatusOverride = false;
               }
@@ -1405,8 +1422,10 @@ export const loadClubStateLocal = (): ClubDatabaseState => {
           sub.status = 'ACTIVE';
           if (sub.members) {
             sub.members.forEach((m) => {
-              m.status = 'ACTIVE';
-              m.manualStatusOverride = true;
+              if (m.status !== 'INACTIVE' && m.status !== 'SUSPENDED' && m.status !== 'CANCELLED') {
+                m.status = 'ACTIVE';
+                m.manualStatusOverride = true;
+              }
             });
           }
         }
@@ -1645,6 +1664,14 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
             (full.attachments?.length || 0) > 0;
 
           if (isFullModified) {
+            if (full.status) s.status = full.status;
+            if (full.inactivityReason) s.inactivityReason = full.inactivityReason;
+            if (full.inactivityNotes) s.inactivityNotes = full.inactivityNotes;
+            if (full.dueDay) s.dueDay = full.dueDay;
+            if (full.manualStatusOverride !== undefined) s.manualStatusOverride = full.manualStatusOverride;
+            if (full.transferredAt) s.transferredAt = full.transferredAt;
+            if (full.transferCompleted !== undefined) s.transferCompleted = full.transferCompleted;
+            if (full.manuallyConfirmedTransfer !== undefined) s.manuallyConfirmedTransfer = full.manuallyConfirmedTransfer;
             if (full.holderEmail) s.holderEmail = full.holderEmail;
             if (full.addressCep) s.addressCep = full.addressCep;
             if (full.addressStreet) s.addressStreet = full.addressStreet;
@@ -1667,18 +1694,31 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
             if (full.planSummaryLabel) s.planSummaryLabel = full.planSummaryLabel;
             if (full.endDate) s.endDate = full.endDate;
 
-            const isAlreadyRegularized = isSubscriptionRegularizedOrActive(s, adminConfirmedCards);
-            if (isAlreadyRegularized) {
-              s.status = 'ACTIVE';
-              s.manualStatusOverride = true;
-              s.transferCompleted = true;
-              s.manuallyConfirmedTransfer = true;
-            } else if (s.origin === 'IMPORT_LABCARD' || s.id.startsWith('sub-labcard-')) {
-              s.status = 'PENDING_TRANSFER';
-              s.manualStatusOverride = false;
-              s.transferCompleted = false;
-              s.manuallyConfirmedTransfer = false;
-              s.transferredAt = undefined;
+            if (
+              s.status === 'INACTIVE' ||
+              s.status === 'SUSPENDED' ||
+              s.status === 'CANCELLED' ||
+              s.manualStatusOverride ||
+              full.status === 'INACTIVE' ||
+              full.status === 'SUSPENDED' ||
+              full.status === 'CANCELLED' ||
+              full.manualStatusOverride
+            ) {
+              // Status definido pelo administrador - preservar soberanamente
+            } else {
+              const isAlreadyRegularized = isSubscriptionRegularizedOrActive(s, adminConfirmedCards);
+              if (isAlreadyRegularized) {
+                s.status = 'ACTIVE';
+                s.manualStatusOverride = true;
+                s.transferCompleted = true;
+                s.manuallyConfirmedTransfer = true;
+              } else if (s.origin === 'IMPORT_LABCARD' || s.id.startsWith('sub-labcard-')) {
+                s.status = 'PENDING_TRANSFER';
+                s.manualStatusOverride = false;
+                s.transferCompleted = false;
+                s.manuallyConfirmedTransfer = false;
+                s.transferredAt = undefined;
+              }
             }
             s.isModifiedFromSeed = true;
           } else {
@@ -1813,7 +1853,7 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
             } else {
               // Remote (nuvem) é mais recente ou igual: a nuvem é a fonte da verdade!
               if (s.holderEmail && !current.holderEmail) current.holderEmail = s.holderEmail;
-              if (s.addressCep && !current.addressCep) current.addressCep = s.addressCep;
+              if (s.addressCep && (!current.addressCep || current.addressCep === '76870-000')) current.addressCep = s.addressCep;
               if (s.addressStreet && !current.addressStreet) current.addressStreet = s.addressStreet;
               if (s.addressNumber && !current.addressNumber) current.addressNumber = s.addressNumber;
               if (s.addressComplement && !current.addressComplement) current.addressComplement = s.addressComplement;
@@ -1823,20 +1863,43 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
               if (s.vehiclePlate && !current.vehiclePlate) current.vehiclePlate = s.vehiclePlate;
               if (s.vehicleModel && !current.vehicleModel) current.vehicleModel = s.vehicleModel;
               if (s.vehicleColor && !current.vehicleColor) current.vehicleColor = s.vehicleColor;
-              if (s.notes && !current.notes) current.notes = s.notes;
-              if (s.endDate && !current.endDate) current.endDate = s.endDate;
-              const isAlreadyRegularizedCur = isSubscriptionRegularizedOrActive(current, adminConfirmedCards);
-              if (isAlreadyRegularizedCur) {
-                current.status = 'ACTIVE';
-                current.manualStatusOverride = true;
-                current.transferCompleted = true;
-                current.manuallyConfirmedTransfer = true;
-              } else if (current.origin === 'IMPORT_LABCARD' || current.id.startsWith('sub-labcard-')) {
-                current.status = 'PENDING_TRANSFER';
-                current.manualStatusOverride = false;
-                current.transferCompleted = false;
-                current.manuallyConfirmedTransfer = false;
-                current.transferredAt = undefined;
+              if (s.notes && (!current.notes || current.notes.startsWith('Cadastrado por'))) current.notes = s.notes;
+              if (s.endDate && (!current.endDate || current.endDate === '2027-10-31')) current.endDate = s.endDate;
+              if (s.inactivityReason && !current.inactivityReason) current.inactivityReason = s.inactivityReason;
+              if (s.inactivityNotes && !current.inactivityNotes) current.inactivityNotes = s.inactivityNotes;
+
+              if (
+                current.status === 'INACTIVE' ||
+                current.status === 'SUSPENDED' ||
+                current.status === 'CANCELLED' ||
+                current.manualStatusOverride
+              ) {
+                // Status soberano da nuvem / admin - preservar integralmente!
+              } else if (
+                s.status === 'INACTIVE' ||
+                s.status === 'SUSPENDED' ||
+                s.status === 'CANCELLED' ||
+                s.manualStatusOverride
+              ) {
+                // Status soberano local do admin - prevalece sobre pendente
+                current.status = s.status;
+                current.manualStatusOverride = s.manualStatusOverride;
+                current.inactivityReason = s.inactivityReason;
+                current.inactivityNotes = s.inactivityNotes;
+              } else {
+                const isAlreadyRegularizedCur = isSubscriptionRegularizedOrActive(current, adminConfirmedCards);
+                if (isAlreadyRegularizedCur) {
+                  current.status = 'ACTIVE';
+                  current.manualStatusOverride = true;
+                  current.transferCompleted = true;
+                  current.manuallyConfirmedTransfer = true;
+                } else if (current.origin === 'IMPORT_LABCARD' || current.id.startsWith('sub-labcard-')) {
+                  current.status = 'PENDING_TRANSFER';
+                  current.manualStatusOverride = false;
+                  current.transferCompleted = false;
+                  current.manuallyConfirmedTransfer = false;
+                  current.transferredAt = undefined;
+                }
               }
               if ((s.attachments?.length || 0) > (current.attachments?.length || 0)) {
                 current.attachments = s.attachments;
@@ -1900,9 +1963,19 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
         }
       });
 
-      // Preservar pendente p/ transferência na base importada do Labcard enquanto a transferência não for concluída
+      // Preservar pendente p/ transferência na base importada do Labcard enquanto a transferência não for concluída,
+      // mas NUNCA sobrescreve cadastros definidos como INATIVOS, SUSPENSOS, CANCELADOS ou com override manual
       subsMap.forEach((sub) => {
         if (sub.origin === 'IMPORT_LABCARD' || sub.id.startsWith('sub-labcard-')) {
+          if (
+            sub.status === 'INACTIVE' ||
+            sub.status === 'SUSPENDED' ||
+            sub.status === 'CANCELLED' ||
+            sub.manualStatusOverride
+          ) {
+            return;
+          }
+
           const isExplicitlyRegularized = isSubscriptionRegularizedOrActive(sub, adminConfirmedCards);
 
           if (!isExplicitlyRegularized) {
@@ -1913,17 +1986,24 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
             sub.status = 'PENDING_TRANSFER';
             if (sub.members) {
               sub.members.forEach((m) => {
-                const isMemExplicitlyActive =
-                  REGULARIZED_ACTIVE_CARDS.has(m.cardNumber) ||
-                  adminConfirmedCards.has(m.cardNumber) ||
-                  Boolean(m.documentVerified) ||
-                  m.documentStatus === 'APROVADO' ||
-                  Boolean(m.manualStatusOverride) ||
-                  m.status === 'ACTIVE';
+                if (
+                  m.status !== 'INACTIVE' &&
+                  m.status !== 'SUSPENDED' &&
+                  m.status !== 'CANCELLED' &&
+                  !m.manualStatusOverride
+                ) {
+                  const isMemExplicitlyActive =
+                    REGULARIZED_ACTIVE_CARDS.has(m.cardNumber) ||
+                    adminConfirmedCards.has(m.cardNumber) ||
+                    Boolean(m.documentVerified) ||
+                    m.documentStatus === 'APROVADO' ||
+                    Boolean(m.manualStatusOverride) ||
+                    m.status === 'ACTIVE';
 
-                if (!isMemExplicitlyActive) {
-                  m.status = 'PENDING_TRANSFER';
-                  m.manualStatusOverride = false;
+                  if (!isMemExplicitlyActive) {
+                    m.status = 'PENDING_TRANSFER';
+                    m.manualStatusOverride = false;
+                  }
                 }
               });
             }
@@ -1936,7 +2016,7 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
             }
             if (sub.members) {
               sub.members.forEach((m) => {
-                if (m.status !== 'INACTIVE' && m.status !== 'SUSPENDED') {
+                if (m.status !== 'INACTIVE' && m.status !== 'SUSPENDED' && m.status !== 'CANCELLED') {
                   m.status = 'ACTIVE';
                   m.manualStatusOverride = true;
                 }

@@ -11922,7 +11922,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
           const rule = getPlanDocumentRule(m.modalityCode, m.modalityName);
           if (!rule.requiresDocument) return false;
           const hasProof = memberHasProofUploaded(m, selectedSubForDetail);
-          return hasProof && !m.documentVerified && !m.documentRejectionReason;
+          return hasProof && !m.documentVerified && m.documentStatus !== 'APROVADO' && !m.documentRejectionReason;
         }).length;
 
         return (
@@ -16373,6 +16373,9 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                               documentProofUrl: dataUrl,
                               documentProofName: file.name,
                               documentVerified: true,
+                              documentStatus: 'APROVADO' as const,
+                              documentVerifiedAt: new Date().toISOString(),
+                              documentVerifiedBy: 'Administrador',
                             };
                           }
                           return m;

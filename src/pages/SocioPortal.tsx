@@ -182,6 +182,23 @@ const SocioPortal: React.FC = () => {
     return false;
   }, [subscription]);
 
+  const isPendingTransfer = useMemo(() => {
+    if (!subscription || isSubscriptionActive) return false;
+    if (
+      subscription.status === 'INACTIVE' ||
+      subscription.status === 'SUSPENDED' ||
+      subscription.status === 'CANCELLED'
+    ) {
+      return false;
+    }
+    return (
+      subscription.status === 'PENDING_TRANSFER' ||
+      (!subscription.transferCompleted &&
+        !subscription.manuallyConfirmedTransfer &&
+        (subscription.origin === 'IMPORT_LABCARD' || subscription.id.startsWith('sub-labcard-')))
+    );
+  }, [subscription, isSubscriptionActive]);
+
   useEffect(() => {
     let active = true;
     setIsSyncing(true);
@@ -1042,22 +1059,14 @@ const SocioPortal: React.FC = () => {
                     className={
                       isSubscriptionActive
                         ? 'bg-emerald-600 text-white font-black'
-                        : subscription.status === 'PENDING_TRANSFER' ||
-                          (!subscription.transferCompleted &&
-                            !subscription.manuallyConfirmedTransfer &&
-                            (subscription.origin === 'IMPORT_LABCARD' ||
-                              subscription.id.startsWith('sub-labcard-')))
+                        : isPendingTransfer
                         ? 'bg-amber-600 text-white font-black'
                         : 'bg-rose-600 text-white font-black'
                     }
                   >
                     {isSubscriptionActive
                       ? '● STATUS ATUAL: PLANO ATIVO (LIBERADO)'
-                      : subscription.status === 'PENDING_TRANSFER' ||
-                        (!subscription.transferCompleted &&
-                          !subscription.manuallyConfirmedTransfer &&
-                          (subscription.origin === 'IMPORT_LABCARD' ||
-                            subscription.id.startsWith('sub-labcard-')))
+                      : isPendingTransfer
                       ? '● STATUS ATUAL: CADASTRO EM TRANSFERÊNCIA (EM CONFERÊNCIA)'
                       : subscription.inactivityReason === 'MENSALIDADE_VENCIDA'
                       ? '● STATUS ATUAL: PLANO INATIVO (MENSALIDADE VENCIDA / PENDENTE)'
@@ -1217,29 +1226,17 @@ const SocioPortal: React.FC = () => {
 
                 {!isSubscriptionActive ? (
                   <div className={`border-2 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
-                    subscription.status === 'PENDING_TRANSFER' ||
-                    (!subscription.transferCompleted &&
-                      !subscription.manuallyConfirmedTransfer &&
-                      (subscription.origin === 'IMPORT_LABCARD' ||
-                        subscription.id.startsWith('sub-labcard-')))
+                    isPendingTransfer
                       ? 'bg-amber-50 border-amber-300'
                       : 'bg-rose-50 border-rose-300'
                   }`}>
                     <div className="space-y-1">
                       <h4 className={`font-black text-sm sm:text-base ${
-                        subscription.status === 'PENDING_TRANSFER' ||
-                        (!subscription.transferCompleted &&
-                          !subscription.manuallyConfirmedTransfer &&
-                          (subscription.origin === 'IMPORT_LABCARD' ||
-                            subscription.id.startsWith('sub-labcard-')))
+                        isPendingTransfer
                           ? 'text-amber-950'
                           : 'text-rose-900'
                       }`}>
-                        {subscription.status === 'PENDING_TRANSFER' ||
-                        (!subscription.transferCompleted &&
-                          !subscription.manuallyConfirmedTransfer &&
-                          (subscription.origin === 'IMPORT_LABCARD' ||
-                            subscription.id.startsWith('sub-labcard-')))
+                        {isPendingTransfer
                           ? '⏳ Cadastro em Transferência — Em Conferência / Organização'
                           : subscription.inactivityReason === 'MENSALIDADE_VENCIDA'
                           ? '🔒 Plano Inativo — Mensalidade Vencida / Pendente'
@@ -1252,19 +1249,11 @@ const SocioPortal: React.FC = () => {
                           : '🔒 Plano Inativo — Aguardando Ativação do Cadastro'}
                       </h4>
                       <p className={`text-xs ${
-                        subscription.status === 'PENDING_TRANSFER' ||
-                        (!subscription.transferCompleted &&
-                          !subscription.manuallyConfirmedTransfer &&
-                          (subscription.origin === 'IMPORT_LABCARD' ||
-                            subscription.id.startsWith('sub-labcard-')))
+                        isPendingTransfer
                           ? 'text-amber-900'
                           : 'text-rose-800'
                       }`}>
-                        {subscription.status === 'PENDING_TRANSFER' ||
-                        (!subscription.transferCompleted &&
-                          !subscription.manuallyConfirmedTransfer &&
-                          (subscription.origin === 'IMPORT_LABCARD' ||
-                            subscription.id.startsWith('sub-labcard-')))
+                        {isPendingTransfer
                           ? 'Os dados e dependentes deste cadastro estão sendo organizados e transferidos pela administração do balneário. A liberação ocorrerá assim que a transferência for concluída.'
                           : subscription.inactivityReason === 'MENSALIDADE_VENCIDA'
                           ? 'Identificamos mensalidade(s) pendente(s) ou em atraso para este cadastro. Regularize através da aba "Mensalidades" para liberar o acesso ao clube e suas carteirinhas.'
