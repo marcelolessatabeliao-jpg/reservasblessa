@@ -2680,7 +2680,13 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
     }
-  }, [selectedSubForDetail?.id]);
+  }, [
+    selectedSubForDetail?.id,
+    selectedSubForDetail?.updatedAt,
+    selectedSubForDetail?.holderEmail,
+    selectedSubForDetail?.addressCep,
+    selectedSubForDetail?.endDate,
+  ]);
 
   const isFirstMountFiltersRef = useRef(true);
   useEffect(() => {

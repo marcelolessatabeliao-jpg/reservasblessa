@@ -166,7 +166,7 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
       const updatedSub: ClubSubscription = {
         ...currentSub,
         holderEmail: subscription.holderEmail || currentSub.holderEmail,
-        addressCep: (subscription.addressCep && subscription.addressCep !== '76870-000') ? subscription.addressCep : (currentSub.addressCep || subscription.addressCep),
+        addressCep: subscription.addressCep || currentSub.addressCep,
         addressStreet: subscription.addressStreet || currentSub.addressStreet,
         addressNumber: subscription.addressNumber || currentSub.addressNumber,
         addressComplement: subscription.addressComplement || currentSub.addressComplement,
@@ -177,7 +177,7 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
         vehiclePlate: subscription.vehiclePlate || currentSub.vehiclePlate,
         vehicleColor: subscription.vehicleColor || currentSub.vehicleColor,
         notes: subscription.notes || currentSub.notes,
-        endDate: (subscription.endDate && subscription.endDate !== '2027-10-31') ? subscription.endDate : (currentSub.endDate || subscription.endDate),
+        endDate: subscription.endDate || currentSub.endDate,
         attachments: mergedAttachments,
         members: updatedMembers,
         status: 'ACTIVE',

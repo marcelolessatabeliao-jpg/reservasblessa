@@ -333,6 +333,9 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
       manualStatusOverride: isTitularAtivo,
       documentVerified: isTitularAtivo ? true : undefined,
       documentStatus: isTitularAtivo ? 'APROVADO' : undefined,
+      documentProofName: holderCard === '121225817' ? 'img_1768502825.webp' : undefined,
+      documentVerifiedAt: holderCard === '121225817' ? '2026-11-17T21:30:41.958Z' : undefined,
+      documentVerifiedBy: holderCard === '121225817' ? 'Administrador' : undefined,
       createdAt: '2025-01-01T00:00:00.000Z',
     };
 
@@ -517,6 +520,7 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
       }
     }
 
+    const isMarli = holderCard === '121225817';
     return {
       id: subId,
       subscriptionCode: subCode,
@@ -525,8 +529,10 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
       holderCpf: formatCpf(cpf),
       holderBirthDate: formatBirth(birth),
       holderPhone: formatPhone(phone),
-      holderEmail: holderEmail || undefined,
-      addressCep: '76870-000',
+      holderEmail: isMarli ? 'marlidasilvaribeiro692@gmail.com' : (holderEmail || undefined),
+      addressCep: isMarli ? '76876536' : '76870-000',
+      addressStreet: isMarli ? 'Avenida Rio Branco' : '',
+      addressNeighborhood: isMarli ? 'Jardim Jorge Teixeira' : '',
       addressCity: 'Ariquemes',
       addressState: 'RO',
       billingCycle: isAnnual ? 'ANNUAL' : 'MONTHLY',
@@ -551,10 +557,11 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
       additionalServices: [],
       registeredCard,
       createdAt: finalCreatedAt,
-      updatedAt: '2026-11-10T00:00:00.000Z',
+      updatedAt: isMarli ? '2026-11-17T21:31:52.054Z' : '2026-11-10T00:00:00.000Z',
       transferCompleted: isTitularAtivo,
       manualStatusOverride: isTitularAtivo,
       transferredAt: isTitularAtivo ? '2026-11-13T00:00:00.000Z' : undefined,
+      isModifiedFromSeed: isMarli ? true : undefined,
     };
   });
 

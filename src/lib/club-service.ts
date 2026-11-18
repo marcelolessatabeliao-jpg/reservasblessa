@@ -458,6 +458,10 @@ const isLabcardSubscriptionModified = (
       Boolean(m.photoUrl) ||
       Boolean(m.documentProofUrl) ||
       Boolean(m.documentProofName) ||
+      Boolean(m.documentVerified) ||
+      Boolean(m.documentStatus) ||
+      m.documentVerified !== sm.documentVerified ||
+      m.documentStatus !== sm.documentStatus ||
       Boolean(m.expirationDate) ||
       Boolean(m.expirationNotes) ||
       Boolean(m.cardStatus) ||
@@ -1555,14 +1559,17 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
                   (fm.attachments || []).some((a) => a.dataUrl && !a.dataUrl.includes('[COMPACTED_LOCAL]'))
                     ? fm.attachments
                     : m.attachments,
-                rg: m.rg || fm.rg,
-                birthDate: m.birthDate || fm.birthDate,
-                sex: m.sex || fm.sex,
-                phone: m.phone || fm.phone,
-                expirationDate: m.expirationDate || fm.expirationDate,
-                expirationNotes: m.expirationNotes || fm.expirationNotes,
-                documentVerified: fm.documentVerified ?? m.documentVerified,
-                documentStatus: fm.documentStatus || m.documentStatus,
+                rg: fm.rg || m.rg,
+                birthDate: fm.birthDate || m.birthDate,
+                sex: fm.sex || m.sex,
+                phone: fm.phone || m.phone,
+                expirationDate: fm.expirationDate || m.expirationDate,
+                validityLabel: fm.validityLabel || m.validityLabel,
+                expirationNotes: fm.expirationNotes || m.expirationNotes,
+                documentVerified: fm.documentVerified === true || m.documentVerified === true,
+                documentStatus: fm.documentStatus === 'APROVADO' || m.documentStatus === 'APROVADO'
+                  ? 'APROVADO'
+                  : (fm.documentStatus || m.documentStatus),
                 documentVerifiedAt: fm.documentVerifiedAt || m.documentVerifiedAt,
                 documentVerifiedBy: fm.documentVerifiedBy || m.documentVerifiedBy,
                 status: REGULARIZED_ACTIVE_CARDS.has(m.cardNumber) || adminConfirmedCards.has(m.cardNumber) || (s.origin !== 'IMPORT_LABCARD' && !s.id.startsWith('sub-labcard-') && (fm.status === 'ACTIVE' || m.status === 'ACTIVE')) ? 'ACTIVE' : (s.origin === 'IMPORT_LABCARD' || s.id.startsWith('sub-labcard-') ? 'PENDING_TRANSFER' : m.status),
@@ -1579,14 +1586,14 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
             Boolean(full.manuallyConfirmedTransfer) ||
             full.status === 'ACTIVE' ||
             Boolean(full.holderEmail) ||
-            (Boolean(full.addressCep) && full.addressCep !== '76870-000') ||
+            Boolean(full.addressCep) ||
             Boolean(full.addressStreet) ||
-            (Boolean(full.endDate) && full.endDate !== '2027-10-31') ||
+            Boolean(full.endDate) ||
             (full.attachments?.length || 0) > 0;
 
           if (isFullModified) {
             if (full.holderEmail) s.holderEmail = full.holderEmail;
-            if (full.addressCep && full.addressCep !== '76870-000') s.addressCep = full.addressCep;
+            if (full.addressCep) s.addressCep = full.addressCep;
             if (full.addressStreet) s.addressStreet = full.addressStreet;
             if (full.addressNumber) s.addressNumber = full.addressNumber;
             if (full.addressComplement) s.addressComplement = full.addressComplement;
@@ -1605,7 +1612,7 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
             if (full.companyName) s.companyName = full.companyName;
             if (full.notes && !full.notes.startsWith('Cadastrado por')) s.notes = full.notes;
             if (full.planSummaryLabel) s.planSummaryLabel = full.planSummaryLabel;
-            if (full.endDate && full.endDate !== '2027-10-31') s.endDate = full.endDate;
+            if (full.endDate) s.endDate = full.endDate;
 
             const isAlreadyRegularized = isSubscriptionRegularizedOrActive(s, adminConfirmedCards);
             if (isAlreadyRegularized) {
@@ -1705,24 +1712,10 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
           } else {
             const localTime = s.updatedAt ? new Date(s.updatedAt).getTime() : 0;
             const remoteTime = current.updatedAt ? new Date(current.updatedAt).getTime() : 0;
-            const isLocallyModified =
-              Boolean(s.isModifiedFromSeed) ||
-              Boolean(s.manualStatusOverride) ||
-              Boolean(s.transferCompleted) ||
-              Boolean(s.manuallyConfirmedTransfer) ||
-              s.status === 'ACTIVE' ||
-              Boolean(s.holderEmail) ||
-              (Boolean(s.addressCep) && s.addressCep !== '76870-000') ||
-              Boolean(s.addressStreet) ||
-              (Boolean(s.endDate) && s.endDate !== '2027-10-31') ||
-              (s.attachments?.length || 0) > 0;
-
-            if (
-              localTime >= remoteTime ||
-              isLocallyModified
-            ) {
+            // Se o local for estritamente mais recente, prevalece o local; caso contrário, a nuvem é a fonte da verdade
+            if (localTime > remoteTime) {
               if (current.members && current.members.length > (s.members?.length || 0)) {
-                // Restaura dependentes mapeados da família (como Lorraine, Nilceia e Larissa de Wagner) caso o cache local tenha ficado com menos integrantes
+                // Restaura dependentes mapeados da família caso o cache local tenha ficado com menos integrantes
                 const existingCards = new Set((s.members || []).map((m) => m.cardNumber));
                 const missingDeps = current.members.filter((m) => !existingCards.has(m.cardNumber));
                 if (missingDeps.length > 0) {
@@ -1740,7 +1733,7 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
                   s.attachments = [...(s.attachments || []), ...missingAtts];
                 }
               }
-              // Preserva faturas emitidas e sincronizadas no Asaas na nuvem, evitando que o cache local desatualizado limpe os asaasPaymentId
+              // Preserva faturas emitidas e sincronizadas no Asaas na nuvem
               if (current.invoices && current.invoices.some((i) => i.asaasPaymentId)) {
                 const remoteInvMap = new Map(current.invoices.map((inv) => [inv.id, inv]));
                 s.invoices = (s.invoices || []).map((localInv) => {
@@ -1765,9 +1758,9 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
               }
               subsMap.set(s.id, s);
             } else {
-              // Remote venceu no tempo, mas preserva TODOS os campos preenchidos localmente pelo usuário!
+              // Remote (nuvem) é mais recente ou igual: a nuvem é a fonte da verdade!
               if (s.holderEmail && !current.holderEmail) current.holderEmail = s.holderEmail;
-              if (s.addressCep && s.addressCep !== '76870-000') current.addressCep = s.addressCep;
+              if (s.addressCep && !current.addressCep) current.addressCep = s.addressCep;
               if (s.addressStreet && !current.addressStreet) current.addressStreet = s.addressStreet;
               if (s.addressNumber && !current.addressNumber) current.addressNumber = s.addressNumber;
               if (s.addressComplement && !current.addressComplement) current.addressComplement = s.addressComplement;
@@ -1778,7 +1771,7 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
               if (s.vehicleModel && !current.vehicleModel) current.vehicleModel = s.vehicleModel;
               if (s.vehicleColor && !current.vehicleColor) current.vehicleColor = s.vehicleColor;
               if (s.notes && !current.notes) current.notes = s.notes;
-              if (s.endDate && s.endDate !== '2027-10-31') current.endDate = s.endDate;
+              if (s.endDate && !current.endDate) current.endDate = s.endDate;
               const isAlreadyRegularizedCur = isSubscriptionRegularizedOrActive(current, adminConfirmedCards);
               if (isAlreadyRegularizedCur) {
                 current.status = 'ACTIVE';
@@ -1812,16 +1805,18 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
                     photoUrl: cm.photoUrl || lm.photoUrl,
                     documentProofUrl: cm.documentProofUrl || lm.documentProofUrl,
                     documentProofName: cm.documentProofName || lm.documentProofName,
-                    status: isMemReg || (current.origin !== 'IMPORT_LABCARD' && !current.id.startsWith('sub-labcard-') && (lm.status === 'ACTIVE' || cm.status === 'ACTIVE')) ? 'ACTIVE' : (current.origin === 'IMPORT_LABCARD' || current.id.startsWith('sub-labcard-') ? 'PENDING_TRANSFER' : cm.status),
-                    manualStatusOverride: isMemReg ? true : (lm.manualStatusOverride ?? cm.manualStatusOverride),
-                    documentVerified: isMemReg ? true : (lm.documentVerified || cm.documentVerified),
-                    documentStatus: isMemReg ? ('APROVADO' as const) : (lm.documentStatus || cm.documentStatus),
-                    expirationDate: lm.expirationDate || cm.expirationDate,
-                    validityLabel: lm.validityLabel || cm.validityLabel,
+                    status: isMemReg || (current.origin !== 'IMPORT_LABCARD' && !current.id.startsWith('sub-labcard-') && (cm.status === 'ACTIVE' || lm.status === 'ACTIVE')) ? 'ACTIVE' : (current.origin === 'IMPORT_LABCARD' || current.id.startsWith('sub-labcard-') ? 'PENDING_TRANSFER' : cm.status),
+                    manualStatusOverride: isMemReg ? true : (cm.manualStatusOverride ?? lm.manualStatusOverride),
+                    documentVerified: isMemReg ? true : (cm.documentVerified ?? lm.documentVerified ?? false),
+                    documentStatus: isMemReg ? ('APROVADO' as const) : (cm.documentStatus || lm.documentStatus),
+                    documentVerifiedAt: cm.documentVerifiedAt || lm.documentVerifiedAt,
+                    documentVerifiedBy: cm.documentVerifiedBy || lm.documentVerifiedBy,
+                    expirationDate: cm.expirationDate || lm.expirationDate,
+                    validityLabel: cm.validityLabel || lm.validityLabel,
                     attachments:
-                      (lm.attachments?.length || 0) > (cm.attachments?.length || 0)
-                        ? lm.attachments
-                        : cm.attachments,
+                      (cm.attachments?.length || 0) > (lm.attachments?.length || 0)
+                        ? cm.attachments
+                        : lm.attachments,
                   };
                 });
                 if (s.members.length > current.members.length) {
