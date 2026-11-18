@@ -97,6 +97,64 @@ export const isSubscriptionRegularizedOrActive = (
   );
 };
 
+export const mergeAttachmentsSafely = (
+  preferred: ClubAttachment[] | undefined,
+  fallback: ClubAttachment[] | undefined
+): ClubAttachment[] => {
+  const pList = preferred || [];
+  const fList = fallback || [];
+  if (pList.length === 0) return fList;
+  if (fList.length === 0) return pList;
+
+  const fMap = new Map(fList.map((a) => [a.name, a]));
+  const merged = pList.map((att) => {
+    const fAtt = fMap.get(att.name);
+    if (!fAtt) return att;
+    const isCompacted = !att.dataUrl || att.dataUrl.includes('[COMPACTED_LOCAL]') || att.dataUrl === 'HAS_DOC_ATTACHED';
+    const fIsReal = fAtt.dataUrl && !fAtt.dataUrl.includes('[COMPACTED_LOCAL]') && fAtt.dataUrl !== 'HAS_DOC_ATTACHED';
+    if (isCompacted && fIsReal) {
+      return { ...att, dataUrl: fAtt.dataUrl, mimeType: att.mimeType || fAtt.mimeType };
+    }
+    return att;
+  });
+
+  const mergedNames = new Set(merged.map((a) => a.name));
+  fList.forEach((fa) => {
+    if (!mergedNames.has(fa.name)) {
+      merged.push(fa);
+    }
+  });
+  return merged;
+};
+
+export const mergeMemberMediaSafely = (
+  primary: ClubMember,
+  backup?: ClubMember
+): ClubMember => {
+  if (!backup) return primary;
+  const isProofCompacted = !primary.documentProofUrl || primary.documentProofUrl === 'HAS_DOC_ATTACHED' || primary.documentProofUrl.includes('[COMPACTED_LOCAL]');
+  const backupProofReal = backup.documentProofUrl && backup.documentProofUrl !== 'HAS_DOC_ATTACHED' && !backup.documentProofUrl.includes('[COMPACTED_LOCAL]');
+  const finalDocProofUrl = isProofCompacted && backupProofReal ? backup.documentProofUrl : (primary.documentProofUrl || backup.documentProofUrl);
+
+  const isPhotoMissing = !primary.photoUrl || primary.photoUrl.length < 50;
+  const backupPhotoReal = backup.photoUrl && backup.photoUrl.length >= 50;
+  const finalPhotoUrl = isPhotoMissing && backupPhotoReal ? backup.photoUrl : (primary.photoUrl || backup.photoUrl);
+
+  return {
+    ...primary,
+    documentProofUrl: finalDocProofUrl,
+    documentProofName: primary.documentProofName || backup.documentProofName,
+    photoUrl: finalPhotoUrl,
+    documentVerified: primary.documentVerified ?? backup.documentVerified,
+    documentStatus: primary.documentStatus || backup.documentStatus,
+    documentVerifiedAt: primary.documentVerifiedAt || backup.documentVerifiedAt,
+    documentVerifiedBy: primary.documentVerifiedBy || backup.documentVerifiedBy,
+    expirationDate: primary.expirationDate || backup.expirationDate,
+    validityLabel: primary.validityLabel || backup.validityLabel,
+    attachments: mergeAttachmentsSafely(primary.attachments, backup.attachments),
+  };
+};
+
 export interface PlanDocumentRule {
   requiresDocument: boolean;
   title: string;
@@ -1352,16 +1410,31 @@ export const loadClubStateLocal = (): ClubDatabaseState => {
     (parsed.subscriptions || []).forEach((s) => {
       if (!deletedSet.has(s.id)) {
         const seedSub = subsMap.get(s.id);
-        if (seedSub && seedSub.members && seedSub.members.length > (s.members?.length || 0)) {
-          // Restaura dependentes mapeados da família (como Lorraine, Nilceia e Larissa de Wagner) caso o cache local tenha ficado desatualizado
-          const existingCards = new Set((s.members || []).map((m) => m.cardNumber));
-          const missingDeps = seedSub.members.filter((m) => !existingCards.has(m.cardNumber));
-          if (missingDeps.length > 0) {
-            s.members = [...(s.members || []), ...missingDeps];
-            if (seedSub.planSummaryLabel && (!s.planSummaryLabel || !s.planSummaryLabel.includes('pessoas'))) {
-              s.planSummaryLabel = seedSub.planSummaryLabel;
+        if (seedSub) {
+          // Restaura anexos e mídias íntegras do seed caso o cache local tenha sido truncado pela cota do localStorage
+          s.attachments = mergeAttachmentsSafely(s.attachments, seedSub.attachments);
+          if (seedSub.members && s.members) {
+            const seedMemMap = new Map(seedSub.members.map((m) => [m.id, m]));
+            s.members = s.members.map((m) => {
+              const sm = seedMemMap.get(m.id) || seedSub.members.find((x) => x.cardNumber === m.cardNumber || x.cpf === m.cpf);
+              return mergeMemberMediaSafely(m, sm);
+            });
+          }
+          if (seedSub.members && seedSub.members.length > (s.members?.length || 0)) {
+            // Restaura dependentes mapeados da família caso o cache local tenha ficado desatualizado
+            const existingCards = new Set((s.members || []).map((m) => m.cardNumber));
+            const missingDeps = seedSub.members.filter((m) => !existingCards.has(m.cardNumber));
+            if (missingDeps.length > 0) {
+              s.members = [...(s.members || []), ...missingDeps];
+              if (seedSub.planSummaryLabel && (!s.planSummaryLabel || !s.planSummaryLabel.includes('pessoas'))) {
+                s.planSummaryLabel = seedSub.planSummaryLabel;
+              }
             }
           }
+          if (seedSub.holderEmail && !s.holderEmail) s.holderEmail = seedSub.holderEmail;
+          if (seedSub.addressCep && (!s.addressCep || s.addressCep === '76870-000')) s.addressCep = seedSub.addressCep;
+          if (seedSub.addressStreet && !s.addressStreet) s.addressStreet = seedSub.addressStreet;
+          if (seedSub.addressNeighborhood && !s.addressNeighborhood) s.addressNeighborhood = seedSub.addressNeighborhood;
         }
         subsMap.set(s.id, s);
       }
@@ -1564,23 +1637,7 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
         const full = idbMap.get(s.id);
         if (full) {
           // 1. Restaurar anexos gerais se o IndexedDB tiver anexos com mídia real ou mais anexos
-          const hasRealIdbAtts = (full.attachments || []).some(
-            (a) => a.dataUrl && !a.dataUrl.includes('[COMPACTED_LOCAL]') && a.dataUrl !== 'HAS_DOC_ATTACHED'
-          );
-          if (hasRealIdbAtts || (full.attachments?.length || 0) > (s.attachments?.length || 0)) {
-            s.attachments = full.attachments;
-          } else if ((s.attachments?.length || 0) > 0 && (full.attachments?.length || 0) > 0) {
-            const fullAttMap = new Map((full.attachments || []).map((a) => [a.name, a.dataUrl]));
-            s.attachments = s.attachments.map((att) => {
-              if (
-                (!att.dataUrl || att.dataUrl.includes('[COMPACTED_LOCAL]') || att.dataUrl === 'HAS_DOC_ATTACHED') &&
-                fullAttMap.has(att.name)
-              ) {
-                return { ...att, dataUrl: fullAttMap.get(att.name)! };
-              }
-              return att;
-            });
-          }
+          s.attachments = mergeAttachmentsSafely(s.attachments, full.attachments);
 
           // 2. Restaurar dependentes e integrantes mapeados
           if ((full.members?.length || 0) > (s.members?.length || 0)) {
@@ -1596,37 +1653,28 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
               if (!fm) return m;
               const isMemActive =
                 REGULARIZED_ACTIVE_CARDS.has(m.cardNumber) ||
-                adminConfirmedCards.has(m.cardNumber) ||
-                fm.status === 'ACTIVE' ||
-                m.status === 'ACTIVE' ||
-                Boolean(fm.manualStatusOverride) ||
-                Boolean(m.manualStatusOverride) ||
-                Boolean(fm.documentVerified) ||
-                Boolean(m.documentVerified) ||
-                fm.documentStatus === 'APROVADO' ||
-                m.documentStatus === 'APROVADO' ||
-                Boolean(s.transferCompleted) ||
-                Boolean(full.transferCompleted) ||
-                Boolean(s.manualStatusOverride) ||
-                Boolean(full.manualStatusOverride);
+                adminConfirmedCards.has(m.cardNumber);
+
+              const isMemInactive =
+                m.status === 'INACTIVE' ||
+                m.status === 'SUSPENDED' ||
+                m.status === 'CANCELLED' ||
+                fm.status === 'INACTIVE' ||
+                fm.status === 'SUSPENDED' ||
+                fm.status === 'CANCELLED';
+
+              const finalMemStatus = isMemInactive
+                ? (m.status === 'INACTIVE' || m.status === 'SUSPENDED' || m.status === 'CANCELLED' ? m.status : fm.status)
+                : isMemActive
+                ? 'ACTIVE'
+                : (s.origin === 'IMPORT_LABCARD' || s.id.startsWith('sub-labcard-'))
+                ? 'PENDING_TRANSFER'
+                : (m.status || fm.status || 'ACTIVE');
+
+              const mergedMedia = mergeMemberMediaSafely(m, fm);
 
               return {
-                ...m,
-                photoUrl: (!m.photoUrl || m.photoUrl.length < 50) && fm.photoUrl ? fm.photoUrl : m.photoUrl,
-                documentProofUrl:
-                  (!m.documentProofUrl ||
-                    m.documentProofUrl === 'HAS_DOC_ATTACHED' ||
-                    m.documentProofUrl === 'HAS_DOC_REMOTE') &&
-                  fm.documentProofUrl &&
-                  !fm.documentProofUrl.includes('[COMPACTED_LOCAL]')
-                    ? fm.documentProofUrl
-                    : m.documentProofUrl,
-                documentProofName: m.documentProofName || fm.documentProofName,
-                attachments:
-                  (fm.attachments?.length || 0) > (m.attachments?.length || 0) ||
-                  (fm.attachments || []).some((a) => a.dataUrl && !a.dataUrl.includes('[COMPACTED_LOCAL]'))
-                    ? fm.attachments
-                    : m.attachments,
+                ...mergedMedia,
                 rg: fm.rg || m.rg,
                 birthDate: fm.birthDate || m.birthDate,
                 sex: fm.sex || m.sex,
@@ -1640,8 +1688,8 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
                   : (fm.documentStatus || m.documentStatus),
                 documentVerifiedAt: fm.documentVerifiedAt || m.documentVerifiedAt,
                 documentVerifiedBy: fm.documentVerifiedBy || m.documentVerifiedBy,
-                status: isMemActive ? (m.status && m.status !== 'PENDING_TRANSFER' ? m.status : (fm.status || 'ACTIVE')) : (s.origin === 'IMPORT_LABCARD' || s.id.startsWith('sub-labcard-') ? 'PENDING_TRANSFER' : m.status),
-                manualStatusOverride: isMemActive ? true : (fm.manualStatusOverride ?? m.manualStatusOverride),
+                status: finalMemStatus,
+                manualStatusOverride: isMemInactive || isMemActive,
               };
             });
           }
@@ -1814,13 +1862,14 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
                   }
                 }
               }
-              // Preserva anexos da nuvem se houver novos
-              if ((current.attachments?.length || 0) > 0) {
-                const sAttKeys = new Set((s.attachments || []).map((a) => a.dataUrl || a.name));
-                const missingAtts = (current.attachments || []).filter((a) => !sAttKeys.has(a.dataUrl || a.name));
-                if (missingAtts.length > 0) {
-                  s.attachments = [...(s.attachments || []), ...missingAtts];
-                }
+              // Preserva anexos e mídias íntegras da nuvem de forma segura
+              s.attachments = mergeAttachmentsSafely(s.attachments, current.attachments);
+              if (current.members && s.members) {
+                const curMemMap = new Map(current.members.map((m) => [m.id, m]));
+                s.members = s.members.map((m) => {
+                  const cm = curMemMap.get(m.id) || current.members.find((x) => (x.cardNumber && x.cardNumber === m.cardNumber) || (x.cpf && x.cpf === m.cpf));
+                  return mergeMemberMediaSafely(m, cm);
+                });
               }
               // Preserva faturas emitidas e sincronizadas no Asaas na nuvem
               if (current.invoices && current.invoices.some((i) => i.asaasPaymentId)) {
@@ -1897,13 +1946,7 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
                   current.transferredAt = undefined;
                 }
               }
-              if ((s.attachments?.length || 0) > (current.attachments?.length || 0)) {
-                current.attachments = s.attachments;
-              } else if ((s.attachments?.length || 0) > 0) {
-                const curAttKeys = new Set((current.attachments || []).map((a) => a.dataUrl || a.name));
-                const missingAtts = (s.attachments || []).filter((a) => !curAttKeys.has(a.dataUrl || a.name));
-                current.attachments = [...(current.attachments || []), ...missingAtts];
-              }
+              current.attachments = mergeAttachmentsSafely(current.attachments, s.attachments);
               if (s.members && current.members) {
                 const localMemMap = new Map(s.members.map((m) => [m.id, m]));
                 current.members = current.members.map((cm) => {
@@ -1932,23 +1975,20 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
                     ? 'PENDING_TRANSFER'
                     : (cm.status || lm.status || 'ACTIVE');
 
+                  const mergedMedia = mergeMemberMediaSafely(cm, lm);
+
                   return {
-                    ...cm,
-                    photoUrl: cm.photoUrl || lm.photoUrl,
-                    documentProofUrl: cm.documentProofUrl || lm.documentProofUrl,
-                    documentProofName: cm.documentProofName || lm.documentProofName,
+                    ...mergedMedia,
                     status: finalMemStatus,
                     manualStatusOverride: isMemInactive || isMemExplicitlyActive,
-                    documentVerified: (cm.documentVerified === true || lm.documentVerified === true || isMemExplicitlyActive),
-                    documentStatus: (cm.documentStatus === 'APROVADO' || lm.documentStatus === 'APROVADO') ? ('APROVADO' as const) : (cm.documentStatus || lm.documentStatus),
-                    documentVerifiedAt: cm.documentVerifiedAt || lm.documentVerifiedAt,
-                    documentVerifiedBy: cm.documentVerifiedBy || lm.documentVerifiedBy,
-                    expirationDate: cm.expirationDate || lm.expirationDate,
-                    validityLabel: cm.validityLabel || lm.validityLabel,
-                    attachments:
-                      (cm.attachments?.length || 0) > (lm.attachments?.length || 0)
-                        ? cm.attachments
-                        : lm.attachments,
+                    documentVerified: (mergedMedia.documentVerified === true || isMemExplicitlyActive),
+                    documentStatus: (mergedMedia.documentStatus === 'APROVADO' || cm.documentStatus === 'APROVADO' || lm.documentStatus === 'APROVADO')
+                      ? ('APROVADO' as const)
+                      : (mergedMedia.documentStatus || cm.documentStatus || lm.documentStatus),
+                    documentVerifiedAt: cm.documentVerifiedAt || lm.documentVerifiedAt || mergedMedia.documentVerifiedAt,
+                    documentVerifiedBy: cm.documentVerifiedBy || lm.documentVerifiedBy || mergedMedia.documentVerifiedBy,
+                    expirationDate: cm.expirationDate || lm.expirationDate || mergedMedia.expirationDate,
+                    validityLabel: cm.validityLabel || lm.validityLabel || mergedMedia.validityLabel,
                   };
                 });
                 if (s.members.length > current.members.length) {
