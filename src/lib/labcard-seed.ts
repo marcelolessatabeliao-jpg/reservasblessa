@@ -568,7 +568,7 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
 
     const isMarli = holderCard === '121225817' || upName.includes('MARLI DA SILVA');
     const isRoksiane = upName.includes('ROKSIANE') || holderCard === '1212251327';
-    const isElsa = upName.includes('ELSA BUENOS') || holderCard === '1212251781';
+    const isElsa = upName.includes('ELSA BUENO') || holderCard === '1212251781';
 
     const savedMedia = KNOWN_SAVED_MEDIA_BY_SUB_CODE[subCode];
 

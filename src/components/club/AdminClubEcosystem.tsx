@@ -1362,11 +1362,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     }
   };
 
-  const persist = async (next: ClubDatabaseState) => {
+  const persist = async (next: ClubDatabaseState, options?: { waitForCloud?: boolean }) => {
     // Atualização otimista imediata para que a interface nunca congele ou trave
     setState(next);
     try {
-      const saved = await saveClubState(next);
+      const saved = await saveClubState(next, options);
       setState(saved);
       return saved;
     } catch (err: any) {
@@ -2891,7 +2891,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         ),
       };
 
-      await persist(nextState);
+      await persist(nextState, { waitForCloud: true });
 
       setEditClientData((prev) => ({ ...prev, endDate: nextEndDate }));
       setTempExpirationDate(nextEndDate);
@@ -3984,7 +3984,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
           s.id === updatedSub.id ? updatedSub : s
         ),
       };
-      await persist(nextState);
+      await persist(nextState, { waitForCloud: true });
 
       const feedbackMsg =
         prevLabel !== newLabel
