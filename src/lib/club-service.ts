@@ -70,6 +70,18 @@ export const isSubscriptionRegularizedOrActive = (
     return sub.status === 'ACTIVE' || Boolean(sub.manualStatusOverride);
   }
 
+  // Prioridade total para ações e alterações manuais do Administrador gravadas no banco de dados
+  if (
+    Boolean(sub.manualStatusOverride) ||
+    Boolean(sub.transferCompleted) ||
+    Boolean(sub.manuallyConfirmedTransfer) ||
+    Boolean(sub.transferredAt) ||
+    (Boolean(sub.isModifiedFromSeed) && sub.status === 'ACTIVE') ||
+    (sub.members && sub.members.some((m) => m.documentVerified || m.documentStatus === 'APROVADO' || m.manualStatusOverride || m.status === 'ACTIVE'))
+  ) {
+    return true;
+  }
+
   // Para cadastros importados do Labcard, NUNCA ativa em massa automaticamente.
   // SOMENTE pode ser ATIVO se:
   // 1. Estiver na lista oficial de regularizados (REGULARIZED_ACTIVE_CARDS)
@@ -1172,7 +1184,12 @@ export const normalizeClubDatabaseState = (
         isExplicitlyRegularized ||
         REGULARIZED_ACTIVE_CARDS.has(m.cardNumber) ||
         adminConfirmedCards.has(m.cardNumber) ||
-        (!isLabcard && (Boolean(m.manualStatusOverride) || Boolean(sub.manualStatusOverride) || Boolean(sub.transferCompleted)));
+        Boolean(m.manualStatusOverride) ||
+        Boolean(sub.manualStatusOverride) ||
+        Boolean(sub.transferCompleted) ||
+        Boolean(m.documentVerified) ||
+        m.documentStatus === 'APROVADO' ||
+        (m.status === 'ACTIVE' && Boolean(sub.isModifiedFromSeed));
 
       const resolvedStatus: SubscriptionStatus =
         isLabcard && !isMemberRegularized
@@ -1180,7 +1197,7 @@ export const normalizeClubDatabaseState = (
           : missingRequiredDoc && !isMemberRegularized
           ? 'INACTIVE'
           : isMemberRegularized
-          ? 'ACTIVE'
+          ? (m.status && m.status !== 'PENDING_TRANSFER' ? m.status : 'ACTIVE')
           : m.status;
 
       // Para cadastros Kids: calcula automaticamente expiração no 12º aniversário da criança
@@ -1216,7 +1233,7 @@ export const normalizeClubDatabaseState = (
           !isSubExplicitlyRegularized
         ? 'INACTIVE'
         : isSubExplicitlyRegularized
-        ? 'ACTIVE'
+        ? (sub.status && sub.status !== 'PENDING_TRANSFER' ? sub.status : 'ACTIVE')
         : sub.status;
 
     const hasPublicidade =
@@ -1227,9 +1244,9 @@ export const normalizeClubDatabaseState = (
       ...sub,
       contractType: hasPublicidade ? 'FAMILY_PUBLICIDADE' : sub.contractType,
       status: resolvedSubStatus,
-      transferCompleted: isLabcard ? isSubExplicitlyRegularized : (sub.transferCompleted ?? false),
-      manuallyConfirmedTransfer: isLabcard ? isSubExplicitlyRegularized : (sub.manuallyConfirmedTransfer ?? false),
-      manualStatusOverride: isLabcard ? isSubExplicitlyRegularized : (sub.manualStatusOverride ?? false),
+      transferCompleted: isLabcard ? (isSubExplicitlyRegularized || Boolean(sub.transferCompleted)) : (sub.transferCompleted ?? false),
+      manuallyConfirmedTransfer: isLabcard ? (isSubExplicitlyRegularized || Boolean(sub.manuallyConfirmedTransfer)) : (sub.manuallyConfirmedTransfer ?? false),
+      manualStatusOverride: isLabcard ? (isSubExplicitlyRegularized || Boolean(sub.manualStatusOverride)) : (sub.manualStatusOverride ?? false),
       members: normalizedMembers,
       invoices: Array.isArray(sub.invoices) ? sub.invoices : [],
       attachments: Array.isArray(sub.attachments) ? sub.attachments : [],
@@ -1241,28 +1258,16 @@ export const normalizeClubDatabaseState = (
   // Mantém a integridade de todos os vínculos e dependentes definidos pelo administrador ou planilha
   const finalNormalizedSubscriptions = normalizedSubscriptions;
 
-  const hasLatestContractFormat = parsed.contractTemplates?.every(
-    (t) =>
-      ((t.contentHtml?.includes('[/resumo-financeiro-contrato]') &&
-        t.contentHtml?.includes('BLOCO-ASSINATURAS-IMPRESSAO')) ||
-        t.id === 'TERMOS_SITE') &&
-      t.contentHtml?.includes('2.200-2/2001')
-  );
-
   const rawSiteTerms =
-    parsed.siteTermsText && parsed.siteTermsText.length > 100
+    parsed.siteTermsText && parsed.siteTermsText.length > 20
       ? parsed.siteTermsText
-      : fallbackState?.siteTermsText && fallbackState.siteTermsText.length > 100
+      : fallbackState?.siteTermsText && fallbackState.siteTermsText.length > 20
       ? fallbackState.siteTermsText
       : '';
 
   const normalizedSiteTerms = !rawSiteTerms
     ? DEFAULT_SITE_TERMS_TEXT
-    : rawSiteTerms.includes('2.200-2/2001')
-    ? rawSiteTerms
-    : !rawSiteTerms.includes('9. ')
-    ? DEFAULT_SITE_TERMS_TEXT
-    : `${rawSiteTerms}\n\n14. DA VALIDADE JURÍDICA DO ACEITE ELETRÔNICO E ASSINATURA DIGITAL\n14.1. As partes declaram e reconhecem expressamente, com respaldo na Medida Provisória nº 2.200-2/2001 (art. 10, § 2º), na Lei Federal nº 14.063/2020 e nos artigos 104, 107, 219 e 422 do Código Civil Brasileiro, que o aceite digital destes Termos de Uso e do Contrato de Adesão, validado pelo próprio usuário titular no sistema, constitui assinatura eletrônica plenamente válida, produzindo os mesmos efeitos jurídicos de uma assinatura presencial de próprio punho.`;
+    : rawSiteTerms;
 
   const mergedDeletedIds = Array.from(
     new Set([
@@ -1283,8 +1288,10 @@ export const normalizeClubDatabaseState = (
     deletedSubscriptionIds: mergedDeletedIds,
     consultants: parsed.consultants?.length ? parsed.consultants : fallbackState?.consultants || getInitialState().consultants,
     contractTemplates:
-      parsed.contractTemplates?.length && hasLatestContractFormat
+      parsed.contractTemplates && parsed.contractTemplates.length > 0
         ? parsed.contractTemplates
+        : fallbackState?.contractTemplates && fallbackState.contractTemplates.length > 0
+        ? fallbackState.contractTemplates
         : DEFAULT_CONTRACT_TEMPLATES,
     cashEntries: Array.isArray(parsed.cashEntries)
       ? parsed.cashEntries
@@ -1542,6 +1549,22 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
                   (x) => (x.cardNumber && x.cardNumber === m.cardNumber) || (x.cpf && x.cpf === m.cpf)
                 );
               if (!fm) return m;
+              const isMemActive =
+                REGULARIZED_ACTIVE_CARDS.has(m.cardNumber) ||
+                adminConfirmedCards.has(m.cardNumber) ||
+                fm.status === 'ACTIVE' ||
+                m.status === 'ACTIVE' ||
+                Boolean(fm.manualStatusOverride) ||
+                Boolean(m.manualStatusOverride) ||
+                Boolean(fm.documentVerified) ||
+                Boolean(m.documentVerified) ||
+                fm.documentStatus === 'APROVADO' ||
+                m.documentStatus === 'APROVADO' ||
+                Boolean(s.transferCompleted) ||
+                Boolean(full.transferCompleted) ||
+                Boolean(s.manualStatusOverride) ||
+                Boolean(full.manualStatusOverride);
+
               return {
                 ...m,
                 photoUrl: (!m.photoUrl || m.photoUrl.length < 50) && fm.photoUrl ? fm.photoUrl : m.photoUrl,
@@ -1572,8 +1595,8 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
                   : (fm.documentStatus || m.documentStatus),
                 documentVerifiedAt: fm.documentVerifiedAt || m.documentVerifiedAt,
                 documentVerifiedBy: fm.documentVerifiedBy || m.documentVerifiedBy,
-                status: REGULARIZED_ACTIVE_CARDS.has(m.cardNumber) || adminConfirmedCards.has(m.cardNumber) || (s.origin !== 'IMPORT_LABCARD' && !s.id.startsWith('sub-labcard-') && (fm.status === 'ACTIVE' || m.status === 'ACTIVE')) ? 'ACTIVE' : (s.origin === 'IMPORT_LABCARD' || s.id.startsWith('sub-labcard-') ? 'PENDING_TRANSFER' : m.status),
-                manualStatusOverride: REGULARIZED_ACTIVE_CARDS.has(m.cardNumber) || adminConfirmedCards.has(m.cardNumber) ? true : (fm.manualStatusOverride ?? m.manualStatusOverride),
+                status: isMemActive ? (m.status && m.status !== 'PENDING_TRANSFER' ? m.status : (fm.status || 'ACTIVE')) : (s.origin === 'IMPORT_LABCARD' || s.id.startsWith('sub-labcard-') ? 'PENDING_TRANSFER' : m.status),
+                manualStatusOverride: isMemActive ? true : (fm.manualStatusOverride ?? m.manualStatusOverride),
               };
             });
           }
@@ -1799,16 +1822,31 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
                     localMemMap.get(cm.id) ||
                     s.members.find((x) => (x.cardNumber && x.cardNumber === cm.cardNumber) || (x.cpf && x.cpf === cm.cpf));
                   if (!lm) return cm;
-                  const isMemReg = REGULARIZED_ACTIVE_CARDS.has(cm.cardNumber) || adminConfirmedCards.has(cm.cardNumber);
+                  const isMemReg =
+                    REGULARIZED_ACTIVE_CARDS.has(cm.cardNumber) ||
+                    adminConfirmedCards.has(cm.cardNumber) ||
+                    cm.status === 'ACTIVE' ||
+                    lm.status === 'ACTIVE' ||
+                    Boolean(cm.manualStatusOverride) ||
+                    Boolean(lm.manualStatusOverride) ||
+                    Boolean(cm.documentVerified) ||
+                    Boolean(lm.documentVerified) ||
+                    cm.documentStatus === 'APROVADO' ||
+                    lm.documentStatus === 'APROVADO' ||
+                    Boolean(current.transferCompleted) ||
+                    Boolean(current.manualStatusOverride) ||
+                    Boolean(s.transferCompleted) ||
+                    Boolean(s.manualStatusOverride);
+
                   return {
                     ...cm,
                     photoUrl: cm.photoUrl || lm.photoUrl,
                     documentProofUrl: cm.documentProofUrl || lm.documentProofUrl,
                     documentProofName: cm.documentProofName || lm.documentProofName,
-                    status: isMemReg || (current.origin !== 'IMPORT_LABCARD' && !current.id.startsWith('sub-labcard-') && (cm.status === 'ACTIVE' || lm.status === 'ACTIVE')) ? 'ACTIVE' : (current.origin === 'IMPORT_LABCARD' || current.id.startsWith('sub-labcard-') ? 'PENDING_TRANSFER' : cm.status),
+                    status: isMemReg ? (cm.status && cm.status !== 'PENDING_TRANSFER' ? cm.status : (lm.status || 'ACTIVE')) : (current.origin === 'IMPORT_LABCARD' || current.id.startsWith('sub-labcard-') ? 'PENDING_TRANSFER' : cm.status),
                     manualStatusOverride: isMemReg ? true : (cm.manualStatusOverride ?? lm.manualStatusOverride),
-                    documentVerified: isMemReg ? true : (cm.documentVerified ?? lm.documentVerified ?? false),
-                    documentStatus: isMemReg ? ('APROVADO' as const) : (cm.documentStatus || lm.documentStatus),
+                    documentVerified: (cm.documentVerified === true || lm.documentVerified === true || isMemReg),
+                    documentStatus: (cm.documentStatus === 'APROVADO' || lm.documentStatus === 'APROVADO') ? ('APROVADO' as const) : (cm.documentStatus || lm.documentStatus),
                     documentVerifiedAt: cm.documentVerifiedAt || lm.documentVerifiedAt,
                     documentVerifiedBy: cm.documentVerifiedBy || lm.documentVerifiedBy,
                     expirationDate: cm.expirationDate || lm.expirationDate,
@@ -1845,7 +1883,15 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
             sub.status = 'PENDING_TRANSFER';
             if (sub.members) {
               sub.members.forEach((m) => {
-                if (!REGULARIZED_ACTIVE_CARDS.has(m.cardNumber) && !adminConfirmedCards.has(m.cardNumber)) {
+                const isMemExplicitlyActive =
+                  REGULARIZED_ACTIVE_CARDS.has(m.cardNumber) ||
+                  adminConfirmedCards.has(m.cardNumber) ||
+                  Boolean(m.documentVerified) ||
+                  m.documentStatus === 'APROVADO' ||
+                  Boolean(m.manualStatusOverride) ||
+                  m.status === 'ACTIVE';
+
+                if (!isMemExplicitlyActive) {
                   m.status = 'PENDING_TRANSFER';
                   m.manualStatusOverride = false;
                 }
@@ -1855,21 +1901,35 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
             sub.transferCompleted = true;
             sub.manuallyConfirmedTransfer = true;
             sub.manualStatusOverride = true;
-            sub.status = 'ACTIVE';
+            if (sub.status !== 'SUSPENDED' && sub.status !== 'CANCELLED' && sub.status !== 'INACTIVE') {
+              sub.status = 'ACTIVE';
+            }
             if (sub.members) {
               sub.members.forEach((m) => {
-                m.status = 'ACTIVE';
-                m.manualStatusOverride = true;
+                if (m.status !== 'INACTIVE' && m.status !== 'SUSPENDED') {
+                  m.status = 'ACTIVE';
+                  m.manualStatusOverride = true;
+                }
               });
             }
           }
         }
       });
 
+      const localTime = local.updatedAt ? new Date(local.updatedAt).getTime() : 0;
+      const remoteTime = remote.updatedAt ? new Date(remote.updatedAt).getTime() : 0;
+      const isLocalNewer = localTime > remoteTime;
+
       const mergedState: Partial<ClubDatabaseState> = {
-        ...remote,
+        ...(isLocalNewer ? remote : {}),
+        ...(isLocalNewer ? local : remote),
         subscriptions: Array.from(subsMap.values()),
         lastCardSequence: Math.max(remote.lastCardSequence || 3015, local.lastCardSequence || 3015, 3015),
+        modalities: (isLocalNewer ? local.modalities : remote.modalities) || remote.modalities || local.modalities,
+        contractTemplates: (isLocalNewer ? local.contractTemplates : remote.contractTemplates) || remote.contractTemplates || local.contractTemplates,
+        siteTermsText: (isLocalNewer ? local.siteTermsText : remote.siteTermsText) || remote.siteTermsText || local.siteTermsText,
+        catalogServices: (isLocalNewer ? local.catalogServices : remote.catalogServices) || remote.catalogServices || local.catalogServices,
+        consultants: (isLocalNewer ? local.consultants : remote.consultants) || remote.consultants || local.consultants,
       };
 
       const normalized = normalizeClubDatabaseState(mergedState, local);
