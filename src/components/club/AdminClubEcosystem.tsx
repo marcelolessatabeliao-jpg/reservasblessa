@@ -14704,16 +14704,24 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                     <Wrench className="w-3.5 h-3.5" />
                                   </button>
 
-                                  {/* 2. Impressora (Imprimir Recibo da Parcela) */}
+                                  {/* 2. Impressora (Abrir Cobrança Asaas / Imprimir Recibo da Parcela) */}
                                   <button
                                     type="button"
-                                    title="Imprimir Recibo desta Parcela"
-                                    onClick={() =>
+                                    title={
+                                      !isPaid && inv.invoiceUrl
+                                        ? 'Abrir Cobrança Original no Asaas (Pagar / Imprimir)'
+                                        : 'Imprimir Recibo desta Parcela'
+                                    }
+                                    onClick={() => {
+                                      if (!isPaid && inv.invoiceUrl) {
+                                        window.open(inv.invoiceUrl, '_blank');
+                                        return;
+                                      }
                                       handlePrintInstallmentReceipt(
                                         selectedSubForDetail,
                                         inv
-                                      )
-                                    }
+                                      );
+                                    }}
                                     className="w-7 h-7 rounded bg-[#2e8b57] hover:bg-emerald-600 text-white flex items-center justify-center shadow-sm border border-white/20"
                                   >
                                     <Printer className="w-3.5 h-3.5" />

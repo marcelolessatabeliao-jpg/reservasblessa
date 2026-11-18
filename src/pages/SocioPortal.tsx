@@ -2030,6 +2030,41 @@ const SocioPortal: React.FC = () => {
                               {formatCurrency(inv.amount)}
                             </span>
 
+                            {/* Botão de Impressão / Fatura Oficial */}
+                            {inv.invoiceUrl ? (
+                              <a
+                                href={inv.invoiceUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title="Abrir fatura oficial no Asaas (Pagar / Imprimir)"
+                              >
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-9 px-2.5 rounded-xl border-slate-300 hover:bg-emerald-50 text-emerald-800 font-bold text-xs flex items-center gap-1.5"
+                                >
+                                  <Printer className="w-3.5 h-3.5 text-emerald-600" />
+                                  <span className="hidden sm:inline">Fatura Asaas</span>
+                                </Button>
+                              </a>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                title="Imprimir Recibo"
+                                onClick={() => {
+                                  const win = window.open('', '_blank', 'width=850,height=700');
+                                  if (!win) return;
+                                  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Recibo Parcela ${inv.installmentNumber}/${inv.totalInstallments}</title><style>body{font-family:Arial,sans-serif;padding:32px;color:#1e293b;}.box{border:2px solid #004d00;border-radius:12px;padding:24px;max-width:700px;margin:0 auto;}.header{display:flex;justify-content:space-between;border-bottom:2px solid #004d00;padding-bottom:12px;margin-bottom:16px;}.title{font-size:18px;font-weight:900;color:#004d00;}.row{margin:8px 0;font-size:14px;}</style></head><body><div class="box"><div class="header"><div><div class="title">BALNEÁRIO LESSA</div><div style="font-size:12px;color:#475569;">CNPJ: 46.891.134/0001-40 • Ariquemes/RO</div><div style="font-size:12px;font-weight:bold;margin-top:2px;">Recibo Oficial de Parcela</div></div><div style="text-align:right;font-weight:bold;">Parcela ${inv.installmentNumber}/${inv.totalInstallments}<br/>Valor: ${formatCurrency(inv.amount)}</div></div><div class="row"><strong>Associado:</strong> ${subscription.holderName} (Cartão ${subscription.subscriptionCode})</div><div class="row"><strong>Vencimento:</strong> ${formatDateBR(inv.dueDate)}</div><div class="row"><strong>Status:</strong> ${inv.status === 'PAID' ? 'PAGO (QUITADO)' : 'EM ABERTO'}</div></div><script>window.onload=()=>window.print();</script></body></html>`);
+                                  win.document.close();
+                                }}
+                                className="h-9 px-2.5 rounded-xl border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs flex items-center gap-1.5"
+                              >
+                                <Printer className="w-3.5 h-3.5 text-slate-500" />
+                                <span className="hidden sm:inline">Recibo</span>
+                              </Button>
+                            )}
+
                             {isPaid && (
                               <Badge variant="outline" className="text-emerald-700 border-emerald-300 bg-emerald-50 text-xs py-1 px-2.5 font-bold">
                                 <CheckCircle2 className="w-3.5 h-3.5 mr-1 text-emerald-600" /> Quitado
@@ -2043,7 +2078,7 @@ const SocioPortal: React.FC = () => {
                                   onClick={() => {
                                     setSelectedInvoiceForPix(inv);
                                     setPaymentMethodTab('PIX');
-                                    if (!inv.pixPayload && !inv.pixQrCode && !inv.invoiceUrl) {
+                                    if (!inv.pixPayload && !inv.pixQrCode) {
                                       handleGeneratePixOrLink(inv, 'PIX');
                                     }
                                   }}
@@ -2110,6 +2145,34 @@ const SocioPortal: React.FC = () => {
                               {selectedInvoiceForPix.description || 'Mensalidade do Plano Lessa Club'}
                             </DialogDescription>
                           </DialogHeader>
+
+                          {/* Link Direto para a Fatura Oficial no Asaas */}
+                          {selectedInvoiceForPix.invoiceUrl && (
+                            <div className="bg-blue-50 border border-blue-200 p-3 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-2 text-left">
+                              <div className="space-y-0.5">
+                                <div className="text-xs font-black text-blue-950 flex items-center gap-1.5">
+                                  <Receipt className="w-4 h-4 text-blue-600" /> Cobrança Oficial Vinculada no Asaas
+                                </div>
+                                <p className="text-[11px] text-blue-800">
+                                  Ao pagar via PIX ou Cartão, a quitação é compensada diretamente no Asaas sem duplicidades.
+                                </p>
+                              </div>
+                              <a
+                                href={selectedInvoiceForPix.invoiceUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="w-full sm:w-auto shrink-0"
+                              >
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs h-9 px-3 shadow-sm flex items-center justify-center gap-1.5"
+                                >
+                                  <ExternalLink className="w-3.5 h-3.5" /> Abrir no Asaas
+                                </Button>
+                              </a>
+                            </div>
+                          )}
 
                           {/* Seletor de Método de Pagamento */}
                           <div className="grid grid-cols-2 gap-2">

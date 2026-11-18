@@ -2548,6 +2548,66 @@ export const generateAsaasChargeForClubInvoice = async (
   pixPayload?: string;
   pixQrCode?: string;
 }> => {
+  // SE A FATURA JÁ POSSUI COBRANÇA NO ASAAS (paymentId ou invoiceUrl), NUNCA CRIA UMA NOVA!
+  // Reutiliza a cobrança original do Asaas e busca seu QR Code / link oficial
+  const existingPaymentId =
+    invoice.asaasPaymentId ||
+    (invoice.invoiceUrl ? `pay_${invoice.invoiceUrl.match(/\/i\/([a-zA-Z0-9]+)/)?.[1]}` : undefined);
+
+  if (existingPaymentId || invoice.invoiceUrl) {
+    try {
+      const { data, error } = await supabase.functions.invoke('create-payment', {
+        body: {
+          action: 'get-pix-qr-code',
+          paymentId: existingPaymentId,
+          invoiceUrl: invoice.invoiceUrl,
+        },
+      });
+
+      if (!error && data?.success && data.data) {
+        const paymentData = data.data;
+        const state = await fetchClubState();
+        const subIdx = state.subscriptions.findIndex((s) => s.id === subscription.id);
+        if (subIdx >= 0) {
+          const targetSub = state.subscriptions[subIdx];
+          const invIdx = targetSub.invoices.findIndex((inv) => inv.id === invoice.id);
+          if (invIdx >= 0) {
+            const invObj = targetSub.invoices[invIdx];
+            invObj.asaasPaymentId = paymentData.paymentId || existingPaymentId;
+            invObj.invoiceUrl = paymentData.invoiceUrl || invoice.invoiceUrl;
+            if (paymentData.pix) {
+              invObj.pixPayload = paymentData.pix.payload;
+              invObj.pixQrCode = paymentData.pix.encodedImage;
+            }
+            if (paymentData.isPaid) {
+              invObj.status = 'PAID';
+              invObj.paidAt = invObj.paidAt || new Date().toISOString();
+            }
+            await saveClubState(state, { waitForCloud: true });
+          }
+        }
+
+        return {
+          paymentId: paymentData.paymentId || existingPaymentId || '',
+          invoiceUrl: paymentData.invoiceUrl || invoice.invoiceUrl || '',
+          pixPayload: paymentData.pix?.payload || invoice.pixPayload,
+          pixQrCode: paymentData.pix?.encodedImage || invoice.pixQrCode,
+        };
+      }
+    } catch (err) {
+      console.warn('[ClubService] Erro ao recuperar cobrança existente do Asaas:', err);
+    }
+
+    if (invoice.invoiceUrl) {
+      return {
+        paymentId: existingPaymentId || '',
+        invoiceUrl: invoice.invoiceUrl,
+        pixPayload: invoice.pixPayload,
+        pixQrCode: invoice.pixQrCode,
+      };
+    }
+  }
+
   const asaasBillingType =
     billingType === 'CREDIT_CARD' || billingType === 'DEBIT_CARD'
       ? 'UNDEFINED'
@@ -2602,7 +2662,7 @@ export const generateAsaasChargeForClubInvoice = async (
         targetSub.invoices[invIdx].pixQrCode = paymentData.pix.encodedImage;
       }
     }
-    await saveClubState(state);
+    await saveClubState(state, { waitForCloud: true });
   }
 
   return {
@@ -3107,13 +3167,17 @@ export const checkClubInvoicePaymentStatus = async (
   if (!sub || !inv) return false;
   if (inv.status === 'PAID') return true;
 
-  if (inv.asaasPaymentId) {
+  const paymentId =
+    inv.asaasPaymentId ||
+    (inv.invoiceUrl ? `pay_${inv.invoiceUrl.match(/\/i\/([a-zA-Z0-9]+)/)?.[1]}` : undefined);
+
+  if (paymentId) {
     try {
       const { data } = await supabase.functions.invoke('check-payment', {
-        body: { paymentId: inv.asaasPaymentId, orderId: inv.id },
+        body: { paymentId, orderId: inv.id },
       });
       if (data?.isPaid || data?.status === 'RECEIVED' || data?.status === 'CONFIRMED') {
-        await markClubInvoicePaid(subscriptionId, invoiceId);
+        await markClubInvoicePaid(subscriptionId, invoiceId, { waitForCloud: true });
         return true;
       }
     } catch (e) {

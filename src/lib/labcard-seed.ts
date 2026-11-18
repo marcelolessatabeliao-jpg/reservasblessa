@@ -476,18 +476,18 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
 
       if (upName.includes('ROKSIANE') || holderCard === '1212251327') {
         const roksianeCarnes = [
-          { num: 1, ref: '04/2026', due: '2026-04-05', paid: '2026-04-05T10:00:00.000Z', status: 'PAID' as const },
-          { num: 2, ref: '05/2026', due: '2026-05-05', paid: '2026-06-04T10:00:00.000Z', status: 'PAID' as const },
-          { num: 3, ref: '06/2026', due: '2026-06-05', paid: '2026-06-05T10:00:00.000Z', status: 'PAID' as const },
-          { num: 4, ref: '07/2026', due: '2026-07-05', paid: '2026-07-04T10:00:00.000Z', status: 'PAID' as const },
-          { num: 5, ref: '08/2026', due: '2026-08-05', paid: '2026-08-07T10:00:00.000Z', status: 'PAID' as const },
-          { num: 6, ref: '09/2026', due: '2026-09-05', paid: '2026-09-09T10:00:00.000Z', status: 'PAID' as const },
-          { num: 7, ref: '10/2026', due: '2026-10-05', paid: '2026-09-05T10:00:00.000Z', status: 'PAID' as const },
-          { num: 8, ref: '11/2026', due: '2026-11-05', paid: undefined, status: 'OVERDUE' as const },
-          { num: 9, ref: '12/2026', due: '2026-12-05', paid: undefined, status: 'PENDING' as const },
-          { num: 10, ref: '01/2027', due: '2027-01-05', paid: undefined, status: 'PENDING' as const },
-          { num: 11, ref: '02/2027', due: '2027-02-05', paid: undefined, status: 'PENDING' as const },
-          { num: 12, ref: '03/2027', due: '2027-03-05', paid: undefined, status: 'PENDING' as const },
+          { num: 1, ref: '04/2026', due: '2026-04-05', paid: '2026-04-05T10:00:00.000Z', status: 'PAID' as const, asaasPaymentId: 'pay_hz5djn80hba948sk', invoiceUrl: 'https://www.asaas.com/i/hz5djn80hba948sk', boleto: '174117753578344269' },
+          { num: 2, ref: '05/2026', due: '2026-05-05', paid: '2026-05-04T10:00:00.000Z', status: 'PAID' as const, asaasPaymentId: 'pay_g546dzs3gxhmhv4m', invoiceUrl: 'https://www.asaas.com/i/g546dzs3gxhmhv4m', boleto: '775317753578353311' },
+          { num: 3, ref: '06/2026', due: '2026-06-05', paid: '2026-06-05T10:00:00.000Z', status: 'PAID' as const, asaasPaymentId: 'pay_qgqvwgeu8g0hmw68', invoiceUrl: 'https://www.asaas.com/i/qgqvwgeu8g0hmw68', boleto: '801617753578363467' },
+          { num: 4, ref: '07/2026', due: '2026-07-05', paid: '2026-07-04T10:00:00.000Z', status: 'PAID' as const, asaasPaymentId: 'pay_nzbkr1bbt34u577y', invoiceUrl: 'https://www.asaas.com/i/nzbkr1bbt34u577y', boleto: '711117753578375675' },
+          { num: 5, ref: '08/2026', due: '2026-08-05', paid: '2026-08-07T10:00:00.000Z', status: 'PAID' as const, asaasPaymentId: 'pay_curgpy4niw18wupt', invoiceUrl: 'https://www.asaas.com/i/curgpy4niw18wupt', boleto: '498617753578375459' },
+          { num: 6, ref: '09/2026', due: '2026-09-05', paid: '2026-09-09T10:00:00.000Z', status: 'PAID' as const, asaasPaymentId: 'pay_pl8i90vie04x13cs', invoiceUrl: 'https://www.asaas.com/i/pl8i90vie04x13cs', boleto: '142217753578385862' },
+          { num: 7, ref: '10/2026', due: '2026-10-05', paid: '2026-09-05T10:00:00.000Z', status: 'PAID' as const, asaasPaymentId: 'pay_upqf1o9jdgfetst0', invoiceUrl: 'https://www.asaas.com/i/upqf1o9jdgfetst0', boleto: '575417753578398258' },
+          { num: 8, ref: '11/2026', due: '2026-11-05', paid: '2026-11-18T18:48:59.000Z', status: 'PAID' as const, asaasPaymentId: 'pay_7076txoyg9fiaglx', invoiceUrl: 'https://www.asaas.com/i/7076txoyg9fiaglx', boleto: '456017753578399458' },
+          { num: 9, ref: '12/2026', due: '2026-12-05', paid: undefined, status: 'PENDING' as const, asaasPaymentId: 'pay_i2tq6l7wjouwdq3j', invoiceUrl: 'https://www.asaas.com/i/i2tq6l7wjouwdq3j', boleto: '555817753578406585' },
+          { num: 10, ref: '01/2027', due: '2027-01-05', paid: undefined, status: 'PENDING' as const, asaasPaymentId: 'pay_7w54b37lrvrhky11', invoiceUrl: 'https://www.asaas.com/i/7w54b37lrvrhky11', boleto: '463317753578411338' },
+          { num: 11, ref: '02/2027', due: '2027-02-05', paid: undefined, status: 'PENDING' as const, asaasPaymentId: 'pay_6mc9qczkr8nwlray', invoiceUrl: 'https://www.asaas.com/i/6mc9qczkr8nwlray', boleto: '292017753578413006' },
+          { num: 12, ref: '03/2027', due: '2027-03-05', paid: undefined, status: 'PENDING' as const, asaasPaymentId: 'pay_ygqondvffufxs5p2', invoiceUrl: 'https://www.asaas.com/i/ygqondvffufxs5p2', boleto: '783717753578427179' },
         ];
         roksianeCarnes.forEach((c) => {
           invoices.push({
@@ -505,6 +505,9 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
             paidAt: c.paid,
             paymentMethod: 'PIX',
             status: c.status,
+            asaasPaymentId: c.asaasPaymentId,
+            invoiceUrl: c.invoiceUrl,
+            boletoNumber: c.boleto,
             description: `${mod.name} (Mensalidade ${c.ref})`,
             invoiceKind: 'MENSALIDADE',
             carneGroup: 1,
@@ -596,11 +599,9 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
       monthlyEquivalent: mod.price,
       totalContractValue: isAnnual ? mod.price * 12 : mod.price,
       dueDay: isRoksiane ? 5 : 10,
-      status: isRoksiane || isElsa ? 'INACTIVE' : isMarli ? 'ACTIVE' : finalStatus,
-      inactivityReason: isRoksiane || isElsa ? 'MENSALIDADE_VENCIDA' : undefined,
-      inactivityNotes: isRoksiane
-        ? 'Mensalidade 11/2026 vencida em 05/11/2026'
-        : isElsa
+      status: isElsa ? 'INACTIVE' : (isRoksiane || isMarli) ? 'ACTIVE' : finalStatus,
+      inactivityReason: isElsa ? 'MENSALIDADE_VENCIDA' : undefined,
+      inactivityNotes: isElsa
         ? 'Mensalidades 10/2026 e 11/2026 em atraso'
         : undefined,
       origin: 'IMPORT_LABCARD',
@@ -612,22 +613,27 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
       startDate: '2025-01-01',
       endDate: finalEndDate,
       members: allMembers.map((m) => {
-        if (isRoksiane || isElsa) {
+        if (isElsa) {
           return {
             ...m,
             status: 'INACTIVE',
             inactivityReason: 'MENSALIDADE_VENCIDA',
-            inactivityNotes: isRoksiane
-              ? 'Mensalidade 11/2026 vencida em 05/11/2026'
-              : 'Mensalidades 10/2026 e 11/2026 em atraso',
+            inactivityNotes: 'Mensalidades 10/2026 e 11/2026 em atraso',
             manualStatusOverride: true,
-            expirationDate: isRoksiane ? '2026-12-21' : m.expirationDate,
-            validityLabel: isRoksiane ? '12/2026' : m.validityLabel,
-            documentVerified: isRoksiane ? true : m.documentVerified,
-            documentStatus: isRoksiane ? ('APROVADO' as const) : m.documentStatus,
-            documentProofName: isRoksiane ? (savedMedia?.documentProofName || 'img_1769286738.webp') : m.documentProofName,
-            documentProofUrl: isRoksiane ? savedMedia?.documentProofUrl : m.documentProofUrl,
-            attachments: isRoksiane ? (savedMedia?.attachments || []) : m.attachments,
+          };
+        }
+        if (isRoksiane) {
+          return {
+            ...m,
+            status: 'ACTIVE',
+            documentVerified: true,
+            documentStatus: 'APROVADO' as const,
+            documentProofName: savedMedia?.documentProofName || 'img_1769286738.webp',
+            documentProofUrl: savedMedia?.documentProofUrl,
+            attachments: savedMedia?.attachments || [],
+            expirationDate: '2026-12-21',
+            validityLabel: '12/2026',
+            manualStatusOverride: true,
           };
         }
         if (isMarli) {

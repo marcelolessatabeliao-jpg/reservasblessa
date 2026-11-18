@@ -91,6 +91,45 @@ Deno.serve(async (req) => {
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });
     }
 
+    // Obter QR Code PIX e Dados da Cobrança Existente no Asaas (sem duplicar cobranças)
+    if (action === 'get-pix-qr-code' || action === 'get-pix') {
+      let targetPaymentId = paymentId || orderId;
+      if (!targetPaymentId && body.invoiceUrl) {
+        const match = String(body.invoiceUrl).match(/\/i\/([a-zA-Z0-9]+)/);
+        if (match) {
+          targetPaymentId = `pay_${match[1]}`;
+        }
+      }
+      if (!targetPaymentId) throw new Error('paymentId ou invoiceUrl é obrigatório para obter o QR Code do PIX.');
+
+      // Busca dados da cobrança
+      const payReq = await fetch(`${ASAAS_URL}/payments/${targetPaymentId}`, {
+        headers: { 'access_token': ASAAS_API_KEY },
+      });
+      const payData = payReq.ok ? await payReq.json() : null;
+
+      // Busca QR Code PIX
+      const pixReq = await fetch(`${ASAAS_URL}/payments/${targetPaymentId}/pixQrCode`, {
+        headers: { 'access_token': ASAAS_API_KEY },
+      });
+      const pixData = await pixReq.json();
+
+      return new Response(JSON.stringify({
+        success: true,
+        data: {
+          paymentId: targetPaymentId,
+          invoiceUrl: payData?.invoiceUrl,
+          status: payData?.status,
+          isPaid: payData?.status === 'CONFIRMED' || payData?.status === 'RECEIVED',
+          pix: pixReq.ok && pixData ? {
+            encodedImage: pixData.encodedImage,
+            payload: pixData.payload,
+            expirationDate: pixData.expirationDate,
+          } : null,
+        },
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });
+    }
+
     // Consulta de Todas as Cobranças do Cliente no Asaas por CPF, PaymentId ou CustomerId
     if (action === 'list-customer-charges' || action === 'get-customer-payments') {
       const cleanCpf = cpf ? String(cpf).replace(/\D/g, '') : '';
