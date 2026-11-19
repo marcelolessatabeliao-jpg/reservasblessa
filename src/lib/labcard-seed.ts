@@ -230,11 +230,6 @@ export const REGULARIZED_ACTIVE_CARDS = new Set([
   '121225817', // Marli da Silva Ribeiro
   '1212251327', // Roksiane Alves de Barros
   '121225890', // Jadia Cleia Rodrigues Goncalves
-  '1212252991', // Eder Aparecido Ferreira
-  '1212251485', // Genivaldo Alves
-  '1212251486', // Elane Pereira Morato da Silva (dependente Genivaldo)
-  '1212251487', // Gustavo Torres Alves (dependente Genivaldo)
-  '1212251413', // Elionar Sobrinho Sodre
 ]);
 
 let cachedLabcardSubs: ClubSubscription[] | null = null;
@@ -738,18 +733,24 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
       monthlyEquivalent: (isJadia || isAndrirlei) ? 0 : (isGisseia || isEder) ? 22.50 : mod.price,
       totalContractValue: isJadia ? 290 : (isAndrirlei || isGisseia || isEder) ? 270 : isAnnual ? mod.price * 12 : mod.price,
       dueDay: isRoksiane ? 5 : (isJadia ? 2 : (isGisseia || isEder) ? 15 : 10),
-      status: isElsa || isLiliane ? 'INACTIVE' : (isRoksiane || isMarli || isJadia || isAndrirlei || isGisseia || isEder || isGenivaldo || isElionar) ? 'ACTIVE' : finalStatus,
-      inactivityReason: isElsa
+      status: isElsa || isLiliane || isGenivaldo ? 'INACTIVE' : (isRoksiane || isMarli || isJadia || isAndrirlei || isGisseia) ? 'ACTIVE' : finalStatus,
+      inactivityReason: isGenivaldo
+        ? 'MENSALIDADE_VENCIDA'
+        : isElsa
         ? 'MENSALIDADE_VENCIDA'
         : isLiliane
         ? 'MENSALIDADE_VENCIDA'
         : undefined,
-      inactivityReasons: isLiliane
+      inactivityReasons: isGenivaldo
+        ? ['MENSALIDADE_VENCIDA']
+        : isLiliane
         ? ['FALTA_DOCUMENTOS', 'MENSALIDADE_VENCIDA']
         : isElsa
         ? ['MENSALIDADE_VENCIDA']
         : undefined,
-      inactivityNotes: isLiliane
+      inactivityNotes: isGenivaldo
+        ? 'Mensalidades vencidas'
+        : isLiliane
         ? 'Falta de documentos comprobatórios para ativação do benefício'
         : isElsa
         ? 'Mensalidades 10/2026 e 11/2026 em atraso'
@@ -800,6 +801,16 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
             manualStatusOverride: true,
           };
         }
+        if (isGenivaldo) {
+          return {
+            ...m,
+            status: 'INACTIVE',
+            inactivityReason: 'MENSALIDADE_VENCIDA',
+            inactivityReasons: ['MENSALIDADE_VENCIDA'],
+            inactivityNotes: 'Mensalidades vencidas',
+            manualStatusOverride: true,
+          };
+        }
         if (isMarli) {
           return {
             ...m,
@@ -829,11 +840,11 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
         : isLiliane
         ? '2026-11-19T11:40:00.000Z'
         : '2026-11-10T00:00:00.000Z',
-      transferCompleted: isElsa || isLiliane ? false : (isRoksiane || isMarli || isJadia || isAndrirlei || isGisseia || isEder || isGenivaldo || isElionar) ? true : isTitularAtivo,
-      manualStatusOverride: isElsa || isLiliane || isRoksiane || isMarli || isJadia || isAndrirlei || isGisseia || isEder || isGenivaldo || isElionar ? true : isTitularAtivo,
-      manuallyConfirmedTransfer: (isRoksiane || isMarli || isJadia || isAndrirlei || isGisseia || isEder || isGenivaldo || isElionar) ? true : false,
-      transferredAt: (isRoksiane || isMarli || isJadia || isAndrirlei || isGisseia || isEder || isGenivaldo || isElionar) ? '2026-11-13T00:00:00.000Z' : undefined,
-      isModifiedFromSeed: isMarli || isRoksiane || isElsa || isLiliane || isJadia || isEder || isGenivaldo || isElionar ? true : undefined,
+      transferCompleted: isElsa || isLiliane || isGenivaldo ? false : (isRoksiane || isMarli || isJadia || isAndrirlei || isGisseia) ? true : isTitularAtivo,
+      manualStatusOverride: isElsa || isLiliane || isGenivaldo || isRoksiane || isMarli || isJadia || isAndrirlei || isGisseia ? true : isTitularAtivo,
+      manuallyConfirmedTransfer: (isRoksiane || isMarli || isJadia || isAndrirlei || isGisseia) ? true : false,
+      transferredAt: (isRoksiane || isMarli || isJadia || isAndrirlei || isGisseia) ? '2026-11-13T00:00:00.000Z' : undefined,
+      isModifiedFromSeed: isMarli || isRoksiane || isElsa || isLiliane || isJadia || isGenivaldo ? true : undefined,
     };
   });
 
