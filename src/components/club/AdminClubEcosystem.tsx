@@ -14665,14 +14665,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         carneGroup = 3;
                       }
 
+                      // Match estrito: por ID do Asaas ou por data exata de vencimento (YYYY-MM-DD)
                       const existingInvIndex = currentInvoices.findIndex(
                         (i) =>
                           (i.asaasPaymentId && i.asaasPaymentId === p.id) ||
-                          i.dueDate === p.dueDate ||
-                          (i.referenceMonth && p.dueDate && (
-                            i.referenceMonth === `${p.dueDate.slice(5, 7)}/${p.dueDate.slice(0, 4)}` ||
-                            i.referenceMonth === `${p.dueDate.slice(8, 10)}/${p.dueDate.slice(5, 7)}/${p.dueDate.slice(0, 4)}`
-                          ))
+                          (i.dueDate && p.dueDate && i.dueDate === p.dueDate)
                       );
 
                       const isPaid =
@@ -14701,7 +14698,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           carneGroup,
                           status: newStatus,
                           paidAt: isPaid
-                            ? p.clientPaymentDate || p.paymentDate || p.confirmedDate || existing.paidAt || new Date().toISOString()
+                            ? (p.clientPaymentDate || p.paymentDate || p.confirmedDate || existing.paidAt || new Date().toISOString())
                             : undefined,
                           paymentMethod: p.billingType || existing.paymentMethod,
                           paymentUrl: p.bankSlipUrl || p.invoiceUrl || existing.paymentUrl,

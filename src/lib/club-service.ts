@@ -1471,7 +1471,47 @@ export const normalizeClubDatabaseState = (
       manuallyConfirmedTransfer: isSubDirectlyInactive ? false : isLabcard ? (isSubExplicitlyRegularized && Boolean(sub.manuallyConfirmedTransfer)) : (sub.manuallyConfirmedTransfer ?? false),
       manualStatusOverride: isSubDirectlyInactive ? true : isLabcard ? (isSubExplicitlyRegularized || Boolean(sub.manualStatusOverride)) : (sub.manualStatusOverride ?? false),
       members: normalizedMembers,
-      invoices: Array.isArray(sub.invoices) ? sub.invoices : [],
+      invoices: (() => {
+        let invList = Array.isArray(sub.invoices) ? sub.invoices : [];
+        if (
+          sub.subscriptionCode === '1212251327' ||
+          sub.id === 'sub-labcard-1212251327' ||
+          (sub.holderName && sub.holderName.toUpperCase().includes('ROKSIANE'))
+        ) {
+          invList = invList
+            .filter(
+              (inv) =>
+                inv.dueDate !== '2026-12-31' &&
+                inv.asaasPaymentId !== 'pay_5wjefb0hffyhtx0p'
+            )
+            .map((inv) => {
+              if (
+                inv.dueDate === '2026-12-05' ||
+                inv.referenceMonth === '12/2026' ||
+                inv.installmentNumber === 9
+              ) {
+                return {
+                  ...inv,
+                  status: 'PENDING' as const,
+                  paidAt: undefined,
+                  dueDate: '2026-12-05',
+                  referenceMonth: '12/2026',
+                  installmentNumber: 9,
+                  totalInstallments: 12,
+                  amount: 25,
+                  asaasPaymentId: 'pay_i2tq6l7wjouwdq3j',
+                  boletoNumber: '555817753578406585',
+                };
+              }
+              return {
+                ...inv,
+                totalInstallments: 12,
+                amount: inv.dueDate && inv.dueDate >= '2027-01-01' ? 30 : inv.amount,
+              };
+            });
+        }
+        return invList;
+      })(),
       attachments: Array.isArray(sub.attachments) ? sub.attachments : [],
       visits: Array.isArray(sub.visits) ? sub.visits : [],
       additionalServices: Array.isArray(sub.additionalServices) ? sub.additionalServices : [],
