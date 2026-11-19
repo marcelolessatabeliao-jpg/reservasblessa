@@ -14596,13 +14596,23 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                       return;
                     }
 
-                    const currentInvoices = [...(selectedSubForDetail.invoices || [])];
+                    // Identifica cobranças ativas e válidas no Asaas (ignora canceladas/excluídas)
+                    const validPayments = rawPayments.filter((p) => !p.deleted);
+                    const activeAsaasIds = new Set(validPayments.map((p) => p.id));
+
+                    // Remove do perfil local qualquer fatura atrelada a cobrança que foi apagada/excluída no Asaas
+                    const currentInvoices = (selectedSubForDetail.invoices || []).filter((inv) => {
+                      if (inv.asaasPaymentId && !activeAsaasIds.has(inv.asaasPaymentId)) {
+                        return false; // Foi excluída no Asaas! Remove do cadastro
+                      }
+                      return true;
+                    });
+
                     const subCode = selectedSubForDetail.subscriptionCode || '';
                     let addedCount = 0;
                     let updatedCount = 0;
 
-                    for (const p of rawPayments) {
-                      if (p.deleted) continue;
+                    for (const p of validPayments) {
 
                       const desc = String(p.description || '');
                       const codeMatch = desc.match(/Lessa Club \((\d+)\)/i);
@@ -14702,18 +14712,9 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                       return String(a.dueDate).localeCompare(String(b.dueDate));
                     });
 
-                    const hasOverdue = currentInvoices.some((i) => i.status === 'OVERDUE');
-                    const hasPaid = currentInvoices.some((i) => i.status === 'PAID');
-                    let nextSubStatus = selectedSubForDetail.status;
-                    let nextMembers = selectedSubForDetail.members;
-
-                    if (!hasOverdue && hasPaid && nextSubStatus !== 'ACTIVE') {
-                      nextSubStatus = 'ACTIVE';
-                      nextMembers = (selectedSubForDetail.members || []).map((m) => ({
-                        ...m,
-                        status: 'ACTIVE',
-                      }));
-                    }
+                    // Preserva estritamente o status atual do cadastro e dos membros (sem ativação automática)
+                    const nextSubStatus = selectedSubForDetail.status;
+                    const nextMembers = selectedSubForDetail.members;
 
                     const updatedSub: ClubSubscription = {
                       ...selectedSubForDetail,

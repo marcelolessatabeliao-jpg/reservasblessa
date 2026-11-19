@@ -1681,13 +1681,49 @@ const buildCompactCloudState = (state: ClubDatabaseState): ClubDatabaseState => 
       return isLabcardSubscriptionModified(sub, seedMap.get(sub.id));
     })
     .map((sub) => {
-      if (!sub.contractContentHtml) return sub;
-      const { contractContentHtml: _omit, ...rest } = sub;
-      return rest as ClubSubscription;
+      let cleanSub = sub;
+      if (cleanSub.contractContentHtml) {
+        const { contractContentHtml: _omit, ...rest } = cleanSub;
+        cleanSub = rest as ClubSubscription;
+      }
+      if (cleanSub.attachments && cleanSub.attachments.some((a) => a.dataUrl && a.dataUrl.length > 500)) {
+        cleanSub = {
+          ...cleanSub,
+          attachments: cleanSub.attachments.map((a) => ({
+            ...a,
+            dataUrl: a.dataUrl && a.dataUrl.length > 500 ? '' : a.dataUrl,
+          })),
+        };
+      }
+      if (
+        cleanSub.members &&
+        cleanSub.members.some(
+          (m) =>
+            (m.documentProofUrl && m.documentProofUrl.length > 500) ||
+            (m.attachments && m.attachments.some((a) => a.dataUrl && a.dataUrl.length > 500))
+        )
+      ) {
+        cleanSub = {
+          ...cleanSub,
+          members: cleanSub.members.map((m) => ({
+            ...m,
+            documentProofUrl: m.documentProofUrl && m.documentProofUrl.length > 500 ? '' : m.documentProofUrl,
+            attachments: (m.attachments || []).map((a) => ({
+              ...a,
+              dataUrl: a.dataUrl && a.dataUrl.length > 500 ? '' : a.dataUrl,
+            })),
+          })),
+        };
+      }
+      return cleanSub;
     });
 
   return {
     ...state,
+    contractTemplates: (state.contractTemplates || []).map((ct) => ({
+      ...ct,
+      contentHtml: ct.contentHtml && ct.contentHtml.length > 500 ? ct.contentHtml.slice(0, 500) + '...' : ct.contentHtml,
+    })),
     subscriptions: compactSubs,
   };
 };
