@@ -2002,7 +2002,20 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
       });
       // 2. Base da nuvem (Supabase)
       remoteSubs.forEach((s) => {
-        if (!deletedSet.has(s.id)) subsMap.set(s.id, s);
+        if (!deletedSet.has(s.id)) {
+          const seed = subsMap.get(s.id);
+          if (seed) {
+            // Se o seed contiver dados cadastrais (ex: email, endereço mapeado) e a nuvem estiver sem esses campos, preserva os dados do seed!
+            if (seed.holderEmail && !s.holderEmail) s.holderEmail = seed.holderEmail;
+            if (seed.addressCep && (!s.addressCep || s.addressCep === '76870-000')) s.addressCep = seed.addressCep;
+            if (seed.addressStreet && !s.addressStreet) s.addressStreet = seed.addressStreet;
+            if (seed.addressNumber && !s.addressNumber) s.addressNumber = seed.addressNumber;
+            if (seed.addressNeighborhood && !s.addressNeighborhood) s.addressNeighborhood = seed.addressNeighborhood;
+            if (seed.addressCity && !s.addressCity) s.addressCity = seed.addressCity;
+            if (seed.addressState && !s.addressState) s.addressState = seed.addressState;
+          }
+          subsMap.set(s.id, s);
+        }
       });
       // 3. Base local do navegador: preserva qualquer alteração manual ou mais recente que a nuvem
       localSubs.forEach((s) => {
@@ -2127,6 +2140,12 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
                 if (s.inactivityReason && !current.inactivityReason) current.inactivityReason = s.inactivityReason;
                 if (s.inactivityNotes && !current.inactivityNotes) current.inactivityNotes = s.inactivityNotes;
               }
+
+              const seedSub = defaultLabcardSubs.find((x) => x.id === s.id);
+              if (seedSub?.holderEmail && !current.holderEmail) current.holderEmail = seedSub.holderEmail;
+              if (seedSub?.addressCep && (!current.addressCep || current.addressCep === '76870-000')) current.addressCep = seedSub.addressCep;
+              if (seedSub?.addressStreet && !current.addressStreet) current.addressStreet = seedSub.addressStreet;
+              if (seedSub?.addressNeighborhood && !current.addressNeighborhood) current.addressNeighborhood = seedSub.addressNeighborhood;
 
               const isCurrentDirectlyInactive =
                 current.status === 'INACTIVE' ||
