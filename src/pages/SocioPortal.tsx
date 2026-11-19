@@ -1407,96 +1407,95 @@ const SocioPortal: React.FC = () => {
                       </Link>
                     </div>
                   </div>
-                {subscription.members.some((m) => isMemberBlockedForMissingDoc(m, subscription)) && (
-                  <div className="bg-amber-50 border-2 border-amber-400 rounded-2xl p-5 space-y-2">
-                    <h4 className="font-black text-amber-950 text-sm sm:text-base flex items-center gap-2">
-                      <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
-                      Documentação Comprobatória Obrigatória Pendente
-                    </h4>
-                    <p className="text-xs text-amber-900">
-                      Integrantes com planos especiais/gratuidade que ainda não enviaram o documento comprobatório permanecem com a carteirinha <strong>INATIVA e bloqueada para edição/download</strong> até o envio da comprovação abaixo ou na aba <strong>"Documentos"</strong>:
-                    </p>
-                    <ul className="text-xs font-bold text-amber-950 list-disc pl-5 space-y-0.5">
-                      {subscription.members
-                        .filter((m) => isMemberBlockedForMissingDoc(m, subscription))
-                        .map((m) => {
-                          const r = getPlanDocumentRule(m.modalityCode, m.modalityName);
-                          return (
-                            <li key={m.id}>
-                              {m.fullName} ({m.modalityName}): {r.title}
-                            </li>
-                          );
-                        })}
-                    </ul>
-                  </div>
-                )}
-
-                {!isSubscriptionActive ? (
-                  <div className={`border-2 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                {/* AVISO UNIFICADO E COMPACTO DE SITUAÇÃO DO CADASTRO COM ATALHOS */}
+                {(!isSubscriptionActive || subscription.members.some((m) => isMemberBlockedForMissingDoc(m, subscription))) ? (
+                  <div className={`rounded-2xl p-3.5 sm:p-4 border-2 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${
                     isPendingTransfer
                       ? 'bg-amber-50 border-amber-300'
-                      : 'bg-rose-50 border-rose-300'
+                      : 'bg-rose-50/90 border-rose-300'
                   }`}>
-                    <div className="space-y-1">
-                      <h4 className={`font-black text-sm sm:text-base ${
-                        isPendingTransfer
-                          ? 'text-amber-950'
-                          : 'text-rose-900'
-                      }`}>
+                    <div className="space-y-1 max-w-2xl">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-black uppercase ${
+                          isPendingTransfer ? 'bg-amber-500 text-slate-950' : 'bg-rose-600 text-white'
+                        }`}>
+                          <Lock className="w-3.5 h-3.5" />
+                          {isPendingTransfer
+                            ? 'Cadastro em Transferência'
+                            : subscription.inactivityReason === 'MENSALIDADE_E_DOCUMENTOS'
+                            ? 'Plano Inativo • Mensalidade e Documentos Pendentes'
+                            : subscription.inactivityReason === 'FALTA_DOCUMENTOS'
+                            ? 'Plano Inativo • Documentos Pendentes'
+                            : subscription.inactivityReason === 'MENSALIDADE_VENCIDA'
+                            ? 'Plano Inativo • Mensalidade Pendente'
+                            : subscription.inactivityReason === 'SOLICITACAO_CLIENTE'
+                            ? 'Plano Pausado a Pedido'
+                            : subscription.inactivityReason === 'ADMINISTRATIVO'
+                            ? 'Bloqueio Administrativo'
+                            : 'Plano Inativo • Aguardando Regularização'}
+                        </span>
+                      </div>
+
+                      <p className="text-xs text-slate-700 font-medium leading-snug">
                         {isPendingTransfer
-                          ? '⏳ Cadastro em Transferência — Em Conferência / Organização'
-                          : subscription.inactivityReason === 'MENSALIDADE_E_DOCUMENTOS'
-                          ? '🔒 Plano Inativo — Mensalidade Vencida e Falta de Documentos'
-                          : subscription.inactivityReason === 'MENSALIDADE_VENCIDA'
-                          ? '🔒 Plano Inativo — Mensalidade Vencida / Pendente'
-                          : subscription.inactivityReason === 'FALTA_DOCUMENTOS'
-                          ? '📑 Plano Inativo — Falta de Documentos Obrigatórios'
-                          : subscription.inactivityReason === 'SOLICITACAO_CLIENTE'
-                          ? '⏸️ Plano Pausado / Inativo a Pedido do Associado'
-                          : subscription.inactivityReason === 'ADMINISTRATIVO'
-                          ? '⚠️ Plano Inativo — Bloqueio Administrativo'
-                          : '🔒 Plano Inativo — Aguardando Ativação do Cadastro'}
-                      </h4>
-                      <p className={`text-xs ${
-                        isPendingTransfer
-                          ? 'text-amber-900'
-                          : 'text-rose-800'
-                      }`}>
-                        {isPendingTransfer
-                          ? 'Os dados e dependentes deste cadastro estão sendo organizados e transferidos pela administração do balneário. A liberação ocorrerá assim que a transferência for concluída.'
-                          : subscription.inactivityReason === 'MENSALIDADE_E_DOCUMENTOS'
-                          ? 'Identificamos mensalidade(s) pendente(s) ou em atraso e também pendência de documentos obrigatórios para este cadastro. Regularize as parcelas na aba "Mensalidades" e anexe os documentos na aba "Documentos" para liberar seu acesso ao clube e suas carteirinhas.'
-                          : subscription.inactivityReason === 'MENSALIDADE_VENCIDA'
-                          ? 'Identificamos mensalidade(s) pendente(s) ou em atraso para este cadastro. Regularize através da aba "Mensalidades" para liberar o acesso ao clube e suas carteirinhas.'
-                          : subscription.inactivityReason === 'FALTA_DOCUMENTOS'
-                          ? 'Existem documentos obrigatórios pendentes de envio ou aprovação cadastral. Acesse a aba "Dependentes e Documentos" ou procure a administração para regularizar.'
-                          : subscription.inactivityReason === 'SOLICITACAO_CLIENTE'
-                          ? 'Este cadastro encontra-se suspenso/inativado a pedido do titular. Entre em contato com a secretaria do balneário para reativação.'
-                          : subscription.inactivityReason === 'ADMINISTRATIVO'
-                          ? 'O cadastro encontra-se bloqueado temporariamente pela administração do clube. Para orientações, contate o suporte ou a secretaria.'
-                          : 'A edição da foto 3x4 e o download das carteirinhas só são liberados após a confirmação do pagamento (aba "Mensalidades") ou ativação do plano pela administração.'}
+                          ? 'Cadastro em conferência pela administração. A liberação ocorrerá assim que finalizada a transferência.'
+                          : 'Para liberar o acesso ao clube e suas carteirinhas digitais, regularize as pendências abaixo:'}
                       </p>
 
-                      {/* AVISO / OBSERVAÇÃO DO ADMINISTRADOR DO CLUBE */}
+                      {/* Observação da Administração exibida apenas 1 vez */}
                       {Boolean(subscription.inactivityNotes?.trim()) && (
-                        <div className="mt-3 p-3 rounded-xl bg-white/95 border-2 border-rose-300 text-rose-950 flex items-start gap-2.5 shadow-xs">
-                          <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-                          <div className="space-y-0.5 text-left">
-                            <span className="text-[10px] font-black uppercase tracking-wider text-rose-800 block">
-                              📌 Aviso / Observação da Administração do Clube:
-                            </span>
-                            <p className="text-xs font-bold leading-snug text-slate-800">
-                              "{subscription.inactivityNotes.trim()}"
-                            </p>
-                          </div>
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-rose-300 text-rose-950 text-xs font-bold shadow-2xs">
+                          <AlertTriangle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                          <span>Obs. da Administração: "{subscription.inactivityNotes.trim()}"</span>
                         </div>
+                      )}
+                    </div>
+
+                    {/* Atalhos Rápidos para as Áreas Certas */}
+                    <div className="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto">
+                      {(subscription.inactivityReason === 'MENSALIDADE_E_DOCUMENTOS' ||
+                        subscription.inactivityReason === 'MENSALIDADE_VENCIDA' ||
+                        subscription.invoices?.some((i) => i.status !== 'PAID')) && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => {
+                            setActivePortalTab('faturas');
+                            if (typeof window !== 'undefined') {
+                              sessionStorage.setItem('lessa_socio_portal_tab', 'faturas');
+                            }
+                          }}
+                          className="bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs h-9 px-3.5 rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <Receipt className="w-3.5 h-3.5" />
+                          Pagar Mensalidades
+                        </Button>
+                      )}
+
+                      {(subscription.inactivityReason === 'MENSALIDADE_E_DOCUMENTOS' ||
+                        subscription.inactivityReason === 'FALTA_DOCUMENTOS' ||
+                        subscription.members.some((m) => isMemberBlockedForMissingDoc(m, subscription))) && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => {
+                            setActivePortalTab('documentos');
+                            if (typeof window !== 'undefined') {
+                              sessionStorage.setItem('lessa_socio_portal_tab', 'documentos');
+                            }
+                          }}
+                          className="bg-amber-600 hover:bg-amber-700 text-white font-black text-xs h-9 px-3.5 rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <FileCheck className="w-3.5 h-3.5" />
+                          Anexar Documentos
+                        </Button>
                       )}
                     </div>
                   </div>
                 ) : (
-                  <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-center justify-between gap-4">
-                    <div className="text-xs md:text-sm text-emerald-900">
-                      <strong>Plano Ativo e Liberado!</strong> Clique em <strong>"Enviar Foto"</strong> ou <strong>"Reposicionar / Enquadrar Perfil"</strong> em cada carteirinha liberada para ajustar sua foto de perfil 3x4 e baixar o PNG.
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3 flex items-center justify-between gap-4">
+                    <div className="text-xs text-emerald-900 font-medium">
+                      <strong className="font-black text-emerald-950">● Plano Ativo e Liberado!</strong> Clique nas carteirinhas abaixo para salvar a imagem no celular ou atualizar a foto 3x4.
                     </div>
                   </div>
                 )}
@@ -1567,21 +1566,6 @@ const SocioPortal: React.FC = () => {
                             onUpdatePhoto={isLockedMember || !isSubscriptionActive ? undefined : handleUpdateMemberPhoto}
                           />
 
-                          {/* ORIENTAÇÃO / OBSERVAÇÃO DO ADMINISTRADOR DO CLUBE */}
-                          {Boolean((member.inactivityNotes || subscription.inactivityNotes)?.trim()) && isLockedMember && (
-                            <div className="bg-rose-50 border border-rose-300 rounded-xl p-3 text-xs text-rose-950 flex items-start gap-2 shadow-xs">
-                              <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-                              <div className="space-y-0.5 text-left">
-                                <span className="text-[10px] font-black uppercase tracking-wider text-rose-800 block">
-                                  📌 Motivo / Aviso da Administração:
-                                </span>
-                                <p className="font-bold text-slate-800">
-                                  "{(member.inactivityNotes || subscription.inactivityNotes).trim()}"
-                                </p>
-                              </div>
-                            </div>
-                          )}
-
                           {(() => {
                             const memberDocs = getMemberResolvedAttachments(member, subscription);
                             const hasRealDoc = memberDocs.length > 0 || hasDoc;
@@ -1592,57 +1576,55 @@ const SocioPortal: React.FC = () => {
 
                             return (
                               <div
-                                className={`rounded-2xl border p-4 space-y-2.5 ${
+                                className={`rounded-xl border p-2.5 sm:p-3 space-y-2 ${
                                   !hasRealDoc && docRule.requiresDocument
-                                    ? 'bg-rose-50 border-rose-300'
+                                    ? 'bg-rose-50/80 border-rose-300'
                                     : missingDoc
-                                    ? 'bg-amber-50 border-amber-300'
-                                    : 'bg-emerald-50/70 border-emerald-200'
+                                    ? 'bg-amber-50/80 border-amber-300'
+                                    : 'bg-emerald-50/60 border-emerald-200'
                                 }`}
                               >
                                 <div className="flex flex-wrap items-center justify-between gap-2">
-                                  <div className="text-xs font-black text-slate-900 flex items-center gap-2">
-                                    <FileCheck className={`w-4 h-4 ${!hasRealDoc && docRule.requiresDocument ? 'text-rose-600' : missingDoc ? 'text-amber-600' : 'text-emerald-700'}`} />
-                                    <span>
-                                      Comprovação do Plano ({member.modalityName})
-                                    </span>
+                                  <div className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                                    <FileCheck className={`w-3.5 h-3.5 ${!hasRealDoc && docRule.requiresDocument ? 'text-rose-600' : missingDoc ? 'text-amber-600' : 'text-emerald-700'}`} />
+                                    <span>Comprovação ({member.modalityName})</span>
                                     {(() => {
                                       if (!hasRealDoc && docRule.requiresDocument) {
                                         return (
-                                          <Badge className="bg-rose-600 text-white text-[10px] font-black uppercase">
-                                            DOCUMENTO PENDENTE (NÃO ANEXADO)
+                                          <Badge className="bg-rose-600 text-white text-[9px] font-black uppercase px-2 py-0.5">
+                                            DOCUMENTO PENDENTE
                                           </Badge>
                                         );
                                       }
                                       if (hasRealDoc && isApproved) {
                                         return (
-                                          <Badge className="bg-emerald-700 text-white text-[10px] font-black uppercase">
+                                          <Badge className="bg-emerald-700 text-white text-[9px] font-black uppercase px-2 py-0.5">
                                             ✓ COMPROVANTE APROVADO
                                           </Badge>
                                         );
                                       }
                                       if (hasRealDoc && !isApproved) {
                                         return (
-                                          <Badge className="bg-amber-600 text-white text-[10px] font-black uppercase">
-                                            DOCUMENTO ANEXADO (EM ANÁLISE)
+                                          <Badge className="bg-amber-600 text-white text-[9px] font-black uppercase px-2 py-0.5">
+                                            EM ANÁLISE
                                           </Badge>
                                         );
                                       }
                                       return (
-                                        <Badge className="bg-slate-500 text-white text-[10px] font-bold uppercase">
+                                        <Badge className="bg-slate-500 text-white text-[9px] font-bold uppercase px-2 py-0.5">
                                           DISPENSADO
                                         </Badge>
                                       );
                                     })()}
                                   </div>
                                   <div className="flex flex-wrap items-center gap-2">
-                                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#004d00] hover:bg-emerald-900 text-white text-xs font-bold cursor-pointer shadow-xs">
+                                    <label className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#004d00] hover:bg-emerald-900 text-white text-xs font-bold cursor-pointer shadow-xs">
                                       <Upload className="w-3.5 h-3.5" />
                                       {uploadingDocMemberId === member.id
                                         ? 'Enviando...'
                                         : memberDocs.length > 0
-                                        ? 'Enviar Novo Comprovante'
-                                        : 'Importar / Anexar Documento'}
+                                        ? 'Novo Comprovante'
+                                        : 'Anexar Documento'}
                                       <input
                                         type="file"
                                         accept="image/*,.pdf"
@@ -1657,11 +1639,9 @@ const SocioPortal: React.FC = () => {
                                   </div>
                                 </div>
                                 {missingDoc && (
-                                  <div className="text-[11px] text-amber-900 bg-white/90 rounded-xl p-2.5 border border-amber-200 space-y-1">
-                                    <div className="font-bold">Documentos aceitos para {member.modalityName}:</div>
-                                    {docRule.acceptedDocs.map((d, di) => (
-                                      <div key={di}>✅ {d}</div>
-                                    ))}
+                                  <div className="text-[10px] text-amber-900 bg-white/90 rounded-lg p-2 border border-amber-200/80 leading-snug">
+                                    <span className="font-bold">Comprovantes aceitos: </span>
+                                    <span>{docRule.acceptedDocs.join(' • ')}</span>
                                   </div>
                                 )}
                                 {memberDocs.length > 0 && (
@@ -1821,21 +1801,6 @@ const SocioPortal: React.FC = () => {
                                 onUpdatePhoto={isLockedDep || !isSubscriptionActive ? undefined : handleUpdateMemberPhoto}
                               />
 
-                              {/* ORIENTAÇÃO / OBSERVAÇÃO DO ADMINISTRADOR DO CLUBE */}
-                              {Boolean((member.inactivityNotes || subscription.inactivityNotes)?.trim()) && isLockedDep && (
-                                <div className="bg-rose-50 border border-rose-300 rounded-xl p-3 text-xs text-rose-950 flex items-start gap-2 shadow-xs">
-                                  <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-                                  <div className="space-y-0.5 text-left">
-                                    <span className="text-[10px] font-black uppercase tracking-wider text-rose-800 block">
-                                      📌 Motivo / Aviso da Administração:
-                                    </span>
-                                    <p className="font-bold text-slate-800">
-                                      "{(member.inactivityNotes || subscription.inactivityNotes).trim()}"
-                                    </p>
-                                  </div>
-                                </div>
-                              )}
-
                               {(() => {
                                 const memberDocs = getMemberResolvedAttachments(member, subscription);
                                 const hasRealDoc = memberDocs.length > 0 || hasDoc;
@@ -1846,54 +1811,54 @@ const SocioPortal: React.FC = () => {
 
                                 return (
                                   <div
-                                    className={`rounded-2xl border p-4 space-y-2.5 ${
+                                    className={`rounded-xl border p-2.5 sm:p-3 space-y-2 ${
                                       !hasRealDoc && docRule.requiresDocument
-                                        ? 'bg-rose-50 border-rose-300'
+                                        ? 'bg-rose-50/80 border-rose-300'
                                         : missingDoc
-                                        ? 'bg-amber-50 border-amber-300'
-                                        : 'bg-emerald-50/70 border-emerald-200'
+                                        ? 'bg-amber-50/80 border-amber-300'
+                                        : 'bg-emerald-50/60 border-emerald-200'
                                     }`}
                                   >
                                     <div className="flex flex-wrap items-center justify-between gap-2">
-                                      <div className="text-xs font-black text-slate-900 flex items-center gap-2">
-                                        <FileCheck className={`w-4 h-4 ${!hasRealDoc && docRule.requiresDocument ? 'text-rose-600' : missingDoc ? 'text-amber-600' : 'text-emerald-700'}`} />
+                                      <div className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                                        <FileCheck className={`w-3.5 h-3.5 ${!hasRealDoc && docRule.requiresDocument ? 'text-rose-600' : missingDoc ? 'text-amber-600' : 'text-emerald-700'}`} />
                                         <span>Comprovação ({member.modalityName})</span>
                                         {(() => {
                                           if (!hasRealDoc && docRule.requiresDocument) {
                                             return (
-                                              <Badge className="bg-rose-600 text-white text-[10px] font-black uppercase">
-                                                DOCUMENTO PENDENTE (NÃO ANEXADO)
+                                              <Badge className="bg-rose-600 text-white text-[9px] font-black uppercase px-2 py-0.5">
+                                                DOCUMENTO PENDENTE
                                               </Badge>
                                             );
                                           }
                                           if (hasRealDoc && isApproved) {
                                             return (
-                                              <Badge className="bg-emerald-700 text-white text-[10px] font-black uppercase">
+                                              <Badge className="bg-emerald-700 text-white text-[9px] font-black uppercase px-2 py-0.5">
                                                 ✓ COMPROVANTE APROVADO
                                               </Badge>
                                             );
                                           }
                                           if (hasRealDoc && !isApproved) {
                                             return (
-                                              <Badge className="bg-amber-600 text-white text-[10px] font-black uppercase">
-                                                DOCUMENTO ANEXADO (EM ANÁLISE)
+                                              <Badge className="bg-amber-600 text-white text-[9px] font-black uppercase px-2 py-0.5">
+                                                EM ANÁLISE
                                               </Badge>
                                             );
                                           }
                                           return (
-                                            <Badge className="bg-slate-500 text-white text-[10px] font-bold uppercase">
+                                            <Badge className="bg-slate-500 text-white text-[9px] font-bold uppercase px-2 py-0.5">
                                               DISPENSADO
                                             </Badge>
                                           );
                                         })()}
                                       </div>
-                                      <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#004d00] hover:bg-emerald-900 text-white text-xs font-bold cursor-pointer shadow-xs">
+                                      <label className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#004d00] hover:bg-emerald-900 text-white text-xs font-bold cursor-pointer shadow-xs">
                                         <Upload className="w-3.5 h-3.5" />
                                         {uploadingDocMemberId === member.id
                                           ? 'Enviando...'
                                           : memberDocs.length > 0
-                                          ? 'Enviar Novo Comprovante'
-                                          : 'Importar / Anexar Documento'}
+                                          ? 'Novo Comprovante'
+                                          : 'Anexar Documento'}
                                         <input
                                           type="file"
                                           accept="image/*,.pdf"
@@ -1907,11 +1872,9 @@ const SocioPortal: React.FC = () => {
                                       </label>
                                     </div>
                                     {missingDoc && (
-                                      <div className="text-[11px] text-amber-900 bg-white/90 rounded-xl p-2.5 border border-amber-200 space-y-1">
-                                        <div className="font-bold">Documentos aceitos para {member.modalityName}:</div>
-                                        {docRule.acceptedDocs.map((d, di) => (
-                                          <div key={di}>✅ {d}</div>
-                                        ))}
+                                      <div className="text-[10px] text-amber-900 bg-white/90 rounded-lg p-2 border border-amber-200/80 leading-snug">
+                                        <span className="font-bold">Comprovantes aceitos: </span>
+                                        <span>{docRule.acceptedDocs.join(' • ')}</span>
                                       </div>
                                     )}
                                     {memberDocs.length > 0 && (
