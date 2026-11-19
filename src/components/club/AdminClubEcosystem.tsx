@@ -1351,6 +1351,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
   const [situacaoLiberar, setSituacaoLiberar] = useState<'SIM' | 'NAO'>('SIM');
   const [situacaoInativar, setSituacaoInativar] = useState<'NAO' | 'SIM'>('NAO');
   const [situacaoMotivoInativo, setSituacaoMotivoInativo] = useState<InactivityReason>('MENSALIDADE_VENCIDA');
+  const [situacaoMotivosInativo, setSituacaoMotivosInativo] = useState<InactivityReason[]>(['MENSALIDADE_VENCIDA']);
   const [situacaoNotasInativo, setSituacaoNotasInativo] = useState<string>('');
   const [depExpDrafts, setDepExpDrafts] = useState<Record<string, string>>({});
   const [lastRegistrationChangeBox, setLastRegistrationChangeBox] = useState<{
@@ -2733,7 +2734,15 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         setSituacaoLiberar('NAO');
         setSituacaoInativar('SIM');
       }
-      setSituacaoMotivoInativo(selectedSubForDetail.inactivityReason || 'MENSALIDADE_VENCIDA');
+      const initReason = selectedSubForDetail.inactivityReason || 'MENSALIDADE_VENCIDA';
+      setSituacaoMotivoInativo(initReason);
+      if (selectedSubForDetail.inactivityReasons && selectedSubForDetail.inactivityReasons.length > 0) {
+        setSituacaoMotivosInativo(selectedSubForDetail.inactivityReasons);
+      } else if (initReason === 'MENSALIDADE_E_DOCUMENTOS') {
+        setSituacaoMotivosInativo(['MENSALIDADE_VENCIDA', 'FALTA_DOCUMENTOS']);
+      } else {
+        setSituacaoMotivosInativo([initReason]);
+      }
       setSituacaoNotasInativo(selectedSubForDetail.inactivityNotes || '');
       setTempExpirationDate(selectedSubForDetail.endDate || '2027-10-31');
       const rawPlanDesc = selectedSubForDetail.planSummaryLabel || '';
@@ -3018,6 +3027,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 phone: editClientData.holderPhone.trim() || m.phone,
                 status: targetStatus,
                 inactivityReason: targetStatus === 'ACTIVE' ? undefined : (situacaoMotivoInativo || 'MENSALIDADE_VENCIDA'),
+                inactivityReasons: targetStatus === 'ACTIVE' ? undefined : situacaoMotivosInativo,
                 inactivityNotes: targetStatus === 'ACTIVE' ? undefined : (situacaoNotasInativo || undefined),
                 manualStatusOverride: true,
                 expirationDate: nextEndDate || m.expirationDate,
@@ -3032,6 +3042,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     ? targetStatus
                     : m.status,
                 inactivityReason: targetStatus === 'ACTIVE' ? undefined : (situacaoMotivoInativo || 'MENSALIDADE_VENCIDA'),
+                inactivityReasons: targetStatus === 'ACTIVE' ? undefined : situacaoMotivosInativo,
                 inactivityNotes: targetStatus === 'ACTIVE' ? undefined : (situacaoNotasInativo || undefined),
                 manualStatusOverride: true,
                 validityLabel: m.expirationDate
@@ -3040,6 +3051,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
               }
         ),
         inactivityReason: targetStatus === 'ACTIVE' ? undefined : (situacaoMotivoInativo || 'MENSALIDADE_VENCIDA'),
+        inactivityReasons: targetStatus === 'ACTIVE' ? undefined : situacaoMotivosInativo,
         inactivityNotes: targetStatus === 'ACTIVE' ? undefined : (situacaoNotasInativo || undefined),
         updatedAt: new Date().toISOString(),
         transferCompleted: targetStatus === 'ACTIVE' ? true : false,
@@ -4079,6 +4091,9 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       const prevLabel = sub.status === 'ACTIVE' ? 'ATIVO' : 'INATIVO';
       const newLabel = newStatus === 'ACTIVE' ? 'ATIVO' : 'INATIVO';
       const effectiveReason = reasonOverride || situacaoMotivoInativo || 'MENSALIDADE_VENCIDA';
+      const effectiveReasons = (situacaoMotivosInativo && situacaoMotivosInativo.length > 0)
+        ? situacaoMotivosInativo
+        : [effectiveReason];
       const effectiveNotes = notesOverride !== undefined ? notesOverride : situacaoNotasInativo;
       const nextEndDate =
         editClientData.endDate.trim() ||
@@ -4108,6 +4123,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         holderMaritalStatus: editClientData.holderMaritalStatus || sub.holderMaritalStatus,
         status: newStatus,
         inactivityReason: newStatus === 'ACTIVE' ? undefined : effectiveReason,
+        inactivityReasons: newStatus === 'ACTIVE' ? undefined : effectiveReasons,
         inactivityNotes: newStatus === 'ACTIVE' ? undefined : (effectiveNotes || undefined),
         manualStatusOverride: true,
         isModifiedFromSeed: true,
@@ -4120,6 +4136,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
           ...m,
           status: newStatus === 'ACTIVE' ? 'ACTIVE' : 'INACTIVE',
           inactivityReason: newStatus === 'ACTIVE' ? undefined : effectiveReason,
+          inactivityReasons: newStatus === 'ACTIVE' ? undefined : effectiveReasons,
           inactivityNotes: newStatus === 'ACTIVE' ? undefined : (effectiveNotes || undefined),
           manualStatusOverride: true,
           documentVerified: newStatus === 'ACTIVE' ? true : m.documentVerified,
@@ -13731,22 +13748,130 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
                       {/* OPÇÕES DOS MOTIVOS DE INATIVIDADE */}
                       {situacaoInativar === 'SIM' && (
-                        <div className="sm:col-span-12 bg-rose-50 border-2 border-rose-200 rounded-xl p-3.5 space-y-2.5">
+                        <div className="sm:col-span-12 bg-rose-50 border-2 border-rose-200 rounded-xl p-3.5 space-y-3">
                           <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                             <Label className="text-xs font-black text-rose-950 shrink-0 flex items-center gap-1.5">
                               ⚠️ Motivo da Inativação:
                             </Label>
                             <select
                               value={situacaoMotivoInativo}
-                              onChange={(e) => setSituacaoMotivoInativo(e.target.value as InactivityReason)}
+                              onChange={(e) => {
+                                const val = e.target.value as InactivityReason;
+                                setSituacaoMotivoInativo(val);
+                                if (val === 'MENSALIDADE_E_DOCUMENTOS') {
+                                  setSituacaoMotivosInativo(['MENSALIDADE_VENCIDA', 'FALTA_DOCUMENTOS']);
+                                } else {
+                                  setSituacaoMotivosInativo([val]);
+                                }
+                              }}
                               className="w-full flex-1 h-9 rounded-lg border border-rose-300 px-3 text-xs font-bold bg-white text-rose-950 focus:ring-rose-500"
                             >
                               <option value="MENSALIDADE_VENCIDA">Mensalidades Vencidas / Pagamento Pendente</option>
                               <option value="FALTA_DOCUMENTOS">Falta de Documentos / Documentação Pendente</option>
+                              <option value="MENSALIDADE_E_DOCUMENTOS">Falta de Documentos E Mensalidades Vencidas (Ambos)</option>
                               <option value="SOLICITACAO_CLIENTE">Solicitação do Associado (Pausa / Cancelamento)</option>
                               <option value="ADMINISTRATIVO">Decisão Administrativa / Bloqueio Interno</option>
                             </select>
                           </div>
+
+                          {/* SELEÇÃO DE MÚLTIPLOS MOTIVOS (CHECKBOXES / CARDS INTERATIVOS) */}
+                          <div className="bg-white/80 border border-rose-200 rounded-lg p-2.5 space-y-2">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="font-black text-rose-950 flex items-center gap-1.5 text-[11px] uppercase tracking-wider">
+                                ☑️ Selecionar Múltiplos Motivos Combinados:
+                              </span>
+                              {situacaoMotivosInativo.length > 1 && (
+                                <span className="bg-rose-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase">
+                                  {situacaoMotivosInativo.length} motivos ativos
+                                </span>
+                              )}
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+                              {[
+                                {
+                                  id: 'MENSALIDADE_VENCIDA' as InactivityReason,
+                                  label: 'Mensalidades Vencidas',
+                                  icon: '💳',
+                                  desc: 'Pagamento pendente / em atraso',
+                                },
+                                {
+                                  id: 'FALTA_DOCUMENTOS' as InactivityReason,
+                                  label: 'Falta de Documentos',
+                                  icon: '📑',
+                                  desc: 'RG, foto ou comprovantes pendentes',
+                                },
+                                {
+                                  id: 'SOLICITACAO_CLIENTE' as InactivityReason,
+                                  label: 'Solicitação do Cliente',
+                                  icon: '⏸️',
+                                  desc: 'Pausa ou cancelamento a pedido',
+                                },
+                                {
+                                  id: 'ADMINISTRATIVO' as InactivityReason,
+                                  label: 'Bloqueio Administrativo',
+                                  icon: '⚠️',
+                                  desc: 'Decisão interna da diretoria',
+                                },
+                              ].map((item) => {
+                                const isChecked =
+                                  situacaoMotivosInativo.includes(item.id) ||
+                                  (situacaoMotivoInativo === 'MENSALIDADE_E_DOCUMENTOS' &&
+                                    (item.id === 'MENSALIDADE_VENCIDA' || item.id === 'FALTA_DOCUMENTOS'));
+
+                                return (
+                                  <label
+                                    key={item.id}
+                                    className={cn(
+                                      'flex items-start gap-2 p-2 rounded-lg border text-xs cursor-pointer transition-all select-none',
+                                      isChecked
+                                        ? 'bg-rose-100/90 border-rose-400 text-rose-950 font-bold shadow-xs'
+                                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                                    )}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={isChecked}
+                                      onChange={(e) => {
+                                        const checked = e.target.checked;
+                                        let nextList: InactivityReason[];
+                                        if (checked) {
+                                          nextList = Array.from(new Set([...situacaoMotivosInativo, item.id]));
+                                        } else {
+                                          nextList = situacaoMotivosInativo.filter((id) => id !== item.id);
+                                          if (nextList.length === 0) {
+                                            nextList = [item.id === 'MENSALIDADE_VENCIDA' ? 'FALTA_DOCUMENTOS' : 'MENSALIDADE_VENCIDA'];
+                                          }
+                                        }
+                                        setSituacaoMotivosInativo(nextList);
+
+                                        // Atualiza o motivo principal exibido no select e salvo no banco
+                                        if (nextList.includes('MENSALIDADE_VENCIDA') && nextList.includes('FALTA_DOCUMENTOS')) {
+                                          setSituacaoMotivoInativo('MENSALIDADE_E_DOCUMENTOS');
+                                        } else if (nextList.length === 1) {
+                                          setSituacaoMotivoInativo(nextList[0]);
+                                        } else if (nextList.includes('MENSALIDADE_VENCIDA')) {
+                                          setSituacaoMotivoInativo('MENSALIDADE_VENCIDA');
+                                        } else {
+                                          setSituacaoMotivoInativo(nextList[0] || 'MENSALIDADE_VENCIDA');
+                                        }
+                                      }}
+                                      className="mt-0.5 rounded text-rose-600 focus:ring-rose-500 h-3.5 w-3.5"
+                                    />
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-1 font-black text-rose-950 text-xs">
+                                        <span>{item.icon}</span>
+                                        <span>{item.label}</span>
+                                      </div>
+                                      <p className="text-[10px] text-slate-500 font-normal leading-tight">
+                                        {item.desc}
+                                      </p>
+                                    </div>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          </div>
+
                           <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                             <Label className="text-xs font-bold text-rose-900 shrink-0">
                               Observações do Admin:
@@ -13760,7 +13885,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                             />
                           </div>
                           <p className="text-[11px] text-rose-800 font-medium">
-                            💡 O motivo selecionado será exibido imediatamente no Portal do Sócio para que o associado visualize a pendência e regularize.
+                            💡 O(s) motivo(s) selecionado(s) será(ão) exibido(s) imediatamente no Portal do Sócio para que o associado visualize a pendência e regularize.
                           </p>
                         </div>
                       )}

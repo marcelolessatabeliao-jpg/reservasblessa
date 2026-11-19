@@ -1193,6 +1193,8 @@ const SocioPortal: React.FC = () => {
                       ? '● STATUS ATUAL: PLANO ATIVO (LIBERADO)'
                       : isPendingTransfer
                       ? '● STATUS ATUAL: CADASTRO EM TRANSFERÊNCIA (EM CONFERÊNCIA)'
+                      : subscription.inactivityReason === 'MENSALIDADE_E_DOCUMENTOS'
+                      ? '● STATUS ATUAL: PLANO INATIVO (MENSALIDADE VENCIDA + DOCS PENDENTES)'
                       : subscription.inactivityReason === 'MENSALIDADE_VENCIDA'
                       ? '● STATUS ATUAL: PLANO INATIVO (MENSALIDADE VENCIDA / PENDENTE)'
                       : subscription.inactivityReason === 'FALTA_DOCUMENTOS'
@@ -1372,6 +1374,8 @@ const SocioPortal: React.FC = () => {
                       }`}>
                         {isPendingTransfer
                           ? '⏳ Cadastro em Transferência — Em Conferência / Organização'
+                          : subscription.inactivityReason === 'MENSALIDADE_E_DOCUMENTOS'
+                          ? '🔒 Plano Inativo — Mensalidade Vencida e Falta de Documentos'
                           : subscription.inactivityReason === 'MENSALIDADE_VENCIDA'
                           ? '🔒 Plano Inativo — Mensalidade Vencida / Pendente'
                           : subscription.inactivityReason === 'FALTA_DOCUMENTOS'
@@ -1389,6 +1393,8 @@ const SocioPortal: React.FC = () => {
                       }`}>
                         {isPendingTransfer
                           ? 'Os dados e dependentes deste cadastro estão sendo organizados e transferidos pela administração do balneário. A liberação ocorrerá assim que a transferência for concluída.'
+                          : subscription.inactivityReason === 'MENSALIDADE_E_DOCUMENTOS'
+                          ? 'Identificamos mensalidade(s) pendente(s) ou em atraso e também pendência de documentos obrigatórios para este cadastro. Regularize as parcelas na aba "Mensalidades" e anexe os documentos na aba "Documentos" para liberar seu acesso ao clube e suas carteirinhas.'
                           : subscription.inactivityReason === 'MENSALIDADE_VENCIDA'
                           ? 'Identificamos mensalidade(s) pendente(s) ou em atraso para este cadastro. Regularize através da aba "Mensalidades" para liberar o acesso ao clube e suas carteirinhas.'
                           : subscription.inactivityReason === 'FALTA_DOCUMENTOS'
@@ -1450,7 +1456,9 @@ const SocioPortal: React.FC = () => {
                                 ? `Cadastro expirado em ${formatDateBR(effExp)}`
                                 : !isSubscriptionActive || member.status !== 'ACTIVE'
                                 ? (
-                                    subscription.inactivityReason === 'MENSALIDADE_VENCIDA'
+                                    subscription.inactivityReason === 'MENSALIDADE_E_DOCUMENTOS'
+                                      ? 'Bloqueado por mensalidade pendente e documentos'
+                                      : subscription.inactivityReason === 'MENSALIDADE_VENCIDA'
                                       ? 'Bloqueado por mensalidade pendente'
                                       : subscription.inactivityReason === 'FALTA_DOCUMENTOS'
                                       ? 'Bloqueado por pendência documental'
@@ -1654,7 +1662,9 @@ const SocioPortal: React.FC = () => {
                                     ? 'Dependente inativo no momento'
                                     : !isSubscriptionActive || member.status !== 'ACTIVE'
                                     ? (
-                                        subscription.inactivityReason === 'MENSALIDADE_VENCIDA'
+                                        subscription.inactivityReason === 'MENSALIDADE_E_DOCUMENTOS'
+                                          ? 'Bloqueado por mensalidade pendente e documentos'
+                                          : subscription.inactivityReason === 'MENSALIDADE_VENCIDA'
                                           ? 'Bloqueado por mensalidade pendente'
                                           : subscription.inactivityReason === 'FALTA_DOCUMENTOS'
                                           ? 'Bloqueado por pendência documental'
