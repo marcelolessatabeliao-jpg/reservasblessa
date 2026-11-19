@@ -70,10 +70,7 @@ export default function Assinatura() {
               Tabela 2026
             </span>
             <span>
-              Garanta o preço atual assinando o <strong>Plano Anual parcelado em até 12x no cartão</strong>. Novos valores entrarão em vigência a partir de <strong>2027</strong>!
-            </span>
-            <span className="text-[10px] text-amber-300 font-bold bg-black/30 px-2 py-0.5 rounded-md border border-amber-300/40 tracking-wide">
-              *Aviso: Reajuste de valores para cima a partir de 2027.
+              Garanta agora o <strong>Preço de 2026 em até 12x no Cartão</strong>. Novos valores entrarão em vigência a partir de <strong>2027</strong>!
             </span>
           </div>
         </div>
@@ -210,20 +207,17 @@ export default function Assinatura() {
       </section>
 
       {/* 10. FINAL CTA SECTION */}
-      <section className="py-16 bg-gradient-to-br from-emerald-950 via-emerald-900 to-emerald-950 text-white relative overflow-hidden">
-        <div className="container mx-auto px-4 text-center max-w-3xl space-y-6 relative z-10">
-          <span className="bg-amber-400 text-emerald-950 text-xs font-black uppercase px-3 py-1 rounded-full tracking-widest inline-block">
+      <section className="py-12 sm:py-16 bg-gradient-to-br from-emerald-950 via-emerald-900 to-emerald-950 text-white relative overflow-hidden">
+        <div className="container mx-auto px-4 text-center max-w-2xl space-y-4 relative z-10">
+          <span className="bg-amber-400 text-emerald-950 text-[11px] font-black uppercase px-3 py-1 rounded-full tracking-wider inline-block shadow-xs">
             Não Perca o Prazo
           </span>
-          <h2 className="font-display font-black text-3xl sm:text-5xl text-white leading-tight">
+          <h2 className="font-display font-black text-2xl sm:text-3xl text-white leading-snug">
             Garanta agora o Preço de 2026 em até 12x no Cartão
           </h2>
-          <p className="text-emerald-100/80 text-sm sm:text-base font-medium max-w-xl mx-auto leading-relaxed">
+          <p className="text-emerald-100/90 text-xs sm:text-sm font-medium max-w-lg mx-auto leading-relaxed">
             Novos valores entrarão em vigência a partir de 2027. Assine hoje mesmo e tenha o melhor balneário de Rondônia à disposição da sua família o ano todo.
           </p>
-          <div className="inline-block bg-white/10 border border-amber-300/40 rounded-xl px-4 py-2 text-xs text-amber-200 font-medium max-w-lg mx-auto">
-            📢 <strong className="text-amber-300 font-bold">Aviso:</strong> Mudança de valores com reajuste para cima a partir de 2027. Garanta os valores atuais assinando o Plano Anual!
-          </div>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
             <Button

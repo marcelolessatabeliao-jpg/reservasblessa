@@ -79,10 +79,6 @@ export function SpecialPlansSection() {
             Selecione entre <strong>Plano Anual (10% OFF em até 12x)</strong> ou{' '}
             <strong>Plano Mensal Recorrente</strong> diretamente no plano escolhido.
           </p>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-900 border border-amber-200/90 shadow-xs">
-            <span className="text-amber-700 font-black">📢 Aviso:</span>
-            <span>Mudança de tabela com reajuste de valores para cima a partir de 2027. Aproveite a tabela atual de 2026!</span>
-          </div>
 
           <div className="pt-2 flex justify-center">
             <div className="inline-flex bg-white p-1 rounded-2xl border-2 border-emerald-950/20 shadow-md">
