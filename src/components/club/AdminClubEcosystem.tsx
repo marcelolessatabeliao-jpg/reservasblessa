@@ -135,6 +135,7 @@ import {
   formatPhone,
   calculateKidsExpirationDate,
   formatBirthDate,
+  getBirthDatePassword,
   getMemberAccessMessage,
   updateAsaasPaymentDueDate,
   deleteAsaasPayment,
@@ -192,6 +193,107 @@ const MONTH_OPTIONS = [
   { value: '2026-12', label: 'Dezembro/2026' },
   { value: '2027-01', label: 'Janeiro/2027' },
 ];
+
+export interface ClubMessageTemplate {
+  id: string;
+  name: string;
+  badge?: string;
+  description: string;
+  templateText: string;
+}
+
+export const CLUB_MESSAGE_TEMPLATES: ClubMessageTemplate[] = [
+  {
+    id: 'NOVO_PORTAL_2027',
+    name: '🌿 Novo Portal + Reajuste 2027',
+    badge: 'Recomendado',
+    description: 'Aviso sobre a nova plataforma, reajuste 2027, plano anual com 10% OFF e dados de acesso.',
+    templateText: `🌿 *BALNEÁRIO LESSA | NOVO PORTAL DO SÓCIO!* 💚
+
+Olá, {NOME}! 🎉
+
+Estamos mudando para uma plataforma *mais simples, moderna e prática!*
+
+Agora você pode:
+
+✅ Emitir suas carteirinhas digitais.
+✅ Consultar contratos e anexos.
+✅ Visualizar e pagar suas faturas.
+✅ Gerenciar todos os dependentes em um único cadastro!
+
+📢 *AVISO IMPORTANTE!*
+
+A partir de *janeiro de 2027*, os planos com pagamento mensal terão reajuste.
+
+💚 *QUER MANTER O VALOR ATUAL?*
+
+Adira ao *PLANO ANUAL, garanta os valores atuais por mais 12 meses e ainda **GANHE 10% DE DESCONTO!* 🎁
+
+📲 Entre em contato com nossa equipe e aproveite essa oportunidade!
+
+Você já pode acessar o Portal do Sócio para ver suas carteirinhas digitais com QR Code, enviar fotos e consultar seu contrato:
+
+🌐 Portal do Sócio: https://reservas.balneariolessa.com.br/socio
+👤 Usuário (Login): {LOGIN}
+🔑 Senha: {SENHA}
+
+Guarde esses dados com carinho. Qualquer dúvida, estamos à disposição!
+
+🌴 *BALNEÁRIO LESSA — O JARDIM DO ÉDEN!*`,
+  },
+  {
+    id: 'COBRANCA_MENSALIDADE',
+    name: '💳 Mensalidade em Aberto',
+    badge: 'Cobrança',
+    description: 'Aviso de mensalidade pendente ou vencida para regularização rápida pelo Portal.',
+    templateText: `Olá, {NOME}! Sua carteirinha Lessa Club (#{CARTAO}) está com mensalidade em aberto. Regularize pelo Portal do Sócio: https://reservas.balneariolessa.com.br/socio`,
+  },
+  {
+    id: 'BOAS_VINDAS_ACESSO',
+    name: '🔑 Boas-vindas & Acesso',
+    badge: 'Credenciais',
+    description: 'Mensagem oficial de boas-vindas com link do portal, usuário e senha padrão.',
+    templateText: `🌿 *BALNEÁRIO FAMÍLIA LESSA — BEM-VINDO AO LESSA CLUB!* 🌿
+
+Olá, *{NOME}*! Seu plano foi cadastrado com sucesso.
+
+Você já pode acessar o Portal do Sócio para ver suas carteirinhas digitais com QR Code, enviar fotos e consultar seu contrato:
+
+🌐 *Portal do Sócio:* https://reservas.balneariolessa.com.br/socio
+👤 *Usuário (Login):* {LOGIN}
+🔑 *Senha:* {SENHA}
+
+Guarde esses dados com carinho. Qualquer dúvida, estamos à disposição!
+
+🌴 *BALNEÁRIO LESSA — O JARDIM DO ÉDEN!*`,
+  },
+  {
+    id: 'DOCUMENTOS_PENDENTES',
+    name: '📑 Pendência de Documentos',
+    badge: 'Validação',
+    description: 'Solicitação para envio de fotos 3x4 e documentos para liberação das carteirinhas.',
+    templateText: `Olá, {NOME}! Notamos que ainda constam documentos ou fotos pendentes para emissão das suas carteirinhas no Lessa Club.
+
+Por favor, acesse o Portal do Sócio (https://reservas.balneariolessa.com.br/socio) na aba "Documentos" para anexá-los e liberar seu acesso ao clube! Qualquer dúvida, estamos à disposição.`,
+  },
+];
+
+export const renderClubMessageTemplate = (
+  template: string,
+  sub?: Partial<ClubSubscription> | null
+): string => {
+  if (!sub) return template;
+  const nome = (sub.holderName || '').trim() || 'associado(a)';
+  const login = (sub.holderEmail || sub.holderCpf || '').trim() || 'Seu e-mail ou CPF';
+  const senha = getBirthDatePassword(sub.holderBirthDate);
+  const cartao = (sub.subscriptionCode || '').trim() || '---';
+
+  return template
+    .replace(/\{NOME\}/g, nome)
+    .replace(/\{LOGIN\}/g, login)
+    .replace(/\{SENHA\}/g, senha)
+    .replace(/\{CARTAO\}/g, cartao);
+};
 
 interface AdminClubEcosystemProps {
   standalone?: boolean;
@@ -1100,9 +1202,12 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
   const [navThemeColor, setNavThemeColor] = useState<string>('#004d00');
   const [siteTermsText, setSiteTermsText] = useState<string>(DEFAULT_SITE_TERMS_TEXT);
   const [isSiteTermsSourceMode, setIsSiteTermsSourceMode] = useState<boolean>(false);
-  const [smsTemplate, setSmsTemplate] = useState(
-    'Olá {NOME}, sua carteirinha Lessa Club (#{CARTAO}) está com mensalidade em aberto. Regularize pelo Portal do Sócio!'
+  const [smsTemplate, setSmsTemplate] = useState<string>(
+    CLUB_MESSAGE_TEMPLATES[0].templateText
   );
+  const [selectedMessageTemplateId, setSelectedMessageTemplateId] = useState<string>('NOVO_PORTAL_2027');
+  const [memberMessageDraft, setMemberMessageDraft] = useState<string>('');
+  const [memberMessageSubId, setMemberMessageSubId] = useState<string>('');
 
   // Multi-card print selection
   const [selectedMemberIdsForPrint, setSelectedMemberIdsForPrint] = useState<
@@ -10255,44 +10360,111 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
             {reportSubView === 'SMS' && (
               <div className="space-y-4">
-                <h4 className="font-black text-base text-slate-900 flex items-center gap-2">
-                  <MessageSquare className="w-5 h-5 text-emerald-700" /> Central de Avisos SMS / WhatsApp para Associados
-                </h4>
-                <Textarea
-                  rows={3}
-                  value={smsTemplate}
-                  onChange={(e) => setSmsTemplate(e.target.value)}
-                  className="text-xs"
-                />
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <h4 className="font-black text-base text-slate-900 flex items-center gap-2">
+                    <MessageSquare className="w-5 h-5 text-emerald-700" /> Central de Avisos SMS / WhatsApp para Associados
+                  </h4>
+                  <Badge variant="outline" className="text-[11px] font-bold text-slate-600 bg-white w-fit">
+                    {(state?.subscriptions || []).length} associados na base
+                  </Badge>
+                </div>
+
+                {/* SELETOR DE MODELOS DE MENSAGEM */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-700">Modelos de Mensagem Pronta</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {CLUB_MESSAGE_TEMPLATES.map((tpl) => {
+                      const isSelected = smsTemplate === tpl.templateText;
+                      return (
+                        <button
+                          key={tpl.id}
+                          type="button"
+                          onClick={() => setSmsTemplate(tpl.templateText)}
+                          className={cn(
+                            'text-xs px-3 py-1.5 rounded-lg border font-bold transition-all text-left flex items-center gap-1.5 cursor-pointer',
+                            isSelected
+                              ? 'bg-emerald-700 text-white border-emerald-700 shadow-sm'
+                              : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                          )}
+                        >
+                          {tpl.name}
+                          {tpl.badge && (
+                            <span
+                              className={cn(
+                                'text-[9px] uppercase px-1.5 py-0.5 rounded font-black',
+                                isSelected ? 'bg-emerald-900 text-emerald-200' : 'bg-slate-100 text-slate-600'
+                              )}
+                            >
+                              {tpl.badge}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-xs text-slate-500">
+                    <span>Texto do Modelo (as tags {'{NOME}'}, {'{LOGIN}'}, {'{SENHA}'}, {'{CARTAO}'} serão substituídas por sócio):</span>
+                    <span>{smsTemplate.length} caracteres</span>
+                  </div>
+                  <Textarea
+                    rows={6}
+                    value={smsTemplate}
+                    onChange={(e) => setSmsTemplate(e.target.value)}
+                    className="text-xs font-mono bg-slate-50 border-slate-300 focus:bg-white resize-y"
+                  />
+                </div>
+
                 <div className="space-y-2">
-                  {(state.subscriptions || []).map((sub) => {
-                    const msg = smsTemplate
-                      .replace('{NOME}', sub.holderName)
-                      .replace('{CARTAO}', sub.subscriptionCode);
-                    const phoneDigits = sub.holderPhone.replace(/\D/g, '');
+                  {(state?.subscriptions || []).map((sub) => {
+                    const msg = renderClubMessageTemplate(smsTemplate, sub);
+                    const phoneDigits = cleanDigits(sub.holderPhone);
+                    const fullPhone = phoneDigits.startsWith('55') ? phoneDigits : `55${phoneDigits}`;
                     return (
                       <div
                         key={sub.id}
-                        className="p-3 rounded-xl border border-slate-200 flex items-center justify-between bg-slate-50 text-xs"
+                        className="p-3 rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-50 hover:bg-white transition-colors text-xs"
                       >
-                        <div>
-                          <strong>{sub.holderName}</strong> • {sub.holderPhone} •
-                          Cartão #{sub.subscriptionCode}
+                        <div className="space-y-0.5">
+                          <div className="font-bold text-slate-900">
+                            {sub.holderName} <span className="text-slate-500 font-normal">• Cartão #{sub.subscriptionCode || '---'}</span>
+                          </div>
+                          <div className="text-[11px] text-slate-500 flex flex-wrap gap-2">
+                            <span>📞 {sub.holderPhone}</span>
+                            <span>👤 {sub.holderEmail || sub.holderCpf}</span>
+                            <span>🔑 {getBirthDatePassword(sub.holderBirthDate)}</span>
+                          </div>
                         </div>
-                        <a
-                          href={`https://wa.me/55${phoneDigits}?text=${encodeURIComponent(
-                            msg
-                          )}`}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
+                        <div className="flex items-center gap-2 shrink-0">
                           <Button
                             size="sm"
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs"
+                            variant="outline"
+                            onClick={() => {
+                              navigator.clipboard.writeText(msg);
+                              toast({
+                                title: 'Mensagem copiada!',
+                                description: `Texto copiado para ${sub.holderName}.`,
+                              });
+                            }}
+                            className="bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs h-8 px-2.5"
                           >
-                            Enviar Aviso
+                            <Copy className="w-3.5 h-3.5 mr-1" /> Copiar
                           </Button>
-                        </a>
+                          <a
+                            href={`https://wa.me/${fullPhone}?text=${encodeURIComponent(msg)}`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            <Button
+                              size="sm"
+                              className="bg-[#004d00] hover:bg-emerald-900 text-white font-bold text-xs h-8"
+                            >
+                              <MessageSquare className="w-3.5 h-3.5 mr-1.5" /> Enviar Aviso
+                            </Button>
+                          </a>
+                        </div>
                       </div>
                     );
                   })}
@@ -18699,32 +18871,173 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     );
                   })()}
 
-                  <div className="space-y-2 pt-2 border-t border-slate-200">
-                    <Label className="text-xs font-bold text-slate-700">Mensagem Personalizada</Label>
-                    <Textarea
-                      rows={3}
-                      value={smsTemplate
-                        .replace('{NOME}', selectedSubForDetail.holderName)
-                        .replace('{CARTAO}', selectedSubForDetail.subscriptionCode)}
-                      onChange={(e) => setSmsTemplate(e.target.value)}
-                      className="text-xs"
-                    />
-                    <a
-                      href={`https://wa.me/55${selectedSubForDetail.holderPhone.replace(
-                        /\D/g,
-                        ''
-                      )}?text=${encodeURIComponent(
-                        smsTemplate
-                          .replace('{NOME}', selectedSubForDetail.holderName)
-                          .replace('{CARTAO}', selectedSubForDetail.subscriptionCode)
-                      )}`}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      <Button className="bg-[#004d00] hover:bg-emerald-900 text-white font-bold text-xs mt-2">
-                        <MessageSquare className="w-4 h-4 mr-1.5" /> Enviar via WhatsApp Agora
-                      </Button>
-                    </a>
+                  <div className="space-y-3 pt-3 border-t border-slate-200">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                      <div>
+                        <Label className="text-xs font-black uppercase text-slate-800 tracking-wider">
+                          Modelos de Mensagem Pronta (WhatsApp)
+                        </Label>
+                        <p className="text-[11px] text-slate-500">
+                          Selecione um dos modelos prontos abaixo para preencher o texto automaticamente:
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* BOTÕES / CARDS DE SELEÇÃO RÁPIDA DOS MODELOS */}
+                    {(() => {
+                      const currentMsg =
+                        memberMessageSubId === selectedSubForDetail.id && memberMessageDraft !== ''
+                          ? memberMessageDraft
+                          : renderClubMessageTemplate(
+                              (
+                                CLUB_MESSAGE_TEMPLATES.find((t) => t.id === selectedMessageTemplateId) ||
+                                CLUB_MESSAGE_TEMPLATES[0]
+                              ).templateText,
+                              selectedSubForDetail
+                            );
+                      const phoneDigits = cleanDigits(selectedSubForDetail.holderPhone);
+                      const fullPhone = phoneDigits.startsWith('55') ? phoneDigits : `55${phoneDigits}`;
+
+                      return (
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                            {CLUB_MESSAGE_TEMPLATES.map((tpl) => {
+                              const isSelected = selectedMessageTemplateId === tpl.id;
+                              return (
+                                <button
+                                  key={tpl.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedMessageTemplateId(tpl.id);
+                                    setMemberMessageSubId(selectedSubForDetail.id);
+                                    setMemberMessageDraft(renderClubMessageTemplate(tpl.templateText, selectedSubForDetail));
+                                  }}
+                                  className={cn(
+                                    'p-3 rounded-xl border text-left transition-all relative flex flex-col justify-between cursor-pointer',
+                                    isSelected
+                                      ? 'bg-emerald-50/90 border-emerald-600 ring-2 ring-emerald-500/30 shadow-sm'
+                                      : 'bg-white border-slate-200 hover:border-emerald-300 hover:bg-slate-50'
+                                  )}
+                                >
+                                  <div className="space-y-1">
+                                    <div className="flex items-center justify-between gap-1">
+                                      <span
+                                        className={cn(
+                                          'text-xs font-black truncate',
+                                          isSelected ? 'text-emerald-950' : 'text-slate-800'
+                                        )}
+                                      >
+                                        {tpl.name}
+                                      </span>
+                                      {tpl.badge && (
+                                        <span
+                                          className={cn(
+                                            'text-[9px] uppercase px-1.5 py-0.5 rounded font-black shrink-0',
+                                            isSelected
+                                              ? 'bg-emerald-700 text-white'
+                                              : 'bg-slate-100 text-slate-600'
+                                          )}
+                                        >
+                                          {tpl.badge}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className="text-[11px] text-slate-500 line-clamp-2 leading-tight">
+                                      {tpl.description}
+                                    </p>
+                                  </div>
+                                  <div className="pt-2 flex items-center text-[10px] font-bold">
+                                    {isSelected ? (
+                                      <span className="text-emerald-700 flex items-center gap-1">
+                                        <Check className="w-3 h-3" /> Modelo Ativo
+                                      </span>
+                                    ) : (
+                                      <span className="text-slate-400">
+                                        Clique para selecionar
+                                      </span>
+                                    )}
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          {/* ÁREA DE EDIÇÃO DO TEXTO */}
+                          <div className="space-y-1.5 pt-1">
+                            <div className="flex items-center justify-between">
+                              <Label className="text-xs font-black uppercase text-slate-700 tracking-wider flex items-center gap-1.5">
+                                <Edit3 className="w-3.5 h-3.5 text-emerald-700" /> Prévia da Mensagem Personalizada (Editável)
+                              </Label>
+                              <div className="text-[11px] text-slate-400 flex items-center gap-2">
+                                <span>{currentMsg.length} caracteres</span>
+                                <span>•</span>
+                                <span>Destino: <strong>{selectedSubForDetail.holderPhone}</strong></span>
+                              </div>
+                            </div>
+                            <Textarea
+                              rows={10}
+                              value={currentMsg}
+                              onChange={(e) => {
+                                setMemberMessageSubId(selectedSubForDetail.id);
+                                setMemberMessageDraft(e.target.value);
+                              }}
+                              className="text-xs font-mono leading-relaxed bg-slate-50 border-slate-300 focus:bg-white resize-y shadow-inner"
+                              placeholder="Digite ou edite a mensagem do associado..."
+                            />
+                            <p className="text-[10px] text-slate-400">
+                              Dica: Você pode editar o texto livremente antes de enviar. O login e senha foram preenchidos com os dados reais deste cadastro.
+                            </p>
+                          </div>
+
+                          {/* BOTÕES DE AÇÃO: WHATSAPP, COPIAR E RESTAURAR */}
+                          <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <a
+                                href={`https://wa.me/${fullPhone}?text=${encodeURIComponent(currentMsg)}`}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                <Button className="bg-[#004d00] hover:bg-emerald-900 text-white font-black text-xs h-10 px-4 shadow-sm cursor-pointer">
+                                  <MessageSquare className="w-4 h-4 mr-2 text-emerald-300" /> Enviar via WhatsApp Agora
+                                </Button>
+                              </a>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(currentMsg);
+                                  toast({
+                                    title: 'Mensagem copiada!',
+                                    description: 'Texto copiado com sucesso para a área de transferência.',
+                                  });
+                                }}
+                                className="bg-white hover:bg-slate-100 text-slate-800 border-slate-300 font-bold text-xs h-10 px-3 cursor-pointer"
+                              >
+                                <Copy className="w-3.5 h-3.5 mr-1.5" /> Copiar Mensagem
+                              </Button>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              onClick={() => {
+                                const tpl =
+                                  CLUB_MESSAGE_TEMPLATES.find((t) => t.id === selectedMessageTemplateId) ||
+                                  CLUB_MESSAGE_TEMPLATES[0];
+                                setMemberMessageSubId(selectedSubForDetail.id);
+                                setMemberMessageDraft(renderClubMessageTemplate(tpl.templateText, selectedSubForDetail));
+                                toast({
+                                  title: 'Modelo restaurado!',
+                                  description: 'O texto foi reiniciado com o modelo original.',
+                                });
+                              }}
+                              className="text-slate-500 hover:text-slate-800 text-xs h-10 cursor-pointer"
+                            >
+                              <RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Restaurar Modelo Padrão
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               )}
