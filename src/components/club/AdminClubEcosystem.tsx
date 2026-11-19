@@ -2722,8 +2722,19 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     return Number(sum.toFixed(2));
   }, [state, holderModalityCode, manualDependents, cycle]);
 
+  const currentDetailSubIdRef = useRef<string | null>(null);
+
   useEffect(() => {
-    if (selectedSubForDetail) {
+    if (!selectedSubForDetail) {
+      currentDetailSubIdRef.current = null;
+      return;
+    }
+
+    const isNewClient = currentDetailSubIdRef.current !== selectedSubForDetail.id;
+
+    if (isNewClient) {
+      currentDetailSubIdRef.current = selectedSubForDetail.id;
+
       if (selectedSubForDetail.status === 'ACTIVE') {
         setSituacaoLiberar('SIM');
         setSituacaoInativar('NAO');
@@ -2758,44 +2769,39 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         state?.modalities
       );
 
-      setEditClientData((prev) => {
-        const isSameSub =
-          Boolean(selectedSubForDetail.holderCpf && prev.holderCpf === selectedSubForDetail.holderCpf) ||
-          Boolean(selectedSubForDetail.id && prev.holderName === selectedSubForDetail.holderName);
-
-        return {
-          holderName: selectedSubForDetail.holderName || (isSameSub ? prev.holderName : ''),
-          holderCpf: selectedSubForDetail.holderCpf || (isSameSub ? prev.holderCpf : ''),
-          holderRg: selectedSubForDetail.holderRg || (isSameSub ? prev.holderRg : ''),
-          holderBirthDate: selectedSubForDetail.holderBirthDate || (isSameSub ? prev.holderBirthDate : ''),
-          holderSex: selectedSubForDetail.holderSex || (isSameSub ? prev.holderSex : ''),
-          holderMaritalStatus: selectedSubForDetail.holderMaritalStatus || (isSameSub ? prev.holderMaritalStatus : ''),
-          holderPhone: selectedSubForDetail.holderPhone || (isSameSub ? prev.holderPhone : ''),
-          holderEmail: selectedSubForDetail.holderEmail || (isSameSub ? prev.holderEmail : ''),
-          consultantName: selectedSubForDetail.consultantName || (isSameSub ? prev.consultantName : ''),
-          influencerName: selectedSubForDetail.influencerName || (isSameSub ? prev.influencerName : ''),
-          addressCep: selectedSubForDetail.addressCep || (isSameSub ? prev.addressCep : ''),
-          addressStreet: selectedSubForDetail.addressStreet || (isSameSub ? prev.addressStreet : ''),
-          addressNumber: selectedSubForDetail.addressNumber || (isSameSub ? prev.addressNumber : ''),
-          addressComplement: selectedSubForDetail.addressComplement || (isSameSub ? prev.addressComplement : ''),
-          addressNeighborhood: selectedSubForDetail.addressNeighborhood || (isSameSub ? prev.addressNeighborhood : ''),
-          addressCity: selectedSubForDetail.addressCity || (isSameSub ? prev.addressCity : 'Ariquemes'),
-          addressState: selectedSubForDetail.addressState || (isSameSub ? prev.addressState : 'RO'),
-          vehicleModel: selectedSubForDetail.vehicleModel || (isSameSub ? prev.vehicleModel : ''),
-          vehicleBrand: selectedSubForDetail.vehicleBrand || (isSameSub ? prev.vehicleBrand : ''),
-          vehiclePlate: selectedSubForDetail.vehiclePlate || (isSameSub ? prev.vehiclePlate : ''),
-          vehicleColor: selectedSubForDetail.vehicleColor || (isSameSub ? prev.vehicleColor : ''),
-          vehicleStickerPhotoUrl: selectedSubForDetail.vehicleStickerPhotoUrl || (isSameSub ? prev.vehicleStickerPhotoUrl : ''),
-          vehicleStickerPhotoName: selectedSubForDetail.vehicleStickerPhotoName || (isSameSub ? prev.vehicleStickerPhotoName : ''),
-          notes: selectedSubForDetail.notes || (isSameSub ? prev.notes : ''),
-          dueDay: selectedSubForDetail.dueDay || (isSameSub ? prev.dueDay : 10),
-          billingCycle: selectedSubForDetail.billingCycle || (isSameSub ? prev.billingCycle : 'ANNUAL'),
-          monthlyEquivalent: selectedSubForDetail.monthlyEquivalent ?? (isSameSub ? prev.monthlyEquivalent : 0),
-          planSummaryLabel: selectedSubForDetail.planSummaryLabel || (isSameSub ? prev.planSummaryLabel : ''),
-          modalityCode: detectedModalityCode || (isSameSub ? prev.modalityCode : ''),
-          endDate: selectedSubForDetail.endDate || (isSameSub ? prev.endDate : ''),
-        };
+      setEditClientData({
+        holderName: selectedSubForDetail.holderName || '',
+        holderCpf: selectedSubForDetail.holderCpf || '',
+        holderRg: selectedSubForDetail.holderRg || '',
+        holderBirthDate: selectedSubForDetail.holderBirthDate || '',
+        holderSex: selectedSubForDetail.holderSex || '',
+        holderMaritalStatus: selectedSubForDetail.holderMaritalStatus || '',
+        holderPhone: selectedSubForDetail.holderPhone || '',
+        holderEmail: selectedSubForDetail.holderEmail || '',
+        consultantName: selectedSubForDetail.consultantName || '',
+        influencerName: selectedSubForDetail.influencerName || '',
+        addressCep: selectedSubForDetail.addressCep || '76870-000',
+        addressStreet: selectedSubForDetail.addressStreet || '',
+        addressNumber: selectedSubForDetail.addressNumber || '',
+        addressComplement: selectedSubForDetail.addressComplement || '',
+        addressNeighborhood: selectedSubForDetail.addressNeighborhood || '',
+        addressCity: selectedSubForDetail.addressCity || 'Ariquemes',
+        addressState: selectedSubForDetail.addressState || 'RO',
+        vehicleModel: selectedSubForDetail.vehicleModel || '',
+        vehicleBrand: selectedSubForDetail.vehicleBrand || '',
+        vehiclePlate: selectedSubForDetail.vehiclePlate || '',
+        vehicleColor: selectedSubForDetail.vehicleColor || '',
+        vehicleStickerPhotoUrl: selectedSubForDetail.vehicleStickerPhotoUrl || '',
+        vehicleStickerPhotoName: selectedSubForDetail.vehicleStickerPhotoName || '',
+        notes: selectedSubForDetail.notes || '',
+        dueDay: selectedSubForDetail.dueDay || 10,
+        billingCycle: selectedSubForDetail.billingCycle || 'ANNUAL',
+        monthlyEquivalent: selectedSubForDetail.monthlyEquivalent ?? 0,
+        planSummaryLabel: selectedSubForDetail.planSummaryLabel || '',
+        modalityCode: detectedModalityCode || '',
+        endDate: selectedSubForDetail.endDate || '',
       });
+
       const draftMap: Record<string, string> = {};
       (selectedSubForDetail.members || []).forEach((m) => {
         draftMap[m.id] = m.expirationDate || '';
@@ -2809,14 +2815,29 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       if (typeof window !== 'undefined') {
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
+    } else {
+      // Quando for o MESMO cliente (navegação entre abas ou ações secundárias),
+      // PRESERVA RIGOROSAMENTE todas as alterações e textos preenchidos pelo usuário!
+      setEditClientData((prev) => ({
+        ...prev,
+        holderName: prev.holderName.trim() ? prev.holderName : (selectedSubForDetail.holderName || ''),
+        holderEmail: prev.holderEmail.trim() ? prev.holderEmail : (selectedSubForDetail.holderEmail || ''),
+        holderPhone: prev.holderPhone.trim() ? prev.holderPhone : (selectedSubForDetail.holderPhone || ''),
+        addressCep: prev.addressCep.trim() ? prev.addressCep : (selectedSubForDetail.addressCep || '76870-000'),
+        addressStreet: prev.addressStreet.trim() ? prev.addressStreet : (selectedSubForDetail.addressStreet || ''),
+        addressNumber: prev.addressNumber.trim() ? prev.addressNumber : (selectedSubForDetail.addressNumber || ''),
+        addressComplement: prev.addressComplement.trim() ? prev.addressComplement : (selectedSubForDetail.addressComplement || ''),
+        addressNeighborhood: prev.addressNeighborhood.trim() ? prev.addressNeighborhood : (selectedSubForDetail.addressNeighborhood || ''),
+        addressCity: prev.addressCity.trim() ? prev.addressCity : (selectedSubForDetail.addressCity || 'Ariquemes'),
+        addressState: prev.addressState.trim() ? prev.addressState : (selectedSubForDetail.addressState || 'RO'),
+        vehicleModel: prev.vehicleModel.trim() ? prev.vehicleModel : (selectedSubForDetail.vehicleModel || ''),
+        vehicleBrand: prev.vehicleBrand.trim() ? prev.vehicleBrand : (selectedSubForDetail.vehicleBrand || ''),
+        vehiclePlate: prev.vehiclePlate.trim() ? prev.vehiclePlate : (selectedSubForDetail.vehiclePlate || ''),
+        vehicleColor: prev.vehicleColor.trim() ? prev.vehicleColor : (selectedSubForDetail.vehicleColor || ''),
+        notes: prev.notes.trim() ? prev.notes : (selectedSubForDetail.notes || ''),
+      }));
     }
-  }, [
-    selectedSubForDetail?.id,
-    selectedSubForDetail?.updatedAt,
-    selectedSubForDetail?.holderEmail,
-    selectedSubForDetail?.addressCep,
-    selectedSubForDetail?.endDate,
-  ]);
+  }, [selectedSubForDetail?.id]);
 
   const isFirstMountFiltersRef = useRef(true);
   useEffect(() => {
@@ -3051,8 +3072,9 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 inactivityReasons: targetStatus === 'ACTIVE' ? undefined : situacaoMotivosInativo,
                 inactivityNotes: targetStatus === 'ACTIVE' ? undefined : (situacaoNotasInativo || undefined),
                 manualStatusOverride: true,
-                validityLabel: m.expirationDate
-                  ? getValidityLabelFromDate(m.expirationDate, m.validityLabel)
+                expirationDate: depExpDrafts[m.id] !== undefined ? (depExpDrafts[m.id] || undefined) : m.expirationDate,
+                validityLabel: (depExpDrafts[m.id] || m.expirationDate)
+                  ? getValidityLabelFromDate((depExpDrafts[m.id] || m.expirationDate)!, m.validityLabel)
                   : nextValidityLabel || m.validityLabel,
               }
         ),
@@ -3077,7 +3099,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         ),
       };
 
-      await persist(nextState, { waitForCloud: true });
+      // Grava no estado e IndexedDB instantaneamente (sem travar a tela esperando resposta de rede)
+      await persist(nextState);
 
       setEditClientData((prev) => ({ ...prev, endDate: nextEndDate }));
       setTempExpirationDate(nextEndDate);
@@ -4299,6 +4322,17 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
     const updatedSub: ClubSubscription = {
       ...sub,
+      holderName: editClientData.holderName.trim() || sub.holderName,
+      holderEmail: editClientData.holderEmail.trim() || sub.holderEmail,
+      holderPhone: editClientData.holderPhone.trim() || sub.holderPhone,
+      addressCep: editClientData.addressCep.trim() || sub.addressCep,
+      addressStreet: editClientData.addressStreet.trim() || sub.addressStreet,
+      addressNumber: editClientData.addressNumber.trim() || sub.addressNumber,
+      addressComplement: editClientData.addressComplement.trim() || sub.addressComplement,
+      addressNeighborhood: editClientData.addressNeighborhood.trim() || sub.addressNeighborhood,
+      addressCity: editClientData.addressCity.trim() || sub.addressCity,
+      addressState: editClientData.addressState.trim() || sub.addressState,
+      notes: editClientData.notes.trim() || sub.notes,
       updatedAt: new Date().toISOString(),
       isModifiedFromSeed: true,
       members: sub.members.map((m) =>
@@ -12314,6 +12348,17 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   <Button
                     type="button"
                     size="sm"
+                    disabled={isSavingClientRegistration}
+                    onClick={handleSaveClientRegistrationEdits}
+                    className="h-8 bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs shadow-md flex items-center justify-center gap-1.5 cursor-pointer ring-2 ring-emerald-500/50"
+                    title="Salvar todas as alterações do cadastro de uma só vez (dados cadastrais, datas, anexos e situação)"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    {isSavingClientRegistration ? 'Salvando...' : 'Salvar Alterações'}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
                     variant="outline"
                     onClick={() => setSelectedSubForDetail(null)}
                     className="h-8 border-slate-300 bg-white text-slate-800 hover:bg-slate-100 hover:text-slate-950 font-bold text-xs w-full sm:w-auto"
@@ -12496,6 +12541,17 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                               const newValidity = `${mm}/${yyyy}`;
                               const updatedSub: ClubSubscription = {
                                 ...selectedSubForDetail,
+                                holderName: editClientData.holderName.trim() || selectedSubForDetail.holderName,
+                                holderEmail: editClientData.holderEmail.trim() || selectedSubForDetail.holderEmail,
+                                holderPhone: editClientData.holderPhone.trim() || selectedSubForDetail.holderPhone,
+                                addressCep: editClientData.addressCep.trim() || selectedSubForDetail.addressCep,
+                                addressStreet: editClientData.addressStreet.trim() || selectedSubForDetail.addressStreet,
+                                addressNumber: editClientData.addressNumber.trim() || selectedSubForDetail.addressNumber,
+                                addressComplement: editClientData.addressComplement.trim() || selectedSubForDetail.addressComplement,
+                                addressNeighborhood: editClientData.addressNeighborhood.trim() || selectedSubForDetail.addressNeighborhood,
+                                addressCity: editClientData.addressCity.trim() || selectedSubForDetail.addressCity,
+                                addressState: editClientData.addressState.trim() || selectedSubForDetail.addressState,
+                                notes: editClientData.notes.trim() || selectedSubForDetail.notes,
                                 endDate: tempExpirationDate,
                                 members: selectedSubForDetail.members.map((m) => ({
                                   ...m,
@@ -16811,12 +16867,26 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   <ClubDocumentVerificationPanel
                     subscription={selectedSubForDetail}
                     onUpdateSub={async (updatedSub) => {
-                      setSelectedSubForDetail(updatedSub);
+                      const mergedSub: ClubSubscription = {
+                        ...updatedSub,
+                        holderName: editClientData.holderName.trim() || updatedSub.holderName,
+                        holderEmail: editClientData.holderEmail.trim() || updatedSub.holderEmail,
+                        holderPhone: editClientData.holderPhone.trim() || updatedSub.holderPhone,
+                        addressCep: editClientData.addressCep.trim() || updatedSub.addressCep,
+                        addressStreet: editClientData.addressStreet.trim() || updatedSub.addressStreet,
+                        addressNumber: editClientData.addressNumber.trim() || updatedSub.addressNumber,
+                        addressComplement: editClientData.addressComplement.trim() || updatedSub.addressComplement,
+                        addressNeighborhood: editClientData.addressNeighborhood.trim() || updatedSub.addressNeighborhood,
+                        addressCity: editClientData.addressCity.trim() || updatedSub.addressCity,
+                        addressState: editClientData.addressState.trim() || updatedSub.addressState,
+                        notes: editClientData.notes.trim() || updatedSub.notes,
+                      };
+                      setSelectedSubForDetail(mergedSub);
                       if (state) {
                         const nextState: ClubDatabaseState = {
                           ...state,
                           subscriptions: (state.subscriptions || []).map((s) =>
-                            s.id === updatedSub.id ? updatedSub : s
+                            s.id === mergedSub.id ? mergedSub : s
                           ),
                         };
                         await persist(nextState);
@@ -16878,6 +16948,17 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
                         const updatedSub: ClubSubscription = {
                           ...selectedSubForDetail,
+                          holderName: editClientData.holderName.trim() || selectedSubForDetail.holderName,
+                          holderEmail: editClientData.holderEmail.trim() || selectedSubForDetail.holderEmail,
+                          holderPhone: editClientData.holderPhone.trim() || selectedSubForDetail.holderPhone,
+                          addressCep: editClientData.addressCep.trim() || selectedSubForDetail.addressCep,
+                          addressStreet: editClientData.addressStreet.trim() || selectedSubForDetail.addressStreet,
+                          addressNumber: editClientData.addressNumber.trim() || selectedSubForDetail.addressNumber,
+                          addressComplement: editClientData.addressComplement.trim() || selectedSubForDetail.addressComplement,
+                          addressNeighborhood: editClientData.addressNeighborhood.trim() || selectedSubForDetail.addressNeighborhood,
+                          addressCity: editClientData.addressCity.trim() || selectedSubForDetail.addressCity,
+                          addressState: editClientData.addressState.trim() || selectedSubForDetail.addressState,
+                          notes: editClientData.notes.trim() || selectedSubForDetail.notes,
                           attachments: [
                             newAtt,
                             ...(selectedSubForDetail.attachments || []),
@@ -17401,12 +17482,26 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   <ClubDocumentVerificationPanel
                     subscription={selectedSubForDetail}
                     onUpdateSub={async (updatedSub) => {
-                      setSelectedSubForDetail(updatedSub);
+                      const mergedSub: ClubSubscription = {
+                        ...updatedSub,
+                        holderName: editClientData.holderName.trim() || updatedSub.holderName,
+                        holderEmail: editClientData.holderEmail.trim() || updatedSub.holderEmail,
+                        holderPhone: editClientData.holderPhone.trim() || updatedSub.holderPhone,
+                        addressCep: editClientData.addressCep.trim() || updatedSub.addressCep,
+                        addressStreet: editClientData.addressStreet.trim() || updatedSub.addressStreet,
+                        addressNumber: editClientData.addressNumber.trim() || updatedSub.addressNumber,
+                        addressComplement: editClientData.addressComplement.trim() || updatedSub.addressComplement,
+                        addressNeighborhood: editClientData.addressNeighborhood.trim() || updatedSub.addressNeighborhood,
+                        addressCity: editClientData.addressCity.trim() || updatedSub.addressCity,
+                        addressState: editClientData.addressState.trim() || updatedSub.addressState,
+                        notes: editClientData.notes.trim() || updatedSub.notes,
+                      };
+                      setSelectedSubForDetail(mergedSub);
                       if (state) {
                         const nextState: ClubDatabaseState = {
                           ...state,
                           subscriptions: (state.subscriptions || []).map((s) =>
-                            s.id === updatedSub.id ? updatedSub : s
+                            s.id === mergedSub.id ? mergedSub : s
                           ),
                         };
                         await persist(nextState);
@@ -17735,6 +17830,17 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                             );
                             const updatedSub: ClubSubscription = {
                               ...selectedSubForDetail,
+                              holderName: editClientData.holderName.trim() || selectedSubForDetail.holderName,
+                              holderEmail: editClientData.holderEmail.trim() || selectedSubForDetail.holderEmail,
+                              holderPhone: editClientData.holderPhone.trim() || selectedSubForDetail.holderPhone,
+                              addressCep: editClientData.addressCep.trim() || selectedSubForDetail.addressCep,
+                              addressStreet: editClientData.addressStreet.trim() || selectedSubForDetail.addressStreet,
+                              addressNumber: editClientData.addressNumber.trim() || selectedSubForDetail.addressNumber,
+                              addressComplement: editClientData.addressComplement.trim() || selectedSubForDetail.addressComplement,
+                              addressNeighborhood: editClientData.addressNeighborhood.trim() || selectedSubForDetail.addressNeighborhood,
+                              addressCity: editClientData.addressCity.trim() || selectedSubForDetail.addressCity,
+                              addressState: editClientData.addressState.trim() || selectedSubForDetail.addressState,
+                              notes: editClientData.notes.trim() || selectedSubForDetail.notes,
                               members: updatedMembers,
                               monthlyEquivalent: newMonthlyTotal,
                               totalContractValue:
