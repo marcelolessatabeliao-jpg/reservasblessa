@@ -1590,7 +1590,13 @@ export const loadClubStateLocal = (): ClubDatabaseState => {
             const localInvMap = new Map((s.invoices || []).map((inv) => [inv.id, inv]));
             s.invoices = seedSub.invoices.map((sInv) => {
               const localInv = localInvMap.get(sInv.id);
-              return localInv ? { ...sInv, ...localInv } : sInv;
+              if (!localInv) return sInv;
+              const merged = { ...sInv, ...localInv };
+              if (sInv.status === 'PENDING') {
+                merged.status = 'PENDING';
+                merged.paidAt = undefined;
+              }
+              return merged;
             });
           }
         }
@@ -2121,13 +2127,23 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
                 s.invoices = fullInvoicesSource.map((fInv) => {
                   const lInv = localInvMap.get(fInv.id);
                   const rInv = remoteInvMap.get(fInv.id);
-                  return { ...fInv, ...(rInv || {}), ...(lInv || {}) };
+                  const merged = { ...fInv, ...(lInv || {}), ...(rInv || {}) };
+                  // Fidelidade com Asaas e Nuvem: se nuvem ou seed oficial definem PENDING, é PENDING e sem data de pagamento!
+                  if (rInv?.status === 'PENDING' || fInv.status === 'PENDING') {
+                    merged.status = 'PENDING';
+                    merged.paidAt = undefined;
+                  }
+                  if (rInv?.amount) merged.amount = rInv.amount;
+                  if (rInv?.dueDate) merged.dueDate = rInv.dueDate;
+                  if (rInv?.asaasPaymentId) merged.asaasPaymentId = rInv.asaasPaymentId;
+                  return merged;
                 });
               } else if (current.invoices && current.invoices.some((i) => i.asaasPaymentId)) {
                 const remoteInvMap = new Map(current.invoices.map((inv) => [inv.id, inv]));
                 s.invoices = (s.invoices || []).map((localInv) => {
                   const rInv = remoteInvMap.get(localInv.id);
                   if (rInv && rInv.asaasPaymentId) {
+                    const finalStatus = rInv.status || localInv.status;
                     return {
                       ...localInv,
                       dueDate: rInv.dueDate || localInv.dueDate,
@@ -2135,8 +2151,9 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
                       invoiceUrl: rInv.invoiceUrl || localInv.invoiceUrl,
                       pixPayload: rInv.pixPayload || localInv.pixPayload,
                       pixQrCode: rInv.pixQrCode || localInv.pixQrCode,
-                      status: rInv.status || localInv.status,
-                      paidAt: rInv.paidAt || localInv.paidAt,
+                      status: finalStatus,
+                      paidAt: finalStatus === 'PENDING' ? undefined : (rInv.paidAt || localInv.paidAt),
+                      amount: rInv.amount || localInv.amount,
                     };
                   }
                   return localInv;
