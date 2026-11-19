@@ -155,13 +155,45 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
             documentRejectionReason: undefined,
             documentVerifiedAt: new Date().toISOString(),
             documentVerifiedBy: 'Administrador',
-            status: 'ACTIVE' as const,
-            manualStatusOverride: true,
+            // NÃO força a liberação do membro se a assinatura estiver inativa ou se houver débito
+            status: currentSub.status === 'INACTIVE' ? 'INACTIVE' : (m.status || 'ACTIVE'),
             attachments: mergedMemAtts,
           };
         }
         return m;
       });
+
+      // Motivos de inatividade atuais da assinatura
+      const currentReasons = currentSub.inactivityReasons || (currentSub.inactivityReason ? [currentSub.inactivityReason] : []);
+      const remainingReasons = currentReasons.filter(
+        (r) => r !== 'FALTA_DOCUMENTOS' && (r as string) !== 'DOCUMENTO_PENDENTE' && (r as string) !== 'MENSALIDADE_E_DOCUMENTOS'
+      );
+
+      const hadOverdueDebt =
+        currentSub.inactivityReason === 'MENSALIDADE_E_DOCUMENTOS' ||
+        currentSub.inactivityReason === 'MENSALIDADE_VENCIDA' ||
+        currentReasons.includes('MENSALIDADE_VENCIDA') ||
+        (currentSub.invoices || []).some(
+          (i) => i.status === 'OVERDUE' || (i.status === 'PENDING' && new Date(i.dueDate + 'T23:59:59') < new Date())
+        );
+
+      if (hadOverdueDebt && !remainingReasons.includes('MENSALIDADE_VENCIDA')) {
+        remainingReasons.unshift('MENSALIDADE_VENCIDA');
+      }
+
+      // Se o cadastro está inativo ou possui débito, permanece rigorosamente INATIVO
+      const shouldStayInactive =
+        currentSub.status === 'INACTIVE' ||
+        hadOverdueDebt ||
+        remainingReasons.length > 0;
+
+      const finalStatus: 'ACTIVE' | 'INACTIVE' = shouldStayInactive ? 'INACTIVE' : currentSub.status;
+      const finalInactivityReason = shouldStayInactive
+        ? (remainingReasons[0] || (hadOverdueDebt ? 'MENSALIDADE_VENCIDA' : currentSub.inactivityReason || 'MENSALIDADE_VENCIDA'))
+        : undefined;
+      const finalInactivityReasons = shouldStayInactive
+        ? (remainingReasons.length > 0 ? remainingReasons : (hadOverdueDebt ? ['MENSALIDADE_VENCIDA' as InactivityReason] : undefined))
+        : undefined;
 
       const updatedSub: ClubSubscription = {
         ...currentSub,
@@ -180,24 +212,15 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
         endDate: subscription.endDate || currentSub.endDate,
         attachments: mergedAttachments,
         members: updatedMembers,
-        status: 'ACTIVE',
-        manualStatusOverride: true,
-        transferCompleted: true,
-        manuallyConfirmedTransfer: true,
+        // NUNCA força a liberação do cadastro se estiver em débito ou inativo
+        status: finalStatus,
+        transferCompleted: shouldStayInactive ? (currentSub.transferCompleted ?? false) : currentSub.transferCompleted,
+        manuallyConfirmedTransfer: shouldStayInactive ? false : currentSub.manuallyConfirmedTransfer,
+        inactivityReason: finalInactivityReason,
+        inactivityReasons: finalInactivityReasons,
         isModifiedFromSeed: true,
         updatedAt: new Date().toISOString(),
       };
-
-      // Se for o titular sendo aprovado, ativa também os integrantes regulares
-      if (member.role === 'TITULAR') {
-        updatedSub.members = updatedSub.members.map((m) => ({
-          ...m,
-          status: 'ACTIVE',
-          manualStatusOverride: true,
-          documentVerified: true,
-          documentStatus: 'APROVADO' as const,
-        }));
-      }
 
       const nextSubs = allState.subscriptions.map((s) => (s.id === updatedSub.id ? updatedSub : s));
       const nextState: ClubDatabaseState = {
@@ -208,12 +231,14 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
       onUpdateSub(updatedSub);
 
       toast({
-        title: 'Documento Validado e Aprovado!',
-        description: `Comprovação de ${member.fullName} validada com sucesso. Carteirinha liberada.`,
+        title: 'Documento Aprovado!',
+        description: shouldStayInactive
+          ? `Comprovação de ${member.fullName} aprovada com sucesso. O cadastro continua INATIVO por pendências de débito / mensalidade.`
+          : `Comprovação de ${member.fullName} aprovada com sucesso.`,
       });
     } catch (e: any) {
       toast({
-        title: 'Falha ao validar documento',
+        title: 'Falha ao aprovar documento',
         description: e.message || 'Erro desconhecido.',
         variant: 'destructive',
       });
@@ -672,7 +697,7 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
                             onClick={() => handleApprove(member)}
                             className="h-9 px-4 text-xs font-black bg-emerald-700 hover:bg-emerald-800 text-white shadow-md gap-1.5 cursor-pointer"
                           >
-                            <CheckCircle2 className="w-4 h-4" /> Aprovar Documento e Liberar
+                            <CheckCircle2 className="w-4 h-4" /> Aprovar Documento
                           </Button>
 
                           <Button

@@ -489,15 +489,24 @@ export const resolveSubscriptionInactivityStatus = (sub: ClubSubscription): Club
     sub.inactivityReason === 'MENSALIDADE_E_DOCUMENTOS' ||
     (isReasonFinance && isReasonDocs);
 
-  // Se o motivo for administrativo ou solicitação expressa do cliente, preserva a decisão manual
-  if (sub.inactivityReason === 'SOLICITACAO_CLIENTE' || sub.inactivityReason === 'ADMINISTRATIVO') {
+  const hasFinancialDebt = hasOverdue || isReasonFinance;
+
+  // Se o motivo for administrativo, solicitação expressa do cliente ou inativação manual deliberada, preserva a decisão manual
+  if (
+    sub.inactivityReason === 'SOLICITACAO_CLIENTE' ||
+    sub.inactivityReason === 'ADMINISTRATIVO' ||
+    (sub.manualStatusOverride && sub.status === 'INACTIVE' && !isReasonDocs)
+  ) {
     return sub;
   }
 
   // Se o plano está inativo por mensalidade, documento ou ambos:
-  if (sub.status === 'INACTIVE' || isCombined || isReasonFinance || isReasonDocs) {
-    if (!hasOverdue && !hasMissingDoc) {
-      // AMBOS RESOLVIDOS! Libera o plano automaticamente
+  if (sub.status === 'INACTIVE' || isCombined || isReasonFinance || isReasonDocs || hasFinancialDebt) {
+    if (!hasFinancialDebt && !hasMissingDoc) {
+      // AMBOS RESOLVIDOS! Libera o plano se não houver bloqueio manual deliberado
+      if (sub.manualStatusOverride && sub.status === 'INACTIVE') {
+        return sub;
+      }
       return {
         ...sub,
         status: 'ACTIVE',
@@ -517,7 +526,7 @@ export const resolveSubscriptionInactivityStatus = (sub: ClubSubscription): Club
       };
     }
 
-    if (!hasOverdue && hasMissingDoc) {
+    if (!hasFinancialDebt && hasMissingDoc) {
       // Mensalidades em dia, mas ainda falta documento
       return {
         ...sub,
@@ -540,8 +549,8 @@ export const resolveSubscriptionInactivityStatus = (sub: ClubSubscription): Club
       };
     }
 
-    if (hasOverdue && !hasMissingDoc) {
-      // Documentos anexados, mas ainda há mensalidades vencidas
+    if (hasFinancialDebt && !hasMissingDoc) {
+      // Documentos anexados, mas ainda há mensalidades vencidas / pendência financeira
       return {
         ...sub,
         status: 'INACTIVE',
@@ -551,7 +560,8 @@ export const resolveSubscriptionInactivityStatus = (sub: ClubSubscription): Club
           sub.inactivityNotes &&
           (sub.inactivityNotes.toLowerCase().includes('mensal') ||
             sub.inactivityNotes.toLowerCase().includes('pagamento') ||
-            sub.inactivityNotes.toLowerCase().includes('fatura'))
+            sub.inactivityNotes.toLowerCase().includes('fatura') ||
+            sub.inactivityNotes.toLowerCase().includes('atraso'))
             ? sub.inactivityNotes
             : 'Mensalidade(s) pendente(s) ou em atraso para regularização.',
         members: sub.members.map((m) => ({
@@ -564,7 +574,7 @@ export const resolveSubscriptionInactivityStatus = (sub: ClubSubscription): Club
       };
     }
 
-    if (hasOverdue && hasMissingDoc) {
+    if (hasFinancialDebt && hasMissingDoc) {
       // Ambos pendentes
       return {
         ...sub,

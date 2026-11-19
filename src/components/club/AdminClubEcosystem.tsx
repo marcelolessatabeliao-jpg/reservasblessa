@@ -17213,7 +17213,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                       if (refreshedSub) setSelectedSubForDetail(refreshedSub);
                                       toast({
                                         title: !memberItem.documentVerified
-                                          ? 'Documento validado e carteirinha liberada!'
+                                          ? 'Documento validado com sucesso!'
                                           : 'Validação manual revogada.',
                                       });
                                     }}
@@ -17226,7 +17226,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                     <CheckCircle2 className="w-3 h-3 mr-1" />
                                     {memberItem.documentVerified
                                       ? 'Validado ✔'
-                                      : 'Validar / Liberar'}
+                                      : 'Validar Documento'}
                                   </Button>
                                 )}
                                 <Label
@@ -19310,7 +19310,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           )}
 
                           <div className="bg-emerald-50 border border-emerald-300 rounded-xl p-3 text-emerald-950 text-xs font-semibold leading-relaxed">
-                            ✓ Se os dados cadastrais (ex: nascimento / idade 60+) atendem ao benefício, você pode <strong>Aprovar Documento e Liberar</strong> diretamente no painel.
+                            ✓ Se os dados cadastrais (ex: nascimento / idade 60+) atendem ao benefício, você pode <strong>Aprovar Documento</strong> diretamente no painel.
                           </div>
                         </div>
                       )}
