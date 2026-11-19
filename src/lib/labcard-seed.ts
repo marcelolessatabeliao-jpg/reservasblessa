@@ -560,6 +560,82 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
             createdAt: '2026-02-19T00:00:00.000Z',
           });
         });
+      } else if (upName.includes('JADIA') || holderCard === '121225890') {
+        // JADIA: 4 parcelas do Carnê 1 (jan a abr) + Carnê 4 oficial de R$ 200,00 anual à vista quitado em 02/05/2026
+        const jadiaCarnes1 = [
+          { num: 1, ref: '01/2026', due: '2026-01-17', paid: '2026-01-17T10:00:00.000Z', status: 'PAID' as const, asaasPaymentId: 'pay_z6shukb45y2xasz8', val: 49.9 },
+          { num: 2, ref: '02/2026', due: '2026-02-17', paid: '2026-02-28T10:00:00.000Z', status: 'PAID' as const, asaasPaymentId: 'pay_l1qixzp0p9vs32f0', val: 49.9 },
+          { num: 3, ref: '03/2026', due: '2026-03-17', paid: '2026-03-21T10:00:00.000Z', status: 'PAID' as const, asaasPaymentId: 'pay_0fwyhfjkwnyp7p2i', val: 49.9 },
+          { num: 4, ref: '04/2026', due: '2026-04-17', paid: '2026-04-18T10:00:00.000Z', status: 'PAID' as const, asaasPaymentId: 'pay_h551svvpmdxrgc5u', val: 49.9 },
+        ];
+        jadiaCarnes1.forEach((c) => {
+          invoices.push({
+            id: `inv_jadia_c1_${c.num}`,
+            subscriptionId: subId,
+            subscriptionCode: subCode,
+            holderName: name.trim(),
+            holderCpf: formatCpf(cpf),
+            holderPhone: formatPhone(phone),
+            installmentNumber: c.num,
+            totalInstallments: 4,
+            referenceMonth: c.ref,
+            amount: c.val,
+            dueDate: c.due,
+            paidAt: c.paid,
+            paymentMethod: 'PIX',
+            status: c.status,
+            asaasPaymentId: c.asaasPaymentId,
+            description: `Lessa Club (Mensalidade ${c.ref})`,
+            invoiceKind: 'MENSALIDADE',
+            carneGroup: 1,
+            createdAt: '2026-01-17T00:00:00.000Z',
+          });
+        });
+
+        // Carnê 4: Parcela única anual quitada à vista
+        invoices.push({
+          id: 'inv_jadia_anual_carne4',
+          subscriptionId: subId,
+          subscriptionCode: subCode,
+          holderName: name.trim(),
+          holderCpf: formatCpf(cpf),
+          holderPhone: formatPhone(phone),
+          installmentNumber: 1,
+          totalInstallments: 1,
+          referenceMonth: '05/2026',
+          amount: 200,
+          dueDate: '2026-05-02',
+          paidAt: '2026-05-02T10:00:00.000Z',
+          paymentMethod: 'PIX',
+          status: 'PAID',
+          boletoNumber: '180417777559163668',
+          description: 'Lessa Servidor Pass (anual)',
+          invoiceKind: 'MENSALIDADE',
+          carneGroup: 4,
+          createdAt: '2026-05-02T10:00:00.000Z',
+        });
+      } else if (upName.includes('ANDRIRLEI') || holderCard === '1212252794') {
+        invoices.push({
+          id: 'inv_asaas_andrirlei_anual',
+          subscriptionId: subId,
+          subscriptionCode: subCode,
+          holderName: name.trim(),
+          holderCpf: formatCpf(cpf),
+          holderPhone: formatPhone(phone),
+          installmentNumber: 1,
+          totalInstallments: 1,
+          referenceMonth: '06/2026',
+          amount: 270,
+          dueDate: '2026-06-20',
+          paidAt: '2026-06-20T10:00:00.000Z',
+          paymentMethod: 'CREDIT_CARD',
+          status: 'PAID',
+          asaasPaymentId: 'pay_hs461vb73rrypazd',
+          description: 'Lessa Professor Pass (Anual)',
+          invoiceKind: 'MENSALIDADE',
+          carneGroup: 1,
+          createdAt: '2026-06-20T10:00:00.000Z',
+        });
       } else {
         invoices.push({
           id: `inv_${holderCard}_11_2026`,
@@ -619,6 +695,10 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
     const isRoksiane = upName.includes('ROKSIANE') || holderCard === '1212251327';
     const isElsa = upName.includes('ELSA BUENO') || holderCard === '1212251781';
     const isLiliane = holderCard === '1212252498' || upName.includes('LILIANE GABRIEL');
+    const isJadia = holderCard === '121225890' || upName.includes('JADIA');
+    const isAndrirlei = holderCard === '1212252794' || upName.includes('ANDRIRLEI');
+    const isGisseia = holderCard === '1212252990' || upName.includes('GISSEIA');
+    const isEder = holderCard === '1212252991' || upName.includes('EDER APARECIDO');
 
     const savedMedia = KNOWN_SAVED_MEDIA_BY_SUB_CODE[subCode];
 
@@ -642,13 +722,13 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
       addressNeighborhood: isMarli ? 'Jardim Jorge Teixeira' : isRoksiane ? 'Setor 04' : isLiliane ? 'Setor 03' : '',
       addressCity: 'Ariquemes',
       addressState: 'RO',
-      billingCycle: isAnnual ? 'ANNUAL' : 'MONTHLY',
-      paymentMethod: plan.toLowerCase().includes('publicidade') ? 'COURTESY' : 'PIX',
-      installments: isAnnual ? 12 : 1,
-      monthlyEquivalent: mod.price,
-      totalContractValue: isAnnual ? mod.price * 12 : mod.price,
-      dueDay: isRoksiane ? 5 : 10,
-      status: isElsa || isLiliane ? 'INACTIVE' : (isRoksiane || isMarli) ? 'ACTIVE' : finalStatus,
+      billingCycle: (isAnnual || isJadia || isAndrirlei || isGisseia || isEder) ? 'ANNUAL' : 'MONTHLY',
+      paymentMethod: plan.toLowerCase().includes('publicidade') ? 'COURTESY' : (isAndrirlei || isGisseia || isEder) ? 'CREDIT_CARD' : 'PIX',
+      installments: (isJadia || isAndrirlei) ? 1 : isAnnual ? 12 : 1,
+      monthlyEquivalent: (isJadia || isAndrirlei) ? 0 : (isGisseia || isEder) ? 22.50 : mod.price,
+      totalContractValue: isJadia ? 200 : (isAndrirlei || isGisseia || isEder) ? 270 : isAnnual ? mod.price * 12 : mod.price,
+      dueDay: isRoksiane ? 5 : (isJadia ? 2 : (isGisseia || isEder) ? 15 : 10),
+      status: isElsa || isLiliane ? 'INACTIVE' : (isRoksiane || isMarli || isJadia || isAndrirlei || isGisseia || isEder) ? 'ACTIVE' : finalStatus,
       inactivityReason: isElsa
         ? 'MENSALIDADE_VENCIDA'
         : isLiliane

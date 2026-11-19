@@ -14636,11 +14636,31 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     }
 
                     // Identifica cobranças ativas e válidas no Asaas (ignora canceladas/excluídas)
-                    const validPayments = rawPayments.filter((p) => !p.deleted);
+                    const isRoksianeSub =
+                      selectedSubForDetail.subscriptionCode === '1212251327' ||
+                      (selectedSubForDetail.holderName && selectedSubForDetail.holderName.toUpperCase().includes('ROKSIANE'));
+                    const isJadiaSub =
+                      selectedSubForDetail.subscriptionCode === '121225890' ||
+                      (selectedSubForDetail.holderName && selectedSubForDetail.holderName.toUpperCase().includes('JADIA'));
+
+                    const validPayments = rawPayments
+                      .filter((p) => !p.deleted)
+                      .filter((p) => {
+                        // Para Roksiane: expurga estritamente cobranças residuais de dia 31 e carnês cancelados
+                        if (isRoksianeSub && (p.dueDate === '2026-12-31' || (p.dueDate && (p.dueDate.endsWith('-31') || p.dueDate.endsWith('-01'))))) {
+                          return false;
+                        }
+                        return true;
+                      });
+
                     const activeAsaasIds = new Set(validPayments.map((p) => p.id));
 
                     // Remove do perfil local qualquer fatura atrelada a cobrança que foi apagada/excluída no Asaas
                     const currentInvoices = (selectedSubForDetail.invoices || []).filter((inv) => {
+                      if (isJadiaSub && inv.carneGroup === 4) return true; // Preserva o Carnê 4 anual à vista de Jadia
+                      if (isRoksianeSub && (inv.dueDate === '2026-12-31' || (inv.dueDate && (inv.dueDate.endsWith('-31') || inv.dueDate.endsWith('-01'))))) {
+                        return false; // Remove faturas órfãs do carnê cancelado
+                      }
                       if (inv.asaasPaymentId && !activeAsaasIds.has(inv.asaasPaymentId)) {
                         return false; // Foi excluída no Asaas! Remove do cadastro
                       }
@@ -14683,10 +14703,20 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         ? 'OVERDUE'
                         : 'PENDING';
 
-                      const newAmount =
+                      let newAmount =
                         typeof p.value === 'number' && Number.isFinite(p.value)
                           ? p.value
                           : undefined;
+
+                      // Valores atualizados para parcelas de 2027
+                      if (p.dueDate && p.dueDate >= '2027-01-01' && selectedSubForDetail.billingCycle !== 'ANNUAL') {
+                        const planSumm = (selectedSubForDetail.planSummaryLabel || '').toLowerCase();
+                        if (planSumm.includes('4 pessoas') || desc.includes('4 pessoas')) newAmount = 239.60;
+                        else if (planSumm.includes('3 pessoas') || desc.includes('3 pessoas') || p.value === 149.70) newAmount = 179.70;
+                        else if (planSumm.includes('2 pessoas') || desc.includes('2 pessoas') || p.value === 99.80) newAmount = 119.80;
+                        else if (planSumm.includes('servidor') || planSumm.includes('estudante') || planSumm.includes('professor') || p.value === 25) newAmount = 30.00;
+                        else if (planSumm.includes('lessa club') || p.value === 49.90) newAmount = 59.90;
+                      }
 
                       if (existingInvIndex >= 0) {
                         const existing = currentInvoices[existingInvIndex];
@@ -14695,7 +14725,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           ...existing,
                           amount: newAmount !== undefined ? newAmount : existing.amount,
                           asaasPaymentId: p.id,
-                          carneGroup,
+                          carneGroup: existing.carneGroup || carneGroup,
                           status: newStatus,
                           paidAt: isPaid
                             ? (p.clientPaymentDate || p.paymentDate || p.confirmedDate || existing.paidAt || new Date().toISOString())
@@ -14796,10 +14826,30 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                       </span>
                     </h3>
                     <div className="text-xs font-bold text-slate-600 bg-slate-100 border border-slate-200 rounded-lg px-3 py-1.5">
-                      Soma dos planos selecionados:{' '}
-                      <span className="text-[#004d00] font-black">
-                        {formatCurrency(planBreakdown.total)}/mês
-                      </span>
+                      {selectedSubForDetail.billingCycle === 'ANNUAL' ? (
+                        selectedSubForDetail.monthlyEquivalent === 0 || selectedSubForDetail.installments === 1 ? (
+                          <>
+                            Plano Anual à Vista:{' '}
+                            <span className="text-[#004d00] font-black">
+                              {formatCurrency(selectedSubForDetail.totalContractValue || 200)} (Quitado)
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            Plano Anual:{' '}
+                            <span className="text-[#004d00] font-black">
+                              {formatCurrency(selectedSubForDetail.totalContractValue || 270)} ({formatCurrency(planBreakdown.total)}/mês)
+                            </span>
+                          </>
+                        )
+                      ) : (
+                        <>
+                          Soma dos planos selecionados:{' '}
+                          <span className="text-[#004d00] font-black">
+                            {formatCurrency(planBreakdown.total)}/mês
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
 
@@ -14889,12 +14939,16 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                               selectedSubForDetail.subscriptionCode &&
                               !i.description.includes(selectedSubForDetail.subscriptionCode)
                           );
-                          const label =
+                          let label =
                             grp === '1'
                               ? `Carnê 1 (${cnt} parcelas - Dia ${firstDueDay})`
                               : isDuplicate
                               ? `Carnê ${grp} (${cnt} parcelas - Dia ${firstDueDay}) [Duplicado no Asaas]`
                               : `Carnê ${grp} (${cnt} parcelas - Dia ${firstDueDay})`;
+
+                          if (grp === '4' || (cnt === 1 && (groupInvs[0]?.amount || 0) >= 200)) {
+                            label = `Carnê ${grp} (1 parcela anual - ${formatCurrency(groupInvs[0]?.amount || 200)} [PAGO])`;
+                          }
                           return (
                             <option key={grp} value={grp}>
                               {label}

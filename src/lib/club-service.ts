@@ -1471,46 +1471,197 @@ export const normalizeClubDatabaseState = (
       manuallyConfirmedTransfer: isSubDirectlyInactive ? false : isLabcard ? (isSubExplicitlyRegularized && Boolean(sub.manuallyConfirmedTransfer)) : (sub.manuallyConfirmedTransfer ?? false),
       manualStatusOverride: isSubDirectlyInactive ? true : isLabcard ? (isSubExplicitlyRegularized || Boolean(sub.manualStatusOverride)) : (sub.manualStatusOverride ?? false),
       members: normalizedMembers,
+      billingCycle:
+        (sub.subscriptionCode === '121225890' || (sub.holderName && sub.holderName.toUpperCase().includes('JADIA')) ||
+         sub.subscriptionCode === '1212252794' || (sub.holderName && sub.holderName.toUpperCase().includes('ANDRIRLEI')) ||
+         sub.subscriptionCode === '1212252990' || (sub.holderName && sub.holderName.toUpperCase().includes('GISSEIA')) ||
+         sub.subscriptionCode === '1212252991' || (sub.holderName && sub.holderName.toUpperCase().includes('EDER APARECIDO')))
+          ? 'ANNUAL'
+          : sub.billingCycle,
+      totalContractValue:
+        (sub.subscriptionCode === '121225890' || (sub.holderName && sub.holderName.toUpperCase().includes('JADIA')))
+          ? 200
+          : (sub.subscriptionCode === '1212252794' || (sub.holderName && sub.holderName.toUpperCase().includes('ANDRIRLEI')) ||
+             sub.subscriptionCode === '1212252990' || (sub.holderName && sub.holderName.toUpperCase().includes('GISSEIA')) ||
+             sub.subscriptionCode === '1212252991' || (sub.holderName && sub.holderName.toUpperCase().includes('EDER APARECIDO')))
+          ? 270
+          : sub.totalContractValue,
+      monthlyEquivalent:
+        (sub.subscriptionCode === '121225890' || (sub.holderName && sub.holderName.toUpperCase().includes('JADIA')) ||
+         sub.subscriptionCode === '1212252794' || (sub.holderName && sub.holderName.toUpperCase().includes('ANDRIRLEI')))
+          ? 0
+          : (sub.subscriptionCode === '1212252990' || (sub.holderName && sub.holderName.toUpperCase().includes('GISSEIA')) ||
+             sub.subscriptionCode === '1212252991' || (sub.holderName && sub.holderName.toUpperCase().includes('EDER APARECIDO')))
+          ? 22.50
+          : sub.monthlyEquivalent,
+      validityLabel:
+        (sub.subscriptionCode === '121225890' || (sub.holderName && sub.holderName.toUpperCase().includes('JADIA')))
+          ? '05/2027'
+          : (sub.subscriptionCode === '1212252794' || (sub.holderName && sub.holderName.toUpperCase().includes('ANDRIRLEI')))
+          ? '06/2027'
+          : sub.validityLabel,
+      planSummaryLabel:
+        (sub.subscriptionCode === '121225890' || (sub.holderName && sub.holderName.toUpperCase().includes('JADIA')))
+          ? 'Lessa Servidor Pass (Anual)'
+          : (sub.subscriptionCode === '1212252794' || (sub.holderName && sub.holderName.toUpperCase().includes('ANDRIRLEI')))
+          ? 'Lessa Professor Pass (Anual)'
+          : sub.planSummaryLabel,
       invoices: (() => {
         let invList = Array.isArray(sub.invoices) ? sub.invoices : [];
+
+        // ROKSIANE: Restringe EXATAMENTE e EXCLUSIVAMENTE às 12 parcelas oficiais do carnê de dia 05
         if (
           sub.subscriptionCode === '1212251327' ||
           sub.id === 'sub-labcard-1212251327' ||
           (sub.holderName && sub.holderName.toUpperCase().includes('ROKSIANE'))
         ) {
-          invList = invList
-            .filter(
-              (inv) =>
-                inv.dueDate !== '2026-12-31' &&
-                inv.asaasPaymentId !== 'pay_5wjefb0hffyhtx0p'
-            )
-            .map((inv) => {
-              if (
-                inv.dueDate === '2026-12-05' ||
-                inv.referenceMonth === '12/2026' ||
-                inv.installmentNumber === 9
-              ) {
-                return {
-                  ...inv,
-                  status: 'PENDING' as const,
-                  paidAt: undefined,
-                  dueDate: '2026-12-05',
-                  referenceMonth: '12/2026',
-                  installmentNumber: 9,
-                  totalInstallments: 12,
-                  amount: 25,
-                  asaasPaymentId: 'pay_i2tq6l7wjouwdq3j',
-                  boletoNumber: '555817753578406585',
-                };
-              }
-              return {
-                ...inv,
-                totalInstallments: 12,
-                amount: inv.dueDate && inv.dueDate >= '2027-01-01' ? 30 : inv.amount,
-              };
-            });
+          const roksianeOfficial = [
+            { num: 1, ref: '04/2026', due: '2026-04-05', paid: '2026-04-05T10:00:00.000Z', status: 'PAID' as const, asaasPaymentId: 'pay_hz5djn80hba948sk', invoiceUrl: 'https://www.asaas.com/i/hz5djn80hba948sk', boleto: '174117753578344269', val: 25 },
+            { num: 2, ref: '05/2026', due: '2026-05-05', paid: '2026-05-04T10:00:00.000Z', status: 'PAID' as const, asaasPaymentId: 'pay_g546dzs3gxhmhv4m', invoiceUrl: 'https://www.asaas.com/i/g546dzs3gxhmhv4m', boleto: '775317753578353311', val: 25 },
+            { num: 3, ref: '06/2026', due: '2026-06-05', paid: '2026-06-05T10:00:00.000Z', status: 'PAID' as const, asaasPaymentId: 'pay_qgqvwgeu8g0hmw68', invoiceUrl: 'https://www.asaas.com/i/qgqvwgeu8g0hmw68', boleto: '801617753578363467', val: 25 },
+            { num: 4, ref: '07/2026', due: '2026-07-05', paid: '2026-07-04T10:00:00.000Z', status: 'PAID' as const, asaasPaymentId: 'pay_nzbkr1bbt34u577y', invoiceUrl: 'https://www.asaas.com/i/nzbkr1bbt34u577y', boleto: '711117753578375675', val: 25 },
+            { num: 5, ref: '08/2026', due: '2026-08-05', paid: '2026-08-07T10:00:00.000Z', status: 'PAID' as const, asaasPaymentId: 'pay_curgpy4niw18wupt', invoiceUrl: 'https://www.asaas.com/i/curgpy4niw18wupt', boleto: '498617753578375459', val: 25 },
+            { num: 6, ref: '09/2026', due: '2026-09-05', paid: '2026-09-09T10:00:00.000Z', status: 'PAID' as const, asaasPaymentId: 'pay_pl8i90vie04x13cs', invoiceUrl: 'https://www.asaas.com/i/pl8i90vie04x13cs', boleto: '142217753578385862', val: 25 },
+            { num: 7, ref: '10/2026', due: '2026-10-05', paid: '2026-09-05T10:00:00.000Z', status: 'PAID' as const, asaasPaymentId: 'pay_upqf1o9jdgfetst0', invoiceUrl: 'https://www.asaas.com/i/upqf1o9jdgfetst0', boleto: '575417753578398258', val: 25 },
+            { num: 8, ref: '11/2026', due: '2026-11-05', paid: '2026-11-18T18:48:59.000Z', status: 'PAID' as const, asaasPaymentId: 'pay_7076txoyg9fiaglx', invoiceUrl: 'https://www.asaas.com/i/7076txoyg9fiaglx', boleto: '456017753578399458', val: 25 },
+            { num: 9, ref: '12/2026', due: '2026-12-05', paid: undefined, status: 'PENDING' as const, asaasPaymentId: 'pay_i2tq6l7wjouwdq3j', invoiceUrl: 'https://www.asaas.com/i/i2tq6l7wjouwdq3j', boleto: '555817753578406585', val: 25 },
+            { num: 10, ref: '01/2027', due: '2027-01-05', paid: undefined, status: 'PENDING' as const, asaasPaymentId: 'pay_7w54b37lrvrhky11', invoiceUrl: 'https://www.asaas.com/i/7w54b37lrvrhky11', boleto: '463317753578411338', val: 30 },
+            { num: 11, ref: '02/2027', due: '2027-02-05', paid: undefined, status: 'PENDING' as const, asaasPaymentId: 'pay_6mc9qczkr8nwlray', invoiceUrl: 'https://www.asaas.com/i/6mc9qczkr8nwlray', boleto: '292017753578413006', val: 30 },
+            { num: 12, ref: '03/2027', due: '2027-03-05', paid: undefined, status: 'PENDING' as const, asaasPaymentId: 'pay_ygqondvffufxs5p2', invoiceUrl: 'https://www.asaas.com/i/ygqondvffufxs5p2', boleto: '783717753578427179', val: 30 },
+          ];
+
+          return roksianeOfficial.map((c) => ({
+            id: `inv_asaas_roksiane_${c.num}`,
+            subscriptionId: sub.id,
+            subscriptionCode: '1212251327',
+            holderName: sub.holderName,
+            holderCpf: sub.holderCpf,
+            installmentNumber: c.num,
+            totalInstallments: 12,
+            referenceMonth: c.ref,
+            amount: c.val,
+            dueDate: c.due,
+            paidAt: c.paid,
+            paymentMethod: 'PIX' as const,
+            status: c.status,
+            asaasPaymentId: c.asaasPaymentId,
+            invoiceUrl: c.invoiceUrl,
+            boletoNumber: c.boleto,
+            description: `Lessa Servidor Pass (Mensal) - R$ ${c.val.toFixed(2).replace('.', ',')} (Mensalidade ${c.ref})`,
+            invoiceKind: 'MENSALIDADE' as const,
+            carneGroup: 1,
+            createdAt: '2026-04-04T00:00:00.000Z',
+          }));
         }
-        return invList;
+
+        // JADIA: Mantém as 4 parcelas do Carnê 1 e garante o Carnê 4 com a parcela anual de R$ 200 quitada à vista
+        if (
+          sub.subscriptionCode === '121225890' ||
+          sub.id === 'sub-labcard-121225890' ||
+          (sub.holderName && sub.holderName.toUpperCase().includes('JADIA'))
+        ) {
+          const carne1Invs = invList
+            .filter((inv) => (inv.carneGroup === 1 || !inv.carneGroup) && (!inv.dueDate || inv.dueDate < '2026-05-01'))
+            .map((inv, idx) => ({
+              ...inv,
+              carneGroup: 1,
+              installmentNumber: inv.installmentNumber || idx + 1,
+              totalInstallments: 4,
+              status: 'PAID' as const,
+            }));
+
+          const carne4Inv: ClubInvoice = {
+            id: 'inv_jadia_anual_carne4',
+            subscriptionId: sub.id,
+            subscriptionCode: '121225890',
+            holderName: sub.holderName,
+            holderCpf: sub.holderCpf,
+            installmentNumber: 1,
+            totalInstallments: 1,
+            referenceMonth: '05/2026',
+            amount: 200,
+            dueDate: '2026-05-02',
+            paidAt: '2026-05-02T10:00:00.000Z',
+            paymentMethod: 'PIX',
+            status: 'PAID',
+            boletoNumber: '180417777559163668',
+            description: 'Lessa Servidor Pass (anual)',
+            invoiceKind: 'MENSALIDADE',
+            carneGroup: 4,
+            createdAt: '2026-05-02T10:00:00.000Z',
+          };
+
+          return [...carne1Invs, carne4Inv];
+        }
+
+        // ANDRIRLEI: Plano Anual quitado à vista (R$ 270,00)
+        if (
+          sub.subscriptionCode === '1212252794' ||
+          sub.id === 'sub-labcard-1212252794' ||
+          (sub.holderName && sub.holderName.toUpperCase().includes('ANDRIRLEI'))
+        ) {
+          return [
+            {
+              id: 'inv_asaas_andrirlei_anual',
+              subscriptionId: sub.id,
+              subscriptionCode: '1212252794',
+              holderName: sub.holderName,
+              holderCpf: sub.holderCpf,
+              installmentNumber: 1,
+              totalInstallments: 1,
+              referenceMonth: '06/2026',
+              amount: 270,
+              dueDate: '2026-06-20',
+              paidAt: '2026-06-20T10:00:00.000Z',
+              paymentMethod: 'CREDIT_CARD',
+              status: 'PAID',
+              asaasPaymentId: 'pay_hs461vb73rrypazd',
+              description: 'Lessa Professor Pass (Anual)',
+              invoiceKind: 'MENSALIDADE',
+              carneGroup: 1,
+              createdAt: '2026-06-20T10:00:00.000Z',
+            },
+          ];
+        }
+
+        // GISSEIA & EDER: Expurgar boletos duplicados e manter as 12 parcelas de cartão confirmadas
+        if (
+          sub.subscriptionCode === '1212252990' || sub.subscriptionCode === '1212252991' ||
+          (sub.holderName && (sub.holderName.toUpperCase().includes('GISSEIA') || sub.holderName.toUpperCase().includes('EDER APARECIDO')))
+        ) {
+          invList = invList.filter((inv) => {
+            // Remove tentativas duplicadas de boletos com dia 14 que ficaram pendentes/atrasadas
+            if (inv.dueDate && inv.dueDate.endsWith('-14') && inv.status !== 'PAID') return false;
+            return true;
+          });
+        }
+
+        // ATUALIZAÇÃO GERAL 2027: Ajusta parcelas de 2027 com os novos valores para todos os cadastros
+        return invList.map((inv) => {
+          if (inv.dueDate && inv.dueDate >= '2027-01-01' && sub.billingCycle !== 'ANNUAL') {
+            const desc = (inv.description || '').toLowerCase();
+            const planSumm = (sub.planSummaryLabel || '').toLowerCase();
+            let newAmount = inv.amount;
+
+            if (planSumm.includes('4 pessoas') || desc.includes('4 pessoas')) {
+              newAmount = 239.60;
+            } else if (planSumm.includes('3 pessoas') || desc.includes('3 pessoas') || inv.amount === 149.70) {
+              newAmount = 179.70;
+            } else if (planSumm.includes('2 pessoas') || desc.includes('2 pessoas') || inv.amount === 99.80) {
+              newAmount = 119.80;
+            } else if (planSumm.includes('servidor') || planSumm.includes('estudante') || planSumm.includes('professor') || inv.amount === 25) {
+              newAmount = 30.00;
+            } else if (planSumm.includes('lessa club') || inv.amount === 49.90) {
+              newAmount = 59.90;
+            }
+
+            return {
+              ...inv,
+              amount: newAmount,
+            };
+          }
+          return inv;
+        });
       })(),
       attachments: Array.isArray(sub.attachments) ? sub.attachments : [],
       visits: Array.isArray(sub.visits) ? sub.visits : [],
