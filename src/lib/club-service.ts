@@ -1966,10 +1966,47 @@ const buildCompactCloudState = (state: ClubDatabaseState): ClubDatabaseState => 
   };
 };
 
+export type CloudSyncStatus = 'SYNCED' | 'SAVING' | 'ERROR';
+
+let currentCloudSyncStatus: CloudSyncStatus = 'SYNCED';
+let lastCloudSyncError: string | null = null;
+let lastCloudSyncSuccessTime: string = new Date().toISOString();
+const cloudSyncListeners = new Set<(status: CloudSyncStatus, error: string | null, lastSuccessAt: string) => void>();
+
+export const getCloudSyncStatus = () => ({
+  status: currentCloudSyncStatus,
+  error: lastCloudSyncError,
+  lastSuccessAt: lastCloudSyncSuccessTime,
+});
+
+export const subscribeToCloudSyncStatus = (
+  listener: (status: CloudSyncStatus, error: string | null, lastSuccessAt: string) => void
+): (() => void) => {
+  cloudSyncListeners.add(listener);
+  listener(currentCloudSyncStatus, lastCloudSyncError, lastCloudSyncSuccessTime);
+  return () => {
+    cloudSyncListeners.delete(listener);
+  };
+};
+
+const notifyCloudSyncStatus = (status: CloudSyncStatus, error: string | null = null) => {
+  currentCloudSyncStatus = status;
+  lastCloudSyncError = error;
+  if (status === 'SYNCED') {
+    lastCloudSyncSuccessTime = new Date().toISOString();
+  }
+  cloudSyncListeners.forEach((l) => {
+    try {
+      l(currentCloudSyncStatus, lastCloudSyncError, lastCloudSyncSuccessTime);
+    } catch {}
+  });
+};
+
 let inFlightCloudSavePromise: Promise<any> | null = null;
 let queuedCloudSaveState: ClubDatabaseState | null = null;
 
 const runCloudSaveExecution = async (stateToSave: ClubDatabaseState): Promise<void> => {
+  notifyCloudSyncStatus('SAVING', null);
   const cloudState = buildCompactCloudState(stateToSave);
   const maxAttempts = 2;
 
@@ -1998,6 +2035,7 @@ const runCloudSaveExecution = async (stateToSave: ClubDatabaseState): Promise<vo
 
       if (!error) {
         lastClubFetchErrorMessage = null;
+        notifyCloudSyncStatus('SYNCED', null);
         // Blindagem de segurança: Snapshot diário em nuvem
         ensureDailyBackup(stateToSave).catch((e) => console.warn('[Backup] Falha ao verificar backup diário:', e));
         return;
@@ -2016,7 +2054,8 @@ const runCloudSaveExecution = async (stateToSave: ClubDatabaseState): Promise<vo
         continue;
       }
       console.warn('[ClubService] Sincronização em nuvem falhou, preservado localmente:', err);
-      break;
+      notifyCloudSyncStatus('ERROR', msg);
+      throw err;
     }
   }
 };

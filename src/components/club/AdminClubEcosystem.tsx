@@ -66,6 +66,8 @@ import {
   XCircle,
   RefreshCw,
   Loader2,
+  Cloud,
+  CloudOff,
 } from 'lucide-react';
 import logo from '@/assets/logo.png';
 import { Button } from '@/components/ui/button';
@@ -113,6 +115,9 @@ import {
   getClubStateSync,
   fetchClubState,
   saveClubState,
+  getCloudSyncStatus,
+  subscribeToCloudSyncStatus,
+  CloudSyncStatus,
   createClubSubscription,
   markClubInvoicePaid,
   generateAsaasChargeForClubInvoice,
@@ -308,6 +313,17 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
   const [state, setState] = useState<ClubDatabaseState | null>(() => getClubStateSync());
   const [loading, setLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(true);
+  const [cloudSyncInfo, setCloudSyncInfo] = useState<{
+    status: CloudSyncStatus;
+    error: string | null;
+    lastSuccessAt: string;
+  }>(() => getCloudSyncStatus());
+
+  useEffect(() => {
+    return subscribeToCloudSyncStatus((status, error, lastSuccessAt) => {
+      setCloudSyncInfo({ status, error, lastSuccessAt });
+    });
+  }, []);
   const [activeTab, setActiveTab] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = sessionStorage.getItem('club_admin_active_tab');
@@ -3101,8 +3117,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         ),
       };
 
-      // Grava no estado e IndexedDB instantaneamente (sem travar a tela esperando resposta de rede)
-      await persist(nextState);
+      // Grava no estado e aguarda a confirmação de nuvem
+      await persist(nextState, { waitForCloud: true });
 
       // Blindagem definitiva: persiste os cartões no conjunto de cartões confirmados pelo administrador
       if (updatedSub.subscriptionCode) {
@@ -3126,17 +3142,22 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         setSituacaoInativar('SIM');
       }
 
+      const syncStatus = getCloudSyncStatus();
+      const isCloudOk = syncStatus.status === 'SYNCED';
+
       const prevLabel = prevStatus === 'ACTIVE' ? 'ATIVO' : 'INATIVO';
       const newLabel = targetStatus === 'ACTIVE' ? 'ATIVO' : 'INATIVO';
       const statusChanged = prevStatus !== targetStatus;
       const nowTime = new Date().toLocaleTimeString('pt-BR');
       const feedbackMsg = statusChanged
-        ? `Alteração realizada no cadastro de ${updatedSub.holderName}: situação alterada de ${prevLabel} para ${newLabel}. Expiração: ${formatDateBR(nextEndDate)}.`
-        : `Alterações do cadastro de ${updatedSub.holderName} salvas com sucesso (Situação: ${newLabel} • Expiração: ${formatDateBR(nextEndDate)}).`;
+        ? `Alteração realizada no cadastro de ${updatedSub.holderName}: situação alterada de ${prevLabel} para ${newLabel}. Expiração: ${formatDateBR(nextEndDate)}.${isCloudOk ? ' (Gravado na Nuvem ✓)' : ' (Aviso: Guardado no navegador, reenviando para a nuvem...)'}`
+        : `Alterações do cadastro de ${updatedSub.holderName} salvas com sucesso (Situação: ${newLabel} • Expiração: ${formatDateBR(nextEndDate)}).${isCloudOk ? ' (Gravado na Nuvem ✓)' : ' (Aviso: Guardado no navegador, reenviando para a nuvem...)'}`;
       setLastRegistrationChangeBox({
-        title: statusChanged
+        title: !isCloudOk
+          ? 'Salvo Localmente (Aguardando Nuvem)'
+          : statusChanged
           ? `Alteração no cadastro realizada (${prevLabel} → ${newLabel})`
-          : 'Cadastro atualizado com sucesso!',
+          : 'Cadastro salvo e gravado na Nuvem!',
         detail: feedbackMsg,
         isActive: targetStatus === 'ACTIVE',
         changedAt: nowTime,
@@ -4754,11 +4775,46 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
   return (
     <div className={standalone ? 'min-h-screen bg-slate-100 p-6' : 'space-y-6'}>
-      {isSyncing && (
+      {/* MONITOR DE SINCRONIZAÇÃO EM NUVEM EM TEMPO REAL */}
+      {cloudSyncInfo.status === 'ERROR' ? (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-rose-50 border-2 border-rose-400 text-rose-950 px-4 py-2.5 rounded-2xl shadow-sm animate-in fade-in">
+          <div className="flex items-center gap-2.5">
+            <CloudOff className="w-5 h-5 text-rose-600 shrink-0 animate-pulse" />
+            <div>
+              <p className="font-black text-xs sm:text-sm">⚠️ ATENÇÃO: Falha de conexão com a Nuvem (Supabase)</p>
+              <p className="text-[11px] text-rose-800">
+                Suas alterações estão seguras na memória local, mas o banco de dados em nuvem parou de registrar. Não feche nem atualize esta aba!
+              </p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            onClick={async () => {
+              if (!state) return;
+              toast({ title: 'Tentando sincronizar com a nuvem...' });
+              await persist(state, { waitForCloud: true });
+            }}
+            className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs h-8 px-3 rounded-xl shrink-0 cursor-pointer shadow-xs"
+          >
+            <RefreshCw className="w-3.5 h-3.5 mr-1" />
+            Tentar Gravar Agora
+          </Button>
+        </div>
+      ) : cloudSyncInfo.status === 'SAVING' ? (
+        <div className="flex items-center justify-end text-[11px] font-bold text-amber-700 px-1">
+          <span className="inline-flex items-center gap-1.5 bg-amber-50 border border-amber-300 px-3 py-1 rounded-full shadow-xs">
+            <RefreshCw className="w-3.5 h-3.5 text-amber-600 animate-spin" />
+            <span>Gravando alterações no banco de dados da nuvem...</span>
+          </span>
+        </div>
+      ) : (
         <div className="flex items-center justify-end text-[11px] font-bold text-emerald-800 px-1">
-          <span className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            Sincronizando dados em segundo plano...
+          <span
+            className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-300 px-3 py-1 rounded-full shadow-xs"
+            title={`Última gravação na nuvem com sucesso: ${new Date(cloudSyncInfo.lastSuccessAt).toLocaleTimeString('pt-BR')}`}
+          >
+            <Cloud className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Nuvem 100% Conectada e Salva ({new Date(cloudSyncInfo.lastSuccessAt).toLocaleTimeString('pt-BR')})</span>
           </span>
         </div>
       )}
