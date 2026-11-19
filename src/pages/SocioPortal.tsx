@@ -152,6 +152,26 @@ const SocioPortal: React.FC = () => {
     return sortedInvoices.find((i) => i.status !== 'PAID');
   }, [sortedInvoices]);
 
+  // Identifica todas as faturas vencidas do cadastro
+  const overdueInvoices = useMemo(() => {
+    return sortedInvoices.filter(
+      (i) => i.status === 'OVERDUE' || (i.status === 'PENDING' && new Date(i.dueDate + 'T23:59:59') < new Date())
+    );
+  }, [sortedInvoices]);
+
+  // Regra de liberação de faturas:
+  // - TODAS as parcelas vencidas ficam liberadas simultaneamente para pagamento imediato (não precisa pagar uma para liberar a outra)
+  // - Parcelas futuras (PENDING) permanecem liberadas mês a mês após a quitação das anteriores
+  const isInvoicePayable = (inv: ClubInvoice) => {
+    if (inv.status === 'PAID') return false;
+    const isOverdue = inv.status === 'OVERDUE' || (inv.status === 'PENDING' && new Date(inv.dueDate + 'T23:59:59') < new Date());
+    if (isOverdue) return true;
+    if (overdueInvoices.length === 0 && inv.id === nextPayableInvoice?.id) {
+      return true;
+    }
+    return false;
+  };
+
   const isSubscriptionActive = useMemo(() => {
     if (!subscription) return false;
 
@@ -581,10 +601,12 @@ const SocioPortal: React.FC = () => {
     billingType: 'PIX' | 'CREDIT_CARD' = 'PIX'
   ) => {
     if (!state || !subscription) return;
-    if (nextPayableInvoice && invoice.id !== nextPayableInvoice.id) {
+    if (!isInvoicePayable(invoice)) {
       toast({
         title: 'Parcela bloqueada',
-        description: `Por favor, efetue primeiro o pagamento da parcela ${nextPayableInvoice.installmentNumber}. A liberação para pagamento é realizada a cada mês para não pular mensalidades.`,
+        description: overdueInvoices.length > 0
+          ? `Por favor, efetue primeiro o pagamento das parcelas vencidas em aberto. A liberação de faturas futuras ocorre após a quitação das vencidas.`
+          : `Por favor, efetue primeiro o pagamento da parcela ${nextPayableInvoice?.installmentNumber}. A liberação para pagamento é realizada a cada mês para não pular mensalidades.`,
         variant: 'destructive',
       });
       return;
@@ -2225,14 +2247,17 @@ const SocioPortal: React.FC = () => {
                   <div className="space-y-3">
                     {sortedInvoices.map((inv) => {
                       const isPaid = inv.status === 'PAID';
-                      const isCurrentPayable = !isPaid && inv.id === nextPayableInvoice?.id;
+                      const isOverdue = inv.status === 'OVERDUE' || (!isPaid && new Date(inv.dueDate + 'T23:59:59') < new Date());
+                      const isPayable = isInvoicePayable(inv);
                       return (
                         <div
                           key={inv.id}
                           className={`rounded-2xl border p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 transition-all ${
                             isPaid
                               ? 'bg-emerald-50/40 border-emerald-200'
-                              : isCurrentPayable
+                              : isOverdue
+                              ? 'bg-rose-50/50 border-rose-300 ring-2 ring-rose-200/60 shadow-xs'
+                              : isPayable
                               ? 'bg-amber-50/40 border-amber-300 ring-2 ring-amber-200/50'
                               : 'bg-slate-50/60 border-slate-200 opacity-80'
                           }`}
@@ -2246,14 +2271,14 @@ const SocioPortal: React.FC = () => {
                                 className={
                                   isPaid
                                     ? 'bg-emerald-600 text-white font-bold'
-                                    : inv.status === 'OVERDUE'
+                                    : isOverdue
                                     ? 'bg-red-600 text-white font-bold'
-                                    : isCurrentPayable
+                                    : isPayable
                                     ? 'bg-amber-500 text-white font-bold'
                                     : 'bg-slate-300 text-slate-700 font-bold'
                                 }
                               >
-                                {isPaid ? 'PAGA' : inv.status === 'OVERDUE' ? 'VENCIDA' : 'PENDENTE'}
+                                {isPaid ? 'PAGA' : isOverdue ? 'VENCIDA' : 'PENDENTE'}
                               </Badge>
                             </div>
                             <div className="text-xs text-slate-500">
@@ -2314,7 +2339,7 @@ const SocioPortal: React.FC = () => {
                               </Badge>
                             )}
 
-                            {!isPaid && isCurrentPayable && (
+                            {!isPaid && isPayable && (
                               <div className="flex items-center gap-2">
                                 <Button
                                   size="sm"
@@ -2350,10 +2375,14 @@ const SocioPortal: React.FC = () => {
                               </div>
                             )}
 
-                            {!isPaid && !isCurrentPayable && (
+                            {!isPaid && !isPayable && (
                               <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl">
                                 <Lock className="w-3.5 h-3.5 text-slate-400" />
-                                <span>Liberado a cada mês (após quitação da parcela {nextPayableInvoice?.installmentNumber || 'anterior'})</span>
+                                <span>
+                                  {overdueInvoices.length > 0
+                                    ? `Aguardando quitação das parcelas vencidas (${overdueInvoices.map((o) => o.installmentNumber).join(', ')})`
+                                    : `Liberado a cada mês (após quitação da parcela ${nextPayableInvoice?.installmentNumber || 'anterior'})`}
+                                </span>
                               </div>
                             )}
                           </div>
