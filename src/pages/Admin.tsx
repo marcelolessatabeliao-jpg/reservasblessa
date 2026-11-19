@@ -1319,6 +1319,18 @@ export default function Admin() {
     };
   }, [token, fetchData, syncAllPendingPayments, refreshClubNotifications]);
 
+  // Auto-Healer Watchdog: Quando o Supabase fica instável/unhealthy, tenta reconectar automaticamente a cada 5 segundos
+  useEffect(() => {
+    if (!dbConnectionError) return;
+
+    console.log('[Admin Watchdog] Supabase instável. Auto-Healer ativo reconectando a cada 5s...');
+    const autoHealTimer = setInterval(() => {
+      fetchData(true);
+    }, 5000);
+
+    return () => clearInterval(autoHealTimer);
+  }, [dbConnectionError, fetchData]);
+
   // --- ACTIONS ---
   const handleLogout = () => {
     localStorage.removeItem('admin_token');
@@ -3345,8 +3357,8 @@ export default function Admin() {
                   </p>
                   <p className="text-xs text-amber-200/80">
                     {isUsingCachedData 
-                      ? "Exibindo os dados salvos em cache local. Suas reservas NÃO foram perdidas! O Supabase pode levar até 5 minutos para restaurar." 
-                      : "O banco de dados está inicializando os serviços. Aguarde alguns instantes e tente reconectar."}
+                      ? "Exibindo os dados salvos em cache local. Suas reservas NÃO foram perdidas! O sistema está reconectando automaticamente em segundo plano..." 
+                      : "O banco de dados está inicializando os serviços. Reconectando automaticamente..."}
                   </p>
                 </div>
               </div>
@@ -3355,8 +3367,8 @@ export default function Admin() {
                 disabled={loading}
                 className="bg-amber-500 hover:bg-amber-400 text-stone-950 font-black text-xs px-4 py-2 rounded-xl shadow-lg shrink-0"
               >
-                {loading ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <RefreshCw className="w-4 h-4 mr-1.5" />}
-                Tentar Reconectar
+                {loading ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <RefreshCw className="w-4 h-4 mr-1.5 animate-spin" />}
+                Reconectar Agora
               </Button>
             </div>
           )}
