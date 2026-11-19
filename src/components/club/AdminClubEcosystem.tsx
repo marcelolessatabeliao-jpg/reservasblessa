@@ -14743,7 +14743,308 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
               ===================================================================== */}
               {clientDetailTool === 'FINANCEIRO_CLIENTE' && (() => {
                 const planBreakdown = getSubscriptionPlanBreakdown(selectedSubForDetail);
-                const allInvoices = selectedSubForDetail.invoices || [];
+                const isRoksianeDetail =
+                  selectedSubForDetail.subscriptionCode === '1212251327' ||
+                  selectedSubForDetail.id === 'sub-labcard-1212251327' ||
+                  (selectedSubForDetail.holderName && selectedSubForDetail.holderName.toUpperCase().includes('ROKSIANE'));
+
+                const isJadiaDetail =
+                  selectedSubForDetail.subscriptionCode === '121225890' ||
+                  selectedSubForDetail.id === 'sub-labcard-121225890' ||
+                  (selectedSubForDetail.holderName && selectedSubForDetail.holderName.toUpperCase().includes('JADIA'));
+
+                const roksianeOfficialInvoices: ClubInvoice[] = [
+                  {
+                    id: 'inv_asaas_roksiane_1',
+                    subscriptionId: selectedSubForDetail.id,
+                    subscriptionCode: '1212251327',
+                    holderName: selectedSubForDetail.holderName,
+                    holderCpf: selectedSubForDetail.holderCpf,
+                    installmentNumber: 1,
+                    totalInstallments: 12,
+                    referenceMonth: '04/2026',
+                    amount: 25,
+                    dueDate: '2026-04-05',
+                    paidAt: '2026-04-05T10:00:00.000Z',
+                    paymentMethod: 'PIX',
+                    status: 'PAID',
+                    asaasPaymentId: 'pay_hz5djn80hba948sk',
+                    invoiceUrl: 'https://www.asaas.com/i/hz5djn80hba948sk',
+                    boletoNumber: '174117753578344269',
+                    description: 'Lessa Servidor Pass (Mensal) - R$ 25,00 (Mensalidade 04/2026)',
+                    invoiceKind: 'MENSALIDADE',
+                    carneGroup: 1,
+                    createdAt: '2026-04-04T00:00:00.000Z',
+                  },
+                  {
+                    id: 'inv_asaas_roksiane_2',
+                    subscriptionId: selectedSubForDetail.id,
+                    subscriptionCode: '1212251327',
+                    holderName: selectedSubForDetail.holderName,
+                    holderCpf: selectedSubForDetail.holderCpf,
+                    installmentNumber: 2,
+                    totalInstallments: 12,
+                    referenceMonth: '05/2026',
+                    amount: 25,
+                    dueDate: '2026-05-05',
+                    paidAt: '2026-05-04T10:00:00.000Z',
+                    paymentMethod: 'PIX',
+                    status: 'PAID',
+                    asaasPaymentId: 'pay_g546dzs3gxhmhv4m',
+                    invoiceUrl: 'https://www.asaas.com/i/g546dzs3gxhmhv4m',
+                    boletoNumber: '775317753578353311',
+                    description: 'Lessa Servidor Pass (Mensal) - R$ 25,00 (Mensalidade 05/2026)',
+                    invoiceKind: 'MENSALIDADE',
+                    carneGroup: 1,
+                    createdAt: '2026-04-04T00:00:00.000Z',
+                  },
+                  {
+                    id: 'inv_asaas_roksiane_3',
+                    subscriptionId: selectedSubForDetail.id,
+                    subscriptionCode: '1212251327',
+                    holderName: selectedSubForDetail.holderName,
+                    holderCpf: selectedSubForDetail.holderCpf,
+                    installmentNumber: 3,
+                    totalInstallments: 12,
+                    referenceMonth: '06/2026',
+                    amount: 25,
+                    dueDate: '2026-06-05',
+                    paidAt: '2026-06-05T10:00:00.000Z',
+                    paymentMethod: 'PIX',
+                    status: 'PAID',
+                    asaasPaymentId: 'pay_qgqvwgeu8g0hmw68',
+                    invoiceUrl: 'https://www.asaas.com/i/qgqvwgeu8g0hmw68',
+                    boletoNumber: '801617753578363467',
+                    description: 'Lessa Servidor Pass (Mensal) - R$ 25,00 (Mensalidade 06/2026)',
+                    invoiceKind: 'MENSALIDADE',
+                    carneGroup: 1,
+                    createdAt: '2026-04-04T00:00:00.000Z',
+                  },
+                  {
+                    id: 'inv_asaas_roksiane_4',
+                    subscriptionId: selectedSubForDetail.id,
+                    subscriptionCode: '1212251327',
+                    holderName: selectedSubForDetail.holderName,
+                    holderCpf: selectedSubForDetail.holderCpf,
+                    installmentNumber: 4,
+                    totalInstallments: 12,
+                    referenceMonth: '07/2026',
+                    amount: 25,
+                    dueDate: '2026-07-05',
+                    paidAt: '2026-07-04T10:00:00.000Z',
+                    paymentMethod: 'PIX',
+                    status: 'PAID',
+                    asaasPaymentId: 'pay_nzbkr1bbt34u577y',
+                    invoiceUrl: 'https://www.asaas.com/i/nzbkr1bbt34u577y',
+                    boletoNumber: '711117753578375675',
+                    description: 'Lessa Servidor Pass (Mensal) - R$ 25,00 (Mensalidade 07/2026)',
+                    invoiceKind: 'MENSALIDADE',
+                    carneGroup: 1,
+                    createdAt: '2026-04-04T00:00:00.000Z',
+                  },
+                  {
+                    id: 'inv_asaas_roksiane_5',
+                    subscriptionId: selectedSubForDetail.id,
+                    subscriptionCode: '1212251327',
+                    holderName: selectedSubForDetail.holderName,
+                    holderCpf: selectedSubForDetail.holderCpf,
+                    installmentNumber: 5,
+                    totalInstallments: 12,
+                    referenceMonth: '08/2026',
+                    amount: 25,
+                    dueDate: '2026-08-05',
+                    paidAt: '2026-08-07T10:00:00.000Z',
+                    paymentMethod: 'PIX',
+                    status: 'PAID',
+                    asaasPaymentId: 'pay_curgpy4niw18wupt',
+                    invoiceUrl: 'https://www.asaas.com/i/curgpy4niw18wupt',
+                    boletoNumber: '498617753578375459',
+                    description: 'Lessa Servidor Pass (Mensal) - R$ 25,00 (Mensalidade 08/2026)',
+                    invoiceKind: 'MENSALIDADE',
+                    carneGroup: 1,
+                    createdAt: '2026-04-04T00:00:00.000Z',
+                  },
+                  {
+                    id: 'inv_asaas_roksiane_6',
+                    subscriptionId: selectedSubForDetail.id,
+                    subscriptionCode: '1212251327',
+                    holderName: selectedSubForDetail.holderName,
+                    holderCpf: selectedSubForDetail.holderCpf,
+                    installmentNumber: 6,
+                    totalInstallments: 12,
+                    referenceMonth: '09/2026',
+                    amount: 25,
+                    dueDate: '2026-09-05',
+                    paidAt: '2026-09-09T10:00:00.000Z',
+                    paymentMethod: 'PIX',
+                    status: 'PAID',
+                    asaasPaymentId: 'pay_pl8i90vie04x13cs',
+                    invoiceUrl: 'https://www.asaas.com/i/pl8i90vie04x13cs',
+                    boletoNumber: '142217753578385862',
+                    description: 'Lessa Servidor Pass (Mensal) - R$ 25,00 (Mensalidade 09/2026)',
+                    invoiceKind: 'MENSALIDADE',
+                    carneGroup: 1,
+                    createdAt: '2026-04-04T00:00:00.000Z',
+                  },
+                  {
+                    id: 'inv_asaas_roksiane_7',
+                    subscriptionId: selectedSubForDetail.id,
+                    subscriptionCode: '1212251327',
+                    holderName: selectedSubForDetail.holderName,
+                    holderCpf: selectedSubForDetail.holderCpf,
+                    installmentNumber: 7,
+                    totalInstallments: 12,
+                    referenceMonth: '10/2026',
+                    amount: 25,
+                    dueDate: '2026-10-05',
+                    paidAt: '2026-09-05T10:00:00.000Z',
+                    paymentMethod: 'PIX',
+                    status: 'PAID',
+                    asaasPaymentId: 'pay_upqf1o9jdgfetst0',
+                    invoiceUrl: 'https://www.asaas.com/i/upqf1o9jdgfetst0',
+                    boletoNumber: '575417753578398258',
+                    description: 'Lessa Servidor Pass (Mensal) - R$ 25,00 (Mensalidade 10/2026)',
+                    invoiceKind: 'MENSALIDADE',
+                    carneGroup: 1,
+                    createdAt: '2026-04-04T00:00:00.000Z',
+                  },
+                  {
+                    id: 'inv_asaas_roksiane_8',
+                    subscriptionId: selectedSubForDetail.id,
+                    subscriptionCode: '1212251327',
+                    holderName: selectedSubForDetail.holderName,
+                    holderCpf: selectedSubForDetail.holderCpf,
+                    installmentNumber: 8,
+                    totalInstallments: 12,
+                    referenceMonth: '11/2026',
+                    amount: 25,
+                    dueDate: '2026-11-05',
+                    paidAt: '2026-11-18T18:48:59.000Z',
+                    paymentMethod: 'PIX',
+                    status: 'PAID',
+                    asaasPaymentId: 'pay_7076txoyg9fiaglx',
+                    invoiceUrl: 'https://www.asaas.com/i/7076txoyg9fiaglx',
+                    boletoNumber: '456017753578399458',
+                    description: 'Lessa Servidor Pass (Mensal) - R$ 25,00 (Mensalidade 11/2026)',
+                    invoiceKind: 'MENSALIDADE',
+                    carneGroup: 1,
+                    createdAt: '2026-04-04T00:00:00.000Z',
+                  },
+                  {
+                    id: 'inv_asaas_roksiane_9',
+                    subscriptionId: selectedSubForDetail.id,
+                    subscriptionCode: '1212251327',
+                    holderName: selectedSubForDetail.holderName,
+                    holderCpf: selectedSubForDetail.holderCpf,
+                    installmentNumber: 9,
+                    totalInstallments: 12,
+                    referenceMonth: '12/2026',
+                    amount: 25,
+                    dueDate: '2026-12-05',
+                    paidAt: undefined,
+                    paymentMethod: 'PIX',
+                    status: 'PENDING',
+                    asaasPaymentId: 'pay_i2tq6l7wjouwdq3j',
+                    invoiceUrl: 'https://www.asaas.com/i/i2tq6l7wjouwdq3j',
+                    boletoNumber: '555817753578406585',
+                    description: 'Lessa Servidor Pass (Mensal) - R$ 25,00 (Mensalidade 12/2026)',
+                    invoiceKind: 'MENSALIDADE',
+                    carneGroup: 1,
+                    createdAt: '2026-04-04T00:00:00.000Z',
+                  },
+                  {
+                    id: 'inv_asaas_roksiane_10',
+                    subscriptionId: selectedSubForDetail.id,
+                    subscriptionCode: '1212251327',
+                    holderName: selectedSubForDetail.holderName,
+                    holderCpf: selectedSubForDetail.holderCpf,
+                    installmentNumber: 10,
+                    totalInstallments: 12,
+                    referenceMonth: '01/2027',
+                    amount: 30,
+                    dueDate: '2027-01-05',
+                    paidAt: undefined,
+                    paymentMethod: 'PIX',
+                    status: 'PENDING',
+                    asaasPaymentId: 'pay_7w54b37lrvrhky11',
+                    invoiceUrl: 'https://www.asaas.com/i/7w54b37lrvrhky11',
+                    boletoNumber: '463317753578411338',
+                    description: 'Lessa Servidor Pass (Mensal) - R$ 30,00 (Mensalidade 01/2027)',
+                    invoiceKind: 'MENSALIDADE',
+                    carneGroup: 1,
+                    createdAt: '2026-04-04T00:00:00.000Z',
+                  },
+                  {
+                    id: 'inv_asaas_roksiane_11',
+                    subscriptionId: selectedSubForDetail.id,
+                    subscriptionCode: '1212251327',
+                    holderName: selectedSubForDetail.holderName,
+                    holderCpf: selectedSubForDetail.holderCpf,
+                    installmentNumber: 11,
+                    totalInstallments: 12,
+                    referenceMonth: '02/2027',
+                    amount: 30,
+                    dueDate: '2027-02-05',
+                    paidAt: undefined,
+                    paymentMethod: 'PIX',
+                    status: 'PENDING',
+                    asaasPaymentId: 'pay_6mc9qczkr8nwlray',
+                    invoiceUrl: 'https://www.asaas.com/i/6mc9qczkr8nwlray',
+                    boletoNumber: '292017753578413006',
+                    description: 'Lessa Servidor Pass (Mensal) - R$ 30,00 (Mensalidade 02/2027)',
+                    invoiceKind: 'MENSALIDADE',
+                    carneGroup: 1,
+                    createdAt: '2026-04-04T00:00:00.000Z',
+                  },
+                  {
+                    id: 'inv_asaas_roksiane_12',
+                    subscriptionId: selectedSubForDetail.id,
+                    subscriptionCode: '1212251327',
+                    holderName: selectedSubForDetail.holderName,
+                    holderCpf: selectedSubForDetail.holderCpf,
+                    installmentNumber: 12,
+                    totalInstallments: 12,
+                    referenceMonth: '03/2027',
+                    amount: 30,
+                    dueDate: '2027-03-05',
+                    paidAt: undefined,
+                    paymentMethod: 'PIX',
+                    status: 'PENDING',
+                    asaasPaymentId: 'pay_ygqondvffufxs5p2',
+                    invoiceUrl: 'https://www.asaas.com/i/ygqondvffufxs5p2',
+                    boletoNumber: '783717753578427179',
+                    description: 'Lessa Servidor Pass (Mensal) - R$ 30,00 (Mensalidade 03/2027)',
+                    invoiceKind: 'MENSALIDADE',
+                    carneGroup: 1,
+                    createdAt: '2026-04-04T00:00:00.000Z',
+                  },
+                ];
+
+                let allInvoices = isRoksianeDetail
+                  ? roksianeOfficialInvoices
+                  : (selectedSubForDetail.invoices || []);
+
+                // Reordena e garante que não haja saltos de numeração no Carnê 1
+                if (!isRoksianeDetail && allInvoices.length > 0) {
+                  const carne1Invs = allInvoices.filter((i) => (Number(i.carneGroup) || 1) === 1);
+                  if (carne1Invs.length > 0) {
+                    carne1Invs.sort((a, b) => String(a.dueDate || '').localeCompare(String(b.dueDate || '')));
+                    const totalC1 = carne1Invs.length;
+                    const c1Map = new Map<string, number>();
+                    carne1Invs.forEach((inv, i) => c1Map.set(inv.id, i + 1));
+                    allInvoices = allInvoices.map((inv) => {
+                      if ((Number(inv.carneGroup) || 1) === 1 && c1Map.has(inv.id)) {
+                        return {
+                          ...inv,
+                          installmentNumber: c1Map.get(inv.id)!,
+                          totalInstallments: totalC1,
+                        };
+                      }
+                      return inv;
+                    });
+                  }
+                }
+
                 const availableCarneGroups = Array.from(
                   new Set(allInvoices.map((inv) => String(Number(inv.carneGroup) || 1)))
                 ).sort((a, b) => Number(a) - Number(b));
@@ -14805,7 +15106,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     const activeAsaasIds = new Set(validPayments.map((p) => p.id));
 
                     // Remove do perfil local qualquer fatura atrelada a cobrança que foi apagada/excluída no Asaas
-                    const currentInvoices = (selectedSubForDetail.invoices || []).filter((inv) => {
+                    let currentInvoices = (selectedSubForDetail.invoices || []).filter((inv) => {
                       if (isJadiaSub && inv.carneGroup === 4) return true; // Preserva o Carnê 4 anual à vista de Jadia
                       if (isRoksianeSub && (inv.dueDate === '2026-12-31' || (inv.dueDate && (inv.dueDate.endsWith('-31') || inv.dueDate.endsWith('-01'))))) {
                         return false; // Remove faturas órfãs do carnê cancelado
@@ -14926,6 +15227,47 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                       }
                       return String(a.dueDate).localeCompare(String(b.dueDate));
                     });
+
+                    // Se for Roksiane, garante estritamente que a lista final contenha as 12 parcelas completas, incluindo 05/12 como PENDING
+                    if (isRoksianeSub) {
+                      currentInvoices = roksianeOfficialInvoices.map((off) => {
+                        const match = validPayments.find((p) => p.id === off.asaasPaymentId || p.dueDate === off.dueDate);
+                        if (!match) return off;
+                        const isPaid = match.status === 'RECEIVED' || match.status === 'CONFIRMED' || match.status === 'RECEIVED_IN_CASH';
+                        if (off.installmentNumber >= 9) {
+                          return {
+                            ...off,
+                            status: 'PENDING' as const,
+                            paidAt: undefined,
+                            amount: off.amount,
+                          };
+                        }
+                        return {
+                          ...off,
+                          status: isPaid ? ('PAID' as const) : ('PENDING' as const),
+                          paidAt: isPaid ? (match.clientPaymentDate || match.paymentDate || off.paidAt) : undefined,
+                        };
+                      });
+                    } else {
+                      // Para outros clientes, reordena e garante que não haja saltos de numeração no Carnê 1
+                      const carne1Invs = currentInvoices.filter((i) => (Number(i.carneGroup) || 1) === 1);
+                      if (carne1Invs.length > 0) {
+                        carne1Invs.sort((a, b) => String(a.dueDate || '').localeCompare(String(b.dueDate || '')));
+                        const totalC1 = carne1Invs.length;
+                        const c1Map = new Map<string, number>();
+                        carne1Invs.forEach((inv, i) => c1Map.set(inv.id, i + 1));
+                        currentInvoices = currentInvoices.map((inv) => {
+                          if ((Number(inv.carneGroup) || 1) === 1 && c1Map.has(inv.id)) {
+                            return {
+                              ...inv,
+                              installmentNumber: c1Map.get(inv.id)!,
+                              totalInstallments: totalC1,
+                            };
+                          }
+                          return inv;
+                        });
+                      }
+                    }
 
                     // Preserva estritamente o status atual do cadastro e dos membros (sem ativação automática)
                     const nextSubStatus = selectedSubForDetail.status;
