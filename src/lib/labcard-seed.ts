@@ -229,6 +229,12 @@ export const REGULARIZED_ACTIVE_CARDS = new Set([
   '121225271', // Eduardo Rodrigues
   '121225817', // Marli da Silva Ribeiro
   '1212251327', // Roksiane Alves de Barros
+  '121225890', // Jadia Cleia Rodrigues Goncalves
+  '1212252991', // Eder Aparecido Ferreira
+  '1212251485', // Genivaldo Alves
+  '1212251486', // Elane Pereira Morato da Silva (dependente Genivaldo)
+  '1212251487', // Gustavo Torres Alves (dependente Genivaldo)
+  '1212251413', // Elionar Sobrinho Sodre
 ]);
 
 let cachedLabcardSubs: ClubSubscription[] | null = null;
@@ -699,6 +705,8 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
     const isAndrirlei = holderCard === '1212252794' || upName.includes('ANDRIRLEI');
     const isGisseia = holderCard === '1212252990' || upName.includes('GISSEIA');
     const isEder = holderCard === '1212252991' || upName.includes('EDER APARECIDO');
+    const isGenivaldo = holderCard === '1212251485' || upName.includes('GENIVALDO ALVES');
+    const isElionar = holderCard === '1212251413' || upName.includes('ELIONAR SOBRINHO');
 
     const savedMedia = KNOWN_SAVED_MEDIA_BY_SUB_CODE[subCode];
 
@@ -716,6 +724,8 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
         ? 'barros.aroksiane@gmail.com'
         : isLiliane
         ? 'lilianegabrieldasilva@gmail.com'
+        : isGenivaldo
+        ? 'alvesgenivaldo974@gmail.com'
         : (holderEmail || undefined),
       addressCep: isMarli ? '76876536' : isRoksiane ? '76873452' : isLiliane ? '76870-000' : '76870-000',
       addressStreet: isMarli ? 'Avenida Rio Branco' : isRoksiane ? 'Rua Bou Gain' : isLiliane ? 'Avenida Tancredo Neves' : '',
@@ -726,9 +736,9 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
       paymentMethod: plan.toLowerCase().includes('publicidade') ? 'COURTESY' : (isAndrirlei || isGisseia || isEder) ? 'CREDIT_CARD' : 'PIX',
       installments: (isJadia || isAndrirlei) ? 1 : isAnnual ? 12 : 1,
       monthlyEquivalent: (isJadia || isAndrirlei) ? 0 : (isGisseia || isEder) ? 22.50 : mod.price,
-      totalContractValue: isJadia ? 200 : (isAndrirlei || isGisseia || isEder) ? 270 : isAnnual ? mod.price * 12 : mod.price,
+      totalContractValue: isJadia ? 290 : (isAndrirlei || isGisseia || isEder) ? 270 : isAnnual ? mod.price * 12 : mod.price,
       dueDay: isRoksiane ? 5 : (isJadia ? 2 : (isGisseia || isEder) ? 15 : 10),
-      status: isElsa || isLiliane ? 'INACTIVE' : (isRoksiane || isMarli || isJadia || isAndrirlei || isGisseia || isEder) ? 'ACTIVE' : finalStatus,
+      status: isElsa || isLiliane ? 'INACTIVE' : (isRoksiane || isMarli || isJadia || isAndrirlei || isGisseia || isEder || isGenivaldo || isElionar) ? 'ACTIVE' : finalStatus,
       inactivityReason: isElsa
         ? 'MENSALIDADE_VENCIDA'
         : isLiliane
@@ -819,10 +829,11 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
         : isLiliane
         ? '2026-11-19T11:40:00.000Z'
         : '2026-11-10T00:00:00.000Z',
-      transferCompleted: isRoksiane || isElsa || isLiliane ? false : isMarli ? true : isTitularAtivo,
-      manualStatusOverride: isRoksiane || isElsa || isMarli || isLiliane ? true : isTitularAtivo,
-      transferredAt: isRoksiane || isElsa || isLiliane ? undefined : (isMarli || isTitularAtivo) ? '2026-11-13T00:00:00.000Z' : undefined,
-      isModifiedFromSeed: isMarli || isRoksiane || isElsa || isLiliane ? true : undefined,
+      transferCompleted: isElsa || isLiliane ? false : (isRoksiane || isMarli || isJadia || isAndrirlei || isGisseia || isEder || isGenivaldo || isElionar) ? true : isTitularAtivo,
+      manualStatusOverride: isElsa || isLiliane || isRoksiane || isMarli || isJadia || isAndrirlei || isGisseia || isEder || isGenivaldo || isElionar ? true : isTitularAtivo,
+      manuallyConfirmedTransfer: (isRoksiane || isMarli || isJadia || isAndrirlei || isGisseia || isEder || isGenivaldo || isElionar) ? true : false,
+      transferredAt: (isRoksiane || isMarli || isJadia || isAndrirlei || isGisseia || isEder || isGenivaldo || isElionar) ? '2026-11-13T00:00:00.000Z' : undefined,
+      isModifiedFromSeed: isMarli || isRoksiane || isElsa || isLiliane || isJadia || isEder || isGenivaldo || isElionar ? true : undefined,
     };
   });
 

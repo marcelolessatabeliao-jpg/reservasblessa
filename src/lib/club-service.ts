@@ -90,13 +90,17 @@ export const isSubscriptionRegularizedOrActive = (
   // SOMENTE pode ser considerado ativo se:
   // 1. Estiver na lista oficial de regularizados (REGULARIZED_ACTIVE_CARDS)
   // 2. Ou se foi confirmado manualmente e individualmente pelo Administrador (confirmedSet)
-  // 3. Ou se o Administrador realizou confirmação manual individual explícita (manuallyConfirmedTransfer === true && status === 'ACTIVE')
+  // 3. Ou se o Administrador realizou confirmação manual individual explícita
+  // 4. Ou se o cadastro foi salvo como ACTIVE, ou tem manualStatusOverride/isModifiedFromSeed
   return (
     REGULARIZED_ACTIVE_CARDS.has(code) ||
     REGULARIZED_ACTIVE_CARDS.has(subId) ||
     confirmedSet.has(code) ||
     confirmedSet.has(subId) ||
-    (Boolean(sub.manuallyConfirmedTransfer) && sub.status === 'ACTIVE')
+    sub.status === 'ACTIVE' ||
+    Boolean(sub.manuallyConfirmedTransfer) ||
+    Boolean(sub.manualStatusOverride) ||
+    Boolean(sub.isModifiedFromSeed)
   );
 };
 
@@ -1401,11 +1405,18 @@ export const normalizeClubDatabaseState = (
       const isMemberDirectlyInactive =
         m.status === 'INACTIVE' || m.status === 'SUSPENDED' || m.status === 'CANCELLED' || Boolean(m.inactivityReason);
 
+      const isMemberUserConfirmed =
+        Boolean(m.manualStatusOverride) ||
+        m.status === 'ACTIVE' ||
+        isMemberRegularized;
+
       const resolvedStatus: SubscriptionStatus =
         isSubDirectlyInactive
           ? (sub.status === 'SUSPENDED' || sub.status === 'CANCELLED' ? (sub.status as SubscriptionStatus) : 'INACTIVE')
           : isMemberDirectlyInactive
           ? (m.status === 'SUSPENDED' || m.status === 'CANCELLED' ? m.status : 'INACTIVE')
+          : isMemberUserConfirmed
+          ? (m.status || 'ACTIVE')
           : isLabcard && !isMemberRegularized
           ? ('PENDING_TRANSFER' as SubscriptionStatus)
           : missingRequiredDoc && !isMemberRegularized
@@ -1444,9 +1455,18 @@ export const normalizeClubDatabaseState = (
     const isSubDirectlyInactive =
       sub.status === 'INACTIVE' || sub.status === 'SUSPENDED' || sub.status === 'CANCELLED' || Boolean(sub.inactivityReason);
 
+    const isSubUserConfirmed =
+      Boolean(sub.manualStatusOverride) ||
+      Boolean(sub.isModifiedFromSeed) ||
+      Boolean(sub.manuallyConfirmedTransfer) ||
+      sub.status === 'ACTIVE' ||
+      isSubExplicitlyRegularized;
+
     const resolvedSubStatus: SubscriptionStatus =
       isSubDirectlyInactive
         ? (sub.status === 'SUSPENDED' || sub.status === 'CANCELLED' ? (sub.status as SubscriptionStatus) : 'INACTIVE')
+        : isSubUserConfirmed
+        ? (sub.status || 'ACTIVE')
         : isLabcard && !isSubExplicitlyRegularized
         ? ('PENDING_TRANSFER' as SubscriptionStatus)
         : normalizedMembers.length > 0 &&
@@ -1467,9 +1487,9 @@ export const normalizeClubDatabaseState = (
       status: resolvedSubStatus,
       inactivityReason: sub.inactivityReason,
       inactivityNotes: sub.inactivityNotes,
-      transferCompleted: isSubDirectlyInactive ? false : isLabcard ? isSubExplicitlyRegularized : (sub.transferCompleted ?? false),
-      manuallyConfirmedTransfer: isSubDirectlyInactive ? false : isLabcard ? (isSubExplicitlyRegularized && Boolean(sub.manuallyConfirmedTransfer)) : (sub.manuallyConfirmedTransfer ?? false),
-      manualStatusOverride: isSubDirectlyInactive ? true : isLabcard ? (isSubExplicitlyRegularized || Boolean(sub.manualStatusOverride)) : (sub.manualStatusOverride ?? false),
+      transferCompleted: isSubDirectlyInactive ? false : isSubUserConfirmed ? (sub.transferCompleted ?? true) : isLabcard ? isSubExplicitlyRegularized : (sub.transferCompleted ?? false),
+      manuallyConfirmedTransfer: isSubDirectlyInactive ? false : isSubUserConfirmed ? (sub.manuallyConfirmedTransfer ?? true) : isLabcard ? (isSubExplicitlyRegularized && Boolean(sub.manuallyConfirmedTransfer)) : (sub.manuallyConfirmedTransfer ?? false),
+      manualStatusOverride: isSubDirectlyInactive ? true : isSubUserConfirmed ? true : isLabcard ? (isSubExplicitlyRegularized || Boolean(sub.manualStatusOverride)) : (sub.manualStatusOverride ?? false),
       members: normalizedMembers,
       billingCycle:
         (sub.subscriptionCode === '121225890' || (sub.holderName && sub.holderName.toUpperCase().includes('JADIA')) ||
@@ -1480,7 +1500,7 @@ export const normalizeClubDatabaseState = (
           : sub.billingCycle,
       totalContractValue:
         (sub.subscriptionCode === '121225890' || (sub.holderName && sub.holderName.toUpperCase().includes('JADIA')))
-          ? 200
+          ? 290
           : (sub.subscriptionCode === '1212252794' || (sub.holderName && sub.holderName.toUpperCase().includes('ANDRIRLEI')) ||
              sub.subscriptionCode === '1212252990' || (sub.holderName && sub.holderName.toUpperCase().includes('GISSEIA')) ||
              sub.subscriptionCode === '1212252991' || (sub.holderName && sub.holderName.toUpperCase().includes('EDER APARECIDO')))
@@ -1496,10 +1516,18 @@ export const normalizeClubDatabaseState = (
           : sub.monthlyEquivalent,
       validityLabel:
         (sub.subscriptionCode === '121225890' || (sub.holderName && sub.holderName.toUpperCase().includes('JADIA')))
-          ? '05/2027'
+          ? '06/2027'
+          : (sub.subscriptionCode === '1212251327' || (sub.holderName && sub.holderName.toUpperCase().includes('ROKSIANE')))
+          ? '04/2027'
           : (sub.subscriptionCode === '1212252794' || (sub.holderName && sub.holderName.toUpperCase().includes('ANDRIRLEI')))
           ? '06/2027'
           : sub.validityLabel,
+      endDate:
+        (sub.subscriptionCode === '121225890' || (sub.holderName && sub.holderName.toUpperCase().includes('JADIA')))
+          ? '2027-06-02'
+          : (sub.subscriptionCode === '1212251327' || (sub.holderName && sub.holderName.toUpperCase().includes('ROKSIANE')))
+          ? '2027-04-04'
+          : sub.endDate,
       planSummaryLabel:
         (sub.subscriptionCode === '121225890' || (sub.holderName && sub.holderName.toUpperCase().includes('JADIA')))
           ? 'Lessa Servidor Pass (Anual)'
@@ -1579,13 +1607,13 @@ export const normalizeClubDatabaseState = (
             installmentNumber: 1,
             totalInstallments: 1,
             referenceMonth: '05/2026',
-            amount: 200,
+            amount: 290,
             dueDate: '2026-05-02',
             paidAt: '2026-05-02T10:00:00.000Z',
             paymentMethod: 'PIX',
             status: 'PAID',
             boletoNumber: '180417777559163668',
-            description: 'Lessa Servidor Pass (anual)',
+            description: 'Lessa Servidor Pass (anual) - R$ 290,00',
             invoiceKind: 'MENSALIDADE',
             carneGroup: 4,
             createdAt: '2026-05-02T10:00:00.000Z',
@@ -1817,7 +1845,13 @@ export const loadClubStateLocal = (): ClubDatabaseState => {
           return;
         }
 
-        const isAlreadyRegularized = isSubscriptionRegularizedOrActive(sub, adminConfirmedCards);
+        const isSubUserConfirmed =
+          Boolean(sub.manualStatusOverride) ||
+          Boolean(sub.isModifiedFromSeed) ||
+          Boolean(sub.manuallyConfirmedTransfer) ||
+          sub.status === 'ACTIVE';
+
+        const isAlreadyRegularized = isSubUserConfirmed || isSubscriptionRegularizedOrActive(sub, adminConfirmedCards);
 
         if (!isAlreadyRegularized) {
           sub.transferCompleted = false;
@@ -1831,6 +1865,8 @@ export const loadClubStateLocal = (): ClubDatabaseState => {
                 m.status !== 'INACTIVE' &&
                 m.status !== 'SUSPENDED' &&
                 m.status !== 'CANCELLED' &&
+                m.status !== 'ACTIVE' &&
+                !m.manualStatusOverride &&
                 !REGULARIZED_ACTIVE_CARDS.has(m.cardNumber) &&
                 !adminConfirmedCards.has(m.cardNumber)
               ) {
@@ -1962,9 +1998,8 @@ const runCloudSaveExecution = async (stateToSave: ClubDatabaseState): Promise<vo
 
       if (!error) {
         lastClubFetchErrorMessage = null;
-        // Blindagem de segurança: Snapshot diário e banco relacional em segundo plano
+        // Blindagem de segurança: Snapshot diário em nuvem
         ensureDailyBackup(stateToSave).catch((e) => console.warn('[Backup] Falha ao verificar backup diário:', e));
-        syncStateToRelationalDatabase(stateToSave).catch((e) => console.warn('[Relational] Falha na gravação relacional:', e));
         return;
       }
       console.error('[ClubService] Erro ao sincronizar nuvem:', error);
@@ -2157,15 +2192,27 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
               s.status === 'INACTIVE' ||
               s.status === 'SUSPENDED' ||
               s.status === 'CANCELLED' ||
-              s.manualStatusOverride ||
               full.status === 'INACTIVE' ||
               full.status === 'SUSPENDED' ||
-              full.status === 'CANCELLED' ||
-              full.manualStatusOverride
+              full.status === 'CANCELLED'
             ) {
-              // Status definido pelo administrador - preservar soberanamente
+              // Status inativo/suspenso definido pelo administrador - preservar soberanamente
+              s.status = full.status || s.status;
+              s.manualStatusOverride = true;
+              s.transferCompleted = false;
+              s.manuallyConfirmedTransfer = false;
             } else {
-              const isAlreadyRegularized = isSubscriptionRegularizedOrActive(s, adminConfirmedCards);
+              const isSubActiveConfirmed =
+                s.status === 'ACTIVE' ||
+                full.status === 'ACTIVE' ||
+                Boolean(s.manualStatusOverride) ||
+                Boolean(full.manualStatusOverride) ||
+                Boolean(s.isModifiedFromSeed) ||
+                Boolean(full.isModifiedFromSeed) ||
+                Boolean(s.manuallyConfirmedTransfer) ||
+                Boolean(full.manuallyConfirmedTransfer);
+
+              const isAlreadyRegularized = isSubActiveConfirmed || isSubscriptionRegularizedOrActive(s, adminConfirmedCards);
               if (isAlreadyRegularized) {
                 s.status = 'ACTIVE';
                 s.manualStatusOverride = true;
@@ -2428,7 +2475,17 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
                 current.transferCompleted = false;
                 current.manuallyConfirmedTransfer = false;
               } else {
-                const isAlreadyRegularizedCur = isSubscriptionRegularizedOrActive(current, adminConfirmedCards);
+                const isSubActiveConfirmed =
+                  current.status === 'ACTIVE' ||
+                  s.status === 'ACTIVE' ||
+                  Boolean(current.manualStatusOverride) ||
+                  Boolean(s.manualStatusOverride) ||
+                  Boolean(current.isModifiedFromSeed) ||
+                  Boolean(s.isModifiedFromSeed) ||
+                  Boolean(current.manuallyConfirmedTransfer) ||
+                  Boolean(s.manuallyConfirmedTransfer);
+
+                const isAlreadyRegularizedCur = isSubActiveConfirmed || isSubscriptionRegularizedOrActive(current, adminConfirmedCards);
                 if (isAlreadyRegularizedCur) {
                   current.status = 'ACTIVE';
                   current.manualStatusOverride = true;
@@ -2455,6 +2512,12 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
                     REGULARIZED_ACTIVE_CARDS.has(cm.cardNumber) ||
                     adminConfirmedCards.has(cm.cardNumber);
 
+                  const isMemUserActive =
+                    cm.status === 'ACTIVE' ||
+                    lm.status === 'ACTIVE' ||
+                    Boolean(cm.manualStatusOverride) ||
+                    Boolean(lm.manualStatusOverride);
+
                   const isMemInactive =
                     cm.status === 'INACTIVE' ||
                     cm.status === 'SUSPENDED' ||
@@ -2465,7 +2528,7 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
 
                   const finalMemStatus = isMemInactive
                     ? (cm.status === 'INACTIVE' || cm.status === 'SUSPENDED' || cm.status === 'CANCELLED' ? cm.status : lm.status)
-                    : isMemExplicitlyActive
+                    : (isMemExplicitlyActive || isMemUserActive)
                     ? 'ACTIVE'
                     : (current.origin === 'IMPORT_LABCARD' || current.id.startsWith('sub-labcard-'))
                     ? 'PENDING_TRANSFER'
@@ -2473,19 +2536,26 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
 
                   const mergedMedia = mergeMemberMediaSafely(cm, lm);
 
-                  const effExp = (lm.expirationDate && lm.expirationDate !== '2027-10-31')
-                    ? lm.expirationDate
-                    : (cm.expirationDate || lm.expirationDate || mergedMedia.expirationDate);
+                  // Preserva a data de expiração personalizada pelo admin, evitando regressão para a data antiga
+                  const effExp =
+                    (lm.expirationDate && lm.expirationDate !== '2026-12-31' && lm.expirationDate !== '2027-10-31')
+                      ? lm.expirationDate
+                      : (cm.expirationDate && cm.expirationDate !== '2026-12-31' && cm.expirationDate !== '2027-10-31')
+                      ? cm.expirationDate
+                      : (lm.expirationDate || cm.expirationDate || mergedMedia.expirationDate);
 
-                  const effVal = (lm.validityLabel && lm.validityLabel !== '10/2027')
-                    ? lm.validityLabel
-                    : (cm.validityLabel || lm.validityLabel || mergedMedia.validityLabel);
+                  const effVal =
+                    (lm.validityLabel && lm.validityLabel !== '12/2026' && lm.validityLabel !== '10/2027')
+                      ? lm.validityLabel
+                      : (cm.validityLabel && cm.validityLabel !== '12/2026' && cm.validityLabel !== '10/2027')
+                      ? cm.validityLabel
+                      : (lm.validityLabel || cm.validityLabel || mergedMedia.validityLabel);
 
                   return {
                     ...mergedMedia,
                     status: finalMemStatus,
-                    manualStatusOverride: isMemInactive || isMemExplicitlyActive,
-                    documentVerified: (mergedMedia.documentVerified === true || isMemExplicitlyActive),
+                    manualStatusOverride: isMemInactive || isMemExplicitlyActive || isMemUserActive,
+                    documentVerified: (mergedMedia.documentVerified === true || isMemExplicitlyActive || isMemUserActive),
                     documentStatus: (mergedMedia.documentStatus === 'APROVADO' || cm.documentStatus === 'APROVADO' || lm.documentStatus === 'APROVADO')
                       ? ('APROVADO' as const)
                       : (mergedMedia.documentStatus || cm.documentStatus || lm.documentStatus),

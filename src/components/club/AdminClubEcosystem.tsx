@@ -3104,6 +3104,18 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       // Grava no estado e IndexedDB instantaneamente (sem travar a tela esperando resposta de rede)
       await persist(nextState);
 
+      // Blindagem definitiva: persiste os cartões no conjunto de cartões confirmados pelo administrador
+      if (updatedSub.subscriptionCode) {
+        markCardAsAdminConfirmed(updatedSub.subscriptionCode, targetStatus === 'ACTIVE');
+      }
+      if (updatedSub.members) {
+        updatedSub.members.forEach((m) => {
+          if (m.cardNumber) {
+            markCardAsAdminConfirmed(m.cardNumber, (m.status || targetStatus) === 'ACTIVE');
+          }
+        });
+      }
+
       setEditClientData((prev) => ({ ...prev, endDate: nextEndDate }));
       setTempExpirationDate(nextEndDate);
       if (targetStatus === 'ACTIVE') {
@@ -15322,7 +15334,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           <>
                             Plano Anual à Vista:{' '}
                             <span className="text-[#004d00] font-black">
-                              {formatCurrency(selectedSubForDetail.totalContractValue || 200)} (Quitado)
+                              {formatCurrency(selectedSubForDetail.totalContractValue || 290)} (Quitado)
                             </span>
                           </>
                         ) : (
