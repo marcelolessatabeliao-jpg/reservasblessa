@@ -6015,13 +6015,25 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         <strong>{member.cpf || subscription.holderCpf}</strong> •{' '}
                         {member.planCycleLabel}
                       </p>
+                      {member.role === 'DEPENDENTE' && (
+                        <p className="text-[11px] font-bold text-amber-900 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 mt-1.5 flex items-center gap-1.5 shadow-xs">
+                          👥 Dependente vinculado ao Titular: <strong>{subscription.holderName}</strong> (Cartão #{subscription.subscriptionCode})
+                        </p>
+                      )}
                     </div>
                     <Button
                       size="sm"
-                      onClick={() => setSelectedSubForDetail(subscription)}
+                      onClick={() => {
+                        setSelectedSubForDetail(subscription);
+                        if (member.role === 'DEPENDENTE') {
+                          setClientDetailTool('DEPENDENTES');
+                        } else {
+                          setClientDetailTool('DADOS_CADASTRAIS');
+                        }
+                      }}
                       className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shrink-0"
                     >
-                      Abrir Cadastro / Situação
+                      {member.role === 'DEPENDENTE' ? 'Abrir Dependentes da Família' : 'Abrir Cadastro / Situação'}
                     </Button>
                   </div>
                 ))}

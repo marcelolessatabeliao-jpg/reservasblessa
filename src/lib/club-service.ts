@@ -2398,21 +2398,34 @@ export const createClubSubscription = async (
 ): Promise<{ subscription: ClubSubscription; firstInvoice?: ClubInvoice }> => {
   const state = await fetchClubState();
 
-  // Validação rigorosa: Não permitir duplicidade de CPF de titular já cadastrado
+  // Validação: Não permitir duplicidade de CPF para quem já possui assinatura ATIVA como titular
   const cleanHolderCpf = cleanDigits(input.holderCpf);
   if (cleanHolderCpf && cleanHolderCpf.length === 11) {
     const deletedSet = new Set(state.deletedSubscriptionIds || []);
-    const existingSub = state.subscriptions.find((s) => {
+    
+    // Verifica se já existe uma assinatura ATIVA onde o usuário já é o titular pagante
+    const existingActiveTitularSub = state.subscriptions.find((s) => {
       if (deletedSet.has(s.id) || s.status === 'CANCELLED') return false;
-      if (cleanDigits(s.holderCpf) === cleanHolderCpf) return true;
-      return (s.members || []).some((m) => cleanDigits(m.cpf) === cleanHolderCpf);
+      // Não bloqueia transferências pendentes importadas do Labcard sem confirmação oficial
+      if (s.status === 'PENDING_TRANSFER' || (!s.transferCompleted && (s.origin === 'IMPORT_LABCARD' || s.id.startsWith('sub-labcard-')))) {
+        return false;
+      }
+      return cleanDigits(s.holderCpf) === cleanHolderCpf && s.status === 'ACTIVE';
     });
 
-    if (existingSub) {
+    if (existingActiveTitularSub) {
       throw new Error(
-        `Este CPF (${formatCpf(input.holderCpf)}) já está cadastrado em nosso sistema no cartão #${existingSub.subscriptionCode} (${existingSub.holderName}). Não é permitido cadastrar o mesmo CPF mais de uma vez.`
+        `Este CPF (${formatCpf(input.holderCpf)}) já possui uma assinatura ATIVA no Lessa Club (Cartão #${existingActiveTitularSub.subscriptionCode}). Para gerenciar dependentes, faturas ou carteirinhas, acesse o Portal do Sócio.`
       );
     }
+
+    // Se o CPF existia como dependente em cadastros legados ou pendentes de transferência, desvincula o dependente antigo
+    state.subscriptions.forEach((s) => {
+      if (s.members && s.members.some((m) => m.role === 'DEPENDENTE' && cleanDigits(m.cpf) === cleanHolderCpf)) {
+        s.members = s.members.filter((m) => !(m.role === 'DEPENDENTE' && cleanDigits(m.cpf) === cleanHolderCpf));
+        s.updatedAt = new Date().toISOString();
+      }
+    });
   }
 
   let seq = state.lastCardSequence || 3000;
