@@ -2594,6 +2594,33 @@ export const createClubSubscription = async (
       ? Number((totalContractValue / installmentsCount).toFixed(2))
       : Number(monthlyEquivalent.toFixed(2));
 
+  // Tabela de valores vigentes a partir de 01/01/2027 para planos mensais recorrentes:
+  // - Meia-entrada (Estudante, Professor, Servidor): R$ 25,00 -> R$ 30,00
+  // - Adulto Integral: R$ 49,90 -> R$ 59,90
+  // - Múltiplos integrantes: soma proporcional (ex: 2 adultos = 119,80, 3 adultos = 179,70, 4 adultos = 239,60)
+  // - Gratuitos (Kids, 60+, PCD/TEA, Cortesia): R$ 0,00
+  let monthlyEquivalent2027 = 0;
+  for (const m of input.members) {
+    const mod =
+      state.modalities.find((item) => item.code === m.modalityCode) ||
+      DEFAULT_CLUB_MODALITIES[0];
+    if (mod.isFreeTier || mod.monthlyPrice === 0) {
+      monthlyEquivalent2027 += 0;
+    } else if (
+      mod.code === 'ESTUDANTE' ||
+      mod.code === 'PROFESSOR' ||
+      mod.code === 'SERVIDOR' ||
+      Math.abs(mod.monthlyPrice - 25.0) < 0.01
+    ) {
+      monthlyEquivalent2027 += 30.0;
+    } else if (mod.code === 'ADULTO' || Math.abs(mod.monthlyPrice - 49.9) < 0.01) {
+      monthlyEquivalent2027 += 59.9;
+    } else {
+      // Demais planos mensais pagos recebem reajuste proporcional de +R$ 10,00 por membro
+      monthlyEquivalent2027 += mod.monthlyPrice + 10.0;
+    }
+  }
+
   for (let i = 1; i <= installmentsCount; i++) {
     const dueObj = new Date(now);
     if (i > 1) {
@@ -2604,12 +2631,16 @@ export const createClubSubscription = async (
     }
     const dueStr = dueObj.toISOString().split('T')[0];
     const refMonth = `${String(dueObj.getMonth() + 1).padStart(2, '0')}/${dueObj.getFullYear()}`;
+    const isYear2027OrLater = dueObj.getFullYear() >= 2027;
+
     const invoiceAmount = isFree
       ? 0
       : isAnnualUpfrontFull
       ? Number(totalContractValue.toFixed(2))
       : input.billingCycle === 'ANNUAL'
       ? annualCreditInstallmentValue
+      : isYear2027OrLater
+      ? Number(monthlyEquivalent2027.toFixed(2))
       : Number(monthlyEquivalent.toFixed(2));
 
     const descriptionLabel = isFree
@@ -2618,6 +2649,8 @@ export const createClubSubscription = async (
       ? `Pagamento Anual Integral à Vista (${input.paymentMethod === 'DEBIT_CARD' ? 'Cartão de Débito' : 'PIX'}) - ${planSummaryLabel}`
       : input.billingCycle === 'ANNUAL'
       ? `Parcela ${i}/${installmentsCount} (Plano Anual no Cartão de Crédito) - ${planSummaryLabel}`
+      : isYear2027OrLater
+      ? `Mensalidade Recorrente ${i}/12 (Tabela 2027) - ${planSummaryLabel}`
       : `Mensalidade Recorrente ${i}/12 - ${planSummaryLabel}`;
 
     invoices.push({
