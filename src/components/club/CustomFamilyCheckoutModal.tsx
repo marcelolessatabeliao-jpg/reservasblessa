@@ -849,7 +849,19 @@ export const CustomFamilyCheckoutModal: React.FC<CustomFamilyCheckoutModalProps>
                         }
                         className="text-xs font-black bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-emerald-950"
                       >
-                        {DEFAULT_CLUB_MODALITIES.filter((m) => m.visibleInSimulator).map((m) => (
+                        {DEFAULT_CLUB_MODALITIES.filter(
+                          (m) =>
+                            m.visibleInSimulator &&
+                            m.visibleOnSite &&
+                            ![
+                              'CORPORATE',
+                              'SEM_PLANO',
+                              'PUBLICIDADE',
+                              'FAMILY_PUBLICIDADE',
+                              'CONVENIO_DAYUSE',
+                              'PARCEIRO',
+                            ].includes(m.code)
+                        ).map((m) => (
                           <option key={m.code} value={m.code}>
                             {m.emoji} {m.name} (
                             {m.isFreeTier

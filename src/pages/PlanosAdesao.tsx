@@ -237,27 +237,6 @@ const CATALOG_PLANS: CatalogPlanCard[] = [
       'Mediante documento ou certidão de nascimento da criança',
     ],
   },
-  {
-    id: 'lessa-family',
-    title: 'Lessa Family',
-    subtitle: 'Exclusivo para Dono do Veículo Adesivado (Titular + Cônjuge e Filhos)',
-    modalityCode: 'PUBLICIDADE',
-    cardImage: '/cards/29.png',
-    backCardUrl: '/cards/33.png',
-    monthlyPrice: 0.0,
-    annualPrice: 0.0,
-    annualInstallment: 0.0,
-    badge: 'PARCERIA • VEÍCULO ADESIVADO',
-    isFreePlan: true,
-    benefits: [
-      'Isenção de mensalidade e adesão (R$ 0,00) mediante veículo adesivado',
-      'Plano exclusivo para o proprietário do veículo e seus dependentes diretos (apenas cônjuge e filhos)',
-      'Obrigatório cadastro do veículo e foto do carro adesivado',
-      'Obrigatório RG com foto e nome de cada dependente para validação',
-      'Acesso ilimitado às áreas de lazer do Balneário Lessa',
-      'Carteirinhas oficiais individuais com QR Code exclusivo para toda a família',
-    ],
-  },
 ];
 
 const UF_LIST = [
@@ -507,6 +486,20 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
     }
   }, [urlPlan, urlTitular, urlDeps, urlStep, urlCycleParam, isPrePaid]);
 
+  // Modalidades corporativas, cortesias internas, sem plano ou convênios que NÃO devem aparecer para adesão pública
+  const EXCLUDED_SIGNUP_MODALITY_CODES = useMemo(
+    () =>
+      new Set([
+        'CORPORATE',
+        'SEM_PLANO',
+        'PUBLICIDADE',
+        'FAMILY_PUBLICIDADE',
+        'CONVENIO_DAYUSE',
+        'PARCEIRO',
+      ]),
+    []
+  );
+
   // Sempre garante lista de modalidades (mesmo antes do fetch terminar)
   // Se o consultor/influencer possuir permissão específica de planos configurada, exibe ESTRITAMENTE apenas os liberados para ele
   const activeModalities: ClubModality[] = useMemo(() => {
@@ -514,7 +507,24 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
       state?.modalities && state.modalities.length > 0
         ? state.modalities
         : DEFAULT_CLUB_MODALITIES
-    ).filter((m) => m.active !== false);
+    ).filter((m) => {
+      if (m.active === false) return false;
+      const codeUpper = (m.code || '').toUpperCase().trim();
+      if (EXCLUDED_SIGNUP_MODALITY_CODES.has(codeUpper)) return false;
+      const nameLower = (m.name || '').toLowerCase();
+      if (
+        nameLower.includes('corporate') ||
+        nameLower.includes('sem plano') ||
+        nameLower.includes('publicidade') ||
+        nameLower.includes('convênio') ||
+        nameLower.includes('convenio') ||
+        nameLower.includes('parceiro')
+      ) {
+        return false;
+      }
+      if (m.visibleOnSite === false || m.visibleInSimulator === false) return false;
+      return true;
+    });
 
     if (matchedConsultant?.allowedPlanCodes && matchedConsultant.allowedPlanCodes.length > 0) {
       const filtered = list.filter((m) =>
@@ -524,7 +534,7 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
     }
 
     return list;
-  }, [state, matchedConsultant]);
+  }, [state, matchedConsultant, EXCLUDED_SIGNUP_MODALITY_CODES]);
 
   // Cards de planos filtrados rigorosamente pelas permissões do consultor (e planos extras criados no Admin)
   const displayedCatalogPlans: CatalogPlanCard[] = useMemo(() => {
@@ -532,6 +542,8 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
       Boolean(matchedConsultant?.allowedPlanCodes && matchedConsultant.allowedPlanCodes.length > 0);
 
     const baseCards = CATALOG_PLANS.filter((card) => {
+      const codeUpper = (card.modalityCode || '').toUpperCase().trim();
+      if (EXCLUDED_SIGNUP_MODALITY_CODES.has(codeUpper)) return false;
       if (hasRestrictedConsultant && matchedConsultant) {
         return doesConsultantAllowModality(matchedConsultant.allowedPlanCodes, {
           id: card.id,
@@ -1571,6 +1583,20 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
         ===================================================================== */}
         {step === 1 && (
           <div className="space-y-8 sm:space-y-10">
+            {/* AVISO OFICIAL DE REAJUSTE E OFERTA PLANO ANUAL */}
+            <div className="bg-gradient-to-r from-emerald-950 via-[#072e1d] to-emerald-950 text-white rounded-3xl p-5 sm:p-7 shadow-2xl border-2 border-amber-400/90 ring-4 ring-amber-400/10 text-center space-y-2.5 max-w-4xl mx-auto">
+              <div className="inline-flex items-center gap-1.5 bg-amber-400 text-emerald-950 px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider shadow">
+                <Sparkles className="w-3.5 h-3.5 fill-emerald-950" />
+                TABELA OFICIAL 2026 • GARANTA ANTES DO REAJUSTE
+              </div>
+              <h2 className="text-lg sm:text-2xl md:text-3xl font-black text-amber-300 tracking-tight leading-snug">
+                Garanta agora o PLANO ANUAL com preço de 2026 por mais 1 ano em até 12x sem juros no Cartão com 10% de desconto
+              </h2>
+              <p className="text-xs sm:text-sm md:text-base text-emerald-100/95 font-medium max-w-2xl mx-auto">
+                Novos valores entrarão em vigência a partir de 2027 para os planos mensais
+              </p>
+            </div>
+
             <div className="text-center space-y-3 max-w-2xl mx-auto">
               <h2 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight">
                 Escolha ou Personalize seu Plano Lessa Club
@@ -1626,58 +1652,97 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
               <div className="absolute -top-24 -right-24 w-72 h-72 bg-amber-400/15 blur-3xl rounded-full pointer-events-none" />
               <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-emerald-500/15 blur-3xl rounded-full pointer-events-none" />
 
-              <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+              <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
                 {/* Coluna Esquerda: Apresentação + Cartão + Vantagens */}
-                <div className="lg:col-span-5 space-y-4">
-                  <div className="inline-flex items-center gap-2 bg-amber-400 text-emerald-950 px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider shadow-lg">
-                    <Crown className="w-4 h-4 fill-emerald-950" />
-                    EXCLUSIVO • MONTE DO SEU JEITO
+                <div className="lg:col-span-5 flex flex-col justify-between space-y-5">
+                  <div className="space-y-3">
+                    <div className="inline-flex items-center gap-2 bg-amber-400 text-emerald-950 px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider shadow-lg">
+                      <Crown className="w-4 h-4 fill-emerald-950" />
+                      EXCLUSIVO • MONTE DO SEU JEITO
+                    </div>
+
+                    <h3 className="text-2xl sm:text-3xl font-black tracking-tight leading-tight text-white">
+                      Plano Família Personalizado{' '}
+                      <span className="text-amber-300 block sm:inline text-lg sm:text-2xl">
+                        ({customActiveCycle === 'ANNUAL' ? 'Anual 10% OFF' : 'Mensal'})
+                      </span>
+                    </h3>
+
+                    <p className="text-xs sm:text-sm text-emerald-100/90 leading-relaxed">
+                      Sua família tem perfis diferentes? Aqui você <strong>não precisa fazer assinaturas separadas</strong>! Combine <strong>Adulto Integral + Estudante + Professor + Servidor + Crianças Kids + Idosos 60+ + PCD/TEA</strong> em um único contrato e pagamento.
+                    </p>
                   </div>
 
-                  <h3 className="text-2xl sm:text-3xl font-black tracking-tight leading-tight text-white">
-                    Plano Família Personalizado{' '}
-                    <span className="text-amber-300 block sm:inline text-lg sm:text-2xl">
-                      ({customActiveCycle === 'ANNUAL' ? 'Anual 10% OFF' : 'Mensal'})
-                    </span>
-                  </h3>
-
-                  <p className="text-xs sm:text-sm text-emerald-100/90 leading-relaxed">
-                    Sua família tem perfis diferentes? Aqui você <strong>não precisa fazer assinaturas separadas</strong>! Combine <strong>Adulto Integral + Estudante + Professor + Servidor + Crianças Kids + Idosos 60+ + PCD/TEA</strong> em um único contrato e pagamento.
-                  </p>
-
-                  {/* Preview das artes das carteirinhas empilhadas com fotos de exemplo */}
-                  <div className="flex items-center gap-3 pt-1">
-                    <img
-                      src="/cards/17.png"
-                      alt="Lessa Club"
-                      className="w-28 sm:w-32 rounded-xl border-2 border-amber-400/60 shadow-lg"
-                    />
-                    <img
-                      src="/cards/7.png"
-                      alt="Student Pass"
-                      className="w-24 sm:w-28 rounded-xl border border-white/20 shadow-md -ml-6 mt-3"
-                    />
-                    <img
-                      src="/cards/37.png"
-                      alt="Lessa Kids"
-                      className="w-24 sm:w-28 rounded-xl border border-white/20 shadow-md -ml-6 -mt-2"
-                    />
+                  {/* Preview com Carteirinhas em Destaque Muito Maior e Nítidas */}
+                  <div className="relative py-2 flex items-center justify-center">
+                    <div className="relative w-full flex items-center justify-center">
+                      <div className="transform -rotate-6 hover:rotate-0 transition-transform duration-300 z-10 w-44 sm:w-52 drop-shadow-2xl">
+                        <img
+                          src="/cards/17.png"
+                          alt="Lessa Club Titular"
+                          className="w-full aspect-[1.584/1] rounded-2xl border-2 border-amber-400 shadow-xl object-contain select-none"
+                          style={{ imageRendering: '-webkit-optimize-contrast' }}
+                        />
+                        <span className="block text-center text-[10px] font-black uppercase text-amber-300 mt-1 drop-shadow">
+                          Titular
+                        </span>
+                      </div>
+                      <div className="transform rotate-6 hover:rotate-0 transition-transform duration-300 -ml-12 sm:-ml-16 z-20 w-44 sm:w-52 drop-shadow-2xl">
+                        <img
+                          src="/cards/7.png"
+                          alt="Meia-Entrada Estudante/Professor"
+                          className="w-full aspect-[1.584/1] rounded-2xl border-2 border-white/70 shadow-xl object-contain select-none"
+                          style={{ imageRendering: '-webkit-optimize-contrast' }}
+                        />
+                        <span className="block text-center text-[10px] font-black uppercase text-emerald-200 mt-1 drop-shadow">
+                          Meia-Entrada
+                        </span>
+                      </div>
+                      <div className="hidden sm:block transform rotate-12 hover:rotate-0 transition-transform duration-300 -ml-12 z-30 w-36 sm:w-44 drop-shadow-2xl">
+                        <img
+                          src="/cards/37.png"
+                          alt="Lessa Kids Gratuito"
+                          className="w-full aspect-[1.584/1] rounded-2xl border-2 border-teal-300/80 shadow-xl object-contain select-none"
+                          style={{ imageRendering: '-webkit-optimize-contrast' }}
+                        />
+                        <span className="block text-center text-[10px] font-black uppercase text-teal-200 mt-1 drop-shadow">
+                          Kids / Gratuito
+                        </span>
+                      </div>
+                    </div>
                   </div>
 
-                  <ul className="space-y-1.5 text-xs text-emerald-100/90 pt-2">
-                    <li className="flex items-center gap-2">
-                      <Check className="w-4 h-4 text-amber-400 shrink-0" />
-                      <span>1 Carteirinha Oficial individual (Frente e Verso) para cada membro</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Check className="w-4 h-4 text-amber-400 shrink-0" />
-                      <span>Sem taxa de adesão • Acesso livre Sex, Sáb, Dom e Feriados</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Check className="w-4 h-4 text-amber-400 shrink-0" />
-                      <span>Contrato único consolidado disponível no Portal do Sócio</span>
-                    </li>
-                  </ul>
+                  {/* Grid de Vantagens que preenche o card sem deixar espaços vazios */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                    <div className="bg-white/10 backdrop-blur-sm rounded-xl p-2.5 border border-white/15 flex items-start gap-2">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+                      <div className="text-xs">
+                        <strong className="block text-amber-300 font-bold text-[11px]">10% OFF no Anual</strong>
+                        <span className="text-emerald-100/80 text-[10px] leading-tight block">Até 12x s/ juros no cartão</span>
+                      </div>
+                    </div>
+                    <div className="bg-white/10 backdrop-blur-sm rounded-xl p-2.5 border border-white/15 flex items-start gap-2">
+                      <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                      <div className="text-xs">
+                        <strong className="block text-emerald-300 font-bold text-[11px]">Carteirinhas Oficiais</strong>
+                        <span className="text-emerald-100/80 text-[10px] leading-tight block">QR Code para cada pessoa</span>
+                      </div>
+                    </div>
+                    <div className="bg-white/10 backdrop-blur-sm rounded-xl p-2.5 border border-white/15 flex items-start gap-2">
+                      <Check className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+                      <div className="text-xs">
+                        <strong className="block text-white font-bold text-[11px]">Acesso Ilimitado</strong>
+                        <span className="text-emerald-100/80 text-[10px] leading-tight block">Sex, Sáb, Dom e Feriados</span>
+                      </div>
+                    </div>
+                    <div className="bg-white/10 backdrop-blur-sm rounded-xl p-2.5 border border-white/15 flex items-start gap-2">
+                      <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                      <div className="text-xs">
+                        <strong className="block text-white font-bold text-[11px]">Contrato Único</strong>
+                        <span className="text-emerald-100/80 text-[10px] leading-tight block">Zero taxa extra de adesão</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Coluna Direita: Montador Interativo da Família + Preço e Botão Aderir */}
@@ -1946,15 +2011,15 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                       }`}
                     >
                       <div>
-                        {/* Imagem da Carteirinha com clique para ampliar e textos nítidos */}
-                        <div className="p-4 pb-3 bg-white space-y-2">
+                        {/* Imagem da Carteirinha Nítida e em Alta Resolução */}
+                        <div className="p-3 sm:p-3.5 pb-2 bg-slate-50/70 border-b border-slate-100 space-y-1.5">
                           {card.badge && (
-                            <div className="mb-2 flex items-center justify-between">
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                            <div className="flex items-center justify-between pb-0.5">
+                              <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">
                                 {isFree ? 'Benefício Social' : 'Carteirinha Oficial'}
                               </span>
                               <div
-                                className={`font-black text-[10px] uppercase tracking-wider px-3 py-1 rounded-full shadow-sm ${
+                                className={`font-black text-[10px] uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow-sm ${
                                   isFree
                                     ? 'bg-emerald-600 text-white'
                                     : 'bg-amber-400 text-emerald-950'
@@ -1964,11 +2029,18 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                               </div>
                             </div>
                           )}
-                          <div className="relative aspect-[1.586/1] w-full rounded-xl overflow-hidden shadow-sm bg-transparent flex items-center justify-center">
+                          <div className="relative aspect-[1.584/1] w-full rounded-xl overflow-hidden shadow-md border border-slate-200/90 bg-white flex items-center justify-center">
                             <img
                               src={card.cardImage}
                               alt={card.title}
-                              className="w-full h-full object-cover rounded-xl select-none"
+                              loading="eager"
+                              decoding="sync"
+                              className="w-full h-full object-contain rounded-xl select-none"
+                              style={{
+                                imageRendering: '-webkit-optimize-contrast',
+                                transform: 'translateZ(0)',
+                                backfaceVisibility: 'hidden',
+                              }}
                             />
                           </div>
                         </div>

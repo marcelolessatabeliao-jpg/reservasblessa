@@ -70,7 +70,7 @@ export default function Assinatura() {
               Tabela 2026
             </span>
             <span>
-              Garanta agora o <strong>Preço de 2026 em até 12x no Cartão</strong>. Novos valores entrarão em vigência a partir de <strong>2027</strong>!
+              Garanta agora o <strong>PLANO ANUAL com preço de 2026 por mais 1 ano em até 12x sem juros no Cartão com 10% de desconto</strong>. Novos valores entrarão em vigência a partir de <strong>2027</strong> para os planos mensais.
             </span>
           </div>
         </div>
