@@ -507,7 +507,7 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
             installmentNumber: c.num,
             totalInstallments: 12,
             referenceMonth: c.ref,
-            amount: 25,
+            amount: c.due && c.due >= '2027-01-01' ? 30 : 25,
             dueDate: c.due,
             paidAt: c.paid,
             paymentMethod: 'PIX',
@@ -534,7 +534,7 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
           { num: 9, ref: '10/2026', due: '2026-10-10', paid: undefined, status: 'OVERDUE' as const, asaasPaymentId: 'pay_6pnijr32q176lic6', invoiceUrl: 'https://www.asaas.com/i/6pnijr32q176lic6', amount: 25 },
           { num: 10, ref: '11/2026', due: '2026-11-10', paid: undefined, status: 'OVERDUE' as const, asaasPaymentId: 'pay_8aa9qpvtvoqd8ebb', invoiceUrl: 'https://www.asaas.com/i/8aa9qpvtvoqd8ebb', amount: 25 },
           { num: 11, ref: '12/2026', due: '2026-12-10', paid: undefined, status: 'PENDING' as const, asaasPaymentId: 'pay_o58qntvl6bzgbl28', invoiceUrl: 'https://www.asaas.com/i/o58qntvl6bzgbl28', amount: 25 },
-          { num: 12, ref: '01/2027', due: '2027-01-10', paid: undefined, status: 'PENDING' as const, asaasPaymentId: 'pay_njoas2na5toab364', invoiceUrl: 'https://www.asaas.com/i/njoas2na5toab364', amount: 25 },
+          { num: 12, ref: '01/2027', due: '2027-01-10', paid: undefined, status: 'PENDING' as const, asaasPaymentId: 'pay_njoas2na5toab364', invoiceUrl: 'https://www.asaas.com/i/njoas2na5toab364', amount: 30 },
         ];
         elsaCarnes.forEach((c) => {
           invoices.push({

@@ -14618,32 +14618,42 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
                       const existingInvIndex = currentInvoices.findIndex(
                         (i) =>
-                          i.asaasPaymentId === p.id ||
-                          (i.dueDate === p.dueDate &&
-                            Number(i.amount) === Number(p.value) &&
-                            (paymentSubCode ? i.description?.includes(paymentSubCode) : true))
+                          (i.asaasPaymentId && i.asaasPaymentId === p.id) ||
+                          i.dueDate === p.dueDate ||
+                          (i.referenceMonth && p.dueDate && (
+                            i.referenceMonth === `${p.dueDate.slice(5, 7)}/${p.dueDate.slice(0, 4)}` ||
+                            i.referenceMonth === `${p.dueDate.slice(8, 10)}/${p.dueDate.slice(5, 7)}/${p.dueDate.slice(0, 4)}`
+                          ))
                       );
+
+                      const isPaid =
+                        p.status === 'RECEIVED' ||
+                        p.status === 'CONFIRMED' ||
+                        p.status === 'RECEIVED_IN_CASH';
+                      const isOverdue = p.status === 'OVERDUE';
+                      const newStatus: 'PAID' | 'OVERDUE' | 'PENDING' = isPaid
+                        ? 'PAID'
+                        : isOverdue
+                        ? 'OVERDUE'
+                        : 'PENDING';
+
+                      const newAmount =
+                        typeof p.value === 'number' && Number.isFinite(p.value)
+                          ? p.value
+                          : undefined;
 
                       if (existingInvIndex >= 0) {
                         const existing = currentInvoices[existingInvIndex];
-                        const isPaid =
-                          p.status === 'RECEIVED' ||
-                          p.status === 'CONFIRMED' ||
-                          p.status === 'RECEIVED_IN_CASH';
-                        const newStatus = isPaid
-                          ? ('PAID' as const)
-                          : p.status === 'OVERDUE'
-                          ? ('OVERDUE' as const)
-                          : existing.status;
 
                         currentInvoices[existingInvIndex] = {
                           ...existing,
+                          amount: newAmount !== undefined ? newAmount : existing.amount,
                           asaasPaymentId: p.id,
                           carneGroup,
                           status: newStatus,
                           paidAt: isPaid
                             ? p.clientPaymentDate || p.paymentDate || p.confirmedDate || existing.paidAt || new Date().toISOString()
-                            : existing.paidAt,
+                            : undefined,
                           paymentMethod: p.billingType || existing.paymentMethod,
                           paymentUrl: p.bankSlipUrl || p.invoiceUrl || existing.paymentUrl,
                         };
@@ -14662,9 +14672,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           installmentNumber: instNum,
                           totalInstallments: totalInst,
                           dueDate: p.dueDate,
-                          amount: Number(p.value || 0),
-                          status:
-                            p.status === 'RECEIVED' || p.status === 'CONFIRMED' ? 'PAID' : 'PENDING',
+                          amount: newAmount !== undefined ? newAmount : Number(p.value || 0),
+                          status: newStatus,
                           paymentMethod:
                             p.billingType === 'CREDIT_CARD'
                               ? 'CREDIT_CARD'
@@ -14677,7 +14686,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           asaasPaymentId: p.id,
                           paymentUrl: p.bankSlipUrl || p.invoiceUrl,
                           createdAt: p.dateCreated || new Date().toISOString(),
-                          paidAt: p.clientPaymentDate || p.paymentDate || undefined,
+                          paidAt: isPaid ? (p.clientPaymentDate || p.paymentDate || undefined) : undefined,
                         };
 
                         currentInvoices.push(newInvoice);
