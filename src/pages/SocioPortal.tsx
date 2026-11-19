@@ -1261,6 +1261,63 @@ const SocioPortal: React.FC = () => {
               </div>
             </div>
 
+            {/* BANNER OFICIAL: AVISO DE VIGÊNCIA 2027 & OPORTUNIDADE DO PLANO ANUAL */}
+            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-emerald-950 via-emerald-900 to-amber-950 text-white p-5 sm:p-6 border-2 border-amber-400/50 shadow-lg">
+              <div className="absolute -right-10 -bottom-10 w-48 h-48 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
+              <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
+                <div className="space-y-2 max-w-3xl">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-amber-400 text-slate-950 shadow-xs">
+                      <Sparkles className="w-3.5 h-3.5 text-slate-950" />
+                      Aviso Importante • Vigência 2027
+                    </span>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-white/10 text-amber-200 border border-amber-300/30">
+                      🎁 10% OFF no Plano Anual
+                    </span>
+                  </div>
+
+                  <h3 className="text-base sm:text-lg font-black text-amber-300 tracking-tight leading-snug">
+                    Novos valores entrarão em vigência a partir de janeiro de 2027 para os planos mensais. Assine hoje mesmo!
+                  </h3>
+
+                  <p className="text-xs sm:text-sm text-emerald-100 font-medium leading-relaxed">
+                    Garanta agora o <strong className="text-white underline decoration-amber-400 decoration-2">Preço de 2026 por mais 1 ano</strong> atualizando para o <strong className="text-amber-300 font-black">PLANO ANUAL</strong> e parcele em <strong className="text-white font-black">até 12x sem juros no Cartão com 10% de desconto</strong> e tenha o melhor balneário de Rondônia à disposição da sua família o ano todo.
+                  </p>
+                </div>
+
+                <div className="shrink-0 w-full md:w-auto flex flex-col sm:flex-row md:flex-col gap-2.5">
+                  <a
+                    href={`https://wa.me/5569992626140?text=${encodeURIComponent(
+                      `Olá! Sou associado(a) ${subscription.holderName} (Cartão #${subscription.subscriptionCode}) e tenho interesse em migrar para o PLANO ANUAL com 10% de desconto em até 12x sem juros para garantir o valor de 2026 por mais 12 meses!`
+                    )}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-full"
+                  >
+                    <Button
+                      type="button"
+                      className="w-full bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-xs sm:text-sm h-11 px-5 rounded-xl shadow-md border border-amber-300 flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.98]"
+                    >
+                      <Gift className="w-4 h-4 text-slate-950" />
+                      Garantir Preço de 2026 no Anual
+                    </Button>
+                  </a>
+                  <a
+                    href={`https://wa.me/5569992626140?text=${encodeURIComponent(
+                      `Olá! Gostaria de tirar dúvidas sobre o PLANO ANUAL e formas de pagamento para o cadastro de ${subscription.holderName}.`
+                    )}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-full text-center"
+                  >
+                    <span className="text-[11px] font-bold text-amber-200 hover:text-white underline transition-colors inline-flex items-center gap-1">
+                      <MessageCircle className="w-3.5 h-3.5" /> Falar com atendimento no WhatsApp
+                    </span>
+                  </a>
+                </div>
+              </div>
+            </div>
+
               {/* Main Tabs */}
               <Tabs
                 value={activePortalTab}
