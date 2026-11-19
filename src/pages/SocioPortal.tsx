@@ -1284,6 +1284,9 @@ const SocioPortal: React.FC = () => {
                   <p className="text-xs sm:text-sm text-emerald-100 font-medium leading-relaxed">
                     Garanta agora o <strong className="text-white underline decoration-amber-400 decoration-2">Preço de 2026 por mais 1 ano</strong> atualizando para o <strong className="text-amber-300 font-black">PLANO ANUAL</strong> e parcele em <strong className="text-white font-black">até 12x sem juros no Cartão com 10% de desconto</strong> e tenha o melhor balneário de Rondônia à disposição da sua família o ano todo.
                   </p>
+                  <p className="text-[11px] text-amber-200/90 font-medium bg-black/25 border border-amber-300/30 rounded-lg px-3 py-1.5 inline-block">
+                    📢 <strong className="text-amber-300">Aviso:</strong> Mudança de valores com reajuste para cima a partir de janeiro de 2027 para os planos mensais.
+                  </p>
                 </div>
 
                 <div className="shrink-0 w-full md:w-auto flex flex-col sm:flex-row md:flex-col gap-2.5">

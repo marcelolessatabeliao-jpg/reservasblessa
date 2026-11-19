@@ -1579,6 +1579,10 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                 Selecione entre <strong>Plano Anual (10% OFF em até 12x)</strong> ou{' '}
                 <strong>Plano Mensal</strong> diretamente no plano escolhido.
               </p>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-900 border border-amber-200/90 shadow-xs">
+                <span className="text-amber-700 font-black">📢 Aviso:</span>
+                <span>Mudança de tabela com reajuste de valores para cima a partir de 2027. Aproveite a tabela atual de 2026!</span>
+              </div>
 
               {/* Chave de Ciclo (Anual com 10% OFF vs Mensal Recorrente) - Modo anterior solicitado */}
               <div className="pt-2 flex justify-center">

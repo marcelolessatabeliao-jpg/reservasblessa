@@ -72,6 +72,9 @@ export default function Assinatura() {
             <span>
               Garanta o preço atual assinando o <strong>Plano Anual parcelado em até 12x no cartão</strong>. Novos valores entrarão em vigência a partir de <strong>2027</strong>!
             </span>
+            <span className="text-[10px] text-amber-300 font-bold bg-black/30 px-2 py-0.5 rounded-md border border-amber-300/40 tracking-wide">
+              *Aviso: Reajuste de valores para cima a partir de 2027.
+            </span>
           </div>
         </div>
 
@@ -218,6 +221,9 @@ export default function Assinatura() {
           <p className="text-emerald-100/80 text-sm sm:text-base font-medium max-w-xl mx-auto leading-relaxed">
             Novos valores entrarão em vigência a partir de 2027. Assine hoje mesmo e tenha o melhor balneário de Rondônia à disposição da sua família o ano todo.
           </p>
+          <div className="inline-block bg-white/10 border border-amber-300/40 rounded-xl px-4 py-2 text-xs text-amber-200 font-medium max-w-lg mx-auto">
+            📢 <strong className="text-amber-300 font-bold">Aviso:</strong> Mudança de valores com reajuste para cima a partir de 2027. Garanta os valores atuais assinando o Plano Anual!
+          </div>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
             <Button
