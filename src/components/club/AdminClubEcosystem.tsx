@@ -105,6 +105,7 @@ import {
   SubscriptionStatus,
   InactivityReason,
   DEFAULT_CLUB_MODALITIES,
+  ClubTrashItem,
 } from '@/lib/club-types';
 import {
   ClubDatabaseState,
@@ -166,6 +167,7 @@ import {
   LabcardApiClientRecord,
   LabcardEnrichStats,
 } from '@/lib/club-service';
+import { ClubSecurityBackupPanel } from './ClubSecurityBackupPanel';
 import { ClubDocumentVerificationPanel } from './ClubDocumentVerificationPanel';
 import {
   getSeenClubSubIds,
@@ -5902,6 +5904,19 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                       </div>
                     )}
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab('seguranca_backups');
+                      setOpenMenu(null);
+                      setOpenSubMenu(null);
+                    }}
+                    className="w-full px-5 py-2.5 text-left bg-emerald-950/40 hover:bg-emerald-800/60 flex items-center gap-2 text-emerald-300 font-bold border-t border-emerald-800/80"
+                  >
+                    <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                    <span>Segurança & Backups</span>
+                  </button>
                 </div>
               )}
             </div>
@@ -5975,6 +5990,25 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 </div>
               )}
             </div>
+
+            {/* 10. SEGURANÇA & BACKUPS (Acesso Direto) */}
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('seguranca_backups');
+                setOpenMenu(null);
+                setOpenSubMenu(null);
+              }}
+              className={`flex flex-col items-center justify-center px-2 py-1.5 sm:px-3 sm:py-2 rounded-xl transition-all ${
+                activeTab === 'seguranca_backups'
+                  ? 'bg-black/35 text-emerald-300 font-bold border border-emerald-400/50 shadow-inner'
+                  : 'hover:bg-white/10 text-emerald-300'
+              }`}
+              title="Central de Segurança, Snapshots em Nuvem e Lixeira Protegida"
+            >
+              <ShieldCheck className="w-5 h-5 sm:w-7 sm:h-7 mb-0.5 sm:mb-1 stroke-[2.2] text-emerald-400" />
+              <span className="text-[10px] sm:text-xs font-bold tracking-tight">Segurança</span>
+            </button>
           </div>
         </div>
       </div>
@@ -12086,6 +12120,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
               </div>
             )}
           </div>
+        </TabsContent>
+
+        {/* TAB 10: SEGURANÇA & BACKUPS */}
+        <TabsContent value="seguranca_backups" className="space-y-4">
+          <ClubSecurityBackupPanel state={state} onUpdateState={persist} />
         </TabsContent>
       </Tabs>
 
@@ -23006,17 +23045,31 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 const nextDeletedIds = Array.from(
                   new Set([...(state.deletedSubscriptionIds || []), clientToDelete.id])
                 );
+                const trashItem: ClubTrashItem = {
+                  id: clientToDelete.id,
+                  itemType: 'SUBSCRIPTION',
+                  name: clientToDelete.holderName,
+                  code: clientToDelete.subscriptionCode || clientToDelete.id,
+                  deletedAt: new Date().toISOString(),
+                  deletedBy: 'Administrador',
+                  originalData: clientToDelete,
+                };
+                const nextTrash = [
+                  trashItem,
+                  ...(state.trash || []).filter((t) => t.id !== clientToDelete.id),
+                ];
                 const nextState: ClubDatabaseState = {
                   ...state,
                   subscriptions: (state.subscriptions || []).filter(
                     (s) => s.id !== clientToDelete.id
                   ),
                   deletedSubscriptionIds: nextDeletedIds,
+                  trash: nextTrash,
                 };
                 await persist(nextState);
                 toast({
-                  title: 'Cliente excluído com sucesso!',
-                  description: clientToDelete.holderName,
+                  title: 'Cadastro movido para a Lixeira Protegida!',
+                  description: `${clientToDelete.holderName} pode ser recuperado a qualquer momento em "Segurança > Lixeira".`,
                 });
                 if (selectedSubForDetail?.id === clientToDelete.id) {
                   setSelectedSubForDetail(null);
@@ -23025,7 +23078,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
               }}
               className="text-xs font-bold bg-rose-600 hover:bg-rose-700"
             >
-              Sim, Excluir Cadastro
+              Sim, Mover para Lixeira
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,6 +1,8 @@
 import { supabase } from '@/integrations/supabase/client';
 import { getLabcardSubscriptions, doesPlanAllowDependents, REGULARIZED_ACTIVE_CARDS } from './labcard-seed';
 import { saveStateToIndexedDB, loadStateFromIndexedDB } from './club-indexeddb';
+import { ensureDailyBackup } from './club-backup-service';
+import { syncStateToRelationalDatabase } from './club-relational-sync';
 import {
   DEFAULT_CLUB_MODALITIES,
   DEFAULT_CONTRACT_TEMPLATES,
@@ -17,6 +19,7 @@ import {
   type SubscriptionStatus,
   type ClubAdditionalService,
   type ClubAttachment,
+  type ClubTrashItem,
 } from './club-types';
 
 const STORAGE_KEY = 'lessa_club_ecosystem_v1';
@@ -907,6 +910,7 @@ export interface ClubDatabaseState {
   modalities: ClubModality[];
   subscriptions: ClubSubscription[];
   deletedSubscriptionIds?: string[];
+  trash?: ClubTrashItem[];
   consultants: ClubConsultant[];
   contractTemplates: ClubContractTemplate[];
   cashEntries?: ClubCashEntry[];
@@ -920,6 +924,7 @@ const getInitialState = (): ClubDatabaseState => ({
   modalities: DEFAULT_CLUB_MODALITIES,
   subscriptions: getLabcardSubscriptions(),
   deletedSubscriptionIds: [],
+  trash: [],
   consultants: [
     {
       id: 'cons-1',
@@ -1760,6 +1765,9 @@ const runCloudSaveExecution = async (stateToSave: ClubDatabaseState): Promise<vo
 
       if (!error) {
         lastClubFetchErrorMessage = null;
+        // Blindagem de segurança: Snapshot diário e banco relacional em segundo plano
+        ensureDailyBackup(stateToSave).catch((e) => console.warn('[Backup] Falha ao verificar backup diário:', e));
+        syncStateToRelationalDatabase(stateToSave).catch((e) => console.warn('[Relational] Falha na gravação relacional:', e));
         return;
       }
       console.error('[ClubService] Erro ao sincronizar nuvem:', error);
@@ -2391,6 +2399,7 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
       const normalized = normalizeClubDatabaseState(mergedState, local);
       memoryClubState = normalized;
       tryPersistLocalState(normalized);
+      ensureDailyBackup(normalized).catch(() => {});
       return normalized;
     }
   } catch (err) {

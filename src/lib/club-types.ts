@@ -169,6 +169,16 @@ export interface ClubRegisteredCard {
   registeredAt: string;
 }
 
+export interface ClubTrashItem {
+  id: string;
+  itemType: 'SUBSCRIPTION' | 'MEMBER' | 'INVOICE';
+  name: string;
+  code: string;
+  deletedAt: string;
+  deletedBy?: string;
+  originalData: any;
+}
+
 export interface ClubSubscription {
   id: string;
   subscriptionCode: string;
