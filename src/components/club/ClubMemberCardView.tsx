@@ -713,13 +713,13 @@ export const ClubMemberCardView: React.FC<ClubMemberCardViewProps> = ({
               />
             </div>
 
-            {/* CAMPOS DINÂMICOS INFERIORES ORGANIZADOS EM GRADE 2x3 SEM SOBREPOSIÇÃO */}
+            {/* CAMPOS DINÂMICOS INFERIORES ORGANIZADOS EM GRADE 2x3 COM PROPORÇÃO E EQUILÍBRIO VERTICAL */}
             {/* LINHA 1: NOME DO ASSOCIADO (2 PRIMEIROS NOMES, ESQUERDA) */}
             <div
               style={{
                 position: 'absolute',
                 left: '4.8%',
-                top: '71%',
+                top: '73.5%',
                 width: '51%',
                 zIndex: 10,
                 overflow: 'hidden',
@@ -727,20 +727,20 @@ export const ClubMemberCardView: React.FC<ClubMemberCardViewProps> = ({
             >
               <div
                 style={{
-                  fontSize: 'clamp(5px, 1.7cqw, 9.5px)',
+                  fontSize: 'clamp(5.5px, 1.6cqw, 9.5px)',
                   color: 'rgba(255,255,255,0.85)',
                   fontWeight: 700,
                   lineHeight: 1.05,
                   letterSpacing: '0.04em',
                   textTransform: 'uppercase',
-                  marginBottom: '1px',
+                  marginBottom: '2px',
                 }}
               >
                 NOME
               </div>
               <div
                 style={{
-                  fontSize: 'clamp(8px, 3.0cqw, 17px)',
+                  fontSize: 'clamp(8.5px, 2.9cqw, 17px)',
                   color: '#ffffff',
                   fontWeight: 900,
                   lineHeight: 1.15,
@@ -761,7 +761,7 @@ export const ClubMemberCardView: React.FC<ClubMemberCardViewProps> = ({
               style={{
                 position: 'absolute',
                 left: '57.5%',
-                top: '71%',
+                top: '73.5%',
                 width: '39.5%',
                 zIndex: 10,
                 overflow: 'hidden',
@@ -769,20 +769,20 @@ export const ClubMemberCardView: React.FC<ClubMemberCardViewProps> = ({
             >
               <div
                 style={{
-                  fontSize: 'clamp(5px, 1.7cqw, 9.5px)',
+                  fontSize: 'clamp(5.5px, 1.6cqw, 9.5px)',
                   color: 'rgba(255,255,255,0.85)',
                   fontWeight: 700,
                   lineHeight: 1.05,
                   letterSpacing: '0.04em',
                   textTransform: 'uppercase',
-                  marginBottom: '1px',
+                  marginBottom: '2px',
                 }}
               >
                 CPF
               </div>
               <div
                 style={{
-                  fontSize: 'clamp(8px, 2.9cqw, 16.5px)',
+                  fontSize: 'clamp(8.5px, 2.85cqw, 16.5px)',
                   color: '#ffffff',
                   fontWeight: 900,
                   lineHeight: 1.15,
@@ -802,8 +802,8 @@ export const ClubMemberCardView: React.FC<ClubMemberCardViewProps> = ({
               style={{
                 position: 'absolute',
                 left: '4.8%',
-                top: '84%',
-                width: '25%',
+                top: '86.5%',
+                width: '24%',
                 zIndex: 10,
                 overflow: 'hidden',
               }}
@@ -816,7 +816,7 @@ export const ClubMemberCardView: React.FC<ClubMemberCardViewProps> = ({
                   lineHeight: 1.05,
                   letterSpacing: '0.04em',
                   textTransform: 'uppercase',
-                  marginBottom: '1px',
+                  marginBottom: '2px',
                 }}
               >
                 Nº CARTÃO
@@ -842,9 +842,9 @@ export const ClubMemberCardView: React.FC<ClubMemberCardViewProps> = ({
             <div
               style={{
                 position: 'absolute',
-                left: '31%',
-                top: '84%',
-                width: '24%',
+                left: '30.5%',
+                top: '86.5%',
+                width: '25%',
                 zIndex: 10,
                 overflow: 'hidden',
               }}
@@ -857,7 +857,7 @@ export const ClubMemberCardView: React.FC<ClubMemberCardViewProps> = ({
                   lineHeight: 1.05,
                   letterSpacing: '0.04em',
                   textTransform: 'uppercase',
-                  marginBottom: '1px',
+                  marginBottom: '2px',
                 }}
               >
                 VALIDADE
@@ -884,7 +884,7 @@ export const ClubMemberCardView: React.FC<ClubMemberCardViewProps> = ({
               style={{
                 position: 'absolute',
                 left: '57.5%',
-                top: '84%',
+                top: '86.5%',
                 width: '39.5%',
                 zIndex: 10,
                 overflow: 'hidden',
@@ -898,7 +898,7 @@ export const ClubMemberCardView: React.FC<ClubMemberCardViewProps> = ({
                   lineHeight: 1.05,
                   letterSpacing: '0.04em',
                   textTransform: 'uppercase',
-                  marginBottom: '1px',
+                  marginBottom: '2px',
                 }}
               >
                 PLANO
