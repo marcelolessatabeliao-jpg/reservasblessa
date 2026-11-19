@@ -25,6 +25,10 @@ import {
   ChevronUp,
   CheckCircle2,
   ShieldCheck,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -334,6 +338,16 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
 
   // Controle de abas de benefícios e documentação (fechadas por padrão para melhor visualização dos planos)
   const [expandedBenefitsMap, setExpandedBenefitsMap] = useState<Record<string, boolean>>({});
+
+  // Visualizador e Zoom em Alta Definição das Carteirinhas (100% Nítido)
+  const [zoomedCard, setZoomedCard] = useState<{
+    src: string;
+    title: string;
+    subtitle?: string;
+    backSrc?: string;
+  } | null>(null);
+  const [zoomSide, setZoomSide] = useState<'FRONT' | 'BACK'>('FRONT');
+  const [zoomScale, setZoomScale] = useState<number>(1);
 
   // Contador de pessoas no card único "Lessa Club" (1 a 15 pessoas)
   const [lessaClubPeopleCount, setLessaClubPeopleCount] = useState<number>(1);
@@ -1583,16 +1597,12 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
         ===================================================================== */}
         {step === 1 && (
           <div className="space-y-8 sm:space-y-10">
-            {/* AVISO OFICIAL DE REAJUSTE E OFERTA PLANO ANUAL */}
-            <div className="bg-gradient-to-r from-emerald-950 via-[#072e1d] to-emerald-950 text-white rounded-3xl p-5 sm:p-7 shadow-2xl border-2 border-amber-400/90 ring-4 ring-amber-400/10 text-center space-y-2.5 max-w-4xl mx-auto">
-              <div className="inline-flex items-center gap-1.5 bg-amber-400 text-emerald-950 px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider shadow">
-                <Sparkles className="w-3.5 h-3.5 fill-emerald-950" />
-                TABELA OFICIAL 2026 • GARANTA ANTES DO REAJUSTE
-              </div>
-              <h2 className="text-lg sm:text-2xl md:text-3xl font-black text-amber-300 tracking-tight leading-snug">
+            {/* AVISO OFICIAL DE REAJUSTE E OFERTA PLANO ANUAL (COMPACTO E ELEGANTE) */}
+            <div className="bg-gradient-to-r from-emerald-950 via-[#072e1d] to-emerald-950 text-white rounded-2xl py-3 px-4 sm:px-6 shadow-md border border-amber-400/60 text-center space-y-1 max-w-2xl sm:max-w-3xl mx-auto">
+              <h2 className="text-xs sm:text-sm md:text-base font-bold text-amber-300 tracking-normal leading-snug">
                 Garanta agora o PLANO ANUAL com preço de 2026 por mais 1 ano em até 12x sem juros no Cartão com 10% de desconto
               </h2>
-              <p className="text-xs sm:text-sm md:text-base text-emerald-100/95 font-medium max-w-2xl mx-auto">
+              <p className="text-[11px] sm:text-xs text-emerald-100/85 font-normal max-w-xl mx-auto">
                 Novos valores entrarão em vigência a partir de 2027 para os planos mensais
               </p>
             </div>
@@ -1673,43 +1683,147 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                     </p>
                   </div>
 
-                  {/* Preview com Carteirinhas em Destaque Muito Maior e Nítidas */}
-                  <div className="relative py-2 flex items-center justify-center">
-                    <div className="relative w-full flex items-center justify-center">
-                      <div className="transform -rotate-6 hover:rotate-0 transition-transform duration-300 z-10 w-44 sm:w-52 drop-shadow-2xl">
-                        <img
-                          src="/cards/17.png"
-                          alt="Lessa Club Titular"
-                          className="w-full aspect-[1.584/1] rounded-2xl border-2 border-amber-400 shadow-xl object-contain select-none"
-                          style={{ imageRendering: '-webkit-optimize-contrast' }}
-                        />
-                        <span className="block text-center text-[10px] font-black uppercase text-amber-300 mt-1 drop-shadow">
+                  {/* Preview com Carteirinhas Oficiais em Alta Definição 100% Nítidas */}
+                  <div className="space-y-2 py-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] sm:text-xs font-black uppercase tracking-wider text-emerald-200">
+                        Carteirinhas Oficiais dos Membros:
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setZoomedCard({
+                            src: '/cards/17.png',
+                            title: 'Carteirinha Lessa Club — Titular Oficial',
+                            subtitle: 'Carteirinha digital de alta definição com foto, dados cadastrais e QR Code de acesso',
+                            backSrc: '/cards/24.png',
+                          });
+                          setZoomSide('FRONT');
+                          setZoomScale(1);
+                        }}
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-300 hover:text-amber-200 transition-colors"
+                      >
+                        <ZoomIn className="w-3.5 h-3.5" />
+                        <span>Toque para Ampliar</span>
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
+                      {/* Titular */}
+                      <div
+                        onClick={() => {
+                          setZoomedCard({
+                            src: '/cards/17.png',
+                            title: 'Carteirinha Lessa Club — Titular',
+                            subtitle: 'Modelo oficial com foto, dados do associado e QR Code de entrada prioritária',
+                            backSrc: '/cards/24.png',
+                          });
+                          setZoomSide('FRONT');
+                          setZoomScale(1);
+                        }}
+                        className="group cursor-zoom-in text-center space-y-1"
+                        title="Clique para ver em 100% de nitidez e ler os detalhes"
+                      >
+                        <div className="relative aspect-[1.584/1] rounded-xl overflow-hidden border-2 border-amber-400 shadow-md bg-emerald-950/80 transition-all duration-200 group-hover:scale-105 group-hover:shadow-amber-400/30 group-hover:shadow-lg">
+                          <img
+                            src="/cards/17.png"
+                            alt="Lessa Club Titular"
+                            className="w-full h-full object-contain select-none"
+                            style={{
+                              imageRendering: '-webkit-optimize-contrast',
+                              transform: 'translateZ(0)',
+                              backfaceVisibility: 'hidden',
+                            }}
+                          />
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 flex items-center justify-center transition-colors">
+                            <div className="opacity-0 group-hover:opacity-100 bg-emerald-950/90 text-amber-300 rounded-full p-1 shadow transition-opacity">
+                              <ZoomIn className="w-3.5 h-3.5" />
+                            </div>
+                          </div>
+                        </div>
+                        <span className="block text-[10px] font-black uppercase text-amber-300">
                           Titular
                         </span>
                       </div>
-                      <div className="transform rotate-6 hover:rotate-0 transition-transform duration-300 -ml-12 sm:-ml-16 z-20 w-44 sm:w-52 drop-shadow-2xl">
-                        <img
-                          src="/cards/7.png"
-                          alt="Meia-Entrada Estudante/Professor"
-                          className="w-full aspect-[1.584/1] rounded-2xl border-2 border-white/70 shadow-xl object-contain select-none"
-                          style={{ imageRendering: '-webkit-optimize-contrast' }}
-                        />
-                        <span className="block text-center text-[10px] font-black uppercase text-emerald-200 mt-1 drop-shadow">
+
+                      {/* Meia-Entrada */}
+                      <div
+                        onClick={() => {
+                          setZoomedCard({
+                            src: '/cards/7.png',
+                            title: 'Carteirinha Meia-Entrada — Estudante / Professor / Servidor',
+                            subtitle: 'Modelo oficial de meia-entrada com desconto especial',
+                            backSrc: '/cards/24.png',
+                          });
+                          setZoomSide('FRONT');
+                          setZoomScale(1);
+                        }}
+                        className="group cursor-zoom-in text-center space-y-1"
+                        title="Clique para ver em 100% de nitidez e ler os detalhes"
+                      >
+                        <div className="relative aspect-[1.584/1] rounded-xl overflow-hidden border-2 border-white/80 shadow-md bg-emerald-950/80 transition-all duration-200 group-hover:scale-105 group-hover:shadow-white/30 group-hover:shadow-lg">
+                          <img
+                            src="/cards/7.png"
+                            alt="Meia-Entrada Estudante/Professor"
+                            className="w-full h-full object-contain select-none"
+                            style={{
+                              imageRendering: '-webkit-optimize-contrast',
+                              transform: 'translateZ(0)',
+                              backfaceVisibility: 'hidden',
+                            }}
+                          />
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 flex items-center justify-center transition-colors">
+                            <div className="opacity-0 group-hover:opacity-100 bg-emerald-950/90 text-emerald-200 rounded-full p-1 shadow transition-opacity">
+                              <ZoomIn className="w-3.5 h-3.5" />
+                            </div>
+                          </div>
+                        </div>
+                        <span className="block text-[10px] font-black uppercase text-emerald-200">
                           Meia-Entrada
                         </span>
                       </div>
-                      <div className="hidden sm:block transform rotate-12 hover:rotate-0 transition-transform duration-300 -ml-12 z-30 w-36 sm:w-44 drop-shadow-2xl">
-                        <img
-                          src="/cards/37.png"
-                          alt="Lessa Kids Gratuito"
-                          className="w-full aspect-[1.584/1] rounded-2xl border-2 border-teal-300/80 shadow-xl object-contain select-none"
-                          style={{ imageRendering: '-webkit-optimize-contrast' }}
-                        />
-                        <span className="block text-center text-[10px] font-black uppercase text-teal-200 mt-1 drop-shadow">
+
+                      {/* Kids / Gratuito */}
+                      <div
+                        onClick={() => {
+                          setZoomedCard({
+                            src: '/cards/37.png',
+                            title: 'Carteirinha Lessa Kids / Gratuidades',
+                            subtitle: 'Modelo oficial para crianças até 11 anos, Idosos 60+, PCD e TEA com acesso gratuito',
+                            backSrc: '/cards/39.png',
+                          });
+                          setZoomSide('FRONT');
+                          setZoomScale(1);
+                        }}
+                        className="group cursor-zoom-in text-center space-y-1"
+                        title="Clique para ver em 100% de nitidez e ler os detalhes"
+                      >
+                        <div className="relative aspect-[1.584/1] rounded-xl overflow-hidden border-2 border-teal-300 shadow-md bg-emerald-950/80 transition-all duration-200 group-hover:scale-105 group-hover:shadow-teal-300/30 group-hover:shadow-lg">
+                          <img
+                            src="/cards/37.png"
+                            alt="Lessa Kids Gratuito"
+                            className="w-full h-full object-contain select-none"
+                            style={{
+                              imageRendering: '-webkit-optimize-contrast',
+                              transform: 'translateZ(0)',
+                              backfaceVisibility: 'hidden',
+                            }}
+                          />
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 flex items-center justify-center transition-colors">
+                            <div className="opacity-0 group-hover:opacity-100 bg-emerald-950/90 text-teal-200 rounded-full p-1 shadow transition-opacity">
+                              <ZoomIn className="w-3.5 h-3.5" />
+                            </div>
+                          </div>
+                        </div>
+                        <span className="block text-[10px] font-black uppercase text-teal-200">
                           Kids / Gratuito
                         </span>
                       </div>
                     </div>
+
+                    <p className="text-[10px] text-center text-emerald-200/90 font-medium">
+                      🔍 Toque em qualquer cartão para ler as regras e detalhes em alta resolução
+                    </p>
                   </div>
 
                   {/* Grid de Vantagens que preenche o card sem deixar espaços vazios */}
@@ -2029,19 +2143,36 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                               </div>
                             </div>
                           )}
-                          <div className="relative aspect-[1.584/1] w-full rounded-xl overflow-hidden shadow-md border border-slate-200/90 bg-white flex items-center justify-center">
+                          <div
+                            onClick={() => {
+                              setZoomedCard({
+                                src: card.cardImage,
+                                title: `${card.title} — Carteirinha Oficial`,
+                                subtitle: card.subtitle || 'Exemplo oficial da arte em alta definição',
+                                backSrc: card.backCardUrl,
+                              });
+                              setZoomSide('FRONT');
+                              setZoomScale(1);
+                            }}
+                            className="group/img relative aspect-[1.584/1] w-full rounded-xl overflow-hidden shadow-md border border-slate-200/90 bg-white flex items-center justify-center cursor-zoom-in"
+                            title="Toque para ampliar e ler em alta definição 100% nítida"
+                          >
                             <img
                               src={card.cardImage}
                               alt={card.title}
                               loading="eager"
                               decoding="sync"
-                              className="w-full h-full object-contain rounded-xl select-none"
+                              className="w-full h-full object-contain rounded-xl select-none group-hover/img:scale-105 transition-transform duration-200"
                               style={{
                                 imageRendering: '-webkit-optimize-contrast',
                                 transform: 'translateZ(0)',
                                 backfaceVisibility: 'hidden',
                               }}
                             />
+                            <div className="absolute bottom-1.5 right-1.5 bg-black/75 hover:bg-black/90 text-white text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 opacity-80 group-hover/img:opacity-100 transition-opacity shadow">
+                              <ZoomIn className="w-3 h-3 text-amber-300" />
+                              <span>Ampliar</span>
+                            </div>
                           </div>
                         </div>
 
@@ -4471,6 +4602,135 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                     </div>
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ===============================================================
+            MODAL DE ZOOM EM ALTA DEFINIÇÃO (100% NÍTIDO - LEITURA DAS LETRAS PEQUENAS)
+        =============================================================== */}
+        {zoomedCard && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex flex-col items-center justify-between p-3 sm:p-5 overflow-hidden animate-in fade-in duration-200"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setZoomedCard(null);
+              }
+            }}
+          >
+            {/* Cabeçalho do Modal */}
+            <div className="w-full max-w-4xl flex items-center justify-between gap-3 text-white pb-2.5 border-b border-white/10 shrink-0">
+              <div className="min-w-0 pr-2">
+                <h4 className="font-black text-sm sm:text-base text-amber-300 leading-tight truncate">
+                  {zoomedCard.title}
+                </h4>
+                {zoomedCard.subtitle && (
+                  <p className="text-[11px] sm:text-xs text-slate-300 font-medium truncate mt-0.5">
+                    {zoomedCard.subtitle}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                {zoomedCard.backSrc && (
+                  <div className="inline-flex bg-white/10 p-0.5 rounded-lg border border-white/20">
+                    <button
+                      type="button"
+                      onClick={() => setZoomSide('FRONT')}
+                      className={`px-2.5 py-1 text-xs font-black rounded-md transition-colors ${
+                        zoomSide === 'FRONT'
+                          ? 'bg-amber-400 text-emerald-950 shadow-sm'
+                          : 'text-white hover:bg-white/10'
+                      }`}
+                    >
+                      Frente
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setZoomSide('BACK')}
+                      className={`px-2.5 py-1 text-xs font-black rounded-md transition-colors ${
+                        zoomSide === 'BACK'
+                          ? 'bg-amber-400 text-emerald-950 shadow-sm'
+                          : 'text-white hover:bg-white/10'
+                      }`}
+                    >
+                      Verso
+                    </button>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setZoomedCard(null)}
+                  className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+                  title="Fechar (Esc)"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Imagem em Resolução Nativa 3K 100% Nítida com Zoom */}
+            <div className="flex-1 w-full max-w-4xl flex items-center justify-center overflow-auto p-2 my-auto select-none">
+              <div
+                className="transition-transform duration-200 flex items-center justify-center"
+                style={{
+                  transform: `scale(${zoomScale})`,
+                  transformOrigin: 'center center',
+                }}
+              >
+                <img
+                  src={zoomSide === 'FRONT' ? zoomedCard.src : (zoomedCard.backSrc || zoomedCard.src)}
+                  alt={zoomedCard.title}
+                  className="rounded-2xl shadow-2xl max-w-full max-h-[66vh] object-contain select-none border-2 border-white/20"
+                  style={{
+                    imageRendering: '-webkit-optimize-contrast',
+                    backfaceVisibility: 'hidden',
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Barra Inferior com Controles de Zoom */}
+            <div className="w-full max-w-md bg-white/10 backdrop-blur-md rounded-2xl px-4 py-2 border border-white/15 flex items-center justify-between text-white text-xs shrink-0">
+              <span className="text-[11px] text-slate-300 font-medium hidden sm:inline">
+                Zoom: {Math.round(zoomScale * 100)}%
+              </span>
+              <div className="flex items-center gap-1.5 mx-auto sm:mx-0">
+                <button
+                  type="button"
+                  onClick={() => setZoomScale((s) => Math.max(0.7, Number((s - 0.2).toFixed(1))))}
+                  className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+                  title="Diminuir"
+                >
+                  <ZoomOut className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setZoomScale(1)}
+                  className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 transition-colors font-bold text-[11px]"
+                >
+                  100%
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setZoomScale(1.5)}
+                  className="px-2.5 py-1 rounded-lg bg-amber-400 text-emerald-950 font-black text-[11px]"
+                  title="Ampliar Detalhes (150%)"
+                >
+                  🔍 Letras Grandes (1.5x)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setZoomScale((s) => Math.min(2.5, Number((s + 0.2).toFixed(1))))}
+                  className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+                  title="Aumentar"
+                >
+                  <ZoomIn className="w-4 h-4" />
+                </button>
               </div>
             </div>
           </div>
