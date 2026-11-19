@@ -432,13 +432,157 @@ export const isMemberBlockedForMissingDoc = (
   sub?: Partial<ClubSubscription> | null
 ): boolean => {
   if (!member) return false;
-  if (sub && (sub.origin === 'IMPORT_LABCARD' || sub.id?.startsWith('sub-labcard-'))) {
-    return false;
+
+  const hasRealDoc = memberHasProofUploaded(member, sub);
+  const isApproved = member.documentVerified === true || member.documentStatus === 'APROVADO';
+
+  // Se a assinatura ou o membro tiver motivo explícito de falta de documentos
+  const hasExplicitDocReason =
+    sub?.inactivityReason === 'FALTA_DOCUMENTOS' ||
+    sub?.inactivityReason === 'MENSALIDADE_E_DOCUMENTOS' ||
+    sub?.inactivityReasons?.includes('FALTA_DOCUMENTOS') ||
+    member.inactivityReason === 'FALTA_DOCUMENTOS' ||
+    member.inactivityReason === 'MENSALIDADE_E_DOCUMENTOS' ||
+    member.inactivityReasons?.includes('FALTA_DOCUMENTOS');
+
+  if (hasExplicitDocReason) {
+    // Se não tiver documento real anexado ou não estiver aprovado, está bloqueado
+    if (!hasRealDoc || !isApproved) {
+      return true;
+    }
   }
+
   const rule = getPlanDocumentRule(member.modalityCode, member.modalityName);
   if (!rule.requiresDocument) return false;
-  // Além de ter o anexo enviado, exige que o admin tenha validado
-  return !member.documentVerified && member.documentStatus !== 'APROVADO';
+
+  // Plano exige comprovação: se não anexou nada, está bloqueado
+  if (!hasRealDoc) return true;
+
+  // Se já anexou documento real, só bloqueia se o admin rejeitou expressamente
+  if (member.documentStatus === 'REJEITADO') return true;
+
+  return false;
+};
+
+/**
+ * Avalia e atualiza automaticamente o status de inativação de uma assinatura.
+ * - Se tinha pendência financeira e foi paga: remove o aviso de mensalidade.
+ * - Se tinha pendência de documento e foi anexado/aprovado: remove o aviso de documento.
+ * - Se ambos foram resolvidos: ativa o plano e libera as carteirinhas automaticamente.
+ */
+export const resolveSubscriptionInactivityStatus = (sub: ClubSubscription): ClubSubscription => {
+  const overdueInvoices = (sub.invoices || []).filter(
+    (i) => i.status === 'OVERDUE' || (i.status === 'PENDING' && new Date(i.dueDate + 'T23:59:59') < new Date())
+  );
+  const hasOverdue = overdueInvoices.length > 0;
+
+  // Verifica se há dependente ou titular com documento pendente de envio ou rejeitado
+  const hasMissingDoc = (sub.members || []).some((m) => isMemberBlockedForMissingDoc(m, sub));
+
+  const isReasonFinance =
+    sub.inactivityReason === 'MENSALIDADE_VENCIDA' ||
+    sub.inactivityReasons?.includes('MENSALIDADE_VENCIDA');
+  const isReasonDocs =
+    sub.inactivityReason === 'FALTA_DOCUMENTOS' ||
+    sub.inactivityReasons?.includes('FALTA_DOCUMENTOS');
+  const isCombined =
+    sub.inactivityReason === 'MENSALIDADE_E_DOCUMENTOS' ||
+    (isReasonFinance && isReasonDocs);
+
+  // Se o motivo for administrativo ou solicitação expressa do cliente, preserva a decisão manual
+  if (sub.inactivityReason === 'SOLICITACAO_CLIENTE' || sub.inactivityReason === 'ADMINISTRATIVO') {
+    return sub;
+  }
+
+  // Se o plano está inativo por mensalidade, documento ou ambos:
+  if (sub.status === 'INACTIVE' || isCombined || isReasonFinance || isReasonDocs) {
+    if (!hasOverdue && !hasMissingDoc) {
+      // AMBOS RESOLVIDOS! Libera o plano automaticamente
+      return {
+        ...sub,
+        status: 'ACTIVE',
+        inactivityReason: undefined,
+        inactivityReasons: undefined,
+        inactivityNotes: undefined,
+        transferCompleted: true,
+        manuallyConfirmedTransfer: true,
+        members: sub.members.map((m) => ({
+          ...m,
+          status: 'ACTIVE',
+          inactivityReason: undefined,
+          inactivityReasons: undefined,
+          inactivityNotes: undefined,
+        })),
+        updatedAt: new Date().toISOString(),
+      };
+    }
+
+    if (!hasOverdue && hasMissingDoc) {
+      // Mensalidades em dia, mas ainda falta documento
+      return {
+        ...sub,
+        status: 'INACTIVE',
+        inactivityReason: 'FALTA_DOCUMENTOS',
+        inactivityReasons: ['FALTA_DOCUMENTOS'],
+        inactivityNotes:
+          sub.inactivityNotes &&
+          (sub.inactivityNotes.toLowerCase().includes('document') ||
+            sub.inactivityNotes.toLowerCase().includes('comprobat'))
+            ? sub.inactivityNotes
+            : 'Falta de documentos comprobatórios para ativação do benefício.',
+        members: sub.members.map((m) => ({
+          ...m,
+          status: isMemberBlockedForMissingDoc(m, sub) ? 'INACTIVE' : 'ACTIVE',
+          inactivityReason: isMemberBlockedForMissingDoc(m, sub) ? 'FALTA_DOCUMENTOS' : undefined,
+          inactivityReasons: isMemberBlockedForMissingDoc(m, sub) ? ['FALTA_DOCUMENTOS'] : undefined,
+        })),
+        updatedAt: new Date().toISOString(),
+      };
+    }
+
+    if (hasOverdue && !hasMissingDoc) {
+      // Documentos anexados, mas ainda há mensalidades vencidas
+      return {
+        ...sub,
+        status: 'INACTIVE',
+        inactivityReason: 'MENSALIDADE_VENCIDA',
+        inactivityReasons: ['MENSALIDADE_VENCIDA'],
+        inactivityNotes:
+          sub.inactivityNotes &&
+          (sub.inactivityNotes.toLowerCase().includes('mensal') ||
+            sub.inactivityNotes.toLowerCase().includes('pagamento') ||
+            sub.inactivityNotes.toLowerCase().includes('fatura'))
+            ? sub.inactivityNotes
+            : 'Mensalidade(s) pendente(s) ou em atraso para regularização.',
+        members: sub.members.map((m) => ({
+          ...m,
+          status: 'INACTIVE',
+          inactivityReason: 'MENSALIDADE_VENCIDA',
+          inactivityReasons: ['MENSALIDADE_VENCIDA'],
+        })),
+        updatedAt: new Date().toISOString(),
+      };
+    }
+
+    if (hasOverdue && hasMissingDoc) {
+      // Ambos pendentes
+      return {
+        ...sub,
+        status: 'INACTIVE',
+        inactivityReason: 'MENSALIDADE_E_DOCUMENTOS',
+        inactivityReasons: ['MENSALIDADE_VENCIDA', 'FALTA_DOCUMENTOS'],
+        members: sub.members.map((m) => ({
+          ...m,
+          status: 'INACTIVE',
+          inactivityReason: 'MENSALIDADE_E_DOCUMENTOS',
+          inactivityReasons: ['MENSALIDADE_VENCIDA', 'FALTA_DOCUMENTOS'],
+        })),
+        updatedAt: new Date().toISOString(),
+      };
+    }
+  }
+
+  return sub;
 };
 
 let cachedLabcardSeedMap: Map<string, ClubSubscription> | null = null;
@@ -2635,7 +2779,7 @@ export const generateAsaasChargeForClubInvoice = async (
         const state = await fetchClubState();
         const subIdx = state.subscriptions.findIndex((s) => s.id === subscription.id);
         if (subIdx >= 0) {
-          const targetSub = state.subscriptions[subIdx];
+          let targetSub = state.subscriptions[subIdx];
           const invIdx = targetSub.invoices.findIndex((inv) => inv.id === invoice.id);
           if (invIdx >= 0) {
             const invObj = targetSub.invoices[invIdx];
@@ -2716,7 +2860,7 @@ export const generateAsaasChargeForClubInvoice = async (
   const state = await fetchClubState();
   const subIdx = state.subscriptions.findIndex((s) => s.id === subscription.id);
   if (subIdx >= 0) {
-    const targetSub = state.subscriptions[subIdx];
+    let targetSub = state.subscriptions[subIdx];
     targetSub.asaasPaymentId = paymentData.paymentId;
     targetSub.asaasInvoiceUrl = paymentData.invoiceUrl;
     const invIdx = targetSub.invoices.findIndex((inv) => inv.id === invoice.id);
@@ -2747,7 +2891,7 @@ export const syncSubscriptionInvoicesWithAsaas = async (
   const subIdx = state.subscriptions.findIndex((s) => s.id === subId);
   if (subIdx < 0) return { state, updatedSub: null, syncedCount: 0 };
 
-  const targetSub = state.subscriptions[subIdx];
+  let targetSub = state.subscriptions[subIdx];
   const cleanCpf = cleanDigits(targetSub.holderCpf);
   if (!cleanCpf || cleanCpf.length !== 11) {
     return { state, updatedSub: targetSub, syncedCount: 0 };
@@ -2827,34 +2971,13 @@ export const syncSubscriptionInvoicesWithAsaas = async (
         const valLabel = `${p[1]}/${p[0]}`;
         targetSub.members = (targetSub.members || []).map((m) => ({
           ...m,
-          expirationDate: m.expirationDate && m.expirationDate !== '2027-10-31' ? m.expirationDate : targetSub.endDate,
-          validityLabel: m.validityLabel && m.validityLabel !== '10/2027' ? m.validityLabel : valLabel,
+          expirationDate: m.role === 'TITULAR' ? targetSub.endDate : (m.expirationDate || targetSub.endDate),
+          validityLabel: m.role === 'TITULAR' ? valLabel : (m.validityLabel || valLabel),
         }));
       }
     }
 
-    const hasOverdue = syncedInvoices.some((i) => i.status === 'OVERDUE');
-    if (hasOverdue) {
-      targetSub.status = 'INACTIVE';
-      targetSub.inactivityReason = 'MENSALIDADE_VENCIDA';
-      targetSub.inactivityNotes = 'Mensalidade(s) em atraso identificada(s) no Asaas';
-      targetSub.members = (targetSub.members || []).map((m) => ({
-        ...m,
-        status: 'INACTIVE',
-        inactivityReason: 'MENSALIDADE_VENCIDA',
-      }));
-    } else {
-      targetSub.status = 'ACTIVE';
-      targetSub.inactivityReason = undefined;
-      targetSub.inactivityNotes = undefined;
-      targetSub.transferCompleted = true;
-      targetSub.manuallyConfirmedTransfer = true;
-      targetSub.members = (targetSub.members || []).map((m) => ({
-        ...m,
-        status: 'ACTIVE',
-        inactivityReason: undefined,
-      }));
-    }
+    targetSub = resolveSubscriptionInactivityStatus(targetSub);
 
     targetSub.updatedAt = new Date().toISOString();
     state.subscriptions[subIdx] = targetSub;
@@ -2875,7 +2998,7 @@ export const generateAllAsaasInvoicesForSubscription = async (
   const subIdx = state.subscriptions.findIndex((s) => s.id === subscription.id);
   if (subIdx < 0) return state;
 
-  const targetSub = state.subscriptions[subIdx];
+  let targetSub = state.subscriptions[subIdx];
   const invoicesToGenerate = targetSub.invoices.filter((inv) => {
     if (invoiceIds && invoiceIds.length > 0) {
       return invoiceIds.includes(inv.id) && inv.amount > 0 && inv.status !== 'PAID' && inv.status !== 'CANCELLED';
@@ -2987,7 +3110,7 @@ export const emitCarneMonthlyChargesInAsaas = async (
     throw new Error('Assinatura do associado não encontrada.');
   }
 
-  const targetSub = state.subscriptions[subIdx];
+  let targetSub = state.subscriptions[subIdx];
   const baseDate = params.firstDueDate ? new Date(`${params.firstDueDate}T12:00:00`) : new Date();
   const fixedDay = params.dueDay || baseDate.getDate() || targetSub.dueDay || 10;
 
@@ -3206,7 +3329,7 @@ export const processClubCreditCardPayment = async (
   const state = await fetchClubState();
   const subIdx = state.subscriptions.findIndex((s) => s.id === subscription.id);
   if (subIdx >= 0) {
-    const targetSub = state.subscriptions[subIdx];
+    let targetSub = state.subscriptions[subIdx];
     targetSub.asaasPaymentId = paymentData.paymentId;
     targetSub.asaasInvoiceUrl = paymentData.invoiceUrl;
     targetSub.installments = chosenInstallments;
@@ -3873,14 +3996,14 @@ export const attachMemberProofDocument = async (
     sub.paymentMethod === 'COURTESY' ||
     sub.invoices.some((i) => i.status === 'PAID');
 
-  if (canActivate && !isMemberBlockedForMissingDoc(member, sub)) {
-    member.status = 'ACTIVE';
-    if (sub.members.some((m) => m.status === 'ACTIVE')) {
-      sub.status = 'ACTIVE';
-    }
-  }
-
   sub.updatedAt = nowIso;
+  sub.isModifiedFromSeed = true;
+
+  const resolved = resolveSubscriptionInactivityStatus(sub);
+  const subIdx = state.subscriptions.findIndex((s) => s.id === subscriptionId);
+  if (subIdx >= 0) {
+    state.subscriptions[subIdx] = resolved;
+  }
   return saveClubState(state);
 };
 
@@ -3910,36 +4033,14 @@ export const verifyMemberProofDocument = async (
     member.documentStatus = memberHasProofUploaded(member, sub) ? 'EM_ANALISE' : 'PENDENTE_ANEXO';
   }
 
-  const blocked = isMemberBlockedForMissingDoc(member, sub);
-  const canActivate =
-    sub.monthlyEquivalent === 0 ||
-    sub.paymentMethod === 'COURTESY' ||
-    sub.status === 'ACTIVE' ||
-    Boolean(sub.manualStatusOverride) ||
-    Boolean(sub.transferCompleted) ||
-    sub.origin === 'IMPORT_LABCARD' ||
-    sub.id.startsWith('sub-labcard-') ||
-    sub.invoices.some((i) => i.status === 'PAID');
-
-  if (blocked && !verified) {
-    member.status = 'INACTIVE';
-  } else if (canActivate || verified) {
-    member.status = 'ACTIVE';
-  }
-
-  if (verified) {
-    sub.status = 'ACTIVE';
-    sub.manualStatusOverride = true;
-    sub.transferCompleted = true;
-  } else {
-    sub.status = sub.members.every((m) => m.status === 'INACTIVE')
-      ? 'INACTIVE'
-      : sub.members.some((m) => m.status === 'ACTIVE')
-      ? 'ACTIVE'
-      : sub.status;
-  }
   sub.updatedAt = new Date().toISOString();
   sub.isModifiedFromSeed = true;
+
+  const resolved = resolveSubscriptionInactivityStatus(sub);
+  const subIdx = state.subscriptions.findIndex((s) => s.id === subscriptionId);
+  if (subIdx >= 0) {
+    state.subscriptions[subIdx] = resolved;
+  }
   return saveClubState(state);
 };
 

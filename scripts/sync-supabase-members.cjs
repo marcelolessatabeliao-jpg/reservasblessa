@@ -499,13 +499,13 @@ async function updateSupabase() {
     elsa.inactivityNotes = 'Parcelas 09 e 10 vencidas no Asaas. Regularize para reativar o acesso.';
     elsa.createdAt = '2026-02-19T00:00:00.000Z';
     elsa.startDate = '2026-02-19';
-    elsa.endDate = '2027-02-19';
+    elsa.endDate = '2026-12-30';
     elsa.isModifiedFromSeed = true;
     if (elsa.members) {
       elsa.members = elsa.members.map((m) => ({
         ...m,
-        expirationDate: '2027-02-19',
-        validityLabel: '02/2027',
+        expirationDate: '2026-12-30',
+        validityLabel: '12/2026',
         status: 'INACTIVE',
         inactivityReason: 'MENSALIDADE_VENCIDA',
       }));
@@ -532,7 +532,7 @@ async function updateSupabase() {
       totalContractValue: 300.0,
       dueDay: 20,
       startDate: '2026-02-19',
-      endDate: '2027-02-19',
+      endDate: '2026-12-30',
       origin: 'IMPORT_LABCARD',
       transferCompleted: false,
       manuallyConfirmedTransfer: false,

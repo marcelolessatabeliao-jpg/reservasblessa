@@ -68,6 +68,8 @@ import {
   getQrCodeImageUrl,
   getPlanDocumentRule,
   memberHasProofDocument,
+  resolveSubscriptionInactivityStatus,
+  getValidityLabelFromDate,
   getMemberResolvedAttachments,
   isMemberBlockedForMissingDoc,
   isClubDateExpired,
@@ -295,7 +297,8 @@ const SocioPortal: React.FC = () => {
     try {
       const res = await syncSubscriptionInvoicesWithAsaas(subscription);
       if (res.updatedSub) {
-        setSubscription(res.updatedSub);
+        const resolved = resolveSubscriptionInactivityStatus(res.updatedSub);
+        setSubscription(resolved);
       }
       if (res.state) {
         setState(res.state);
@@ -323,7 +326,8 @@ const SocioPortal: React.FC = () => {
     syncSubscriptionInvoicesWithAsaas(subscription).then((res) => {
       if (!active) return;
       if (res.updatedSub) {
-        setSubscription(res.updatedSub);
+        const resolved = resolveSubscriptionInactivityStatus(res.updatedSub);
+        setSubscription(resolved);
       }
       if (res.state) {
         setState(res.state);
@@ -538,11 +542,14 @@ const SocioPortal: React.FC = () => {
         mimeType: file.type,
       });
       setState(saved);
-      const updatedSub = saved.subscriptions.find((s) => s.id === subscription.id);
-      if (updatedSub) setSubscription(updatedSub);
+      let updatedSub = saved.subscriptions.find((s) => s.id === subscription.id);
+      if (updatedSub) {
+        updatedSub = resolveSubscriptionInactivityStatus(updatedSub);
+        setSubscription(updatedSub);
+      }
       toast({
         title: 'Comprovante enviado com sucesso!',
-        description: `Documento anexado para ${member.fullName}. Se o plano estiver em dia ou for gratuito, a carteirinha foi liberada!`,
+        description: `Documento anexado para ${member.fullName}. Pendência documental regularizada!`,
       });
     } catch (err: any) {
       toast({
@@ -659,11 +666,14 @@ const SocioPortal: React.FC = () => {
     if (isPaid) {
       const refreshed = await fetchClubState();
       setState(refreshed);
-      const refreshedSub = refreshed.subscriptions.find((s) => s.id === subscription.id) || null;
+      let refreshedSub = refreshed.subscriptions.find((s) => s.id === subscription.id) || null;
+      if (refreshedSub) {
+        refreshedSub = resolveSubscriptionInactivityStatus(refreshedSub);
+      }
       setSubscription(refreshedSub);
       toast({
         title: 'Pagamento confirmado!',
-        description: 'Sua assinatura e todas as carteirinhas da família estão ATIVAS.',
+        description: 'Sua assinatura e faturas foram atualizadas com sucesso.',
       });
     } else {
       toast({
@@ -1405,6 +1415,21 @@ const SocioPortal: React.FC = () => {
                           ? 'O cadastro encontra-se bloqueado temporariamente pela administração do clube. Para orientações, contate o suporte ou a secretaria.'
                           : 'A edição da foto 3x4 e o download das carteirinhas só são liberados após a confirmação do pagamento (aba "Mensalidades") ou ativação do plano pela administração.'}
                       </p>
+
+                      {/* AVISO / OBSERVAÇÃO DO ADMINISTRADOR DO CLUBE */}
+                      {Boolean(subscription.inactivityNotes?.trim()) && (
+                        <div className="mt-3 p-3 rounded-xl bg-white/95 border-2 border-rose-300 text-rose-950 flex items-start gap-2.5 shadow-xs">
+                          <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                          <div className="space-y-0.5 text-left">
+                            <span className="text-[10px] font-black uppercase tracking-wider text-rose-800 block">
+                              📌 Aviso / Observação da Administração do Clube:
+                            </span>
+                            <p className="text-xs font-bold leading-snug text-slate-800">
+                              "{subscription.inactivityNotes.trim()}"
+                            </p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ) : (
@@ -1446,7 +1471,15 @@ const SocioPortal: React.FC = () => {
                           className="bg-white rounded-3xl border-2 border-emerald-600/40 p-5 shadow-sm space-y-4"
                         >
                           <ClubMemberCardView
-                            member={member}
+                            member={
+                              subscription.endDate
+                                ? {
+                                    ...member,
+                                    expirationDate: subscription.endDate,
+                                    validityLabel: getValidityLabelFromDate(subscription.endDate, member.validityLabel),
+                                  }
+                                : member
+                            }
                             showBackSide={true}
                             locked={isLockedMember}
                             lockReason={
@@ -1473,33 +1506,73 @@ const SocioPortal: React.FC = () => {
                             onUpdatePhoto={isLockedMember || !isSubscriptionActive ? undefined : handleUpdateMemberPhoto}
                           />
 
+                          {/* ORIENTAÇÃO / OBSERVAÇÃO DO ADMINISTRADOR DO CLUBE */}
+                          {Boolean((member.inactivityNotes || subscription.inactivityNotes)?.trim()) && isLockedMember && (
+                            <div className="bg-rose-50 border border-rose-300 rounded-xl p-3 text-xs text-rose-950 flex items-start gap-2 shadow-xs">
+                              <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                              <div className="space-y-0.5 text-left">
+                                <span className="text-[10px] font-black uppercase tracking-wider text-rose-800 block">
+                                  📌 Motivo / Aviso da Administração:
+                                </span>
+                                <p className="font-bold text-slate-800">
+                                  "{(member.inactivityNotes || subscription.inactivityNotes).trim()}"
+                                </p>
+                              </div>
+                            </div>
+                          )}
+
                           {(() => {
                             const memberDocs = getMemberResolvedAttachments(member, subscription);
-                            const showSection = docRule.requiresDocument || memberDocs.length > 0 || hasDoc;
+                            const hasRealDoc = memberDocs.length > 0 || hasDoc;
+                            const showSection = docRule.requiresDocument || hasRealDoc;
                             if (!showSection) return null;
+
+                            const isApproved = hasRealDoc && (member.documentVerified === true || member.documentStatus === 'APROVADO');
 
                             return (
                               <div
                                 className={`rounded-2xl border p-4 space-y-2.5 ${
-                                  missingDoc
+                                  !hasRealDoc && docRule.requiresDocument
+                                    ? 'bg-rose-50 border-rose-300'
+                                    : missingDoc
                                     ? 'bg-amber-50 border-amber-300'
                                     : 'bg-emerald-50/70 border-emerald-200'
                                 }`}
                               >
                                 <div className="flex flex-wrap items-center justify-between gap-2">
                                   <div className="text-xs font-black text-slate-900 flex items-center gap-2">
-                                    <FileCheck className={`w-4 h-4 ${missingDoc ? 'text-amber-600' : 'text-emerald-700'}`} />
+                                    <FileCheck className={`w-4 h-4 ${!hasRealDoc && docRule.requiresDocument ? 'text-rose-600' : missingDoc ? 'text-amber-600' : 'text-emerald-700'}`} />
                                     <span>
                                       Comprovação do Plano ({member.modalityName})
                                     </span>
-                                    <Badge className={missingDoc ? 'bg-rose-600 text-white text-[10px]' : 'bg-emerald-600 text-white text-[10px]'}>
-                                      {missingDoc ? 'OBRIGATÓRIO ANEXAR' : memberDocs.length > 0 ? `${memberDocs.length} DOCUMENTO(S) ANEXADO(S)` : 'DOCUMENTO REGULARIZADO'}
-                                    </Badge>
-                                    {(member.documentVerified || member.documentStatus === 'APROVADO') && (
-                                      <Badge className="bg-teal-700 text-white text-[10px] font-black">
-                                        ✓ APROVADO PELO ADMIN
-                                      </Badge>
-                                    )}
+                                    {(() => {
+                                      if (!hasRealDoc && docRule.requiresDocument) {
+                                        return (
+                                          <Badge className="bg-rose-600 text-white text-[10px] font-black uppercase">
+                                            DOCUMENTO PENDENTE (NÃO ANEXADO)
+                                          </Badge>
+                                        );
+                                      }
+                                      if (hasRealDoc && isApproved) {
+                                        return (
+                                          <Badge className="bg-emerald-700 text-white text-[10px] font-black uppercase">
+                                            ✓ COMPROVANTE APROVADO
+                                          </Badge>
+                                        );
+                                      }
+                                      if (hasRealDoc && !isApproved) {
+                                        return (
+                                          <Badge className="bg-amber-600 text-white text-[10px] font-black uppercase">
+                                            DOCUMENTO ANEXADO (EM ANÁLISE)
+                                          </Badge>
+                                        );
+                                      }
+                                      return (
+                                        <Badge className="bg-slate-500 text-white text-[10px] font-bold uppercase">
+                                          DISPENSADO
+                                        </Badge>
+                                      );
+                                    })()}
                                   </div>
                                   <div className="flex flex-wrap items-center gap-2">
                                     <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#004d00] hover:bg-emerald-900 text-white text-xs font-bold cursor-pointer shadow-xs">
@@ -1649,7 +1722,15 @@ const SocioPortal: React.FC = () => {
                               className="bg-white rounded-3xl border border-slate-200 p-5 shadow-sm space-y-4"
                             >
                               <ClubMemberCardView
-                                member={member}
+                                member={
+                                  effExp
+                                    ? {
+                                        ...member,
+                                        expirationDate: effExp,
+                                        validityLabel: getValidityLabelFromDate(effExp, member.validityLabel),
+                                      }
+                                    : member
+                                }
                                 dependentIndex={depIdx + 1}
                                 showBackSide={true}
                                 locked={isLockedDep}
@@ -1679,31 +1760,71 @@ const SocioPortal: React.FC = () => {
                                 onUpdatePhoto={isLockedDep || !isSubscriptionActive ? undefined : handleUpdateMemberPhoto}
                               />
 
+                              {/* ORIENTAÇÃO / OBSERVAÇÃO DO ADMINISTRADOR DO CLUBE */}
+                              {Boolean((member.inactivityNotes || subscription.inactivityNotes)?.trim()) && isLockedDep && (
+                                <div className="bg-rose-50 border border-rose-300 rounded-xl p-3 text-xs text-rose-950 flex items-start gap-2 shadow-xs">
+                                  <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                                  <div className="space-y-0.5 text-left">
+                                    <span className="text-[10px] font-black uppercase tracking-wider text-rose-800 block">
+                                      📌 Motivo / Aviso da Administração:
+                                    </span>
+                                    <p className="font-bold text-slate-800">
+                                      "{(member.inactivityNotes || subscription.inactivityNotes).trim()}"
+                                    </p>
+                                  </div>
+                                </div>
+                              )}
+
                               {(() => {
                                 const memberDocs = getMemberResolvedAttachments(member, subscription);
-                                const showSection = docRule.requiresDocument || memberDocs.length > 0 || hasDoc;
+                                const hasRealDoc = memberDocs.length > 0 || hasDoc;
+                                const showSection = docRule.requiresDocument || hasRealDoc;
                                 if (!showSection) return null;
+
+                                const isApproved = hasRealDoc && (member.documentVerified === true || member.documentStatus === 'APROVADO');
 
                                 return (
                                   <div
                                     className={`rounded-2xl border p-4 space-y-2.5 ${
-                                      missingDoc
+                                      !hasRealDoc && docRule.requiresDocument
+                                        ? 'bg-rose-50 border-rose-300'
+                                        : missingDoc
                                         ? 'bg-amber-50 border-amber-300'
                                         : 'bg-emerald-50/70 border-emerald-200'
                                     }`}
                                   >
                                     <div className="flex flex-wrap items-center justify-between gap-2">
                                       <div className="text-xs font-black text-slate-900 flex items-center gap-2">
-                                        <FileCheck className={`w-4 h-4 ${missingDoc ? 'text-amber-600' : 'text-emerald-700'}`} />
+                                        <FileCheck className={`w-4 h-4 ${!hasRealDoc && docRule.requiresDocument ? 'text-rose-600' : missingDoc ? 'text-amber-600' : 'text-emerald-700'}`} />
                                         <span>Comprovação ({member.modalityName})</span>
-                                        <Badge className={missingDoc ? 'bg-rose-600 text-white text-[10px]' : 'bg-emerald-600 text-white text-[10px]'}>
-                                          {missingDoc ? 'OBRIGATÓRIO ANEXAR' : memberDocs.length > 0 ? `${memberDocs.length} DOCUMENTO(S) ANEXADO(S)` : 'DOCUMENTO REGULARIZADO'}
-                                        </Badge>
-                                        {(member.documentVerified || member.documentStatus === 'APROVADO') && (
-                                          <Badge className="bg-teal-700 text-white text-[10px] font-black">
-                                            ✓ APROVADO PELO ADMIN
-                                          </Badge>
-                                        )}
+                                        {(() => {
+                                          if (!hasRealDoc && docRule.requiresDocument) {
+                                            return (
+                                              <Badge className="bg-rose-600 text-white text-[10px] font-black uppercase">
+                                                DOCUMENTO PENDENTE (NÃO ANEXADO)
+                                              </Badge>
+                                            );
+                                          }
+                                          if (hasRealDoc && isApproved) {
+                                            return (
+                                              <Badge className="bg-emerald-700 text-white text-[10px] font-black uppercase">
+                                                ✓ COMPROVANTE APROVADO
+                                              </Badge>
+                                            );
+                                          }
+                                          if (hasRealDoc && !isApproved) {
+                                            return (
+                                              <Badge className="bg-amber-600 text-white text-[10px] font-black uppercase">
+                                                DOCUMENTO ANEXADO (EM ANÁLISE)
+                                              </Badge>
+                                            );
+                                          }
+                                          return (
+                                            <Badge className="bg-slate-500 text-white text-[10px] font-bold uppercase">
+                                              DISPENSADO
+                                            </Badge>
+                                          );
+                                        })()}
                                       </div>
                                       <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#004d00] hover:bg-emerald-900 text-white text-xs font-bold cursor-pointer shadow-xs">
                                         <Upload className="w-3.5 h-3.5" />

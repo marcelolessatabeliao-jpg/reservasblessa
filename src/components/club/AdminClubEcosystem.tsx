@@ -4142,9 +4142,9 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
           documentVerified: newStatus === 'ACTIVE' ? true : m.documentVerified,
           documentStatus: newStatus === 'ACTIVE' ? ('APROVADO' as const) : m.documentStatus,
           expirationDate: m.role === 'TITULAR' ? nextEndDate : (m.expirationDate || nextEndDate),
-          validityLabel: m.expirationDate
-            ? getValidityLabelFromDate(m.expirationDate, m.validityLabel)
-            : nextValidity || m.validityLabel,
+          validityLabel: m.role === 'TITULAR'
+            ? getValidityLabelFromDate(nextEndDate, nextValidity)
+            : (m.expirationDate ? getValidityLabelFromDate(m.expirationDate, m.validityLabel) : nextValidity),
         })),
       };
       if (newStatus === 'ACTIVE') {
