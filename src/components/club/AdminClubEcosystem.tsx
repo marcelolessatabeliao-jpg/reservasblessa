@@ -12909,72 +12909,221 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                       <Label className="text-xs font-bold text-slate-700">
                         Plano Selecionado do Titular (Alterar Plano)
                       </Label>
-                      <select
-                        value={editClientData.modalityCode}
-                        onChange={(e) => {
-                          const newCode = e.target.value;
-                          const chosen = (state.modalities || []).find((m) => m.code === newCode);
-                          if (!chosen) {
-                            setEditClientData({ ...editClientData, modalityCode: newCode });
-                            return;
-                          }
-                          const isSemPlano = newCode === 'SEM_PLANO';
-                          const isCorporate = newCode === 'CORPORATE';
-                          const isPub = newCode === 'PUBLICIDADE';
-                          const nextMonthly =
-                            isSemPlano || isCorporate || isPub || chosen.isFreeTier
-                              ? 0
-                              : editClientData.billingCycle === 'ANNUAL'
-                              ? chosen.annualInstallment || chosen.monthlyPrice
-                              : chosen.monthlyPrice;
-                          const nextLabel = isSemPlano
-                            ? 'Sem Plano (Inativo)'
-                            : isCorporate
-                            ? 'Lessa Corporate Pass — Cortesia (Colaboradores)'
-                            : isPub
-                            ? 'Lessa Family Publicidade - R$ 0,00'
-                            : chosen.isFreeTier
-                            ? `${chosen.name} - R$ 0,00`
-                            : `${chosen.name} (${editClientData.billingCycle === 'ANNUAL' ? 'Anual' : 'Mensal'})`;
+                      {(() => {
+                        const planDescLower = (editClientData.planSummaryLabel || '').toLowerCase();
+                        const currentCycle = editClientData.billingCycle || 'ANNUAL';
+                        let currentDropdownVal = editClientData.modalityCode || 'ADULTO';
 
-                          if (isSemPlano) {
-                            setSituacaoLiberar('NAO');
-                            setSituacaoInativar('SIM');
-                          } else if (isCorporate || isPub) {
-                            setSituacaoLiberar('SIM');
-                            setSituacaoInativar('NAO');
+                        if (planDescLower.includes('4 pessoas')) {
+                          currentDropdownVal = currentCycle === 'ANNUAL' ? 'CLUB_4P__ANNUAL' : 'CLUB_4P__MONTHLY';
+                        } else if (planDescLower.includes('3 pessoas')) {
+                          currentDropdownVal = currentCycle === 'ANNUAL' ? 'CLUB_3P__ANNUAL' : 'CLUB_3P__MONTHLY';
+                        } else if (planDescLower.includes('2 pessoas')) {
+                          currentDropdownVal = currentCycle === 'ANNUAL' ? 'CLUB_2P__ANNUAL' : 'CLUB_2P__MONTHLY';
+                        } else if (['KIDS', 'IDOSO_60', 'PCD_TEA', 'CORPORATE', 'PUBLICIDADE', 'CONVENIO', 'SEM_PLANO'].includes(currentDropdownVal)) {
+                          // Mantém categorias de gratuidade / especiais
+                        } else if (!currentDropdownVal.includes('__')) {
+                          currentDropdownVal = `${currentDropdownVal}__${currentCycle}`;
+                        }
+
+                        const generateMemberDetailedDescription = (
+                          basePlanName: string,
+                          cycle: BillingCycle,
+                          members: ClubMember[],
+                          monthlyVal: number,
+                          totalVal: number
+                        ): string => {
+                          const isAnnual = cycle === 'ANNUAL';
+                          const cycleTxt = isAnnual ? 'Anual' : 'Mensal';
+                          const priceTxt = isAnnual
+                            ? `R$ ${totalVal.toFixed(2).replace('.', ',')}`
+                            : `R$ ${monthlyVal.toFixed(2).replace('.', ',')}/mês`;
+
+                          if (!members || members.length <= 1) {
+                            if (['Kids', 'Vitalício', 'Inclusão', 'Corporate', 'Publicidade', 'Convênio', 'Sem Plano'].some(k => basePlanName.includes(k))) {
+                              return `${basePlanName} - R$ 0,00`;
+                            }
+                            return `${basePlanName} (${cycleTxt}) - ${priceTxt}`;
                           }
 
-                          setEditClientData({
-                            ...editClientData,
-                            modalityCode: newCode,
-                            monthlyEquivalent: nextMonthly,
-                            planSummaryLabel: nextLabel,
+                          // Lista com detalhes de cada integrante de acordo com seu plano
+                          const memberList = members.map((m, idx) => {
+                            const isTit = idx === 0 || m.role === 'TITULAR';
+                            const tag = isTit ? 'Titular' : `Dependente ${idx}`;
+                            const mPlan = isTit ? basePlanName : (m.planCycleLabel || m.modalityName || 'Lessa Club');
+                            return `${tag}: ${m.fullName.split(' ')[0]} (${mPlan})`;
                           });
-                        }}
-                        className="w-full h-10 mt-1 rounded-md border border-emerald-400 px-3 text-xs font-black text-emerald-950 bg-emerald-50"
-                      >
-                        {(state.modalities || []).map((mod) => (
-                          <option key={mod.code} value={mod.code}>
-                            {mod.name} —{' '}
-                            {mod.code === 'CORPORATE'
-                              ? 'Cortesia (Interno)'
-                              : mod.code === 'SEM_PLANO'
-                              ? 'Sem valor (Inativo)'
-                              : mod.code === 'PUBLICIDADE'
-                              ? 'Permuta Veicular (R$ 0,00)'
-                              : mod.isFreeTier
-                              ? 'Gratuito'
-                              : `${formatCurrency(mod.monthlyPrice)}/mês`}
-                          </option>
-                        ))}
-                      </select>
+
+                          return `${basePlanName} (${cycleTxt} - ${priceTxt}) [${memberList.join(' + ')}]`;
+                        };
+
+                        return (
+                          <select
+                            value={currentDropdownVal}
+                            onChange={(e) => {
+                              const chosenVal = e.target.value;
+                              let code = chosenVal;
+                              let cycle: BillingCycle = editClientData.billingCycle;
+
+                              if (chosenVal.includes('__')) {
+                                const [c, cyc] = chosenVal.split('__');
+                                code = c;
+                                cycle = cyc as BillingCycle;
+                              }
+
+                              const isAnnual = cycle === 'ANNUAL';
+                              let baseName = 'Lessa Club';
+                              let monthlyVal = 0;
+                              let totalContractVal = 0;
+
+                              if (code === 'CLUB_2P') {
+                                baseName = 'Lessa Club (2 pessoas)';
+                                monthlyVal = isAnnual ? 89.82 : 99.80;
+                                totalContractVal = isAnnual ? 1077.84 : 99.80;
+                                code = 'ADULTO';
+                              } else if (code === 'CLUB_3P') {
+                                baseName = 'Lessa Club (3 pessoas)';
+                                monthlyVal = isAnnual ? 134.73 : 149.70;
+                                totalContractVal = isAnnual ? 1616.76 : 149.70;
+                                code = 'ADULTO';
+                              } else if (code === 'CLUB_4P') {
+                                baseName = 'Lessa Club (4 pessoas)';
+                                monthlyVal = isAnnual ? 179.64 : 199.60;
+                                totalContractVal = isAnnual ? 2155.68 : 199.60;
+                                code = 'ADULTO';
+                              } else {
+                                const mod = (state.modalities || []).find((m) => m.code === code);
+                                baseName = mod?.name || code;
+                                if (mod) {
+                                  if (mod.isFreeTier || ['CORPORATE', 'PUBLICIDADE', 'CONVENIO', 'SEM_PLANO'].includes(code)) {
+                                    monthlyVal = 0;
+                                    totalContractVal = 0;
+                                  } else if (isAnnual) {
+                                    monthlyVal = mod.annualInstallment || (code === 'ADULTO' ? 44.91 : 22.50);
+                                    totalContractVal = mod.annualPrice || (code === 'ADULTO' ? 538.92 : 270.00);
+                                  } else {
+                                    monthlyVal = mod.monthlyPrice || (code === 'ADULTO' ? 49.90 : 25.00);
+                                    totalContractVal = monthlyVal;
+                                  }
+                                }
+                              }
+
+                              const detailedLabel = generateMemberDetailedDescription(
+                                baseName,
+                                cycle,
+                                selectedSubForDetail.members || [],
+                                monthlyVal,
+                                totalContractVal
+                              );
+
+                              if (code === 'SEM_PLANO') {
+                                setSituacaoLiberar('NAO');
+                                setSituacaoInativar('SIM');
+                              } else if (code === 'CORPORATE' || code === 'PUBLICIDADE') {
+                                setSituacaoLiberar('SIM');
+                                setSituacaoInativar('NAO');
+                              }
+
+                              setEditClientData({
+                                ...editClientData,
+                                modalityCode: code,
+                                billingCycle: cycle,
+                                monthlyEquivalent: monthlyVal,
+                                planSummaryLabel: detailedLabel,
+                              });
+                            }}
+                            className="w-full h-10 mt-1 rounded-md border border-emerald-400 px-3 text-xs font-black text-emerald-950 bg-emerald-50 cursor-pointer shadow-xs"
+                          >
+                            <optgroup label="Planos Mensais">
+                              <option value="ADULTO__MONTHLY">Lessa Club (Mensal) — R$ 49,90/mês</option>
+                              <option value="SERVIDOR__MONTHLY">Lessa Servidor Pass (Mensal) — R$ 25,00/mês</option>
+                              <option value="ESTUDANTE__MONTHLY">Lessa Student Pass (Mensal) — R$ 25,00/mês</option>
+                              <option value="PROFESSOR__MONTHLY">Lessa Professor Pass (Mensal) — R$ 25,00/mês</option>
+                              <option value="PARCEIRO__MONTHLY">Lessa Parceiro (Mensal) — R$ 25,00/mês</option>
+                              <option value="CLUB_2P__MONTHLY">Lessa Club - 2 pessoas (Mensal) — R$ 99,80/mês</option>
+                              <option value="CLUB_3P__MONTHLY">Lessa Club - 3 pessoas (Mensal) — R$ 149,70/mês</option>
+                              <option value="CLUB_4P__MONTHLY">Lessa Club - 4 pessoas (Mensal) — R$ 199,60/mês</option>
+                            </optgroup>
+
+                            <optgroup label="Planos Anuais (Fidelidade 12 meses)">
+                              <option value="ADULTO__ANNUAL">Lessa Club (Anual) — R$ 538,92 (12x R$ 44,91)</option>
+                              <option value="SERVIDOR__ANNUAL">Lessa Servidor Pass (Anual) — R$ 270,00 (12x R$ 22,50)</option>
+                              <option value="ESTUDANTE__ANNUAL">Lessa Student Pass (Anual) — R$ 270,00 (12x R$ 22,50)</option>
+                              <option value="PROFESSOR__ANNUAL">Lessa Professor Pass (Anual) — R$ 270,00 (12x R$ 22,50)</option>
+                              <option value="PARCEIRO__ANNUAL">Lessa Parceiro (Anual) — R$ 270,00 (12x R$ 22,50)</option>
+                              <option value="CLUB_2P__ANNUAL">Lessa Club - 2 pessoas (Anual) — R$ 1.077,84 (12x R$ 89,82)</option>
+                              <option value="CLUB_3P__ANNUAL">Lessa Club - 3 pessoas (Anual) — R$ 1.616,76 (12x R$ 134,73)</option>
+                              <option value="CLUB_4P__ANNUAL">Lessa Club - 4 pessoas (Anual) — R$ 2.155,68 (12x R$ 179,64)</option>
+                            </optgroup>
+
+                            <optgroup label="Gratuidades & Categorias Especiais">
+                              <option value="KIDS">Lessa Kids — Gratuito</option>
+                              <option value="IDOSO_60">Lessa Vitalício 60+ — Gratuito</option>
+                              <option value="PCD_TEA">Lessa Inclusão - PCD e TEA — Gratuito</option>
+                              <option value="CORPORATE">Lessa Corporate Pass — Cortesia (Interno)</option>
+                              <option value="PUBLICIDADE">Lessa Family Publicidade — Permuta Veicular (R$ 0,00)</option>
+                              <option value="CONVENIO">Lessa Convênio (Day Use) — Gratuito</option>
+                              <option value="SEM_PLANO">Sem Plano — Sem valor (Inativo)</option>
+                            </optgroup>
+                          </select>
+                        );
+                      })()}
                     </div>
 
                     <div className="sm:col-span-12">
-                      <Label className="text-xs font-bold text-slate-700">
-                        Plano / Descrição Completa do Contrato
-                      </Label>
+                      <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+                        <Label className="text-xs font-bold text-slate-700">
+                          Plano / Descrição Completa do Contrato
+                        </Label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const mod = (state?.modalities || []).find((m) => m.code === editClientData.modalityCode);
+                            let baseName = mod?.name || 'Lessa Servidor Pass';
+                            const planDesc = (editClientData.planSummaryLabel || '').toLowerCase();
+                            if (planDesc.includes('4 pessoas')) baseName = 'Lessa Club (4 pessoas)';
+                            else if (planDesc.includes('3 pessoas')) baseName = 'Lessa Club (3 pessoas)';
+                            else if (planDesc.includes('2 pessoas')) baseName = 'Lessa Club (2 pessoas)';
+
+                            const isAnnual = editClientData.billingCycle === 'ANNUAL';
+                            const totalVal = isAnnual
+                              ? (editClientData.monthlyEquivalent > 0 ? editClientData.monthlyEquivalent * 12 : 270)
+                              : editClientData.monthlyEquivalent;
+
+                            const members = selectedSubForDetail.members || [];
+                            const cycleTxt = isAnnual ? 'Anual' : 'Mensal';
+                            const priceTxt = isAnnual
+                              ? `R$ ${totalVal.toFixed(2).replace('.', ',')}`
+                              : `R$ ${editClientData.monthlyEquivalent.toFixed(2).replace('.', ',')}/mês`;
+
+                            let generated = '';
+                            if (members.length <= 1) {
+                              generated = `${baseName} (${cycleTxt}) - ${priceTxt}`;
+                            } else {
+                              const memberList = members.map((m, idx) => {
+                                const isTit = idx === 0 || m.role === 'TITULAR';
+                                const tag = isTit ? 'Titular' : `Dependente ${idx}`;
+                                const mPlan = isTit ? baseName : (m.planCycleLabel || m.modalityName || 'Lessa Club');
+                                return `${tag}: ${m.fullName.split(' ')[0]} (${mPlan})`;
+                              });
+                              generated = `${baseName} (${cycleTxt} - ${priceTxt}) [${memberList.join(' + ')}]`;
+                            }
+
+                            setEditClientData((prev) => ({
+                              ...prev,
+                              planSummaryLabel: generated,
+                            }));
+
+                            toast({
+                              title: 'Descrição detalhada gerada!',
+                              description: 'Composição contratual atualizada de acordo com cada integrante.',
+                            });
+                          }}
+                          className="text-[11px] font-bold text-emerald-800 hover:text-emerald-950 bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 rounded px-2.5 py-0.5 cursor-pointer flex items-center gap-1 transition-colors"
+                        >
+                          🪄 Detalhar de acordo com cada integrante
+                        </button>
+                      </div>
                       <Textarea
                         rows={2}
                         value={editClientData.planSummaryLabel}
