@@ -462,8 +462,8 @@ export function getChaleInclusions(checkInDateStr?: string, checkOutDateStr?: st
   dayUseDays = Array.from(new Set(dayUseDays));
 
   const cafeText = cafeDays.length > 0
-    ? `Incluso: ${cafeDays.join(' e ')} (das 7h às 9h)`
-    : 'Servido Sex a Dom (7h às 9h)';
+    ? `Incluso: ${cafeDays.join(' e ')} (das 7h às 10h)`
+    : 'Servido Sex a Dom (7h às 10h)';
 
   const dayUseText = dayUseDays.length > 0
     ? `Incluso: ${dayUseDays.join(' e ')} (9h às 17h)`

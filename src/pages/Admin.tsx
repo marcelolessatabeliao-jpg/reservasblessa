@@ -137,7 +137,7 @@ const BR_HOLIDAYS_2026 = [
   "2026-01-01", "2026-02-16", "2026-02-17", "2026-04-03", "2026-04-05", 
   "2026-04-21", "2026-05-01", "2026-05-14", "2026-05-24", "2026-06-04", 
   "2026-07-09", "2026-09-07", "2026-10-12", "2026-11-02", "2026-11-15", 
-  "2026-11-20", "2026-12-25"
+  "2026-11-20", "2026-12-25", "2026-12-31", "2027-01-01"
 ];
 
 const isHoliday = (date: Date) => {
@@ -2156,35 +2156,6 @@ export default function Admin() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Futebol de Sabão */}
-          <div className="bg-white rounded-3xl border-2 border-slate-300 p-6 shadow-lg flex flex-col justify-between">
-            <div>
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-blue-100 rounded-2xl flex items-center justify-center text-blue-600 border border-blue-200">
-                  <CheckCircle className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="font-black text-slate-800 text-sm uppercase">Futebol de Sabão</h4>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase">Serviço adicional por pessoa</p>
-                </div>
-              </div>
-              <p className="text-xs text-slate-600 mb-6 font-medium leading-relaxed">
-                Ao desativar este serviço, os clientes verão a mensagem <strong className="text-red-600">"indisponível no momento"</strong> e não conseguirão adicioná-lo na reserva.
-              </p>
-            </div>
-            <button
-              onClick={() => handleToggleSetting('disable_futebol_sabao', !disableFutebolSabao, setDisableFutebolSabao)}
-              className={cn(
-                "w-full h-12 rounded-xl text-xs font-black uppercase tracking-wider shadow-md transition-all active:scale-95 cursor-pointer",
-                disableFutebolSabao
-                  ? "bg-red-600 hover:bg-red-700 text-white"
-                  : "bg-emerald-600 hover:bg-emerald-700 text-white"
-              )}
-            >
-              {disableFutebolSabao ? "🔴 Indisponível (Bloqueado)" : "🟢 Disponível (Ativo)"}
-            </button>
-          </div>
-
           {/* Pesca Esportiva */}
           <div className="bg-white rounded-3xl border-2 border-slate-300 p-6 shadow-lg flex flex-col justify-between">
             <div>
@@ -3286,17 +3257,17 @@ export default function Admin() {
   );
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-emerald-900 via-slate-950 to-black bg-fixed overflow-x-hidden">
+    <div className="relative min-h-screen w-full max-w-full bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-emerald-900 via-slate-950 to-black md:bg-fixed overflow-x-clip">
        {/* Ambient Glows */}
-       <div className="absolute -top-24 -right-24 w-96 h-96 bg-emerald-500/10 blur-[120px] rounded-full" />
-       <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-blue-500/10 blur-[120px] rounded-full" />
+       <div className="absolute -top-24 -right-24 w-96 h-96 bg-emerald-500/10 blur-[120px] rounded-full pointer-events-none" />
+       <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-blue-500/10 blur-[120px] rounded-full pointer-events-none" />
 
        <div className="max-w-7xl mx-auto space-y-6 md:space-y-8 relative z-10 p-3 md:p-8">
           {/* HEADER SECTION - FLATTENED & CLEAN */}
           <div className="flex flex-col gap-4 mb-6">
               {/* ROW 1: FLATTENED TITLE & BASIC CONTROLS */}
               <div className="flex flex-col md:flex-row md:items-center justify-between w-full gap-4">
-                  <h1 className="text-xl md:text-2xl font-black tracking-tighter text-[#FFF033] whitespace-nowrap uppercase">
+                  <h1 className="text-lg sm:text-xl md:text-2xl font-black tracking-tighter text-[#FFF033] md:whitespace-nowrap uppercase text-center md:text-left">
                      PAINEL DE RESERVAS BALNEÁRIO LESSA
                   </h1>
 
@@ -3431,11 +3402,12 @@ export default function Admin() {
                    onClick={() => setActiveTab('relatorios')} 
                    title="Relatórios Financeiros" 
                    className={cn(
-                     "py-2.5 px-3.5 rounded-xl lg:rounded-2xl lg:px-4 text-[10px] lg:text-[13px] font-black flex items-center justify-center transition-all",
+                     "py-2.5 px-2 rounded-xl lg:rounded-2xl lg:px-4 text-[10px] lg:text-[13px] font-black flex flex-col lg:flex-row items-center justify-center gap-1 lg:gap-2 transition-all",
                      activeTab === 'relatorios' ? "bg-amber-500 text-amber-950 shadow-md" : "text-white hover:bg-white/10"
                    )}
                  >
-                    <FileSpreadsheet className="w-5 h-5" />
+                    <FileSpreadsheet className="w-4 h-4" />
+                    <span className="lg:hidden">Relatórios</span>
                  </button>
                  <button onClick={() => setActiveTab('disponibilidade')} className={cn(
                    "py-2.5 px-2 rounded-xl lg:rounded-2xl lg:px-4 text-[10px] lg:text-[13px] font-black flex flex-col lg:flex-row items-center justify-center gap-1 lg:gap-2 transition-all",

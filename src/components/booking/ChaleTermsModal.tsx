@@ -64,7 +64,7 @@ export function ChaleTermsFullContent() {
           4. Café da manhã
         </h3>
         <p>
-          O café da manhã está incluído na hospedagem e é servido <strong>nas manhãs de sexta-feira, sábado e domingo, até as 9h</strong>.
+          O café da manhã está incluído na hospedagem e é servido <strong>nas manhãs de sexta-feira, sábado e domingo, das 7h às 10h</strong>.
         </p>
         <p>
           <strong>Não há café da manhã às segundas-feiras.</strong> Assim, a hospedagem de domingo para segunda não inclui café na segunda-feira. Consumos no restaurante, bebidas e produtos do frigobar não fazem parte da diária, salvo oferta expressa.

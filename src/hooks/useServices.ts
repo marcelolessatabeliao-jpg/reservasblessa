@@ -14,9 +14,14 @@ const DEFAULT_SERVICES: ServiceItem[] = [
   { id: '3', name: 'Quiosque Familiar', type: 'kiosk_familiar', base_price: 75 },
   { id: '4', name: 'Quadriciclo Individual', type: 'quad_individual', base_price: 130 },
   { id: '5', name: 'Quadriciclo Dupla', type: 'quad_dupla', base_price: 195 },
-  { id: '6', name: 'Futebol de Sabão', type: 'add_futebol-sabao', base_price: 10 },
   { id: '7', name: 'Pesca Esportiva', type: 'add_pesca', base_price: 20 },
 ];
+
+const isRemovedService = (s: ServiceItem) => {
+  const t = (s.type || '').toLowerCase();
+  const n = (s.name || '').toLowerCase();
+  return t.includes('futebol') || t.includes('sabao') || n.includes('futebol de sab');
+};
 
 export function useServices() {
   const { data: services = DEFAULT_SERVICES, error } = useQuery({
@@ -37,7 +42,8 @@ export function useServices() {
           console.warn('[useServices] Usando tabela de serviços padrão:', res.error.message);
           return DEFAULT_SERVICES;
         }
-        return (res.data && res.data.length > 0 ? res.data : DEFAULT_SERVICES) as ServiceItem[];
+        const list = (res.data && res.data.length > 0 ? res.data : DEFAULT_SERVICES) as ServiceItem[];
+        return list.filter((s) => !isRemovedService(s));
       } catch {
         return DEFAULT_SERVICES;
       }

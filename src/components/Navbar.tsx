@@ -18,7 +18,7 @@ export function Navbar() {
   const [open, setOpen] = useState(false);
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-primary/95 backdrop-blur-md border-b border-primary-foreground/10">
+    <nav className="fixed top-0 left-0 right-0 z-50 w-full max-w-full overflow-x-clip bg-primary/95 backdrop-blur-md border-b border-primary-foreground/10">
       <div className="container px-2 sm:px-4 flex items-center justify-between h-12 sm:h-16 relative">
         <a href="/#inicio" className="flex items-center gap-1 sm:gap-3 min-w-0">
           <img src={logo} alt="Balneário Lessa" className="h-7 sm:h-10 shrink-0" />
@@ -103,6 +103,12 @@ export function Navbar() {
             ))}
             
             <div className="flex flex-col gap-3 pt-2">
+              <Button asChild variant="outline" className="bg-white/10 text-primary-foreground hover:bg-white/20 hover:text-white border-white/20 h-12 font-black w-full rounded-2xl transition-all" onClick={() => setOpen(false)}>
+                <Link to="/consultar" className="flex items-center justify-center gap-2">
+                  <Search className="h-5 w-5" /> Consultar Reserva
+                </Link>
+              </Button>
+
               <Button asChild className="bg-gradient-to-r from-emerald-600 to-emerald-800 hover:from-emerald-500 hover:to-emerald-700 text-white h-12 font-black w-full rounded-2xl shadow-xl border-2 border-emerald-400/30">
                 <a href="/admin" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2">
                   <Settings className="h-5 w-5" /> Painel Admin

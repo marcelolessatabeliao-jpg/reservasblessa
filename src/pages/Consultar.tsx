@@ -242,7 +242,7 @@ export default function Consultar() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-100/80 via-emerald-50 to-teal-100/80 bg-fixed">
+    <div className="relative min-h-screen w-full max-w-full overflow-x-clip bg-gradient-to-br from-emerald-100/80 via-emerald-50 to-teal-100/80 md:bg-fixed">
       <Navbar />
 
       <main className="max-w-4xl mx-auto px-3 sm:px-4 pt-24 sm:pt-32 pb-16 sm:pb-20">
@@ -525,7 +525,7 @@ export default function Consultar() {
                               </div>
                               <div className="flex items-center gap-2 bg-emerald-50 px-3 py-2 rounded-lg border border-emerald-200 font-bold text-emerald-950">
                                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                                <span>Café da manhã incluso (Sex a Dom, das 7h às 9h)</span>
+                                <span>Café da manhã incluso (Sex a Dom, das 7h às 10h)</span>
                               </div>
                             </div>
 

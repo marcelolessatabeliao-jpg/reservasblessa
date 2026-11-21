@@ -632,7 +632,6 @@ export function InternalBookingAssistant({
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {[
                         { id: 'pesca', label: 'Pesca Esportiva', price: 20, description: 'Acesso ao lago de pesca' },
-                        { id: 'futebol-sabao', label: 'Futebol de Sabão', price: 10, description: '30 min de diversão' },
                         { id: 'trilha', label: 'Passeio Trilha Ecológica', price: 20, description: 'Trilha guiada pela natureza' }
                       ].map(service => {
                          const item = newBookingData.additionals.find(a => a.type === service.id);

@@ -181,8 +181,8 @@ export const CHALE_PACKAGES: Record<ChalePackageType, ChalePackageInfo> = {
     priceCasal: 702,
     basePrice: 702,
     badge: '🌿 10% OFF • QUI A SÁB',
-    commercialHighlight: 'Check-in quinta às 9h • Check-out sábado às 12h',
-    description: 'Check-in quinta às 9h • Check-out sábado às 12h. Café da manhã incluso na sexta e sábado.'
+    commercialHighlight: 'Check-in quinta às 15h • Check-out sábado às 12h',
+    description: 'Check-in quinta às 15h • Check-out sábado às 12h. Café da manhã incluso na sexta e sábado.'
   },
   'combo-2n-sab-seg': {
     id: 'combo-2n-sab-seg',
@@ -209,8 +209,8 @@ export const CHALE_PACKAGES: Record<ChalePackageType, ChalePackageInfo> = {
     priceCasal: 1125,
     basePrice: 1125,
     badge: '⭐ 10% OFF • QUI A DOM',
-    commercialHighlight: 'Check-in quinta às 9h • Check-out domingo às 12h (Day Use no parque liberado até as 17h!)',
-    description: 'Check-in quinta às 9h • Check-out domingo às 12h. Day use de sexta a domingo até as 17h e café da manhã incluso nas manhãs de sexta, sábado e domingo.'
+    commercialHighlight: 'Check-in quinta às 15h • Check-out domingo às 12h (Day Use no parque liberado até as 17h!)',
+    description: 'Check-in quinta às 15h • Check-out domingo às 12h. Day use de sexta a domingo até as 17h e café da manhã incluso nas manhãs de sexta, sábado e domingo.'
   },
   'combo-3n-sex-seg': {
     id: 'combo-3n-sex-seg',
@@ -237,8 +237,8 @@ export const CHALE_PACKAGES: Record<ChalePackageType, ChalePackageInfo> = {
     priceCasal: 1413,
     basePrice: 1413,
     badge: '👑 MAIOR ESTADIA • 10% OFF',
-    commercialHighlight: '5 dias no calendário e 4 pernoites! Check-in quinta às 9h • Check-out segunda às 12h (Economia de até R$ 137)',
-    description: 'Check-in quinta às 9h • Check-out segunda às 12h. Acesso ao Day Use nos 3 dias em que o parque funciona (sex, sáb, dom). Segunda balneário fechado e sem café da manhã.'
+    commercialHighlight: '5 dias no calendário e 4 pernoites! Check-in quinta às 15h • Check-out segunda às 12h (Economia de até R$ 137)',
+    description: 'Check-in quinta às 15h • Check-out segunda às 12h. Acesso ao Day Use nos 3 dias em que o parque funciona (sex, sáb, dom). Segunda balneário fechado e sem café da manhã.'
   },
   'diaria-qui-sex': {
     id: 'diaria-qui-sex',
@@ -379,8 +379,8 @@ export const CHALE_PACKAGES: Record<ChalePackageType, ChalePackageInfo> = {
 };
 
 export const CHALE_RULES = [
-  'Horários da hospedagem: Check-in a partir das 15h (Quintas às 09h) e Check-out pontual até às 12h.',
-  'Café da manhã servido das 7h às 9h nas manhãs de sexta, sábado e domingo.',
+  'Horários da hospedagem: Check-in a partir das 15h e Check-out pontual até às 12h.',
+  'Café da manhã servido das 7h às 10h nas manhãs de sexta, sábado e domingo.',
   'Segunda-feira: não haverá café da manhã nem funcionamento do parque balneário.',
   'Aos domingos, Day Use 100% incluso liberado no parque até as 17h para todos os hóspedes.',
   'Combos de 2 ou mais noites têm 10% de desconto automático sobre a soma das diárias.',
@@ -483,8 +483,8 @@ export function calculateStayPricing(checkIn: Date | string | null, checkOut: Da
   const totalIndividual = Math.round(totalIndividualGross * (1 - discountPct));
   const totalCasal = Math.round(totalCasalGross * (1 - discountPct));
 
-  // Check-in na quinta às 9h apenas nos combos (>= 2 noites); diárias avulsas e demais dias às 15h
-  const checkInHour = hasThursdayIn && nightsCount >= 2 ? '09h' : '15h';
+  // Todo check-in de hospedagem é a partir das 15h
+  const checkInHour = '15h';
   const checkOutHour = '12h';
 
   return {
@@ -716,6 +716,8 @@ export const HOLIDAY_STRINGS_2026 = [
   '2026-11-15', // Proclamação da República
   '2026-11-20', // Dia da Consciência Negra (Sexta-feira)
   '2026-12-25', // Natal
+  '2026-12-31', // Véspera de Ano Novo / Réveillon (Funcionamento especial)
+  '2027-01-01', // Confraternização Universal
 ];
 
 export function isHolidayDate(date: Date | string | null | undefined): boolean {
@@ -754,8 +756,12 @@ export function isHolidayDate(date: Date | string | null | undefined): boolean {
       { m: 10, d: 15 },// Nov 15 (Proclamação República)
       { m: 10, d: 20 },// Nov 20 (Consciência Negra)
       { m: 11, d: 25 },// Dec 25 (Natal)
+      { m: 11, d: 31 },// Dec 31 (Réveillon)
     ];
     return holidays.some(h => h.m === month && h.d === dateNum);
+  }
+  if (year === 2027) {
+    return month === 0 && dateNum === 1;
   }
   return false;
 }

@@ -58,6 +58,7 @@ const services = [
     description: 'Diversão garantida para grupos por 30 minutos! Mínimo de 6 pessoas por partida.',
     price: 'R$ 10,00/pessoa (30 min)',
     image: '/images/futebol-sabao-novo.jpg',
+    noButton: true,
   },
   {
     title: 'Pesca Esportiva',
@@ -160,7 +161,6 @@ export function ServicesSection() {
                           if (service.title === 'Quiosques') tab = 'quiosques';
                           if (service.title.toLowerCase().includes('quadriciclo')) tab = 'quads';
                           if (service.title === 'Chalés') tab = 'hospedagem';
-                          if (service.title === 'Futebol de Sabão') tab = 'futebol';
                           if (service.title === 'Pesca Esportiva') tab = 'pesca';
                           
                           window.dispatchEvent(new CustomEvent('changeBookingTab', { detail: tab }));

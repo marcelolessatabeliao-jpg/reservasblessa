@@ -60,7 +60,7 @@ export default function Assinatura() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-100/80 via-emerald-50 to-teal-100/80 bg-fixed text-foreground font-body selection:bg-emerald-200">
+    <div className="relative min-h-screen w-full max-w-full overflow-x-clip bg-gradient-to-br from-emerald-100/80 via-emerald-50 to-teal-100/80 md:bg-fixed text-foreground font-body selection:bg-emerald-200">
       {/* 1 & 2. STICKY HEADER COM ANNOUNCEMENT BAR E NAVBAR UNIFICADAS */}
       <div className="sticky top-0 z-40 shadow-md">
         {/* TOP ANNOUNCEMENT BAR */}

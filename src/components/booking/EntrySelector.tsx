@@ -87,6 +87,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
   const [wizardStep, setWizardStep] = useState<number>(1);
   const [wizardData, setWizardData] = useState<any>({ age: null, category: 'inteira', takeDonation: false, isPCD: false });
   const [isAvailabilityOpen, setIsAvailabilityOpen] = useState(false);
+  const [isHospedagemPricesOpen, setIsHospedagemPricesOpen] = useState(false);
   const [bookedKioskIds, setBookedKioskIds] = useState<number[]>([]);
   const [isFetchingKiosks, setIsFetchingKiosks] = useState(false);
 
@@ -298,16 +299,6 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
       case 3: // Adult Categories (Professor/Student/Server)
         const entryFullStr = formatCurrency(getPrice('entry_full', 50)).replace(',00', '');
         const entryHalfStr = formatCurrency(getPrice('entry_half', 25)).replace(',00', '');
-
-        const isHoliday = (date: Date) => {
-          const holidays = [
-            "2026-01-01", "2026-02-16", "2026-02-17", "2026-04-03", "2026-04-05", 
-            "2026-04-21", "2026-05-01", "2026-05-14", "2026-05-24", "2026-06-04", 
-            "2026-07-09", "2026-09-07", "2026-10-12", "2026-11-02", "2026-11-15", 
-            "2026-11-20", "2026-12-25"
-          ];
-          return holidays.includes(format(date, 'yyyy-MM-dd'));
-        };
 
         const isBlockedForSolidario = entry.visitDate ? isSundayOrHoliday(entry.visitDate) : false;
 
@@ -938,23 +929,52 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                 </Popover>
               </div>
 
-              <div className="space-y-1">
+              <div className="grid grid-cols-2 gap-2">
                 <Button
+                  type="button"
                   variant="outline"
                   disabled={!entry.visitDate}
                   onClick={handleOpenAvailability}
                   className={cn(
-                    "w-full h-12 px-3 rounded-xl border-2 font-black text-[10px] uppercase tracking-wider transition-all whitespace-normal leading-tight text-center shadow-xs",
+                    "w-full h-12 px-2 sm:px-3 rounded-xl border-2 font-black text-[9.5px] sm:text-[10px] uppercase tracking-tight sm:tracking-wider transition-all whitespace-normal leading-tight text-center shadow-xs",
                     entry.visitDate 
                       ? "border-emerald-600 bg-emerald-700 hover:bg-emerald-800 text-white hover:border-amber-400" 
                       : "border-slate-200 text-slate-400 bg-slate-50 cursor-not-allowed"
                   )}
                 >
-                  <Home className="w-4 h-4 mr-1.5 shrink-0" />
-                  {entry.visitDate ? "Consultar Mapa de Quiosques (Visualização)" : "Selecione uma data primeiro"}
+                  <Home className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 shrink-0" />
+                  <span>Veja: Quiosques Disponíveis</span>
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsHospedagemPricesOpen(true)}
+                  className="w-full h-12 px-2 sm:px-3 rounded-xl border-2 border-amber-500 bg-amber-400 hover:bg-amber-500 text-emerald-950 font-black text-[9.5px] sm:text-[10px] uppercase tracking-tight sm:tracking-wider transition-all whitespace-normal leading-tight text-center shadow-xs"
+                >
+                  <Ticket className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 shrink-0" />
+                  <span>Valores de Hospedagem</span>
                 </Button>
               </div>
             </div>
+
+            <Dialog open={isHospedagemPricesOpen} onOpenChange={setIsHospedagemPricesOpen}>
+              <DialogContent className="w-[95vw] sm:max-w-2xl rounded-3xl p-0 overflow-hidden border-2 border-amber-400 bg-white shadow-2xl max-h-[92dvh] flex flex-col">
+                <div className="bg-gradient-to-br from-emerald-950 via-[#042817] to-slate-950 px-4 py-3 sm:px-5 sm:py-4 text-white flex items-center justify-between gap-2 shrink-0 border-b border-amber-400/50">
+                  <DialogTitle className="text-sm sm:text-base font-black uppercase tracking-tight flex items-center gap-2 text-amber-300">
+                    <Ticket className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
+                    <span>Tabela de Valores — Hospedagem em Chalés</span>
+                  </DialogTitle>
+                </div>
+                <div className="p-2 sm:p-4 bg-emerald-50/40 overflow-y-auto flex-1 flex items-center justify-center">
+                  <img
+                    src="/images/tabela-hospedagem.jpg"
+                    alt="Tabela de Valores de Hospedagem - Chalés Balneário Lessa"
+                    className="w-full h-auto max-h-[75dvh] object-contain rounded-2xl shadow-md"
+                  />
+                </div>
+              </DialogContent>
+            </Dialog>
 
             <Dialog open={isAvailabilityOpen} onOpenChange={setIsAvailabilityOpen}>
               <DialogContent 

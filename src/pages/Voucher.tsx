@@ -200,7 +200,7 @@ export default function Voucher() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] p-4 md:p-8 font-sans flex items-center justify-center">
+    <div className="relative min-h-screen w-full max-w-full overflow-x-clip bg-[#f8fafc] p-4 md:p-8 font-sans flex items-center justify-center">
       <style>{`
         @media print {
           @page {

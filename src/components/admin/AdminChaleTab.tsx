@@ -74,7 +74,9 @@ import { AddItemsToBookingDialog } from './AddItemsToBookingDialog';
 import { PaymentModal } from '@/components/booking/PaymentModal';
 import { cn } from '@/lib/utils';
 import { format, parseISO, addDays } from 'date-fns';
+import { formatInTimeZone } from 'date-fns-tz';
 import { ptBR } from 'date-fns/locale';
+import { TIMEZONE, getROTodayStr } from '@/utils/date-utils';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { getGlobalSetting, updateGlobalSetting, getChaleBlockedDatesMap } from '@/lib/booking-service';
@@ -88,7 +90,7 @@ export interface ChaleReservation {
   phone: string;
   cpf?: string;
   checkInDate: string;  // 'yyyy-MM-dd'
-  checkInTime: string;  // '15:00' ou '09:00'
+  checkInTime: string;  // '15:00'
   checkOutDate: string; // 'yyyy-MM-dd'
   checkOutTime: string; // '12:00'
   packageTitle: string;
@@ -519,15 +521,15 @@ export function AdminChaleTab({
     if (pkg === 'combo-2n-sex-dom') {
       inD = friday; outD = sunday; inTime = '15:00';
     } else if (pkg === 'combo-2n-qui-sab') {
-      inD = thursday; outD = saturday; inTime = '09:00';
+      inD = thursday; outD = saturday; inTime = '15:00';
     } else if (pkg === 'combo-2n-sab-seg') {
       inD = saturday; outD = monday; inTime = '15:00';
     } else if (pkg === 'combo-3n-qui-dom') {
-      inD = thursday; outD = sunday; inTime = '09:00';
+      inD = thursday; outD = sunday; inTime = '15:00';
     } else if (pkg === 'combo-3n-sex-seg') {
       inD = friday; outD = monday; inTime = '15:00';
     } else if (pkg === 'combo-4n-qui-seg') {
-      inD = thursday; outD = monday; inTime = '09:00';
+      inD = thursday; outD = monday; inTime = '15:00';
     } else if (pkg === 'diaria-qui-sex') {
       inD = thursday; outD = friday; inTime = '15:00';
     } else if (pkg === 'diaria-sex-sab') {
@@ -549,7 +551,7 @@ export function AdminChaleTab({
     const day = d.getDay();
     const inStr = format(d, 'yyyy-MM-dd');
     setFormCheckInDate(inStr);
-    setFormCheckInTime(day === 4 ? '09:00' : '15:00');
+    setFormCheckInTime('15:00');
     setFormCheckOutTime('12:00');
     setFormCustomPriceOverride(null);
 
@@ -796,21 +798,47 @@ export function AdminChaleTab({
     });
   }, [orders, realChaleOrders]);
 
-  // TODAS AS RESERVAS ATIVAS (Prioriza Pedidos Online Supabase e em seguida Reservas Locais)
+  // Relógio em tempo real (fuso America/Porto_Velho) para liberar automaticamente chalés após horário de check-out (12:00)
+  const [nowRODateTimeStr, setNowRODateTimeStr] = useState<string>(() =>
+    formatInTimeZone(new Date(), TIMEZONE, 'yyyy-MM-dd HH:mm')
+  );
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setNowRODateTimeStr(formatInTimeZone(new Date(), TIMEZONE, 'yyyy-MM-dd HH:mm'));
+    }, 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const isReservationCheckoutPassed = (r: ChaleReservation | null | undefined): boolean => {
+    if (!r) return false;
+    const outStr = (r.checkOutDate || r.checkInDate || '').split('T')[0];
+    if (!outStr) return false;
+    const rawTime = String(r.checkOutTime || '12:00').trim();
+    const match = rawTime.match(/(\d{1,2}):?(\d{2})?/);
+    const hh = match ? match[1].padStart(2, '0') : '12';
+    const mm = match && match[2] ? match[2].padStart(2, '0') : '00';
+    const outDateTimeStr = `${outStr} ${hh}:${mm}`;
+    return nowRODateTimeStr >= outDateTimeStr;
+  };
+
+  // TODAS AS RESERVAS ATIVAS (Exclui canceladas e reservas cujo horário de check-out já passou)
   const allActiveReservations = useMemo(() => {
     const localList = Array.isArray(localReservations) ? localReservations : [];
     const onlineList = Array.isArray(realChaleOrders) ? realChaleOrders : [];
-    const combined = [...onlineList, ...localList].filter(r => r && r.status !== 'cancelled');
+    const combined = [...onlineList, ...localList].filter(
+      r => r && r.status !== 'cancelled' && !isReservationCheckoutPassed(r)
+    );
     // Ordenar de forma que reservas pagas/confirmadas venham com maior precedência
     return combined.sort((a, b) => {
       const aPaid = (a.status === 'paid' || a.status === 'confirmed') ? 1 : 0;
       const bPaid = (b.status === 'paid' || b.status === 'confirmed') ? 1 : 0;
       return bPaid - aPaid;
     });
-  }, [localReservations, realChaleOrders]);
+  }, [localReservations, realChaleOrders, nowRODateTimeStr]);
 
-  // MAPA DE OCUPAÇÃO: DATA SELECIONADA (Inicia a partir do dia 20/11/2026 - Primeira sexta disponível)
-  const [mapTargetDate, setMapTargetDate] = useState<Date>(() => new Date('2026-11-20T12:00:00'));
+  // MAPA DE OCUPAÇÃO: DATA SELECIONADA (Inicia na data de hoje em Rondônia)
+  const [mapTargetDate, setMapTargetDate] = useState<Date>(() => new Date(`${getROTodayStr()}T12:00:00`));
   const [isMapCalendarOpen, setIsMapCalendarOpen] = useState(false);
   const mapTargetDateStr = format(mapTargetDate, 'yyyy-MM-dd');
 
@@ -853,14 +881,15 @@ export function AdminChaleTab({
   }, [allActiveReservations]);
 
   const upcomingBookedDates = useMemo(() => {
+    const todayStr = getROTodayStr();
     return Object.keys(bookedDatesSummary)
-      .filter(dStr => dStr >= '2026-11-12')
+      .filter(dStr => dStr >= todayStr || bookedDatesSummary[dStr].some(b => !isReservationCheckoutPassed(b.res)))
       .sort()
       .map(dStr => ({
         dateStr: dStr,
         bookings: bookedDatesSummary[dStr]
       }));
-  }, [bookedDatesSummary]);
+  }, [bookedDatesSummary, nowRODateTimeStr]);
 
   // STATUS DOS 12 CHALÉS NA DATA SELECIONADA DO MAPA
   const chalesOnTargetDate = useMemo(() => {
@@ -1995,7 +2024,7 @@ export function AdminChaleTab({
               if (!r || Number(r.chaleId) !== unit.id) return false;
               const inStr = (r.checkInDate || '').split('T')[0];
               const outStr = (r.checkOutDate || inStr).split('T')[0];
-              return outStr === mapTargetDateStr && inStr !== outStr;
+              return outStr === mapTargetDateStr && inStr !== outStr && !isReservationCheckoutPassed(r);
             });
 
             return (
@@ -2351,32 +2380,44 @@ export function AdminChaleTab({
               <span className="font-black text-slate-500 uppercase text-[10px] tracking-wider shrink-0">
                 Atalhos de Fins de Semana:
               </span>
-              {[
-                { label: 'Sex 13/11 a Dom 15/11', date: '2026-11-13' },
-                { label: 'Sex 20/11 a Dom 22/11', date: '2026-11-20' },
-                { label: 'Sex 27/11 a Dom 29/11', date: '2026-11-27' },
-                { label: 'Sex 04/12 a Dom 06/12', date: '2026-12-04' },
-                { label: 'Sex 11/12 a Dom 13/12', date: '2026-12-11' },
-              ].map(shortcut => {
-                const isSelected = mapTargetDateStr === shortcut.date;
-                const hasReservations = Boolean(bookedDatesSummary[shortcut.date]);
-                return (
-                  <button
-                    key={shortcut.date}
-                    type="button"
-                    onClick={() => setMapTargetDate(new Date(`${shortcut.date}T12:00:00`))}
-                    className={cn(
-                      "px-3 py-1.5 rounded-xl font-black text-[11px] transition-all flex items-center gap-1.5 shadow-xs cursor-pointer",
-                      isSelected
-                        ? "bg-emerald-800 text-white shadow-sm ring-2 ring-emerald-500"
-                        : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
-                    )}
-                  >
-                    {hasReservations && <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />}
-                    {shortcut.label}
-                  </button>
-                );
-              })}
+              {(() => {
+                const todayStr = getROTodayStr();
+                const todayDate = new Date(`${todayStr}T12:00:00`);
+                const dow = todayDate.getDay();
+                const offsetToFri = dow === 5 ? 0 : dow === 6 ? -1 : dow === 0 ? -2 : (5 - dow + 7) % 7;
+                const baseFri = addDays(todayDate, offsetToFri);
+                const shortcuts = [
+                  { label: `Hoje (${format(todayDate, 'dd/MM')})`, date: todayStr },
+                  ...Array.from({ length: 5 }, (_, idx) => {
+                    const fri = addDays(baseFri, idx * 7);
+                    const sun = addDays(fri, 2);
+                    return {
+                      label: `Sex ${format(fri, 'dd/MM')} a Dom ${format(sun, 'dd/MM')}`,
+                      date: format(fri, 'yyyy-MM-dd')
+                    };
+                  })
+                ];
+                return shortcuts.map(shortcut => {
+                  const isSelected = mapTargetDateStr === shortcut.date;
+                  const hasReservations = Boolean(bookedDatesSummary[shortcut.date]);
+                  return (
+                    <button
+                      key={shortcut.label}
+                      type="button"
+                      onClick={() => setMapTargetDate(new Date(`${shortcut.date}T12:00:00`))}
+                      className={cn(
+                        "px-3 py-1.5 rounded-xl font-black text-[11px] transition-all flex items-center gap-1.5 shadow-xs cursor-pointer",
+                        isSelected
+                          ? "bg-emerald-800 text-white shadow-sm ring-2 ring-emerald-500"
+                          : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
+                      )}
+                    >
+                      {hasReservations && <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />}
+                      {shortcut.label}
+                    </button>
+                  );
+                });
+              })()}
             </div>
 
             {/* MARCADORES NOS DIAS: PRÓXIMAS DATAS COM RESERVAS REGISTRADAS */}
@@ -2573,7 +2614,7 @@ export function AdminChaleTab({
                         </div>
                         <h4 className="font-black text-lg text-slate-950 mt-0.5">{unit.name}</h4>
                         <span className="text-xs font-bold text-slate-800 block">
-                          Entrada: 15h (Qui 09h) · Saída: 12h · Café das 07h às 09h
+                          Entrada: 15h · Saída: 12h · Café das 07h às 10h
                         </span>
                       </div>
                     </div>
@@ -3163,7 +3204,7 @@ export function AdminChaleTab({
 
                   {/* Caixa de Esclarecimento Amigável */}
                   <div className="bg-emerald-950/80 border border-emerald-500/40 p-2.5 rounded-lg text-[11px] text-emerald-100 leading-snug">
-                    ℹ️ <strong>Esclarecimento do Valor:</strong> A diária casal contratada custa R$ 340,00 na tabela. Com o desconto automático de 10% do site, o valor final ficou em <strong>{formatCurrency(selectedOriginalReservation.totalPrice)}</strong>. Nenhum serviço extra foi contratado na compra online. Caso deseje incluir Pesca (+R$ 20) ou Futebol de Sabão (+R$ 10) totalizando R$ 333,00 (com 10% OFF), clique no botão abaixo para editar a reserva.
+                    ℹ️ <strong>Esclarecimento do Valor:</strong> A diária casal contratada custa R$ 340,00 na tabela. Com o desconto automático de 10% do site, o valor final ficou em <strong>{formatCurrency(selectedOriginalReservation.totalPrice)}</strong>. Nenhum serviço extra foi contratado na compra online. Caso deseje incluir Pesca (+R$ 20), clique no botão abaixo para editar a reserva.
                   </div>
                 </div>
               </div>
@@ -3636,41 +3677,6 @@ export function AdminChaleTab({
                       variant="outline"
                       onClick={() => {
                         setExtraPescaQty(q => q + 1);
-                        setFormCustomPriceOverride(null);
-                      }}
-                      className="h-7 w-7 p-0 rounded-lg"
-                    >
-                      <Plus className="w-3 h-3" />
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Futebol de Sabão */}
-                <div className="flex items-center justify-between bg-slate-50 px-3 py-2 rounded-xl border border-slate-200">
-                  <div>
-                    <span className="text-xs font-black text-slate-900 block">🫧 Futebol de Sabão</span>
-                    <span className="text-[10px] font-bold text-slate-500">R$ 10,00 por pessoa</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        setExtraSabaoQty(q => Math.max(0, q - 1));
-                        setFormCustomPriceOverride(null);
-                      }}
-                      className="h-7 w-7 p-0 rounded-lg"
-                    >
-                      <Minus className="w-3 h-3" />
-                    </Button>
-                    <span className="w-5 text-center font-black text-xs">{extraSabaoQty}</span>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        setExtraSabaoQty(q => q + 1);
                         setFormCustomPriceOverride(null);
                       }}
                       className="h-7 w-7 p-0 rounded-lg"

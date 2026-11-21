@@ -48,9 +48,12 @@ export function AdditionalSelector({ additionals, onUpdate }: Props) {
     });
   }, [disabledServices, additionals, onUpdate]);
 
+  const visibleAdditionals = additionals.filter(item => item.type !== 'futebol-sabao');
+
   return (
     <div className="space-y-3">
-      {additionals.map((item, i) => {
+      {visibleAdditionals.map((item) => {
+        const i = additionals.findIndex(a => a.type === item.type);
         const info = ADDITIONAL_INFO[item.type];
         const basePrice = getPrice(`add_${item.type}`, info.price);
         const Icon = ICONS[item.type] || Fish;

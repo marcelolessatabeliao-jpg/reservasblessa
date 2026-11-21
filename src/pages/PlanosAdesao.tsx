@@ -1454,7 +1454,7 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
     .split(',');
 
   return (
-    <div className={embedded ? 'py-8' : 'min-h-screen bg-[#f4f7fa] pb-20'}>
+    <div className={embedded ? 'py-8 w-full max-w-full overflow-x-clip' : 'relative min-h-screen w-full max-w-full overflow-x-clip bg-[#f4f7fa] pb-20'}>
       {!embedded && (
         <header className="bg-emerald-950 text-white border-b border-emerald-900 sticky top-0 z-40 shadow-md">
           <div className="container mx-auto px-4 h-16 flex items-center justify-between">

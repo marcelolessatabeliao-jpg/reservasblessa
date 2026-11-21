@@ -486,9 +486,9 @@ export function BookingSection({ onBookingActiveChange }: { onBookingActiveChang
             <button
               type="button"
               onClick={handleNext}
-              className="inline-flex items-center justify-center rounded-xl bg-emerald-800 hover:bg-emerald-950 text-white hover:text-amber-300 font-black text-[10px] sm:text-xs px-2 sm:px-3.5 h-8 sm:h-9 shadow-xs transition-all cursor-pointer shrink-0 whitespace-nowrap"
+              className="inline-flex items-center justify-center rounded-xl bg-emerald-800 hover:bg-emerald-950 text-white hover:text-amber-300 font-black text-[10px] sm:text-xs px-2 sm:px-3.5 h-8 sm:h-9 shadow-xs transition-all cursor-pointer shrink min-w-0 max-w-[44%] sm:max-w-none"
             >
-              Próximo: {nextStep.label}
+              <span className="truncate">Próximo: {nextStep.label}</span>
               <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 ml-1 text-amber-300 shrink-0" />
             </button>
           )}
@@ -601,7 +601,7 @@ export function BookingSection({ onBookingActiveChange }: { onBookingActiveChang
   };
 
   return (
-    <section id="reservas" className="relative pt-6 pb-12 sm:pt-32 sm:pb-28 bg-transparent min-h-screen">
+    <section id="reservas" className="relative pt-6 pb-12 sm:pt-32 sm:pb-28 bg-transparent min-h-screen overflow-x-clip">
       {/* Background decoration */}
       <div className="absolute top-0 left-0 w-full h-full pointer-events-none opacity-40 hidden sm:block">
         <div className="absolute top-[10%] left-[5%] w-64 h-64 bg-primary/10 rounded-full blur-3xl" />
@@ -936,7 +936,7 @@ export function BookingSection({ onBookingActiveChange }: { onBookingActiveChang
                         <Coffee className="w-4 h-4 text-amber-400 shrink-0" />
                         <div className="text-[10.5px] sm:text-[11px] leading-tight">
                           <span className="font-black text-white block">Café Incluso</span>
-                          <span className="text-emerald-200/80 text-[9.5px] sm:text-[10px]">Das 7h às 9h (Sex-Dom)</span>
+                          <span className="text-emerald-200/80 text-[9.5px] sm:text-[10px]">Das 7h às 10h (Sex-Dom)</span>
                         </div>
                       </div>
 
@@ -1176,7 +1176,7 @@ export function BookingSection({ onBookingActiveChange }: { onBookingActiveChang
                             </div>
                             <div className="flex items-center gap-2">
                               <Check className="w-4 h-4 text-amber-400 shrink-0" />
-                              <span>Pesca Esportiva e Futebol de Sabão</span>
+                              <span>Pesca Esportiva</span>
                             </div>
                             <div className="flex items-center gap-2">
                               <Check className="w-4 h-4 text-amber-400 shrink-0" />
@@ -1238,7 +1238,7 @@ export function BookingSection({ onBookingActiveChange }: { onBookingActiveChang
                             </div>
                             <div className="flex items-center gap-2">
                               <Check className="w-4 h-4 text-amber-400 shrink-0" />
-                              <span>Café da manhã: sexta a domingo, das 7h às 9h.</span>
+                              <span>Café da manhã: sexta a domingo, das 7h às 10h.</span>
                             </div>
                             <div className="flex items-center gap-2">
                               <Check className="w-4 h-4 text-amber-400 shrink-0" />
@@ -1335,9 +1335,9 @@ export function BookingSection({ onBookingActiveChange }: { onBookingActiveChang
                 {currentStep === 'servicos' && (
                   <motion.div
                     key="servicos"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -12 }}
                     className="space-y-8"
                   >
                     {/* BARRA DE VOLTAR E INDICADOR NO TOPO DAS ETAPAS */}
@@ -1390,19 +1390,12 @@ export function BookingSection({ onBookingActiveChange }: { onBookingActiveChang
                               <div>
                                 <h3 className="font-gliker text-2xl text-emerald-950">Diversões & Atividades</h3>
                                 <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
-                                  Pesca esportiva e futebol de sabão
+                                  Pesca esportiva
                                 </p>
                               </div>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <AdditionalSelector
-                                additionals={booking.additionals.filter(a => a.type === 'futebol-sabao')}
-                                onUpdate={(idx, updates) => {
-                                  const originalIndex = booking.additionals.findIndex(a => a.type === 'futebol-sabao');
-                                  updateAdditional(originalIndex, updates);
-                                }}
-                              />
+                            <div className="grid grid-cols-1 max-w-xl gap-4">
                               <AdditionalSelector
                                 additionals={booking.additionals.filter(a => a.type === 'pesca')}
                                 onUpdate={(idx, updates) => {
@@ -1472,19 +1465,12 @@ export function BookingSection({ onBookingActiveChange }: { onBookingActiveChang
                                   </span>
                                 </div>
                                 <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-0.5">
-                                  Item Opcional • Pesca esportiva e futebol de sabão para complementar a estadia (não é obrigatório)
+                                  Item Opcional • Pesca esportiva para complementar a estadia (não é obrigatório)
                                 </p>
                               </div>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <AdditionalSelector
-                                additionals={booking.additionals.filter(a => a.type === 'futebol-sabao')}
-                                onUpdate={(idx, updates) => {
-                                  const originalIndex = booking.additionals.findIndex(a => a.type === 'futebol-sabao');
-                                  updateAdditional(originalIndex, updates);
-                                }}
-                              />
+                            <div className="grid grid-cols-1 max-w-xl gap-4">
                               <AdditionalSelector
                                 additionals={booking.additionals.filter(a => a.type === 'pesca')}
                                 onUpdate={(idx, updates) => {
@@ -1539,19 +1525,12 @@ export function BookingSection({ onBookingActiveChange }: { onBookingActiveChang
                               <div>
                                 <h3 className="font-gliker text-2xl text-emerald-950">Diversões & Atividades</h3>
                                 <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
-                                  Pesca esportiva e futebol de sabão
+                                  Pesca esportiva
                                 </p>
                               </div>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <AdditionalSelector
-                                additionals={booking.additionals.filter(a => a.type === 'futebol-sabao')}
-                                onUpdate={(idx, updates) => {
-                                  const originalIndex = booking.additionals.findIndex(a => a.type === 'futebol-sabao');
-                                  updateAdditional(originalIndex, updates);
-                                }}
-                              />
+                            <div className="grid grid-cols-1 max-w-xl gap-4">
                               <AdditionalSelector
                                 additionals={booking.additionals.filter(a => a.type === 'pesca')}
                                 onUpdate={(idx, updates) => {
@@ -1573,9 +1552,9 @@ export function BookingSection({ onBookingActiveChange }: { onBookingActiveChang
                 {currentStep === 'resumo' && (
                   <motion.div
                     key="resumo"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -12 }}
                     className="space-y-8"
                   >
                     {/* Header Resumo com Identidade Visual Premium */}

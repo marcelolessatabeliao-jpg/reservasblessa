@@ -691,7 +691,7 @@ const SocioPortal: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20">
+    <div className="relative min-h-screen w-full max-w-full overflow-x-clip bg-slate-50 pb-20">
       {/* Header */}
       <header className="bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-30">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">

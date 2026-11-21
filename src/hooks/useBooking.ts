@@ -30,7 +30,6 @@ const initialState: BookingState = {
   ],
   additionals: [
     { type: 'pesca', quantity: 0 },
-    { type: 'futebol-sabao', quantity: 0 },
   ],
   chale: {
     packageType: null,
@@ -202,7 +201,6 @@ export function useBooking() {
         ],
         additionals: [
           { type: 'pesca', quantity: 0 },
-          { type: 'futebol-sabao', quantity: 0 },
         ]
       };
     });

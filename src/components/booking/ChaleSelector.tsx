@@ -151,7 +151,7 @@ function ChaleSelectorInner({
       const diff = (4 - day + 7) % 7;
       thursday = addDays(anchor, diff);
     }
-    thursday.setHours(9, 0, 0, 0);
+    thursday.setHours(15, 0, 0, 0);
 
     const friday = addDays(thursday, 1);
     friday.setHours(15, 0, 0, 0);
@@ -390,7 +390,7 @@ function ChaleSelectorInner({
   // Alterar data de entrada via calendário
   const handleSelectCheckInDate = (newInDate: Date) => {
     const day = newInDate.getDay();
-    newInDate.setHours(day === 4 ? 9 : 15, 0, 0, 0);
+    newInDate.setHours(15, 0, 0, 0);
 
     let defaultPkg: ChalePackageType = 'combo-2n-sex-dom';
     let outDate = addDays(newInDate, 1);
@@ -467,9 +467,7 @@ function ChaleSelectorInner({
     }
 
     const updatedInDate = new Date(inDate);
-    if (inDay === 4) {
-      updatedInDate.setHours(diffNights >= 2 ? 9 : 15, 0, 0, 0);
-    }
+    updatedInDate.setHours(15, 0, 0, 0);
 
     onUpdate({
       packageType: pkgType,
@@ -505,7 +503,7 @@ function ChaleSelectorInner({
       pkgType = 'combo-2n-sex-dom';
     } else if (preset === 'combo-2n-qui-sab') {
       inDate = new Date(refThursday);
-      inDate.setHours(9, 0, 0, 0);
+      inDate.setHours(15, 0, 0, 0);
       outDate = new Date(refSaturday);
       outDate.setHours(12, 0, 0, 0);
       pkgType = 'combo-2n-qui-sab';
@@ -517,7 +515,7 @@ function ChaleSelectorInner({
       pkgType = 'combo-2n-sab-seg';
     } else if (preset === 'combo-3n-qui-dom') {
       inDate = new Date(refThursday);
-      inDate.setHours(9, 0, 0, 0);
+      inDate.setHours(15, 0, 0, 0);
       outDate = new Date(refSunday);
       outDate.setHours(12, 0, 0, 0);
       pkgType = 'combo-3n-qui-dom';
@@ -529,7 +527,7 @@ function ChaleSelectorInner({
       pkgType = 'combo-3n-sex-seg';
     } else if (preset === 'combo-4n-qui-seg') {
       inDate = new Date(refThursday);
-      inDate.setHours(9, 0, 0, 0);
+      inDate.setHours(15, 0, 0, 0);
       outDate = new Date(refMonday);
       outDate.setHours(12, 0, 0, 0);
       pkgType = 'combo-4n-qui-seg';
@@ -887,7 +885,7 @@ function ChaleSelectorInner({
                 </span>
               </div>
               <p className="text-xs text-emerald-100 font-medium">
-                Soma das diárias com <strong>10% OFF automático</strong>, <strong>café das 7h às 9h</strong> e <strong>Day Use incluso no parque!</strong>
+                Soma das diárias com <strong>10% OFF automático</strong>, <strong>café das 7h às 10h</strong> e <strong>Day Use incluso no parque!</strong>
               </p>
             </div>
           </div>
@@ -920,7 +918,7 @@ function ChaleSelectorInner({
         {/* ROW 1: CALENDÁRIO COM DIAS DE ENTRADA E SAÍDA + ATALHOS RÁPIDOS */}
         <div className="space-y-4">
           <div className="border-b border-slate-100 pb-2.5">
-            <span className="text-xs sm:text-sm font-black uppercase tracking-wider text-emerald-950 flex items-center gap-1.5 whitespace-nowrap">
+            <span className="text-xs sm:text-sm font-black uppercase tracking-wider text-emerald-950 flex items-center gap-1.5 sm:whitespace-nowrap">
               <CalendarDays className="w-4 h-4 text-emerald-700 shrink-0" />
               Selecione as Datas de Entrada e Saída da Hospedagem:
             </span>
@@ -953,7 +951,7 @@ function ChaleSelectorInner({
                   </div>
                 </PopoverTrigger>
 
-                <PopoverContent className="w-auto p-0 rounded-3xl border-2 border-emerald-600 bg-white shadow-2xl overflow-hidden" align="start">
+                <PopoverContent className="w-auto max-w-[calc(100vw-24px)] p-0 rounded-3xl border-2 border-emerald-600 bg-white shadow-2xl overflow-hidden" align="start">
                   <div className="bg-gradient-to-br from-emerald-950 via-[#042817] to-slate-950 text-white p-3 sm:p-3.5 border-b border-emerald-800">
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
@@ -1002,7 +1000,7 @@ function ChaleSelectorInner({
                     </div>
                     <div className="flex items-start gap-1.5 text-amber-300">
                       <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0 mt-0.5" />
-                      <span className="leading-tight">Check-in às 15h (Combos na quinta às 09h)</span>
+                      <span className="leading-tight">Check-in às 15h · Check-out às 12h</span>
                     </div>
 
                     <button
@@ -1045,7 +1043,7 @@ function ChaleSelectorInner({
                   </div>
                 </PopoverTrigger>
 
-                <PopoverContent className="w-auto p-0 rounded-3xl border-2 border-amber-400 bg-white shadow-2xl overflow-hidden" align="end">
+                <PopoverContent className="w-auto max-w-[calc(100vw-24px)] p-0 rounded-3xl border-2 border-amber-400 bg-white shadow-2xl overflow-hidden" align="end">
                   <div className="bg-gradient-to-br from-emerald-950 via-[#042817] to-slate-950 text-white p-3 sm:p-3.5 border-b border-amber-400/50">
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
@@ -1123,7 +1121,7 @@ function ChaleSelectorInner({
           {/* ATALHOS RÁPIDOS: CATEGORIAS EXPANSÍVEIS (COMBOS PROMOCIONAIS vs DIÁRIAS AVULSAS) */}
           <div className="space-y-3 pt-2">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-gradient-to-r from-emerald-950 via-[#042817] to-slate-950 p-3 sm:p-3.5 rounded-2xl border-2 border-amber-400/80 shadow-md">
-              <span className="text-xs font-black uppercase tracking-wider text-white flex items-center gap-1.5 whitespace-nowrap shrink-0">
+              <span className="text-xs font-black uppercase tracking-wider text-white flex items-center gap-1.5 sm:whitespace-nowrap shrink-0">
                 <span className="text-amber-400 text-sm">⚡</span> Atalhos Rápidos de Seleção:
               </span>
 
@@ -1483,7 +1481,7 @@ function ChaleSelectorInner({
                   )}
                 >
                   <div className={cn(
-                    "absolute -top-2.5 -right-2 font-black text-[9px] uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow-md border flex items-center gap-1 z-10",
+                    "absolute -top-2.5 right-1 sm:-right-2 font-black text-[9px] uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow-md border flex items-center gap-1 z-10",
                     isMaintenance
                       ? "bg-amber-400 text-slate-950 border-amber-300"
                       : isOccupied
