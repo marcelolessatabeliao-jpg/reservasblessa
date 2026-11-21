@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { 
   Users, 
   MapPin, 
@@ -25,7 +25,11 @@ import {
   Accessibility,
   GraduationCap,
   Briefcase,
-  Gift
+  Gift,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
+  ExternalLink
 } from 'lucide-react';
 import { BookingState, formatCurrency, isOperatingDay, isSundayOrHoliday, isHolidayDate, ChildInfo, AdultInfo } from '@/lib/booking-types';
 import { useServices } from '@/hooks/useServices';
@@ -88,6 +92,9 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
   const [wizardData, setWizardData] = useState<any>({ age: null, category: 'inteira', takeDonation: false, isPCD: false });
   const [isAvailabilityOpen, setIsAvailabilityOpen] = useState(false);
   const [isHospedagemPricesOpen, setIsHospedagemPricesOpen] = useState(false);
+  const [hospedagemZoom, setHospedagemZoom] = useState(1);
+  const pinchStartDistRef = useRef<number | null>(null);
+  const pinchStartZoomRef = useRef<number>(1);
   const [bookedKioskIds, setBookedKioskIds] = useState<number[]>([]);
   const [isFetchingKiosks, setIsFetchingKiosks] = useState(false);
 
@@ -958,20 +965,124 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
               </div>
             </div>
 
-            <Dialog open={isHospedagemPricesOpen} onOpenChange={setIsHospedagemPricesOpen}>
-              <DialogContent className="w-[95vw] sm:max-w-2xl rounded-3xl p-0 overflow-hidden border-2 border-amber-400 bg-white shadow-2xl max-h-[92dvh] flex flex-col">
-                <div className="bg-gradient-to-br from-emerald-950 via-[#042817] to-slate-950 px-4 py-3 sm:px-5 sm:py-4 text-white flex items-center justify-between gap-2 shrink-0 border-b border-amber-400/50">
-                  <DialogTitle className="text-sm sm:text-base font-black uppercase tracking-tight flex items-center gap-2 text-amber-300">
+            <Dialog
+              open={isHospedagemPricesOpen}
+              onOpenChange={(open) => {
+                setIsHospedagemPricesOpen(open);
+                if (!open) setHospedagemZoom(1);
+              }}
+            >
+              <DialogContent className="w-[96vw] sm:max-w-4xl rounded-3xl p-0 overflow-hidden border-2 border-amber-400 bg-white shadow-2xl max-h-[94dvh] flex flex-col">
+                <div className="bg-gradient-to-br from-emerald-950 via-[#042817] to-slate-950 px-4 py-3 sm:px-5 sm:py-3.5 pr-12 text-white flex items-center justify-between gap-2 shrink-0 border-b border-amber-400/50">
+                  <DialogTitle className="text-xs sm:text-base font-black uppercase tracking-tight flex items-center gap-2 text-amber-300">
                     <Ticket className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
                     <span>Tabela de Valores — Hospedagem em Chalés</span>
                   </DialogTitle>
                 </div>
-                <div className="p-2 sm:p-4 bg-emerald-50/40 overflow-y-auto flex-1 flex items-center justify-center">
-                  <img
-                    src="/images/tabela-hospedagem.jpg"
-                    alt="Tabela de Valores de Hospedagem - Chalés Balneário Lessa"
-                    className="w-full h-auto max-h-[75dvh] object-contain rounded-2xl shadow-md"
-                  />
+
+                {/* Barra de controles de Zoom */}
+                <div className="bg-emerald-950/95 px-3 py-2 sm:px-4 border-b border-emerald-800/80 flex items-center justify-between gap-2 flex-wrap shrink-0">
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setHospedagemZoom((z) => Math.max(1, Number((z - 0.5).toFixed(2))))}
+                      disabled={hospedagemZoom <= 1}
+                      className="h-8 px-2.5 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-40 text-white font-black text-xs flex items-center gap-1 transition-all cursor-pointer"
+                      title="Diminuir zoom"
+                    >
+                      <ZoomOut className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Diminuir</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setHospedagemZoom(1)}
+                      className="h-8 px-2.5 rounded-lg bg-amber-400 text-emerald-950 font-black text-xs tabular-nums min-w-[54px] text-center cursor-pointer"
+                      title="Resetar zoom para 100%"
+                    >
+                      {Math.round(hospedagemZoom * 100)}%
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setHospedagemZoom((z) => Math.min(3, Number((z + 0.5).toFixed(2))))}
+                      disabled={hospedagemZoom >= 3}
+                      className="h-8 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-black text-xs flex items-center gap-1 transition-all cursor-pointer"
+                      title="Ampliar zoom"
+                    >
+                      <ZoomIn className="w-3.5 h-3.5" />
+                      <span>Ampliar</span>
+                    </button>
+
+                    {hospedagemZoom > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => setHospedagemZoom(1)}
+                        className="h-8 px-2 rounded-lg bg-white/10 hover:bg-white/20 text-amber-300 font-bold text-xs flex items-center gap-1 transition-all cursor-pointer"
+                        title="Voltar ao tamanho normal"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-emerald-200 hidden md:inline">
+                      Clique na imagem ou use pinça para dar zoom
+                    </span>
+                    <a
+                      href="/images/tabela-hospedagem.jpg"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="h-8 px-2.5 rounded-lg bg-white/10 hover:bg-white/20 text-emerald-100 hover:text-white font-bold text-[11px] flex items-center gap-1 transition-all"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>Tela Cheia</span>
+                    </a>
+                  </div>
+                </div>
+
+                <div
+                  className="p-2 sm:p-4 bg-emerald-50/40 overflow-auto flex-1"
+                  style={{ touchAction: 'pan-x pan-y' }}
+                  onTouchStart={(e) => {
+                    if (e.touches.length === 2) {
+                      const dx = e.touches[0].clientX - e.touches[1].clientX;
+                      const dy = e.touches[0].clientY - e.touches[1].clientY;
+                      pinchStartDistRef.current = Math.hypot(dx, dy);
+                      pinchStartZoomRef.current = hospedagemZoom;
+                    }
+                  }}
+                  onTouchMove={(e) => {
+                    if (e.touches.length === 2 && pinchStartDistRef.current) {
+                      const dx = e.touches[0].clientX - e.touches[1].clientX;
+                      const dy = e.touches[0].clientY - e.touches[1].clientY;
+                      const dist = Math.hypot(dx, dy);
+                      const scaleFactor = dist / pinchStartDistRef.current;
+                      const nextZoom = Math.min(3, Math.max(1, Number((pinchStartZoomRef.current * scaleFactor).toFixed(2))));
+                      setHospedagemZoom(nextZoom);
+                    }
+                  }}
+                  onTouchEnd={() => {
+                    pinchStartDistRef.current = null;
+                  }}
+                >
+                  <div className={cn("min-h-full flex", hospedagemZoom === 1 ? "items-center justify-center" : "items-start justify-start")}>
+                    <img
+                      src="/images/tabela-hospedagem.jpg"
+                      alt="Tabela de Valores de Hospedagem - Chalés Balneário Lessa"
+                      onClick={() => setHospedagemZoom((z) => (z === 1 ? 2 : 1))}
+                      style={{
+                        width: hospedagemZoom === 1 ? '100%' : `${hospedagemZoom * 100}%`,
+                        maxWidth: hospedagemZoom === 1 ? '100%' : 'none',
+                      }}
+                      className={cn(
+                        "h-auto rounded-2xl shadow-md transition-[width] duration-150 select-none",
+                        hospedagemZoom === 1 ? "max-h-[74dvh] object-contain cursor-zoom-in" : "cursor-zoom-out"
+                      )}
+                      draggable={false}
+                    />
+                  </div>
                 </div>
               </DialogContent>
             </Dialog>
