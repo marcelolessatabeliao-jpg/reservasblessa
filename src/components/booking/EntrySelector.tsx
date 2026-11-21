@@ -945,7 +945,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                   className={cn(
                     "w-full h-12 px-2 sm:px-3 rounded-xl border-2 font-black text-[9.5px] sm:text-[10px] uppercase tracking-tight sm:tracking-wider transition-all whitespace-normal leading-tight text-center shadow-xs",
                     entry.visitDate 
-                      ? "border-emerald-600 bg-emerald-700 hover:bg-emerald-800 text-white hover:border-amber-400" 
+                      ? "border-emerald-600 bg-emerald-700 hover:bg-emerald-800 text-white hover:text-amber-300 hover:border-amber-400" 
                       : "border-slate-200 text-slate-400 bg-slate-50 cursor-not-allowed"
                   )}
                 >
@@ -957,7 +957,7 @@ export function EntrySelector({ entry, onUpdateEntry, onRemoveAdult, onRemoveChi
                   type="button"
                   variant="outline"
                   onClick={() => setIsHospedagemPricesOpen(true)}
-                  className="w-full h-12 px-2 sm:px-3 rounded-xl border-2 border-amber-500 bg-amber-400 hover:bg-amber-500 text-emerald-950 font-black text-[9.5px] sm:text-[10px] uppercase tracking-tight sm:tracking-wider transition-all whitespace-normal leading-tight text-center shadow-xs"
+                  className="w-full h-12 px-2 sm:px-3 rounded-xl border-2 border-amber-500 bg-amber-400 hover:bg-amber-300 text-emerald-950 hover:text-emerald-950 font-black text-[9.5px] sm:text-[10px] uppercase tracking-tight sm:tracking-wider transition-all whitespace-normal leading-tight text-center shadow-xs"
                 >
                   <Ticket className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 shrink-0" />
                   <span>Valores de Hospedagem</span>
