@@ -3875,19 +3875,20 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
               </span>
             </label>
 
-            <div className="flex items-center justify-between pt-2">
+            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setStep(2)}
+                className="w-full sm:w-auto"
               >
-                <ArrowLeft className="w-4 h-4 mr-1.5" /> Voltar ao Cadastro
+                <ArrowLeft className="w-4 h-4 mr-1.5 shrink-0" /> Voltar ao Cadastro
               </Button>
               <Button
                 type="button"
                 disabled={isSubmitting}
                 onClick={handleFinalizeAndPay}
-                className="bg-[#0b5ed7] hover:bg-blue-700 text-white font-black px-8 h-12 text-sm uppercase tracking-wide"
+                className="w-full sm:w-auto bg-[#0b5ed7] hover:bg-blue-700 text-white font-black px-4 sm:px-8 min-h-12 h-auto py-3 text-xs sm:text-sm uppercase tracking-wide whitespace-normal text-center leading-tight"
               >
                 {isSubmitting
                   ? 'Processando Adesão...'

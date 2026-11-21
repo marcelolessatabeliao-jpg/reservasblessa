@@ -3058,6 +3058,11 @@ export const createClubSubscription = async (
     }
   });
 
+  const hasPublicidade =
+    Boolean(planSummaryLabel && /publicidade|permuta/i.test(planSummaryLabel)) ||
+    builtMembers.some((m) => m.modalityCode === 'PUBLICIDADE') ||
+    input.contractType === 'FAMILY_PUBLICIDADE';
+
   const isFamilyPublicidade =
     hasPublicidade ||
     input.contractType === 'FAMILY_PUBLICIDADE' ||
