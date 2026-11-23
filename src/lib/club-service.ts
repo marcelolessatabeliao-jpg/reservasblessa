@@ -3990,13 +3990,23 @@ export const syncSubscriptionInvoicesWithAsaas = async (
       const status: 'PAID' | 'PENDING' | 'OVERDUE' = isPaid ? 'PAID' : isOverdue ? 'OVERDUE' : 'PENDING';
       const dueParts = (p.dueDate || '').split('-');
       const refMonth = dueParts.length === 3 ? `${dueParts[1]}/${dueParts[0]}` : `Parcela ${idx + 1}`;
-      const matchIdx = updatedInvoices.findIndex(
+      // 1º tenta match EXATO por asaasPaymentId ou externalReference; só cai para dueDate se a fatura local AINDA NÃO tiver asaasPaymentId!
+      let matchIdx = updatedInvoices.findIndex(
         (i) =>
           !isClubInvoiceReservation(i) &&
           ((i.asaasPaymentId && i.asaasPaymentId === p.id) ||
-            (i.id && p.externalReference && i.id === p.externalReference) ||
-            (!i.asaasPaymentId && i.dueDate && p.dueDate && i.dueDate === p.dueDate))
+            (i.id && p.externalReference && i.id === p.externalReference))
       );
+      if (matchIdx < 0) {
+        matchIdx = updatedInvoices.findIndex(
+          (i) =>
+            !isClubInvoiceReservation(i) &&
+            !i.asaasPaymentId &&
+            i.dueDate &&
+            p.dueDate &&
+            i.dueDate === p.dueDate
+        );
+      }
 
       if (matchIdx >= 0) {
         const existing = updatedInvoices[matchIdx];
@@ -4091,8 +4101,17 @@ export const syncSubscriptionInvoicesWithAsaas = async (
       }
     });
 
-    targetSub.invoices = updatedInvoices;
-    const syncedInvoices = updatedInvoices;
+    // Deduplica rigorosamente por asaasPaymentId para nunca exibir cobrança duplicada
+    const seenAsaasIds = new Set<string>();
+    const dedupedInvoices = updatedInvoices.filter((inv) => {
+      if (!inv.asaasPaymentId) return true;
+      if (seenAsaasIds.has(inv.asaasPaymentId)) return false;
+      seenAsaasIds.add(inv.asaasPaymentId);
+      return true;
+    });
+
+    targetSub.invoices = dedupedInvoices;
+    const syncedInvoices = dedupedInvoices;
 
     // Se o Administrador já definiu uma data de vigência no Lessa Club (ex: 2026-12-30), PRESERVA INTEGRALMENTE a data do Admin!
     // A decisão soberana do administrador no Lessa Club sempre prevalece sobre estimativas automáticas.

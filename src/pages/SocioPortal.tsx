@@ -152,10 +152,19 @@ const SocioPortal: React.FC = () => {
 
   const sortedInvoices = useMemo(() => {
     if (!subscription?.invoices) return [];
-    return [...subscription.invoices].sort((a, b) => {
+    const seenAsaas = new Set<string>();
+    const uniqueInvs = subscription.invoices.filter((inv) => {
+      if (!inv.asaasPaymentId) return true;
+      if (seenAsaas.has(inv.asaasPaymentId)) return false;
+      seenAsaas.add(inv.asaasPaymentId);
+      return true;
+    });
+    return uniqueInvs.sort((a, b) => {
       const aRes = isClubInvoiceReservation(a) ? 1 : 0;
       const bRes = isClubInvoiceReservation(b) ? 1 : 0;
       if (aRes !== bRes) return aRes - bRes;
+      const dueCmp = String(a.dueDate || '').localeCompare(String(b.dueDate || ''));
+      if (dueCmp !== 0) return dueCmp;
       return a.installmentNumber - b.installmentNumber;
     });
   }, [subscription]);
@@ -3091,7 +3100,7 @@ const SocioPortal: React.FC = () => {
                               {inv.paidAt && (
                                 <>
                                   {' '}
-                                  • Pago em: {new Date(inv.paidAt).toLocaleDateString('pt-BR')}
+                                  • Pago em: {formatDateBR(inv.paidAt)}
                                 </>
                               )}
                             </div>

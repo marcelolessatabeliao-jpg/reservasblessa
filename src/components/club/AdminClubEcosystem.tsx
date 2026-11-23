@@ -1061,11 +1061,19 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
           for (const p of validPayments) {
             if (isAsaasReservationCharge(p.description)) continue;
             const isPaid = p.status === 'RECEIVED' || p.status === 'CONFIRMED' || p.status === 'RECEIVED_IN_CASH';
-            const invIndex = currentInvs.findIndex(
-              (i) =>
-                !isClubInvoiceReservation(i) &&
-                ((i.asaasPaymentId && i.asaasPaymentId === p.id) || (i.dueDate && p.dueDate && i.dueDate === p.dueDate))
+            let invIndex = currentInvs.findIndex(
+              (i) => !isClubInvoiceReservation(i) && i.asaasPaymentId && i.asaasPaymentId === p.id
             );
+            if (invIndex < 0) {
+              invIndex = currentInvs.findIndex(
+                (i) =>
+                  !isClubInvoiceReservation(i) &&
+                  !i.asaasPaymentId &&
+                  i.dueDate &&
+                  p.dueDate &&
+                  i.dueDate === p.dueDate
+              );
+            }
             if (invIndex >= 0) {
               const existing = currentInvs[invIndex];
               const newStatus = isPaid ? 'PAID' : p.status === 'OVERDUE' ? 'OVERDUE' : 'PENDING';
@@ -16221,14 +16229,18 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         carneGroup = 3;
                       }
 
-                      // Match estrito: reservas só casam pelo ID exato do Asaas (NUNCA pela data com mensalidade de plano!)
-                      const existingInvIndex = currentInvoices.findIndex((i) =>
-                        isReservationPayment
-                          ? Boolean(i.asaasPaymentId && i.asaasPaymentId === p.id)
-                          : !isClubInvoiceReservation(i) &&
-                            ((i.asaasPaymentId && i.asaasPaymentId === p.id) ||
-                              (i.dueDate && p.dueDate && i.dueDate === p.dueDate))
+                      // Match estrito: 1º busca pelo asaasPaymentId exato; só cai para dueDate em parcelas locais SEM asaasPaymentId (nunca duplica nem sobrescreve outro pagamento!)
+                      let existingInvIndex = currentInvoices.findIndex(
+                        (i) => Boolean(i.asaasPaymentId && i.asaasPaymentId === p.id)
                       );
+                      if (existingInvIndex < 0 && !isReservationPayment) {
+                        existingInvIndex = currentInvoices.findIndex(
+                          (i) =>
+                            !isClubInvoiceReservation(i) &&
+                            !i.asaasPaymentId &&
+                            Boolean(i.dueDate && p.dueDate && i.dueDate === p.dueDate)
+                        );
+                      }
 
                       const isPaid =
                         p.status === 'RECEIVED' ||
@@ -16272,7 +16284,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           asaasPaymentId: p.id,
                           carneGroup: isReservationPayment ? 99 : existing.carneGroup || carneGroup,
                           invoiceKind: isReservationPayment ? 'AVULSA' : existing.invoiceKind,
-                          description: isReservationPayment ? formattedReservationDesc : existing.description,
+                          description: isReservationPayment
+                            ? existing.description && /n[aã]o\s*[eé]\s*(pagamento\s*de\s*)?plano/i.test(existing.description)
+                              ? existing.description
+                              : formattedReservationDesc
+                            : existing.description,
                           status: newStatus,
                           paidAt: isPaid
                             ? (p.clientPaymentDate || p.paymentDate || p.confirmedDate || existing.paidAt || new Date().toISOString())
@@ -16325,6 +16341,15 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         addedCount++;
                       }
                     }
+
+                    // Deduplica por asaasPaymentId antes de ordenar
+                    const seenSyncAsaasIds = new Set<string>();
+                    currentInvoices = currentInvoices.filter((inv) => {
+                      if (!inv.asaasPaymentId) return true;
+                      if (seenSyncAsaasIds.has(inv.asaasPaymentId)) return false;
+                      seenSyncAsaasIds.add(inv.asaasPaymentId);
+                      return true;
+                    });
 
                     // Ordena por grupo e vencimento
                     currentInvoices.sort((a, b) => {
