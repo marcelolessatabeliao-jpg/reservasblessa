@@ -4329,7 +4329,8 @@ export const processClubCreditCardPayment = async (
 export const generateUnifiedPaymentLink = async (
   subscription: ClubSubscription,
   invoices: ClubInvoice[],
-  billingType: 'CREDIT_CARD' | 'UNDEFINED' | 'PIX' = 'UNDEFINED'
+  billingType: 'CREDIT_CARD' | 'UNDEFINED' | 'PIX' = 'CREDIT_CARD',
+  installmentCount?: number
 ): Promise<{
   paymentId: string;
   invoiceUrl: string;
@@ -4341,6 +4342,12 @@ export const generateUnifiedPaymentLink = async (
     invoices.reduce((acc, inv) => acc + inv.amount, 0).toFixed(2)
   );
 
+  const chosenInstallments =
+    billingType === 'CREDIT_CARD'
+      ? Math.max(1, Math.min(12, Math.round(installmentCount || invoices.length || 1)))
+      : 1;
+  const perInstallment = Number((totalAmount / chosenInstallments).toFixed(2));
+
   const loginUser = subscription.holderEmail || subscription.holderCpf;
   const loginPass = getBirthDatePassword(subscription.holderBirthDate);
   const portalUrl =
@@ -4349,24 +4356,34 @@ export const generateUnifiedPaymentLink = async (
       : 'https://balneariolessa.com.br/socio';
 
   const asaasDescription = [
-    `Lessa Club (${subscription.subscriptionCode}) - Quitação Unificada no Cartão (${invoices.length} parcelas)`,
+    billingType === 'CREDIT_CARD'
+      ? `Lessa Club (${subscription.subscriptionCode}) - Quitação Unificada no Cartão de Crédito (${chosenInstallments}x de R$ ${perInstallment.toFixed(2).replace('.', ',')} | ${invoices.length} parcela(s))`
+      : `Lessa Club (${subscription.subscriptionCode}) - Quitação Unificada (${invoices.length} parcelas)`,
     `Portal do Socio: ${portalUrl}`,
     `Usuario: ${loginUser}`,
     `Senha: ${loginPass}`,
   ].join('\n');
 
+  const requestBody: Record<string, any> = {
+    orderId: `unified_${subscription.id}_${Date.now()}`,
+    name: subscription.holderName,
+    email: subscription.holderEmail || 'socio@balneariolessa.com.br',
+    phone: cleanDigits(subscription.holderPhone),
+    cpf: cleanDigits(subscription.holderCpf),
+    // Exclusivo CREDIT_CARD quando link de cartão (bloqueia PIX e Boleto no Asaas!)
+    billingType: billingType === 'CREDIT_CARD' ? 'CREDIT_CARD' : billingType,
+    value: totalAmount,
+    totalValue: totalAmount,
+    description: asaasDescription,
+  };
+
+  if (billingType === 'CREDIT_CARD' && chosenInstallments > 1) {
+    requestBody.installmentCount = chosenInstallments;
+    requestBody.installmentValue = perInstallment;
+  }
+
   const { data, error } = await supabase.functions.invoke('create-payment', {
-    body: {
-      orderId: `unified_${subscription.id}_${Date.now()}`,
-      name: subscription.holderName,
-      email: subscription.holderEmail || 'socio@balneariolessa.com.br',
-      phone: cleanDigits(subscription.holderPhone),
-      cpf: cleanDigits(subscription.holderCpf),
-      billingType: billingType === 'CREDIT_CARD' ? 'UNDEFINED' : billingType,
-      value: totalAmount,
-      totalValue: totalAmount,
-      description: asaasDescription,
-    },
+    body: requestBody,
   });
 
   if (error || !data?.success) {

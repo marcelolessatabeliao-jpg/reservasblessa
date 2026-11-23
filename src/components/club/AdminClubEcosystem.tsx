@@ -723,6 +723,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
   const [unifiedCardModalOpen, setUnifiedCardModalOpen] = useState(false);
   const [unifiedCardLoading, setUnifiedCardLoading] = useState(false);
   const [unifiedCardUrl, setUnifiedCardUrl] = useState('');
+  const [unifiedCardInstallments, setUnifiedCardInstallments] = useState<number>(12);
 
   // Modal para + ADD CARNÊ (Adicionar novo carnê baseado na soma dos planos)
   const [carneModalOpen, setCarneModalOpen] = useState(false);
@@ -17251,6 +17252,10 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     <button
                       type="button"
                       onClick={() => {
+                        const openCount = selectedSubForDetail.invoices.filter(
+                          (i) => i.status !== 'PAID' && i.status !== 'CANCELLED' && i.amount > 0
+                        ).length;
+                        setUnifiedCardInstallments(Math.min(12, Math.max(1, openCount || 1)));
                         setUnifiedCardUrl('');
                         setUnifiedCardModalOpen(true);
                       }}
@@ -17515,20 +17520,56 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         </div>
 
                         {totalPendingVal > 0 && (
-                          <div>
-                            <Label className="text-xs font-bold text-slate-700 mb-1.5 block">
-                              Simulação de Parcelamento no Cartão (Cliente paga em 1 cobrança única):
-                            </Label>
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 max-h-32 overflow-y-auto p-2 bg-slate-50 border border-slate-200 rounded-xl font-medium">
-                              {[1, 2, 3, 4, 5, 6, 8, 10, 12].map((x) => (
-                                <div key={x} className="bg-white p-1.5 rounded border border-slate-200 text-center">
-                                  <span className="font-bold text-slate-800">{x}x</span> de{' '}
-                                  <span className="text-emerald-700 font-bold">
-                                    {formatCurrency(totalPendingVal / x)}
-                                  </span>
-                                </div>
-                              ))}
+                          <div className="space-y-2.5">
+                            <div className="flex items-center justify-between gap-2">
+                              <Label className="text-xs font-black text-slate-800 uppercase">
+                                Em quantas vezes parcelar no Cartão de Crédito?
+                              </Label>
+                              <span className="text-[11px] font-black text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full">
+                                {unifiedCardInstallments}x de {formatCurrency(totalPendingVal / unifiedCardInstallments)}
+                              </span>
                             </div>
+
+                            <select
+                              value={unifiedCardInstallments}
+                              disabled={Boolean(unifiedCardUrl)}
+                              onChange={(e) => setUnifiedCardInstallments(Number(e.target.value))}
+                              className="w-full h-10 rounded-xl border-2 border-emerald-400 px-3 text-xs font-black text-slate-900 bg-white focus:outline-none focus:border-emerald-600 disabled:opacity-60"
+                            >
+                              {Array.from({ length: 12 }, (_, idx) => idx + 1).map((x) => (
+                                <option key={x} value={x}>
+                                  {x}x de {formatCurrency(totalPendingVal / x)} sem juros (Total: {formatCurrency(totalPendingVal)})
+                                </option>
+                              ))}
+                            </select>
+
+                            <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5 max-h-36 overflow-y-auto p-2 bg-slate-50 border border-slate-200 rounded-xl font-medium">
+                              {Array.from({ length: 12 }, (_, idx) => idx + 1).map((x) => {
+                                const isSelected = unifiedCardInstallments === x;
+                                return (
+                                  <button
+                                    key={x}
+                                    type="button"
+                                    disabled={Boolean(unifiedCardUrl)}
+                                    onClick={() => setUnifiedCardInstallments(x)}
+                                    className={`p-1.5 rounded border text-center transition-all ${
+                                      isSelected
+                                        ? 'bg-emerald-700 text-white border-emerald-700 shadow-sm'
+                                        : 'bg-white text-slate-800 border-slate-200 hover:border-emerald-400'
+                                    } disabled:opacity-60`}
+                                  >
+                                    <span className="font-black">{x}x</span> de{' '}
+                                    <span className={isSelected ? 'text-emerald-100 font-bold' : 'text-emerald-700 font-bold'}>
+                                      {formatCurrency(totalPendingVal / x)}
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+
+                            <p className="text-[11px] font-bold text-emerald-900 bg-emerald-50 border border-emerald-200 rounded-lg px-2.5 py-1.5">
+                              🔒 Exclusivo Cartão de Crédito: PIX e Boleto ficam bloqueados nesta fatura do Asaas (valor total garantido no limite do cartão).
+                            </p>
                           </div>
                         )}
 
@@ -17550,12 +17591,13 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                   const res = await generateUnifiedPaymentLink(
                                     selectedSubForDetail,
                                     pending,
-                                    'CREDIT_CARD'
+                                    'CREDIT_CARD',
+                                    unifiedCardInstallments
                                   );
                                   setUnifiedCardUrl(res.invoiceUrl);
                                   toast({
                                     title: 'Link de Cartão gerado no Asaas!',
-                                    description: `Total: ${formatCurrency(totalPendingVal)} para pagamento via cartão.`,
+                                    description: `Total: ${formatCurrency(totalPendingVal)} em ${unifiedCardInstallments}x de ${formatCurrency(totalPendingVal / unifiedCardInstallments)} (exclusivo Cartão de Crédito).`,
                                   });
                                 } catch (err: any) {
                                   toast({
@@ -17571,13 +17613,13 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                             >
                               {unifiedCardLoading
                                 ? 'GERANDO LINK...'
-                                : 'GERAR LINK DE CARTÃO!'}
+                                : `GERAR LINK (${unifiedCardInstallments}x NO CARTÃO)`}
                             </Button>
                           </div>
                         ) : (
                           <div className="space-y-3 p-3 bg-emerald-50 border border-emerald-300 rounded-xl">
                             <Label className="text-xs font-bold text-emerald-950">
-                              Link Único de Pagamento no Cartão:
+                              Link Único de Pagamento no Cartão ({unifiedCardInstallments}x de {formatCurrency(totalPendingVal / unifiedCardInstallments)}):
                             </Label>
                             <div className="flex items-center gap-2">
                               <Input readOnly value={unifiedCardUrl} className="font-mono text-xs bg-white" />
@@ -17606,7 +17648,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                               </a>
                               <a
                                 href={`https://wa.me/55${selectedSubForDetail.holderPhone.replace(/\D/g, '')}?text=${encodeURIComponent(
-                                  `Olá ${selectedSubForDetail.holderName}! Segue o link exclusivo para pagar seu plano do Balneário Lessa Club via cartão de crédito (${pending.length} parcela(s), Total: ${formatCurrency(totalPendingVal)}): ${unifiedCardUrl}`
+                                  `Olá ${selectedSubForDetail.holderName}! Segue o link exclusivo para pagar seu plano do Balneário Lessa Club via Cartão de Crédito (${unifiedCardInstallments}x de ${formatCurrency(totalPendingVal / unifiedCardInstallments)} | Total: ${formatCurrency(totalPendingVal)}): ${unifiedCardUrl}`
                                 )}`}
                                 target="_blank"
                                 rel="noreferrer"
