@@ -49,6 +49,8 @@ import {
   EyeOff,
   Filter,
   AlertTriangle,
+  FileText,
+  Layers,
   Code,
   Save,
   Undo,
@@ -151,6 +153,9 @@ import {
   memberHasProofDocument,
   memberHasProofUploaded,
   isMemberBlockedForMissingDoc,
+  normalizeClientPlanName,
+  isSubscriptionOverdue,
+  isSubscriptionMissingDocs,
   attachMemberProofDocument,
   verifyMemberProofDocument,
   getConsultantSlug,
@@ -349,6 +354,13 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
   // Clientes & Empresas filters
   const [subSearch, setSubSearch] = useState('');
   const [subStatusFilter, setSubStatusFilter] = useState<string>('ALL');
+  const [subSpecialIssueFilter, setSubSpecialIssueFilter] = useState<'ALL' | 'OVERDUE' | 'MISSING_DOCS'>('ALL');
+  const [subPlanFilter, setSubPlanFilter] = useState<string>('ALL');
+  const [subDatePeriodFilter, setSubDatePeriodFilter] = useState<
+    'ALL' | 'TODAY' | '7_DAYS' | '30_DAYS' | 'THIS_MONTH' | 'LAST_MONTH' | 'THIS_YEAR' | 'CUSTOM'
+  >('ALL');
+  const [subDateStart, setSubDateStart] = useState<string>('');
+  const [subDateEnd, setSubDateEnd] = useState<string>('');
   const [personFilter, setPersonFilter] = useState<'ALL' | 'PF' | 'PJ'>('ALL');
   const [originFilter, setOriginFilter] = useState<'ALL' | 'SITE' | 'ADMIN' | 'IMPORT_LABCARD'>('ALL');
   const [clientPage, setClientPage] = useState(1);
@@ -1806,7 +1818,52 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     return list;
   }, [state]);
 
-  // Filtered subscriptions (supports Clientes PF, Empresas PJ, Status, Via Site, Não visualizados)
+  // Contadores dinâmicos para filtros rápidos
+  const overdueCount = useMemo(() => {
+    if (!state?.subscriptions) return 0;
+    return state.subscriptions.filter((s) => {
+      if (personFilter !== 'ALL' && s.personType !== personFilter) return false;
+      return isSubscriptionOverdue(s);
+    }).length;
+  }, [state?.subscriptions, personFilter]);
+
+  const missingDocsCount = useMemo(() => {
+    if (!state?.subscriptions) return 0;
+    return state.subscriptions.filter((s) => {
+      if (personFilter !== 'ALL' && s.personType !== personFilter) return false;
+      return isSubscriptionMissingDocs(s);
+    }).length;
+  }, [state?.subscriptions, personFilter]);
+
+  const availablePlansWithCounts = useMemo(() => {
+    if (!state?.subscriptions) return [];
+    const counts = new Map<string, number>();
+    for (const sub of state.subscriptions) {
+      if (personFilter !== 'ALL' && sub.personType !== personFilter) continue;
+      const planName = normalizeClientPlanName(sub);
+      counts.set(planName, (counts.get(planName) || 0) + 1);
+    }
+    return Array.from(counts.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [state?.subscriptions, personFilter]);
+
+  // Função auxiliar para timestamp de criação do associado
+  const getSubTimestamp = (sub: ClubSubscription): number => {
+    const raw = sub.createdAt || sub.contractSignedAt || sub.startDate;
+    if (!raw) return 0;
+    const str = String(raw).trim();
+    if (/^\d{2}\/\d{2}\/\d{4}/.test(str)) {
+      const [datePart, timePart] = str.split(' ');
+      const [d, m, y] = datePart.split('/').map(Number);
+      const [hh, mm, ss] = timePart ? timePart.split(':').map(Number) : [0, 0, 0];
+      return new Date(y, m - 1, d, hh || 0, mm || 0, ss || 0).getTime();
+    }
+    const t = new Date(str).getTime();
+    return isNaN(t) ? 0 : t;
+  };
+
+  // Filtered subscriptions (supports Clientes PF, Empresas PJ, Status, Via Site, Atrasadas, Sem Documentos, Planos, Período, Não visualizados)
   // Ordena do mais recente primeiro com data do cadastro e busca inteligente que prioriza quem começa pelo nome
   const filteredSubscriptions = useMemo(() => {
     if (!state) return [];
@@ -1828,6 +1885,57 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
           return false;
         }
       }
+
+      // Filtro especial: Mensalidades Atrasadas
+      if (subSpecialIssueFilter === 'OVERDUE') {
+        if (!isSubscriptionOverdue(sub)) return false;
+      } else if (subSpecialIssueFilter === 'MISSING_DOCS') {
+        if (!isSubscriptionMissingDocs(sub)) return false;
+      }
+
+      // Filtro por Plano
+      if (subPlanFilter !== 'ALL') {
+        const clientPlan = normalizeClientPlanName(sub);
+        if (clientPlan !== subPlanFilter) return false;
+      }
+
+      // Filtro por Data / Período de Cadastro
+      if (subDatePeriodFilter !== 'ALL') {
+        const subTime = getSubTimestamp(sub);
+        if (!subTime) return false;
+        const now = new Date();
+        if (subDatePeriodFilter === 'TODAY') {
+          const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+          const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).getTime();
+          if (subTime < startOfToday || subTime > endOfToday) return false;
+        } else if (subDatePeriodFilter === '7_DAYS') {
+          const sevenDaysAgo = now.getTime() - 7 * 24 * 60 * 60 * 1000;
+          if (subTime < sevenDaysAgo) return false;
+        } else if (subDatePeriodFilter === '30_DAYS') {
+          const thirtyDaysAgo = now.getTime() - 30 * 24 * 60 * 60 * 1000;
+          if (subTime < thirtyDaysAgo) return false;
+        } else if (subDatePeriodFilter === 'THIS_MONTH') {
+          const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+          if (subTime < startOfMonth) return false;
+        } else if (subDatePeriodFilter === 'LAST_MONTH') {
+          const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).getTime();
+          const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999).getTime();
+          if (subTime < startOfLastMonth || subTime > endOfLastMonth) return false;
+        } else if (subDatePeriodFilter === 'THIS_YEAR') {
+          const startOfYear = new Date(now.getFullYear(), 0, 1).getTime();
+          if (subTime < startOfYear) return false;
+        } else if (subDatePeriodFilter === 'CUSTOM') {
+          if (subDateStart) {
+            const startTime = new Date(subDateStart + 'T00:00:00').getTime();
+            if (subTime < startTime) return false;
+          }
+          if (subDateEnd) {
+            const endTime = new Date(subDateEnd + 'T23:59:59').getTime();
+            if (subTime > endTime) return false;
+          }
+        }
+      }
+
       if (!subSearch.trim()) return true;
       const q = subSearch.toLowerCase().trim();
       const digits = q.replace(/\D/g, '');
@@ -1842,20 +1950,6 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         )
       );
     });
-
-    const getSubTimestamp = (sub: ClubSubscription): number => {
-      const raw = sub.createdAt || sub.contractSignedAt || sub.startDate;
-      if (!raw) return 0;
-      const str = String(raw).trim();
-      if (/^\d{2}\/\d{2}\/\d{4}/.test(str)) {
-        const [datePart, timePart] = str.split(' ');
-        const [d, m, y] = datePart.split('/').map(Number);
-        const [hh, mm, ss] = timePart ? timePart.split(':').map(Number) : [0, 0, 0];
-        return new Date(y, m - 1, d, hh || 0, mm || 0, ss || 0).getTime();
-      }
-      const t = new Date(str).getTime();
-      return isNaN(t) ? 0 : t;
-    };
 
     if (subSearch.trim()) {
       const q = subSearch.toLowerCase().trim();
@@ -1887,12 +1981,34 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       const numB = parseInt(String(b.subscriptionCode).replace(/\D/g, ''), 10) || 0;
       return numB - numA;
     });
-  }, [state, subSearch, subStatusFilter, personFilter, originFilter, seenClubSubIds]);
+  }, [
+    state,
+    subSearch,
+    subStatusFilter,
+    subSpecialIssueFilter,
+    subPlanFilter,
+    subDatePeriodFilter,
+    subDateStart,
+    subDateEnd,
+    personFilter,
+    originFilter,
+    seenClubSubIds,
+  ]);
 
   // Reset pagination when search or filters change
   useEffect(() => {
     setClientPage(1);
-  }, [subSearch, subStatusFilter, personFilter, originFilter]);
+  }, [
+    subSearch,
+    subStatusFilter,
+    subSpecialIssueFilter,
+    subPlanFilter,
+    subDatePeriodFilter,
+    subDateStart,
+    subDateEnd,
+    personFilter,
+    originFilter,
+  ]);
 
   const totalClients = filteredSubscriptions.length;
   const totalPages =
@@ -6836,6 +6952,159 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 >
                   🏷️ Base Labcard (2.657 sócios)
                 </Button>
+
+                {/* Filtro Especial: Mensalidades Atrasadas */}
+                <Button
+                  size="sm"
+                  variant={subSpecialIssueFilter === 'OVERDUE' ? 'default' : 'outline'}
+                  onClick={() => {
+                    setSubSpecialIssueFilter((prev) => (prev === 'OVERDUE' ? 'ALL' : 'OVERDUE'));
+                  }}
+                  className={`shrink-0 whitespace-nowrap text-xs font-semibold ${
+                    subSpecialIssueFilter === 'OVERDUE'
+                      ? 'bg-amber-600 text-white font-bold hover:bg-amber-700 shadow-sm'
+                      : 'border-amber-300 text-amber-900 bg-amber-50/70 hover:bg-amber-100'
+                  }`}
+                  title="Filtrar associados com mensalidades/faturas atrasadas"
+                >
+                  ⚠️ Mensalidades Atrasadas ({overdueCount})
+                </Button>
+
+                {/* Filtro Especial: Cadastros Sem Documentos */}
+                <Button
+                  size="sm"
+                  variant={subSpecialIssueFilter === 'MISSING_DOCS' ? 'default' : 'outline'}
+                  onClick={() => {
+                    setSubSpecialIssueFilter((prev) => (prev === 'MISSING_DOCS' ? 'ALL' : 'MISSING_DOCS'));
+                  }}
+                  className={`shrink-0 whitespace-nowrap text-xs font-semibold ${
+                    subSpecialIssueFilter === 'MISSING_DOCS'
+                      ? 'bg-purple-700 text-white font-bold hover:bg-purple-800 shadow-sm'
+                      : 'border-purple-300 text-purple-900 bg-purple-50/70 hover:bg-purple-100'
+                  }`}
+                  title="Filtrar cadastros pendentes de documento ou comprovante"
+                >
+                  📄 Sem Documentos ({missingDocsCount})
+                </Button>
+              </div>
+            </div>
+
+            {/* Linha de Filtros Avançados: Por Plano, Por Período/Data e Reset */}
+            <div className="flex flex-wrap items-center gap-2.5 pt-2 pb-1 border-t border-slate-100 text-xs">
+              {/* Filtro por Plano */}
+              <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 shadow-2xs">
+                <Layers className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                <span className="text-slate-500 font-medium shrink-0">Plano:</span>
+                <select
+                  value={subPlanFilter}
+                  onChange={(e) => setSubPlanFilter(e.target.value)}
+                  className="bg-transparent text-slate-800 font-semibold focus:outline-none cursor-pointer max-w-[220px] truncate"
+                >
+                  <option value="ALL">Todos os Planos ({state?.subscriptions?.length || 0})</option>
+                  {availablePlansWithCounts.map((p) => (
+                    <option key={p.name} value={p.name}>
+                      {p.name} ({p.count})
+                    </option>
+                  ))}
+                </select>
+                {subPlanFilter !== 'ALL' && (
+                  <button
+                    onClick={() => setSubPlanFilter('ALL')}
+                    className="text-slate-400 hover:text-slate-700 ml-0.5"
+                    title="Remover filtro de plano"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+
+              {/* Filtro por Data / Período */}
+              <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 shadow-2xs">
+                <Calendar className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                <span className="text-slate-500 font-medium shrink-0">Cadastro:</span>
+                <select
+                  value={subDatePeriodFilter}
+                  onChange={(e) => setSubDatePeriodFilter(e.target.value as any)}
+                  className="bg-transparent text-slate-800 font-semibold focus:outline-none cursor-pointer"
+                >
+                  <option value="ALL">Todo o Período</option>
+                  <option value="TODAY">Hoje</option>
+                  <option value="7_DAYS">Últimos 7 dias</option>
+                  <option value="30_DAYS">Últimos 30 dias</option>
+                  <option value="THIS_MONTH">Este Mês</option>
+                  <option value="LAST_MONTH">Mês Passado</option>
+                  <option value="THIS_YEAR">Este Ano (2026)</option>
+                  <option value="CUSTOM">Personalizado (De / Até)...</option>
+                </select>
+                {subDatePeriodFilter !== 'ALL' && (
+                  <button
+                    onClick={() => {
+                      setSubDatePeriodFilter('ALL');
+                      setSubDateStart('');
+                      setSubDateEnd('');
+                    }}
+                    className="text-slate-400 hover:text-slate-700 ml-0.5"
+                    title="Remover filtro de período"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+
+              {/* Inputs De / Até se CUSTOM */}
+              {subDatePeriodFilter === 'CUSTOM' && (
+                <div className="flex items-center gap-1.5 bg-amber-50/60 border border-amber-200 rounded-xl px-2.5 py-1 text-xs">
+                  <span className="text-amber-900 font-medium">De:</span>
+                  <input
+                    type="date"
+                    value={subDateStart}
+                    onChange={(e) => setSubDateStart(e.target.value)}
+                    className="bg-white border border-slate-200 rounded px-1.5 py-0.5 text-xs focus:outline-none"
+                  />
+                  <span className="text-amber-900 font-medium">Até:</span>
+                  <input
+                    type="date"
+                    value={subDateEnd}
+                    onChange={(e) => setSubDateEnd(e.target.value)}
+                    className="bg-white border border-slate-200 rounded px-1.5 py-0.5 text-xs focus:outline-none"
+                  />
+                </div>
+              )}
+
+              {/* Indicador de clientes filtrados */}
+              <div className="ml-auto flex items-center gap-2">
+                <span className="text-slate-500 font-medium">
+                  Exibindo <strong className="text-slate-800">{filteredSubscriptions.length}</strong> de{' '}
+                  {state?.subscriptions?.length || 0}
+                </span>
+
+                {/* Botão Limpar Filtros se houver qualquer filtro ativo */}
+                {(subPlanFilter !== 'ALL' ||
+                  subDatePeriodFilter !== 'ALL' ||
+                  subSpecialIssueFilter !== 'ALL' ||
+                  subStatusFilter !== 'ALL' ||
+                  originFilter !== 'ALL' ||
+                  personFilter !== 'ALL' ||
+                  subSearch.trim() !== '') && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setSubPlanFilter('ALL');
+                      setSubDatePeriodFilter('ALL');
+                      setSubDateStart('');
+                      setSubDateEnd('');
+                      setSubSpecialIssueFilter('ALL');
+                      setSubStatusFilter('ALL');
+                      setOriginFilter('ALL');
+                      setPersonFilter('ALL');
+                      setSubSearch('');
+                    }}
+                    className="h-7 px-2 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 font-semibold"
+                  >
+                    ✕ Limpar Filtros
+                  </Button>
+                )}
               </div>
             </div>
 

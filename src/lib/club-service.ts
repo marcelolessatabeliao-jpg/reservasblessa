@@ -472,6 +472,125 @@ export const isMemberBlockedForMissingDoc = (
 };
 
 /**
+ * Normaliza e identifica com alta precisão o plano do cliente
+ */
+export const normalizeClientPlanName = (sub: ClubSubscription): string => {
+  const raw = (sub.planSummaryLabel || sub.members?.[0]?.modalityName || sub.members?.[0]?.planCycleLabel || '').trim();
+  const lower = raw.toLowerCase();
+
+  if (!raw || lower === '- r$ 0,00' || lower === '-' || lower === 'sem plano') {
+    return 'Sem Plano / A Definir';
+  }
+  if (lower.includes('publicidade') || lower.includes('family publicidade')) {
+    return 'Lessa Family Publicidade';
+  }
+  if (lower.includes('servidor') || lower.includes('servidores')) {
+    if (lower.includes('anual') || sub.billingCycle === 'ANNUAL') return 'Lessa Servidor Pass (Anual)';
+    return 'Lessa Servidor Pass (Mensal)';
+  }
+  if (lower.includes('student') || lower.includes('estudante')) {
+    if (lower.includes('anual') || sub.billingCycle === 'ANNUAL') return 'Lessa Student Pass (Anual)';
+    return 'Lessa Student Pass (Mensal)';
+  }
+  if (lower.includes('professor')) {
+    if (lower.includes('anual') || sub.billingCycle === 'ANNUAL') return 'Lessa Professor Pass (Anual)';
+    return 'Lessa Professor Pass (Mensal)';
+  }
+  if (lower.includes('kids')) {
+    return 'Lessa Kids (Gratuito)';
+  }
+  if (lower.includes('vitalicio') || lower.includes('vitalício') || lower.includes('60+')) {
+    return 'Lessa Vitalício 60+';
+  }
+  if (lower.includes('inclus') || lower.includes('pcd') || lower.includes('tea') || lower.includes('pdc')) {
+    return 'Lessa Inclusão (PCD e TEA)';
+  }
+  if (lower.includes('corporate') || lower.includes('corporativo')) {
+    return 'Lessa Corporate Pass';
+  }
+  if (lower.includes('duo')) {
+    return 'Lessa Duo Club';
+  }
+  if (lower.includes('parceiro')) {
+    return 'Lessa Parceiro';
+  }
+  if (lower.includes('convênio') || lower.includes('convenio') || lower.includes('day use')) {
+    return 'Lessa Convênio (Day Use)';
+  }
+  if (lower.includes('5 pessoas') || lower.includes('5 p')) {
+    return sub.billingCycle === 'ANNUAL' ? 'Lessa Club (5 pessoas - Anual)' : 'Lessa Club (5 pessoas)';
+  }
+  if (lower.includes('4 pessoas') || lower.includes('4 p')) {
+    return sub.billingCycle === 'ANNUAL' ? 'Lessa Club (4 pessoas - Anual)' : 'Lessa Club (4 pessoas)';
+  }
+  if (lower.includes('3 pessoas') || lower.includes('3 p')) {
+    return sub.billingCycle === 'ANNUAL' ? 'Lessa Club (3 pessoas - Anual)' : 'Lessa Club (3 pessoas)';
+  }
+  if (lower.includes('2 pessoas') || lower.includes('2 p')) {
+    return sub.billingCycle === 'ANNUAL' ? 'Lessa Club (2 pessoas - Anual)' : 'Lessa Club (2 pessoas)';
+  }
+  if (lower.includes('lessa club') || lower.includes('individual') || lower.includes('49,90')) {
+    if (lower.includes('anual') || sub.billingCycle === 'ANNUAL') return 'Lessa Club (Individual - Anual)';
+    return 'Lessa Club (Individual)';
+  }
+
+  const cleaned = raw.replace(/\s*-\s*r\$\s*[\d.,]+/i, '').trim();
+  return cleaned || 'Outros Planos';
+};
+
+/**
+ * Identifica se a assinatura possui faturas/mensalidades atrasadas
+ */
+export const isSubscriptionOverdue = (sub: ClubSubscription): boolean => {
+  if (
+    sub.inactivityReason === 'MENSALIDADE_VENCIDA' ||
+    sub.inactivityReasons?.includes('MENSALIDADE_VENCIDA')
+  ) {
+    return true;
+  }
+  const now = new Date();
+  return (sub.invoices || []).some(
+    (i) => i.status === 'OVERDUE' || (i.status === 'PENDING' && new Date(i.dueDate + 'T23:59:59') < now)
+  );
+};
+
+/**
+ * Identifica se a assinatura possui titular ou dependentes com pendência de documentos
+ */
+export const isSubscriptionMissingDocs = (sub: ClubSubscription): boolean => {
+  if (
+    sub.inactivityReason === 'FALTA_DOCUMENTOS' ||
+    sub.inactivityReasons?.includes('FALTA_DOCUMENTOS') ||
+    sub.inactivityReason === 'MENSALIDADE_E_DOCUMENTOS'
+  ) {
+    return true;
+  }
+  return (sub.members || []).some((m) => {
+    if (m.documentStatus === 'REJEITADO' || m.documentStatus === 'PENDENTE_ANEXO') return true;
+    if (isMemberBlockedForMissingDoc(m, sub)) return true;
+    const plan = (m.planCycleLabel || sub.planSummaryLabel || '').toLowerCase();
+    const needsProof =
+      plan.includes('servidor') ||
+      plan.includes('student') ||
+      plan.includes('estudante') ||
+      plan.includes('professor') ||
+      plan.includes('inclus') ||
+      plan.includes('pcd') ||
+      plan.includes('tea');
+    if (
+      needsProof &&
+      !m.documentVerified &&
+      !m.documentProofUrl &&
+      !m.documentProofName &&
+      m.documentStatus !== 'APROVADO'
+    ) {
+      return true;
+    }
+    return false;
+  });
+};
+
+/**
  * Avalia e atualiza automaticamente o status de inativação de uma assinatura.
  * - Se tinha pendência financeira e foi paga: remove o aviso de mensalidade.
  * - Se tinha pendência de documento e foi anexado/aprovado: remove o aviso de documento.
