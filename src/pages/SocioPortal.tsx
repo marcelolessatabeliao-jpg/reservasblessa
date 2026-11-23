@@ -2107,14 +2107,25 @@ const SocioPortal: React.FC = () => {
                                   {member.modalityName}
                                 </Badge>
                                 {(() => {
-                                  if (!docRule.requiresDocument) {
+                                  const hasUploadedDoc = hasDoc && allDocs.length > 0;
+                                  const isDocApproved =
+                                    hasUploadedDoc &&
+                                    (member.documentVerified === true || member.documentStatus === 'APROVADO');
+                                  const hasExplicitDocPending =
+                                    subscription.inactivityReason === 'FALTA_DOCUMENTOS' ||
+                                    subscription.inactivityReason === 'MENSALIDADE_E_DOCUMENTOS' ||
+                                    Boolean(subscription.inactivityReasons?.includes('FALTA_DOCUMENTOS')) ||
+                                    member.inactivityReason === 'FALTA_DOCUMENTOS' ||
+                                    Boolean(member.inactivityReasons?.includes('FALTA_DOCUMENTOS'));
+
+                                  if (!docRule.requiresDocument && !hasExplicitDocPending) {
                                     return (
                                       <Badge className="bg-slate-500 text-white text-[10px] font-bold">
                                         NÃO EXIGE DOCUMENTO
                                       </Badge>
                                     );
                                   }
-                                  if (member.documentVerified || member.documentStatus === 'APROVADO') {
+                                  if (isDocApproved) {
                                     return (
                                       <Badge className="bg-emerald-700 text-white text-[10px] font-black shadow-xs">
                                         ✓ DOCUMENTO APROVADO PELO ADMIN
@@ -2128,7 +2139,7 @@ const SocioPortal: React.FC = () => {
                                       </Badge>
                                     );
                                   }
-                                  if (hasDoc) {
+                                  if (hasUploadedDoc) {
                                     return (
                                       <Badge className="bg-amber-500 text-slate-950 text-[10px] font-black animate-pulse shadow-xs">
                                         ⏳ EM ANÁLISE PELO ADMIN
@@ -2208,15 +2219,21 @@ const SocioPortal: React.FC = () => {
                             </div>
                           )}
 
-                          {hasDoc && !member.documentVerified && member.documentStatus !== 'APROVADO' && !member.documentRejectionReason && (
+                          {hasDoc && allDocs.length > 0 && !member.documentVerified && member.documentStatus !== 'APROVADO' && !member.documentRejectionReason && (
                             <div className="bg-amber-50 border border-amber-300 text-amber-950 text-xs rounded-xl p-3 font-medium">
                               <strong>⏳ Documentação em Análise:</strong> Seu comprovante foi recebido e está aguardando validação pela administração do clube para ativação final da carteirinha.
                             </div>
                           )}
 
-                          {(member.documentVerified || member.documentStatus === 'APROVADO') && (
+                          {hasDoc && allDocs.length > 0 && (member.documentVerified || member.documentStatus === 'APROVADO') && (
                             <div className="bg-emerald-50 border border-emerald-300 text-emerald-950 text-xs rounded-xl p-3 font-medium">
-                              <strong>✓ Documentação Aprovada:</strong> O comprovante deste integrante foi verificado e aprovado pela administração. Carteirinha liberada para acesso!
+                              <strong>✓ Documentação Aprovada:</strong> O comprovante deste integrante foi verificado e aprovado pela administração.
+                            </div>
+                          )}
+
+                          {(!hasDoc || allDocs.length === 0) && (docRule.requiresDocument || subscription.inactivityReason === 'FALTA_DOCUMENTOS' || subscription.inactivityReason === 'MENSALIDADE_E_DOCUMENTOS' || Boolean(subscription.inactivityReasons?.includes('FALTA_DOCUMENTOS'))) && (
+                            <div className="bg-rose-50 border border-rose-300 text-rose-950 text-xs rounded-xl p-3 font-medium">
+                              <strong>⚠️ Documentação Pendente:</strong> Ainda não há nenhum documento anexado para este integrante. Utilize os botões <strong>Câmera</strong> ou <strong>Importar Arquivo</strong> acima para enviar a documentação para conferência da administração.
                             </div>
                           )}
 

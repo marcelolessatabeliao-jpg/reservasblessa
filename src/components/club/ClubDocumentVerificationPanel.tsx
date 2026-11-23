@@ -104,12 +104,12 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
     );
   }
 
-  const approvedCount = membersRequiringDocs.filter((m) => m.member.documentVerified).length;
+  const approvedCount = membersRequiringDocs.filter((m) => m.hasProof && m.member.documentVerified).length;
   const pendingReviewCount = membersRequiringDocs.filter(
     (m) => m.hasProof && !m.member.documentVerified && !m.member.documentRejectionReason
   ).length;
   const missingUploadCount = membersRequiringDocs.filter((m) => !m.hasProof).length;
-  const isFullyApproved = approvedCount === membersRequiringDocs.length;
+  const isFullyApproved = approvedCount === membersRequiringDocs.length && missingUploadCount === 0;
 
   const handleApprove = async (member: ClubMember) => {
     try {
@@ -476,7 +476,7 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
             <div
               key={member.id}
               className={`rounded-2xl border-2 p-4 sm:p-5 space-y-3.5 transition-all shadow-xs ${
-                member.documentVerified
+                hasProof && member.documentVerified
                   ? 'bg-emerald-50/60 border-emerald-300'
                   : member.documentRejectionReason
                   ? 'bg-rose-50/70 border-rose-300'
@@ -522,7 +522,7 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
 
                 {/* BADGE DE SITUAÇÃO DO DOCUMENTO */}
                 <div className="flex items-center gap-2">
-                  {member.documentVerified ? (
+                  {hasProof && member.documentVerified ? (
                     <Badge className="bg-emerald-700 text-white font-black text-xs px-3 py-1 shadow-xs flex items-center gap-1.5">
                       <CheckCircle2 className="w-3.5 h-3.5" /> DOCUMENTO VALIDADO PELO ADMIN ✓
                     </Badge>

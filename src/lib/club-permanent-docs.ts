@@ -40,6 +40,9 @@ export interface PermanentMemberDocRecord {
   endDate?: string;
   validityLabel?: string;
   status?: ClubSubscription['status'];
+  inactivityReason?: ClubSubscription['inactivityReason'];
+  inactivityReasons?: ClubSubscription['inactivityReasons'];
+  inactivityNotes?: string;
   manualStatusOverride?: boolean;
   transferCompleted?: boolean;
   manuallyConfirmedTransfer?: boolean;
@@ -95,6 +98,9 @@ export async function saveMemberPermanentDocs(
     endDate: sub.endDate,
     validityLabel: sub.validityLabel,
     status: sub.status,
+    inactivityReason: sub.inactivityReason,
+    inactivityReasons: sub.inactivityReasons,
+    inactivityNotes: sub.inactivityNotes,
     manualStatusOverride: sub.manualStatusOverride,
     transferCompleted: sub.transferCompleted,
     manuallyConfirmedTransfer: sub.manuallyConfirmedTransfer,
@@ -296,21 +302,34 @@ export function applyPermanentDocsToSub(
     const docProof = permMem.documentProofUrl && permMem.documentProofUrl !== 'HAS_DOC_ATTACHED'
       ? permMem.documentProofUrl
       : (m.documentProofUrl || permMem.documentProofUrl);
+    const hasAnyMemDoc = Boolean(
+      (docProof && docProof.trim().length > 0) ||
+      (permMem.attachments && permMem.attachments.length > 0) ||
+      (m.attachments && m.attachments.length > 0) ||
+      (m.role === 'TITULAR' && finalAttachments.length > 0)
+    );
 
     return {
       ...m,
+      modalityCode: (permMem.modalityCode && permMem.modalityCode !== 'SEM_PLANO') ? permMem.modalityCode : m.modalityCode,
+      modalityName: (permMem.modalityName && !/^sem plano$/i.test(permMem.modalityName)) ? permMem.modalityName : m.modalityName,
+      planCycleLabel: (permMem.planCycleLabel && !/^sem plano$/i.test(permMem.planCycleLabel)) ? permMem.planCycleLabel : m.planCycleLabel,
+      frontCardUrl: (permMem.frontCardUrl && permMem.frontCardUrl !== '/cards/13.png') ? permMem.frontCardUrl : m.frontCardUrl,
+      backCardUrl: permMem.backCardUrl || m.backCardUrl,
       documentProofUrl: docProof,
       documentProofName: permMem.documentProofName || m.documentProofName,
-      documentStatus: permMem.documentStatus || m.documentStatus,
-      documentVerified: permMem.documentVerified ?? m.documentVerified,
-      documentVerifiedAt: permMem.documentVerifiedAt || m.documentVerifiedAt,
-      documentVerifiedBy: permMem.documentVerifiedBy || m.documentVerifiedBy,
+      documentStatus: hasAnyMemDoc ? (permMem.documentStatus || m.documentStatus) : undefined,
+      documentVerified: hasAnyMemDoc ? (permMem.documentVerified ?? m.documentVerified) : false,
+      documentVerifiedAt: hasAnyMemDoc ? (permMem.documentVerifiedAt || m.documentVerifiedAt) : undefined,
+      documentVerifiedBy: hasAnyMemDoc ? (permMem.documentVerifiedBy || m.documentVerifiedBy) : undefined,
       rg: permMem.rg || m.rg,
       birthDate: permMem.birthDate || m.birthDate,
       expirationDate: permMem.expirationDate || m.expirationDate,
       validityLabel: permMem.validityLabel || m.validityLabel,
       expirationNotes: permMem.expirationNotes || m.expirationNotes,
       status: permMem.status || m.status,
+      inactivityReason: permMem.inactivityReason ?? m.inactivityReason,
+      inactivityReasons: permMem.inactivityReasons ?? m.inactivityReasons,
       manualStatusOverride: permMem.manualStatusOverride ?? m.manualStatusOverride,
     };
   });
@@ -341,6 +360,9 @@ export function applyPermanentDocsToSub(
     endDate: perm.endDate || sub.endDate,
     validityLabel: perm.validityLabel || sub.validityLabel,
     status: perm.status || sub.status,
+    inactivityReason: perm.status === 'ACTIVE' ? undefined : (perm.inactivityReason ?? sub.inactivityReason),
+    inactivityReasons: perm.status === 'ACTIVE' ? undefined : (perm.inactivityReasons ?? sub.inactivityReasons),
+    inactivityNotes: perm.status === 'ACTIVE' ? undefined : (perm.inactivityNotes ?? sub.inactivityNotes),
     manualStatusOverride: perm.manualStatusOverride ?? sub.manualStatusOverride,
     transferCompleted: perm.transferCompleted ?? sub.transferCompleted,
     manuallyConfirmedTransfer: perm.manuallyConfirmedTransfer ?? sub.manuallyConfirmedTransfer,

@@ -298,6 +298,20 @@ export const getPlanDocumentRule = (
     };
   }
 
+  if (code === 'PUBLICIDADE' || name.includes('family') || name.includes('publicidade')) {
+    return {
+      requiresDocument: true,
+      title: 'Documentação Obrigatória — Lessa Family Publicidade',
+      summary:
+        'Para ativação do plano Lessa Family Publicidade, é obrigatório anexar documento oficial com foto (RG/CNH) do titular e dos dependentes (cônjuge/filhos), além da foto do veículo adesivado.',
+      acceptedDocs: [
+        'RG ou CNH com foto legível (Titular e Dependentes)',
+        'Certidão de Nascimento (filhos) ou Casamento/União Estável (cônjuge)',
+        'Documento do veículo (CRLV) e foto nítida do carro adesivado',
+      ],
+    };
+  }
+
   return {
     requiresDocument: false,
     title: '',
@@ -439,9 +453,10 @@ export const getMemberDocumentStatus = (
   const rule = getPlanDocumentRule(member.modalityCode, member.modalityName);
   if (!rule.requiresDocument) return 'DISPENSADO';
 
-  if (member.documentVerified) return 'APROVADO';
-  if (member.documentRejectionReason && !member.documentVerified) return 'REJEITADO';
-  if (memberHasProofUploaded(member, sub)) return 'EM_ANALISE';
+  const hasRealUpload = memberHasProofUploaded(member, sub);
+  if (member.documentVerified && hasRealUpload) return 'APROVADO';
+  if (member.documentRejectionReason && !(member.documentVerified && hasRealUpload)) return 'REJEITADO';
+  if (hasRealUpload) return 'EM_ANALISE';
   return 'PENDENTE_ANEXO';
 };
 
@@ -1467,9 +1482,48 @@ export const normalizeClubDatabaseState = (
 
   const normalizedSubscriptions = (parsed.subscriptions || []).map((sub) => {
     const isLabcard = sub.origin === 'IMPORT_LABCARD' || sub.id.startsWith('sub-labcard-');
-    const normalizedMembers = (sub.members || []).map((m) => {
+    const titularMem = (sub.members || []).find((x) => x.role === 'TITULAR') || sub.members?.[0];
+    const isSubFamilyPub =
+      sub.contractType === 'FAMILY_PUBLICIDADE' ||
+      Boolean(sub.planSummaryLabel && /publicidade|permuta|family/i.test(sub.planSummaryLabel)) ||
+      titularMem?.modalityCode === 'PUBLICIDADE' ||
+      Boolean(titularMem?.modalityName && /publicidade|family/i.test(titularMem.modalityName));
+    const titularModCode = isSubFamilyPub
+      ? 'PUBLICIDADE'
+      : (titularMem?.modalityCode && titularMem.modalityCode !== 'SEM_PLANO' ? titularMem.modalityCode : undefined);
+    const titularModName = isSubFamilyPub
+      ? (titularMem?.modalityName && !/^sem plano$/i.test(titularMem.modalityName.trim()) ? titularMem.modalityName : 'Lessa Family Publicidade')
+      : (titularMem?.modalityName && !/^sem plano$/i.test(titularMem.modalityName.trim()) ? titularMem.modalityName : undefined);
+
+    const normalizedMembers = (sub.members || []).map((origM) => {
+      const m = { ...origM };
       let frontUrl = m.frontCardUrl;
       let backUrl = m.backCardUrl;
+
+      // Dependentes sem plano próprio ("Sem Plano", "-", vazio) herdam automaticamente o plano e a arte do Titular
+      const isMemberSemPlano =
+        !m.modalityCode ||
+        m.modalityCode === 'SEM_PLANO' ||
+        !m.modalityName ||
+        /^sem plano$/i.test(m.modalityName.trim()) ||
+        m.modalityName.trim() === '-';
+
+      if (m.role === 'DEPENDENTE' && isMemberSemPlano && titularModCode) {
+        m.modalityCode = titularModCode;
+        m.modalityName = titularModName || m.modalityName;
+        m.planCycleLabel = titularModName || m.planCycleLabel;
+        const matchedMod = DEFAULT_CLUB_MODALITIES.find((dm) => dm.code === titularModCode);
+        if (titularModCode === 'PUBLICIDADE') {
+          frontUrl = '/cards/30.png';
+          backUrl = '/cards/33.png';
+        } else if (matchedMod) {
+          frontUrl = matchedMod.dependentFrontCardUrl || matchedMod.frontCardUrl;
+          backUrl = matchedMod.dependentBackCardUrl || matchedMod.backCardUrl;
+        } else if (titularMem) {
+          frontUrl = titularMem.frontCardUrl;
+          backUrl = titularMem.backCardUrl;
+        }
+      }
 
       if (m.modalityCode === 'ADULTO' && (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/18.png' || frontUrl === '/cards/17.png')) {
         frontUrl = '/cards/44.png';
@@ -1489,17 +1543,24 @@ export const normalizeClubDatabaseState = (
 
       // Sincroniza planos de Publicidade/Permuta que vieram originalmente identificados na descrição do plano
       if (
-        (m.modalityCode === 'ADULTO' || !m.modalityCode) &&
+        (m.modalityCode === 'ADULTO' || m.modalityCode === 'SEM_PLANO' || !m.modalityCode) &&
         ((sub.planSummaryLabel && /publicidade|permuta/i.test(sub.planSummaryLabel)) ||
          (m.modalityName && /publicidade/i.test(m.modalityName)))
       ) {
         m.modalityCode = 'PUBLICIDADE';
         m.modalityName = 'Lessa Family Publicidade';
-        frontUrl = '/cards/29.png';
+        m.planCycleLabel = 'Lessa Family Publicidade';
+        frontUrl = m.role === 'DEPENDENTE' ? '/cards/30.png' : '/cards/29.png';
         backUrl = '/cards/33.png';
       } else if (m.modalityCode === 'PUBLICIDADE') {
-        if (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/44.png') {
-          frontUrl = '/cards/29.png';
+        if (m.role === 'DEPENDENTE') {
+          if (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/44.png' || frontUrl === '/cards/13.png' || frontUrl === '/cards/29.png') {
+            frontUrl = '/cards/30.png';
+          }
+        } else {
+          if (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/44.png' || frontUrl === '/cards/13.png') {
+            frontUrl = '/cards/29.png';
+          }
         }
         if (isOutdatedCardUrl(backUrl) || backUrl === '/cards/24.png') {
           backUrl = '/cards/33.png';
@@ -1515,16 +1576,17 @@ export const normalizeClubDatabaseState = (
       const adminConfirmedCards = getAdminConfirmedCardsSet();
       const isExplicitlyRegularized = isSubscriptionRegularizedOrActive(sub, adminConfirmedCards);
 
+      const hasRealProofUploaded = memberHasProofUploaded(m, sub);
       const missingRequiredDoc =
         !isLabcard &&
         getPlanDocumentRule(m.modalityCode, m.modalityName).requiresDocument &&
-        !memberHasProofDocument(m, sub);
+        !hasRealProofUploaded;
 
       const isMemberRegularized =
         isExplicitlyRegularized ||
         REGULARIZED_ACTIVE_CARDS.has(m.cardNumber) ||
         adminConfirmedCards.has(m.cardNumber) ||
-        (!isLabcard && m.status === 'ACTIVE' && (Boolean(m.manualStatusOverride) || Boolean(m.documentVerified) || m.documentStatus === 'APROVADO'));
+        (!isLabcard && m.status === 'ACTIVE' && (Boolean(m.manualStatusOverride) || (hasRealProofUploaded && (Boolean(m.documentVerified) || m.documentStatus === 'APROVADO'))));
 
       const isSubDirectlyInactive =
         sub.status === 'INACTIVE' || sub.status === 'SUSPENDED' || sub.status === 'CANCELLED' || Boolean(sub.inactivityReason);
@@ -1564,11 +1626,19 @@ export const normalizeClubDatabaseState = (
         }
       }
 
+      // Nunca manter "documento aprovado" quando não existe nenhum anexo enviado para este integrante
+      const cleanDocVerified = hasRealProofUploaded ? Boolean(m.documentVerified) : false;
+      const cleanDocStatus = hasRealProofUploaded
+        ? m.documentStatus
+        : (m.documentStatus === 'APROVADO' ? undefined : m.documentStatus);
+
       return {
         ...m,
         expirationDate: resolvedExpDate,
         expirationNotes: resolvedExpNotes,
         status: resolvedStatus,
+        documentVerified: cleanDocVerified,
+        documentStatus: cleanDocStatus,
         inactivityReason: m.inactivityReason || sub.inactivityReason,
         inactivityNotes: m.inactivityNotes || sub.inactivityNotes,
         frontCardUrl: frontUrl || '/cards/44.png',
@@ -1614,8 +1684,8 @@ export const normalizeClubDatabaseState = (
       status: resolvedSubStatus,
       inactivityReason: sub.inactivityReason,
       inactivityNotes: sub.inactivityNotes,
-      transferCompleted: isSubDirectlyInactive ? false : isSubUserConfirmed ? (sub.transferCompleted ?? true) : isLabcard ? isSubExplicitlyRegularized : (sub.transferCompleted ?? false),
-      manuallyConfirmedTransfer: isSubDirectlyInactive ? false : isSubUserConfirmed ? (sub.manuallyConfirmedTransfer ?? true) : isLabcard ? (isSubExplicitlyRegularized && Boolean(sub.manuallyConfirmedTransfer)) : (sub.manuallyConfirmedTransfer ?? false),
+      transferCompleted: isSubDirectlyInactive ? Boolean(sub.transferCompleted) : isSubUserConfirmed ? (sub.transferCompleted ?? true) : isLabcard ? isSubExplicitlyRegularized : (sub.transferCompleted ?? false),
+      manuallyConfirmedTransfer: isSubDirectlyInactive ? Boolean(sub.manuallyConfirmedTransfer) : isSubUserConfirmed ? (sub.manuallyConfirmedTransfer ?? true) : isLabcard ? (isSubExplicitlyRegularized && Boolean(sub.manuallyConfirmedTransfer)) : (sub.manuallyConfirmedTransfer ?? false),
       manualStatusOverride: isSubDirectlyInactive ? true : isSubUserConfirmed ? true : isLabcard ? (isSubExplicitlyRegularized || Boolean(sub.manualStatusOverride)) : (sub.manualStatusOverride ?? false),
       members: normalizedMembers,
       billingCycle:
@@ -1960,8 +2030,9 @@ export const loadClubStateLocal = (): ClubDatabaseState => {
           sub.status === 'SUSPENDED' ||
           sub.status === 'CANCELLED'
         ) {
-          sub.transferCompleted = false;
-          sub.manuallyConfirmedTransfer = false;
+          // Preserva o status INATIVO/SUSPENSO/CANCELADO e também respeita se o admin já marcou a transferência como concluída
+          sub.transferCompleted = Boolean(sub.transferCompleted);
+          sub.manuallyConfirmedTransfer = Boolean(sub.manuallyConfirmedTransfer);
           if (sub.members) {
             sub.members.forEach((m) => {
               if (m.status !== 'SUSPENDED' && m.status !== 'CANCELLED') {
@@ -2382,11 +2453,11 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
               full.status === 'SUSPENDED' ||
               full.status === 'CANCELLED'
             ) {
-              // Status inativo/suspenso definido pelo administrador - preservar soberanamente
+              // Status inativo/suspenso definido pelo administrador - preservar soberanamente junto com o estado de transferência
               s.status = full.status || s.status;
               s.manualStatusOverride = true;
-              s.transferCompleted = false;
-              s.manuallyConfirmedTransfer = false;
+              s.transferCompleted = Boolean(s.transferCompleted || full.transferCompleted);
+              s.manuallyConfirmedTransfer = Boolean(s.manuallyConfirmedTransfer || full.manuallyConfirmedTransfer);
             } else {
               const isSubActiveConfirmed =
                 s.status === 'ACTIVE' ||
@@ -2686,13 +2757,13 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
                 s.status === 'CANCELLED';
 
               if (isCurrentDirectlyInactive || isLocalDirectlyInactive) {
-                // Status inativo/suspenso/cancelado definido pelo admin - prevalece sobre pendente
+                // Status inativo/suspenso/cancelado definido pelo admin - prevalece sobre pendente, preservando transferência concluída
                 current.status = isCurrentDirectlyInactive ? current.status : s.status;
                 current.manualStatusOverride = true;
                 current.inactivityReason = current.inactivityReason || s.inactivityReason;
                 current.inactivityNotes = current.inactivityNotes || s.inactivityNotes;
-                current.transferCompleted = false;
-                current.manuallyConfirmedTransfer = false;
+                current.transferCompleted = Boolean(current.transferCompleted || s.transferCompleted);
+                current.manuallyConfirmedTransfer = Boolean(current.manuallyConfirmedTransfer || s.manuallyConfirmedTransfer);
               } else {
                 const isSubActiveConfirmed =
                   current.status === 'ACTIVE' ||
@@ -2773,16 +2844,28 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
                       ? cm.validityLabel
                       : (lm.validityLabel || cm.validityLabel || mergedMedia.validityLabel);
 
+                  const hasRealDocMerged = memberHasProofUploaded(mergedMedia, current);
+                  const isDocActuallyApproved =
+                    hasRealDocMerged &&
+                    (mergedMedia.documentVerified === true ||
+                      cm.documentVerified === true ||
+                      lm.documentVerified === true ||
+                      mergedMedia.documentStatus === 'APROVADO' ||
+                      cm.documentStatus === 'APROVADO' ||
+                      lm.documentStatus === 'APROVADO');
+
                   return {
                     ...mergedMedia,
                     status: finalMemStatus,
                     manualStatusOverride: isMemInactive || isMemExplicitlyActive || isMemUserActive,
-                    documentVerified: (mergedMedia.documentVerified === true || isMemExplicitlyActive || isMemUserActive),
-                    documentStatus: (mergedMedia.documentStatus === 'APROVADO' || cm.documentStatus === 'APROVADO' || lm.documentStatus === 'APROVADO')
+                    documentVerified: isDocActuallyApproved,
+                    documentStatus: isDocActuallyApproved
                       ? ('APROVADO' as const)
-                      : (mergedMedia.documentStatus || cm.documentStatus || lm.documentStatus),
-                    documentVerifiedAt: cm.documentVerifiedAt || lm.documentVerifiedAt || mergedMedia.documentVerifiedAt,
-                    documentVerifiedBy: cm.documentVerifiedBy || lm.documentVerifiedBy || mergedMedia.documentVerifiedBy,
+                      : hasRealDocMerged
+                      ? (mergedMedia.documentStatus || cm.documentStatus || lm.documentStatus)
+                      : undefined,
+                    documentVerifiedAt: isDocActuallyApproved ? (cm.documentVerifiedAt || lm.documentVerifiedAt || mergedMedia.documentVerifiedAt) : undefined,
+                    documentVerifiedBy: isDocActuallyApproved ? (cm.documentVerifiedBy || lm.documentVerifiedBy || mergedMedia.documentVerifiedBy) : undefined,
                     expirationDate: effExp,
                     validityLabel: effVal,
                   };
@@ -2827,8 +2910,8 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
             sub.status === 'SUSPENDED' ||
             sub.status === 'CANCELLED'
           ) {
-            sub.transferCompleted = false;
-            sub.manuallyConfirmedTransfer = false;
+            sub.transferCompleted = Boolean(sub.transferCompleted);
+            sub.manuallyConfirmedTransfer = Boolean(sub.manuallyConfirmedTransfer);
             if (sub.members) {
               sub.members.forEach((m) => {
                 if (m.status !== 'SUSPENDED' && m.status !== 'CANCELLED') {

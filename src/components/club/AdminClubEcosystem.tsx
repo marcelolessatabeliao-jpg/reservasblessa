@@ -3342,12 +3342,26 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 inactivityReason: targetStatus === 'ACTIVE' ? undefined : (situacaoMotivoInativo || 'MENSALIDADE_VENCIDA'),
                 inactivityReasons: targetStatus === 'ACTIVE' ? undefined : situacaoMotivosInativo,
                 inactivityNotes: targetStatus === 'ACTIVE' ? undefined : (situacaoNotasInativo || undefined),
+                documentVerified: memberHasProofUploaded(m, selectedSubForDetail) ? m.documentVerified : false,
+                documentStatus: memberHasProofUploaded(m, selectedSubForDetail) ? m.documentStatus : undefined,
                 manualStatusOverride: true,
                 expirationDate: nextEndDate || m.expirationDate,
                 validityLabel: nextValidityLabel || m.validityLabel,
               }
             : {
                 ...m,
+                // Se o dependente estava como "Sem Plano", herda automaticamente o plano e a arte do titular
+                modalityCode: (!m.modalityCode || m.modalityCode === 'SEM_PLANO') && chosenModality && !isSemPlano ? chosenModality.code : m.modalityCode,
+                modalityName: (!m.modalityName || /^sem plano$/i.test(m.modalityName.trim()) || m.modalityCode === 'SEM_PLANO') && chosenModality && !isSemPlano ? chosenModality.name : m.modalityName,
+                planCycleLabel: (!m.planCycleLabel || /^sem plano$/i.test(m.planCycleLabel.trim()) || m.modalityCode === 'SEM_PLANO') && chosenModality && !isSemPlano ? chosenModality.name : m.planCycleLabel,
+                frontCardUrl:
+                  (!m.modalityCode || m.modalityCode === 'SEM_PLANO' || m.frontCardUrl === '/cards/13.png') && chosenModality && !isSemPlano
+                    ? (isPublicidade ? '/cards/30.png' : chosenModality.dependentFrontCardUrl || chosenModality.frontCardUrl || m.frontCardUrl)
+                    : m.frontCardUrl,
+                backCardUrl:
+                  (!m.modalityCode || m.modalityCode === 'SEM_PLANO') && chosenModality && !isSemPlano
+                    ? (isPublicidade ? '/cards/33.png' : chosenModality.dependentBackCardUrl || chosenModality.backCardUrl || m.backCardUrl)
+                    : m.backCardUrl,
                 // Preserva o status individual do dependente quando o titular já permanece ATIVO;
                 // se o cadastro mudou para INATIVO, sincroniza com a alteração solicitada.
                 status:
@@ -3357,6 +3371,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 inactivityReason: targetStatus === 'ACTIVE' ? undefined : (situacaoMotivoInativo || 'MENSALIDADE_VENCIDA'),
                 inactivityReasons: targetStatus === 'ACTIVE' ? undefined : situacaoMotivosInativo,
                 inactivityNotes: targetStatus === 'ACTIVE' ? undefined : (situacaoNotasInativo || undefined),
+                documentVerified: memberHasProofUploaded(m, selectedSubForDetail) ? m.documentVerified : false,
+                documentStatus: memberHasProofUploaded(m, selectedSubForDetail) ? m.documentStatus : undefined,
                 manualStatusOverride: true,
                 expirationDate: depExpDrafts[m.id] !== undefined ? (depExpDrafts[m.id] || undefined) : m.expirationDate,
                 validityLabel: (depExpDrafts[m.id] || m.expirationDate)
@@ -3520,15 +3536,42 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         );
         if (alreadyInSub) continue;
 
+        const titularMem = targetSub.members.find((x) => x.role === 'TITULAR') || targetSub.members[0];
+        const isPersonSemPlano = !person.modalityCode || person.modalityCode === 'SEM_PLANO';
+        const isTitularFamilyPub =
+          targetSub.contractType === 'FAMILY_PUBLICIDADE' ||
+          titularMem?.modalityCode === 'PUBLICIDADE' ||
+          Boolean(targetSub.planSummaryLabel && /publicidade|family/i.test(targetSub.planSummaryLabel));
+
+        const preferredCode = isPersonSemPlano
+          ? (isTitularFamilyPub ? 'PUBLICIDADE' : (titularMem?.modalityCode && titularMem.modalityCode !== 'SEM_PLANO' ? titularMem.modalityCode : 'ADULTO'))
+          : person.modalityCode;
+
         const mod =
-          (state.modalities || []).find((m) => m.code === (person.modalityCode || 'PUBLICIDADE')) ||
-          (state.modalities || []).find((m) => m.code === targetSub.members[0]?.modalityCode) ||
+          (state.modalities || []).find((m) => m.code === preferredCode) ||
+          (state.modalities || []).find((m) => m.code === titularMem?.modalityCode && m.code !== 'SEM_PLANO') ||
           (state.modalities && state.modalities.length > 0 ? state.modalities[0] : null);
 
-        const modCode = mod?.code || targetSub.members[0]?.modalityCode || 'PUBLICIDADE';
-        const modName = mod?.name || targetSub.members[0]?.modalityName || targetSub.planSummaryLabel || 'Lessa Club';
-        const frontCard = mod?.dependentFrontCardUrl || mod?.frontCardUrl || targetSub.members[0]?.frontCardUrl || '/cards/44.png';
-        const backCard = mod?.dependentBackCardUrl || mod?.backCardUrl || targetSub.members[0]?.backCardUrl || '/cards/24.png';
+        const modCode = mod?.code || (isTitularFamilyPub ? 'PUBLICIDADE' : titularMem?.modalityCode) || 'ADULTO';
+        const modName =
+          modCode === 'PUBLICIDADE'
+            ? (titularMem?.modalityName && !/^sem plano$/i.test(titularMem.modalityName) ? titularMem.modalityName : 'Lessa Family Publicidade')
+            : (mod?.name && !/^sem plano$/i.test(mod.name) ? mod.name : (titularMem?.modalityName || targetSub.planSummaryLabel || 'Lessa Club'));
+        const frontCard =
+          modCode === 'PUBLICIDADE'
+            ? '/cards/30.png'
+            : (mod?.dependentFrontCardUrl || mod?.frontCardUrl || titularMem?.frontCardUrl || '/cards/44.png');
+        const backCard =
+          modCode === 'PUBLICIDADE'
+            ? '/cards/33.png'
+            : (mod?.dependentBackCardUrl || mod?.backCardUrl || titularMem?.backCardUrl || '/cards/24.png');
+
+        const inheritedStatus: SubscriptionStatus =
+          targetSub.status === 'INACTIVE' || targetSub.status === 'SUSPENDED' || targetSub.status === 'CANCELLED'
+            ? targetSub.status
+            : targetSub.status === 'ACTIVE'
+            ? 'ACTIVE'
+            : 'PENDING_TRANSFER';
 
         const newMember: ClubMember = {
           id: `mem-${cardNum}-${Date.now()}-${i}`,
@@ -3547,8 +3590,13 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
           frontCardUrl: frontCard,
           backCardUrl: backCard,
           validityLabel: getValidityLabelFromDate(targetSub.endDate),
+          expirationDate: targetSub.endDate,
           monthlyValue: 0,
-          status: targetSub.status === 'ACTIVE' || targetSub.monthlyEquivalent === 0 || targetSub.paymentMethod === 'COURTESY' ? 'ACTIVE' : 'PENDING_TRANSFER',
+          status: inheritedStatus,
+          inactivityReason: inheritedStatus !== 'ACTIVE' ? targetSub.inactivityReason : undefined,
+          inactivityReasons: inheritedStatus !== 'ACTIVE' ? targetSub.inactivityReasons : undefined,
+          inactivityNotes: inheritedStatus !== 'ACTIVE' ? targetSub.inactivityNotes : undefined,
+          documentVerified: false,
           manualStatusOverride: true,
           createdAt: new Date().toISOString(),
         };
@@ -3598,9 +3646,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         ...targetSub,
         members: currentMembers,
         updatedAt: new Date().toISOString(),
-        transferCompleted: true,
+        isModifiedFromSeed: true,
         manualStatusOverride: true,
-        transferredAt: targetSub.transferredAt || new Date().toISOString(),
       };
 
       nextSubs = nextSubs.map((s) => (s.id === updatedTargetSub.id ? updatedTargetSub : s));
@@ -3612,6 +3659,10 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       };
 
       await persist(nextState);
+      const permCode = updatedTargetSub.subscriptionCode || updatedTargetSub.holderCpf;
+      if (permCode) {
+        saveMemberPermanentDocs(permCode, updatedTargetSub).catch(() => {});
+      }
       setSelectedSubForDetail(updatedTargetSub);
       setSelectedPersonsMap({});
       setPersonSearchModalOpen(false);
@@ -3667,32 +3718,53 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       const cleanName = (sourceMember?.fullName || sourceSub.holderName).trim();
       const cleanCpf = sourceMember?.cpf ? formatCpf(sourceMember.cpf) : sourceSub.holderCpf ? formatCpf(sourceSub.holderCpf) : '';
 
-      // Identifica o plano e modalidade correta (Kids, PCD/TEA, Vitalício, etc.)
+      // Identifica o plano e modalidade correta (se for "Sem Plano", herda automaticamente do titular!)
       const rawPlan = sourceSub.planSummaryLabel || sourceMember?.modalityName || '';
-      const detectedCode = detectModalityCodeFromPlanDescription(
+      const detectedCodeRaw = detectModalityCodeFromPlanDescription(
         rawPlan,
         sourceMember?.modalityCode,
         state.modalities
       );
+      const titularMemTarget = targetTitularSub.members.find((m) => m.role === 'TITULAR') || targetTitularSub.members[0];
+      const isSourceSemPlano =
+        !detectedCodeRaw ||
+        detectedCodeRaw === 'SEM_PLANO' ||
+        /^sem plano$/i.test(rawPlan.trim()) ||
+        rawPlan.trim() === '-' ||
+        rawPlan.trim() === '- R$ 0,00';
+      const isTitularFamilyPub =
+        targetTitularSub.contractType === 'FAMILY_PUBLICIDADE' ||
+        titularMemTarget?.modalityCode === 'PUBLICIDADE' ||
+        Boolean(targetTitularSub.planSummaryLabel && /publicidade|family/i.test(targetTitularSub.planSummaryLabel));
+
+      const detectedCode = isSourceSemPlano
+        ? (isTitularFamilyPub ? 'PUBLICIDADE' : (titularMemTarget?.modalityCode && titularMemTarget.modalityCode !== 'SEM_PLANO' ? titularMemTarget.modalityCode : 'ADULTO'))
+        : detectedCodeRaw;
 
       const chosenModality =
         (state.modalities || []).find((m) => m.code === detectedCode) ||
-        (state.modalities || []).find((m) => m.code === sourceMember?.modalityCode) ||
-        (state.modalities || []).find((m) => m.code === targetTitularSub.members[0]?.modalityCode);
+        (state.modalities || []).find((m) => m.code === titularMemTarget?.modalityCode && m.code !== 'SEM_PLANO');
 
-      const modCode = chosenModality?.code || detectedCode || 'KIDS';
-      const modName = chosenModality?.name || sourceMember?.modalityName || rawPlan || 'Lessa Kids';
+      const modCode = chosenModality?.code || detectedCode || 'ADULTO';
+      const modName =
+        modCode === 'PUBLICIDADE'
+          ? (titularMemTarget?.modalityName && !/^sem plano$/i.test(titularMemTarget.modalityName) ? titularMemTarget.modalityName : 'Lessa Family Publicidade')
+          : (chosenModality?.name && !/^sem plano$/i.test(chosenModality.name) ? chosenModality.name : (titularMemTarget?.modalityName || 'Lessa Club'));
 
       let frontCard =
-        chosenModality?.dependentFrontCardUrl ||
-        chosenModality?.frontCardUrl ||
-        sourceMember?.frontCardUrl;
+        modCode === 'PUBLICIDADE'
+          ? '/cards/30.png'
+          : (chosenModality?.dependentFrontCardUrl ||
+            chosenModality?.frontCardUrl ||
+            sourceMember?.frontCardUrl);
       let backCard =
-        chosenModality?.dependentBackCardUrl ||
-        chosenModality?.backCardUrl ||
-        sourceMember?.backCardUrl;
+        modCode === 'PUBLICIDADE'
+          ? '/cards/33.png'
+          : (chosenModality?.dependentBackCardUrl ||
+            chosenModality?.backCardUrl ||
+            sourceMember?.backCardUrl);
 
-      if (!frontCard || frontCard === '/cards/44.png') {
+      if (!frontCard || frontCard === '/cards/44.png' || frontCard === '/cards/13.png') {
         if (modCode === 'KIDS') frontCard = '/cards/38.png';
         else if (modCode === 'PCD_TEA') frontCard = '/cards/35.png';
         else if (modCode === 'IDOSO_60') frontCard = '/cards/26.png';
@@ -3705,6 +3777,13 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         else if (modCode === 'PUBLICIDADE') backCard = '/cards/33.png';
         else backCard = '/cards/24.png';
       }
+
+      const inheritedDepStatus: SubscriptionStatus =
+        targetTitularSub.status === 'INACTIVE' || targetTitularSub.status === 'SUSPENDED' || targetTitularSub.status === 'CANCELLED'
+          ? targetTitularSub.status
+          : targetTitularSub.status === 'ACTIVE'
+          ? 'ACTIVE'
+          : 'PENDING_TRANSFER';
 
       const newDependentMember: ClubMember = {
         id: sourceMember?.id || `mem-${cardNum}-${Date.now()}`,
@@ -3727,7 +3806,10 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         validityLabel: sourceMember?.validityLabel || getValidityLabelFromDate(targetTitularSub.endDate),
         expirationDate: sourceMember?.expirationDate || targetTitularSub.endDate,
         monthlyValue: 0,
-        status: targetTitularSub.status === 'ACTIVE' ? 'ACTIVE' : 'PENDING_TRANSFER',
+        status: inheritedDepStatus,
+        inactivityReason: inheritedDepStatus !== 'ACTIVE' ? targetTitularSub.inactivityReason : undefined,
+        inactivityReasons: inheritedDepStatus !== 'ACTIVE' ? targetTitularSub.inactivityReasons : undefined,
+        inactivityNotes: inheritedDepStatus !== 'ACTIVE' ? targetTitularSub.inactivityNotes : undefined,
         cardStatus: sourceMember?.cardStatus || 'NOT_PRODUCED',
         manualStatusOverride: true,
         proofDocuments: sourceMember?.proofDocuments || [],
@@ -3751,9 +3833,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         ...targetTitularSub,
         members: updatedTargetMembers,
         updatedAt: new Date().toISOString(),
-        transferCompleted: true,
+        isModifiedFromSeed: true,
         manualStatusOverride: true,
-        transferredAt: targetTitularSub.transferredAt || new Date().toISOString(),
       };
 
       const nextSubs = (state.subscriptions || [])
@@ -3771,6 +3852,10 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       };
 
       await persist(nextState);
+      const permCode = updatedTargetSub.subscriptionCode || updatedTargetSub.holderCpf;
+      if (permCode) {
+        saveMemberPermanentDocs(permCode, updatedTargetSub).catch(() => {});
+      }
 
       setSelectedSubForDetail(updatedTargetSub);
       setTransferHolderModalOpen(false);
@@ -3884,13 +3969,46 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
   const handleToggleTransferCompleted = async (sub: ClubSubscription, completed: boolean) => {
     if (!state) return;
     const isLab = sub.origin === 'IMPORT_LABCARD' || sub.id.startsWith('sub-labcard-');
-    // Obedece estritamente o status principal definido pelo admin (INACTIVE, CANCELLED ou ACTIVE):
-    // Se o cliente foi inativado ou cancelado pelo admin, concluir a transferência NÃO o reativa compulsoriamente.
+    const isSameSelected = selectedSubForDetail?.id === sub.id;
+
+    // Obedece estritamente o status principal definido pelo admin (INACTIVE, SUSPENDED, CANCELLED ou ACTIVE):
+    // Se o cliente foi configurado como INATIVO pelo admin (no cadastro ou no seletor da tela),
+    // concluir a transferência JAMAIS pode reativá-lo compulsoriamente.
+    const isAdminInactive =
+      sub.status === 'INACTIVE' ||
+      sub.status === 'SUSPENDED' ||
+      sub.status === 'CANCELLED' ||
+      Boolean(sub.inactivityReason) ||
+      (isSameSelected && situacaoInativar === 'SIM' && situacaoLiberar === 'NAO');
+
+    const preservedInactiveStatus: SubscriptionStatus =
+      sub.status === 'SUSPENDED' || sub.status === 'CANCELLED' ? sub.status : 'INACTIVE';
+
     const targetStatus: SubscriptionStatus = completed
-      ? (sub.status === 'PENDING_TRANSFER' ? 'ACTIVE' : sub.status)
+      ? (isAdminInactive
+          ? preservedInactiveStatus
+          : sub.status === 'PENDING_TRANSFER'
+          ? 'ACTIVE'
+          : sub.status)
       : (sub.status === 'ACTIVE' && isLab ? 'PENDING_TRANSFER' : sub.status);
 
-    markCardAsAdminConfirmed(sub.subscriptionCode, completed);
+    // Só registra como cartão ativo confirmado pelo admin se o status resultante for efetivamente ACTIVE
+    markCardAsAdminConfirmed(sub.subscriptionCode, completed && targetStatus === 'ACTIVE');
+
+    const effectiveInactivityReason =
+      targetStatus !== 'ACTIVE'
+        ? (sub.inactivityReason || (isSameSelected ? situacaoMotivoInativo : undefined) || 'FALTA_DOCUMENTOS')
+        : undefined;
+    const effectiveInactivityReasons =
+      targetStatus !== 'ACTIVE'
+        ? (sub.inactivityReasons && sub.inactivityReasons.length > 0
+            ? sub.inactivityReasons
+            : isSameSelected && situacaoMotivosInativo.length > 0
+            ? situacaoMotivosInativo
+            : effectiveInactivityReason
+            ? [effectiveInactivityReason]
+            : undefined)
+        : undefined;
 
     const updatedSub: ClubSubscription = {
       ...sub,
@@ -3900,15 +4018,28 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       manualStatusOverride: true,
       isModifiedFromSeed: true,
       status: targetStatus,
-      members: (sub.members || []).map((m) => ({
-        ...m,
-        status: completed
-          ? (m.status === 'PENDING_TRANSFER' ? targetStatus : m.status)
-          : (m.status === 'ACTIVE' && isLab ? 'PENDING_TRANSFER' : m.status),
-        manualStatusOverride: true,
-        documentVerified: completed ? true : m.documentVerified,
-        documentStatus: completed ? ('APROVADO' as const) : m.documentStatus,
-      })),
+      inactivityReason: effectiveInactivityReason,
+      inactivityReasons: effectiveInactivityReasons,
+      members: (sub.members || []).map((m) => {
+        const hasRealDoc = memberHasProofUploaded(m, sub);
+        const keepDocVerified = hasRealDoc && Boolean(m.documentVerified);
+        return {
+          ...m,
+          status: completed
+            ? (targetStatus === 'INACTIVE' || targetStatus === 'SUSPENDED' || targetStatus === 'CANCELLED'
+                ? targetStatus
+                : m.status === 'PENDING_TRANSFER'
+                ? targetStatus
+                : m.status)
+            : (m.status === 'ACTIVE' && isLab ? 'PENDING_TRANSFER' : m.status),
+          inactivityReason: targetStatus !== 'ACTIVE' ? (m.inactivityReason || effectiveInactivityReason) : undefined,
+          inactivityReasons: targetStatus !== 'ACTIVE' ? (m.inactivityReasons || effectiveInactivityReasons) : undefined,
+          manualStatusOverride: true,
+          // JAMAIS marca documento como aprovado pelo admin se não houver anexo real enviado!
+          documentVerified: keepDocVerified,
+          documentStatus: keepDocVerified ? ('APROVADO' as const) : (hasRealDoc ? m.documentStatus : undefined),
+        };
+      }),
       updatedAt: new Date().toISOString(),
     };
 
@@ -3918,14 +4049,34 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       subscriptions: nextSubs,
     };
 
-    await persist(nextState);
     if (selectedSubForDetail?.id === updatedSub.id) {
       setSelectedSubForDetail(updatedSub);
     }
+
+    await persist(nextState, { waitForCloud: true });
+
+    const permCode = updatedSub.subscriptionCode || updatedSub.holderCpf;
+    if (permCode) {
+      saveMemberPermanentDocs(permCode, updatedSub).catch(() => {});
+    }
+
+    const statusBadgeText =
+      targetStatus === 'ACTIVE'
+        ? 'ATIVO (LIBERADO)'
+        : targetStatus === 'INACTIVE'
+        ? 'INATIVO'
+        : targetStatus === 'SUSPENDED'
+        ? 'SUSPENSO'
+        : targetStatus === 'CANCELLED'
+        ? 'CANCELADO'
+        : targetStatus;
+
     toast({
       title: completed ? 'Transferência Concluída!' : 'Transferência Reaberta',
       description: completed
-        ? `O cadastro de ${updatedSub.holderName} foi regularizado e liberado no portal.`
+        ? targetStatus === 'ACTIVE'
+          ? `O cadastro de ${updatedSub.holderName} foi conferido, regularizado e liberado no portal.`
+          : `Transferência de ${updatedSub.holderName} concluída! O status ${statusBadgeText} configurado pelo administrador foi estritamente mantido.`
         : `O cadastro de ${updatedSub.holderName} retornou ao status de Pendente para Transferência/Conferência.`,
     });
   };
@@ -4487,25 +4638,30 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         inactivityNotes: newStatus === 'ACTIVE' ? undefined : (effectiveNotes || undefined),
         manualStatusOverride: true,
         isModifiedFromSeed: true,
-        manuallyConfirmedTransfer: newStatus === 'ACTIVE' ? true : false,
+        manuallyConfirmedTransfer: newStatus === 'ACTIVE' ? true : Boolean(sub.manuallyConfirmedTransfer),
         endDate: nextEndDate,
         updatedAt: new Date().toISOString(),
-        transferCompleted: newStatus === 'ACTIVE',
-        transferredAt: newStatus === 'ACTIVE' ? (sub.transferredAt || new Date().toISOString()) : undefined,
-        members: sub.members.map((m) => ({
-          ...m,
-          status: newStatus === 'ACTIVE' ? 'ACTIVE' : 'INACTIVE',
-          inactivityReason: newStatus === 'ACTIVE' ? undefined : effectiveReason,
-          inactivityReasons: newStatus === 'ACTIVE' ? undefined : effectiveReasons,
-          inactivityNotes: newStatus === 'ACTIVE' ? undefined : (effectiveNotes || undefined),
-          manualStatusOverride: true,
-          documentVerified: newStatus === 'ACTIVE' ? true : m.documentVerified,
-          documentStatus: newStatus === 'ACTIVE' ? ('APROVADO' as const) : m.documentStatus,
-          expirationDate: m.role === 'TITULAR' ? nextEndDate : (m.expirationDate || nextEndDate),
-          validityLabel: m.role === 'TITULAR'
-            ? getValidityLabelFromDate(nextEndDate, nextValidity)
-            : (m.expirationDate ? getValidityLabelFromDate(m.expirationDate, m.validityLabel) : nextValidity),
-        })),
+        transferCompleted: newStatus === 'ACTIVE' ? true : Boolean(sub.transferCompleted),
+        transferredAt: (newStatus === 'ACTIVE' || sub.transferCompleted) ? (sub.transferredAt || new Date().toISOString()) : undefined,
+        members: sub.members.map((m) => {
+          const hasRealDoc = memberHasProofUploaded(m, sub);
+          const keepDocVerified = hasRealDoc && (newStatus === 'ACTIVE' ? true : Boolean(m.documentVerified));
+          return {
+            ...m,
+            status: newStatus === 'ACTIVE' ? 'ACTIVE' : 'INACTIVE',
+            inactivityReason: newStatus === 'ACTIVE' ? undefined : effectiveReason,
+            inactivityReasons: newStatus === 'ACTIVE' ? undefined : effectiveReasons,
+            inactivityNotes: newStatus === 'ACTIVE' ? undefined : (effectiveNotes || undefined),
+            manualStatusOverride: true,
+            // JAMAIS marca documento como aprovado sem anexo real enviado!
+            documentVerified: keepDocVerified,
+            documentStatus: keepDocVerified ? ('APROVADO' as const) : (hasRealDoc ? m.documentStatus : undefined),
+            expirationDate: m.role === 'TITULAR' ? nextEndDate : (m.expirationDate || nextEndDate),
+            validityLabel: m.role === 'TITULAR'
+              ? getValidityLabelFromDate(nextEndDate, nextValidity)
+              : (m.expirationDate ? getValidityLabelFromDate(m.expirationDate, m.validityLabel) : nextValidity),
+          };
+        }),
       };
       if (newStatus === 'ACTIVE') {
         markCardAsAdminConfirmed(sub.subscriptionCode, true);
@@ -4530,6 +4686,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         ),
       };
       await persist(nextState, { waitForCloud: true });
+
+      const permCode = updatedSub.subscriptionCode || updatedSub.holderCpf;
+      if (permCode) {
+        saveMemberPermanentDocs(permCode, updatedSub).catch(() => {});
+      }
 
       const feedbackMsg =
         prevLabel !== newLabel
@@ -12864,7 +13025,23 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     );
                     const anyUnverified = membersNeedingDocs.some((m) => !m.documentVerified);
 
-                    let statusLabel = 'INATIVO (AGUARDANDO PAGTO)';
+                    const inactReasons = selectedSubForDetail.inactivityReasons || (selectedSubForDetail.inactivityReason ? [selectedSubForDetail.inactivityReason] : []);
+                    const hasDocReason = inactReasons.includes('FALTA_DOCUMENTOS') || selectedSubForDetail.inactivityReason === 'MENSALIDADE_E_DOCUMENTOS';
+                    const hasDebtReason = inactReasons.includes('MENSALIDADE_VENCIDA') || selectedSubForDetail.inactivityReason === 'MENSALIDADE_E_DOCUMENTOS';
+                    const hasReqReason = inactReasons.includes('SOLICITACAO_CLIENTE');
+                    const hasAdmReason = inactReasons.includes('ADMINISTRATIVO');
+
+                    let statusLabel = hasDocReason && hasDebtReason
+                      ? 'INATIVO (DOCS E MENSALIDADE)'
+                      : hasDocReason
+                      ? 'INATIVO (FALTA DE DOCUMENTOS)'
+                      : hasDebtReason
+                      ? 'INATIVO (MENSALIDADE PENDENTE)'
+                      : hasReqReason
+                      ? 'INATIVO (SOLICITAÇÃO DO CLIENTE)'
+                      : hasAdmReason
+                      ? 'INATIVO (BLOQUEIO ADMIN)'
+                      : 'INATIVO';
                     let statusColor = 'bg-rose-600 text-white';
 
                     if (hasDocsRequired && anyUnverified && selectedSubForDetail.status !== 'ACTIVE' && !selectedSubForDetail.manualStatusOverride) {
@@ -12878,6 +13055,12 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     } else if (selectedSubForDetail.status === 'ACTIVE') {
                       statusLabel = 'ATIVO (LIBERADO)';
                       statusColor = 'bg-emerald-600 text-white';
+                    } else if (selectedSubForDetail.status === 'CANCELLED') {
+                      statusLabel = 'CANCELADO';
+                      statusColor = 'bg-slate-700 text-white';
+                    } else if (selectedSubForDetail.status === 'SUSPENDED') {
+                      statusLabel = 'SUSPENSO';
+                      statusColor = 'bg-amber-700 text-white';
                     } else if (
                       !selectedSubForDetail.transferCompleted &&
                       selectedSubForDetail.status === 'PENDING_TRANSFER'
