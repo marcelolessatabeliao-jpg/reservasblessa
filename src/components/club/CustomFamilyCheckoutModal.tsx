@@ -1105,11 +1105,13 @@ export const CustomFamilyCheckoutModal: React.FC<CustomFamilyCheckoutModalProps>
                     <QrCode className="w-7 h-7 text-emerald-700 shrink-0" />
                     <div>
                       <p className="font-black text-sm text-emerald-950">
-                        PIX (Liberação Imediata)
+                        {billingCycle === 'ANNUAL'
+                          ? 'PIX Integral à Vista (1 Ano)'
+                          : 'PIX (Liberação Imediata)'}
                       </p>
                       <p className="text-[11px] text-slate-600">
                         {billingCycle === 'ANNUAL'
-                          ? `1ª de ${formatCurrency(pricingSummary.monthlyTotal)} hoje + carnê PIX`
+                          ? `Pagamento único integral de ${formatCurrency(pricingSummary.annualTotal)} à vista (PIX não parcela em 12x)`
                           : `${formatCurrency(pricingSummary.monthlyTotal)}/mês via PIX`}
                       </p>
                     </div>
@@ -1126,11 +1128,13 @@ export const CustomFamilyCheckoutModal: React.FC<CustomFamilyCheckoutModalProps>
                     <CreditCard className="w-7 h-7 text-amber-600 shrink-0" />
                     <div>
                       <p className="font-black text-sm text-emerald-950">
-                        Cartão de Crédito / Recorrência
+                        {billingCycle === 'ANNUAL'
+                          ? 'Cartão de Crédito (Integral em até 12x)'
+                          : 'Cartão de Crédito / Recorrência'}
                       </p>
                       <p className="text-[11px] text-slate-600">
                         {billingCycle === 'ANNUAL'
-                          ? `Até 12x de ${formatCurrency(pricingSummary.monthlyTotal)} no cartão`
+                          ? `Valor integral (${formatCurrency(pricingSummary.annualTotal)}) em até 12x de ${formatCurrency(pricingSummary.monthlyTotal)} exclusivo no cartão`
                           : `Recorrência mensal de ${formatCurrency(pricingSummary.monthlyTotal)}`}
                       </p>
                     </div>
@@ -1293,7 +1297,11 @@ export const CustomFamilyCheckoutModal: React.FC<CustomFamilyCheckoutModalProps>
                   className="w-full bg-amber-400 hover:bg-amber-300 text-emerald-950 font-black h-12 rounded-2xl shadow-md"
                 >
                   <a href={asaasPayment.invoiceUrl} target="_blank" rel="noopener noreferrer">
-                    Abrir Fatura Segura Asaas (Cartão / PIX / Boleto)
+                    {createdSubscription.billingCycle === 'ANNUAL' && paymentMethod === 'CREDIT_CARD'
+                      ? `Abrir Fatura Segura Asaas (Exclusivo Cartão de Crédito — até 12x)`
+                      : createdSubscription.billingCycle === 'ANNUAL' && paymentMethod === 'PIX'
+                      ? `Abrir Fatura Segura Asaas (PIX Integral — ${formatCurrency(createdSubscription.totalContractValue)})`
+                      : 'Abrir Fatura Segura Asaas (Cartão / PIX)'}
                     <ExternalLink className="w-4 h-4 ml-2" />
                   </a>
                 </Button>

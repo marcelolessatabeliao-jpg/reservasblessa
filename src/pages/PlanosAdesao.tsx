@@ -1300,7 +1300,8 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
           cardExpiry,
           cardCvv,
           cardHolderCpf,
-          installments,
+          installments: paymentMethod === 'DEBIT_CARD' ? 1 : installments,
+          cardType: paymentMethod === 'DEBIT_CARD' ? 'DEBIT_CARD' : 'CREDIT_CARD',
         }
       );
 
@@ -4105,14 +4106,29 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                         </button>
                       <button
                         type="button"
-                        onClick={() => setPaymentMethod('PIX')}
+                        onClick={async () => {
+                          setPaymentMethod('PIX');
+                          if (createdSub && createdInvoice && !pixCharge?.pixQrCode) {
+                            try {
+                              const freshPix = await generateAsaasChargeForClubInvoice(
+                                createdSub,
+                                createdInvoice,
+                                'PIX',
+                                { forceNew: true }
+                              );
+                              setPixCharge(freshPix);
+                            } catch (e) {
+                              console.warn('[PlanosAdesao] Erro ao gerar PIX integral no Passo 4:', e);
+                            }
+                          }
+                        }}
                         className={`px-3.5 py-2 rounded-lg text-xs font-black transition-all flex items-center gap-1.5 ${
                           paymentMethod === 'PIX'
                             ? 'bg-emerald-700 text-white shadow'
                             : 'text-slate-600 hover:text-slate-900'
                         }`}
                       >
-                        <QrCode className="w-3.5 h-3.5" /> PIX
+                        <QrCode className="w-3.5 h-3.5" /> {createdSub.billingCycle === 'ANNUAL' ? 'PIX Integral' : 'PIX'}
                       </button>
                     </div>
                   </div>
@@ -4141,12 +4157,14 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                         </Badge>
                       </div>
 
-                      {/* Seletor de Parcelas (Em quantas vezes deseja parcelar + Valor das parcelas) */}
+                      {/* Seletor de Parcelas (Exclusivo Cartão de Crédito; no Débito Anual é sempre 1x integral à vista) */}
                       <div className="bg-emerald-50/80 border border-emerald-200 rounded-xl p-4 space-y-2">
                         <Label className="text-xs font-black uppercase text-emerald-950 block">
-                          Em quantas vezes deseja parcelar?
+                          {createdSub.billingCycle === 'ANNUAL' && paymentMethod === 'DEBIT_CARD'
+                            ? 'Pagamento Integral à Vista no Cartão de Débito'
+                            : 'Em quantas vezes deseja parcelar?'}
                         </Label>
-                        {createdSub.billingCycle === 'ANNUAL' ? (
+                        {createdSub.billingCycle === 'ANNUAL' && paymentMethod === 'CREDIT_CARD' ? (
                           <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
                             <div className="sm:col-span-7">
                               <select
@@ -4169,7 +4187,7 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                             </div>
                             <div className="sm:col-span-5 text-right">
                               <span className="text-[11px] uppercase font-bold text-emerald-800 block">
-                                Valor de cada parcela:
+                                Valor de cada parcela (Cartão de Crédito):
                               </span>
                               <span className="text-xl font-black text-emerald-950">
                                 {installments}x de{' '}
@@ -4180,6 +4198,15 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                                 )}
                               </span>
                             </div>
+                          </div>
+                        ) : createdSub.billingCycle === 'ANNUAL' && paymentMethod === 'DEBIT_CARD' ? (
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-bold text-slate-800">
+                              Pagamento único integral (1 ano completo) à vista no Cartão de Débito
+                            </span>
+                            <span className="text-lg font-black text-emerald-900">
+                              1x de {formatCurrency(createdSub.totalContractValue)}
+                            </span>
                           </div>
                         ) : (
                           <div className="flex items-center justify-between">
@@ -4315,7 +4342,11 @@ export const PlanosAdesaoSection: React.FC<{ embedded?: boolean }> = ({
                               className="text-xs font-bold text-emerald-700 hover:text-emerald-900 underline inline-flex items-center gap-1.5"
                             >
                               <ExternalLink className="w-3.5 h-3.5" />
-                              Ou pagar diretamente na fatura oficial Asaas (com Débito Bancário / 3DS)
+                              {createdSub.billingCycle === 'ANNUAL' && paymentMethod === 'CREDIT_CARD'
+                                ? `Ou pagar na fatura oficial Asaas (Exclusivo Cartão de Crédito — ${installments}x de ${formatCurrency(Number((createdSub.totalContractValue / installments).toFixed(2)))})`
+                                : createdSub.billingCycle === 'ANNUAL' && paymentMethod === 'DEBIT_CARD'
+                                ? `Ou pagar valor integral à vista na fatura oficial Asaas (${formatCurrency(createdSub.totalContractValue)})`
+                                : 'Ou pagar diretamente na fatura oficial Asaas'}
                             </a>
                           </div>
                         )}

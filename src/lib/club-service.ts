@@ -3361,31 +3361,37 @@ export const createClubSubscription = async (
   const invoices: ClubInvoice[] = [];
   const isFree = monthlyEquivalent === 0 || input.paymentMethod === 'COURTESY';
 
-  // Regra:
-  // - Plano Anual + PIX: 1 cobrança integral à vista (valor total de 1 ano)
-  // - Plano Anual + Cartão de Crédito: valor integral dividido em 1x até 12x no cartão de crédito
+  // Regra RÍGIDA do Plano Anual vs Plano Mensal:
+  // - Plano Anual + PIX: 1 cobrança INTEGRAL à vista (valor total de 1 ano — JAMAIS parcelado em 12x no PIX)
+  // - Plano Anual + Cartão de Débito: 1 cobrança INTEGRAL à vista (valor total de 1 ano)
+  // - Plano Anual + Cartão de Crédito: 1 cobrança contratual INTEGRAL (valor total de 1 ano) dividida em 1x até 12x EXCLUSIVAMENTE no Cartão de Crédito (garantia total no limite do cartão)
   // - Plano Mensal (PIX, Cartão de Crédito ou Cartão de Débito): 12 cobranças mensais recorrentes
   const isAnnualUpfrontFull =
     !isFree &&
     input.billingCycle === 'ANNUAL' &&
     (input.paymentMethod === 'PIX' || input.paymentMethod === 'DEBIT_CARD');
 
-  const chosenAnnualInstallments = Math.max(
-    1,
-    Math.min(12, input.installments || 12)
-  );
+  const isAnnualCreditCardIntegral =
+    !isFree &&
+    input.billingCycle === 'ANNUAL' &&
+    !isAnnualUpfrontFull;
 
+  const chosenAnnualInstallments = isAnnualUpfrontFull
+    ? 1
+    : Math.max(1, Math.min(12, input.installments || 12));
+
+  // No Plano Anual (PIX, Débito ou Cartão de Crédito), gera SEMPRE 1 fatura contratual INTEGRAL
+  // (para Cartão de Crédito, o parcelamento de 1x..12x é enviado direto ao Asaas com billingType='CREDIT_CARD' e totalValue integral!)
+  // Isso torna matematicamente impossível alguém pagar apenas 1/12 via PIX com desconto anual.
   const installmentsCount = isFree
     ? 1
-    : isAnnualUpfrontFull
-    ? 1
     : input.billingCycle === 'ANNUAL'
-    ? chosenAnnualInstallments
+    ? 1
     : 12;
 
   const annualCreditInstallmentValue =
-    input.billingCycle === 'ANNUAL' && installmentsCount > 0
-      ? Number((totalContractValue / installmentsCount).toFixed(2))
+    isAnnualCreditCardIntegral && chosenAnnualInstallments > 0
+      ? Number((totalContractValue / chosenAnnualInstallments).toFixed(2))
       : Number(monthlyEquivalent.toFixed(2));
 
   // Tabela de valores vigentes a partir de 01/01/2027 para planos mensais recorrentes:
@@ -3429,10 +3435,8 @@ export const createClubSubscription = async (
 
     const invoiceAmount = isFree
       ? 0
-      : isAnnualUpfrontFull
-      ? Number(totalContractValue.toFixed(2))
       : input.billingCycle === 'ANNUAL'
-      ? annualCreditInstallmentValue
+      ? Number(totalContractValue.toFixed(2))
       : isYear2027OrLater
       ? Number(monthlyEquivalent2027.toFixed(2))
       : Number(monthlyEquivalent.toFixed(2));
@@ -3441,8 +3445,8 @@ export const createClubSubscription = async (
       ? `Isenção / Gratuidade - ${planSummaryLabel}`
       : isAnnualUpfrontFull
       ? `Pagamento Anual Integral à Vista (${input.paymentMethod === 'DEBIT_CARD' ? 'Cartão de Débito' : 'PIX'}) - ${planSummaryLabel}`
-      : input.billingCycle === 'ANNUAL'
-      ? `Parcela ${i}/${installmentsCount} (Plano Anual no Cartão de Crédito) - ${planSummaryLabel}`
+      : isAnnualCreditCardIntegral
+      ? `Plano Anual Integral (${chosenAnnualInstallments}x de R$ ${annualCreditInstallmentValue.toFixed(2).replace('.', ',')} no Cartão de Crédito) - ${planSummaryLabel}`
       : isYear2027OrLater
       ? `Mensalidade Recorrente ${i}/12 (Tabela 2027) - ${planSummaryLabel}`
       : `Mensalidade Recorrente ${i}/12 - ${planSummaryLabel}`;
@@ -3455,7 +3459,7 @@ export const createClubSubscription = async (
       holderCpf: formatCpf(input.holderCpf),
       holderPhone: formatPhone(input.holderPhone),
       installmentNumber: i,
-      totalInstallments: installmentsCount,
+      totalInstallments: isAnnualCreditCardIntegral ? chosenAnnualInstallments : installmentsCount,
       referenceMonth: refMonth,
       amount: invoiceAmount,
       dueDate: dueStr,
@@ -3560,7 +3564,7 @@ export const createClubSubscription = async (
     addressState: input.addressState || 'RO',
     billingCycle: input.billingCycle,
     paymentMethod: input.paymentMethod,
-    installments: invoices.length,
+    installments: isAnnualCreditCardIntegral ? chosenAnnualInstallments : invoices.length,
     monthlyEquivalent: Number(monthlyEquivalent.toFixed(2)),
     totalContractValue: Number(totalContractValue.toFixed(2)),
     dueDay: input.dueDay || now.getDate(),
@@ -3631,20 +3635,23 @@ const memberCardNumberFormat = (num: string): string => num;
 export const generateAsaasChargeForClubInvoice = async (
   subscription: ClubSubscription,
   invoice: ClubInvoice,
-  billingType: 'PIX' | 'CREDIT_CARD' | 'DEBIT_CARD' | 'BOLETO' = 'PIX'
+  billingType: 'PIX' | 'CREDIT_CARD' | 'DEBIT_CARD' | 'BOLETO' = 'PIX',
+  options?: { forceNew?: boolean }
 ): Promise<{
   paymentId: string;
   invoiceUrl: string;
   pixPayload?: string;
   pixQrCode?: string;
 }> => {
-  // SE A FATURA JÁ POSSUI COBRANÇA NO ASAAS (paymentId ou invoiceUrl), NUNCA CRIA UMA NOVA!
-  // Reutiliza a cobrança original do Asaas e busca seu QR Code / link oficial
+  // SE A FATURA JÁ POSSUI COBRANÇA NO ASAAS (paymentId ou invoiceUrl) E NÃO ESTÁ TROCANDO DE MÉTODO,
+  // reutiliza a cobrança original do Asaas e busca seu QR Code / link oficial
   const existingPaymentId =
-    invoice.asaasPaymentId ||
-    (invoice.invoiceUrl ? `pay_${invoice.invoiceUrl.match(/\/i\/([a-zA-Z0-9]+)/)?.[1]}` : undefined);
+    !options?.forceNew
+      ? invoice.asaasPaymentId ||
+        (invoice.invoiceUrl ? `pay_${invoice.invoiceUrl.match(/\/i\/([a-zA-Z0-9]+)/)?.[1]}` : undefined)
+      : undefined;
 
-  if (existingPaymentId || invoice.invoiceUrl) {
+  if (!options?.forceNew && (existingPaymentId || invoice.invoiceUrl)) {
     try {
       const { data, error } = await supabase.functions.invoke('create-payment', {
         body: {
@@ -3698,10 +3705,39 @@ export const generateAsaasChargeForClubInvoice = async (
     }
   }
 
-  const asaasBillingType =
-    billingType === 'CREDIT_CARD' || billingType === 'DEBIT_CARD'
-      ? 'UNDEFINED'
-      : billingType;
+  // REGRA RÍGIDA PLANO ANUAL:
+  // - Anual + Cartão de Crédito: billingType ESTRITAMENTE 'CREDIT_CARD' (NUNCA 'UNDEFINED'!),
+  //   cobrando o VALOR INTEGRAL ANUAL (totalContractValue) dividido em 1x..12x no limite do cartão.
+  //   Assim o Asaas BLOQUEIA PIX/Boleto nessa fatura e garante o recebimento integral.
+  // - Anual + PIX: cobrança ÚNICA INTEGRAL à vista (totalContractValue) — NUNCA 1/12 via PIX!
+  // - Anual + Débito: cobrança ÚNICA INTEGRAL à vista (totalContractValue) — NUNCA parcelado!
+  const isStrictAnnualContract =
+    subscription.billingCycle === 'ANNUAL' &&
+    subscription.origin !== 'IMPORT_LABCARD' &&
+    !String(subscription.id || '').startsWith('sub-labcard-');
+
+  const annualFullAmount = Number(
+    (subscription.totalContractValue && subscription.totalContractValue > 0
+      ? subscription.totalContractValue
+      : invoice.amount
+    ).toFixed(2)
+  );
+
+  const chargeValue = isStrictAnnualContract ? annualFullAmount : Number(invoice.amount.toFixed(2));
+  const annualCreditInstallments =
+    isStrictAnnualContract && billingType === 'CREDIT_CARD'
+      ? Math.max(1, Math.min(12, subscription.installments || invoice.totalInstallments || 12))
+      : 1;
+
+  const asaasBillingType = isStrictAnnualContract
+    ? billingType === 'CREDIT_CARD'
+      ? 'CREDIT_CARD'
+      : billingType === 'PIX'
+      ? 'PIX'
+      : 'UNDEFINED'
+    : billingType === 'CREDIT_CARD' || billingType === 'DEBIT_CARD'
+    ? 'UNDEFINED'
+    : billingType;
 
   const loginUser = subscription.holderEmail || subscription.holderCpf;
   const loginPass = getBirthDatePassword(subscription.holderBirthDate);
@@ -3711,24 +3747,40 @@ export const generateAsaasChargeForClubInvoice = async (
       : 'https://balneariolessa.com.br/socio';
 
   const asaasDescription = [
-    `Lessa Club (${subscription.subscriptionCode}) - ${invoice.description || subscription.planSummaryLabel}`,
+    `Lessa Club (${subscription.subscriptionCode}) - ${
+      isStrictAnnualContract && billingType === 'PIX'
+        ? `Pagamento Anual Integral a Vista (PIX) - ${subscription.planSummaryLabel}`
+        : isStrictAnnualContract && billingType === 'CREDIT_CARD'
+        ? `Plano Anual Integral (${annualCreditInstallments}x no Cartao de Credito) - ${subscription.planSummaryLabel}`
+        : isStrictAnnualContract && billingType === 'DEBIT_CARD'
+        ? `Pagamento Anual Integral a Vista (Debito) - ${subscription.planSummaryLabel}`
+        : invoice.description || subscription.planSummaryLabel
+    }`,
     `Portal do Socio: ${portalUrl}`,
     `Usuario: ${loginUser}`,
     `Senha: ${loginPass}`,
   ].join('\n');
 
+  const paymentRequestBody: Record<string, any> = {
+    orderId: options?.forceNew ? `${invoice.id}_${billingType.toLowerCase()}` : invoice.id,
+    name: subscription.holderName,
+    email: subscription.holderEmail || 'socio@balneariolessa.com.br',
+    phone: cleanDigits(subscription.holderPhone),
+    cpf: cleanDigits(subscription.holderCpf),
+    billingType: asaasBillingType,
+    value: chargeValue,
+    dueDate: invoice.dueDate,
+    description: asaasDescription,
+  };
+
+  if (isStrictAnnualContract && billingType === 'CREDIT_CARD' && annualCreditInstallments > 1) {
+    paymentRequestBody.installmentCount = annualCreditInstallments;
+    paymentRequestBody.totalValue = chargeValue;
+    paymentRequestBody.installmentValue = Number((chargeValue / annualCreditInstallments).toFixed(2));
+  }
+
   const { data, error } = await supabase.functions.invoke('create-payment', {
-    body: {
-      orderId: invoice.id,
-      name: subscription.holderName,
-      email: subscription.holderEmail || 'socio@balneariolessa.com.br',
-      phone: cleanDigits(subscription.holderPhone),
-      cpf: cleanDigits(subscription.holderCpf),
-      billingType: asaasBillingType,
-      value: invoice.amount,
-      dueDate: invoice.dueDate,
-      description: asaasDescription,
-    },
+    body: paymentRequestBody,
   });
 
   if (error || !data?.success) {
@@ -4123,6 +4175,7 @@ export const processClubCreditCardPayment = async (
     cardCvv: string;
     cardHolderCpf: string;
     installments: number;
+    cardType?: 'CREDIT_CARD' | 'DEBIT_CARD';
   }
 ): Promise<{
   success: boolean;
@@ -4140,7 +4193,11 @@ export const processClubCreditCardPayment = async (
   const expiryYear = rawYear.length === 2 ? `20${rawYear}` : rawYear;
 
   const isAnnual = subscription.billingCycle === 'ANNUAL';
-  const chosenInstallments = isAnnual ? Math.max(1, Math.min(12, cardData.installments || 12)) : 1;
+  // Débito no Plano Anual é SEMPRE 1x integral à vista; parcelamento 1x..12x é exclusivo do Cartão de Crédito
+  const chosenInstallments =
+    isAnnual && cardData.cardType !== 'DEBIT_CARD'
+      ? Math.max(1, Math.min(12, cardData.installments || 12))
+      : 1;
   const totalValue = isAnnual ? subscription.totalContractValue : invoice.amount;
   const installmentValue = isAnnual
     ? Number((totalValue / chosenInstallments).toFixed(2))
@@ -4210,38 +4267,47 @@ export const processClubCreditCardPayment = async (
     paymentData.status === 'CONFIRMED' ||
     paymentData.status === 'RECEIVED';
 
-  // Salva os dados na fatura e na assinatura
+  // Salva os dados na fatura e na assinatura (atômico em club_records + nuvem imediata)
   const state = await fetchClubState();
-  const subIdx = state.subscriptions.findIndex((s) => s.id === subscription.id);
-  if (subIdx >= 0) {
-    let targetSub = state.subscriptions[subIdx];
-    targetSub.asaasPaymentId = paymentData.paymentId;
-    targetSub.asaasInvoiceUrl = paymentData.invoiceUrl;
-    targetSub.installments = chosenInstallments;
-    const invIdx = targetSub.invoices.findIndex((inv) => inv.id === invoice.id);
-    if (invIdx >= 0) {
-      targetSub.invoices[invIdx].asaasPaymentId = paymentData.paymentId;
-      targetSub.invoices[invIdx].invoiceUrl = paymentData.invoiceUrl;
-      targetSub.invoices[invIdx].paymentMethod = 'CREDIT_CARD';
-      if (isPaid) {
-        targetSub.invoices[invIdx].status = 'PAID';
-        targetSub.invoices[invIdx].paidAt = new Date().toISOString();
-      }
-    }
-    if (isPaid) {
-      targetSub.members.forEach((m) => {
-        m.status = isMemberBlockedForMissingDoc(m, targetSub) ? 'INACTIVE' : 'ACTIVE';
-      });
-      targetSub.status = targetSub.members.every((m) => m.status === 'INACTIVE')
-        ? 'INACTIVE'
-        : 'ACTIVE';
-      targetSub.contractContentHtml = renderSubscriptionContractHtml(
-        targetSub,
-        state.contractTemplates
-      );
-    }
-    await saveClubState(state);
+  let subIdx = state.subscriptions.findIndex((s) => s.id === subscription.id);
+  if (subIdx < 0) {
+    state.subscriptions = [{ ...subscription, isModifiedFromSeed: true }, ...state.subscriptions];
+    subIdx = 0;
   }
+  const targetSub = state.subscriptions[subIdx];
+  targetSub.asaasPaymentId = paymentData.paymentId;
+  targetSub.asaasInvoiceUrl = paymentData.invoiceUrl;
+  targetSub.installments = chosenInstallments;
+  targetSub.isModifiedFromSeed = true;
+  targetSub.updatedAt = new Date().toISOString();
+  const invIdx = targetSub.invoices.findIndex((inv) => inv.id === invoice.id);
+  if (invIdx >= 0) {
+    targetSub.invoices[invIdx].asaasPaymentId = paymentData.paymentId;
+    targetSub.invoices[invIdx].invoiceUrl = paymentData.invoiceUrl;
+    targetSub.invoices[invIdx].paymentMethod = cardData.cardType === 'DEBIT_CARD' ? 'DEBIT_CARD' : 'CREDIT_CARD';
+    if (isPaid) {
+      targetSub.invoices[invIdx].status = 'PAID';
+      targetSub.invoices[invIdx].paidAt = new Date().toISOString();
+    }
+  }
+  if (isPaid) {
+    targetSub.members.forEach((m) => {
+      m.status = isMemberBlockedForMissingDoc(m, targetSub) ? 'INACTIVE' : 'ACTIVE';
+    });
+    targetSub.status = targetSub.members.every((m) => m.status === 'INACTIVE')
+      ? 'INACTIVE'
+      : 'ACTIVE';
+    if (targetSub.status === 'ACTIVE') {
+      targetSub.transferCompleted = true;
+      targetSub.manuallyConfirmedTransfer = true;
+    }
+    targetSub.contractContentHtml = renderSubscriptionContractHtml(
+      targetSub,
+      state.contractTemplates
+    );
+  }
+  await saveMemberPermanentDocs(targetSub.subscriptionCode, targetSub, 'CREDIT_CARD_PAYMENT');
+  await saveClubState(state, { waitForCloud: true });
 
   return {
     success: true,
