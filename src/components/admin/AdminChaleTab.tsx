@@ -1724,7 +1724,9 @@ export function AdminChaleTab({
         scale: 3,
         useCORS: true,
         allowTaint: true,
-        logging: false
+        logging: false,
+        scrollX: 0,
+        scrollY: 0,
       });
       const dataUrl = canvas.toDataURL('image/png');
       setVoucherImageGenerated(dataUrl);
@@ -3850,7 +3852,7 @@ export function AdminChaleTab({
 
       {/* MODAL: GERADOR DE IMAGEM DO VOUCHER COM HTML2CANVAS (COMO DAY USE) */}
       <Dialog open={isVoucherModalOpen} onOpenChange={setIsVoucherModalOpen}>
-        <DialogContent className="max-w-md bg-white rounded-3xl p-6 border-none shadow-2xl flex flex-col max-h-[95vh] overflow-y-auto">
+        <DialogContent className="max-w-[460px] w-full bg-white rounded-3xl p-4 sm:p-6 border-none shadow-2xl flex flex-col max-h-[95vh] overflow-y-auto">
           <DialogHeader className="space-y-1 pb-3 border-b border-slate-100">
             <div className="flex items-center justify-between gap-2">
               <DialogTitle className="text-lg font-black text-emerald-950 flex items-center gap-2">
@@ -3881,12 +3883,16 @@ export function AdminChaleTab({
                   border: '4px solid #f59e0b',
                   borderRadius: '2rem',
                   padding: '1.5rem',
-                  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+                  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+                  width: '100%',
+                  maxWidth: '420px',
+                  margin: '0 auto',
+                  boxSizing: 'border-box'
                 }}
                 className="space-y-4 relative overflow-hidden text-white"
               >
                 {/* Cabeçalho */}
-                <div style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.2)', paddingBottom: '0.75rem' }} className="text-center space-y-1.5">
+                <div style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.2)', paddingBottom: '0.75rem', textAlign: 'center' }} className="space-y-1.5">
                   <span style={{ color: '#f59e0b' }} className="text-[10px] font-black uppercase tracking-widest block">
                     🌿 Balneário Lessa • Hospedagem
                   </span>
@@ -3895,21 +3901,23 @@ export function AdminChaleTab({
                   </h3>
                   <div
                     style={{
+                      display: 'inline-block',
                       backgroundColor: '#f59e0b',
                       color: '#02170c',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: '4px 16px',
+                      textAlign: 'center',
+                      padding: '5px 18px 6px 18px',
                       borderRadius: '9999px',
                       fontSize: '11px',
                       fontWeight: 900,
-                      lineHeight: '1.2',
+                      lineHeight: 1,
                       letterSpacing: '0.05em',
-                      textTransform: 'uppercase'
+                      textTransform: 'uppercase',
+                      boxSizing: 'border-box'
                     }}
                   >
-                    Chalé {String(voucherRes.chaleId).padStart(2, '0')}
+                    <span style={{ display: 'inline-block', lineHeight: 1, verticalAlign: 'middle' }}>
+                      Chalé {String(voucherRes.chaleId).padStart(2, '0')}
+                    </span>
                   </div>
                 </div>
 
@@ -4057,19 +4065,21 @@ export function AdminChaleTab({
                   <div className="space-y-1">
                     <span style={{ color: '#a7f3d0' }} className="text-[10px] uppercase font-bold block">Status Pagamento:</span>
                     <div style={{
+                      display: 'inline-block',
                       backgroundColor: voucherRes.status === 'paid' ? '#10b981' : '#f59e0b',
                       color: '#02170c',
-                      padding: '4px 10px',
+                      textAlign: 'center',
+                      padding: '5px 12px 6px 12px',
                       borderRadius: '8px',
                       fontSize: '11px',
                       fontWeight: 900,
-                      lineHeight: '1.2',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      letterSpacing: '0.02em'
+                      lineHeight: 1,
+                      letterSpacing: '0.02em',
+                      boxSizing: 'border-box'
                     }}>
-                      {voucherRes.status === 'paid' ? 'PAGO OK ✓' : 'A PAGAR'}
+                      <span style={{ display: 'inline-block', lineHeight: 1, verticalAlign: 'middle' }}>
+                        {voucherRes.status === 'paid' ? 'PAGO OK ✓' : 'A PAGAR'}
+                      </span>
                     </div>
                     <span style={{ color: '#ffffff', lineHeight: '1.3' }} className="text-[12px] font-black block pt-1">
                       Total: {formatCurrency(voucherRes.totalPrice)}
