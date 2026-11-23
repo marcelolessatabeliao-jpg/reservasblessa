@@ -2424,6 +2424,7 @@ export const getLastClubFetchError = (): string | null => lastClubFetchErrorMess
 
 export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<ClubDatabaseState> => {
   const local = memoryClubState || loadClubStateLocal();
+  const adminConfirmedCards = getAdminConfirmedCardsSet();
   try {
     const idbState = await loadStateFromIndexedDB();
     if (idbState && idbState.subscriptions && idbState.subscriptions.length > 0) {
@@ -2632,13 +2633,16 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
       const remoteSubs = remote.subscriptions || [];
       const localSubs = local.subscriptions || [];
       const localStateTs = local.updatedAt ? new Date(local.updatedAt).getTime() : 0;
-      const remoteStateTs = remote.updatedAt ? new Date(remote.updatedAt).getTime() : 0;
+      const remoteJsonTs = remote.updatedAt ? new Date(remote.updatedAt).getTime() : 0;
+      const remoteColTs = (data as any).updated_at ? new Date((data as any).updated_at).getTime() : 0;
+      const remoteStateTs = Math.max(remoteJsonTs, remoteColTs);
       const remoteIsNewerOrEqual = remoteStateTs >= localStateTs;
       const remoteDeletedSet = new Set(remote.deletedSubscriptionIds || []);
       const activeRemoteIds = new Set(remoteSubs.map((s) => s.id));
 
-      // Respeita restaurações feitas na nuvem/lixeira: se o servidor é mais recente e o cadastro
-      // não está em remote.deletedSubscriptionIds (ou voltou a constar ativo), remove-o do deletedSet local!
+      // Respeita SEMPRE restaurações e cadastros ativos na nuvem:
+      // Se o servidor possui o cadastro ativo em `remoteSubs` e NÃO o marca em `remote.deletedSubscriptionIds`,
+      // um `local.deletedSubscriptionIds` antigo do navegador NUNCA pode re-escondê-lo!
       const effectiveDeletedIds = remoteIsNewerOrEqual
         ? Array.from(remoteDeletedSet)
         : Array.from(
@@ -2646,7 +2650,7 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
               ...(local.deletedSubscriptionIds || []),
               ...(remote.deletedSubscriptionIds || []).filter((id) => !localSubs.some((ls) => ls.id === id)),
             ])
-          ).filter((id) => !(activeRemoteIds.has(id) && !remoteDeletedSet.has(id) && remoteStateTs > localStateTs));
+          ).filter((id) => !(activeRemoteIds.has(id) && !remoteDeletedSet.has(id)));
       const deletedSet = new Set(effectiveDeletedIds);
       const defaultLabcardSubs = getLabcardSubscriptions();
 
@@ -3072,7 +3076,9 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
         if (permanentDocsMap.size > 0) {
           permanentDocsMap.forEach((permRec, code) => {
             const recId = permRec.id || `sub-labcard-${code}`;
-            if (deletedSet.has(recId)) return;
+            if (remoteDeletedSet.has(recId) || remoteDeletedSet.has(`sub-labcard-${code}`)) return;
+            deletedSet.delete(recId);
+            deletedSet.delete(`sub-labcard-${code}`);
             const sub =
               subsMap.get(recId) ||
               subsMap.get(`sub-labcard-${code}`) ||
@@ -3096,14 +3102,16 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
       }
 
       const localTime = local.updatedAt ? new Date(local.updatedAt).getTime() : 0;
-      const remoteTime = remote.updatedAt ? new Date(remote.updatedAt).getTime() : 0;
+      const remoteTime = remoteStateTs;
       const isLocalNewer = localTime > remoteTime;
+      const finalDeletedIds = Array.from(deletedSet);
 
       const mergedState: Partial<ClubDatabaseState> = {
         ...(isLocalNewer ? remote : {}),
         ...(isLocalNewer ? local : remote),
+        updatedAt: new Date(Math.max(localTime, remoteTime, Date.now())).toISOString(),
         subscriptions: Array.from(subsMap.values()),
-        deletedSubscriptionIds: effectiveDeletedIds,
+        deletedSubscriptionIds: finalDeletedIds,
         lastCardSequence: Math.max(remote.lastCardSequence || 3015, local.lastCardSequence || 3015, 3015),
         modalities: (isLocalNewer ? local.modalities : remote.modalities) || remote.modalities || local.modalities,
         contractTemplates: (isLocalNewer ? local.contractTemplates : remote.contractTemplates) || remote.contractTemplates || local.contractTemplates,
