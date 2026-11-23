@@ -88,6 +88,15 @@ function mapModality(planStr: string) {
 
 export function doesPlanAllowDependents(planStr?: string): boolean {
   const p = (planStr || '').toLowerCase();
+  // Planos compostos / Família Personalizado (ex: "Família Personalizado (Anual): 2x Lessa Club + 2x Lessa Kids") SEMPRE admitem dependentes
+  if (
+    p.includes('família personalizado') ||
+    p.includes('familia personalizado') ||
+    /\d+\s*x\s+/i.test(p) ||
+    /\+\s*\d*x?\s*(lessa|kids|club|student|servidor|professor|vital|inclus)/i.test(p)
+  ) {
+    return true;
+  }
   // Planos individuais NÃO admitem dependentes:
   if (
     p.includes('student') ||
@@ -110,6 +119,7 @@ export function doesPlanAllowDependents(planStr?: string): boolean {
   if (
     p.includes('family') ||
     p.includes('familia') ||
+    p.includes('família') ||
     p.includes('corporate') ||
     p.includes('publicidade') ||
     p.includes('lessa club') ||

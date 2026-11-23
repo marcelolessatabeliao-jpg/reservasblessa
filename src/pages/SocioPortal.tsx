@@ -82,6 +82,12 @@ import {
   getSelectablePlansForConsultants,
   getConsultantSubscriptionMetrics,
   syncSubscriptionInvoicesWithAsaas,
+  getContractedDependentSlots,
+  saveSocioDependentSlot,
+  isClubInvoiceReservation,
+  formatCpf,
+  formatBirthDate,
+  type ContractedDependentSlot,
 } from '@/lib/club-service';
 import { ClubMemberCardView } from '@/components/club/ClubMemberCardView';
 
@@ -146,26 +152,164 @@ const SocioPortal: React.FC = () => {
 
   const sortedInvoices = useMemo(() => {
     if (!subscription?.invoices) return [];
-    return [...subscription.invoices].sort(
-      (a, b) => a.installmentNumber - b.installmentNumber
-    );
+    return [...subscription.invoices].sort((a, b) => {
+      const aRes = isClubInvoiceReservation(a) ? 1 : 0;
+      const bRes = isClubInvoiceReservation(b) ? 1 : 0;
+      if (aRes !== bRes) return aRes - bRes;
+      return a.installmentNumber - b.installmentNumber;
+    });
   }, [subscription]);
 
-  const nextPayableInvoice = useMemo(() => {
-    return sortedInvoices.find((i) => i.status !== 'PAID');
+  const planOnlyInvoices = useMemo(() => {
+    return sortedInvoices.filter((i) => !isClubInvoiceReservation(i));
   }, [sortedInvoices]);
 
-  // Identifica todas as faturas vencidas do cadastro
+  const nextPayableInvoice = useMemo(() => {
+    return planOnlyInvoices.find((i) => i.status !== 'PAID');
+  }, [planOnlyInvoices]);
+
+  // Identifica todas as faturas vencidas do plano (reservas avulsas não contam como mensalidade vencida)
   const overdueInvoices = useMemo(() => {
-    return sortedInvoices.filter(
+    return planOnlyInvoices.filter(
       (i) => i.status === 'OVERDUE' || (i.status === 'PENDING' && new Date(i.dueDate + 'T23:59:59') < new Date())
     );
-  }, [sortedInvoices]);
+  }, [planOnlyInvoices]);
+
+  // Vagas EXATAS de dependentes previstas na configuração do plano contratado (sem campos extras!)
+  const contractedDependentSlots: ContractedDependentSlot[] = useMemo(() => {
+    if (!subscription) return [];
+    return getContractedDependentSlots(subscription);
+  }, [subscription]);
+
+  const filledDependentSlotsCount = useMemo(
+    () => contractedDependentSlots.filter((sl) => Boolean(sl.existingMember)).length,
+    [contractedDependentSlots]
+  );
+
+  const missingDependentSlotsCount = Math.max(
+    0,
+    contractedDependentSlots.length - filledDependentSlotsCount
+  );
+
+  const [depSlotDrafts, setDepSlotDrafts] = useState<
+    Record<number, { fullName: string; cpf: string; birthDate: string; kinship: string }>
+  >({});
+  const [depSlotPhotoFiles, setDepSlotPhotoFiles] = useState<Record<number, File | null>>({});
+  const [depSlotPhotoPreviews, setDepSlotPhotoPreviews] = useState<Record<number, string>>({});
+  const [depSlotDocFiles, setDepSlotDocFiles] = useState<Record<number, File | null>>({});
+  const [savingDepSlotIdx, setSavingDepSlotIdx] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!subscription) {
+      setDepSlotDrafts({});
+      setDepSlotPhotoFiles({});
+      setDepSlotPhotoPreviews({});
+      setDepSlotDocFiles({});
+      return;
+    }
+    setDepSlotDrafts((prev) => {
+      const next: Record<number, { fullName: string; cpf: string; birthDate: string; kinship: string }> = {};
+      contractedDependentSlots.forEach((slot) => {
+        const existing = slot.existingMember;
+        const prevDraft = prev[slot.slotIndex];
+        next[slot.slotIndex] = {
+          fullName: existing?.fullName || prevDraft?.fullName || '',
+          cpf: existing?.cpf || prevDraft?.cpf || '',
+          birthDate: existing?.birthDate || prevDraft?.birthDate || '',
+          kinship:
+            existing?.kinship ||
+            prevDraft?.kinship ||
+            (slot.modalityCode === 'KIDS' ? 'Filho(a)' : 'Dependente'),
+        };
+      });
+      return next;
+    });
+  }, [subscription?.id, subscription?.members?.length, contractedDependentSlots]);
+
+  const handleSaveDependentSlot = async (slot: ContractedDependentSlot) => {
+    if (!subscription) return;
+    const draft = depSlotDrafts[slot.slotIndex] || {
+      fullName: slot.existingMember?.fullName || '',
+      cpf: slot.existingMember?.cpf || '',
+      birthDate: slot.existingMember?.birthDate || '',
+      kinship: slot.existingMember?.kinship || (slot.modalityCode === 'KIDS' ? 'Filho(a)' : 'Dependente'),
+    };
+    const photoFile = depSlotPhotoFiles[slot.slotIndex] || null;
+    const docFile = depSlotDocFiles[slot.slotIndex] || null;
+
+    if (!draft.fullName.trim() || draft.fullName.trim().length < 3) {
+      toast({
+        title: 'Nome obrigatório',
+        description: `Informe o nome completo do Dependente ${slot.slotIndex + 1}.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (cleanDigits(draft.cpf).length !== 11) {
+      toast({
+        title: 'CPF inválido',
+        description: `Informe um CPF válido (11 dígitos) para ${draft.fullName.trim()}.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (cleanDigits(draft.birthDate).length !== 8) {
+      toast({
+        title: 'Data de nascimento inválida',
+        description: 'Informe a data completa no formato DD/MM/AAAA.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setSavingDepSlotIdx(slot.slotIndex);
+    try {
+      const result = await saveSocioDependentSlot({
+        subscriptionId: subscription.id,
+        slotIndex: slot.slotIndex,
+        modalityCode: slot.modalityCode,
+        existingMemberId: slot.existingMember?.id,
+        fullName: draft.fullName,
+        cpf: draft.cpf,
+        birthDate: draft.birthDate,
+        kinship: draft.kinship,
+        photoFile,
+        documentFile: docFile,
+      });
+
+      setState(result.state);
+      setSubscription(result.subscription);
+      setDepSlotPhotoFiles((prev) => ({ ...prev, [slot.slotIndex]: null }));
+      setDepSlotPhotoPreviews((prev) => {
+        const copy = { ...prev };
+        delete copy[slot.slotIndex];
+        return copy;
+      });
+      setDepSlotDocFiles((prev) => ({ ...prev, [slot.slotIndex]: null }));
+
+      toast({
+        title: slot.existingMember
+          ? 'Dados do dependente atualizados!'
+          : 'Dependente cadastrado com sucesso!',
+        description: `${result.member.fullName} (${slot.modalityName}) — Cartão #${result.member.cardNumber} salvo com segurança.`,
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao salvar dependente',
+        description: err?.message || 'Não foi possível salvar os dados. Tente novamente.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSavingDepSlotIdx(null);
+    }
+  };
 
   // Regra de liberação de faturas:
+  // - Reservas avulsas NÃO entram no fluxo de cobrança de mensalidades do plano
   // - TODAS as parcelas vencidas ficam liberadas simultaneamente para pagamento imediato (não precisa pagar uma para liberar a outra)
   // - Parcelas futuras (PENDING) permanecem liberadas mês a mês após a quitação das anteriores
   const isInvoicePayable = (inv: ClubInvoice) => {
+    if (isClubInvoiceReservation(inv)) return false;
     if (inv.status === 'PAID') return false;
     const isOverdue = inv.status === 'OVERDUE' || (inv.status === 'PENDING' && new Date(inv.dueDate + 'T23:59:59') < new Date());
     if (isOverdue) return true;
@@ -1330,12 +1474,28 @@ const SocioPortal: React.FC = () => {
                 }}
                 className="space-y-6"
               >
-                <TabsList className="grid grid-cols-2 sm:grid-cols-5 w-full max-w-4xl bg-slate-200/80 p-1 rounded-2xl h-auto sm:h-12 gap-1">
+                <TabsList className="grid grid-cols-2 sm:grid-cols-6 w-full max-w-5xl bg-slate-200/80 p-1 rounded-2xl h-auto sm:h-12 gap-1">
                   <TabsTrigger
                     value="carteirinhas"
                     className="rounded-xl font-bold text-xs md:text-sm data-[state=active]:bg-white data-[state=active]:text-emerald-700"
                   >
                     <CreditCard className="w-4 h-4 mr-1.5" /> Carteirinhas ({(subscription.members || []).length})
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="dependentes"
+                    className="rounded-xl font-bold text-xs md:text-sm data-[state=active]:bg-white data-[state=active]:text-emerald-700"
+                  >
+                    <Users className="w-4 h-4 mr-1.5" /> Dependentes
+                    {contractedDependentSlots.length > 0 && (
+                      <span className="ml-1 text-[11px] opacity-80">
+                        ({filledDependentSlotsCount}/{contractedDependentSlots.length})
+                      </span>
+                    )}
+                    {missingDependentSlotsCount > 0 && (
+                      <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-black bg-amber-500 text-slate-950">
+                        Faltam {missingDependentSlotsCount}
+                      </span>
+                    )}
                   </TabsTrigger>
                   <TabsTrigger
                     value="documentos"
@@ -1352,7 +1512,7 @@ const SocioPortal: React.FC = () => {
                     value="faturas"
                     className="rounded-xl font-bold text-xs md:text-sm data-[state=active]:bg-white data-[state=active]:text-emerald-700"
                   >
-                    <Receipt className="w-4 h-4 mr-1.5" /> Mensalidades ({(subscription.invoices || []).length})
+                    <Receipt className="w-4 h-4 mr-1.5" /> Mensalidades ({planOnlyInvoices.length})
                   </TabsTrigger>
                   <TabsTrigger
                     value="contrato"
@@ -1404,6 +1564,38 @@ const SocioPortal: React.FC = () => {
                       </Link>
                     </div>
                   </div>
+                {/* AVISO DE DEPENDENTES PENDENTES DE CADASTRO NO PLANO */}
+                {missingDependentSlotsCount > 0 && (
+                  <div className="rounded-2xl p-4 border-2 border-amber-400 bg-amber-50 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div className="space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge className="bg-amber-500 text-slate-950 font-black text-[11px]">
+                          <Users className="w-3.5 h-3.5 mr-1" /> FALTAM {missingDependentSlotsCount} DEPENDENTE(S)
+                        </Badge>
+                        <span className="font-black text-sm text-amber-950">
+                          Complete o cadastro dos dependentes do seu plano
+                        </span>
+                      </div>
+                      <p className="text-xs text-amber-900">
+                        Seu plano ({subscription.planSummaryLabel}) contempla <strong>1 titular + {contractedDependentSlots.length} dependente(s)</strong>. Preencha nome, CPF, data de nascimento, foto 3x4 e documentos exigidos (como Certidão/RG do Lessa Kids) na aba <strong>Dependentes</strong>.
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => {
+                        setActivePortalTab('dependentes');
+                        if (typeof window !== 'undefined') {
+                          sessionStorage.setItem('lessa_socio_portal_tab', 'dependentes');
+                        }
+                      }}
+                      className="bg-[#004d00] hover:bg-emerald-900 text-white font-black text-xs h-9 px-4 shrink-0 cursor-pointer"
+                    >
+                      <Users className="w-4 h-4 mr-1.5" /> Cadastrar Dependentes Agora
+                    </Button>
+                  </div>
+                )}
+
                 {/* AVISO UNIFICADO E COMPACTO DE SITUAÇÃO DO CADASTRO COM ATALHOS */}
                 {(!isSubscriptionActive || subscription.members.some((m) => isMemberBlockedForMissingDoc(m, subscription))) ? (
                   <div className={`rounded-2xl p-3.5 sm:p-4 border-2 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${
@@ -1958,6 +2150,430 @@ const SocioPortal: React.FC = () => {
                 )}
               </TabsContent>
 
+              {/* TAB DEPENDENTES: VAGAS EXATAS CONFORME CONFIGURAÇÃO DO PLANO CONTRATADO */}
+              <TabsContent value="dependentes" className="space-y-4">
+                <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-sm space-y-5">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                    <div className="space-y-1">
+                      <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                        <Users className="w-5 h-5 text-emerald-700" />
+                        Dependentes do Plano Contratado
+                      </h3>
+                      <p className="text-xs text-slate-600">
+                        Plano ativo: <strong className="text-slate-900">{subscription.planSummaryLabel || 'Lessa Club'}</strong>
+                      </p>
+                      <p className="text-[11px] text-slate-500">
+                        👑 Titular já cadastrado: <strong>{subscription.holderName}</strong> (Cartão #{subscription.subscriptionCode})
+                        {contractedDependentSlots.length > 0 && (
+                          <>
+                            {' '}• Total do plano: <strong>1 titular + {contractedDependentSlots.length} dependente(s) = {contractedDependentSlots.length + 1} integrante(s)</strong>
+                          </>
+                        )}
+                      </p>
+                    </div>
+                    {contractedDependentSlots.length > 0 && (
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Badge
+                          className={
+                            missingDependentSlotsCount === 0
+                              ? 'bg-emerald-600 text-white font-black text-xs px-3 py-1'
+                              : 'bg-amber-500 text-slate-950 font-black text-xs px-3 py-1'
+                          }
+                        >
+                          {filledDependentSlotsCount} de {contractedDependentSlots.length} dependente(s) cadastrado(s)
+                        </Badge>
+                      </div>
+                    )}
+                  </div>
+
+                  {contractedDependentSlots.length === 0 ? (
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-center space-y-3">
+                      <Users className="w-10 h-10 text-slate-400 mx-auto" />
+                      <div className="space-y-1">
+                        <h4 className="font-black text-slate-900 text-sm">
+                          Plano Individual (somente titular)
+                        </h4>
+                        <p className="text-xs text-slate-600 max-w-md mx-auto">
+                          A configuração atual do seu plano contempla apenas o titular <strong>{subscription.holderName}</strong>, sem vagas extras de dependentes. Caso deseje incluir familiares no plano, fale com nosso atendimento pelo WhatsApp.
+                        </p>
+                      </div>
+                      <a
+                        href={`https://wa.me/5569992626140?text=${encodeURIComponent(
+                          `Olá! Sou associado(a) ${subscription.holderName} (Cartão #${subscription.subscriptionCode}) e gostaria de incluir dependentes no meu plano Lessa Club.`
+                        )}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-block"
+                      >
+                        <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs">
+                          <MessageCircle className="w-3.5 h-3.5 mr-1.5" /> Solicitar Inclusão de Dependentes
+                        </Button>
+                      </a>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="rounded-xl bg-emerald-50/70 border border-emerald-200 px-3.5 py-2.5 text-xs text-emerald-950">
+                        <strong>Configuração exata do seu plano:</strong> estão liberados abaixo exatamente os{' '}
+                        <strong>{contractedDependentSlots.length} dependente(s)</strong> contratados além do titular. Preencha os dados, anexe a foto 3x4 e, para planos com comprovação obrigatória (como <strong>Lessa Kids</strong>), envie o documento exigido para liberar a carteirinha digital.
+                      </div>
+
+                      <div className="space-y-5">
+                        {contractedDependentSlots.map((slot) => {
+                          const existing = slot.existingMember;
+                          const draft = depSlotDrafts[slot.slotIndex] || {
+                            fullName: existing?.fullName || '',
+                            cpf: existing?.cpf || '',
+                            birthDate: existing?.birthDate || '',
+                            kinship: existing?.kinship || (slot.modalityCode === 'KIDS' ? 'Filho(a)' : 'Dependente'),
+                          };
+                          const isSavingThis = savingDepSlotIdx === slot.slotIndex;
+                          const existingDocs = existing
+                            ? getMemberResolvedAttachments(existing, subscription)
+                            : [];
+                          const hasDoc = existing ? memberHasProofDocument(existing, subscription) : false;
+                          const selectedDocFile = depSlotDocFiles[slot.slotIndex] || null;
+                          const photoPreview = depSlotPhotoPreviews[slot.slotIndex] || existing?.photoUrl || '';
+                          const isKids = slot.modalityCode === 'KIDS';
+
+                          return (
+                            <div
+                              key={`dep-slot-${slot.slotIndex}`}
+                              className={`rounded-2xl border-2 p-4 sm:p-5 space-y-4 transition-all ${
+                                existing && (!slot.requiresDocument || hasDoc)
+                                  ? 'border-emerald-200 bg-emerald-50/25'
+                                  : slot.requiresDocument && !hasDoc
+                                  ? 'border-amber-300 bg-amber-50/35'
+                                  : 'border-slate-200 bg-slate-50/40'
+                              }`}
+                            >
+                              {/* Cabeçalho da vaga exata do dependente */}
+                              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 pb-3">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-900 text-white font-black text-xs">
+                                    {slot.slotIndex + 1}
+                                  </span>
+                                  <div>
+                                    <div className="font-black text-sm text-slate-900 flex flex-wrap items-center gap-2">
+                                      <span>
+                                        Dependente {slot.slotIndex + 1} de {contractedDependentSlots.length}
+                                      </span>
+                                      <Badge
+                                        className={
+                                          isKids
+                                            ? 'bg-sky-600 text-white font-black text-[11px]'
+                                            : 'bg-emerald-700 text-white font-black text-[11px]'
+                                        }
+                                      >
+                                        Plano: {slot.modalityName}
+                                      </Badge>
+                                    </div>
+                                    {existing?.cardNumber && (
+                                      <span className="text-[11px] font-mono text-slate-500">
+                                        Cartão #{existing.cardNumber}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  {existing ? (
+                                    <Badge className="bg-emerald-600 text-white font-bold text-[10px]">
+                                      <CheckCircle2 className="w-3 h-3 mr-1" /> Cadastrado
+                                    </Badge>
+                                  ) : (
+                                    <Badge className="bg-amber-500 text-slate-950 font-black text-[10px]">
+                                      Aguardando preenchimento
+                                    </Badge>
+                                  )}
+                                  {slot.requiresDocument && !hasDoc && (
+                                    <Badge className="bg-rose-600 text-white font-bold text-[10px]">
+                                      <AlertTriangle className="w-3 h-3 mr-1" /> Falta Documento ({slot.modalityName})
+                                    </Badge>
+                                  )}
+                                  {slot.requiresDocument && hasDoc && (
+                                    <Badge className="bg-emerald-100 text-emerald-900 border border-emerald-300 font-bold text-[10px]">
+                                      ✓ Documento enviado
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Aviso de documento obrigatório (ex: Lessa Kids) */}
+                              {slot.requiresDocument && (
+                                <div className="rounded-xl bg-rose-50 border border-rose-200 px-3.5 py-2.5 text-xs text-rose-950 space-y-0.5">
+                                  <div className="font-black flex items-center gap-1.5">
+                                    <FileCheck className="w-4 h-4 text-rose-600 shrink-0" />
+                                    Documento obrigatório ({slot.modalityName}): {slot.docRule.documentLabel}
+                                  </div>
+                                  <p className="text-[11px] text-rose-800">{slot.docRule.description}</p>
+                                </div>
+                              )}
+
+                              {/* Dados Pessoais + Foto 3x4 */}
+                              <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
+                                {/* Foto 3x4 */}
+                                <div className="md:col-span-3 flex flex-col items-center gap-2 p-3 rounded-xl bg-white border border-slate-200">
+                                  <div className="w-24 h-28 rounded-xl overflow-hidden bg-slate-100 border-2 border-slate-200 flex items-center justify-center">
+                                    {photoPreview ? (
+                                      <img
+                                        src={photoPreview}
+                                        alt={`Foto Dependente ${slot.slotIndex + 1}`}
+                                        className="w-full h-full object-cover"
+                                      />
+                                    ) : (
+                                      <div className="text-center px-2">
+                                        <Camera className="w-6 h-6 text-slate-400 mx-auto mb-1" />
+                                        <span className="text-[10px] font-bold text-slate-400 block leading-tight">
+                                          Foto 3x4
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+                                  <label className="w-full text-center cursor-pointer inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-900 text-white text-[11px] font-bold transition-colors">
+                                    <Camera className="w-3.5 h-3.5" />
+                                    {photoPreview ? 'Trocar Foto' : 'Enviar Foto 3x4'}
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      className="hidden"
+                                      onChange={async (e) => {
+                                        const file = e.target.files?.[0];
+                                        if (!file) return;
+                                        setDepSlotPhotoFiles((prev) => ({ ...prev, [slot.slotIndex]: file }));
+                                        try {
+                                          const preview = await fileToDataUrl(file);
+                                          setDepSlotPhotoPreviews((prev) => ({
+                                            ...prev,
+                                            [slot.slotIndex]: preview,
+                                          }));
+                                        } catch {}
+                                      }}
+                                    />
+                                  </label>
+                                  {depSlotPhotoFiles[slot.slotIndex] && (
+                                    <span className="text-[10px] font-bold text-emerald-700 truncate max-w-full">
+                                      Nova foto selecionada ✓
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Campos de cadastro do dependente */}
+                                <div className="md:col-span-9 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                  <div className="sm:col-span-2">
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                                      Nome Completo *
+                                    </label>
+                                    <Input
+                                      value={draft.fullName}
+                                      onChange={(e) =>
+                                        setDepSlotDrafts((prev) => ({
+                                          ...prev,
+                                          [slot.slotIndex]: {
+                                            ...draft,
+                                            fullName: e.target.value.toUpperCase(),
+                                          },
+                                        }))
+                                      }
+                                      placeholder="Ex: JOÃO PEDRO SANTOS SOUZA"
+                                      className="bg-white font-semibold uppercase"
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                                      CPF *
+                                    </label>
+                                    <Input
+                                      value={draft.cpf}
+                                      onChange={(e) =>
+                                        setDepSlotDrafts((prev) => ({
+                                          ...prev,
+                                          [slot.slotIndex]: {
+                                            ...draft,
+                                            cpf: formatCpf(e.target.value),
+                                          },
+                                        }))
+                                      }
+                                      placeholder="000.000.000-00"
+                                      maxLength={14}
+                                      className="bg-white font-mono"
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                                      Data de Nascimento *
+                                    </label>
+                                    <Input
+                                      value={draft.birthDate}
+                                      onChange={(e) =>
+                                        setDepSlotDrafts((prev) => ({
+                                          ...prev,
+                                          [slot.slotIndex]: {
+                                            ...draft,
+                                            birthDate: formatBirthDate(e.target.value),
+                                          },
+                                        }))
+                                      }
+                                      placeholder="DD/MM/AAAA"
+                                      maxLength={10}
+                                      className="bg-white font-mono"
+                                    />
+                                  </div>
+
+                                  <div className="sm:col-span-2">
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                                      Parentesco com o Titular
+                                    </label>
+                                    <select
+                                      value={draft.kinship}
+                                      onChange={(e) =>
+                                        setDepSlotDrafts((prev) => ({
+                                          ...prev,
+                                          [slot.slotIndex]: {
+                                            ...draft,
+                                            kinship: e.target.value,
+                                          },
+                                        }))
+                                      }
+                                      className="w-full h-10 rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800"
+                                    >
+                                      <option value="Filho(a)">Filho(a)</option>
+                                      <option value="Cônjuge / Companheiro(a)">Cônjuge / Companheiro(a)</option>
+                                      <option value="Enteado(a)">Enteado(a)</option>
+                                      <option value="Dependente">Outro Dependente</option>
+                                    </select>
+                                  </div>
+
+                                  {/* Upload de Documento Exigido / Comprovante */}
+                                  <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-white p-3 space-y-2.5">
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                      <div>
+                                        <span className="text-xs font-black text-slate-800 block">
+                                          {slot.requiresDocument
+                                            ? `📎 Anexar ${slot.docRule.documentLabel} (Obrigatório)`
+                                            : '📎 Documento / RG do Dependente (Opcional)'}
+                                        </span>
+                                        <span className="text-[11px] text-slate-500">
+                                          Envie foto nítida pela câmera ou importe imagem/PDF.
+                                        </span>
+                                      </div>
+                                      <div className="flex flex-wrap items-center gap-2 shrink-0">
+                                        <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold">
+                                          <Camera className="w-3.5 h-3.5" /> Câmera
+                                          <input
+                                            type="file"
+                                            accept="image/*"
+                                            capture="environment"
+                                            className="hidden"
+                                            onChange={(e) => {
+                                              const f = e.target.files?.[0] || null;
+                                              setDepSlotDocFiles((prev) => ({ ...prev, [slot.slotIndex]: f }));
+                                            }}
+                                          />
+                                        </label>
+                                        <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold">
+                                          <Upload className="w-3.5 h-3.5" /> Importar Arquivo
+                                          <input
+                                            type="file"
+                                            accept="image/*,application/pdf"
+                                            className="hidden"
+                                            onChange={(e) => {
+                                              const f = e.target.files?.[0] || null;
+                                              setDepSlotDocFiles((prev) => ({ ...prev, [slot.slotIndex]: f }));
+                                            }}
+                                          />
+                                        </label>
+                                      </div>
+                                    </div>
+
+                                    {selectedDocFile && (
+                                      <div className="flex items-center justify-between gap-2 rounded-lg bg-emerald-50 border border-emerald-300 px-3 py-1.5 text-xs text-emerald-900">
+                                        <span className="font-bold truncate">
+                                          ✓ Arquivo selecionado para envio: {selectedDocFile.name}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            setDepSlotDocFiles((prev) => ({ ...prev, [slot.slotIndex]: null }))
+                                          }
+                                          className="text-rose-600 hover:text-rose-800 font-bold text-[11px] shrink-0"
+                                        >
+                                          Remover
+                                        </button>
+                                      </div>
+                                    )}
+
+                                    {existingDocs.length > 0 && (
+                                      <div className="space-y-1.5 pt-1 border-t border-slate-100">
+                                        <span className="text-[11px] font-bold text-slate-600 block">
+                                          Documentos já anexados ({existingDocs.length}):
+                                        </span>
+                                        {existingDocs.map((doc) => (
+                                          <div
+                                            key={doc.id}
+                                            className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs"
+                                          >
+                                            <span className="font-semibold text-slate-800 truncate">
+                                              {doc.name}
+                                            </span>
+                                            <div className="flex items-center gap-1 shrink-0">
+                                              <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() =>
+                                                  setPreviewDocModal({
+                                                    name: doc.name,
+                                                    dataUrl: doc.dataUrl,
+                                                    mimeType: doc.mimeType,
+                                                  })
+                                                }
+                                                className="h-7 px-2 text-[11px] font-bold"
+                                              >
+                                                <Eye className="w-3 h-3 mr-1" /> Ver
+                                              </Button>
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Botão Salvar do slot */}
+                              <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-slate-200/80">
+                                <Button
+                                  type="button"
+                                  disabled={isSavingThis}
+                                  onClick={() => handleSaveDependentSlot(slot)}
+                                  className="bg-[#004d00] hover:bg-emerald-900 text-white font-black text-xs h-10 px-5 rounded-xl shadow-sm cursor-pointer"
+                                >
+                                  {isSavingThis ? (
+                                    <>
+                                      <RefreshCw className="w-4 h-4 mr-1.5 animate-spin" /> Salvando na nuvem...
+                                    </>
+                                  ) : existing ? (
+                                    <>
+                                      <CheckCircle2 className="w-4 h-4 mr-1.5" /> Atualizar Dados do Dependente {slot.slotIndex + 1}
+                                    </>
+                                  ) : (
+                                    <>
+                                      <CheckCircle2 className="w-4 h-4 mr-1.5" /> Salvar Dependente {slot.slotIndex + 1} ({slot.modalityName})
+                                    </>
+                                  )}
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+
               {/* TAB DOCUMENTOS: VISUALIZAR JÁ ENVIADOS E IMPORTAR DOCUMENTOS PENDENTES POR PLANO */}
               <TabsContent value="documentos" className="space-y-4">
                 <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-5">
@@ -2419,14 +3035,19 @@ const SocioPortal: React.FC = () => {
 
                   <div className="space-y-3">
                     {sortedInvoices.map((inv) => {
+                      const isReservation = isClubInvoiceReservation(inv);
                       const isPaid = inv.status === 'PAID';
-                      const isOverdue = inv.status === 'OVERDUE' || (!isPaid && new Date(inv.dueDate + 'T23:59:59') < new Date());
+                      const isOverdue =
+                        !isReservation &&
+                        (inv.status === 'OVERDUE' || (!isPaid && new Date(inv.dueDate + 'T23:59:59') < new Date()));
                       const isPayable = isInvoicePayable(inv);
                       return (
                         <div
                           key={inv.id}
                           className={`rounded-2xl border p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 transition-all ${
-                            isPaid
+                            isReservation
+                              ? 'bg-amber-50/70 border-amber-400 ring-1 ring-amber-300'
+                              : isPaid
                               ? 'bg-emerald-50/40 border-emerald-200'
                               : isOverdue
                               ? 'bg-rose-50/50 border-rose-300 ring-2 ring-rose-200/60 shadow-xs'
@@ -2436,10 +3057,15 @@ const SocioPortal: React.FC = () => {
                           }`}
                         >
                           <div className="space-y-1">
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
                               <span className="font-bold text-slate-900">
                                 {inv.description || `Parcela ${inv.installmentNumber}/${inv.totalInstallments}`}
                               </span>
+                              {isReservation && (
+                                <Badge className="bg-amber-400 text-amber-950 font-black text-[10px] uppercase">
+                                  ⚠️ RESERVA — NÃO É PAGAMENTO DE PLANO
+                                </Badge>
+                              )}
                               <Badge
                                 className={
                                   isPaid
@@ -2454,8 +3080,13 @@ const SocioPortal: React.FC = () => {
                                 {isPaid ? 'PAGA' : isOverdue ? 'VENCIDA' : 'PENDENTE'}
                               </Badge>
                             </div>
+                            {isReservation && (
+                              <p className="text-[11px] font-bold text-amber-900">
+                                Lançamento referente a reserva de espaço/day use no Balneário. Este valor não corresponde ao pagamento de mensalidade do Lessa Club.
+                              </p>
+                            )}
                             <div className="text-xs text-slate-500">
-                              Vencimento: <strong>{formatDateBR(inv.dueDate)}</strong> • Forma:{' '}
+                              {isReservation ? 'Data:' : 'Vencimento:'} <strong>{formatDateBR(inv.dueDate)}</strong> • Forma:{' '}
                               <strong>{inv.paymentMethod}</strong>
                               {inv.paidAt && (
                                 <>

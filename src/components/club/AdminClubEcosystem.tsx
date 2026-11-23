@@ -143,6 +143,8 @@ import {
   fileToDataUrl,
   compressImageFile,
   detectModalityCodeFromPlanDescription,
+  isAsaasReservationCharge,
+  isClubInvoiceReservation,
   isValidCpf,
   isValidCnpj,
   cleanDigits,
@@ -1051,9 +1053,12 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
           const currentInvs = [...(selectedSubForDetail.invoices || [])];
 
           for (const p of validPayments) {
+            if (isAsaasReservationCharge(p.description)) continue;
             const isPaid = p.status === 'RECEIVED' || p.status === 'CONFIRMED' || p.status === 'RECEIVED_IN_CASH';
             const invIndex = currentInvs.findIndex(
-              (i) => (i.asaasPaymentId && i.asaasPaymentId === p.id) || (i.dueDate && p.dueDate && i.dueDate === p.dueDate)
+              (i) =>
+                !isClubInvoiceReservation(i) &&
+                ((i.asaasPaymentId && i.asaasPaymentId === p.id) || (i.dueDate && p.dueDate && i.dueDate === p.dueDate))
             );
             if (invIndex >= 0) {
               const existing = currentInvs[invIndex];
@@ -1071,7 +1076,9 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
           }
 
           if (hasChanges) {
-            const hasOverdueInvs = currentInvs.some((i) => i.status === 'OVERDUE');
+            const hasOverdueInvs = currentInvs.some(
+              (i) => !isClubInvoiceReservation(i) && i.status === 'OVERDUE'
+            );
             let nextStatus = selectedSubForDetail.status;
             let nextReason = selectedSubForDetail.inactivityReason;
             if (!hasOverdueInvs && (selectedSubForDetail.inactivityReason === 'MENSALIDADE_VENCIDA' || selectedSubForDetail.status === 'INACTIVE')) {
@@ -2427,7 +2434,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       for (const inv of sub.invoices || []) {
         const invDue = inv.dueDate || '';
         const matchMonth = invDue.startsWith(vencidasMonth) || (inv.referenceMonth && inv.referenceMonth.includes(refMonthShort));
-        const isOverdue = inv.status === 'OVERDUE' || (inv.status === 'PENDING' && invDue < '2026-11-10');
+        const isOverdue = !isClubInvoiceReservation(inv) && (inv.status === 'OVERDUE' || (inv.status === 'PENDING' && invDue < '2026-11-10'));
 
         if (matchMonth && isOverdue) {
           const dueDayNum = parseInt(invDue.split('-')[2] || '1', 10);
@@ -4222,7 +4229,9 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     const todayStr = new Date().toISOString().split('T')[0];
     const adhesionDate = new Date(`${options?.adhesionDueDateStr || firstMonthlyDueDateStr || todayStr}T12:00:00`);
     const firstMonthlyDate = new Date(`${firstMonthlyDueDateStr || todayStr}T12:00:00`);
-    const existingGroups = (sub.invoices || []).map((i) => Number(i.carneGroup) || 1);
+    const existingGroups = (sub.invoices || [])
+      .filter((i) => !isClubInvoiceReservation(i) && Number(i.carneGroup) !== 99)
+      .map((i) => Number(i.carneGroup) || 1);
     const nextCarneGroup = existingGroups.length > 0 && mode === 'append' ? Math.max(...existingGroups) + 1 : 1;
 
     const startIndex = mode === 'append' ? sub.invoices.length : 0;
@@ -13991,14 +14000,16 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                             (m) => m.role === 'DEPENDENTE'
                           );
                           const isEligibleForTransfer =
-                            (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('kids') ||
-                            (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('tea') ||
-                            (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('pcd') ||
-                            (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('pdc') ||
-                            (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('inclus') ||
-                            (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('vital') ||
-                            (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('sem plano') ||
-                            ['KIDS', 'PCD_TEA', 'VITALICIO', 'SEM_PLANO'].includes(selectedSubForDetail.members[0]?.modalityCode || '');
+                            !isPlanAllowingDeps && (
+                              (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('kids') ||
+                              (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('tea') ||
+                              (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('pcd') ||
+                              (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('pdc') ||
+                              (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('inclus') ||
+                              (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('vital') ||
+                              (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('sem plano') ||
+                              ['KIDS', 'PCD_TEA', 'VITALICIO', 'SEM_PLANO'].includes(selectedSubForDetail.members[0]?.modalityCode || '')
+                            );
 
                           return (
                             <div className="flex items-center gap-2 flex-wrap">
@@ -16186,22 +16197,27 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     for (const p of validPayments) {
 
                       const desc = String(p.description || '');
+                      const isReservationPayment = isAsaasReservationCharge(desc);
                       const codeMatch = desc.match(/Lessa Club \((\d+)\)/i);
                       const paymentSubCode = codeMatch ? codeMatch[1] : '';
 
-                      // Se o código for diferente do cartão ativo atual, separa em Carnê 2
+                      // Cobranças de Reserva (Quiosque/Chalé/Day Use) ficam no grupo 99, discriminadas como NÃO É PAGAMENTO DE PLANO
                       let carneGroup = 1;
-                      if (paymentSubCode && paymentSubCode !== subCode) {
+                      if (isReservationPayment) {
+                        carneGroup = 99;
+                      } else if (paymentSubCode && paymentSubCode !== subCode) {
                         carneGroup = 2;
                       } else if (p.billingType === 'CREDIT_CARD' && !desc.includes('/12')) {
                         carneGroup = 3;
                       }
 
-                      // Match estrito: por ID do Asaas ou por data exata de vencimento (YYYY-MM-DD)
-                      const existingInvIndex = currentInvoices.findIndex(
-                        (i) =>
-                          (i.asaasPaymentId && i.asaasPaymentId === p.id) ||
-                          (i.dueDate && p.dueDate && i.dueDate === p.dueDate)
+                      // Match estrito: reservas só casam pelo ID exato do Asaas (NUNCA pela data com mensalidade de plano!)
+                      const existingInvIndex = currentInvoices.findIndex((i) =>
+                        isReservationPayment
+                          ? Boolean(i.asaasPaymentId && i.asaasPaymentId === p.id)
+                          : !isClubInvoiceReservation(i) &&
+                            ((i.asaasPaymentId && i.asaasPaymentId === p.id) ||
+                              (i.dueDate && p.dueDate && i.dueDate === p.dueDate))
                       );
 
                       const isPaid =
@@ -16220,8 +16236,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           ? p.value
                           : undefined;
 
-                      // Valores atualizados para parcelas de 2027
-                      if (p.dueDate && p.dueDate >= '2027-01-01' && selectedSubForDetail.billingCycle !== 'ANNUAL') {
+                      // Valores atualizados para parcelas de 2027 (apenas mensalidades de plano, nunca reservas)
+                      if (!isReservationPayment && p.dueDate && p.dueDate >= '2027-01-01' && selectedSubForDetail.billingCycle !== 'ANNUAL') {
                         const planSumm = (selectedSubForDetail.planSummaryLabel || '').toLowerCase();
                         if (planSumm.includes('4 pessoas') || desc.includes('4 pessoas')) newAmount = 239.60;
                         else if (planSumm.includes('3 pessoas') || desc.includes('3 pessoas') || p.value === 149.70) newAmount = 179.70;
@@ -16230,6 +16246,13 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         else if (planSumm.includes('lessa club') || p.value === 49.90) newAmount = 59.90;
                       }
 
+                      const firstDescLine = desc.split('\n')[0].trim();
+                      const formattedReservationDesc = isReservationPayment
+                        ? /n[aã]o\s*[eé]\s*(pagamento\s*de\s*)?plano/i.test(firstDescLine)
+                          ? firstDescLine
+                          : `RESERVA DO BALNEÁRIO (NÃO É PAGAMENTO DE PLANO) — ${firstDescLine || 'Reserva'}`
+                        : '';
+
                       if (existingInvIndex >= 0) {
                         const existing = currentInvoices[existingInvIndex];
 
@@ -16237,7 +16260,9 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           ...existing,
                           amount: newAmount !== undefined ? newAmount : existing.amount,
                           asaasPaymentId: p.id,
-                          carneGroup: existing.carneGroup || carneGroup,
+                          carneGroup: isReservationPayment ? 99 : existing.carneGroup || carneGroup,
+                          invoiceKind: isReservationPayment ? 'AVULSA' : existing.invoiceKind,
+                          description: isReservationPayment ? formattedReservationDesc : existing.description,
                           status: newStatus,
                           paidAt: isPaid
                             ? (p.clientPaymentDate || p.paymentDate || p.confirmedDate || existing.paidAt || new Date().toISOString())
@@ -16248,17 +16273,24 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         updatedCount++;
                       } else {
                         const installmentMatch = desc.match(/\((\d+)\/(\d+)\)/);
-                        const instNum = installmentMatch
+                        const instNum = isReservationPayment
+                          ? 1
+                          : installmentMatch
                           ? Number(installmentMatch[1])
                           : currentInvoices.length + 1;
-                        const totalInst = installmentMatch ? Number(installmentMatch[2]) : 12;
+                        const totalInst = isReservationPayment ? 1 : installmentMatch ? Number(installmentMatch[2]) : 12;
 
                         const newInvoice: ClubInvoice = {
-                          id: `inv_asaas_${p.id}`,
+                          id: isReservationPayment ? `inv_reserva_${p.id}` : `inv_asaas_${p.id}`,
                           subscriptionId: selectedSubForDetail.id,
+                          subscriptionCode: selectedSubForDetail.subscriptionCode,
+                          holderName: selectedSubForDetail.holderName,
+                          holderCpf: selectedSubForDetail.holderCpf,
+                          holderPhone: selectedSubForDetail.holderPhone,
                           memberId: selectedSubForDetail.members[0]?.id || selectedSubForDetail.id,
                           installmentNumber: instNum,
                           totalInstallments: totalInst,
+                          referenceMonth: isReservationPayment ? 'Reserva' : (p.dueDate ? `${p.dueDate.slice(5, 7)}/${p.dueDate.slice(0, 4)}` : `${instNum}/${totalInst}`),
                           dueDate: p.dueDate,
                           amount: newAmount !== undefined ? newAmount : Number(p.value || 0),
                           status: newStatus,
@@ -16268,8 +16300,10 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                               : p.billingType === 'PIX'
                               ? 'PIX'
                               : 'BOLETO',
-                          description:
-                            desc.split('\n')[0] || `Mensalidade ${instNum}/${totalInst}`,
+                          description: isReservationPayment
+                            ? formattedReservationDesc
+                            : firstDescLine || `Mensalidade ${instNum}/${totalInst}`,
+                          invoiceKind: isReservationPayment ? 'AVULSA' : 'MENSALIDADE',
                           carneGroup,
                           asaasPaymentId: p.id,
                           paymentUrl: p.bankSlipUrl || p.invoiceUrl,
@@ -16332,7 +16366,9 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
                     // Se o cadastro estava inativo por mensalidade vencida, e agora todas as vencidas estão quitadas:
                     // Obedece rigorosamente se o admin inativou manualmente por outro motivo
-                    const hasOverdueInvoices = currentInvoices.some((i) => i.status === 'OVERDUE');
+                    const hasOverdueInvoices = currentInvoices.some(
+                      (i) => !isClubInvoiceReservation(i) && i.status === 'OVERDUE'
+                    );
                     let nextSubStatus = selectedSubForDetail.status;
                     let nextInactivityReason = selectedSubForDetail.inactivityReason;
                     let nextInactivityReasons = selectedSubForDetail.inactivityReasons;
@@ -16663,14 +16699,18 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                               selectedSubForDetail.subscriptionCode &&
                               !i.description.includes(selectedSubForDetail.subscriptionCode)
                           );
+                          const isReservationGroup =
+                            grp === '99' || (groupInvs.length > 0 && groupInvs.every((i) => isClubInvoiceReservation(i)));
                           let label =
-                            grp === '1'
+                            isReservationGroup
+                              ? `⚠️ Reservas do Balneário (${cnt} lançamento(s) — Não é plano)`
+                              : grp === '1'
                               ? `Carnê 1 (${cnt} parcelas - Dia ${firstDueDay})`
                               : isDuplicate
                               ? `Carnê ${grp} (${cnt} parcelas - Dia ${firstDueDay}) [Duplicado no Asaas]`
                               : `Carnê ${grp} (${cnt} parcelas - Dia ${firstDueDay})`;
 
-                          if (grp === '4' || (cnt === 1 && (groupInvs[0]?.amount || 0) >= 200)) {
+                          if (!isReservationGroup && (grp === '4' || (cnt === 1 && (groupInvs[0]?.amount || 0) >= 200))) {
                             label = `Carnê ${grp} (1 parcela anual - ${formatCurrency(groupInvs[0]?.amount || 200)} [PAGO])`;
                           }
                           return (
@@ -17000,10 +17040,16 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                 <div className="flex flex-col gap-0.5">
                                   <span>{inv.description || 'Mensalidade'}</span>
                                   <div className="flex flex-wrap items-center gap-1 text-[10px]">
-                                    <span className="bg-emerald-950/60 text-emerald-200 px-1.5 py-0.2 rounded">
-                                      Carnê {Number(inv.carneGroup) || 1}
-                                    </span>
-                                    {inv.invoiceKind === 'AVULSA' && (
+                                    {isClubInvoiceReservation(inv) ? (
+                                      <span className="bg-amber-400 text-amber-950 px-1.5 py-0.5 rounded font-black uppercase">
+                                        ⚠️ RESERVA (NÃO É PLANO)
+                                      </span>
+                                    ) : (
+                                      <span className="bg-emerald-950/60 text-emerald-200 px-1.5 py-0.2 rounded">
+                                        Carnê {Number(inv.carneGroup) || 1}
+                                      </span>
+                                    )}
+                                    {inv.invoiceKind === 'AVULSA' && !isClubInvoiceReservation(inv) && (
                                       <span className="bg-sky-500/30 text-sky-100 px-1.5 py-0.2 rounded font-semibold">
                                         AVULSA
                                       </span>
@@ -17017,9 +17063,17 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                 </div>
                               </td>
                               <td className="py-2 px-3 border-r border-emerald-800/60 font-semibold">
-                                {inv.installmentNumber} /{' '}
-                                {inv.totalInstallments ||
-                                  selectedSubForDetail.invoices.length}
+                                {isClubInvoiceReservation(inv) ? (
+                                  <span className="inline-block bg-amber-400/90 text-amber-950 font-black text-[10px] uppercase px-2 py-0.5 rounded">
+                                    RESERVA
+                                  </span>
+                                ) : (
+                                  <>
+                                    {inv.installmentNumber} /{' '}
+                                    {inv.totalInstallments ||
+                                      selectedSubForDetail.invoices.filter((x) => !isClubInvoiceReservation(x)).length}
+                                  </>
+                                )}
                               </td>
                               <td className="py-2 px-3 border-r border-emerald-800/60 font-mono">
                                 <span>{formatDateBR(inv.dueDate)}</span>
@@ -17253,7 +17307,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                       type="button"
                       onClick={() => {
                         const openCount = selectedSubForDetail.invoices.filter(
-                          (i) => i.status !== 'PAID' && i.status !== 'CANCELLED' && i.amount > 0
+                          (i) =>
+                            !isClubInvoiceReservation(i) &&
+                            i.status !== 'PAID' &&
+                            i.status !== 'CANCELLED' &&
+                            i.amount > 0
                         ).length;
                         setUnifiedCardInstallments(Math.min(12, Math.max(1, openCount || 1)));
                         setUnifiedCardUrl('');
@@ -17487,7 +17545,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
                   {(() => {
                     const pending = selectedSubForDetail.invoices.filter(
-                      (i) => i.status !== 'PAID' && i.status !== 'CANCELLED' && i.amount > 0
+                      (i) =>
+                        !isClubInvoiceReservation(i) &&
+                        i.status !== 'PAID' &&
+                        i.status !== 'CANCELLED' &&
+                        i.amount > 0
                     );
                     const totalPendingVal = Number(
                       pending.reduce((acc, i) => acc + i.amount, 0).toFixed(2)

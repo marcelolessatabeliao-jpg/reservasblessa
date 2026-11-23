@@ -629,7 +629,9 @@ export const isSubscriptionMissingDocs = (sub: ClubSubscription): boolean => {
  */
 export const resolveSubscriptionInactivityStatus = (sub: ClubSubscription): ClubSubscription => {
   const overdueInvoices = (sub.invoices || []).filter(
-    (i) => i.status === 'OVERDUE' || (i.status === 'PENDING' && new Date(i.dueDate + 'T23:59:59') < new Date())
+    (i) =>
+      !isClubInvoiceReservation(i) &&
+      (i.status === 'OVERDUE' || (i.status === 'PENDING' && new Date(i.dueDate + 'T23:59:59') < new Date()))
   );
   const hasOverdue = overdueInvoices.length > 0;
 
@@ -1387,6 +1389,25 @@ export const detectModalityCodeFromPlanDescription = (
 ): string => {
   const p = (planDescription || '').trim().toLowerCase();
   if (!p) return currentCode || 'ADULTO';
+
+  // Planos compostos / Família Personalizado (ex: "Família Personalizado (Anual): 2x Lessa Club + 2x Lessa Kids"):
+  // O titular deve manter sua modalidade própria (ou a 1ª modalidade principal antes do "+"),
+  // JAMAIS sendo sobrescrito por "Kids" dos dependentes!
+  if (p.includes('família personalizado') || p.includes('familia personalizado') || p.includes('+')) {
+    if (currentCode && currentCode !== 'SEM_PLANO') {
+      return currentCode;
+    }
+    const primarySegment = (p.split(':')[1] || p).split('+')[0] || '';
+    if (primarySegment.includes('publicidade') || primarySegment.includes('permuta')) return 'PUBLICIDADE';
+    if (primarySegment.includes('servidor')) return 'SERVIDOR';
+    if (primarySegment.includes('student') || primarySegment.includes('estudante')) return 'ESTUDANTE';
+    if (primarySegment.includes('professor') || primarySegment.includes('docente')) return 'PROFESSOR';
+    if (primarySegment.includes('lessa club') || primarySegment.includes('adulto')) return 'ADULTO';
+    if (primarySegment.includes('vitalício') || primarySegment.includes('vitalicio') || primarySegment.includes('60+')) return 'IDOSO_60';
+    if (primarySegment.includes('inclusão') || primarySegment.includes('inclusao') || primarySegment.includes('pcd') || primarySegment.includes('tea')) return 'PCD_TEA';
+    if (primarySegment.includes('kids') || primarySegment.includes('criança')) return 'KIDS';
+    return 'ADULTO';
+  }
 
   if (p.includes('publicidade') || p.includes('permuta')) {
     return 'PUBLICIDADE';
@@ -3894,6 +3915,31 @@ export const generateAsaasChargeForClubInvoice = async (
   };
 };
 
+export const isAsaasReservationCharge = (description?: string | null): boolean => {
+  const lower = String(description || '').trim().toLowerCase();
+  if (!lower) return false;
+  if (
+    /lessa\s*club|mensalidade|parcela\s*\d|plano\s*(anual|mensal)|fam[ií]lia\s*personalizado|servidor\s*pass|student\s*pass|professor\s*pass|portal\s*do\s*socio/i.test(
+      lower
+    )
+  ) {
+    return false;
+  }
+  return /reserva\s*(balne|online|de|quiosque|chal)|quiosque|chal[eé]|day\s*use|ingresso|hospedagem|camping/i.test(
+    lower
+  );
+};
+
+export const isClubInvoiceReservation = (inv?: Partial<ClubInvoice> | null): boolean => {
+  if (!inv) return false;
+  const desc = String(inv.description || '');
+  return (
+    inv.carneGroup === 99 ||
+    /n[aã]o\s*[eé]\s*(pagamento\s*de\s*)?plano/i.test(desc) ||
+    isAsaasReservationCharge(desc)
+  );
+};
+
 export const syncSubscriptionInvoicesWithAsaas = async (
   subscriptionIdOrSub: string | ClubSubscription
 ): Promise<{ state: ClubDatabaseState; updatedSub: ClubSubscription | null; syncedCount: number }> => {
@@ -3920,49 +3966,133 @@ export const syncSubscriptionInvoicesWithAsaas = async (
       return { state, updatedSub: targetSub, syncedCount: 0 };
     }
 
-    const rawPayments: any[] = data.payments;
+    const rawPayments: any[] = data.payments.filter((p: any) => !p.deleted);
     // Ordena as cobranças por data de vencimento crescente
     const sortedPayments = [...rawPayments].sort((a, b) =>
       (a.dueDate || '').localeCompare(b.dueDate || '')
     );
 
-    const existingInvMap = new Map((targetSub.invoices || []).map((i) => [i.asaasPaymentId || i.id, i]));
+    const existingInvoices = [...(targetSub.invoices || [])];
+    const existingByAsaasId = new Map<string, ClubInvoice>();
+    existingInvoices.forEach((inv) => {
+      if (inv.asaasPaymentId) existingByAsaasId.set(inv.asaasPaymentId, inv);
+    });
 
-    const syncedInvoices: ClubInvoice[] = sortedPayments.map((p, idx) => {
-      const existing = existingInvMap.get(p.id);
+    const clubPayments = sortedPayments.filter((p) => !isAsaasReservationCharge(p.description));
+    const reservationPayments = sortedPayments.filter((p) => isAsaasReservationCharge(p.description));
+
+    const updatedInvoices: ClubInvoice[] = [...existingInvoices];
+
+    // 1. Atualiza ou adiciona cobranças reais do Lessa Club (preservando parcelas pendentes locais ainda não emitidas!)
+    clubPayments.forEach((p, idx) => {
       const isPaid = p.status === 'RECEIVED' || p.status === 'CONFIRMED' || p.status === 'RECEIVED_IN_CASH';
       const isOverdue = p.status === 'OVERDUE';
       const status: 'PAID' | 'PENDING' | 'OVERDUE' = isPaid ? 'PAID' : isOverdue ? 'OVERDUE' : 'PENDING';
-
       const dueParts = (p.dueDate || '').split('-');
       const refMonth = dueParts.length === 3 ? `${dueParts[1]}/${dueParts[0]}` : `Parcela ${idx + 1}`;
+      const matchIdx = updatedInvoices.findIndex(
+        (i) =>
+          !isClubInvoiceReservation(i) &&
+          ((i.asaasPaymentId && i.asaasPaymentId === p.id) ||
+            (i.id && p.externalReference && i.id === p.externalReference) ||
+            (!i.asaasPaymentId && i.dueDate && p.dueDate && i.dueDate === p.dueDate))
+      );
 
-      return {
-        id: existing?.id || `inv_asaas_${p.id}`,
+      if (matchIdx >= 0) {
+        const existing = updatedInvoices[matchIdx];
+        updatedInvoices[matchIdx] = {
+          ...existing,
+          amount: Number(p.value) || existing.amount,
+          dueDate: p.dueDate || existing.dueDate,
+          paidAt: isPaid
+            ? p.paymentDate || p.clientPaymentDate || existing.paidAt || `${p.dueDate}T12:00:00.000Z`
+            : undefined,
+          paymentMethod: p.billingType === 'BOLETO' ? 'BOLETO' : p.billingType === 'PIX' ? 'PIX' : 'CREDIT_CARD',
+          status,
+          asaasPaymentId: p.id,
+          invoiceUrl: p.invoiceUrl || existing.invoiceUrl,
+          boletoNumber: p.nossoNumero || p.bankSlipUrl || existing.boletoNumber,
+        };
+      } else {
+        const existing = existingByAsaasId.get(p.id);
+        const rawFirstLine = String(p.description || '').split('\n')[0].trim();
+        updatedInvoices.push({
+          id: existing?.id || `inv_asaas_${p.id}`,
+          subscriptionId: targetSub.id,
+          subscriptionCode: targetSub.subscriptionCode,
+          holderName: targetSub.holderName,
+          holderCpf: targetSub.holderCpf,
+          holderPhone: targetSub.holderPhone,
+          installmentNumber: idx + 1,
+          totalInstallments: Math.max(clubPayments.length, existingInvoices.filter((i) => !isClubInvoiceReservation(i)).length, 1),
+          referenceMonth: refMonth,
+          amount: Number(p.value) || targetSub.monthlyEquivalent || 25,
+          dueDate: p.dueDate,
+          paidAt: isPaid ? p.paymentDate || p.clientPaymentDate || `${p.dueDate}T12:00:00.000Z` : undefined,
+          paymentMethod: p.billingType === 'BOLETO' ? 'BOLETO' : p.billingType === 'PIX' ? 'PIX' : 'CREDIT_CARD',
+          status,
+          asaasPaymentId: p.id,
+          invoiceUrl: p.invoiceUrl,
+          boletoNumber: p.nossoNumero || p.bankSlipUrl,
+          description: rawFirstLine || `${targetSub.planSummaryLabel || 'Lessa Club'} (Mensalidade ${refMonth})`,
+          invoiceKind: 'MENSALIDADE',
+          carneGroup: 1,
+          createdAt: p.dateCreated ? `${p.dateCreated}T00:00:00.000Z` : targetSub.createdAt,
+        });
+      }
+    });
+
+    // 2. Discrimina claramente cobranças de RESERVA (Quiosque / Chalé / Day Use) — NUNCA como mensalidade de plano!
+    reservationPayments.forEach((p) => {
+      const isPaid = p.status === 'RECEIVED' || p.status === 'CONFIRMED' || p.status === 'RECEIVED_IN_CASH';
+      const isOverdue = p.status === 'OVERDUE';
+      const status: 'PAID' | 'PENDING' | 'OVERDUE' = isPaid ? 'PAID' : isOverdue ? 'OVERDUE' : 'PENDING';
+      const dueParts = (p.dueDate || '').split('-');
+      const refMonth = dueParts.length === 3 ? `${dueParts[1]}/${dueParts[0]}` : 'Reserva';
+      const rawDesc = String(p.description || 'Reserva Balneário Lessa').split('\n')[0].trim();
+      const reservationDesc = /n[aã]o\s*[eé]\s*(pagamento\s*de\s*)?plano/i.test(rawDesc)
+        ? rawDesc
+        : `RESERVA DO BALNEÁRIO (NÃO É PAGAMENTO DE PLANO) — ${rawDesc}`;
+
+      const matchIdx = updatedInvoices.findIndex((i) => i.asaasPaymentId && i.asaasPaymentId === p.id);
+      const existingRes = matchIdx >= 0 ? updatedInvoices[matchIdx] : undefined;
+      const keepExistingDesc =
+        existingRes?.description && /n[aã]o\s*[eé]\s*(pagamento\s*de\s*)?plano/i.test(existingRes.description);
+      const resInv: ClubInvoice = {
+        id: existingRes ? existingRes.id : `inv_reserva_${p.id}`,
         subscriptionId: targetSub.id,
         subscriptionCode: targetSub.subscriptionCode,
         holderName: targetSub.holderName,
         holderCpf: targetSub.holderCpf,
         holderPhone: targetSub.holderPhone,
-        installmentNumber: idx + 1,
-        totalInstallments: sortedPayments.length,
+        installmentNumber: 1,
+        totalInstallments: 1,
         referenceMonth: refMonth,
-        amount: Number(p.value) || targetSub.monthlyEquivalent || 25,
+        amount: Number(p.value) || 0,
         dueDate: p.dueDate,
-        paidAt: isPaid ? (p.paymentDate || p.clientPaymentDate || existing?.paidAt || `${p.dueDate}T12:00:00.000Z`) : undefined,
-        paymentMethod: p.billingType === 'BOLETO' ? 'BOLETO' : p.billingType === 'PIX' ? 'PIX' : 'CARTAO',
+        paidAt: isPaid ? p.paymentDate || p.clientPaymentDate || existingRes?.paidAt || `${p.dueDate}T12:00:00.000Z` : undefined,
+        paymentMethod: p.billingType === 'BOLETO' ? 'BOLETO' : p.billingType === 'PIX' ? 'PIX' : 'CREDIT_CARD',
         status,
         asaasPaymentId: p.id,
-        invoiceUrl: p.invoiceUrl,
-        boletoNumber: p.nossoNumero || p.bankSlipUrl || existing?.boletoNumber,
-        description: `${targetSub.planSummaryLabel || 'Lessa Club'} (Mensalidade ${refMonth})`,
-        invoiceKind: 'MENSALIDADE',
-        carneGroup: 1,
-        createdAt: p.dateCreated ? `${p.dateCreated}T00:00:00.000Z` : targetSub.createdAt,
+        invoiceUrl: p.invoiceUrl || existingRes?.invoiceUrl,
+        boletoNumber: p.nossoNumero || p.bankSlipUrl || existingRes?.boletoNumber,
+        description: keepExistingDesc ? existingRes!.description : reservationDesc,
+        invoiceKind: 'AVULSA',
+        carneGroup: 99,
+        notes:
+          existingRes?.notes ||
+          'Cobrança referente a reserva avulsa no Balneário (Quiosque/Chalé/Ingresso). Não contabiliza como pagamento de mensalidade do Lessa Club.',
+        createdAt: p.dateCreated ? `${p.dateCreated}T00:00:00.000Z` : existingRes?.createdAt || targetSub.createdAt,
       };
+      if (matchIdx >= 0) {
+        updatedInvoices[matchIdx] = resInv;
+      } else {
+        updatedInvoices.push(resInv);
+      }
     });
 
-    targetSub.invoices = syncedInvoices;
+    targetSub.invoices = updatedInvoices;
+    const syncedInvoices = updatedInvoices;
 
     // Se o Administrador já definiu uma data de vigência no Lessa Club (ex: 2026-12-30), PRESERVA INTEGRALMENTE a data do Admin!
     // A decisão soberana do administrador no Lessa Club sempre prevalece sobre estimativas automáticas.
@@ -6632,6 +6762,375 @@ export const applyLabcardFullEnrichment = async (
 
   const saved = await saveClubState(nextState);
   return { state: saved, stats };
+};
+
+// ============================================================================
+// VAGAS EXATAS DE DEPENDENTES CONTRATADAS PELO PLANO + CADASTRO PELO PORTAL DO SÓCIO
+// ============================================================================
+export interface ContractedDependentSlot {
+  slotIndex: number; // 0-based index among dependent slots
+  modalityCode: string;
+  modalityName: string;
+  frontCardUrl: string;
+  backCardUrl: string;
+  requiresDocument: boolean;
+  docRule: ReturnType<typeof getPlanDocumentRule>;
+  existingMember?: ClubMember;
+}
+
+const mapLabelToModality = (rawLabel: string): ClubModality => {
+  const low = rawLabel.trim().toLowerCase();
+  if (low.includes('kids') || low.includes('criança') || low.includes('crianca')) {
+    return DEFAULT_CLUB_MODALITIES.find((m) => m.code === 'KIDS') || DEFAULT_CLUB_MODALITIES[0];
+  }
+  if (low.includes('student') || low.includes('estudante')) {
+    return DEFAULT_CLUB_MODALITIES.find((m) => m.code === 'ESTUDANTE') || DEFAULT_CLUB_MODALITIES[0];
+  }
+  if (low.includes('professor') || low.includes('docente')) {
+    return DEFAULT_CLUB_MODALITIES.find((m) => m.code === 'PROFESSOR') || DEFAULT_CLUB_MODALITIES[0];
+  }
+  if (low.includes('servidor')) {
+    return DEFAULT_CLUB_MODALITIES.find((m) => m.code === 'SERVIDOR') || DEFAULT_CLUB_MODALITIES[0];
+  }
+  if (low.includes('vitalício') || low.includes('vitalicio') || low.includes('60+') || low.includes('idoso')) {
+    return DEFAULT_CLUB_MODALITIES.find((m) => m.code === 'IDOSO_60') || DEFAULT_CLUB_MODALITIES[0];
+  }
+  if (low.includes('inclusão') || low.includes('inclusao') || low.includes('pcd') || low.includes('pdc') || low.includes('tea')) {
+    return DEFAULT_CLUB_MODALITIES.find((m) => m.code === 'PCD_TEA') || DEFAULT_CLUB_MODALITIES[0];
+  }
+  if (low.includes('publicidade') || low.includes('permuta')) {
+    return DEFAULT_CLUB_MODALITIES.find((m) => m.code === 'PUBLICIDADE') || DEFAULT_CLUB_MODALITIES[0];
+  }
+  return DEFAULT_CLUB_MODALITIES.find((m) => m.code === 'ADULTO') || DEFAULT_CLUB_MODALITIES[0];
+};
+
+/**
+ * Calcula exatamente as vagas de dependentes contratadas conforme a configuração do plano
+ * (ex: "Família Personalizado (Anual): 2x Lessa Club + 2x Lessa Kids" -> 1 titular + exatamente 3 vagas:
+ * [1x Lessa Club, 1x Lessa Kids, 1x Lessa Kids], sem gerar campos extras!).
+ */
+export const getContractedDependentSlots = (
+  subscription: ClubSubscription
+): ContractedDependentSlot[] => {
+  const existingDeps = (subscription.members || []).filter(
+    (m, idx) => m.role === 'DEPENDENTE' && idx > 0
+  );
+  const holder =
+    (subscription.members || []).find((m) => m.role === 'TITULAR') ||
+    (subscription.members || [])[0];
+  const holderModCode = holder?.modalityCode || 'ADULTO';
+
+  const planDesc = String(subscription.planSummaryLabel || '');
+  const totalContractedMods: ClubModality[] = [];
+
+  // 1. Composição explícita tipo "2x Lessa Club + 2x Lessa Kids"
+  const nxRegex = /(\d+)\s*x\s*([^+,\[\]()]+)/gi;
+  let match: RegExpExecArray | null;
+  while ((match = nxRegex.exec(planDesc)) !== null) {
+    const qty = Math.min(15, Math.max(0, parseInt(match[1], 10) || 0));
+    const mod = mapLabelToModality(match[2] || '');
+    for (let i = 0; i < qty; i += 1) {
+      totalContractedMods.push(mod);
+    }
+  }
+
+  let dependentMods: ClubModality[] = [];
+  if (totalContractedMods.length > 0) {
+    // Subtrai exatamente 1 vaga correspondente ao titular já cadastrado
+    const holderIdx = totalContractedMods.findIndex((m) => m.code === holderModCode);
+    if (holderIdx >= 0) {
+      totalContractedMods.splice(holderIdx, 1);
+    } else {
+      totalContractedMods.shift();
+    }
+    dependentMods = totalContractedMods;
+  } else {
+    // 2. Planos multi-pessoas padrão: "Lessa Club (3 pessoas)", "Lessa Club - 2 pessoas", "Lessa Duo Club"
+    const peopleMatch = planDesc.match(/(\d+)\s*pessoas?/i);
+    if (peopleMatch) {
+      const totalPeople = Math.min(15, Math.max(1, parseInt(peopleMatch[1], 10) || 1));
+      const baseMod = mapLabelToModality(planDesc);
+      for (let i = 1; i < totalPeople; i += 1) {
+        dependentMods.push(baseMod);
+      }
+    } else if (/duo\s*club/i.test(planDesc)) {
+      dependentMods.push(DEFAULT_CLUB_MODALITIES[0]);
+    }
+  }
+
+  // Vincula os dependentes já cadastrados às suas vagas exatas por modalidade
+  const remainingDeps = [...existingDeps];
+  const slots: ContractedDependentSlot[] = dependentMods.map((mod, idx) => {
+    let depIdx = remainingDeps.findIndex((d) => d.modalityCode === mod.code);
+    if (depIdx < 0 && remainingDeps.length > 0 && dependentMods.length === existingDeps.length) {
+      depIdx = 0;
+    }
+    const matched = depIdx >= 0 ? remainingDeps.splice(depIdx, 1)[0] : undefined;
+    const docRule = getPlanDocumentRule(mod.code, mod.name);
+    return {
+      slotIndex: idx,
+      modalityCode: mod.code,
+      modalityName: mod.name,
+      frontCardUrl: mod.dependentFrontCardUrl || mod.frontCardUrl,
+      backCardUrl: mod.dependentBackCardUrl || mod.backCardUrl,
+      requiresDocument: docRule.requiresDocument,
+      docRule,
+      existingMember: matched,
+    };
+  });
+
+  // Se já existiam dependentes cadastrados pelo admin além do parse do texto, mantém esses já cadastrados (sem criar extras vazios!)
+  remainingDeps.forEach((dep) => {
+    const mod =
+      DEFAULT_CLUB_MODALITIES.find((m) => m.code === dep.modalityCode) ||
+      mapLabelToModality(dep.modalityName || '');
+    const docRule = getPlanDocumentRule(dep.modalityCode, dep.modalityName);
+    slots.push({
+      slotIndex: slots.length,
+      modalityCode: dep.modalityCode || mod.code,
+      modalityName: dep.modalityName || mod.name,
+      frontCardUrl: dep.frontCardUrl || mod.dependentFrontCardUrl || mod.frontCardUrl,
+      backCardUrl: dep.backCardUrl || mod.dependentBackCardUrl || mod.backCardUrl,
+      requiresDocument: docRule.requiresDocument,
+      docRule,
+      existingMember: dep,
+    });
+  });
+
+  return slots;
+};
+
+export interface SaveSocioDependentSlotInput {
+  subscriptionId: string;
+  slotIndex: number;
+  modalityCode: string;
+  existingMemberId?: string;
+  fullName: string;
+  cpf: string;
+  birthDate: string;
+  kinship?: string;
+  photoFile?: File | null;
+  documentFile?: File | null;
+}
+
+/**
+ * Permite ao próprio sócio cadastrar ou atualizar os dados de uma vaga de dependente
+ * já contratada no seu plano (com foto 3x4 e documento obrigatório salvos no Supabase Storage `club-files` + `club_records`).
+ */
+export const saveSocioDependentSlot = async (
+  input: SaveSocioDependentSlotInput
+): Promise<{ state: ClubDatabaseState; subscription: ClubSubscription; member: ClubMember }> => {
+  const currentState = await fetchClubState();
+  const subIdx = currentState.subscriptions.findIndex((s) => s.id === input.subscriptionId);
+  if (subIdx < 0) {
+    throw new Error('Assinatura não encontrada na base de dados.');
+  }
+
+  const sub = currentState.subscriptions[subIdx];
+  const slots = getContractedDependentSlots(sub);
+  const targetSlot = slots.find((sl) => sl.slotIndex === input.slotIndex);
+  if (!targetSlot) {
+    throw new Error('Vaga de dependente não permitida pela configuração do seu plano.');
+  }
+
+  const cleanName = input.fullName.trim().toUpperCase();
+  if (cleanName.length < 3) {
+    throw new Error('Informe o nome completo do dependente.');
+  }
+  const cleanCpfDigits = cleanDigits(input.cpf);
+  if (cleanCpfDigits.length !== 11) {
+    throw new Error('Informe um CPF válido (11 dígitos) para o dependente.');
+  }
+  const cleanBirth = input.birthDate.trim();
+  if (cleanBirth.length < 8) {
+    throw new Error('Informe a data de nascimento completa (DD/MM/AAAA) do dependente.');
+  }
+
+  const mod =
+    DEFAULT_CLUB_MODALITIES.find((m) => m.code === targetSlot.modalityCode) ||
+    DEFAULT_CLUB_MODALITIES[0];
+  const docRule = getPlanDocumentRule(mod.code, mod.name);
+  const nowIso = new Date().toISOString();
+
+  const existingMember = input.existingMemberId
+    ? (sub.members || []).find((m) => m.id === input.existingMemberId)
+    : targetSlot.existingMember;
+
+  // Calcula próximo número de cartão único (apenas se for um dependente novo)
+  let memberCardNumber = existingMember?.cardNumber || '';
+  let nextSeq = Number(currentState.lastCardSequence || 3015);
+  if (!memberCardNumber) {
+    const bumpSeq = (code?: string | null) => {
+      const m = String(code || '').match(/^121225(\d+)$/);
+      if (m) {
+        const n = parseInt(m[1], 10);
+        if (!isNaN(n) && n < 90000 && n > nextSeq) nextSeq = n;
+      }
+    };
+    (currentState.subscriptions || []).forEach((s) => {
+      bumpSeq(s.subscriptionCode);
+      (s.members || []).forEach((mem) => bumpSeq(mem.cardNumber));
+    });
+    try {
+      const { data: latestCodes } = await (supabase.from as any)('club_records').select('subscription_code');
+      if (Array.isArray(latestCodes)) {
+        latestCodes.forEach((row: any) => bumpSeq(row?.subscription_code));
+      }
+    } catch {}
+    nextSeq += 1;
+    memberCardNumber = `121225${String(nextSeq).padStart(4, '0')}`;
+  }
+
+  const memberId =
+    existingMember?.id ||
+    (typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `mem-dep-${Date.now()}-${input.slotIndex}`);
+
+  // 1. Upload de Foto 3x4 para Supabase Storage (`club-files`)
+  let resolvedPhotoUrl = existingMember?.photoUrl || '';
+  if (input.photoFile) {
+    const compressed = await compressImageFile(input.photoFile, 700, 0.8);
+    const uploadedPhotoUrl = await uploadClubFileToStorage(
+      sub.subscriptionCode,
+      compressed,
+      `foto_${memberCardNumber}_${input.photoFile.name || '3x4.jpg'}`,
+      'image/jpeg'
+    );
+    resolvedPhotoUrl = uploadedPhotoUrl || compressed;
+  }
+
+  // 2. Upload de Documento Obrigatório (ex: Certidão/RG para Lessa Kids) para `club-files` + `club_attachments`
+  let resolvedDocUrl = existingMember?.documentProofUrl || '';
+  let resolvedDocName = existingMember?.documentProofName || '';
+  let resolvedAttachments: ClubAttachment[] = [...(existingMember?.attachments || [])];
+  let uploadedNewDoc = false;
+
+  if (input.documentFile) {
+    const isPdf =
+      input.documentFile.type === 'application/pdf' ||
+      input.documentFile.name.toLowerCase().endsWith('.pdf');
+    const rawDataUrl = isPdf
+      ? await fileToDataUrl(input.documentFile)
+      : await compressImageFile(input.documentFile, 1280, 0.82);
+
+    const uploadedDocUrl = await uploadClubFileToStorage(
+      sub.subscriptionCode,
+      rawDataUrl,
+      `doc_${memberCardNumber}_${input.documentFile.name}`,
+      isPdf ? 'application/pdf' : 'image/jpeg'
+    );
+    const finalDocUrl = uploadedDocUrl || rawDataUrl;
+    const newAtt: ClubAttachment = {
+      id: `att_dep_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      name: `${cleanName} — ${input.documentFile.name}`,
+      mimeType: isPdf ? 'application/pdf' : 'image/jpeg',
+      dataUrl: finalDocUrl,
+      createdAt: nowIso,
+    };
+    await saveClubAttachmentAtomic(sub.subscriptionCode, memberId, newAtt);
+    resolvedDocUrl = finalDocUrl;
+    resolvedDocName = input.documentFile.name;
+    resolvedAttachments = [newAtt, ...resolvedAttachments.filter((a) => a.id !== newAtt.id)];
+    uploadedNewDoc = true;
+  }
+
+  const hasAnyRealDoc = Boolean(resolvedDocUrl) || resolvedAttachments.length > 0;
+  const kidsExpDate = mod.code === 'KIDS' ? calculateKidsExpirationDate(cleanBirth) : undefined;
+  const effectiveExpDate = kidsExpDate || existingMember?.expirationDate || sub.endDate;
+  const effectiveValLabel = getValidityLabelFromDate(
+    effectiveExpDate,
+    existingMember?.validityLabel || sub.validityLabel || '11/2027'
+  );
+  const cycleSuffix = sub.billingCycle === 'ANNUAL' ? '(Anual)' : '(Mensal)';
+
+  const updatedMember: ClubMember = {
+    ...(existingMember || {}),
+    id: memberId,
+    subscriptionId: sub.id,
+    role: 'DEPENDENTE',
+    modalityCode: mod.code,
+    modalityName: mod.name,
+    planCycleLabel: mod.isFreeTier ? mod.name : `${mod.name} ${cycleSuffix}`,
+    fullName: cleanName,
+    cpf: formatCpf(cleanCpfDigits),
+    rg: existingMember?.rg || '',
+    birthDate: cleanBirth,
+    sex: existingMember?.sex || '',
+    phone: existingMember?.phone || sub.holderPhone,
+    photoUrl: resolvedPhotoUrl,
+    documentProofUrl: resolvedDocUrl,
+    documentProofName: resolvedDocName,
+    documentVerified: uploadedNewDoc ? false : Boolean(existingMember?.documentVerified && hasAnyRealDoc),
+    documentStatus: uploadedNewDoc
+      ? 'EM_ANALISE'
+      : hasAnyRealDoc
+      ? existingMember?.documentStatus || 'EM_ANALISE'
+      : docRule.requiresDocument
+      ? 'PENDENTE_ANEXO'
+      : undefined,
+    attachments: resolvedAttachments,
+    cardNumber: memberCardNumber,
+    holderCardNumber: sub.subscriptionCode,
+    qrToken: existingMember?.qrToken || memberCardNumber,
+    frontCardUrl: mod.dependentFrontCardUrl || mod.frontCardUrl,
+    backCardUrl: mod.dependentBackCardUrl || mod.backCardUrl,
+    validityLabel: effectiveValLabel,
+    expirationDate: effectiveExpDate,
+    expirationNotes:
+      mod.code === 'KIDS'
+        ? 'Expira ao completar 12 anos (transição para plano pago)'
+        : existingMember?.expirationNotes,
+    kinship: (input.kinship || existingMember?.kinship || (mod.code === 'KIDS' ? 'Filho(a)' : 'Dependente')).trim(),
+    monthlyValue: mod.isFreeTier
+      ? 0
+      : sub.billingCycle === 'ANNUAL'
+      ? mod.annualInstallment
+      : mod.monthlyPrice,
+    status:
+      docRule.requiresDocument && !hasAnyRealDoc
+        ? 'INACTIVE'
+        : sub.status === 'ACTIVE'
+        ? 'ACTIVE'
+        : sub.status,
+    createdAt: existingMember?.createdAt || nowIso,
+  };
+
+  const nextMembers = existingMember
+    ? (sub.members || []).map((m) => (m.id === existingMember.id ? updatedMember : m))
+    : [...(sub.members || []), updatedMember];
+
+  const mergedSubAttachments = uploadedNewDoc
+    ? mergeAttachmentsSafely(sub.attachments, resolvedAttachments)
+    : sub.attachments || [];
+
+  const updatedSub: ClubSubscription = {
+    ...sub,
+    members: nextMembers,
+    attachments: mergedSubAttachments,
+    isModifiedFromSeed: true,
+    updatedAt: nowIso,
+  };
+  updatedSub.contractContentHtml = renderSubscriptionContractHtml(
+    updatedSub,
+    currentState.contractTemplates
+  );
+
+  // Gravação atômica imediata em public.club_records (+ snapshot no histórico) e na nuvem
+  await saveMemberPermanentDocs(updatedSub.subscriptionCode, updatedSub, 'SOCIO_SAVE_DEPENDENT');
+
+  const nextState: ClubDatabaseState = {
+    ...currentState,
+    lastCardSequence: Math.max(currentState.lastCardSequence || 3015, nextSeq),
+    subscriptions: currentState.subscriptions.map((s) => (s.id === updatedSub.id ? updatedSub : s)),
+  };
+  const savedState = await saveClubState(nextState, { waitForCloud: true });
+
+  return {
+    state: savedState,
+    subscription: updatedSub,
+    member: updatedMember,
+  };
 };
 
 export {
