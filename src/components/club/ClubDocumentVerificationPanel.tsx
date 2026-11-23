@@ -22,8 +22,11 @@ import {
   ClubSubscription,
   ClubMember,
   ClubAttachment,
+  InactivityReason,
+  SubscriptionStatus,
 } from '@/lib/club-types';
 import {
+  ClubDatabaseState,
   getPlanDocumentRule,
   memberHasProofUploaded,
   getMemberDocumentStatus,
@@ -189,7 +192,7 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
         hadOverdueDebt ||
         remainingReasons.length > 0;
 
-      const finalStatus: 'ACTIVE' | 'INACTIVE' = shouldStayInactive ? 'INACTIVE' : currentSub.status;
+      const finalStatus: SubscriptionStatus = shouldStayInactive ? 'INACTIVE' : currentSub.status;
       const finalInactivityReason = shouldStayInactive
         ? (remainingReasons[0] || (hadOverdueDebt ? 'MENSALIDADE_VENCIDA' : currentSub.inactivityReason || 'MENSALIDADE_VENCIDA'))
         : undefined;

@@ -242,6 +242,7 @@ export interface ClubSubscription {
   contractAcceptedTerms?: string[];
   startDate: string; // YYYY-MM-DD
   endDate: string; // YYYY-MM-DD
+  validityLabel?: string; // Ex: 10/2027
   members: ClubMember[];
   invoices: ClubInvoice[];
   attachments?: ClubAttachment[];

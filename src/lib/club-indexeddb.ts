@@ -1,4 +1,4 @@
-import type { ClubDatabaseState } from './club-types';
+import type { ClubDatabaseState } from './club-service';
 
 const DB_NAME = 'BalnearioLessaClubDB';
 const DB_VERSION = 1;

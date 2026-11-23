@@ -49,7 +49,6 @@ import {
   EyeOff,
   Filter,
   AlertTriangle,
-  FileText,
   Layers,
   Code,
   Save,

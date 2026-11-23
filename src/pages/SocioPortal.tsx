@@ -1748,6 +1748,10 @@ const SocioPortal: React.FC = () => {
                           const missingDoc = isMemberBlockedForMissingDoc(member, subscription);
                           const effExp = member.expirationDate || subscription.endDate;
                           const isExpiredDep = isClubDateExpired(effExp);
+                          const isDepInactive =
+                            member.status === 'INACTIVE' ||
+                            member.status === 'CANCELLED' ||
+                            member.status === 'OVERDUE';
                           const isLockedDep =
                             !isSubscriptionActive ||
                             isDepInactive ||
