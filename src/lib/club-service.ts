@@ -3225,7 +3225,33 @@ export const createClubSubscription = async (
     });
   }
 
-  let seq = state.lastCardSequence || 3000;
+  // Calcula a sequência REAL máxima entre state, assinaturas, membros e public.club_records
+  // para impedir 100% qualquer colisão de código de carteirinha (ex: dois clientes com 1212253016)
+  let seq = Number(state.lastCardSequence || 3015);
+  const bumpSeqFromCode = (code?: string | null) => {
+    const m = String(code || '').match(/^121225(\d+)$/);
+    if (m) {
+      const n = parseInt(m[1], 10);
+      if (!isNaN(n) && n < 90000 && n > seq) seq = n;
+    }
+  };
+  for (const existingSub of state.subscriptions || []) {
+    bumpSeqFromCode(existingSub.subscriptionCode);
+    for (const mem of existingSub.members || []) {
+      bumpSeqFromCode(mem.cardNumber);
+    }
+  }
+  try {
+    const { data: latestCodes } = await (supabase.from as any)('club_records')
+      .select('subscription_code');
+    if (Array.isArray(latestCodes)) {
+      for (const row of latestCodes) {
+        bumpSeqFromCode(row?.subscription_code);
+      }
+    }
+  } catch (seqErr) {
+    console.warn('[ClubService] Aviso ao consultar última sequência em club_records:', seqErr);
+  }
 
   const now = new Date();
   const startDate = now.toISOString().split('T')[0];
@@ -3571,6 +3597,7 @@ export const createClubSubscription = async (
     members: builtMembers,
     invoices,
     attachments: input.attachments || [],
+    isModifiedFromSeed: true,
     createdAt: now.toISOString(),
     updatedAt: now.toISOString(),
   };
@@ -3581,9 +3608,14 @@ export const createClubSubscription = async (
     state.contractTemplates
   );
 
+  // 1. Gravação ATÔMICA IMEDIATA em public.club_records (+ snapshot automático em club_record_history)
+  // Garante que NENHUM novo cadastro pelo site ou admin se perca mesmo se o cliente fechar a aba ou houver debounce!
+  await saveMemberPermanentDocs(subscription.subscriptionCode, subscription, 'CREATE_SUBSCRIPTION');
+
+  // 2. Gravação imediata no estado global (waitForCloud: true — SEM debounce!) antes de abrir pagamento Asaas
   state.lastCardSequence = seq;
   state.subscriptions = [subscription, ...state.subscriptions];
-  await saveClubState(state);
+  await saveClubState(state, { waitForCloud: true });
 
   return {
     subscription,
@@ -3704,24 +3736,29 @@ export const generateAsaasChargeForClubInvoice = async (
   }
 
   const paymentData = data.data;
-  // Salva os dados na fatura e ativa/vincula na assinatura
+  // Salva os dados na fatura e ativa/vincula na assinatura (garantindo que a assinatura nunca seja omitida)
   const state = await fetchClubState();
-  const subIdx = state.subscriptions.findIndex((s) => s.id === subscription.id);
-  if (subIdx >= 0) {
-    let targetSub = state.subscriptions[subIdx];
-    targetSub.asaasPaymentId = paymentData.paymentId;
-    targetSub.asaasInvoiceUrl = paymentData.invoiceUrl;
-    const invIdx = targetSub.invoices.findIndex((inv) => inv.id === invoice.id);
-    if (invIdx >= 0) {
-      targetSub.invoices[invIdx].asaasPaymentId = paymentData.paymentId;
-      targetSub.invoices[invIdx].invoiceUrl = paymentData.invoiceUrl;
-      if (paymentData.pix) {
-        targetSub.invoices[invIdx].pixPayload = paymentData.pix.payload;
-        targetSub.invoices[invIdx].pixQrCode = paymentData.pix.encodedImage;
-      }
-    }
-    await saveClubState(state, { waitForCloud: true });
+  let subIdx = state.subscriptions.findIndex((s) => s.id === subscription.id);
+  if (subIdx < 0) {
+    state.subscriptions = [{ ...subscription, isModifiedFromSeed: true }, ...state.subscriptions];
+    subIdx = 0;
   }
+  const targetSub = state.subscriptions[subIdx];
+  targetSub.asaasPaymentId = paymentData.paymentId;
+  targetSub.asaasInvoiceUrl = paymentData.invoiceUrl;
+  targetSub.isModifiedFromSeed = true;
+  targetSub.updatedAt = new Date().toISOString();
+  const invIdx = targetSub.invoices.findIndex((inv) => inv.id === invoice.id);
+  if (invIdx >= 0) {
+    targetSub.invoices[invIdx].asaasPaymentId = paymentData.paymentId;
+    targetSub.invoices[invIdx].invoiceUrl = paymentData.invoiceUrl;
+    if (paymentData.pix) {
+      targetSub.invoices[invIdx].pixPayload = paymentData.pix.payload;
+      targetSub.invoices[invIdx].pixQrCode = paymentData.pix.encodedImage;
+    }
+  }
+  await saveMemberPermanentDocs(targetSub.subscriptionCode, targetSub, 'ASAAS_CHARGE_CREATED');
+  await saveClubState(state, { waitForCloud: true });
 
   return {
     paymentId: paymentData.paymentId,

@@ -115,6 +115,8 @@ Deno.serve(async (req) => {
             }
           }
 
+          const updatedSubsForClubRecords: any[] = [];
+
           for (const sub of clubState.subscriptions || []) {
             let subInvoicePaid = false;
             const subCpf = (sub.holderCpf || '').replace(/\D/g, '');
@@ -157,7 +159,10 @@ Deno.serve(async (req) => {
 
             if (isSubTarget) {
               const hasOverdue = (sub.invoices || []).some((i: any) => i.status === 'OVERDUE');
-              if (!hasOverdue) {
+              const isManualAdminBlock =
+                sub.inactivityReason === 'ADMINISTRATIVO' ||
+                sub.inactivityReason === 'SOLICITACAO_CLIENTE';
+              if (!hasOverdue && !isManualAdminBlock) {
                 sub.status = 'ACTIVE';
                 sub.inactivityReason = undefined;
                 sub.inactivityReasons = undefined;
@@ -175,15 +180,44 @@ Deno.serve(async (req) => {
                   `[asaas-webhook] Subscription ${sub.subscriptionCode || sub.id} and all members ACTIVATED!`
                 );
               }
+              if (subInvoicePaid || !hasOverdue) {
+                sub.updatedAt = new Date().toISOString();
+                sub.isModifiedFromSeed = true;
+                updatedSubsForClubRecords.push(sub);
+              }
             }
           }
 
           if (clubUpdated) {
+            const nowIso = new Date().toISOString();
             await supabaseAdmin
               .from('site_settings')
-              .update({ value: clubState, updated_at: new Date().toISOString() })
+              .update({ value: clubState, updated_at: nowIso })
               .eq('key', 'lessa_club_ecosystem_v1');
             console.log('[asaas-webhook] Saved updated club state to site_settings');
+
+            // Também persiste atomicamente em public.club_records (+ snapshot automático em club_record_history)
+            for (const uSub of updatedSubsForClubRecords) {
+              const code = String(uSub.subscriptionCode || uSub.id || '').trim();
+              if (!code) continue;
+              try {
+                await supabaseAdmin.from('club_records').upsert(
+                  {
+                    subscription_code: code,
+                    subscription_id: uSub.id || code,
+                    holder_name: uSub.holderName || '',
+                    holder_cpf: uSub.holderCpf || '',
+                    status: uSub.status || 'ACTIVE',
+                    payload: uSub,
+                    updated_at: nowIso,
+                    updated_by: 'ASAAS_WEBHOOK_PAYMENT',
+                  },
+                  { onConflict: 'subscription_code' }
+                );
+              } catch (crErr) {
+                console.warn('[asaas-webhook] club_records upsert warning:', crErr);
+              }
+            }
           }
         }
       } catch (clubErr) {
