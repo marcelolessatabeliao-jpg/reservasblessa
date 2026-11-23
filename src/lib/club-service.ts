@@ -102,17 +102,17 @@ export const isSubscriptionRegularizedOrActive = (
   // SOMENTE pode ser considerado ativo se:
   // 1. Estiver na lista oficial de regularizados (REGULARIZED_ACTIVE_CARDS)
   // 2. Ou se foi confirmado manualmente e individualmente pelo Administrador (confirmedSet)
-  // 3. Ou se o Administrador realizou confirmação manual individual explícita
-  // 4. Ou se o cadastro foi salvo como ACTIVE, ou tem manualStatusOverride/isModifiedFromSeed
+  // 3. Ou se está EXPLICITAMENTE salvo com status === 'ACTIVE' (com transferência/override confirmado)
+  // NUNCA ativa apenas por ter `isModifiedFromSeed` ou `manualStatusOverride` em cadastro PENDING_TRANSFER!
   return (
     REGULARIZED_ACTIVE_CARDS.has(code) ||
     REGULARIZED_ACTIVE_CARDS.has(subId) ||
     confirmedSet.has(code) ||
     confirmedSet.has(subId) ||
-    sub.status === 'ACTIVE' ||
-    Boolean(sub.manuallyConfirmedTransfer) ||
-    Boolean(sub.manualStatusOverride) ||
-    Boolean(sub.isModifiedFromSeed)
+    (sub.status === 'ACTIVE' &&
+      (Boolean(sub.manuallyConfirmedTransfer) ||
+        Boolean(sub.transferCompleted) ||
+        Boolean(sub.manualStatusOverride)))
   );
 };
 
@@ -1658,15 +1658,14 @@ export const normalizeClubDatabaseState = (
       sub.status === 'INACTIVE' || sub.status === 'SUSPENDED' || sub.status === 'CANCELLED' || Boolean(sub.inactivityReason);
 
     const isSubUserConfirmed =
-      Boolean(sub.manualStatusOverride) ||
-      Boolean(sub.isModifiedFromSeed) ||
-      Boolean(sub.manuallyConfirmedTransfer) ||
       sub.status === 'ACTIVE' ||
       isSubExplicitlyRegularized;
 
     const resolvedSubStatus: SubscriptionStatus =
       isSubDirectlyInactive
         ? (sub.status === 'SUSPENDED' || sub.status === 'CANCELLED' ? (sub.status as SubscriptionStatus) : 'INACTIVE')
+        : sub.status === 'PENDING_TRANSFER' && !isSubExplicitlyRegularized
+        ? ('PENDING_TRANSFER' as SubscriptionStatus)
         : isSubUserConfirmed
         ? (sub.status || 'ACTIVE')
         : isLabcard && !isSubExplicitlyRegularized
@@ -2049,10 +2048,10 @@ export const loadClubStateLocal = (): ClubDatabaseState => {
         }
 
         const isSubUserConfirmed =
-          Boolean(sub.manualStatusOverride) ||
-          Boolean(sub.isModifiedFromSeed) ||
-          Boolean(sub.manuallyConfirmedTransfer) ||
-          sub.status === 'ACTIVE';
+          sub.status === 'ACTIVE' &&
+          (Boolean(sub.manualStatusOverride) ||
+            Boolean(sub.manuallyConfirmedTransfer) ||
+            Boolean(sub.transferCompleted));
 
         const isAlreadyRegularized = isSubUserConfirmed || isSubscriptionRegularizedOrActive(sub, adminConfirmedCards);
 
@@ -2122,6 +2121,15 @@ const buildCompactCloudState = (state: ClubDatabaseState): ClubDatabaseState => 
   const compactSubs = state.subscriptions
     .filter((sub) => {
       if (!sub.id.startsWith('sub-labcard-')) return true;
+      // Disjuntor anti-ativação em massa: NUNCA envia para a nuvem registros Labcard com data estática do seed (2026-11-10)
+      // marcados como ACTIVE sem estarem na lista oficial REGULARIZED_ACTIVE_CARDS
+      if (
+        sub.status === 'ACTIVE' &&
+        !REGULARIZED_ACTIVE_CARDS.has(sub.subscriptionCode) &&
+        (!sub.updatedAt || sub.updatedAt <= '2026-11-10T00:00:00.000Z')
+      ) {
+        return false;
+      }
       return isLabcardSubscriptionModified(sub, seedMap.get(sub.id));
     })
     .map((sub) => {
@@ -2490,17 +2498,16 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
             });
           }
 
-          // 3. Restaurar campos cadastrais salvos no IndexedDB
+          // 3. Restaurar campos cadastrais salvos no IndexedDB (SOMENTE se houve edição real — NUNCA por CEP/endDate padrão do seed!)
           const isFullModified =
             Boolean(full.isModifiedFromSeed) ||
-            Boolean(full.manualStatusOverride) ||
-            Boolean(full.transferCompleted) ||
             Boolean(full.manuallyConfirmedTransfer) ||
-            full.status === 'ACTIVE' ||
-            Boolean(full.holderEmail) ||
-            Boolean(full.addressCep) ||
+            full.status === 'INACTIVE' ||
+            full.status === 'CANCELLED' ||
+            (full.status === 'ACTIVE' && Boolean(full.transferCompleted)) ||
+            (Boolean(full.addressCep) && full.addressCep !== '76870-000') ||
             Boolean(full.addressStreet) ||
-            Boolean(full.endDate) ||
+            (Boolean(full.endDate) && full.endDate !== '2027-10-31') ||
             (full.attachments?.length || 0) > 0;
 
           if (isFullModified) {
@@ -2550,15 +2557,9 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
             } else {
               const isSubActiveConfirmed =
                 s.status === 'ACTIVE' ||
-                full.status === 'ACTIVE' ||
-                Boolean(s.manualStatusOverride) ||
-                Boolean(full.manualStatusOverride) ||
-                Boolean(s.isModifiedFromSeed) ||
-                Boolean(full.isModifiedFromSeed) ||
-                Boolean(s.manuallyConfirmedTransfer) ||
-                Boolean(full.manuallyConfirmedTransfer);
+                full.status === 'ACTIVE';
 
-              const isAlreadyRegularized = isSubActiveConfirmed || isSubscriptionRegularizedOrActive(s, adminConfirmedCards);
+              const isAlreadyRegularized = isSubActiveConfirmed && isSubscriptionRegularizedOrActive(s, adminConfirmedCards);
               if (isAlreadyRegularized) {
                 s.status = 'ACTIVE';
                 s.manualStatusOverride = true;
@@ -2572,7 +2573,7 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
                 s.transferredAt = undefined;
               }
             }
-            s.isModifiedFromSeed = true;
+            if (full.isModifiedFromSeed) s.isModifiedFromSeed = true;
           } else {
             if (full.addressCep && !s.addressCep) s.addressCep = full.addressCep;
             if (full.addressStreet && !s.addressStreet) s.addressStreet = full.addressStreet;
@@ -2654,6 +2655,50 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
       const deletedSet = new Set(effectiveDeletedIds);
       const defaultLabcardSubs = getLabcardSubscriptions();
 
+      // Carrega ANTES do merge a tabela soberana `public.club_records` + `public.club_attachments`
+      // para identificar com 100% de precisão quais registros Labcard foram realmente editados/ativados
+      // e purgar qualquer ativação em massa contaminada (tanto em site_settings quanto no localStorage/IndexedDB).
+      let permanentDocsMap = new Map<string, PermanentMemberDocRecord>();
+      try {
+        permanentDocsMap = await loadAllPermanentMemberDocs();
+      } catch (permErr) {
+        console.warn('[ClubService] Aviso ao carregar club_records/club_attachments:', permErr);
+      }
+
+      const permIdsSet = new Set<string>();
+      const permCodesSet = new Set<string>();
+      permanentDocsMap.forEach((rec, code) => {
+        permCodesSet.add(code);
+        if (rec.id) permIdsSet.add(rec.id);
+        permIdsSet.add(`sub-labcard-${code}`);
+      });
+
+      const isBackedRealLabcard = (s: Partial<ClubSubscription>): boolean => {
+        const code = String(s.subscriptionCode || '').trim();
+        const id = String(s.id || '').trim();
+        return (
+          REGULARIZED_ACTIVE_CARDS.has(code) ||
+          permCodesSet.has(code) ||
+          permIdsSet.has(id)
+        );
+      };
+
+      const remoteUnbackedActiveLabcardCount = remoteSubs.filter(
+        (rs) =>
+          (rs.origin === 'IMPORT_LABCARD' || rs.id.startsWith('sub-labcard-')) &&
+          rs.status === 'ACTIVE' &&
+          !isBackedRealLabcard(rs)
+      ).length;
+      const isRemoteMassPolluted = remoteUnbackedActiveLabcardCount > 25;
+
+      const localUnbackedActiveLabcardCount = localSubs.filter(
+        (ls) =>
+          (ls.origin === 'IMPORT_LABCARD' || ls.id.startsWith('sub-labcard-')) &&
+          ls.status === 'ACTIVE' &&
+          !isBackedRealLabcard(ls)
+      ).length;
+      const isLocalMassPolluted = localUnbackedActiveLabcardCount > 25;
+
       // Unir assinaturas pelo ID preservando exclusões definitivas (`deletedSet`)
       const subsMap = new Map<string, ClubSubscription>();
       // 1. Base estática do seed
@@ -2663,6 +2708,17 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
       // 2. Base da nuvem (Supabase)
       remoteSubs.forEach((s) => {
         if (!deletedSet.has(s.id)) {
+          const isLabcardSub = s.origin === 'IMPORT_LABCARD' || s.id.startsWith('sub-labcard-');
+          // Se o registro Labcard NÃO está em club_records nem em REGULARIZED_ACTIVE_CARDS e veio marcado ACTIVE
+          // com data estática do seed (2026-11-10) ou dentro de lote contaminado (>25), descarta a ativação indevida!
+          if (
+            isLabcardSub &&
+            s.status === 'ACTIVE' &&
+            !isBackedRealLabcard(s) &&
+            (isRemoteMassPolluted || !s.updatedAt || s.updatedAt <= '2026-11-10T00:00:00.000Z')
+          ) {
+            return;
+          }
           const seed = subsMap.get(s.id);
           if (seed) {
             // Se o seed contiver dados cadastrais (ex: email, endereço mapeado) e a nuvem estiver sem esses campos, preserva os dados do seed!
@@ -2696,17 +2752,28 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
           subsMap.set(s.id, s);
         }
       });
-      // 3. Base local do navegador: preserva qualquer alteração manual ou mais recente que a nuvem
+
+      // 3. Base local do navegador: preserva qualquer alteração manual genuína mais recente que a nuvem,
+      // mas NUNCA deixa um cache local contaminado ou mais antigo re-ativar cadastros do Labcard em massa!
       localSubs.forEach((s) => {
         if (!deletedSet.has(s.id)) {
+          const isLabcardSub = s.origin === 'IMPORT_LABCARD' || s.id.startsWith('sub-labcard-');
+          if (isLabcardSub && (isLocalMassPolluted || isRemoteMassPolluted)) {
+            return;
+          }
+          const isLabcardSeedOnly = isLabcardSub && !isBackedRealLabcard(s) && !activeRemoteIds.has(s.id);
+          if (isLabcardSeedOnly && remoteIsNewerOrEqual) {
+            return;
+          }
+
           const current = subsMap.get(s.id);
           if (!current) {
             subsMap.set(s.id, s);
           } else {
             const localTime = s.updatedAt ? new Date(s.updatedAt).getTime() : 0;
             const remoteTime = current.updatedAt ? new Date(current.updatedAt).getTime() : 0;
-            // Se o local for estritamente mais recente, prevalece o local; caso contrário, a nuvem é a fonte da verdade
-            if (localTime > remoteTime) {
+            // Se o local for estritamente mais recente (e não estiver contaminado por ativação em massa), prevalece o local; caso contrário, a nuvem é a fonte da verdade
+            if (localTime > remoteTime && !isLocalMassPolluted) {
               if (current.members && current.members.length > (s.members?.length || 0)) {
                 // Restaura dependentes mapeados da família caso o cache local tenha ficado com menos integrantes
                 const existingCards = new Set((s.members || []).map((m) => m.cardNumber));
@@ -2783,12 +2850,15 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
               }
               subsMap.set(s.id, s);
             } else {
-              // Remote (nuvem) é mais recente ou igual: a nuvem é a base.
-              // Contudo, se o item local possui modificações manuais feitas pelo admin, aplica os dados editados sobre current!
-              const isLocalUserModified = Boolean(s.isModifiedFromSeed) || Boolean(s.manualStatusOverride);
+              // Remote (nuvem) é mais recente ou igual: a nuvem é a base soberana (especialmente para status e transferCompleted!).
+              // Apenas preenche eventuais campos cadastrais em branco a partir do cache local, sem sobrescrever status da nuvem.
+              const isLocalUserModified =
+                !isLocalMassPolluted &&
+                !remoteIsNewerOrEqual &&
+                (Boolean(s.isModifiedFromSeed) || Boolean(s.manualStatusOverride));
               if (isLocalUserModified) {
                 if (s.holderEmail) current.holderEmail = s.holderEmail;
-                if (s.addressCep) current.addressCep = s.addressCep;
+                if (s.addressCep && s.addressCep !== '76870-000') current.addressCep = s.addressCep;
                 if (s.addressStreet) current.addressStreet = s.addressStreet;
                 if (s.addressNumber) current.addressNumber = s.addressNumber;
                 if (s.addressComplement) current.addressComplement = s.addressComplement;
@@ -2805,20 +2875,13 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
                 if (s.vehicleModel) current.vehicleModel = s.vehicleModel;
                 if (s.vehicleColor) current.vehicleColor = s.vehicleColor;
                 if (s.notes) current.notes = s.notes;
-                if (s.endDate) current.endDate = s.endDate;
+                if (s.endDate && s.endDate !== '2027-10-31') current.endDate = s.endDate;
                 if (s.validityLabel) current.validityLabel = s.validityLabel;
                 if (s.dueDay) current.dueDay = s.dueDay;
                 if (s.billingCycle) current.billingCycle = s.billingCycle;
                 if (s.monthlyEquivalent !== undefined) current.monthlyEquivalent = s.monthlyEquivalent;
                 if (s.totalContractValue !== undefined) current.totalContractValue = s.totalContractValue;
                 if (s.planSummaryLabel) current.planSummaryLabel = s.planSummaryLabel;
-                if (s.inactivityReason) current.inactivityReason = s.inactivityReason;
-                if (s.inactivityNotes) current.inactivityNotes = s.inactivityNotes;
-                if (s.status) current.status = s.status;
-                if (s.manualStatusOverride !== undefined) current.manualStatusOverride = s.manualStatusOverride;
-                if (s.transferCompleted !== undefined) current.transferCompleted = s.transferCompleted;
-                if (s.manuallyConfirmedTransfer !== undefined) current.manuallyConfirmedTransfer = s.manuallyConfirmedTransfer;
-                if (s.transferredAt) current.transferredAt = s.transferredAt;
                 current.isModifiedFromSeed = true;
               } else {
                 if (s.holderEmail && !current.holderEmail) current.holderEmail = s.holderEmail;
@@ -2872,15 +2935,9 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
               } else {
                 const isSubActiveConfirmed =
                   current.status === 'ACTIVE' ||
-                  s.status === 'ACTIVE' ||
-                  Boolean(current.manualStatusOverride) ||
-                  Boolean(s.manualStatusOverride) ||
-                  Boolean(current.isModifiedFromSeed) ||
-                  Boolean(s.isModifiedFromSeed) ||
-                  Boolean(current.manuallyConfirmedTransfer) ||
-                  Boolean(s.manuallyConfirmedTransfer);
+                  (s.status === 'ACTIVE' && !isLocalMassPolluted);
 
-                const isAlreadyRegularizedCur = isSubActiveConfirmed || isSubscriptionRegularizedOrActive(current, adminConfirmedCards);
+                const isAlreadyRegularizedCur = isSubActiveConfirmed && isSubscriptionRegularizedOrActive(current, adminConfirmedCards);
                 if (isAlreadyRegularizedCur) {
                   current.status = 'ACTIVE';
                   current.manualStatusOverride = true;
@@ -3068,11 +3125,10 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
         }
       });
 
-      // 4. FONTE DA VERDADE SOBERANA: carrega todas as linhas individuais da tabela `public.club_records`
+      // 4. FONTE DA VERDADE SOBERANA: aplica todas as linhas individuais da tabela `public.club_records`
       // + todos os anexos reais em `public.club_attachments` / Storage `club-files` + IndexedDB.
       // Garante que NENHUM dado cadastral ou anexo seja perdido por sobrescritas de abas ou webhooks!
       try {
-        const permanentDocsMap = await loadAllPermanentMemberDocs();
         if (permanentDocsMap.size > 0) {
           permanentDocsMap.forEach((permRec, code) => {
             const recId = permRec.id || `sub-labcard-${code}`;
@@ -3090,6 +3146,16 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
               );
             if (sub) {
               const shieldedSub = applyPermanentDocsToSub(sub, permRec);
+              // Se houve contaminação em massa no cache local ou remoto, o status de `club_records` prevalece soberanamente!
+              if ((isLocalMassPolluted || isRemoteMassPolluted) && permRec.status) {
+                shieldedSub.status = permRec.status;
+                shieldedSub.inactivityReason = permRec.inactivityReason;
+                shieldedSub.inactivityReasons = permRec.inactivityReasons;
+                shieldedSub.inactivityNotes = permRec.inactivityNotes;
+                shieldedSub.transferCompleted = permRec.transferCompleted;
+                shieldedSub.manuallyConfirmedTransfer = permRec.manuallyConfirmedTransfer;
+                shieldedSub.manualStatusOverride = permRec.manualStatusOverride;
+              }
               subsMap.set(shieldedSub.id, shieldedSub);
             } else if (permRec.id && permRec.holderName && Array.isArray(permRec.members)) {
               // Restaura cadastro novo salvo em `club_records` mesmo que tenha sido omitido do snapshot legado
@@ -3098,7 +3164,7 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
           });
         }
       } catch (permErr) {
-        console.warn('[ClubService] Aviso ao carregar club_records/club_attachments:', permErr);
+        console.warn('[ClubService] Aviso ao aplicar club_records/club_attachments:', permErr);
       }
 
       const localTime = local.updatedAt ? new Date(local.updatedAt).getTime() : 0;
