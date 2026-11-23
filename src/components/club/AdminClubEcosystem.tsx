@@ -324,6 +324,9 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       setCloudSyncInfo({ status, error, lastSuccessAt });
     });
   }, []);
+
+  // Controle de minimização do símbolo flutuante de sincronização da nuvem
+  const [cloudSyncFloatingMinimized, setCloudSyncFloatingMinimized] = useState(false);
   const [activeTab, setActiveTab] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = sessionStorage.getItem('club_admin_active_tab');
@@ -4775,8 +4778,64 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
   return (
     <div className={standalone ? 'min-h-screen bg-slate-100 p-6' : 'space-y-6'}>
-      {/* MONITOR DE SINCRONIZAÇÃO EM NUVEM EM TEMPO REAL */}
-      {cloudSyncInfo.status === 'ERROR' ? (
+      {/* SÍMBOLO E MONITOR FLUTUANTE DE SINCRONIZAÇÃO EM NUVEM (SUPABASE)
+          Acompanha a rolagem durante toda a navegação no Painel Lessa Club */}
+      <div className="fixed bottom-4 left-4 sm:bottom-6 sm:left-6 z-50 select-none animate-in fade-in slide-in-from-bottom-2 duration-300">
+        {cloudSyncInfo.status === 'ERROR' ? (
+          <div className="flex items-center gap-2 bg-rose-950 text-white border-2 border-rose-500 py-2 px-3.5 rounded-full shadow-2xl ring-4 ring-rose-500/20 backdrop-blur-md">
+            <CloudOff className="w-4 h-4 text-rose-400 shrink-0 animate-pulse" />
+            <div className="text-[11px] font-black">
+              <span>⚠️ Falha na Nuvem</span>
+            </div>
+            <button
+              type="button"
+              onClick={async () => {
+                if (!state) return;
+                toast({ title: 'Tentando sincronizar com a nuvem...' });
+                await persist(state, { waitForCloud: true });
+              }}
+              className="bg-rose-600 hover:bg-rose-500 text-white font-black text-[10px] uppercase px-2.5 py-1 rounded-lg transition-colors cursor-pointer ml-1 shadow-xs"
+            >
+              Reconectar
+            </button>
+          </div>
+        ) : cloudSyncInfo.status === 'SAVING' ? (
+          <div className="flex items-center gap-2 bg-amber-950/95 text-amber-200 border border-amber-400/60 py-1.5 px-3.5 rounded-full shadow-2xl backdrop-blur-md text-[11px] font-bold">
+            <RefreshCw className="w-3.5 h-3.5 text-amber-400 animate-spin shrink-0" />
+            <span>Gravando na Nuvem...</span>
+          </div>
+        ) : (
+          <div
+            onClick={() => setCloudSyncFloatingMinimized((prev) => !prev)}
+            className="flex items-center gap-2 bg-emerald-950/90 hover:bg-emerald-900 text-emerald-100 border border-emerald-400/50 py-1.5 px-3.5 rounded-full shadow-2xl backdrop-blur-md transition-all hover:scale-105 cursor-pointer"
+            title={`Clique para alternar tamanho • Última gravação com sucesso: ${new Date(cloudSyncInfo.lastSuccessAt).toLocaleTimeString('pt-BR')}`}
+          >
+            {/* Ponto indicador luminoso com pulso */}
+            <span className="relative flex h-2 w-2 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+            </span>
+
+            <Cloud className="w-3.5 h-3.5 text-emerald-300 shrink-0" />
+
+            {cloudSyncFloatingMinimized ? (
+              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-300">
+                100% Salva ({new Date(cloudSyncInfo.lastSuccessAt).toLocaleTimeString('pt-BR')})
+              </span>
+            ) : (
+              <span className="text-[11px] font-bold text-white tracking-tight flex items-center gap-1.5">
+                <span>Nuvem 100% Conectada e Salva</span>
+                <span className="text-emerald-300 font-semibold text-[10px]">
+                  ({new Date(cloudSyncInfo.lastSuccessAt).toLocaleTimeString('pt-BR')})
+                </span>
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* BANNER DE ALERTA DE ERRO NO TOPO (APENAS EM CASO DE FALHA CRÍTICA) */}
+      {cloudSyncInfo.status === 'ERROR' && (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-rose-50 border-2 border-rose-400 text-rose-950 px-4 py-2.5 rounded-2xl shadow-sm animate-in fade-in">
           <div className="flex items-center gap-2.5">
             <CloudOff className="w-5 h-5 text-rose-600 shrink-0 animate-pulse" />
@@ -4799,23 +4858,6 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
             <RefreshCw className="w-3.5 h-3.5 mr-1" />
             Tentar Gravar Agora
           </Button>
-        </div>
-      ) : cloudSyncInfo.status === 'SAVING' ? (
-        <div className="flex items-center justify-end text-[11px] font-bold text-amber-700 px-1">
-          <span className="inline-flex items-center gap-1.5 bg-amber-50 border border-amber-300 px-3 py-1 rounded-full shadow-xs">
-            <RefreshCw className="w-3.5 h-3.5 text-amber-600 animate-spin" />
-            <span>Gravando alterações no banco de dados da nuvem...</span>
-          </span>
-        </div>
-      ) : (
-        <div className="flex items-center justify-end text-[11px] font-bold text-emerald-800 px-1">
-          <span
-            className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-300 px-3 py-1 rounded-full shadow-xs"
-            title={`Última gravação na nuvem com sucesso: ${new Date(cloudSyncInfo.lastSuccessAt).toLocaleTimeString('pt-BR')}`}
-          >
-            <Cloud className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Nuvem 100% Conectada e Salva ({new Date(cloudSyncInfo.lastSuccessAt).toLocaleTimeString('pt-BR')})</span>
-          </span>
         </div>
       )}
       {/* =====================================================================
