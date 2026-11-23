@@ -785,7 +785,7 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
       personType: 'PF',
       holderName: name.trim(),
       holderCpf: formatCpf(cpf),
-      holderBirthDate: formatBirth(birth),
+      holderBirthDate: isGisseia ? '20/10/1986' : formatBirth(birth),
       holderPhone: formatPhone(phone),
       holderEmail: isMarli
         ? 'marlidasilvaribeiro692@gmail.com'
@@ -801,6 +801,7 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
       addressNeighborhood: isMarli ? 'Jardim Jorge Teixeira' : isRoksiane ? 'Setor 04' : isLiliane ? 'Setor 03' : '',
       addressCity: 'Ariquemes',
       addressState: 'RO',
+      validityLabel: (isRoksiane ? '04/2027' : isGisseia ? '10/2027' : isDamiane ? '10/2027' : '10/2027'),
       billingCycle: (isAnnual || isJadia || isAndrirlei || isGisseia || isEder) ? 'ANNUAL' : 'MONTHLY',
       paymentMethod: plan.toLowerCase().includes('publicidade') ? 'COURTESY' : (isAndrirlei || isGisseia || isEder) ? 'CREDIT_CARD' : 'PIX',
       installments: (isJadia || isAndrirlei) ? 1 : isAnnual ? 12 : 1,
@@ -836,7 +837,7 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
       contractAccepted: true,
       contractSignedAt: '2025-01-01T00:00:00.000Z',
       startDate: '2025-01-01',
-      endDate: isLiliane ? '2026-12-31' : finalEndDate,
+      endDate: isLiliane ? '2026-12-31' : (isRoksiane ? '2027-04-04' : isGisseia ? '2027-10-31' : isDamiane ? '2027-10-31' : finalEndDate),
       members: allMembers.map((m) => {
         if (isElsa) {
           return {
@@ -916,6 +917,21 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
             validityLabel: '10/2027',
           };
         }
+        if (isGisseia) {
+          return {
+            ...m,
+            status: 'ACTIVE',
+            documentStatus: 'APROVADO' as const,
+            documentVerified: true,
+            documentVerifiedAt: '2026-11-23T10:00:00.000Z',
+            documentVerifiedBy: 'Administrador',
+            manualStatusOverride: true,
+            expirationDate: '2027-10-31',
+            validityLabel: '10/2027',
+            planCycleLabel: 'Lessa Servidor Pass (Anual) - R$ 270,00',
+            monthlyValue: 22.5,
+          };
+        }
         return m;
       }),
       invoices,
@@ -930,12 +946,14 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
         ? '2026-11-19T11:40:00.000Z'
         : isDamiane
         ? '2026-11-21T10:00:00.000Z'
+        : isGisseia
+        ? '2026-11-23T11:00:00.000Z'
         : '2026-11-10T00:00:00.000Z',
       transferCompleted: isElsa || isLiliane || isGenivaldo ? false : (isRoksiane || isMarli || isJadia || isAndrirlei || isGisseia || isDamiane) ? true : isTitularAtivo,
       manualStatusOverride: isElsa || isLiliane || isGenivaldo || isRoksiane || isMarli || isJadia || isAndrirlei || isGisseia || isDamiane ? true : isTitularAtivo,
       manuallyConfirmedTransfer: (isRoksiane || isMarli || isJadia || isAndrirlei || isGisseia || isDamiane) ? true : false,
       transferredAt: (isRoksiane || isMarli || isJadia || isAndrirlei || isGisseia || isDamiane) ? '2026-11-21T00:00:00.000Z' : undefined,
-      isModifiedFromSeed: isMarli || isRoksiane || isElsa || isLiliane || isJadia || isGenivaldo || isDamiane ? true : undefined,
+      isModifiedFromSeed: isMarli || isRoksiane || isElsa || isLiliane || isJadia || isGenivaldo || isDamiane || isGisseia ? true : undefined,
     };
   });
 

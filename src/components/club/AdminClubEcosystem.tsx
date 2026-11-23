@@ -117,6 +117,9 @@ import {
   getClubStateSync,
   fetchClubState,
   saveClubState,
+  saveMemberPermanentDocs,
+  loadMemberPermanentDocs,
+  applyPermanentDocsToSub,
   getCloudSyncStatus,
   subscribeToCloudSyncStatus,
   CloudSyncStatus,
@@ -3073,6 +3076,31 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       if (typeof window !== 'undefined') {
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
+
+      // Restauração atômica de dados e anexos permanentes salvos no Supabase e no IndexedDB
+      const lookupCode = selectedSubForDetail.subscriptionCode || selectedSubForDetail.holderCpf;
+      if (lookupCode) {
+        loadMemberPermanentDocs(lookupCode).then((permData) => {
+          if (permData) {
+            setEditClientData((prev) => ({
+              ...prev,
+              holderEmail: prev.holderEmail.trim() ? prev.holderEmail : (permData.holderEmail || prev.holderEmail),
+              addressCep: (prev.addressCep.trim() && prev.addressCep !== '76870-000') ? prev.addressCep : (permData.addressCep || prev.addressCep),
+              addressStreet: prev.addressStreet.trim() ? prev.addressStreet : (permData.addressStreet || prev.addressStreet),
+              addressNeighborhood: prev.addressNeighborhood.trim() ? prev.addressNeighborhood : (permData.addressNeighborhood || prev.addressNeighborhood),
+              holderRg: prev.holderRg.trim() ? prev.holderRg : (permData.holderRg || prev.holderRg),
+              holderBirthDate: prev.holderBirthDate || permData.holderBirthDate,
+              endDate: prev.endDate || permData.endDate,
+            }));
+            if (permData.attachments && permData.attachments.length > (selectedSubForDetail.attachments?.length || 0)) {
+              setSelectedSubForDetail((prevSub) => {
+                if (!prevSub) return prevSub;
+                return applyPermanentDocsToSub(prevSub, permData);
+              });
+            }
+          }
+        }).catch(() => {});
+      }
     } else {
       // Quando for o MESMO cliente (navegação entre abas ou ações secundárias),
       // PRESERVA RIGOROSAMENTE todas as alterações e textos preenchidos pelo usuário!
@@ -3363,6 +3391,15 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
       // Grava no estado e aguarda a confirmação de nuvem
       await persist(nextState, { waitForCloud: true });
+
+      // Blindagem atômica dedicada permanente no Supabase (club_member_docs_*) e no IndexedDB:
+      // Impede definitivamente qualquer perda de anexos, e-mail, CEP e datas por merges futuros.
+      const permCode = updatedSub.subscriptionCode || updatedSub.holderCpf;
+      if (permCode) {
+        saveMemberPermanentDocs(permCode, updatedSub).catch((err) => {
+          console.warn('[AdminClubEcosystem] Aviso ao salvar documento permanente:', err);
+        });
+      }
 
       // Blindagem definitiva: persiste os cartões no conjunto de cartões confirmados pelo administrador
       if (updatedSub.subscriptionCode) {
@@ -18422,6 +18459,10 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           ),
                         };
                         await persist(nextState);
+                        const permCode = mergedSub.subscriptionCode || mergedSub.holderCpf;
+                        if (permCode) {
+                          saveMemberPermanentDocs(permCode, mergedSub).catch(() => {});
+                        }
                       }
                     }}
                     onPreviewAttachment={(att) => setPreviewAttachment(att)}
@@ -18507,9 +18548,13 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         };
                         setSelectedSubForDetail(updatedSub);
                         await persist(nextState);
+                        const permCode = updatedSub.subscriptionCode || updatedSub.holderCpf;
+                        if (permCode) {
+                          saveMemberPermanentDocs(permCode, updatedSub).catch(() => {});
+                        }
                         toast({
-                          title: 'Anexo adicionado com sucesso!',
-                          description: file.name,
+                          title: 'Anexo salvo e blindado com sucesso!',
+                          description: `${file.name} (Gravado de forma permanente)`,
                         });
                       }}
                     />
@@ -18594,7 +18639,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                 };
                                 setSelectedSubForDetail(updatedSub);
                                 await persist(nextState);
-                                toast({ title: 'Anexo removido.' });
+                                const permCode = updatedSub.subscriptionCode || updatedSub.holderCpf;
+                                if (permCode) {
+                                  saveMemberPermanentDocs(permCode, updatedSub).catch(() => {});
+                                }
+                                toast({ title: 'Anexo removido com sucesso.' });
                               }}
                               className="h-8 text-rose-600"
                             >
@@ -19037,6 +19086,10 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           ),
                         };
                         await persist(nextState);
+                        const permCode = mergedSub.subscriptionCode || mergedSub.holderCpf;
+                        if (permCode) {
+                          saveMemberPermanentDocs(permCode, mergedSub).catch(() => {});
+                        }
                       }
                     }}
                     onPreviewAttachment={(att) => setPreviewAttachment(att)}

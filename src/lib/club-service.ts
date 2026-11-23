@@ -1,6 +1,13 @@
 import { supabase } from '@/integrations/supabase/client';
 import { getLabcardSubscriptions, doesPlanAllowDependents, REGULARIZED_ACTIVE_CARDS } from './labcard-seed';
 import { saveStateToIndexedDB, loadStateFromIndexedDB } from './club-indexeddb';
+import {
+  saveMemberPermanentDocs,
+  loadMemberPermanentDocs,
+  loadAllPermanentMemberDocs,
+  applyPermanentDocsToSub,
+  type PermanentMemberDocRecord,
+} from './club-permanent-docs';
 import { ensureDailyBackup } from './club-backup-service';
 import { syncStateToRelationalDatabase } from './club-relational-sync';
 import {
@@ -149,6 +156,10 @@ export const mergeMemberMediaSafely = (
 
   return {
     ...primary,
+    rg: primary.rg || backup.rg,
+    birthDate: primary.birthDate || backup.birthDate,
+    sex: primary.sex || backup.sex,
+    phone: primary.phone || backup.phone,
     documentProofUrl: finalDocProofUrl,
     documentProofName: primary.documentProofName || backup.documentProofName,
     photoUrl: finalPhotoUrl,
@@ -2608,11 +2619,18 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
                 if (s.addressNeighborhood) current.addressNeighborhood = s.addressNeighborhood;
                 if (s.addressCity) current.addressCity = s.addressCity;
                 if (s.addressState) current.addressState = s.addressState;
+                if (s.holderRg) current.holderRg = s.holderRg;
+                if (s.holderBirthDate) current.holderBirthDate = s.holderBirthDate;
+                if (s.holderSex) current.holderSex = s.holderSex;
+                if (s.holderMaritalStatus) current.holderMaritalStatus = s.holderMaritalStatus;
+                if (s.holderPhone) current.holderPhone = s.holderPhone;
+                if (s.consultantName) current.consultantName = s.consultantName;
                 if (s.vehiclePlate) current.vehiclePlate = s.vehiclePlate;
                 if (s.vehicleModel) current.vehicleModel = s.vehicleModel;
                 if (s.vehicleColor) current.vehicleColor = s.vehicleColor;
                 if (s.notes) current.notes = s.notes;
                 if (s.endDate) current.endDate = s.endDate;
+                if (s.validityLabel) current.validityLabel = s.validityLabel;
                 if (s.dueDay) current.dueDay = s.dueDay;
                 if (s.billingCycle) current.billingCycle = s.billingCycle;
                 if (s.monthlyEquivalent !== undefined) current.monthlyEquivalent = s.monthlyEquivalent;
@@ -2635,11 +2653,18 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
                 if (s.addressNeighborhood && !current.addressNeighborhood) current.addressNeighborhood = s.addressNeighborhood;
                 if (s.addressCity && !current.addressCity) current.addressCity = s.addressCity;
                 if (s.addressState && !current.addressState) current.addressState = s.addressState;
+                if (s.holderRg && !current.holderRg) current.holderRg = s.holderRg;
+                if (s.holderBirthDate && !current.holderBirthDate) current.holderBirthDate = s.holderBirthDate;
+                if (s.holderSex && !current.holderSex) current.holderSex = s.holderSex;
+                if (s.holderMaritalStatus && !current.holderMaritalStatus) current.holderMaritalStatus = s.holderMaritalStatus;
+                if (s.holderPhone && !current.holderPhone) current.holderPhone = s.holderPhone;
+                if (s.consultantName && !current.consultantName) current.consultantName = s.consultantName;
                 if (s.vehiclePlate && !current.vehiclePlate) current.vehiclePlate = s.vehiclePlate;
                 if (s.vehicleModel && !current.vehicleModel) current.vehicleModel = s.vehicleModel;
                 if (s.vehicleColor && !current.vehicleColor) current.vehicleColor = s.vehicleColor;
                 if (s.notes && (!current.notes || current.notes.startsWith('Cadastrado por'))) current.notes = s.notes;
                 if (s.endDate && (!current.endDate || current.endDate === '2027-10-31')) current.endDate = s.endDate;
+                if (s.validityLabel && !current.validityLabel) current.validityLabel = s.validityLabel;
                 if (s.inactivityReason && !current.inactivityReason) current.inactivityReason = s.inactivityReason;
                 if (s.inactivityNotes && !current.inactivityNotes) current.inactivityNotes = s.inactivityNotes;
               }
@@ -2694,6 +2719,9 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
                 }
               }
               current.attachments = mergeAttachmentsSafely(current.attachments, s.attachments);
+              if ((s.attachments?.length || 0) > 0 && (!current.attachments || current.attachments.length === 0)) {
+                current.attachments = s.attachments;
+              }
               if (s.members && current.members) {
                 const localMemMap = new Map(s.members.map((m) => [m.id, m]));
                 current.members = current.members.map((cm) => {
@@ -2851,6 +2879,31 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
           }
         }
       });
+
+      // 4. Blindagem Máxima Permanente: carrega registros dedicados de anexos e dados
+      // salvos no Supabase (club_member_docs_*) e no IndexedDB, garantindo que
+      // NENHUM anexo, e-mail, CEP ou dado cadastral editado seja perdido por sincronizações de rede.
+      try {
+        const permanentDocsMap = await loadAllPermanentMemberDocs();
+        if (permanentDocsMap.size > 0) {
+          permanentDocsMap.forEach((permRec, code) => {
+            const sub =
+              subsMap.get(`sub-labcard-${code}`) ||
+              Array.from(subsMap.values()).find(
+                (x) =>
+                  x.subscriptionCode === code ||
+                  (x.members && x.members.some((m) => m.cardNumber === code)) ||
+                  (x.holderCpf && permRec.holderCpf && x.holderCpf === permRec.holderCpf)
+              );
+            if (sub) {
+              const shieldedSub = applyPermanentDocsToSub(sub, permRec);
+              subsMap.set(shieldedSub.id, shieldedSub);
+            }
+          });
+        }
+      } catch (permErr) {
+        console.warn('[ClubService] Aviso ao blindar assinaturas com registros permanentes:', permErr);
+      }
 
       const localTime = local.updatedAt ? new Date(local.updatedAt).getTime() : 0;
       const remoteTime = remote.updatedAt ? new Date(remote.updatedAt).getTime() : 0;
@@ -6187,4 +6240,12 @@ export const applyLabcardFullEnrichment = async (
 
   const saved = await saveClubState(nextState);
   return { state: saved, stats };
+};
+
+export {
+  saveMemberPermanentDocs,
+  loadMemberPermanentDocs,
+  loadAllPermanentMemberDocs,
+  applyPermanentDocsToSub,
+  type PermanentMemberDocRecord,
 };
