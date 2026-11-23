@@ -33,6 +33,8 @@ import {
   formatDateBR,
   fetchClubState,
   saveClubState,
+  saveClubAttachmentAtomic,
+  saveMemberPermanentDocs,
   getMemberResolvedAttachments,
 } from '@/lib/club-service';
 
@@ -359,28 +361,32 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
   const handleUploadMemberDoc = async (member: ClubMember, file: File) => {
     try {
       setIsProcessing(true);
-      const dataUrl = file.type.startsWith('image/')
+      const rawDataUrl = file.type.startsWith('image/')
         ? await compressImageFile(file, 1200, 1200, 0.72)
         : await fileToDataUrl(file);
 
-      const newAtt: ClubAttachment = {
+      const permCode = subscription.subscriptionCode || subscription.holderCpf || subscription.id;
+      const rawAtt: ClubAttachment = {
         id: `att_${member.id}_${Date.now()}`,
         name: file.name,
         mimeType: file.type || 'application/octet-stream',
-        dataUrl,
+        dataUrl: rawDataUrl,
         createdAt: new Date().toISOString(),
       };
+
+      // Sobe o arquivo real no Supabase Storage (club-files) + tabela club_attachments
+      const newAtt = await saveClubAttachmentAtomic(permCode, subscription.id, member.id, rawAtt);
 
       const updatedMembers = subscription.members.map((m) => {
         if (m.id === member.id) {
           return {
             ...m,
-            documentProofUrl: dataUrl,
-            documentProofName: file.name,
+            documentProofUrl: newAtt.dataUrl,
+            documentProofName: newAtt.name,
             documentStatus: 'EM_ANALISE' as const,
             documentRejectionReason: undefined,
             documentVerified: false,
-            attachments: [newAtt, ...(m.attachments || [])],
+            attachments: [newAtt, ...(m.attachments || []).filter((a) => a.id !== newAtt.id)],
           };
         }
         return m;
@@ -388,13 +394,14 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
 
       const updatedSub: ClubSubscription = {
         ...subscription,
-        attachments: [newAtt, ...(subscription.attachments || [])],
+        attachments: [newAtt, ...(subscription.attachments || []).filter((a) => a.id !== newAtt.id)],
         members: updatedMembers,
         updatedAt: new Date().toISOString(),
         isModifiedFromSeed: true,
       };
 
-      // Persiste IMEDIATAMENTE no banco de dados local e nuvem
+      // Grava atomicamente na linha individual do cliente em public.club_records + nuvem geral
+      await saveMemberPermanentDocs(permCode, updatedSub, 'UPLOAD_DOC_PANEL');
       const allState = await fetchClubState();
       const nextSubs = (allState.subscriptions || []).map((s) =>
         s.id === updatedSub.id ? updatedSub : s
@@ -403,12 +410,12 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
         ...allState,
         subscriptions: nextSubs,
       };
-      await saveClubState(nextState);
+      await saveClubState(nextState, { waitForCloud: true });
 
       onUpdateSub(updatedSub);
       toast({
-        title: 'Comprovante Anexado com Sucesso!',
-        description: `Arquivo ${file.name} vinculado a ${member.fullName}. Pronto para validação do Admin.`,
+        title: 'Comprovante salvo permanentemente no Storage!',
+        description: `Arquivo ${file.name} vinculado a ${member.fullName} e gravado definitivamente na nuvem.`,
       });
     } catch (e: any) {
       toast({

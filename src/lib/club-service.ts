@@ -6,7 +6,12 @@ import {
   loadMemberPermanentDocs,
   loadAllPermanentMemberDocs,
   applyPermanentDocsToSub,
+  saveClubAttachmentAtomic,
+  softDeleteClubAttachment,
+  loadClubRecordHistory,
+  uploadClubFileToStorage,
   type PermanentMemberDocRecord,
+  type ClubRecordHistoryEntry,
 } from './club-permanent-docs';
 import { ensureDailyBackup } from './club-backup-service';
 import { syncStateToRelationalDatabase } from './club-relational-sync';
@@ -2109,6 +2114,9 @@ export const loadClubStateLocal = (): ClubDatabaseState => {
  * sempre mesclados no load) e remove `contractContentHtml` redundante, evitando
  * payloads multi-MB e erros de `TypeError: Failed to fetch` no browser.
  */
+const isRawBase64DataUrl = (val?: string): boolean =>
+  Boolean(val && val.startsWith('data:') && val.length > 500);
+
 const buildCompactCloudState = (state: ClubDatabaseState): ClubDatabaseState => {
   const seedMap = getLabcardSeedMap();
   const compactSubs = state.subscriptions
@@ -2122,12 +2130,14 @@ const buildCompactCloudState = (state: ClubDatabaseState): ClubDatabaseState => 
         const { contractContentHtml: _omit, ...rest } = cleanSub;
         cleanSub = rest as ClubSubscription;
       }
-      if (cleanSub.attachments && cleanSub.attachments.some((a) => a.dataUrl && a.dataUrl.length > 500)) {
+      // JAMAIS apaga URLs permanentes do Supabase Storage (https://...); só compacta base64 gigante
+      // caso ainda não tenha sido convertido (os arquivos já estão salvos em public.club_attachments / club-files)
+      if (cleanSub.attachments && cleanSub.attachments.some((a) => isRawBase64DataUrl(a.dataUrl))) {
         cleanSub = {
           ...cleanSub,
           attachments: cleanSub.attachments.map((a) => ({
             ...a,
-            dataUrl: a.dataUrl && a.dataUrl.length > 500 ? '' : a.dataUrl,
+            dataUrl: isRawBase64DataUrl(a.dataUrl) ? '' : a.dataUrl,
           })),
         };
       }
@@ -2135,20 +2145,20 @@ const buildCompactCloudState = (state: ClubDatabaseState): ClubDatabaseState => 
         cleanSub.members &&
         cleanSub.members.some(
           (m) =>
-            (m.documentProofUrl && m.documentProofUrl.length > 500) ||
-            (m.photoUrl && m.photoUrl.startsWith('data:') && m.photoUrl.length > 500) ||
-            (m.attachments && m.attachments.some((a) => a.dataUrl && a.dataUrl.length > 500))
+            isRawBase64DataUrl(m.documentProofUrl) ||
+            isRawBase64DataUrl(m.photoUrl) ||
+            (m.attachments && m.attachments.some((a) => isRawBase64DataUrl(a.dataUrl)))
         )
       ) {
         cleanSub = {
           ...cleanSub,
           members: cleanSub.members.map((m) => ({
             ...m,
-            documentProofUrl: m.documentProofUrl && m.documentProofUrl.length > 500 ? '' : m.documentProofUrl,
-            photoUrl: m.photoUrl && m.photoUrl.startsWith('data:') && m.photoUrl.length > 500 ? '' : m.photoUrl,
+            documentProofUrl: isRawBase64DataUrl(m.documentProofUrl) ? '' : m.documentProofUrl,
+            photoUrl: isRawBase64DataUrl(m.photoUrl) ? '' : m.photoUrl,
             attachments: (m.attachments || []).map((a) => ({
               ...a,
-              dataUrl: a.dataUrl && a.dataUrl.length > 500 ? '' : a.dataUrl,
+              dataUrl: isRawBase64DataUrl(a.dataUrl) ? '' : a.dataUrl,
             })),
           })),
         };
@@ -2164,6 +2174,39 @@ const buildCompactCloudState = (state: ClubDatabaseState): ClubDatabaseState => 
     })),
     subscriptions: compactSubs,
   };
+};
+
+// Rastreia o último updatedAt sincronizado por assinatura na tabela `public.club_records`
+const lastSyncedRecordTimestamps = new Map<string, string>();
+
+const syncModifiedSubsToClubRecords = async (stateToSave: ClubDatabaseState): Promise<void> => {
+  const modifiedSubs: ClubSubscription[] = [];
+  for (const sub of stateToSave.subscriptions || []) {
+    const code = String(sub.subscriptionCode || sub.id || '').trim();
+    if (!code) continue;
+    const prevTs = lastSyncedRecordTimestamps.get(code);
+    const curTs = sub.updatedAt || '';
+    // Se mudou desde o último sync (ou se nunca foi rastreado mas foi modificado recentemente)
+    if (curTs && curTs !== prevTs && curTs > '2026-11-11T00:00:00.000Z') {
+      // Só envia se foi alterado nesta sessão (prevTs definido) ou se o timestamp é dos últimos 10 minutos
+      const ageMs = Date.now() - new Date(curTs).getTime();
+      if (prevTs !== undefined || (Number.isFinite(ageMs) && ageMs < 10 * 60 * 1000)) {
+        modifiedSubs.push(sub);
+      }
+    }
+  }
+
+  if (modifiedSubs.length === 0) return;
+
+  // Grava cada cadastro modificado em sua própria linha independente em `public.club_records`
+  // (e sobe anexos para Storage `club-files` + registra histórico automático em `public.club_record_history`)
+  for (const sub of modifiedSubs) {
+    const code = String(sub.subscriptionCode || sub.id || '').trim();
+    const ok = await saveMemberPermanentDocs(code, sub, 'ADMIN_PANEL_SAVE');
+    if (ok && sub.updatedAt) {
+      lastSyncedRecordTimestamps.set(code, sub.updatedAt);
+    }
+  }
 };
 
 export type CloudSyncStatus = 'SYNCED' | 'SAVING' | 'ERROR';
@@ -2208,7 +2251,52 @@ let cloudSaveDebounceTimer: any = null;
 
 const runCloudSaveExecution = async (stateToSave: ClubDatabaseState): Promise<void> => {
   notifyCloudSyncStatus('SAVING', null);
-  const cloudState = buildCompactCloudState(stateToSave);
+
+  // 1. PERSISTENCIA ATOMICA POR LINHA EM `public.club_records` + STORAGE `club-files` + HISTORICO IMUTAVEL
+  // Garante que cada cadastro alterado seja gravado individualmente sem risco de sobrescrita cruzada!
+  try {
+    await syncModifiedSubsToClubRecords(stateToSave);
+  } catch (atomicErr) {
+    console.warn('[ClubService] Aviso ao sincronizar linha individual em club_records:', atomicErr);
+  }
+
+  // 2. READ-MERGE-WRITE para o snapshot compatível `lessa_club_ecosystem_v1`:
+  // Mescla os registros mais recentes de `public.club_records` para que outra aba nunca perca edições feitas em paralelo.
+  let mergedForCloud = stateToSave;
+  try {
+    const latestRecords = await loadAllPermanentMemberDocs();
+    if (latestRecords.size > 0) {
+      const subById = new Map((stateToSave.subscriptions || []).map((s) => [s.id, s]));
+      const subByCode = new Map(
+        (stateToSave.subscriptions || [])
+          .filter((s) => s.subscriptionCode)
+          .map((s) => [s.subscriptionCode, s])
+      );
+      const deletedSet = new Set(stateToSave.deletedSubscriptionIds || []);
+
+      latestRecords.forEach((rec, code) => {
+        const recId = rec.id || `sub-labcard-${code}`;
+        if (deletedSet.has(recId)) return;
+        const existing = subByCode.get(code) || subById.get(recId);
+        if (existing) {
+          const safeMerged = applyPermanentDocsToSub(existing, rec);
+          subById.set(safeMerged.id, safeMerged);
+          if (safeMerged.subscriptionCode) subByCode.set(safeMerged.subscriptionCode, safeMerged);
+        } else if (rec.id && rec.holderName) {
+          subById.set(rec.id, rec as ClubSubscription);
+        }
+      });
+
+      mergedForCloud = {
+        ...stateToSave,
+        subscriptions: Array.from(subById.values()),
+      };
+    }
+  } catch (mergeErr) {
+    console.warn('[ClubService] Aviso ao mesclar club_records antes do upsert legado:', mergeErr);
+  }
+
+  const cloudState = buildCompactCloudState(mergedForCloud);
   const maxAttempts = 2;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
@@ -2227,8 +2315,8 @@ const runCloudSaveExecution = async (stateToSave: ClubDatabaseState): Promise<vo
 
       const timeoutPromise = new Promise<{ error: any }>((_, reject) => {
         timeoutTimer = setTimeout(() => {
-          reject(new Error('Tempo limite de rede ao sincronizar com o banco de dados (10s)'));
-        }, 10000);
+          reject(new Error('Tempo limite de rede ao sincronizar com o banco de dados (15s)'));
+        }, 15000);
       });
 
       const { error } = await Promise.race([upsertPromise, timeoutPromise]);
@@ -2963,14 +3051,17 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
         }
       });
 
-      // 4. Blindagem Máxima Permanente: carrega registros dedicados de anexos e dados
-      // salvos no Supabase (club_member_docs_*) e no IndexedDB, garantindo que
-      // NENHUM anexo, e-mail, CEP ou dado cadastral editado seja perdido por sincronizações de rede.
+      // 4. FONTE DA VERDADE SOBERANA: carrega todas as linhas individuais da tabela `public.club_records`
+      // + todos os anexos reais em `public.club_attachments` / Storage `club-files` + IndexedDB.
+      // Garante que NENHUM dado cadastral ou anexo seja perdido por sobrescritas de abas ou webhooks!
       try {
         const permanentDocsMap = await loadAllPermanentMemberDocs();
         if (permanentDocsMap.size > 0) {
           permanentDocsMap.forEach((permRec, code) => {
+            const recId = permRec.id || `sub-labcard-${code}`;
+            if (deletedSet.has(recId)) return;
             const sub =
+              subsMap.get(recId) ||
               subsMap.get(`sub-labcard-${code}`) ||
               Array.from(subsMap.values()).find(
                 (x) =>
@@ -2981,11 +3072,14 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
             if (sub) {
               const shieldedSub = applyPermanentDocsToSub(sub, permRec);
               subsMap.set(shieldedSub.id, shieldedSub);
+            } else if (permRec.id && permRec.holderName && Array.isArray(permRec.members)) {
+              // Restaura cadastro novo salvo em `club_records` mesmo que tenha sido omitido do snapshot legado
+              subsMap.set(permRec.id, permRec as ClubSubscription);
             }
           });
         }
       } catch (permErr) {
-        console.warn('[ClubService] Aviso ao blindar assinaturas com registros permanentes:', permErr);
+        console.warn('[ClubService] Aviso ao carregar club_records/club_attachments:', permErr);
       }
 
       const localTime = local.updatedAt ? new Date(local.updatedAt).getTime() : 0;
@@ -3005,6 +3099,13 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
       };
 
       const normalized = normalizeClubDatabaseState(mergedState, local);
+      // Registra baseline de timestamps sincronizados para detectar com precisão edições futuras
+      (normalized.subscriptions || []).forEach((s) => {
+        const code = String(s.subscriptionCode || s.id || '').trim();
+        if (code && s.updatedAt) {
+          lastSyncedRecordTimestamps.set(code, s.updatedAt);
+        }
+      });
       memoryClubState = normalized;
       tryPersistLocalState(normalized);
       ensureDailyBackup(normalized).catch(() => {});
@@ -4686,23 +4787,30 @@ export const attachMemberProofDocument = async (
   if (!member) return state;
 
   const nowIso = new Date().toISOString();
-  member.documentProofUrl = payload.dataUrl;
-  member.documentProofName = payload.fileName;
+  const permCode = sub.subscriptionCode || sub.holderCpf || sub.id;
+  const resolvedMime =
+    payload.mimeType ||
+    (payload.dataUrl.startsWith('data:image/') ? 'image/jpeg' : 'application/pdf');
+
+  // Sobe imediatamente para o Supabase Storage (`club-files`) + tabela `public.club_attachments`
+  const savedAtt = await saveClubAttachmentAtomic(permCode, sub.id, member.id, {
+    id: `att_doc_${member.id}_${Date.now()}`,
+    name: payload.fileName,
+    dataUrl: payload.dataUrl,
+    mimeType: resolvedMime,
+    createdAt: nowIso,
+  });
+
+  member.documentProofUrl = savedAtt.dataUrl;
+  member.documentProofName = savedAtt.name;
   if (payload.verifyImmediately) {
     member.documentVerified = true;
+    member.documentStatus = 'APROVADO';
   }
   const existingAtts = Array.isArray(member.attachments) ? member.attachments : [];
   member.attachments = [
     ...existingAtts,
-    {
-      id: `att_doc_${Date.now()}`,
-      name: payload.fileName,
-      dataUrl: payload.dataUrl,
-      mimeType:
-        payload.mimeType ||
-        (payload.dataUrl.startsWith('data:image/') ? 'image/jpeg' : 'application/pdf'),
-      createdAt: nowIso,
-    },
+    savedAtt,
   ];
 
   // Também registra na lista de anexos gerais da assinatura com identificação do integrante
@@ -4710,24 +4818,16 @@ export const attachMemberProofDocument = async (
   sub.attachments = [
     ...subAtts,
     {
+      ...savedAtt,
       id: `sub_doc_${member.id}_${Date.now()}`,
-      name: payload.fileName,
-      dataUrl: payload.dataUrl,
       title: `Comprovante [${member.role === 'TITULAR' ? 'Titular' : 'Dependente'}: ${member.fullName}] (${member.modalityName})`,
       category: 'DOCUMENTO_COMPROBATORIO',
-      fileUrl: payload.dataUrl,
-      fileName: payload.fileName,
+      fileUrl: savedAtt.dataUrl,
+      fileName: savedAtt.name,
       uploadedAt: nowIso,
-      createdAt: nowIso,
       notes: `MEMBER_ID:${member.id}`,
     },
   ];
-
-  // Libera status do integrante se o plano já estiver quitado ou for gratuito/isento
-  const canActivate =
-    sub.monthlyEquivalent === 0 ||
-    sub.paymentMethod === 'COURTESY' ||
-    sub.invoices.some((i) => i.status === 'PAID');
 
   sub.updatedAt = nowIso;
   sub.isModifiedFromSeed = true;
@@ -4737,7 +4837,8 @@ export const attachMemberProofDocument = async (
   if (subIdx >= 0) {
     state.subscriptions[subIdx] = resolved;
   }
-  return saveClubState(state);
+  await saveMemberPermanentDocs(permCode, resolved, 'SOCIO_DOC_UPLOAD');
+  return saveClubState(state, { waitForCloud: true });
 };
 
 export const verifyMemberProofDocument = async (
@@ -6330,5 +6431,10 @@ export {
   loadMemberPermanentDocs,
   loadAllPermanentMemberDocs,
   applyPermanentDocsToSub,
+  saveClubAttachmentAtomic,
+  softDeleteClubAttachment,
+  loadClubRecordHistory,
+  uploadClubFileToStorage,
   type PermanentMemberDocRecord,
+  type ClubRecordHistoryEntry,
 };

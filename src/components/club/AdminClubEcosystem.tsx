@@ -70,6 +70,7 @@ import {
   Loader2,
   Cloud,
   CloudOff,
+  History,
 } from 'lucide-react';
 import logo from '@/assets/logo.png';
 import { Button } from '@/components/ui/button';
@@ -120,6 +121,10 @@ import {
   saveMemberPermanentDocs,
   loadMemberPermanentDocs,
   applyPermanentDocsToSub,
+  saveClubAttachmentAtomic,
+  softDeleteClubAttachment,
+  loadClubRecordHistory,
+  ClubRecordHistoryEntry,
   getCloudSyncStatus,
   subscribeToCloudSyncStatus,
   CloudSyncStatus,
@@ -393,6 +398,63 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       }
     }
   }, [selectedSubForDetail?.id]);
+
+  // Modal de Histórico Imutável e Restauração de Versões Anteriores do Cadastro
+  const [historyModalOpen, setHistoryModalOpen] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyEntries, setHistoryEntries] = useState<ClubRecordHistoryEntry[]>([]);
+  const [restoringHistoryId, setRestoringHistoryId] = useState<number | null>(null);
+
+  const handleOpenRecordHistory = async (sub: ClubSubscription) => {
+    const code = sub.subscriptionCode || sub.holderCpf;
+    if (!code) return;
+    setHistoryModalOpen(true);
+    setHistoryLoading(true);
+    try {
+      const list = await loadClubRecordHistory(code, 30);
+      setHistoryEntries(list);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const handleRestoreHistorySnapshot = async (entry: ClubRecordHistoryEntry) => {
+    if (!state || !selectedSubForDetail || restoringHistoryId) return;
+    setRestoringHistoryId(entry.id);
+    try {
+      const restoredSub: ClubSubscription = {
+        ...selectedSubForDetail,
+        ...entry.snapshot,
+        id: selectedSubForDetail.id,
+        subscriptionCode: selectedSubForDetail.subscriptionCode,
+        updatedAt: new Date().toISOString(),
+        isModifiedFromSeed: true,
+        manualStatusOverride: true,
+      };
+      setSelectedSubForDetail(restoredSub);
+      const nextState: ClubDatabaseState = {
+        ...state,
+        subscriptions: (state.subscriptions || []).map((s) =>
+          s.id === restoredSub.id ? restoredSub : s
+        ),
+      };
+      await saveMemberPermanentDocs(restoredSub.subscriptionCode, restoredSub, `RESTORE_V${entry.version}`);
+      await persist(nextState, { waitForCloud: true });
+      setHistoryModalOpen(false);
+      toast({
+        title: `Versão v${entry.version} restaurada com sucesso!`,
+        description: `Todos os dados e anexos da versão salva em ${new Date(entry.createdAt).toLocaleString('pt-BR')} foram restaurados e gravados na nuvem.`,
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao restaurar versão',
+        description: err?.message || 'Tente novamente.',
+        variant: 'destructive',
+      });
+    } finally {
+      setRestoringHistoryId(null);
+    }
+  };
 
   // Active tool inside existing client record (selectedSubForDetail)
   const [clientDetailTool, setClientDetailTool] = useState<
@@ -13138,6 +13200,16 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     type="button"
                     size="sm"
                     variant="outline"
+                    onClick={() => handleOpenRecordHistory(selectedSubForDetail)}
+                    className="h-8 border-indigo-300 bg-indigo-50 text-indigo-900 hover:bg-indigo-100 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                    title="Ver todas as versões salvas deste cadastro no banco de dados e restaurar qualquer versão anterior"
+                  >
+                    <History className="w-3.5 h-3.5" /> Histórico
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
                     onClick={() => setSelectedSubForDetail(null)}
                     className="h-8 border-slate-300 bg-white text-slate-800 hover:bg-slate-100 hover:text-slate-950 font-bold text-xs w-full sm:w-auto"
                   >
@@ -18674,71 +18746,93 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                       onChange={async (e) => {
                         const file = e.target.files?.[0];
                         if (!file) return;
-                        const dataUrl = file.type.startsWith('image/')
-                          ? await compressImageFile(file, 1200, 1200, 0.72)
-                          : await fileToDataUrl(file);
-                        const newAtt: ClubAttachment = {
-                          id: `att_${Date.now()}`,
-                          name: file.name,
-                          mimeType: file.type || 'application/octet-stream',
-                          dataUrl,
-                          createdAt: new Date().toISOString(),
-                        };
-                        const titularMember =
-                          selectedSubForDetail.members.find((m) => m.role === 'TITULAR') ||
-                          selectedSubForDetail.members[0];
-                        const updatedMembers = selectedSubForDetail.members.map((m) => {
-                          if (m.id === titularMember?.id) {
-                            return {
-                              ...m,
-                              documentProofUrl: dataUrl,
-                              documentProofName: file.name,
-                              documentVerified: true,
-                              documentStatus: 'APROVADO' as const,
-                              documentVerifiedAt: new Date().toISOString(),
-                              documentVerifiedBy: 'Administrador',
-                            };
-                          }
-                          return m;
-                        });
+                        const inputEl = e.target;
+                        try {
+                          const rawDataUrl = file.type.startsWith('image/')
+                            ? await compressImageFile(file, 1200, 1200, 0.72)
+                            : await fileToDataUrl(file);
+                          const permCode = selectedSubForDetail.subscriptionCode || selectedSubForDetail.holderCpf || selectedSubForDetail.id;
+                          const titularMember =
+                            selectedSubForDetail.members.find((m) => m.role === 'TITULAR') ||
+                            selectedSubForDetail.members[0];
 
-                        const updatedSub: ClubSubscription = {
-                          ...selectedSubForDetail,
-                          holderName: editClientData.holderName.trim() || selectedSubForDetail.holderName,
-                          holderEmail: editClientData.holderEmail.trim() || selectedSubForDetail.holderEmail,
-                          holderPhone: editClientData.holderPhone.trim() || selectedSubForDetail.holderPhone,
-                          addressCep: editClientData.addressCep.trim() || selectedSubForDetail.addressCep,
-                          addressStreet: editClientData.addressStreet.trim() || selectedSubForDetail.addressStreet,
-                          addressNumber: editClientData.addressNumber.trim() || selectedSubForDetail.addressNumber,
-                          addressComplement: editClientData.addressComplement.trim() || selectedSubForDetail.addressComplement,
-                          addressNeighborhood: editClientData.addressNeighborhood.trim() || selectedSubForDetail.addressNeighborhood,
-                          addressCity: editClientData.addressCity.trim() || selectedSubForDetail.addressCity,
-                          addressState: editClientData.addressState.trim() || selectedSubForDetail.addressState,
-                          notes: editClientData.notes.trim() || selectedSubForDetail.notes,
-                          attachments: [
-                            newAtt,
-                            ...(selectedSubForDetail.attachments || []),
-                          ],
-                          members: updatedMembers,
-                          updatedAt: new Date().toISOString(),
-                          isModifiedFromSeed: true,
-                        };
-                        const nextState: ClubDatabaseState = {
-                          ...state,
-                          subscriptions: (state.subscriptions || []).map((s) =>
-                            s.id === updatedSub.id ? updatedSub : s
-                          ),
-                        };
-                        setSelectedSubForDetail(updatedSub);
-                        await persist(nextState);
-                        const permCode = updatedSub.subscriptionCode || updatedSub.holderCpf;
-                        if (permCode) {
-                          saveMemberPermanentDocs(permCode, updatedSub).catch(() => {});
+                          const rawAtt: ClubAttachment = {
+                            id: `att_${permCode}_${Date.now()}`,
+                            name: file.name,
+                            mimeType: file.type || 'application/octet-stream',
+                            dataUrl: rawDataUrl,
+                            createdAt: new Date().toISOString(),
+                          };
+
+                          // Sobe o arquivo real no Supabase Storage (`club-files`) + tabela `public.club_attachments`
+                          const savedAtt = await saveClubAttachmentAtomic(
+                            permCode,
+                            selectedSubForDetail.id,
+                            titularMember?.id || '',
+                            rawAtt
+                          );
+
+                          const updatedMembers = selectedSubForDetail.members.map((m) => {
+                            if (m.id === titularMember?.id) {
+                              return {
+                                ...m,
+                                documentProofUrl: savedAtt.dataUrl,
+                                documentProofName: savedAtt.name,
+                                documentVerified: true,
+                                documentStatus: 'APROVADO' as const,
+                                documentVerifiedAt: new Date().toISOString(),
+                                documentVerifiedBy: 'Administrador',
+                              };
+                            }
+                            return m;
+                          });
+
+                          const updatedSub: ClubSubscription = {
+                            ...selectedSubForDetail,
+                            holderName: editClientData.holderName.trim() || selectedSubForDetail.holderName,
+                            holderEmail: editClientData.holderEmail.trim() || selectedSubForDetail.holderEmail,
+                            holderPhone: editClientData.holderPhone.trim() || selectedSubForDetail.holderPhone,
+                            holderRg: editClientData.holderRg.trim() || selectedSubForDetail.holderRg,
+                            holderBirthDate: editClientData.holderBirthDate || selectedSubForDetail.holderBirthDate,
+                            endDate: editClientData.endDate.trim() || selectedSubForDetail.endDate,
+                            addressCep: editClientData.addressCep.trim() || selectedSubForDetail.addressCep,
+                            addressStreet: editClientData.addressStreet.trim() || selectedSubForDetail.addressStreet,
+                            addressNumber: editClientData.addressNumber.trim() || selectedSubForDetail.addressNumber,
+                            addressComplement: editClientData.addressComplement.trim() || selectedSubForDetail.addressComplement,
+                            addressNeighborhood: editClientData.addressNeighborhood.trim() || selectedSubForDetail.addressNeighborhood,
+                            addressCity: editClientData.addressCity.trim() || selectedSubForDetail.addressCity,
+                            addressState: editClientData.addressState.trim() || selectedSubForDetail.addressState,
+                            notes: editClientData.notes.trim() || selectedSubForDetail.notes,
+                            attachments: [
+                              savedAtt,
+                              ...(selectedSubForDetail.attachments || []).filter((a) => a.id !== savedAtt.id),
+                            ],
+                            members: updatedMembers,
+                            updatedAt: new Date().toISOString(),
+                            isModifiedFromSeed: true,
+                          };
+                          const nextState: ClubDatabaseState = {
+                            ...state,
+                            subscriptions: (state.subscriptions || []).map((s) =>
+                              s.id === updatedSub.id ? updatedSub : s
+                            ),
+                          };
+                          setSelectedSubForDetail(updatedSub);
+                          await saveMemberPermanentDocs(permCode, updatedSub, 'ADD_ATTACHMENT');
+                          await persist(nextState, { waitForCloud: true });
+                          toast({
+                            title: 'Anexo salvo permanentemente no Storage!',
+                            description: `${file.name} foi gravado no banco de dados e no armazenamento definitivo.`,
+                          });
+                        } catch (err: any) {
+                          toast({
+                            title: 'Erro ao anexar arquivo',
+                            description: err?.message || 'Verifique sua conexão e tente novamente.',
+                            variant: 'destructive',
+                          });
+                        } finally {
+                          inputEl.value = '';
                         }
-                        toast({
-                          title: 'Anexo salvo e blindado com sucesso!',
-                          description: `${file.name} (Gravado de forma permanente)`,
-                        });
                       }}
                     />
                   </div>
@@ -18821,11 +18915,12 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                   ),
                                 };
                                 setSelectedSubForDetail(updatedSub);
-                                await persist(nextState);
+                                await softDeleteClubAttachment(att.id);
                                 const permCode = updatedSub.subscriptionCode || updatedSub.holderCpf;
                                 if (permCode) {
-                                  saveMemberPermanentDocs(permCode, updatedSub).catch(() => {});
+                                  await saveMemberPermanentDocs(permCode, updatedSub, 'REMOVE_ATTACHMENT');
                                 }
+                                await persist(nextState, { waitForCloud: true });
                                 toast({ title: 'Anexo removido com sucesso.' });
                               }}
                               className="h-8 text-rose-600"
@@ -24798,6 +24893,85 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
               className="text-xs font-bold bg-rose-600 hover:bg-rose-700"
             >
               Sim, Mover para Lixeira
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL DE HISTÓRICO IMUTÁVEL E RESTAURAÇÃO DE ALTERAÇÕES DO CADASTRO */}
+      <Dialog open={historyModalOpen} onOpenChange={setHistoryModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-indigo-950 font-black">
+              <History className="w-5 h-5 text-indigo-700" />
+              Histórico Permanente de Alterações — {selectedSubForDetail?.holderName}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-600">
+              Cartão #{selectedSubForDetail?.subscriptionCode}. Toda alteração salva neste cadastro fica registrada permanentemente no banco PostgreSQL para auditoria e restauração com 1 clique.
+            </DialogDescription>
+          </DialogHeader>
+
+          {historyLoading ? (
+            <div className="py-10 flex flex-col items-center justify-center gap-2 text-xs text-slate-500">
+              <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
+              Carregando versões gravadas no banco de dados...
+            </div>
+          ) : historyEntries.length === 0 ? (
+            <div className="py-8 text-center text-xs text-slate-500 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+              Nenhum registro histórico encontrado ainda para este cartão. Assim que você salvar alterações, cada versão aparecerá listada aqui automaticamente.
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+              {historyEntries.map((entry, idx) => {
+                const snap = entry.snapshot;
+                const attCount = (snap?.attachments || []).length;
+                const depCount = Math.max(0, (snap?.members || []).length - 1);
+                return (
+                  <div
+                    key={entry.id}
+                    className={`rounded-xl border p-3.5 space-y-2 ${
+                      idx === 0 ? 'border-emerald-300 bg-emerald-50/60' : 'border-slate-200 bg-white'
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge className={idx === 0 ? 'bg-emerald-700 text-white text-[10px]' : 'bg-indigo-700 text-white text-[10px]'}>
+                          v{entry.version} {idx === 0 ? '• ATUAL' : ''}
+                        </Badge>
+                        <span className="text-xs font-bold text-slate-900">
+                          {new Date(entry.createdAt).toLocaleString('pt-BR')}
+                        </span>
+                        <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 text-slate-600">
+                          {entry.action}
+                        </span>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={restoringHistoryId !== null}
+                        onClick={() => handleRestoreHistorySnapshot(entry)}
+                        className="h-7 text-xs font-bold bg-indigo-700 hover:bg-indigo-800 text-white"
+                      >
+                        {restoringHistoryId === entry.id ? 'Restaurando...' : 'Restaurar Esta Versão'}
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-slate-700">
+                      <div><strong>Status:</strong> {snap?.status || '-'} {snap?.transferCompleted ? '(Transferência OK ✓)' : ''}</div>
+                      <div><strong>Validade:</strong> {snap?.endDate ? formatDateBR(snap.endDate) : '-'}</div>
+                      <div className="truncate"><strong>E-mail:</strong> {snap?.holderEmail || '—'}</div>
+                      <div><strong>CEP:</strong> {snap?.addressCep || '—'}</div>
+                      <div className="truncate"><strong>Endereço:</strong> {snap?.addressStreet ? `${snap.addressStreet}${snap.addressNeighborhood ? `, ${snap.addressNeighborhood}` : ''}` : '—'}</div>
+                      <div><strong>Anexos:</strong> {attCount} • <strong>Dependentes:</strong> {depCount}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button type="button" variant="outline" size="sm" onClick={() => setHistoryModalOpen(false)}>
+              Fechar
             </Button>
           </DialogFooter>
         </DialogContent>
