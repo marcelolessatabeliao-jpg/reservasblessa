@@ -1913,14 +1913,14 @@ export const normalizeClubDatabaseState = (
     ? DEFAULT_SITE_TERMS_TEXT
     : rawSiteTerms;
 
-  const mergedDeletedIds = Array.from(
-    new Set([
-      ...(Array.isArray(parsed.deletedSubscriptionIds) ? parsed.deletedSubscriptionIds : []),
-      ...(Array.isArray(fallbackState?.deletedSubscriptionIds)
-        ? fallbackState.deletedSubscriptionIds
-        : []),
-    ])
-  );
+  // Quando `parsed.deletedSubscriptionIds` é informado (ex.: após merge/restauração da nuvem),
+  // NÃO misturar de volta IDs obsoletos de `fallbackState.deletedSubscriptionIds`, senão cadastros
+  // restaurados na nuvem ou pela Lixeira seriam re-excluídos pelo cache antigo do navegador!
+  const mergedDeletedIds = Array.isArray(parsed.deletedSubscriptionIds)
+    ? Array.from(new Set(parsed.deletedSubscriptionIds))
+    : Array.isArray(fallbackState?.deletedSubscriptionIds)
+    ? Array.from(new Set(fallbackState.deletedSubscriptionIds))
+    : [];
   const deletedIdSet = new Set(mergedDeletedIds);
 
   return {
