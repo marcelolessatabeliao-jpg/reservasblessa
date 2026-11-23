@@ -77,12 +77,12 @@ function mapModality(planStr: string) {
 
   // Default Lessa Club
   let price = 49.9;
-  if (p.includes('2 pessoas') || p.includes('2')) price = 99.8;
-  if (p.includes('3 pessoas') || p.includes('3')) price = 149.7;
-  if (p.includes('4 pessoas') || p.includes('4')) price = 199.6;
-  if (p.includes('5 pessoas') || p.includes('5')) price = 249.5;
-  if (p.includes('1.077')) price = 89.82;
-  if (p.includes('538')) price = 44.91;
+  if (/(?:^|[^\d])5(?:\s*pessoas|\s*vidas)/i.test(p) || p.includes('249,5') || p.includes('249.5')) price = 249.5;
+  else if (/(?:^|[^\d])4(?:\s*pessoas|\s*vidas)/i.test(p) || p.includes('199,6') || p.includes('199.6')) price = 199.6;
+  else if (/(?:^|[^\d])3(?:\s*pessoas|\s*vidas)/i.test(p) || p.includes('149,7') || p.includes('149.7')) price = 149.7;
+  else if (/(?:^|[^\d])2(?:\s*pessoas|\s*vidas)/i.test(p) || p.includes('99,8') || p.includes('99.8')) price = 99.8;
+  else if (p.includes('1.077')) price = 89.82;
+  else if (p.includes('538')) price = 44.91;
   return { code: 'ADULTO', name: 'Lessa Club', front: '/cards/44.png', back: '/cards/24.png', price };
 }
 
@@ -672,6 +672,45 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
             createdAt: '2026-11-21T00:00:00.000Z',
           });
         });
+      } else if (upName.includes('SAMUD DELL ARMI') || holderCard === '1212251678') {
+        // SAMUD DELL ARMI HAIBIB: Carnê 2 oficial do Labcard (12 parcelas de R$ 149,70 - Lessa Club 3 pessoas)
+        const samudCarnes = [
+          { num: 1, ref: '05/2026', due: '2026-05-01', paid: '2026-05-01T10:00:00.000Z', status: 'PAID' as const, reg: '130017770419050224' },
+          { num: 2, ref: '06/2026', due: '2026-06-01', paid: undefined, status: 'OVERDUE' as const, reg: '200017770419050775' },
+          { num: 3, ref: '07/2026', due: '2026-07-01', paid: undefined, status: 'OVERDUE' as const, reg: '203017770419051340' },
+          { num: 4, ref: '08/2026', due: '2026-08-01', paid: undefined, status: 'OVERDUE' as const, reg: '411117770419054790' },
+          { num: 5, ref: '09/2026', due: '2026-09-01', paid: undefined, status: 'OVERDUE' as const, reg: '411317770419056771' },
+          { num: 6, ref: '10/2026', due: '2026-10-01', paid: undefined, status: 'OVERDUE' as const, reg: '183817770419053359' },
+          { num: 7, ref: '11/2026', due: '2026-11-01', paid: undefined, status: 'OVERDUE' as const, reg: '538417770419052853' },
+          { num: 8, ref: '12/2026', due: '2026-12-01', paid: undefined, status: 'PENDING' as const, reg: '850217770419054411' },
+          { num: 9, ref: '01/2027', due: '2027-01-01', paid: undefined, status: 'PENDING' as const, reg: '850217770419054412' },
+          { num: 10, ref: '02/2027', due: '2027-02-01', paid: undefined, status: 'PENDING' as const, reg: '850217770419054413' },
+          { num: 11, ref: '03/2027', due: '2027-03-01', paid: undefined, status: 'PENDING' as const, reg: '850217770419054414' },
+          { num: 12, ref: '04/2027', due: '2027-04-01', paid: undefined, status: 'PENDING' as const, reg: '850217770419054415' },
+        ];
+        samudCarnes.forEach((c) => {
+          invoices.push({
+            id: `inv_samud_c2_${c.num}`,
+            subscriptionId: subId,
+            subscriptionCode: subCode,
+            holderName: name.trim(),
+            holderCpf: formatCpf(cpf),
+            holderPhone: formatPhone(phone),
+            installmentNumber: c.num,
+            totalInstallments: 12,
+            referenceMonth: c.ref,
+            amount: 149.70,
+            dueDate: c.due,
+            paidAt: c.paid,
+            paymentMethod: 'BOLETO',
+            status: c.status,
+            boletoNumber: c.reg,
+            description: `Lessa Club (3 pessoas) (Mensalidade ${c.ref})`,
+            invoiceKind: 'MENSALIDADE',
+            carneGroup: 2,
+            createdAt: '2026-05-01T00:00:00.000Z',
+          });
+        });
       } else {
         invoices.push({
           id: `inv_${holderCard}_11_2026`,
@@ -703,7 +742,6 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
         upName.includes('FABIANA ERICA') ||
         upName.includes('RONSAGELA') ||
         upName.includes('RENATO PICOLO') ||
-        upName.includes('SAMUD DELL ARMI') ||
         upName.includes('GUSTAVO TORRES')
       ) {
         invoices.push({

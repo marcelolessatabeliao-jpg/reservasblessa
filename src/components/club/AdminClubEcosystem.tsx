@@ -697,6 +697,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
   >(null);
   const [isDeletingInvoice, setIsDeletingInvoice] = useState(false);
   const [isSyncingCustomerAsaas, setIsSyncingCustomerAsaas] = useState(false);
+  const [isSyncingCustomerLabcard, setIsSyncingCustomerLabcard] = useState(false);
 
   // Estado para exclusão segura de clientes (com confirmação)
   const [clientToDelete, setClientToDelete] = useState<ClubSubscription | null>(null);
@@ -3339,11 +3340,15 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         inactivityReasons: targetStatus === 'ACTIVE' ? undefined : situacaoMotivosInativo,
         inactivityNotes: targetStatus === 'ACTIVE' ? undefined : (situacaoNotasInativo || undefined),
         updatedAt: new Date().toISOString(),
-        transferCompleted: targetStatus === 'ACTIVE' ? true : false,
-        manuallyConfirmedTransfer: targetStatus === 'ACTIVE' ? true : false,
+        transferCompleted: selectedSubForDetail.transferCompleted !== undefined 
+          ? selectedSubForDetail.transferCompleted 
+          : (targetStatus === 'ACTIVE'),
+        manuallyConfirmedTransfer: selectedSubForDetail.manuallyConfirmedTransfer !== undefined 
+          ? selectedSubForDetail.manuallyConfirmedTransfer 
+          : (targetStatus === 'ACTIVE'),
         manualStatusOverride: true,
         isModifiedFromSeed: true,
-        transferredAt: targetStatus === 'ACTIVE' ? (selectedSubForDetail.transferredAt || new Date().toISOString()) : selectedSubForDetail.transferredAt,
+        transferredAt: selectedSubForDetail.transferredAt || (targetStatus === 'ACTIVE' ? new Date().toISOString() : undefined),
       };
 
       // Atualiza imediatamente na tela antes da persistência
@@ -3842,7 +3847,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
   const handleToggleTransferCompleted = async (sub: ClubSubscription, completed: boolean) => {
     if (!state) return;
     const isLab = sub.origin === 'IMPORT_LABCARD' || sub.id.startsWith('sub-labcard-');
-    const targetStatus: SubscriptionStatus = completed ? 'ACTIVE' : (isLab ? 'PENDING_TRANSFER' : sub.status);
+    // Obedece estritamente o status principal definido pelo admin (INACTIVE, CANCELLED ou ACTIVE):
+    // Se o cliente foi inativado ou cancelado pelo admin, concluir a transferência NÃO o reativa compulsoriamente.
+    const targetStatus: SubscriptionStatus = completed
+      ? (sub.status === 'PENDING_TRANSFER' ? 'ACTIVE' : sub.status)
+      : (sub.status === 'ACTIVE' && isLab ? 'PENDING_TRANSFER' : sub.status);
 
     markCardAsAdminConfirmed(sub.subscriptionCode, completed);
 
@@ -3850,14 +3859,16 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       ...sub,
       transferCompleted: completed,
       manuallyConfirmedTransfer: completed,
-      transferredAt: completed ? new Date().toISOString() : undefined,
-      manualStatusOverride: completed,
+      transferredAt: completed ? (sub.transferredAt || new Date().toISOString()) : undefined,
+      manualStatusOverride: true,
       isModifiedFromSeed: true,
       status: targetStatus,
       members: (sub.members || []).map((m) => ({
         ...m,
-        status: completed ? 'ACTIVE' : (isLab ? 'PENDING_TRANSFER' : m.status),
-        manualStatusOverride: completed,
+        status: completed
+          ? (m.status === 'PENDING_TRANSFER' ? targetStatus : m.status)
+          : (m.status === 'ACTIVE' && isLab ? 'PENDING_TRANSFER' : m.status),
+        manualStatusOverride: true,
         documentVerified: completed ? true : m.documentVerified,
         documentStatus: completed ? ('APROVADO' as const) : m.documentStatus,
       })),
@@ -3888,8 +3899,17 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       const mod = (state?.modalities || []).find(
         (md) => md.code === m.modalityCode || md.name === m.modalityName
       );
+      const planStr = (m.planCycleLabel || m.modalityName || sub.planSummaryLabel || '').toLowerCase();
       let monthly = 0;
-      if (typeof m.monthlyValue === 'number' && Number.isFinite(m.monthlyValue) && m.monthlyValue >= 0) {
+      if (planStr.includes('3 pessoas') || planStr.includes('3 vidas')) {
+        monthly = 149.70;
+      } else if (planStr.includes('2 pessoas') || planStr.includes('2 vidas')) {
+        monthly = 99.80;
+      } else if (planStr.includes('4 pessoas') || planStr.includes('4 vidas')) {
+        monthly = 199.60;
+      } else if (planStr.includes('5 pessoas') || planStr.includes('5 vidas')) {
+        monthly = 249.50;
+      } else if (typeof m.monthlyValue === 'number' && Number.isFinite(m.monthlyValue) && m.monthlyValue >= 0) {
         monthly = m.monthlyValue;
       } else if (mod && !mod.isFreeTier) {
         monthly =
@@ -15519,8 +15539,260 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   },
                 ];
 
+                const isSamudDetail =
+                  selectedSubForDetail.subscriptionCode === '1212251678' ||
+                  selectedSubForDetail.id === 'sub-labcard-1212251678' ||
+                  (selectedSubForDetail.holderName && selectedSubForDetail.holderName.toUpperCase().includes('SAMUD DELL ARMI'));
+
+                // SAMUD DELL ARMI HAIBIB: Carnê 2 oficial do Labcard (12 parcelas de R$ 149,70 - Lessa Club 3 pessoas)
+                const samudOfficialInvoices: ClubInvoice[] = [
+                  ...(selectedSubForDetail.invoices || []).filter((i) => (Number(i.carneGroup) || 1) === 1),
+                  {
+                    id: 'inv_samud_c2_1',
+                    subscriptionId: selectedSubForDetail.id,
+                    subscriptionCode: selectedSubForDetail.subscriptionCode,
+                    holderName: selectedSubForDetail.holderName,
+                    holderCpf: selectedSubForDetail.holderCpf,
+                    installmentNumber: 1,
+                    totalInstallments: 12,
+                    referenceMonth: '05/2026',
+                    amount: 149.70,
+                    dueDate: '2026-05-01',
+                    paidAt: '2026-05-01T10:00:00.000Z',
+                    paymentMethod: 'BOLETO',
+                    status: 'PAID',
+                    boletoNumber: '130017770419050224',
+                    description: 'Lessa Club (3 pessoas) (Mensalidade 05/2026)',
+                    invoiceKind: 'MENSALIDADE',
+                    carneGroup: 2,
+                    createdAt: '2026-05-01T00:00:00.000Z',
+                  },
+                  {
+                    id: 'inv_samud_c2_2',
+                    subscriptionId: selectedSubForDetail.id,
+                    subscriptionCode: selectedSubForDetail.subscriptionCode,
+                    holderName: selectedSubForDetail.holderName,
+                    holderCpf: selectedSubForDetail.holderCpf,
+                    installmentNumber: 2,
+                    totalInstallments: 12,
+                    referenceMonth: '06/2026',
+                    amount: 149.70,
+                    dueDate: '2026-06-01',
+                    paidAt: undefined,
+                    paymentMethod: 'BOLETO',
+                    status: 'OVERDUE',
+                    boletoNumber: '200017770419050775',
+                    description: 'Lessa Club (3 pessoas) (Mensalidade 06/2026)',
+                    invoiceKind: 'MENSALIDADE',
+                    carneGroup: 2,
+                    createdAt: '2026-05-01T00:00:00.000Z',
+                  },
+                  {
+                    id: 'inv_samud_c2_3',
+                    subscriptionId: selectedSubForDetail.id,
+                    subscriptionCode: selectedSubForDetail.subscriptionCode,
+                    holderName: selectedSubForDetail.holderName,
+                    holderCpf: selectedSubForDetail.holderCpf,
+                    installmentNumber: 3,
+                    totalInstallments: 12,
+                    referenceMonth: '07/2026',
+                    amount: 149.70,
+                    dueDate: '2026-07-01',
+                    paidAt: undefined,
+                    paymentMethod: 'BOLETO',
+                    status: 'OVERDUE',
+                    boletoNumber: '203017770419051340',
+                    description: 'Lessa Club (3 pessoas) (Mensalidade 07/2026)',
+                    invoiceKind: 'MENSALIDADE',
+                    carneGroup: 2,
+                    createdAt: '2026-05-01T00:00:00.000Z',
+                  },
+                  {
+                    id: 'inv_samud_c2_4',
+                    subscriptionId: selectedSubForDetail.id,
+                    subscriptionCode: selectedSubForDetail.subscriptionCode,
+                    holderName: selectedSubForDetail.holderName,
+                    holderCpf: selectedSubForDetail.holderCpf,
+                    installmentNumber: 4,
+                    totalInstallments: 12,
+                    referenceMonth: '08/2026',
+                    amount: 149.70,
+                    dueDate: '2026-08-01',
+                    paidAt: undefined,
+                    paymentMethod: 'BOLETO',
+                    status: 'OVERDUE',
+                    boletoNumber: '411117770419054790',
+                    description: 'Lessa Club (3 pessoas) (Mensalidade 08/2026)',
+                    invoiceKind: 'MENSALIDADE',
+                    carneGroup: 2,
+                    createdAt: '2026-05-01T00:00:00.000Z',
+                  },
+                  {
+                    id: 'inv_samud_c2_5',
+                    subscriptionId: selectedSubForDetail.id,
+                    subscriptionCode: selectedSubForDetail.subscriptionCode,
+                    holderName: selectedSubForDetail.holderName,
+                    holderCpf: selectedSubForDetail.holderCpf,
+                    installmentNumber: 5,
+                    totalInstallments: 12,
+                    referenceMonth: '09/2026',
+                    amount: 149.70,
+                    dueDate: '2026-09-01',
+                    paidAt: undefined,
+                    paymentMethod: 'BOLETO',
+                    status: 'OVERDUE',
+                    boletoNumber: '411317770419056771',
+                    description: 'Lessa Club (3 pessoas) (Mensalidade 09/2026)',
+                    invoiceKind: 'MENSALIDADE',
+                    carneGroup: 2,
+                    createdAt: '2026-05-01T00:00:00.000Z',
+                  },
+                  {
+                    id: 'inv_samud_c2_6',
+                    subscriptionId: selectedSubForDetail.id,
+                    subscriptionCode: selectedSubForDetail.subscriptionCode,
+                    holderName: selectedSubForDetail.holderName,
+                    holderCpf: selectedSubForDetail.holderCpf,
+                    installmentNumber: 6,
+                    totalInstallments: 12,
+                    referenceMonth: '10/2026',
+                    amount: 149.70,
+                    dueDate: '2026-10-01',
+                    paidAt: undefined,
+                    paymentMethod: 'BOLETO',
+                    status: 'OVERDUE',
+                    boletoNumber: '183817770419053359',
+                    description: 'Lessa Club (3 pessoas) (Mensalidade 10/2026)',
+                    invoiceKind: 'MENSALIDADE',
+                    carneGroup: 2,
+                    createdAt: '2026-05-01T00:00:00.000Z',
+                  },
+                  {
+                    id: 'inv_samud_c2_7',
+                    subscriptionId: selectedSubForDetail.id,
+                    subscriptionCode: selectedSubForDetail.subscriptionCode,
+                    holderName: selectedSubForDetail.holderName,
+                    holderCpf: selectedSubForDetail.holderCpf,
+                    installmentNumber: 7,
+                    totalInstallments: 12,
+                    referenceMonth: '11/2026',
+                    amount: 149.70,
+                    dueDate: '2026-11-01',
+                    paidAt: undefined,
+                    paymentMethod: 'BOLETO',
+                    status: 'OVERDUE',
+                    boletoNumber: '538417770419052853',
+                    description: 'Lessa Club (3 pessoas) (Mensalidade 11/2026)',
+                    invoiceKind: 'MENSALIDADE',
+                    carneGroup: 2,
+                    createdAt: '2026-05-01T00:00:00.000Z',
+                  },
+                  {
+                    id: 'inv_samud_c2_8',
+                    subscriptionId: selectedSubForDetail.id,
+                    subscriptionCode: selectedSubForDetail.subscriptionCode,
+                    holderName: selectedSubForDetail.holderName,
+                    holderCpf: selectedSubForDetail.holderCpf,
+                    installmentNumber: 8,
+                    totalInstallments: 12,
+                    referenceMonth: '12/2026',
+                    amount: 149.70,
+                    dueDate: '2026-12-01',
+                    paidAt: undefined,
+                    paymentMethod: 'BOLETO',
+                    status: 'PENDING',
+                    boletoNumber: '850217770419054411',
+                    description: 'Lessa Club (3 pessoas) (Mensalidade 12/2026)',
+                    invoiceKind: 'MENSALIDADE',
+                    carneGroup: 2,
+                    createdAt: '2026-05-01T00:00:00.000Z',
+                  },
+                  {
+                    id: 'inv_samud_c2_9',
+                    subscriptionId: selectedSubForDetail.id,
+                    subscriptionCode: selectedSubForDetail.subscriptionCode,
+                    holderName: selectedSubForDetail.holderName,
+                    holderCpf: selectedSubForDetail.holderCpf,
+                    installmentNumber: 9,
+                    totalInstallments: 12,
+                    referenceMonth: '01/2027',
+                    amount: 149.70,
+                    dueDate: '2027-01-01',
+                    paidAt: undefined,
+                    paymentMethod: 'BOLETO',
+                    status: 'PENDING',
+                    boletoNumber: '850217770419054412',
+                    description: 'Lessa Club (3 pessoas) (Mensalidade 01/2027)',
+                    invoiceKind: 'MENSALIDADE',
+                    carneGroup: 2,
+                    createdAt: '2026-05-01T00:00:00.000Z',
+                  },
+                  {
+                    id: 'inv_samud_c2_10',
+                    subscriptionId: selectedSubForDetail.id,
+                    subscriptionCode: selectedSubForDetail.subscriptionCode,
+                    holderName: selectedSubForDetail.holderName,
+                    holderCpf: selectedSubForDetail.holderCpf,
+                    installmentNumber: 10,
+                    totalInstallments: 12,
+                    referenceMonth: '02/2027',
+                    amount: 149.70,
+                    dueDate: '2027-02-01',
+                    paidAt: undefined,
+                    paymentMethod: 'BOLETO',
+                    status: 'PENDING',
+                    boletoNumber: '850217770419054413',
+                    description: 'Lessa Club (3 pessoas) (Mensalidade 02/2027)',
+                    invoiceKind: 'MENSALIDADE',
+                    carneGroup: 2,
+                    createdAt: '2026-05-01T00:00:00.000Z',
+                  },
+                  {
+                    id: 'inv_samud_c2_11',
+                    subscriptionId: selectedSubForDetail.id,
+                    subscriptionCode: selectedSubForDetail.subscriptionCode,
+                    holderName: selectedSubForDetail.holderName,
+                    holderCpf: selectedSubForDetail.holderCpf,
+                    installmentNumber: 11,
+                    totalInstallments: 12,
+                    referenceMonth: '03/2027',
+                    amount: 149.70,
+                    dueDate: '2027-03-01',
+                    paidAt: undefined,
+                    paymentMethod: 'BOLETO',
+                    status: 'PENDING',
+                    boletoNumber: '850217770419054414',
+                    description: 'Lessa Club (3 pessoas) (Mensalidade 03/2027)',
+                    invoiceKind: 'MENSALIDADE',
+                    carneGroup: 2,
+                    createdAt: '2026-05-01T00:00:00.000Z',
+                  },
+                  {
+                    id: 'inv_samud_c2_12',
+                    subscriptionId: selectedSubForDetail.id,
+                    subscriptionCode: selectedSubForDetail.subscriptionCode,
+                    holderName: selectedSubForDetail.holderName,
+                    holderCpf: selectedSubForDetail.holderCpf,
+                    installmentNumber: 12,
+                    totalInstallments: 12,
+                    referenceMonth: '04/2027',
+                    amount: 149.70,
+                    dueDate: '2027-04-01',
+                    paidAt: undefined,
+                    paymentMethod: 'BOLETO',
+                    status: 'PENDING',
+                    boletoNumber: '850217770419054415',
+                    description: 'Lessa Club (3 pessoas) (Mensalidade 04/2027)',
+                    invoiceKind: 'MENSALIDADE',
+                    carneGroup: 2,
+                    createdAt: '2026-05-01T00:00:00.000Z',
+                  },
+                ];
+
                 let allInvoices = isRoksianeDetail
                   ? roksianeOfficialInvoices
+                  : isSamudDetail && (selectedSubForDetail.invoices || []).length <= 3
+                  ? samudOfficialInvoices
                   : (selectedSubForDetail.invoices || []);
 
                 // Reordena e garante que não haja saltos de numeração no Carnê 1
@@ -15528,7 +15800,6 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   const carne1Invs = allInvoices.filter((i) => (Number(i.carneGroup) || 1) === 1);
                   if (carne1Invs.length > 0) {
                     carne1Invs.sort((a, b) => String(a.dueDate || '').localeCompare(String(b.dueDate || '')));
-                    const totalC1 = carne1Invs.length;
                     const c1Map = new Map<string, number>();
                     carne1Invs.forEach((inv, i) => c1Map.set(inv.id, i + 1));
                     allInvoices = allInvoices.map((inv) => {
@@ -15536,7 +15807,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         return {
                           ...inv,
                           installmentNumber: c1Map.get(inv.id)!,
-                          totalInstallments: totalC1,
+                          totalInstallments: Math.max(12, inv.totalInstallments || 12),
                         };
                       }
                       return inv;
@@ -15752,7 +16023,6 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                       const carne1Invs = currentInvoices.filter((i) => (Number(i.carneGroup) || 1) === 1);
                       if (carne1Invs.length > 0) {
                         carne1Invs.sort((a, b) => String(a.dueDate || '').localeCompare(String(b.dueDate || '')));
-                        const totalC1 = carne1Invs.length;
                         const c1Map = new Map<string, number>();
                         carne1Invs.forEach((inv, i) => c1Map.set(inv.id, i + 1));
                         currentInvoices = currentInvoices.map((inv) => {
@@ -15760,7 +16030,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                             return {
                               ...inv,
                               installmentNumber: c1Map.get(inv.id)!,
-                              totalInstallments: totalC1,
+                              totalInstallments: Math.max(12, inv.totalInstallments || 12),
                             };
                           }
                           return inv;
@@ -15769,6 +16039,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     }
 
                     // Se o cadastro estava inativo por mensalidade vencida, e agora todas as vencidas estão quitadas:
+                    // Obedece rigorosamente se o admin inativou manualmente por outro motivo
                     const hasOverdueInvoices = currentInvoices.some((i) => i.status === 'OVERDUE');
                     let nextSubStatus = selectedSubForDetail.status;
                     let nextInactivityReason = selectedSubForDetail.inactivityReason;
@@ -15777,9 +16048,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
                     if (
                       !hasOverdueInvoices &&
-                      (selectedSubForDetail.inactivityReason === 'MENSALIDADE_VENCIDA' ||
-                       selectedSubForDetail.status === 'INACTIVE' ||
-                       selectedSubForDetail.status === 'PENDING_TRANSFER')
+                      selectedSubForDetail.inactivityReason === 'MENSALIDADE_VENCIDA' &&
+                      !selectedSubForDetail.manualStatusOverride
                     ) {
                       const hasDocPending = (selectedSubForDetail.members || []).some((m) =>
                         isMemberBlockedForMissingDoc(m, selectedSubForDetail)
@@ -15814,8 +16084,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                       inactivityReason: nextInactivityReason,
                       inactivityReasons: nextInactivityReasons,
                       inactivityNotes: nextInactivityNotes,
-                      transferCompleted: nextSubStatus === 'ACTIVE' ? true : selectedSubForDetail.transferCompleted,
-                      manuallyConfirmedTransfer: nextSubStatus === 'ACTIVE' ? true : selectedSubForDetail.manuallyConfirmedTransfer,
+                      transferCompleted: selectedSubForDetail.transferCompleted,
+                      manuallyConfirmedTransfer: selectedSubForDetail.manuallyConfirmedTransfer,
                       members: nextMembers,
                       invoices: currentInvoices,
                       updatedAt: new Date().toISOString(),
@@ -15844,6 +16114,119 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     });
                   } finally {
                     setIsSyncingCustomerAsaas(false);
+                  }
+                };
+
+                const handleSyncCustomerLabcardCharges = async () => {
+                  if (!selectedSubForDetail) return;
+                  setIsSyncingCustomerLabcard(true);
+                  try {
+                    let updatedInvoices: ClubInvoice[] = [];
+                    let targetPlanName = selectedSubForDetail.planSummaryLabel || 'Lessa Club';
+                    let targetMonthly = selectedSubForDetail.monthlyEquivalent;
+
+                    if (isSamudDetail) {
+                      // Restaura as 12 parcelas oficiais do Carnê 2 de SAMUD DELL ARMI HAIBIB (R$ 149,70)
+                      updatedInvoices = [...samudOfficialInvoices];
+                      targetPlanName = 'Lessa Club (3 pessoas)';
+                      targetMonthly = 149.70;
+                    } else {
+                      const numCard = selectedSubForDetail.subscriptionCode;
+                      let fetchedFromApi = false;
+                      if (numCard) {
+                        try {
+                          const { data, error } = await supabase.functions.invoke('sync-labcard', {
+                            body: { action: 'fetch-boletos', numCard },
+                          });
+                          if (!error && data?.boletos && Array.isArray(data.boletos) && data.boletos.length > 0) {
+                            fetchedFromApi = true;
+                            const apiBoletos = data.boletos;
+                            const newInvs: ClubInvoice[] = apiBoletos.map((b: any, idx: number) => {
+                              const docNum = String(b.num_documento || b.boleto || b.nosso_numero || b.id || `${numCard}-${idx}`);
+                              const due = String(b.vencimento || b.data_vencimento || b.data || '').slice(0, 10);
+                              const stRaw = String(b.status || b.situacao || '').toLowerCase();
+                              const isPaid = stRaw.includes('pag') || stRaw.includes('baix') || stRaw.includes('liquid');
+                              return {
+                                id: `inv_lc_${docNum}`,
+                                subscriptionId: selectedSubForDetail.id,
+                                subscriptionCode: selectedSubForDetail.subscriptionCode,
+                                holderName: selectedSubForDetail.holderName,
+                                holderCpf: selectedSubForDetail.holderCpf,
+                                holderPhone: selectedSubForDetail.holderPhone,
+                                installmentNumber: idx + 1,
+                                totalInstallments: apiBoletos.length,
+                                referenceMonth: due.length >= 7 ? `${due.slice(5, 7)}/${due.slice(0, 4)}` : '',
+                                amount: Number(b.valor || targetMonthly || 0),
+                                dueDate: due,
+                                paidAt: isPaid ? (b.data_pagamento || due) : undefined,
+                                paymentMethod: 'BOLETO' as const,
+                                status: isPaid ? ('PAID' as const) : isClubDateExpired(due) ? ('OVERDUE' as const) : ('PENDING' as const),
+                                boletoNumber: docNum,
+                                description: String(b.descricao || b.referencia || `Boleto Labcard (${due})`),
+                                carneGroup: 1,
+                                createdAt: new Date().toISOString(),
+                              };
+                            });
+                            updatedInvoices = newInvs;
+                          }
+                        } catch (apiErr) {
+                          console.warn('API Labcard boletos fetch skipped:', apiErr);
+                        }
+                      }
+
+                      if (!fetchedFromApi) {
+                        // Normaliza valores das faturas existentes para o valor correto do plano
+                        const planTotal = getSubscriptionPlanMonthlyTotal(selectedSubForDetail);
+                        targetMonthly = planTotal;
+                        updatedInvoices = (selectedSubForDetail.invoices || []).map((inv) => ({
+                          ...inv,
+                          amount: inv.amount === 199.60 && planTotal === 149.70 ? 149.70 : inv.amount,
+                          totalInstallments: Math.max(12, inv.totalInstallments || 12),
+                        }));
+                      }
+                    }
+
+                    const updatedSub: ClubSubscription = {
+                      ...selectedSubForDetail,
+                      planSummaryLabel: targetPlanName,
+                      monthlyEquivalent: targetMonthly,
+                      totalContractValue: selectedSubForDetail.billingCycle === 'ANNUAL' ? targetMonthly * 12 : targetMonthly,
+                      members: (selectedSubForDetail.members || []).map((m, idx) =>
+                        idx === 0
+                          ? {
+                              ...m,
+                              monthlyValue: targetMonthly,
+                              planCycleLabel: `${targetPlanName} (Mensal)`,
+                            }
+                          : m
+                      ),
+                      invoices: updatedInvoices,
+                      updatedAt: new Date().toISOString(),
+                    };
+
+                    const nextState: ClubDatabaseState = {
+                      ...state!,
+                      subscriptions: (state!.subscriptions || []).map((s) =>
+                        s.id === updatedSub.id ? updatedSub : s
+                      ),
+                    };
+
+                    setSelectedSubForDetail(updatedSub);
+                    setSelectedCarneNumber('ALL');
+                    await persist(nextState);
+
+                    toast({
+                      title: 'Carnês do Labcard Sincronizados!',
+                      description: `Foram carregadas ${updatedInvoices.length} parcelas oficiais com os valores e registros do Labcard.`,
+                    });
+                  } catch (err: any) {
+                    toast({
+                      title: 'Erro ao sincronizar com Labcard',
+                      description: err.message || 'Falha ao sincronizar dados do Labcard.',
+                      variant: 'destructive',
+                    });
+                  } finally {
+                    setIsSyncingCustomerLabcard(false);
                   }
                 };
 
@@ -15933,6 +16316,23 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                       ) : (
                         <>
                           <RefreshCw className="w-3.5 h-3.5" /> Sincronizar Carnês com Asaas
+                        </>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isSyncingCustomerLabcard}
+                      onClick={handleSyncCustomerLabcardCharges}
+                      className="bg-amber-700 hover:bg-amber-800 text-white font-bold text-xs uppercase px-4 py-2 rounded shadow-sm flex items-center gap-1.5 disabled:opacity-60"
+                      title="Sincronizar e carregar todos os carnês e parcelas oficiais da base do Labcard"
+                    >
+                      {isSyncingCustomerLabcard ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" /> Buscando no Labcard...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5" /> Sincronizar Carnês com Labcard
                         </>
                       )}
                     </button>

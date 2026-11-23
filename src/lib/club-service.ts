@@ -5792,7 +5792,22 @@ export const applyLabcardFullEnrichment = async (
     if (p.includes('pcd') || p.includes('tea') || p.includes('inclus') || p.includes('pdc')) {
       return { code: 'PCD_TEA', name: 'Lessa Inclusão - PCD e TEA', front: '/cards/35.png', back: '/cards/24.png', price: 0 };
     }
-    return { code: 'ADULTO', name: 'Lessa Club', front: '/cards/44.png', back: '/cards/24.png', price: 49.9 };
+    let price = 49.9;
+    let name = 'Lessa Club';
+    if (/(?:^|[^\d])5(?:\s*pessoas|\s*vidas)/i.test(p) || p.includes('249,5') || p.includes('249.5')) {
+      price = 249.5;
+      name = 'Lessa Club (5 pessoas)';
+    } else if (/(?:^|[^\d])4(?:\s*pessoas|\s*vidas)/i.test(p) || p.includes('199,6') || p.includes('199.6')) {
+      price = 199.6;
+      name = 'Lessa Club (4 pessoas)';
+    } else if (/(?:^|[^\d])3(?:\s*pessoas|\s*vidas)/i.test(p) || p.includes('149,7') || p.includes('149.7')) {
+      price = 149.7;
+      name = 'Lessa Club (3 pessoas)';
+    } else if (/(?:^|[^\d])2(?:\s*pessoas|\s*vidas)/i.test(p) || p.includes('99,8') || p.includes('99.8')) {
+      price = 99.8;
+      name = 'Lessa Club (2 pessoas)';
+    }
+    return { code: 'ADULTO', name, front: '/cards/44.png', back: '/cards/24.png', price };
   };
 
   // Agrupar boletos por número do cartão quando solicitados
