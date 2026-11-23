@@ -275,7 +275,11 @@ function ChaleSelectorInner({
       .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, () => {
         loadAvailability();
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'site_settings' }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'site_settings' }, (payload) => {
+        const key = (payload?.new as any)?.key || (payload?.old as any)?.key;
+        if (key && key.startsWith('lessa_club_')) {
+          return; // Ignora alterações do clube de associados para não onerar o Supabase
+        }
         loadAvailability();
       })
       .subscribe();

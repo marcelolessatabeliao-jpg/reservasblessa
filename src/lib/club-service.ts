@@ -1938,6 +1938,7 @@ const buildCompactCloudState = (state: ClubDatabaseState): ClubDatabaseState => 
         cleanSub.members.some(
           (m) =>
             (m.documentProofUrl && m.documentProofUrl.length > 500) ||
+            (m.photoUrl && m.photoUrl.startsWith('data:') && m.photoUrl.length > 500) ||
             (m.attachments && m.attachments.some((a) => a.dataUrl && a.dataUrl.length > 500))
         )
       ) {
@@ -1946,6 +1947,7 @@ const buildCompactCloudState = (state: ClubDatabaseState): ClubDatabaseState => 
           members: cleanSub.members.map((m) => ({
             ...m,
             documentProofUrl: m.documentProofUrl && m.documentProofUrl.length > 500 ? '' : m.documentProofUrl,
+            photoUrl: m.photoUrl && m.photoUrl.startsWith('data:') && m.photoUrl.length > 500 ? '' : m.photoUrl,
             attachments: (m.attachments || []).map((a) => ({
               ...a,
               dataUrl: a.dataUrl && a.dataUrl.length > 500 ? '' : a.dataUrl,
@@ -2004,6 +2006,7 @@ const notifyCloudSyncStatus = (status: CloudSyncStatus, error: string | null = n
 
 let inFlightCloudSavePromise: Promise<any> | null = null;
 let queuedCloudSaveState: ClubDatabaseState | null = null;
+let cloudSaveDebounceTimer: any = null;
 
 const runCloudSaveExecution = async (stateToSave: ClubDatabaseState): Promise<void> => {
   notifyCloudSyncStatus('SAVING', null);
@@ -2026,8 +2029,8 @@ const runCloudSaveExecution = async (stateToSave: ClubDatabaseState): Promise<vo
 
       const timeoutPromise = new Promise<{ error: any }>((_, reject) => {
         timeoutTimer = setTimeout(() => {
-          reject(new Error('Tempo limite de rede ao sincronizar com o banco de dados (20s)'));
-        }, 20000);
+          reject(new Error('Tempo limite de rede ao sincronizar com o banco de dados (10s)'));
+        }, 10000);
       });
 
       const { error } = await Promise.race([upsertPromise, timeoutPromise]);
@@ -2036,8 +2039,6 @@ const runCloudSaveExecution = async (stateToSave: ClubDatabaseState): Promise<vo
       if (!error) {
         lastClubFetchErrorMessage = null;
         notifyCloudSyncStatus('SYNCED', null);
-        // Blindagem de segurança: Snapshot diário em nuvem
-        ensureDailyBackup(stateToSave).catch((e) => console.warn('[Backup] Falha ao verificar backup diário:', e));
         return;
       }
       console.error('[ClubService] Erro ao sincronizar nuvem:', error);
@@ -2050,7 +2051,7 @@ const runCloudSaveExecution = async (stateToSave: ClubDatabaseState): Promise<vo
         /failed to fetch|networkerror|load failed|timeout|tempo limite|aborted/i.test(msg);
 
       if (isNetworkFailure && attempt < maxAttempts) {
-        await new Promise((resolve) => setTimeout(resolve, attempt * 300));
+        await new Promise((resolve) => setTimeout(resolve, attempt * 500));
         continue;
       }
       console.warn('[ClubService] Sincronização em nuvem falhou, preservado localmente:', err);
@@ -2058,6 +2059,32 @@ const runCloudSaveExecution = async (stateToSave: ClubDatabaseState): Promise<vo
       throw err;
     }
   }
+};
+
+const triggerCloudSaveNow = async (stateToSave: ClubDatabaseState): Promise<void> => {
+  if (inFlightCloudSavePromise) {
+    queuedCloudSaveState = stateToSave;
+    try {
+      await inFlightCloudSavePromise;
+    } catch {}
+    return;
+  }
+
+  const cloudPromise = runCloudSaveExecution(stateToSave)
+    .catch((err) => {
+      console.warn('[ClubService] Aviso na nuvem:', err);
+    })
+    .finally(() => {
+      inFlightCloudSavePromise = null;
+      if (queuedCloudSaveState) {
+        const pending = queuedCloudSaveState;
+        queuedCloudSaveState = null;
+        triggerCloudSaveNow(pending);
+      }
+    });
+
+  inFlightCloudSavePromise = cloudPromise;
+  await cloudPromise;
 };
 
 export const saveClubState = async (
@@ -2068,46 +2095,39 @@ export const saveClubState = async (
     ...state,
     updatedAt: new Date().toISOString(),
   };
+
   // 1. Grava na memória e no cache local imediatamente (0-2ms)
   memoryClubState = nextState;
   tryPersistLocalState(nextState);
 
-  // 2. Enfileira ou executa a sincronização com a nuvem de forma serializada
-  if (inFlightCloudSavePromise) {
-    queuedCloudSaveState = nextState;
-    if (options?.waitForCloud) {
-      try {
-        await inFlightCloudSavePromise;
-      } catch {}
-      if (inFlightCloudSavePromise) {
-        try {
-          await inFlightCloudSavePromise;
-        } catch {}
-      }
+  // 2. Se for solicitado waitForCloud explícito, executa imediatamente sem debounce
+  if (options?.waitForCloud) {
+    if (cloudSaveDebounceTimer) {
+      clearTimeout(cloudSaveDebounceTimer);
+      cloudSaveDebounceTimer = null;
     }
+    await triggerCloudSaveNow(nextState);
     return nextState;
   }
 
-  const cloudPromise = runCloudSaveExecution(nextState)
-    .catch((err) => {
-      console.warn('[ClubService] Aviso na nuvem:', err);
-    })
-    .finally(() => {
-      inFlightCloudSavePromise = null;
-      if (queuedCloudSaveState) {
-        const pending = queuedCloudSaveState;
-        queuedCloudSaveState = null;
-        saveClubState(pending);
-      }
-    });
+  // 3. Debounce inteligente de 1.500ms para alterações contínuas no painel:
+  // Agrupa múltiplas edições de cadastros em uma única chamada leve no Supabase,
+  // impedindo sobrecarga e status Unhealthy no banco PostgreSQL.
+  notifyCloudSyncStatus('SAVING', null);
+  queuedCloudSaveState = nextState;
 
-  inFlightCloudSavePromise = cloudPromise;
-
-  if (options?.waitForCloud) {
-    try {
-      await cloudPromise;
-    } catch {}
+  if (cloudSaveDebounceTimer) {
+    clearTimeout(cloudSaveDebounceTimer);
   }
+
+  cloudSaveDebounceTimer = setTimeout(() => {
+    cloudSaveDebounceTimer = null;
+    if (queuedCloudSaveState) {
+      const stateToPush = queuedCloudSaveState;
+      queuedCloudSaveState = null;
+      triggerCloudSaveNow(stateToPush).catch(() => {});
+    }
+  }, 1500);
 
   return nextState;
 };

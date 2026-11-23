@@ -1273,16 +1273,22 @@ export default function Admin() {
     syncAllPendingPayments(true);
     refreshClubNotifications();
 
-    const channel = supabase.channel("admin_db_changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, (payload) => {
-        console.log("[Admin] Change detected in orders:", payload);
+    // Debounce de eventos em tempo real para evitar enxurrada de queries no banco
+    let realtimeDebounceTimer: any = null;
+    const triggerDebouncedFetch = () => {
+      if (realtimeDebounceTimer) clearTimeout(realtimeDebounceTimer);
+      realtimeDebounceTimer = setTimeout(() => {
         fetchData(true);
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "order_items" }, () => fetchData(true))
-      .on("postgres_changes", { event: "*", schema: "public", table: "bookings" }, () => fetchData(true))
-      .on("postgres_changes", { event: "*", schema: "public", table: "kiosk_reservations" }, () => fetchData(true))
-      .on("postgres_changes", { event: "*", schema: "public", table: "quad_reservations" }, () => fetchData(true))
-      .on("postgres_changes", { event: "*", schema: "public", table: "payments" }, () => fetchData(true))
+      }, 2500);
+    };
+
+    const channel = supabase.channel("admin_db_changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, () => triggerDebouncedFetch())
+      .on("postgres_changes", { event: "*", schema: "public", table: "order_items" }, () => triggerDebouncedFetch())
+      .on("postgres_changes", { event: "*", schema: "public", table: "bookings" }, () => triggerDebouncedFetch())
+      .on("postgres_changes", { event: "*", schema: "public", table: "kiosk_reservations" }, () => triggerDebouncedFetch())
+      .on("postgres_changes", { event: "*", schema: "public", table: "quad_reservations" }, () => triggerDebouncedFetch())
+      .on("postgres_changes", { event: "*", schema: "public", table: "payments" }, () => triggerDebouncedFetch())
       .subscribe((status) => {
         console.log("[Admin] Realtime subscription status:", status);
         if (status === 'SUBSCRIBED') {
@@ -1313,22 +1319,48 @@ export default function Admin() {
 
     return () => { 
       console.log("[Admin] Cleaning up subscriptions and pollers...");
+      if (realtimeDebounceTimer) clearTimeout(realtimeDebounceTimer);
       supabase.removeChannel(channel);
       clearInterval(pollInterval);
       window.removeEventListener('focus', handleFocus);
     };
   }, [token, fetchData, syncAllPendingPayments, refreshClubNotifications]);
 
-  // Auto-Healer Watchdog: Quando o Supabase fica instável/unhealthy, tenta reconectar automaticamente a cada 5 segundos
+  // Auto-Healer Watchdog com Backoff Exponencial Gradual (15s, 30s, 60s)
+  // Substitui o antigo timer agressivo de 5s que esgotava o pool de conexões do Supabase
   useEffect(() => {
     if (!dbConnectionError) return;
 
-    console.log('[Admin Watchdog] Supabase instável. Auto-Healer ativo reconectando a cada 5s...');
-    const autoHealTimer = setInterval(() => {
-      fetchData(true);
-    }, 5000);
+    let attempt = 0;
+    let timer: any = null;
+    let isCancelled = false;
 
-    return () => clearInterval(autoHealTimer);
+    const scheduleNextAttempt = () => {
+      if (isCancelled || attempt >= 3) return;
+      attempt++;
+      // Backoff progressivo: 15s na 1ª tentativa, 30s na 2ª, 60s na 3ª
+      const delay = attempt === 1 ? 15000 : attempt === 2 ? 30000 : 60000;
+      console.log(`[Admin Watchdog] Tentativa de reconexão #${attempt} em ${delay / 1000}s...`);
+
+      timer = setTimeout(async () => {
+        if (typeof document !== 'undefined' && document.hidden) {
+          scheduleNextAttempt();
+          return;
+        }
+        try {
+          await fetchData(true);
+        } catch {
+          scheduleNextAttempt();
+        }
+      }, delay);
+    };
+
+    scheduleNextAttempt();
+
+    return () => {
+      isCancelled = true;
+      if (timer) clearTimeout(timer);
+    };
   }, [dbConnectionError, fetchData]);
 
   // --- ACTIONS ---
