@@ -4365,7 +4365,8 @@ export const emitCarneMonthlyChargesInAsaas = async (
 
   targetSub.dueDay = fixedDay;
   targetSub.updatedAt = new Date().toISOString();
-  const saved = await saveClubState(state);
+  await saveMemberPermanentDocs(targetSub.subscriptionCode, targetSub, 'ADMIN_EMIT_CARNE_ASAAS');
+  const saved = await saveClubState(state, { waitForCloud: true });
   return { state: saved, generatedCount, failedCount, firstError };
 };
 

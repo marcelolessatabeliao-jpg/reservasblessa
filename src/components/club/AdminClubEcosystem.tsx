@@ -730,6 +730,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
   // Modal para + ADD CARNÊ (Adicionar novo carnê baseado na soma dos planos)
   const [carneModalOpen, setCarneModalOpen] = useState(false);
   const [carneInstallmentCount, setCarneInstallmentCount] = useState<number>(12);
+  const [carneInstallmentCountInput, setCarneInstallmentCountInput] = useState<string>('12');
   const [carneInstallmentValue, setCarneInstallmentValue] = useState<string>('0.00');
   const [carneAdhesionDueDate, setCarneAdhesionDueDate] = useState<string>(
     () => new Date().toISOString().split('T')[0]
@@ -746,11 +747,16 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
   // Modal para GERAR CARNÊ (Botão inferior -> emitir cobranças mensais no Asaas)
   const [gerarCarneAsaasModalOpen, setGerarCarneAsaasModalOpen] = useState(false);
+  const [gerarCarneAsaasMode, setGerarCarneAsaasMode] = useState<'EXISTING' | 'NEW_CARNE'>('NEW_CARNE');
   const [gerarCarneAsaasCount, setGerarCarneAsaasCount] = useState<number>(12);
+  const [gerarCarneAsaasCountInput, setGerarCarneAsaasCountInput] = useState<string>('12');
+  const [gerarCarneAsaasAmountInput, setGerarCarneAsaasAmountInput] = useState<string>('');
+  const [gerarCarneAsaasDescription, setGerarCarneAsaasDescription] = useState<string>('Mensalidade');
   const [gerarCarneAsaasFirstDue, setGerarCarneAsaasFirstDue] = useState<string>(
     () => new Date().toISOString().split('T')[0]
   );
   const [gerarCarneAsaasDueDay, setGerarCarneAsaasDueDay] = useState<number>(10);
+  const [gerarCarneAsaasDueDayInput, setGerarCarneAsaasDueDayInput] = useState<string>('10');
   const [gerarCarneAsaasRecurrence, setGerarCarneAsaasRecurrence] = useState<'NONE' | 'REGISTERED_CARD'>('NONE');
   const [gerarCarneAsaasBillingType, setGerarCarneAsaasBillingType] = useState<'UNDEFINED' | 'BOLETO' | 'PIX'>('UNDEFINED');
   const [gerarCarneAsaasLoading, setGerarCarneAsaasLoading] = useState(false);
@@ -4258,7 +4264,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       const mm = String(due.getMonth() + 1).padStart(2, '0');
       const dd = String(due.getDate()).padStart(2, '0');
       const installmentNum = idx + 1;
-      const isAdhesionFirst = idx === 0 && Boolean(options?.adhesionDueDateStr);
+      const isAdhesionFirst = count > 1 && idx === 0 && Boolean(options?.adhesionDueDateStr);
       return {
         id: `inv_${Date.now()}_${startIndex + installmentNum}`,
         subscriptionId: sub.id,
@@ -4273,9 +4279,9 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         dueDate: `${yyyy}-${mm}-${dd}`,
         paymentMethod: invPaymentMethod,
         status: 'PENDING',
-        description: isAdhesionFirst ? `${desc} (Adesão / 1ª Parcela)` : desc,
+        description: isAdhesionFirst ? `${desc} (1ª Parcela)` : desc,
         carneGroup: nextCarneGroup,
-        invoiceKind: isAdhesionFirst ? 'ADESAO' : 'MENSALIDADE',
+        invoiceKind: 'MENSALIDADE',
         createdAt: nowIso,
       };
     });
@@ -4284,11 +4290,14 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       mode === 'append' ? [...sub.invoices, ...newInvoices] : newInvoices;
     const updatedSub: ClubSubscription = {
       ...sub,
-      monthlyEquivalent: monthlyVal,
+      monthlyEquivalent:
+        mode === 'replace' || !sub.monthlyEquivalent ? monthlyVal : sub.monthlyEquivalent,
       totalContractValue:
-        sub.billingCycle === 'ANNUAL'
-          ? Number((monthlyVal * 12).toFixed(2))
-          : monthlyVal,
+        mode === 'replace' || !sub.totalContractValue
+          ? sub.billingCycle === 'ANNUAL'
+            ? Number((monthlyVal * 12).toFixed(2))
+            : monthlyVal
+          : sub.totalContractValue,
       paymentMethod: useCardRecurrence ? invPaymentMethod : sub.paymentMethod,
       invoices: finalInvoices,
       updatedAt: nowIso,
@@ -4301,7 +4310,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     };
     setSelectedSubForDetail(updatedSub);
     setSelectedCarneNumber(String(nextCarneGroup));
-    await persist(nextState);
+    await saveMemberPermanentDocs(updatedSub.subscriptionCode, updatedSub, 'ADMIN_CREATE_CARNE');
+    await persist(nextState, { waitForCloud: true });
 
     if (options?.emitInAsaas && monthlyVal > 0) {
       try {
@@ -16612,7 +16622,9 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         setCarneInstallmentValue(calcTotal.toFixed(2));
                         setCarneAdhesionDueDate(todayIso);
                         setCarneFirstDueDate(nextMonthDate.toISOString().split('T')[0]);
-                        setCarneInstallmentCount(selectedSubForDetail.installments || 12);
+                        const initCnt = selectedSubForDetail.installments || 12;
+                        setCarneInstallmentCount(initCnt);
+                        setCarneInstallmentCountInput(String(initCnt));
                         setCarneDescription(
                           selectedSubForDetail.planSummaryLabel
                             ? `Mensalidade - ${selectedSubForDetail.planSummaryLabel}`
@@ -16927,11 +16939,24 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                             todayStr;
                           const nextDue = rawDue < todayStr ? todayStr : rawDue;
                           const parsedDue = new Date(`${nextDue}T12:00:00`);
-                          setGerarCarneAsaasCount(eligible.length > 0 ? eligible.length : 12);
-                          setGerarCarneAsaasFirstDue(nextDue);
-                          setGerarCarneAsaasDueDay(
-                            selectedSubForDetail.dueDay || parsedDue.getDate() || 10
+                          const initCount = eligible.length > 0 ? eligible.length : 1;
+                          const initDueDay = selectedSubForDetail.dueDay || parsedDue.getDate() || 10;
+                          const initAmount =
+                            eligible.length > 0
+                              ? Number((eligible.reduce((acc, i) => acc + i.amount, 0) / eligible.length).toFixed(2))
+                              : getSubscriptionPlanMonthlyTotal(selectedSubForDetail);
+                          setGerarCarneAsaasMode(eligible.length > 0 ? 'EXISTING' : 'NEW_CARNE');
+                          setGerarCarneAsaasCount(initCount);
+                          setGerarCarneAsaasCountInput(String(initCount));
+                          setGerarCarneAsaasAmountInput(initAmount > 0 ? initAmount.toFixed(2) : '');
+                          setGerarCarneAsaasDescription(
+                            selectedSubForDetail.planSummaryLabel
+                              ? `Mensalidade - ${selectedSubForDetail.planSummaryLabel}`
+                              : 'Mensalidade'
                           );
+                          setGerarCarneAsaasFirstDue(nextDue);
+                          setGerarCarneAsaasDueDay(initDueDay);
+                          setGerarCarneAsaasDueDayInput(String(initDueDay));
                           setGerarCarneAsaasBillingType('UNDEFINED');
                           setGerarCarneAsaasRecurrence(
                             selectedSubForDetail.registeredCard?.last4Digits
@@ -17285,11 +17310,24 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           todayStr;
                         const nextDue = rawDue < todayStr ? todayStr : rawDue;
                         const parsedDue = new Date(`${nextDue}T12:00:00`);
-                        setGerarCarneAsaasCount(eligible.length > 0 ? eligible.length : 12);
-                        setGerarCarneAsaasFirstDue(nextDue);
-                        setGerarCarneAsaasDueDay(
-                          selectedSubForDetail.dueDay || parsedDue.getDate() || 10
+                        const initCount = eligible.length > 0 ? eligible.length : 1;
+                        const initDueDay = selectedSubForDetail.dueDay || parsedDue.getDate() || 10;
+                        const initAmount =
+                          eligible.length > 0
+                            ? Number((eligible.reduce((acc, i) => acc + i.amount, 0) / eligible.length).toFixed(2))
+                            : getSubscriptionPlanMonthlyTotal(selectedSubForDetail);
+                        setGerarCarneAsaasMode(eligible.length > 0 ? 'EXISTING' : 'NEW_CARNE');
+                        setGerarCarneAsaasCount(initCount);
+                        setGerarCarneAsaasCountInput(String(initCount));
+                        setGerarCarneAsaasAmountInput(initAmount > 0 ? initAmount.toFixed(2) : '');
+                        setGerarCarneAsaasDescription(
+                          selectedSubForDetail.planSummaryLabel
+                            ? `Mensalidade - ${selectedSubForDetail.planSummaryLabel}`
+                            : 'Mensalidade'
                         );
+                        setGerarCarneAsaasFirstDue(nextDue);
+                        setGerarCarneAsaasDueDay(initDueDay);
+                        setGerarCarneAsaasDueDayInput(String(initDueDay));
                         setGerarCarneAsaasBillingType('UNDEFINED');
                         setGerarCarneAsaasRecurrence(
                           selectedSubForDetail.registeredCard?.last4Digits
@@ -17847,15 +17885,23 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                 Número TOTAL de parcelas:
                               </Label>
                               <Input
-                                type="number"
-                                min="1"
-                                max="36"
-                                value={carneInstallmentCount}
-                                onChange={(e) =>
-                                  setCarneInstallmentCount(
-                                    Math.max(1, Math.min(36, Number(e.target.value) || 12))
-                                  )
-                                }
+                                type="text"
+                                inputMode="numeric"
+                                value={carneInstallmentCountInput}
+                                onChange={(e) => {
+                                  const raw = e.target.value.replace(/\D/g, '').slice(0, 2);
+                                  setCarneInstallmentCountInput(raw);
+                                  const n = parseInt(raw, 10);
+                                  if (!isNaN(n) && n >= 1) {
+                                    setCarneInstallmentCount(Math.min(36, n));
+                                  }
+                                }}
+                                onBlur={() => {
+                                  const n = Math.max(1, Math.min(36, parseInt(carneInstallmentCountInput, 10) || 1));
+                                  setCarneInstallmentCount(n);
+                                  setCarneInstallmentCountInput(String(n));
+                                }}
+                                placeholder="Ex: 1, 10, 12"
                                 className="h-9 text-xs bg-white font-bold"
                               />
                             </div>
@@ -18237,7 +18283,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 <DialogContent className="max-w-lg max-h-[92vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle className="text-lg font-bold text-slate-800 text-center uppercase">
-                      CARNÊ
+                      GERAR CARNÊ NO ASAAS
                     </DialogTitle>
                   </DialogHeader>
 
@@ -18249,86 +18295,167 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                             (inv) => String(Number(inv.carneGroup) || 1) === selectedCarneNumber
                           );
 
-                    // Exclui já emitidas no Asaas, pagas, canceladas, avulsas e adesões
+                    // Exclui já emitidas no Asaas, pagas, canceladas, reservas e avulsas
                     const eligibleInvoices = baseInvoices.filter(
                       (inv) =>
+                        !isClubInvoiceReservation(inv) &&
                         inv.status !== 'PAID' &&
                         inv.status !== 'CANCELLED' &&
                         !inv.asaasPaymentId &&
                         inv.invoiceKind !== 'AVULSA' &&
-                        inv.invoiceKind !== 'ADESAO' &&
                         inv.amount > 0
                     );
-                    const totalEligible = Number(
-                      eligibleInvoices.reduce((acc, inv) => acc + inv.amount, 0).toFixed(2)
+
+                    const effectiveMode: 'EXISTING' | 'NEW_CARNE' =
+                      eligibleInvoices.length === 0 ? 'NEW_CARNE' : gerarCarneAsaasMode;
+
+                    const parsedCount = Math.max(
+                      0,
+                      Math.min(36, parseInt(gerarCarneAsaasCountInput, 10) || 0)
                     );
-                    const targetInvoices = eligibleInvoices.slice(0, gerarCarneAsaasCount);
-                    const targetTotal = Number(
-                      targetInvoices.reduce((acc, inv) => acc + inv.amount, 0).toFixed(2)
+                    const parsedDueDay = Math.max(
+                      1,
+                      Math.min(31, parseInt(gerarCarneAsaasDueDayInput, 10) || gerarCarneAsaasDueDay || 10)
                     );
-                    const equalizedValue =
-                      targetInvoices.length > 0
-                        ? Number((targetTotal / targetInvoices.length).toFixed(2))
-                        : getSubscriptionPlanMonthlyTotal(selectedSubForDetail);
+
+                    const rawAmtStr = String(gerarCarneAsaasAmountInput || '').trim();
+                    const normalizedAmtStr = rawAmtStr.includes(',')
+                      ? rawAmtStr.replace(/\./g, '').replace(',', '.')
+                      : rawAmtStr;
+                    const parsedAmountNum = Number(normalizedAmtStr);
+                    const effectiveValue =
+                      rawAmtStr !== '' && Number.isFinite(parsedAmountNum) && parsedAmountNum > 0
+                        ? Number(parsedAmountNum.toFixed(2))
+                        : 0;
+
+                    const existingUsedCount =
+                      effectiveMode === 'EXISTING' ? Math.min(parsedCount, eligibleInvoices.length) : 0;
+                    const newToCreateCount =
+                      effectiveMode === 'NEW_CARNE'
+                        ? parsedCount
+                        : Math.max(0, parsedCount - eligibleInvoices.length);
+
+                    const canSubmitCarne =
+                      !gerarCarneAsaasLoading &&
+                      parsedCount >= 1 &&
+                      parsedCount <= 36 &&
+                      effectiveValue > 0 &&
+                      Boolean(gerarCarneAsaasFirstDue);
 
                     return (
                       <div className="space-y-4 py-1 text-xs">
-                        <div className="text-center space-y-2 border-b border-slate-200 pb-3">
+                        <div className="text-center space-y-1.5 border-b border-slate-200 pb-3">
                           <p className="text-sm font-medium text-slate-800">
-                            Deseja transformar esse grupo de cobranças em um <strong>CARNÊ</strong> no Asaas?
+                            Configure a quantidade de parcelas, o valor e o 1º vencimento do <strong>CARNÊ</strong> no Asaas.
                           </p>
-                          <p className="text-[11px] text-red-600 leading-relaxed">
-                            Ps.: Obrigatoriamente, todas as parcelas incluídas no <strong>CARNÊ</strong> deverão ter o mesmo valor, dias de vencimento iguais e meses subsequentes.
-                            <br />
-                            Parcelas com diferentes valores serão somadas e divididas igualmente!
-                            <br />
-                            Como data base de vencimento, será usada a próxima cobrança a vencer (Faturas que já tiveram cobranças emitidas, avulsas e adesões não serão inclusas).
+                          <p className="text-[11px] text-slate-600 leading-relaxed">
+                            Você pode gerar carnês separados com valores diferentes (ex.: <strong>1 parcela de R$ 99,80 em 23/12</strong> e outro carnê com <strong>10 parcelas de R$ 119,80 a partir de 23/01</strong>).
                           </p>
                         </div>
 
+                        {/* Seletor de Modo (quando já existem parcelas pendentes sem emissão no Asaas) */}
+                        {eligibleInvoices.length > 0 && (
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setGerarCarneAsaasMode('NEW_CARNE')}
+                              className={`p-2 rounded-xl border text-left transition-all cursor-pointer ${
+                                effectiveMode === 'NEW_CARNE'
+                                  ? 'bg-emerald-700 text-white border-emerald-700 shadow-xs'
+                                  : 'bg-white text-slate-700 border-slate-300 hover:border-emerald-400'
+                              }`}
+                            >
+                              <div className="font-black text-[11px]">✨ Criar Novo Carnê</div>
+                              <div className={`text-[10px] ${effectiveMode === 'NEW_CARNE' ? 'text-emerald-100' : 'text-slate-500'}`}>
+                                Qtd., valor e data 100% livres
+                              </div>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setGerarCarneAsaasMode('EXISTING');
+                                setGerarCarneAsaasCount(eligibleInvoices.length);
+                                setGerarCarneAsaasCountInput(String(eligibleInvoices.length));
+                              }}
+                              className={`p-2 rounded-xl border text-left transition-all cursor-pointer ${
+                                effectiveMode === 'EXISTING'
+                                  ? 'bg-emerald-700 text-white border-emerald-700 shadow-xs'
+                                  : 'bg-white text-slate-700 border-slate-300 hover:border-emerald-400'
+                              }`}
+                            >
+                              <div className="font-black text-[11px]">
+                                📋 Usar Pendentes ({eligibleInvoices.length})
+                              </div>
+                              <div className={`text-[10px] ${effectiveMode === 'EXISTING' ? 'text-emerald-100' : 'text-slate-500'}`}>
+                                Emitir parcelas locais em aberto
+                              </div>
+                            </button>
+                          </div>
+                        )}
+
                         <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl space-y-1">
                           <div className="flex justify-between font-bold text-slate-700">
-                            <span>Parcelas elegíveis em aberto (sem emissão Asaas):</span>
+                            <span>Parcelas pendentes locais (sem Asaas):</span>
                             <span>{eligibleInvoices.length} parcela(s)</span>
                           </div>
-                          <div className="flex justify-between font-bold text-slate-700">
+                          <div className="flex justify-between font-black text-slate-800">
                             <span>Serão emitidas no Asaas agora:</span>
                             <span className="text-[#004d00]">
-                              {targetInvoices.length}x de {formatCurrency(equalizedValue)}
+                              {parsedCount}x de {formatCurrency(effectiveValue)} ={' '}
+                              {formatCurrency(parsedCount * effectiveValue)}
                             </span>
                           </div>
-                          {eligibleInvoices.length === 0 && (
-                            <div className="text-[11px] text-amber-800 font-semibold pt-1">
-                              Nenhuma parcela mensal pendente sem cobrança Asaas (ou plano isento R$ 0,00). Utilize "+ ADD CARNÊ" para criar novas mensalidades primeiro.
+                          {newToCreateCount > 0 && (
+                            <div className="text-[11px] text-emerald-800 font-semibold pt-0.5">
+                              {effectiveMode === 'NEW_CARNE'
+                                ? `✓ Criará automaticamente um novo carnê com ${newToCreateCount} parcela(s) e emitirá direto no Asaas.`
+                                : `✓ Usará ${existingUsedCount} pendente(s) + criará ${newToCreateCount} nova(s) parcela(s) no Asaas.`}
                             </div>
                           )}
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                           <div className="space-y-1">
-                            <Label className="text-xs font-bold text-slate-700">Nº Parcelas</Label>
+                            <Label className="text-xs font-bold text-slate-700">Nº Parcelas *</Label>
                             <Input
-                              type="number"
-                              min="1"
-                              max={Math.max(1, eligibleInvoices.length)}
-                              value={gerarCarneAsaasCount}
-                              onChange={(e) =>
-                                setGerarCarneAsaasCount(
-                                  Math.max(
-                                    1,
-                                    Math.min(
-                                      Math.max(1, eligibleInvoices.length),
-                                      Number(e.target.value) || 1
-                                    )
-                                  )
-                                )
-                              }
-                              className="h-9 text-xs bg-white font-bold"
+                              type="text"
+                              inputMode="numeric"
+                              value={gerarCarneAsaasCountInput}
+                              onChange={(e) => {
+                                const raw = e.target.value.replace(/\D/g, '').slice(0, 2);
+                                setGerarCarneAsaasCountInput(raw);
+                                const n = parseInt(raw, 10);
+                                if (!isNaN(n) && n >= 1) {
+                                  setGerarCarneAsaasCount(Math.min(36, n));
+                                }
+                              }}
+                              onBlur={() => {
+                                const n = Math.max(1, Math.min(36, parseInt(gerarCarneAsaasCountInput, 10) || 1));
+                                setGerarCarneAsaasCount(n);
+                                setGerarCarneAsaasCountInput(String(n));
+                              }}
+                              placeholder="Ex: 1 ou 10"
+                              className="h-9 text-xs bg-white font-black border-emerald-400"
                             />
                           </div>
 
                           <div className="space-y-1">
-                            <Label className="text-xs font-bold text-slate-700">1º Vencimento Base</Label>
+                            <Label className="text-xs font-bold text-slate-700">Valor Parcela (R$) *</Label>
+                            <Input
+                              type="text"
+                              inputMode="decimal"
+                              value={gerarCarneAsaasAmountInput}
+                              onChange={(e) => {
+                                const cleaned = e.target.value.replace(/[^0-9.,]/g, '');
+                                setGerarCarneAsaasAmountInput(cleaned);
+                              }}
+                              placeholder="Ex: 99,80"
+                              className="h-9 text-xs bg-white font-black border-emerald-400"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <Label className="text-xs font-bold text-slate-700">1º Vencimento *</Label>
                             <Input
                               type="date"
                               min={new Date().toISOString().split('T')[0]}
@@ -18336,7 +18463,10 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                               onChange={(e) => {
                                 setGerarCarneAsaasFirstDue(e.target.value);
                                 const d = Number(e.target.value.split('-')[2]);
-                                if (d >= 1 && d <= 31) setGerarCarneAsaasDueDay(d);
+                                if (d >= 1 && d <= 31) {
+                                  setGerarCarneAsaasDueDay(d);
+                                  setGerarCarneAsaasDueDayInput(String(d));
+                                }
                               }}
                               className="h-9 text-xs bg-white"
                             />
@@ -18345,18 +18475,36 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           <div className="space-y-1">
                             <Label className="text-xs font-bold text-slate-700">Dia Fixo Mensal</Label>
                             <Input
-                              type="number"
-                              min="1"
-                              max="31"
-                              value={gerarCarneAsaasDueDay}
-                              onChange={(e) =>
-                                setGerarCarneAsaasDueDay(
-                                  Math.max(1, Math.min(31, Number(e.target.value) || 10))
-                                )
-                              }
+                              type="text"
+                              inputMode="numeric"
+                              value={gerarCarneAsaasDueDayInput}
+                              onChange={(e) => {
+                                const raw = e.target.value.replace(/\D/g, '').slice(0, 2);
+                                setGerarCarneAsaasDueDayInput(raw);
+                                const d = parseInt(raw, 10);
+                                if (!isNaN(d) && d >= 1 && d <= 31) {
+                                  setGerarCarneAsaasDueDay(d);
+                                }
+                              }}
+                              onBlur={() => {
+                                const d = Math.max(1, Math.min(31, parseInt(gerarCarneAsaasDueDayInput, 10) || 10));
+                                setGerarCarneAsaasDueDay(d);
+                                setGerarCarneAsaasDueDayInput(String(d));
+                              }}
+                              placeholder="1 a 31"
                               className="h-9 text-xs bg-white font-bold"
                             />
                           </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label className="text-xs font-bold text-slate-700">Descrição do Carnê</Label>
+                          <Input
+                            value={gerarCarneAsaasDescription}
+                            onChange={(e) => setGerarCarneAsaasDescription(e.target.value)}
+                            placeholder="Ex: Mensalidade 12/2026 ou Reajuste 2027"
+                            className="h-9 text-xs bg-white"
+                          />
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -18419,22 +18567,110 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
                           <Button
                             type="button"
-                            disabled={
-                              gerarCarneAsaasLoading ||
-                              targetInvoices.length === 0 ||
-                              totalEligible <= 0
-                            }
+                            disabled={!canSubmitCarne}
                             onClick={async () => {
+                              if (!state || !canSubmitCarne) return;
                               setGerarCarneAsaasLoading(true);
-                              setGerarCarneProgress('(Iniciando...)');
+                              setGerarCarneProgress('(Preparando...)');
                               try {
+                                const nowIso = new Date().toISOString();
+                                const descLabel =
+                                  gerarCarneAsaasDescription.trim() ||
+                                  (selectedSubForDetail.planSummaryLabel
+                                    ? `Mensalidade - ${selectedSubForDetail.planSummaryLabel}`
+                                    : 'Mensalidade');
+                                const baseDate = new Date(`${gerarCarneAsaasFirstDue}T12:00:00`);
+                                let targetIds: string[] = [];
+                                let targetGroupToSelect: string | null = null;
+
+                                const needCreateCount =
+                                  effectiveMode === 'NEW_CARNE'
+                                    ? parsedCount
+                                    : Math.max(0, parsedCount - eligibleInvoices.length);
+
+                                if (needCreateCount > 0) {
+                                  const existingNonResGroups = (selectedSubForDetail.invoices || [])
+                                    .filter((i) => !isClubInvoiceReservation(i) && Number(i.carneGroup) !== 99)
+                                    .map((i) => Number(i.carneGroup) || 1);
+                                  const nextGroup =
+                                    effectiveMode === 'NEW_CARNE'
+                                      ? existingNonResGroups.length > 0
+                                        ? Math.max(...existingNonResGroups) + 1
+                                        : 1
+                                      : Number(eligibleInvoices[0]?.carneGroup) || 1;
+                                  targetGroupToSelect = String(nextGroup);
+
+                                  const reused =
+                                    effectiveMode === 'EXISTING' ? eligibleInvoices.slice(0, parsedCount) : [];
+                                  const createdNow: ClubInvoice[] = Array.from(
+                                    { length: needCreateCount },
+                                    (_, i) => {
+                                      const overallIdx = reused.length + i;
+                                      const due = buildSafeMonthlyDueDate(baseDate, overallIdx, parsedDueDay);
+                                      const yyyy = due.getFullYear();
+                                      const mm = String(due.getMonth() + 1).padStart(2, '0');
+                                      const dd = String(due.getDate()).padStart(2, '0');
+                                      const instNum = overallIdx + 1;
+                                      return {
+                                        id: `inv_carne_${Date.now()}_${nextGroup}_${instNum}_${Math.random()
+                                          .toString(36)
+                                          .slice(2, 6)}`,
+                                        subscriptionId: selectedSubForDetail.id,
+                                        subscriptionCode: selectedSubForDetail.subscriptionCode,
+                                        holderName: selectedSubForDetail.holderName,
+                                        holderCpf: selectedSubForDetail.holderCpf,
+                                        holderPhone: selectedSubForDetail.holderPhone,
+                                        installmentNumber: instNum,
+                                        totalInstallments: parsedCount,
+                                        referenceMonth: `${mm}/${yyyy}`,
+                                        amount: effectiveValue,
+                                        dueDate: `${yyyy}-${mm}-${dd}`,
+                                        paymentMethod:
+                                          gerarCarneAsaasBillingType === 'BOLETO'
+                                            ? 'BOLETO'
+                                            : gerarCarneAsaasBillingType === 'PIX'
+                                            ? 'PIX'
+                                            : 'CREDIT_CARD',
+                                        status: 'PENDING',
+                                        description: descLabel,
+                                        carneGroup: nextGroup,
+                                        invoiceKind: 'MENSALIDADE',
+                                        createdAt: nowIso,
+                                      };
+                                    }
+                                  );
+
+                                  const subWithNewInvs: ClubSubscription = {
+                                    ...selectedSubForDetail,
+                                    invoices: [...(selectedSubForDetail.invoices || []), ...createdNow],
+                                    updatedAt: nowIso,
+                                  };
+                                  const nextStateBeforeEmit: ClubDatabaseState = {
+                                    ...state,
+                                    subscriptions: (state.subscriptions || []).map((s) =>
+                                      s.id === subWithNewInvs.id ? subWithNewInvs : s
+                                    ),
+                                  };
+                                  setSelectedSubForDetail(subWithNewInvs);
+                                  await saveMemberPermanentDocs(
+                                    subWithNewInvs.subscriptionCode,
+                                    subWithNewInvs,
+                                    'ADMIN_CREATE_CARNE_FOR_ASAAS'
+                                  );
+                                  await persist(nextStateBeforeEmit, { waitForCloud: true });
+
+                                  targetIds = [...reused.map((x) => x.id), ...createdNow.map((x) => x.id)];
+                                } else {
+                                  targetIds = eligibleInvoices.slice(0, parsedCount).map((i) => i.id);
+                                }
+
                                 const res = await emitCarneMonthlyChargesInAsaas({
                                   subscriptionId: selectedSubForDetail.id,
-                                  invoiceIds: targetInvoices.map((i) => i.id),
+                                  invoiceIds: targetIds,
                                   billingType: gerarCarneAsaasBillingType,
                                   firstDueDate: gerarCarneAsaasFirstDue,
-                                  dueDay: gerarCarneAsaasDueDay,
-                                  equalizedAmount: equalizedValue,
+                                  dueDay: parsedDueDay,
+                                  equalizedAmount: effectiveValue,
                                   activateCardRecurrence: gerarCarneAsaasRecurrence === 'REGISTERED_CARD',
                                   cardLast4: selectedSubForDetail.registeredCard?.last4Digits,
                                   onProgress: (cur, tot) => {
@@ -18448,10 +18684,13 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                 if (updated) {
                                   setSelectedSubForDetail(updated);
                                 }
+                                if (targetGroupToSelect) {
+                                  setSelectedCarneNumber(targetGroupToSelect);
+                                }
                                 setGerarCarneAsaasModalOpen(false);
                                 toast({
                                   title: res.generatedCount > 0 ? `Carnê gerado no Asaas!` : 'Aviso sobre o Carnê',
-                                  description: `${res.generatedCount} cobrança(s) sincronizada(s) no Asaas de ${formatCurrency(equalizedValue)}${res.failedCount > 0 ? ` (${res.failedCount} com pendência: ${res.firstError || 'verifique gateway'})` : ''}.`,
+                                  description: `${res.generatedCount} cobrança(s) emitida(s) no Asaas de ${formatCurrency(effectiveValue)} (1º venc. ${formatDateBR(gerarCarneAsaasFirstDue)})${res.failedCount > 0 ? ` (${res.failedCount} com pendência: ${res.firstError || 'verifique gateway'})` : ''}.`,
                                   variant: res.generatedCount === 0 && res.failedCount > 0 ? 'destructive' : 'default',
                                 });
                               } catch (err: any) {
