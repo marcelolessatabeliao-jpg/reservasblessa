@@ -906,6 +906,126 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     }
   };
 
+  // Sincronização periódica automática em segundo plano das faturas e baixas do Asaas
+  useEffect(() => {
+    let timer: any = null;
+    let interval: any = null;
+    const runAutoSync = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('check-payment', {
+          body: { action: 'sync-recent-club-payments' },
+        });
+        if (!error && data?.updatedCount > 0) {
+          const reloaded = await fetchClubState();
+          setState(reloaded);
+          if (selectedSubForDetail) {
+            const found = reloaded.subscriptions?.find((s) => s.id === selectedSubForDetail.id);
+            if (found) setSelectedSubForDetail(found);
+          }
+        }
+      } catch (e) {
+        console.warn('[AdminClubEcosystem] Background Asaas sync warning:', e);
+      }
+    };
+
+    timer = setTimeout(() => {
+      runAutoSync();
+      interval = setInterval(runAutoSync, 5 * 60 * 1000);
+    }, 3000);
+
+    return () => {
+      clearTimeout(timer);
+      if (interval) clearInterval(interval);
+    };
+  }, []);
+
+  // Auto-sincronização de cobranças do Asaas ao abrir o Perfil Financeiro de um associado
+  const lastAutoSyncedSubIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (clientDetailTool === 'FINANCEIRO_CLIENTE' && selectedSubForDetail && selectedSubForDetail.holderCpf) {
+      const subId = selectedSubForDetail.id;
+      if (lastAutoSyncedSubIdRef.current === subId) return;
+      lastAutoSyncedSubIdRef.current = subId;
+
+      const syncCustomer = async () => {
+        try {
+          const cleanCpf = (selectedSubForDetail.holderCpf || '').replace(/\D/g, '');
+          if (!cleanCpf) return;
+
+          const firstAsaasId =
+            selectedSubForDetail.invoices?.find((i) => i.asaasPaymentId)?.asaasPaymentId ||
+            selectedSubForDetail.asaasPaymentId;
+
+          const { data, error } = await supabase.functions.invoke('create-payment', {
+            body: {
+              action: 'list-customer-charges',
+              cpf: cleanCpf,
+              paymentId: firstAsaasId,
+            },
+          });
+
+          if (error || !data?.success) return;
+          const rawPayments: any[] = data.payments || [];
+          if (rawPayments.length === 0) return;
+
+          const validPayments = rawPayments.filter((p) => !p.deleted);
+          let hasChanges = false;
+          const currentInvs = [...(selectedSubForDetail.invoices || [])];
+
+          for (const p of validPayments) {
+            const isPaid = p.status === 'RECEIVED' || p.status === 'CONFIRMED' || p.status === 'RECEIVED_IN_CASH';
+            const invIndex = currentInvs.findIndex(
+              (i) => (i.asaasPaymentId && i.asaasPaymentId === p.id) || (i.dueDate && p.dueDate && i.dueDate === p.dueDate)
+            );
+            if (invIndex >= 0) {
+              const existing = currentInvs[invIndex];
+              const newStatus = isPaid ? 'PAID' : p.status === 'OVERDUE' ? 'OVERDUE' : 'PENDING';
+              if (existing.status !== newStatus || (!existing.paidAt && isPaid)) {
+                currentInvs[invIndex] = {
+                  ...existing,
+                  status: newStatus,
+                  paidAt: isPaid ? (p.clientPaymentDate || p.paymentDate || p.confirmedDate || new Date().toISOString()) : undefined,
+                  asaasPaymentId: p.id,
+                };
+                hasChanges = true;
+              }
+            }
+          }
+
+          if (hasChanges) {
+            const hasOverdueInvs = currentInvs.some((i) => i.status === 'OVERDUE');
+            let nextStatus = selectedSubForDetail.status;
+            let nextReason = selectedSubForDetail.inactivityReason;
+            if (!hasOverdueInvs && (selectedSubForDetail.inactivityReason === 'MENSALIDADE_VENCIDA' || selectedSubForDetail.status === 'INACTIVE')) {
+              nextStatus = 'ACTIVE';
+              nextReason = undefined;
+            }
+            const updated: ClubSubscription = {
+              ...selectedSubForDetail,
+              status: nextStatus,
+              inactivityReason: nextReason,
+              inactivityReasons: nextReason ? selectedSubForDetail.inactivityReasons : undefined,
+              invoices: currentInvs,
+              updatedAt: new Date().toISOString(),
+            };
+            setSelectedSubForDetail(updated);
+            if (state) {
+              const nextState: ClubDatabaseState = {
+                ...state,
+                subscriptions: (state.subscriptions || []).map((s) => (s.id === updated.id ? updated : s)),
+              };
+              await persist(nextState);
+            }
+          }
+        } catch (err) {
+          console.warn('[AdminClubEcosystem] Auto sync customer error:', err);
+        }
+      };
+
+      syncCustomer();
+    }
+  }, [clientDetailTool, selectedSubForDetail?.id]);
+
   const handleLoadAsaasCandidates = async () => {
     if (!state) return;
     setIsLoadingAsaasSync(true);
@@ -15379,15 +15499,57 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                       }
                     }
 
-                    // Preserva estritamente o status atual do cadastro e dos membros (sem ativação automática)
-                    const nextSubStatus = selectedSubForDetail.status;
-                    const nextMembers = selectedSubForDetail.members;
+                    // Se o cadastro estava inativo por mensalidade vencida, e agora todas as vencidas estão quitadas:
+                    const hasOverdueInvoices = currentInvoices.some((i) => i.status === 'OVERDUE');
+                    let nextSubStatus = selectedSubForDetail.status;
+                    let nextInactivityReason = selectedSubForDetail.inactivityReason;
+                    let nextInactivityReasons = selectedSubForDetail.inactivityReasons;
+                    let nextInactivityNotes = selectedSubForDetail.inactivityNotes;
+
+                    if (
+                      !hasOverdueInvoices &&
+                      (selectedSubForDetail.inactivityReason === 'MENSALIDADE_VENCIDA' ||
+                       selectedSubForDetail.status === 'INACTIVE' ||
+                       selectedSubForDetail.status === 'PENDING_TRANSFER')
+                    ) {
+                      const hasDocPending = (selectedSubForDetail.members || []).some((m) =>
+                        isMemberBlockedForMissingDoc(m, selectedSubForDetail)
+                      );
+                      if (!hasDocPending) {
+                        nextSubStatus = 'ACTIVE';
+                        nextInactivityReason = undefined;
+                        nextInactivityReasons = undefined;
+                        nextInactivityNotes = undefined;
+                      }
+                    }
+
+                    const nextMembers = (selectedSubForDetail.members || []).map((m) => {
+                      if (nextSubStatus === 'ACTIVE' && (m.status === 'INACTIVE' || m.status === 'PENDING_TRANSFER')) {
+                        const memBlockedDoc = isMemberBlockedForMissingDoc(m, selectedSubForDetail);
+                        if (!memBlockedDoc) {
+                          return {
+                            ...m,
+                            status: 'ACTIVE' as const,
+                            inactivityReason: undefined,
+                            inactivityReasons: undefined,
+                            inactivityNotes: undefined,
+                          };
+                        }
+                      }
+                      return m;
+                    });
 
                     const updatedSub: ClubSubscription = {
                       ...selectedSubForDetail,
                       status: nextSubStatus,
+                      inactivityReason: nextInactivityReason,
+                      inactivityReasons: nextInactivityReasons,
+                      inactivityNotes: nextInactivityNotes,
+                      transferCompleted: nextSubStatus === 'ACTIVE' ? true : selectedSubForDetail.transferCompleted,
+                      manuallyConfirmedTransfer: nextSubStatus === 'ACTIVE' ? true : selectedSubForDetail.manuallyConfirmedTransfer,
                       members: nextMembers,
                       invoices: currentInvoices,
+                      updatedAt: new Date().toISOString(),
                     };
 
                     const nextState: ClubDatabaseState = {

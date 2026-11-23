@@ -73,9 +73,17 @@ Deno.serve(async (req) => {
           for (const inv of (sub.invoices || [])) {
             if (inv.status === 'PAID') continue;
 
-            const paidMatch = inv.asaasPaymentId ? paidById.get(inv.asaasPaymentId) : null;
+            let paidMatch = inv.asaasPaymentId ? paidById.get(inv.asaasPaymentId) : null;
+            if (!paidMatch && sub.subscriptionCode) {
+              paidMatch = paidPayments.find((p: any) =>
+                (p.dueDate === inv.dueDate || !inv.dueDate) &&
+                typeof p.description === 'string' &&
+                p.description.includes(sub.subscriptionCode)
+              );
+            }
             if (paidMatch) {
               inv.status = 'PAID';
+              inv.asaasPaymentId = paidMatch.id;
               inv.paidAt = paidMatch.confirmedDate || paidMatch.paymentDate || paidMatch.clientPaymentDate || new Date().toISOString();
               inv.paymentMethod = paidMatch.billingType || inv.paymentMethod || 'PIX';
               subHasNewlyPaidInvoice = true;
@@ -89,8 +97,15 @@ Deno.serve(async (req) => {
             const hasPaidAtLeastOne = (sub.invoices || []).some((i: any) => i.status === 'PAID');
             if (!hasOverdue && hasPaidAtLeastOne && sub.status !== 'ACTIVE') {
               sub.status = 'ACTIVE';
+              sub.inactivityReason = undefined;
+              sub.inactivityReasons = undefined;
+              sub.inactivityNotes = undefined;
+              sub.transferCompleted = true;
+              sub.manuallyConfirmedTransfer = true;
               (sub.members || []).forEach((m: any) => {
                 m.status = 'ACTIVE';
+                m.inactivityReason = undefined;
+                m.inactivityReasons = undefined;
               });
               sub.updatedAt = new Date().toISOString();
               activatedCount++;

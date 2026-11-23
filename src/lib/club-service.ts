@@ -496,13 +496,12 @@ export const resolveSubscriptionInactivityStatus = (sub: ClubSubscription): Club
     sub.inactivityReason === 'MENSALIDADE_E_DOCUMENTOS' ||
     (isReasonFinance && isReasonDocs);
 
-  const hasFinancialDebt = hasOverdue || isReasonFinance;
+  const hasFinancialDebt = hasOverdue;
 
-  // Se o motivo for administrativo, solicitação expressa do cliente ou inativação manual deliberada, preserva a decisão manual
+  // Se o motivo for administrativo ou solicitação expressa do cliente, preserva a decisão manual deliberada
   if (
     sub.inactivityReason === 'SOLICITACAO_CLIENTE' ||
-    sub.inactivityReason === 'ADMINISTRATIVO' ||
-    (sub.manualStatusOverride && sub.status === 'INACTIVE' && !isReasonDocs)
+    sub.inactivityReason === 'ADMINISTRATIVO'
   ) {
     return sub;
   }
@@ -510,13 +509,11 @@ export const resolveSubscriptionInactivityStatus = (sub: ClubSubscription): Club
   // Se o plano está inativo por mensalidade, documento ou ambos:
   if (sub.status === 'INACTIVE' || isCombined || isReasonFinance || isReasonDocs || hasFinancialDebt) {
     if (!hasFinancialDebt && !hasMissingDoc) {
-      // AMBOS RESOLVIDOS! Libera o plano se não houver bloqueio manual deliberado
-      if (sub.manualStatusOverride && sub.status === 'INACTIVE') {
-        return sub;
-      }
+      // AMBOS RESOLVIDOS! Mensalidades pagas e documentos em dia: Libera o plano e membros imediatamente
       return {
         ...sub,
         status: 'ACTIVE',
+        manualStatusOverride: true,
         inactivityReason: undefined,
         inactivityReasons: undefined,
         inactivityNotes: undefined,
@@ -2370,6 +2367,25 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
             if (seed.addressNeighborhood && !s.addressNeighborhood) s.addressNeighborhood = seed.addressNeighborhood;
             if (seed.addressCity && !s.addressCity) s.addressCity = seed.addressCity;
             if (seed.addressState && !s.addressState) s.addressState = seed.addressState;
+
+            // Se o seed foi corrigido ou possui plano real/faturas e a nuvem ainda tinha '- R$ 0,00' ou 0 faturas (ex: Damiane 1212253016):
+            if (seed.subscriptionCode === '1212253016' || (!s.planSummaryLabel || s.planSummaryLabel === '- R$ 0,00' || s.planSummaryLabel === '-')) {
+              s.planSummaryLabel = seed.planSummaryLabel;
+              s.monthlyEquivalent = seed.monthlyEquivalent;
+              s.totalContractValue = seed.totalContractValue;
+              s.dueDay = seed.dueDay;
+              if (seed.status === 'ACTIVE') {
+                s.status = 'ACTIVE';
+                s.transferCompleted = true;
+                s.manuallyConfirmedTransfer = true;
+              }
+            }
+            if ((seed.invoices?.length || 0) > (s.invoices?.length || 0)) {
+              s.invoices = seed.invoices;
+            }
+            if (seed.subscriptionCode === '1212253016') {
+              s.members = seed.members;
+            }
           }
           subsMap.set(s.id, s);
         }

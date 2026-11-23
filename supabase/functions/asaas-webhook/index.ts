@@ -95,21 +95,51 @@ Deno.serve(async (req) => {
           const clubState = settingsRow.value;
           let clubUpdated = false;
 
+          let paymentCpf = '';
+          const rawDesc = String(payment.description || '');
+          if (payment.customer) {
+            try {
+              const asaasKey = Deno.env.get('ASAAS_API_KEY');
+              const asaasUrl = (Deno.env.get('ASAAS_API_URL') || 'https://api.asaas.com/v3').replace(/\/+$/, '');
+              if (asaasKey) {
+                const custRes = await fetch(`${asaasUrl}/customers/${payment.customer}`, {
+                  headers: { access_token: asaasKey },
+                });
+                if (custRes.ok) {
+                  const custJson = await custRes.json();
+                  paymentCpf = String(custJson.cpfCnpj || '').replace(/\D/g, '');
+                }
+              }
+            } catch (err) {
+              console.warn('[asaas-webhook] Customer fetch error:', err);
+            }
+          }
+
           for (const sub of clubState.subscriptions || []) {
             let subInvoicePaid = false;
+            const subCpf = (sub.holderCpf || '').replace(/\D/g, '');
+            const isSubMatched = Boolean(
+              (paymentCpf && subCpf && paymentCpf === subCpf) ||
+              (rawDesc && sub.subscriptionCode && rawDesc.includes(sub.subscriptionCode)) ||
+              (sub.asaasCustomerId && payment.customer && sub.asaasCustomerId === payment.customer)
+            );
 
             for (const inv of sub.invoices || []) {
               const matchesInvoice =
                 (orderId && inv.id === orderId) ||
-                (inv.asaasPaymentId && inv.asaasPaymentId === externalId);
+                (inv.asaasPaymentId && inv.asaasPaymentId === externalId) ||
+                (isSubMatched && ((payment.dueDate && inv.dueDate === payment.dueDate) || (!inv.asaasPaymentId && inv.status !== 'PAID')));
               const matchesSubUnified =
                 orderId && orderId.startsWith(`unified_${sub.id}`);
 
               if (matchesInvoice || matchesSubUnified) {
                 if (inv.status !== 'PAID') {
                   inv.status = 'PAID';
-                  inv.paidAt = new Date().toISOString();
+                  inv.paidAt = payment.clientPaymentDate || payment.confirmedDate || payment.paymentDate || new Date().toISOString();
                   inv.asaasPaymentId = externalId;
+                  if (payment.billingType) {
+                    inv.paymentMethod = payment.billingType === 'BOLETO' ? 'BOLETO' : payment.billingType === 'CREDIT_CARD' ? 'CARTAO' : 'PIX';
+                  }
                   subInvoicePaid = true;
                   clubUpdated = true;
                   console.log(
@@ -121,6 +151,7 @@ Deno.serve(async (req) => {
 
             const isSubTarget =
               subInvoicePaid ||
+              isSubMatched ||
               (sub.asaasPaymentId && sub.asaasPaymentId === externalId) ||
               (orderId && orderId.startsWith(`unified_${sub.id}`));
 
@@ -128,8 +159,15 @@ Deno.serve(async (req) => {
               const hasOverdue = (sub.invoices || []).some((i: any) => i.status === 'OVERDUE');
               if (!hasOverdue) {
                 sub.status = 'ACTIVE';
+                sub.inactivityReason = undefined;
+                sub.inactivityReasons = undefined;
+                sub.inactivityNotes = undefined;
+                sub.transferCompleted = true;
+                sub.manuallyConfirmedTransfer = true;
                 (sub.members || []).forEach((m: any) => {
                   m.status = 'ACTIVE';
+                  m.inactivityReason = undefined;
+                  m.inactivityReasons = undefined;
                 });
                 sub.updatedAt = new Date().toISOString();
                 clubUpdated = true;
