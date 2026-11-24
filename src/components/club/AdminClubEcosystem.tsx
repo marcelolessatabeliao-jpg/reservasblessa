@@ -122,6 +122,8 @@ import {
   applyPermanentDocsToSub,
   saveClubAttachmentAtomic,
   softDeleteClubAttachment,
+  uploadClubFileToStorage,
+  doesSubscriptionAllowDependents,
   loadClubRecordHistory,
   ClubRecordHistoryEntry,
   getCloudSyncStatus,
@@ -197,7 +199,7 @@ import {
   ClubMemberCardView,
   MultiCardPrintSheet,
 } from '@/components/club/ClubMemberCardView';
-import { LABCARD_RAW_RECORDS, doesPlanAllowDependents } from '@/lib/labcard-seed';
+import { LABCARD_RAW_RECORDS } from '@/lib/labcard-seed';
 
 const MONTH_OPTIONS = [
   { value: '2026-01', label: 'Janeiro/2026' },
@@ -565,8 +567,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
           return matchName || matchCard || matchCpf;
         }
 
-        // Sem busca: exibe titulares que aceitam dependentes (Lessa Family, Lessa Club, etc.)
-        return doesPlanAllowDependents(sub.planSummaryLabel || sub.members[0]?.modalityCode);
+        // Sem busca: exibe titulares de planos pagos e familiares (Lessa Club, Professor, Servidor, Student, Family, etc.)
+        return doesSubscriptionAllowDependents(sub);
       })
       .slice(0, 40);
   }, [state?.subscriptions, selectedSubForDetail, transferHolderSearchQuery]);
@@ -3605,14 +3607,12 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
     try {
       const targetSub = selectedSubForDetail;
-      const isPlanAllowingDeps = doesPlanAllowDependents(
-        targetSub.planSummaryLabel || targetSub.members[0]?.modalityCode
-      );
+      const isPlanAllowingDeps = doesSubscriptionAllowDependents(targetSub);
       if (!isPlanAllowingDeps) {
         toast({
-          title: 'Plano Individual',
+          title: 'Cadastro sem plano titular pagante/familiar',
           description:
-            'Este plano é estritamente individual (Student, Professor, Servidor, Kids, TEA/PCD ou Vitalício) e não aceita dependentes. Apenas os planos Lessa Family e Lessa Club permitem dependentes.',
+            'Apenas cadastros de planos pagos (Lessa Club, Professor Pass, Servidor Pass, Student Pass, Parceiro) ou Lessa Family / Corporate aceitam dependentes. Para cadastros avulsos gratuitos (Kids, TEA/PCD ou Vitalício), use "Transferir para um Titular".',
           variant: 'destructive',
         });
         setAttachingPersonLoading(false);
@@ -3639,6 +3639,18 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         );
         if (alreadyInSub) continue;
 
+        const sourceSubObj =
+          person.sourceSubscriptionId && person.sourceSubscriptionId !== targetSub.id
+            ? nextSubs.find((s) => s.id === person.sourceSubscriptionId)
+            : undefined;
+        const sourceMemberObj = sourceSubObj
+          ? sourceSubObj.members.find(
+              (m) =>
+                m.cardNumber === cardNum ||
+                m.fullName.trim().toLowerCase() === cleanName.toLowerCase()
+            ) || sourceSubObj.members[0]
+          : undefined;
+
         const titularMem = targetSub.members.find((x) => x.role === 'TITULAR') || targetSub.members[0];
         const isPersonSemPlano = !person.modalityCode || person.modalityCode === 'SEM_PLANO';
         const isTitularFamilyPub =
@@ -3663,11 +3675,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         const frontCard =
           modCode === 'PUBLICIDADE'
             ? '/cards/30.png'
-            : (mod?.dependentFrontCardUrl || mod?.frontCardUrl || titularMem?.frontCardUrl || '/cards/44.png');
+            : (mod?.dependentFrontCardUrl || mod?.frontCardUrl || sourceMemberObj?.frontCardUrl || titularMem?.frontCardUrl || '/cards/44.png');
         const backCard =
           modCode === 'PUBLICIDADE'
             ? '/cards/33.png'
-            : (mod?.dependentBackCardUrl || mod?.backCardUrl || titularMem?.backCardUrl || '/cards/24.png');
+            : (mod?.dependentBackCardUrl || mod?.backCardUrl || sourceMemberObj?.backCardUrl || titularMem?.backCardUrl || '/cards/24.png');
 
         const inheritedStatus: SubscriptionStatus =
           targetSub.status === 'INACTIVE' || targetSub.status === 'SUSPENDED' || targetSub.status === 'CANCELLED'
@@ -3676,8 +3688,25 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
             ? 'ACTIVE'
             : 'PENDING_TRANSFER';
 
+        const depAttachments = [
+          ...(sourceMemberObj?.attachments || []),
+          ...(sourceSubObj?.attachments || []),
+        ];
+        const depDocRule = getPlanDocumentRule(modCode, modName);
+        const hasRealDoc =
+          Boolean(sourceMemberObj?.documentProofUrl && sourceMemberObj.documentProofUrl.trim().length > 10) ||
+          depAttachments.some((a) => Boolean(a.dataUrl && a.dataUrl.trim().length > 10));
+        const isDocApproved = Boolean(
+          hasRealDoc && (sourceMemberObj?.documentVerified || sourceMemberObj?.documentStatus === 'APROVADO')
+        );
+        const needsDocApproval = depDocRule.requiresDocument && !isDocApproved;
+        const resolvedDepStatus: SubscriptionStatus = needsDocApproval ? 'INACTIVE' : inheritedStatus;
+        const effectiveBirth = person.birthDate || sourceMemberObj?.birthDate || '';
+        const kidsExp = modCode === 'KIDS' && effectiveBirth ? calculateKidsExpirationDate(effectiveBirth) : undefined;
+        const depExpDate = kidsExp || sourceMemberObj?.expirationDate || targetSub.endDate;
+
         const newMember: ClubMember = {
-          id: `mem-${cardNum}-${Date.now()}-${i}`,
+          id: sourceMemberObj?.id || `mem-${cardNum}-${Date.now()}-${i}`,
           subscriptionId: targetSub.id,
           role: 'DEPENDENTE',
           modalityCode: modCode,
@@ -3685,23 +3714,50 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
           planCycleLabel: modName,
           fullName: cleanName,
           cpf: cleanCpf,
-          birthDate: person.birthDate || '',
-          phone: person.phone || '',
+          rg: sourceMemberObj?.rg || sourceSubObj?.holderRg || '',
+          birthDate: effectiveBirth,
+          sex: sourceMemberObj?.sex || sourceSubObj?.holderSex,
+          phone: person.phone || sourceMemberObj?.phone || targetSub.holderPhone || '',
+          photoUrl: sourceMemberObj?.photoUrl,
+          documentProofUrl: sourceMemberObj?.documentProofUrl,
+          documentProofName: sourceMemberObj?.documentProofName,
+          documentVerified: isDocApproved,
+          documentStatus: isDocApproved
+            ? 'APROVADO'
+            : hasRealDoc
+            ? 'EM_ANALISE'
+            : depDocRule.requiresDocument
+            ? 'PENDENTE_ANEXO'
+            : undefined,
+          documentVerifiedAt: isDocApproved ? sourceMemberObj?.documentVerifiedAt : undefined,
+          documentVerifiedBy: isDocApproved ? sourceMemberObj?.documentVerifiedBy : undefined,
+          attachments: depAttachments,
           cardNumber: cardNum,
           holderCardNumber: targetSub.subscriptionCode,
           qrToken: `LC-${cardNum}`,
           frontCardUrl: frontCard,
           backCardUrl: backCard,
-          validityLabel: getValidityLabelFromDate(targetSub.endDate),
-          expirationDate: targetSub.endDate,
+          validityLabel: getValidityLabelFromDate(depExpDate),
+          expirationDate: depExpDate,
           monthlyValue: 0,
-          status: inheritedStatus,
-          inactivityReason: inheritedStatus !== 'ACTIVE' ? targetSub.inactivityReason : undefined,
-          inactivityReasons: inheritedStatus !== 'ACTIVE' ? targetSub.inactivityReasons : undefined,
-          inactivityNotes: inheritedStatus !== 'ACTIVE' ? targetSub.inactivityNotes : undefined,
-          documentVerified: false,
+          status: resolvedDepStatus,
+          inactivityReason: needsDocApproval
+            ? 'FALTA_DOCUMENTOS'
+            : resolvedDepStatus !== 'ACTIVE'
+            ? targetSub.inactivityReason
+            : undefined,
+          inactivityReasons: needsDocApproval
+            ? ['FALTA_DOCUMENTOS']
+            : resolvedDepStatus !== 'ACTIVE'
+            ? targetSub.inactivityReasons
+            : undefined,
+          inactivityNotes: needsDocApproval
+            ? 'Dependente vinculado — aguardando envio/validação do documento comprobatório para ativar.'
+            : resolvedDepStatus !== 'ACTIVE'
+            ? targetSub.inactivityNotes
+            : undefined,
           manualStatusOverride: true,
-          createdAt: new Date().toISOString(),
+          createdAt: sourceMemberObj?.createdAt || new Date().toISOString(),
         };
 
         currentMembers.push(newMember);
@@ -3761,11 +3817,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         deletedSubscriptionIds: nextDeleted,
       };
 
-      await persist(nextState);
       const permCode = updatedTargetSub.subscriptionCode || updatedTargetSub.holderCpf;
       if (permCode) {
-        saveMemberPermanentDocs(permCode, updatedTargetSub).catch(() => {});
+        await saveMemberPermanentDocs(permCode, updatedTargetSub, 'ADMIN_ATTACH_DEPENDENT');
       }
+      await persist(nextState, { waitForCloud: true });
       setSelectedSubForDetail(updatedTargetSub);
       setSelectedPersonsMap({});
       setPersonSearchModalOpen(false);
@@ -3888,6 +3944,23 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
           ? 'ACTIVE'
           : 'PENDING_TRANSFER';
 
+      const transferAttachments = [
+        ...(sourceMember?.attachments || []),
+        ...(sourceSub.attachments || []),
+      ];
+      const transferDocRule = getPlanDocumentRule(modCode, modName);
+      const transferHasDoc =
+        Boolean(sourceMember?.documentProofUrl && sourceMember.documentProofUrl.trim().length > 10) ||
+        transferAttachments.some((a) => Boolean(a.dataUrl && a.dataUrl.trim().length > 10));
+      const transferDocApproved = Boolean(
+        transferHasDoc && (sourceMember?.documentVerified || sourceMember?.documentStatus === 'APROVADO')
+      );
+      const transferNeedsDoc = transferDocRule.requiresDocument && !transferDocApproved;
+      const finalTransferStatus: SubscriptionStatus = transferNeedsDoc ? 'INACTIVE' : inheritedDepStatus;
+      const transferBirth = sourceMember?.birthDate || sourceSub.holderBirthDate || '';
+      const transferKidsExp = modCode === 'KIDS' && transferBirth ? calculateKidsExpirationDate(transferBirth) : undefined;
+      const transferExp = transferKidsExp || sourceMember?.expirationDate || targetTitularSub.endDate;
+
       const newDependentMember: ClubMember = {
         id: sourceMember?.id || `mem-${cardNum}-${Date.now()}`,
         subscriptionId: targetTitularSub.id,
@@ -3898,28 +3971,50 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         fullName: cleanName,
         cpf: cleanCpf,
         rg: sourceMember?.rg || sourceSub.holderRg || '',
-        birthDate: sourceMember?.birthDate || sourceSub.holderBirthDate || '',
+        birthDate: transferBirth,
         sex: sourceMember?.sex || sourceSub.holderSex,
         phone: sourceMember?.phone || sourceSub.holderPhone || '',
+        photoUrl: sourceMember?.photoUrl,
+        documentProofUrl: sourceMember?.documentProofUrl,
+        documentProofName: sourceMember?.documentProofName,
+        documentVerified: transferDocApproved,
+        documentStatus: transferDocApproved
+          ? 'APROVADO'
+          : transferHasDoc
+          ? 'EM_ANALISE'
+          : transferDocRule.requiresDocument
+          ? 'PENDENTE_ANEXO'
+          : undefined,
+        documentVerifiedAt: transferDocApproved ? sourceMember?.documentVerifiedAt : undefined,
+        documentVerifiedBy: transferDocApproved ? sourceMember?.documentVerifiedBy : undefined,
         cardNumber: cardNum,
         holderCardNumber: targetTitularSub.subscriptionCode,
         qrToken: `LC-${cardNum}`,
         frontCardUrl: frontCard,
         backCardUrl: backCard,
-        validityLabel: sourceMember?.validityLabel || getValidityLabelFromDate(targetTitularSub.endDate),
-        expirationDate: sourceMember?.expirationDate || targetTitularSub.endDate,
+        validityLabel: sourceMember?.validityLabel || getValidityLabelFromDate(transferExp),
+        expirationDate: transferExp,
         monthlyValue: 0,
-        status: inheritedDepStatus,
-        inactivityReason: inheritedDepStatus !== 'ACTIVE' ? targetTitularSub.inactivityReason : undefined,
-        inactivityReasons: inheritedDepStatus !== 'ACTIVE' ? targetTitularSub.inactivityReasons : undefined,
-        inactivityNotes: inheritedDepStatus !== 'ACTIVE' ? targetTitularSub.inactivityNotes : undefined,
+        status: finalTransferStatus,
+        inactivityReason: transferNeedsDoc
+          ? 'FALTA_DOCUMENTOS'
+          : finalTransferStatus !== 'ACTIVE'
+          ? targetTitularSub.inactivityReason
+          : undefined,
+        inactivityReasons: transferNeedsDoc
+          ? ['FALTA_DOCUMENTOS']
+          : finalTransferStatus !== 'ACTIVE'
+          ? targetTitularSub.inactivityReasons
+          : undefined,
+        inactivityNotes: transferNeedsDoc
+          ? 'Dependente transferido — aguardando comprovação documental para ativar.'
+          : finalTransferStatus !== 'ACTIVE'
+          ? targetTitularSub.inactivityNotes
+          : undefined,
         cardStatus: sourceMember?.cardStatus || 'NOT_PRODUCED',
         manualStatusOverride: true,
         proofDocuments: sourceMember?.proofDocuments || [],
-        attachments: [
-          ...(sourceMember?.attachments || []),
-          ...(sourceSub.attachments || []),
-        ],
+        attachments: transferAttachments,
         createdAt: sourceMember?.createdAt || new Date().toISOString(),
       };
 
@@ -3954,11 +4049,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         deletedSubscriptionIds: nextDeleted,
       };
 
-      await persist(nextState);
       const permCode = updatedTargetSub.subscriptionCode || updatedTargetSub.holderCpf;
       if (permCode) {
-        saveMemberPermanentDocs(permCode, updatedTargetSub).catch(() => {});
+        await saveMemberPermanentDocs(permCode, updatedTargetSub, 'ADMIN_TRANSFER_DEPENDENT');
       }
+      await persist(nextState, { waitForCloud: true });
 
       setSelectedSubForDetail(updatedTargetSub);
       setTransferHolderModalOpen(false);
@@ -14033,10 +14128,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           Integrantes da Assinatura ({selectedSubForDetail.members.length}): Nome e Plano de Cada Pessoa
                         </div>
                         {(() => {
-                          const isPlanAllowingDeps = doesPlanAllowDependents(
-                            selectedSubForDetail.planSummaryLabel ||
-                              selectedSubForDetail.members[0]?.modalityCode
-                          );
+                          const isPlanAllowingDeps = doesSubscriptionAllowDependents(selectedSubForDetail);
                           const hasDependents = selectedSubForDetail.members.some(
                             (m) => m.role === 'DEPENDENTE'
                           );
@@ -14049,7 +14141,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                               (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('inclus') ||
                               (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('vital') ||
                               (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('sem plano') ||
-                              ['KIDS', 'PCD_TEA', 'VITALICIO', 'SEM_PLANO'].includes(selectedSubForDetail.members[0]?.modalityCode || '')
+                              ['KIDS', 'PCD_TEA', 'IDOSO_60', 'VITALICIO', 'SEM_PLANO'].includes(selectedSubForDetail.members[0]?.modalityCode || '')
                             );
 
                           return (
@@ -17748,6 +17840,42 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                     unifiedCardInstallments
                                   );
                                   setUnifiedCardUrl(res.invoiceUrl);
+                                  // Salva o vínculo oficial do link único de cartão no cadastro e nas parcelas em aberto (para Portal do Sócio, Já Paguei e Webhook)
+                                  if (state && res.paymentId) {
+                                    const pendingIdSet = new Set(pending.map((p) => p.id));
+                                    const nowIso = new Date().toISOString();
+                                    const updatedSub: ClubSubscription = {
+                                      ...selectedSubForDetail,
+                                      asaasPaymentId: res.paymentId,
+                                      asaasInvoiceUrl: res.invoiceUrl,
+                                      paymentMethod: 'CREDIT_CARD',
+                                      installments: unifiedCardInstallments,
+                                      invoices: selectedSubForDetail.invoices.map((inv) =>
+                                        pendingIdSet.has(inv.id)
+                                          ? {
+                                              ...inv,
+                                              paymentMethod: 'CREDIT_CARD' as const,
+                                              asaasPaymentId: inv.asaasPaymentId || res.paymentId,
+                                              invoiceUrl: inv.invoiceUrl || res.invoiceUrl,
+                                            }
+                                          : inv
+                                      ),
+                                      isModifiedFromSeed: true,
+                                      updatedAt: nowIso,
+                                    };
+                                    const nextState: ClubDatabaseState = {
+                                      ...state,
+                                      subscriptions: (state.subscriptions || []).map((s) =>
+                                        s.id === updatedSub.id ? updatedSub : s
+                                      ),
+                                    };
+                                    setSelectedSubForDetail(updatedSub);
+                                    const permCode = updatedSub.subscriptionCode || updatedSub.holderCpf || updatedSub.id;
+                                    if (permCode) {
+                                      await saveMemberPermanentDocs(permCode, updatedSub, 'ADMIN_UNIFIED_CARD_LINK');
+                                    }
+                                    await persist(nextState, { waitForCloud: true });
+                                  }
                                   toast({
                                     title: 'Link de Cartão gerado no Asaas!',
                                     description: `Total: ${formatCurrency(totalPendingVal)} em ${unifiedCardInstallments}x de ${formatCurrency(totalPendingVal / unifiedCardInstallments)} (exclusivo Cartão de Crédito).`,
@@ -19824,9 +19952,23 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         5. Gestão de Dependentes — {selectedSubForDetail.holderName}
                       </h3>
                       <p className="text-xs text-slate-500">
-                        Adicione dependentes, vincule anexos individuais (RG, Certidão, Laudo PCD/TEA), configure datas de expiração (ex: criança que completará idade pagante) e altere modalidades.
+                        Adicione novos dependentes, vincule cadastros já existentes (ex: filho com TEA/PCD ou Kids do Labcard), anexe comprovações e configure datas de expiração.
                       </p>
                     </div>
+                    {doesSubscriptionAllowDependents(selectedSubForDetail) && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => {
+                          setPersonSearchQuery('');
+                          setPersonSearchModalOpen(true);
+                        }}
+                        className="h-9 text-xs font-black bg-emerald-800 hover:bg-emerald-900 text-white shadow-xs cursor-pointer flex items-center gap-1.5"
+                      >
+                        <Search className="w-3.5 h-3.5 text-amber-300" />
+                        + Buscar e Vincular Cadastro Existente
+                      </Button>
+                    )}
                   </div>
 
                   {/* PAINEL DE VALIDAÇÃO DE COMPROVAÇÃO DOCUMENTAL (TITULAR E DEPENDENTES) */}
@@ -20145,31 +20287,73 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                 selectedSubForDetail.members.length
                             );
                             const addMonthly =
-                              isFamilyPlanSelected
+                              isFamilyPlanSelected || mod.isFreeTier
                                 ? 0
                                 : selectedSubForDetail.billingCycle === 'ANNUAL'
                                 ? mod.annualInstallment
                                 : mod.monthlyPrice;
 
-                            const depAtts: ClubAttachment[] = [];
-                            if (newDepDocUrl) {
-                              depAtts.push({
-                                id: `att_dep_${Date.now()}`,
-                                name: newDepDocName || `Documento_${mod.name}`,
-                                dataUrl: newDepDocUrl,
-                                mimeType: 'image/jpeg',
-                                createdAt: new Date().toISOString(),
-                              });
+                            const nowIso = new Date().toISOString();
+                            const newMemberId = `mem_${Date.now()}`;
+                            const permCode =
+                              selectedSubForDetail.subscriptionCode ||
+                              selectedSubForDetail.holderCpf ||
+                              selectedSubForDetail.id;
+
+                            // Sobe Foto 3x4 para Supabase Storage (`club-files`)
+                            let uploadedPhotoUrl: string | undefined = newDepPhoto || undefined;
+                            if (newDepPhoto && newDepPhoto.startsWith('data:')) {
+                              const upPhoto = await uploadClubFileToStorage(
+                                permCode,
+                                newDepPhoto,
+                                `foto_${newCardNum}.jpg`,
+                                'image/jpeg'
+                              );
+                              if (upPhoto?.publicUrl) uploadedPhotoUrl = upPhoto.publicUrl;
                             }
 
+                            // Sobe documento comprobatório para Supabase Storage (`club-files`) + `public.club_attachments`
+                            const depAtts: ClubAttachment[] = [];
+                            let uploadedDocUrl: string | undefined = newDepDocUrl || undefined;
+                            if (newDepDocUrl) {
+                              const isPdfDoc =
+                                newDepDocUrl.startsWith('data:application/pdf') ||
+                                (newDepDocName || '').toLowerCase().endsWith('.pdf');
+                              const docMime = isPdfDoc ? 'application/pdf' : 'image/jpeg';
+                              const savedAtt = await saveClubAttachmentAtomic(
+                                permCode,
+                                selectedSubForDetail.id,
+                                newMemberId,
+                                {
+                                  id: `att_dep_${Date.now()}`,
+                                  name: newDepDocName || `Documento_${mod.name}`,
+                                  dataUrl: newDepDocUrl,
+                                  mimeType: docMime,
+                                  createdAt: nowIso,
+                                }
+                              );
+                              uploadedDocUrl = savedAtt.dataUrl;
+                              depAtts.push(savedAtt);
+                            }
+
+                            const depModCode = isFamilyPlanSelected ? 'PUBLICIDADE' : mod.code;
+                            const depModName = isFamilyPlanSelected ? 'Lessa Family Dependente' : mod.name;
+                            const depDocRule = getPlanDocumentRule(depModCode, depModName);
+                            const missingRequiredDoc = depDocRule.requiresDocument && !uploadedDocUrl;
+                            const depStatus: SubscriptionStatus = missingRequiredDoc
+                              ? 'INACTIVE'
+                              : selectedSubForDetail.status;
+
                             const newMember: ClubMember = {
-                              id: `mem_${Date.now()}`,
+                              id: newMemberId,
                               subscriptionId: selectedSubForDetail.id,
                               role: 'DEPENDENTE',
-                              modalityCode: isFamilyPlanSelected ? 'PUBLICIDADE' : mod.code,
-                              modalityName: isFamilyPlanSelected ? 'Lessa Family Dependente' : mod.name,
+                              modalityCode: depModCode,
+                              modalityName: depModName,
                               planCycleLabel: isFamilyPlanSelected
                                 ? 'Lessa Family Dependente'
+                                : mod.isFreeTier
+                                ? mod.name
                                 : `${mod.name} (${
                                     selectedSubForDetail.billingCycle === 'ANNUAL'
                                       ? 'Anual'
@@ -20179,29 +20363,42 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                               cpf: newDepCpf.trim(),
                               birthDate: newDepBirth,
                               kinship: newDepKinship || 'Cônjuge',
-                              photoUrl: newDepPhoto || undefined,
-                              documentProofUrl: newDepDocUrl || undefined,
+                              photoUrl: uploadedPhotoUrl,
+                              documentProofUrl: uploadedDocUrl,
                               documentProofName: newDepDocName || undefined,
-                              documentStatus: newDepDocUrl ? 'APROVADO' : 'PENDENTE_ANEXO',
-                              documentVerified: Boolean(newDepDocUrl),
+                              documentStatus: uploadedDocUrl
+                                ? 'APROVADO'
+                                : depDocRule.requiresDocument
+                                ? 'PENDENTE_ANEXO'
+                                : undefined,
+                              documentVerified: Boolean(uploadedDocUrl),
+                              documentVerifiedAt: uploadedDocUrl ? nowIso : undefined,
+                              documentVerifiedBy: uploadedDocUrl ? 'Administrador' : undefined,
                               cardNumber: newCardNum,
                               holderCardNumber:
                                 selectedSubForDetail.subscriptionCode,
-                              qrToken: newCardNum,
+                              qrToken: `LC-${newCardNum}`,
                               frontCardUrl:
                                 mod.dependentFrontCardUrl || mod.frontCardUrl,
                               backCardUrl:
                                 mod.dependentBackCardUrl || mod.backCardUrl,
                               validityLabel:
-                                selectedSubForDetail.members[0]?.validityLabel ||
-                                '10/2027',
+                                getValidityLabelFromDate(
+                                  newDepExpirationDate || selectedSubForDetail.endDate,
+                                  selectedSubForDetail.members[0]?.validityLabel || '10/2027'
+                                ),
                               monthlyValue: addMonthly,
-                              status: selectedSubForDetail.status,
+                              status: depStatus,
+                              inactivityReason: missingRequiredDoc ? 'FALTA_DOCUMENTOS' : undefined,
+                              inactivityReasons: missingRequiredDoc ? ['FALTA_DOCUMENTOS'] : undefined,
+                              inactivityNotes: missingRequiredDoc
+                                ? 'Aguardando anexo de documento comprobatório para ativar.'
+                                : undefined,
                               expirationDate: newDepExpirationDate || selectedSubForDetail.endDate || undefined,
                               expirationNotes:
                                 newDepExpirationNotes.trim() || undefined,
                               attachments: depAtts,
-                              createdAt: new Date().toISOString(),
+                              createdAt: nowIso,
                             };
                             const updatedMembers = [
                               ...selectedSubForDetail.members,
@@ -20231,7 +20428,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                 selectedSubForDetail.billingCycle === 'ANNUAL'
                                   ? Number((newMonthlyTotal * 12).toFixed(2))
                                   : newMonthlyTotal,
-                              updatedAt: new Date().toISOString(),
+                              updatedAt: nowIso,
                               isModifiedFromSeed: true,
                             };
                             const nextState: ClubDatabaseState = {
@@ -20241,16 +20438,23 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                               ),
                             };
                             setSelectedSubForDetail(updatedSub);
-                            await persist(nextState);
+                            await saveMemberPermanentDocs(permCode, updatedSub, 'ADMIN_ADD_DEPENDENT');
+                            await persist(nextState, { waitForCloud: true });
                             setNewDepName('');
                             setNewDepCpf('');
                             setNewDepBirth('');
                             setNewDepPhoto('');
+                            setNewDepDocUrl('');
+                            setNewDepDocName('');
                             setNewDepExpirationDate('');
                             setNewDepExpirationNotes('');
                             toast({
-                              title: 'Dependente adicionado com sucesso!',
-                              description: `${newMember.fullName} — Cartão #${newMember.cardNumber}`,
+                              title: missingRequiredDoc
+                                ? 'Dependente incluído (aguardando comprovante)!'
+                                : 'Dependente adicionado com sucesso!',
+                              description: missingRequiredDoc
+                                ? `${newMember.fullName} — Cartão #${newMember.cardNumber} criado como INATIVO até anexar/validar o comprovante.`
+                                : `${newMember.fullName} — Cartão #${newMember.cardNumber}`,
                             });
                           }}
                           className="bg-[#004d00] hover:bg-emerald-900 text-white font-bold text-xs h-9 px-6"

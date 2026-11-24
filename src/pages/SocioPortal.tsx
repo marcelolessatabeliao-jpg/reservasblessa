@@ -26,6 +26,7 @@ import {
   AlertTriangle,
   ShieldCheck,
   Users,
+  UserPlus,
   Eye,
   EyeOff,
   Camera,
@@ -84,10 +85,13 @@ import {
   syncSubscriptionInvoicesWithAsaas,
   getContractedDependentSlots,
   saveSocioDependentSlot,
+  doesSubscriptionAllowDependents,
+  addSocioDependentWithProof,
   isClubInvoiceReservation,
   formatCpf,
   formatBirthDate,
   type ContractedDependentSlot,
+  type SocioPortalFreeDependentModality,
 } from '@/lib/club-service';
 import { ClubMemberCardView } from '@/components/club/ClubMemberCardView';
 
@@ -221,6 +225,92 @@ const SocioPortal: React.FC = () => {
   const [depSlotPhotoPreviews, setDepSlotPhotoPreviews] = useState<Record<number, string>>({});
   const [depSlotDocFiles, setDepSlotDocFiles] = useState<Record<number, File | null>>({});
   const [savingDepSlotIdx, setSavingDepSlotIdx] = useState<number | null>(null);
+
+  // Inclusão de dependente gratuito com comprovação (PCD/TEA, Kids até 11 anos, Vitalício 60+) nos planos pagos
+  const [showAddFreeDepForm, setShowAddFreeDepForm] = useState(false);
+  const [newFreeDepModality, setNewFreeDepModality] = useState<SocioPortalFreeDependentModality>('PCD_TEA');
+  const [newFreeDepName, setNewFreeDepName] = useState('');
+  const [newFreeDepCpf, setNewFreeDepCpf] = useState('');
+  const [newFreeDepBirth, setNewFreeDepBirth] = useState('');
+  const [newFreeDepKinship, setNewFreeDepKinship] = useState('Filho(a)');
+  const [newFreeDepPhotoFile, setNewFreeDepPhotoFile] = useState<File | null>(null);
+  const [newFreeDepPhotoPreview, setNewFreeDepPhotoPreview] = useState('');
+  const [newFreeDepDocFile, setNewFreeDepDocFile] = useState<File | null>(null);
+  const [savingNewFreeDep, setSavingNewFreeDep] = useState(false);
+
+  const handleAddSocioFreeDependent = async () => {
+    if (!subscription) return;
+    if (newFreeDepName.trim().length < 3) {
+      toast({
+        title: 'Nome obrigatório',
+        description: 'Informe o nome completo do dependente.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (cleanDigits(newFreeDepCpf).length !== 11) {
+      toast({
+        title: 'CPF inválido',
+        description: 'Informe um CPF válido (11 dígitos) para o dependente.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (cleanDigits(newFreeDepBirth).length !== 8) {
+      toast({
+        title: 'Data de nascimento inválida',
+        description: 'Informe a data completa no formato DD/MM/AAAA.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (!newFreeDepDocFile) {
+      toast({
+        title: 'Comprovante obrigatório',
+        description: 'Anexe o documento comprobatório exigido (Laudo/CIPTEA, Certidão/RG ou RG/CNH 60+) para enviar o dependente para ativação.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setSavingNewFreeDep(true);
+    try {
+      const result = await addSocioDependentWithProof({
+        subscriptionId: subscription.id,
+        modalityCode: newFreeDepModality,
+        fullName: newFreeDepName,
+        cpf: newFreeDepCpf,
+        birthDate: newFreeDepBirth,
+        kinship: newFreeDepKinship,
+        photoFile: newFreeDepPhotoFile,
+        documentFile: newFreeDepDocFile,
+      });
+
+      setState(result.state);
+      setSubscription(result.subscription);
+      setNewFreeDepName('');
+      setNewFreeDepCpf('');
+      setNewFreeDepBirth('');
+      setNewFreeDepKinship('Filho(a)');
+      setNewFreeDepPhotoFile(null);
+      setNewFreeDepPhotoPreview('');
+      setNewFreeDepDocFile(null);
+      setShowAddFreeDepForm(false);
+
+      toast({
+        title: 'Dependente vinculado e enviado para análise!',
+        description: `${result.member.fullName} (Cartão #${result.member.cardNumber}) foi adicionado ao seu cadastro. Assim que a administração aprovar o comprovante, a carteirinha será ativada automaticamente!`,
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao adicionar dependente',
+        description: err?.message || 'Não foi possível salvar os dados. Verifique o CPF e tente novamente.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSavingNewFreeDep(false);
+    }
+  };
 
   useEffect(() => {
     if (!subscription) {
@@ -2058,11 +2148,15 @@ const SocioPortal: React.FC = () => {
                                 locked={isLockedDep}
                                 lockReason={
                                   missingDoc
-                                    ? `Falta anexar: ${docRule.title || 'comprovante do plano'}`
+                                    ? hasDoc && member.documentStatus === 'EM_ANALISE'
+                                      ? `Comprovante enviado • Aguardando aprovação da administração (${docRule.title})`
+                                      : `Falta anexar: ${docRule.title || 'comprovante do plano'}`
                                     : isExpiredDep
                                     ? `Cadastro expirado em ${formatDateBR(effExp)}`
                                     : isDepInactive
-                                    ? 'Dependente inativo no momento'
+                                    ? hasDoc && member.documentStatus === 'EM_ANALISE'
+                                      ? 'Comprovante em análise pela administração para ativar'
+                                      : 'Dependente inativo no momento'
                                     : !isSubscriptionActive || member.status !== 'ACTIVE'
                                     ? (
                                         subscription.inactivityReason === 'MENSALIDADE_E_DOCUMENTOS'
@@ -2275,29 +2369,52 @@ const SocioPortal: React.FC = () => {
                   </div>
 
                   {contractedDependentSlots.length === 0 ? (
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-center space-y-3">
-                      <Users className="w-10 h-10 text-slate-400 mx-auto" />
-                      <div className="space-y-1">
-                        <h4 className="font-black text-slate-900 text-sm">
-                          Plano Individual (somente titular)
-                        </h4>
-                        <p className="text-xs text-slate-600 max-w-md mx-auto">
-                          A configuração atual do seu plano contempla apenas o titular <strong>{subscription.holderName}</strong>, sem vagas extras de dependentes. Caso deseje incluir familiares no plano, fale com nosso atendimento pelo WhatsApp.
-                        </p>
+                    !doesSubscriptionAllowDependents(subscription) ? (
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-center space-y-3">
+                        <Users className="w-10 h-10 text-slate-400 mx-auto" />
+                        <div className="space-y-1">
+                          <h4 className="font-black text-slate-900 text-sm">
+                            Cadastro Individual (somente titular)
+                          </h4>
+                          <p className="text-xs text-slate-600 max-w-md mx-auto">
+                            A configuração atual do seu cadastro contempla apenas o titular <strong>{subscription.holderName}</strong>. Caso deseje vincular familiares, fale com nosso atendimento pelo WhatsApp.
+                          </p>
+                        </div>
+                        <a
+                          href={`https://wa.me/5569992626140?text=${encodeURIComponent(
+                            `Olá! Sou associado(a) ${subscription.holderName} (Cartão #${subscription.subscriptionCode}) e gostaria de incluir dependentes no meu plano Lessa Club.`
+                          )}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-block"
+                        >
+                          <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs">
+                            <MessageCircle className="w-3.5 h-3.5 mr-1.5" /> Solicitar Inclusão de Dependentes
+                          </Button>
+                        </a>
                       </div>
-                      <a
-                        href={`https://wa.me/5569992626140?text=${encodeURIComponent(
-                          `Olá! Sou associado(a) ${subscription.holderName} (Cartão #${subscription.subscriptionCode}) e gostaria de incluir dependentes no meu plano Lessa Club.`
-                        )}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-block"
-                      >
-                        <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs">
-                          <MessageCircle className="w-3.5 h-3.5 mr-1.5" /> Solicitar Inclusão de Dependentes
-                        </Button>
-                      </a>
-                    </div>
+                    ) : (
+                      <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 text-xs text-emerald-950 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="space-y-0.5">
+                          <div className="font-black text-sm text-emerald-950">
+                            Nenhum dependente vinculado ainda ao seu plano
+                          </div>
+                          <p className="text-xs text-emerald-900/90">
+                            Como titular de um plano pago, você pode adicionar abaixo dependentes com benefício gratuito (<strong>PCD / TEA</strong>, <strong>Lessa Kids até 11 anos</strong> ou <strong>Vitalício 60+</strong>) enviando o comprovante para validação da administração.
+                          </p>
+                        </div>
+                        {!showAddFreeDepForm && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => setShowAddFreeDepForm(true)}
+                            className="bg-[#004d00] hover:bg-emerald-900 text-white font-black text-xs h-10 px-4 rounded-xl shrink-0"
+                          >
+                            <UserPlus className="w-4 h-4 mr-1.5" /> + Adicionar Dependente
+                          </Button>
+                        )}
+                      </div>
+                    )
                   ) : (
                     <div className="space-y-4">
                       <div className="rounded-xl bg-emerald-50/70 border border-emerald-200 px-3.5 py-2.5 text-xs text-emerald-950">
@@ -2365,9 +2482,19 @@ const SocioPortal: React.FC = () => {
 
                                 <div className="flex flex-wrap items-center gap-1.5">
                                   {existing ? (
-                                    <Badge className="bg-emerald-600 text-white font-bold text-[10px]">
-                                      <CheckCircle2 className="w-3 h-3 mr-1" /> Cadastrado
-                                    </Badge>
+                                    existing.status === 'ACTIVE' && (!slot.requiresDocument || existing.documentVerified || existing.documentStatus === 'APROVADO') ? (
+                                      <Badge className="bg-emerald-600 text-white font-bold text-[10px]">
+                                        <CheckCircle2 className="w-3 h-3 mr-1" /> Ativo
+                                      </Badge>
+                                    ) : hasDoc && existing.documentStatus === 'EM_ANALISE' ? (
+                                      <Badge className="bg-amber-600 text-white font-bold text-[10px]">
+                                        <Clock className="w-3 h-3 mr-1" /> Em Análise (Aguardando Aprovação)
+                                      </Badge>
+                                    ) : (
+                                      <Badge className="bg-emerald-600 text-white font-bold text-[10px]">
+                                        <CheckCircle2 className="w-3 h-3 mr-1" /> Cadastrado
+                                      </Badge>
+                                    )
                                   ) : (
                                     <Badge className="bg-amber-500 text-slate-950 font-black text-[10px]">
                                       Aguardando preenchimento
@@ -2656,6 +2783,324 @@ const SocioPortal: React.FC = () => {
                             </div>
                           );
                         })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* SEÇÃO: ADICIONAR DEPENDENTE COM BENEFÍCIO GRATUITO (PCD/TEA, KIDS OU VITALÍCIO 60+) NOS PLANOS PAGOS */}
+                  {doesSubscriptionAllowDependents(subscription) && (
+                    <div className="pt-4 border-t border-slate-200 space-y-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                          <h4 className="text-sm sm:text-base font-black text-slate-900 flex items-center gap-2">
+                            <UserPlus className="w-4 h-4 text-emerald-700" />
+                            Vincular Dependente com Isenção (PCD / TEA, Kids ou 60+)
+                          </h4>
+                          <p className="text-xs text-slate-600">
+                            Adicione dependentes com benefício gratuito diretamente ao seu cadastro e carteirinhas. <strong>O envio do comprovante é obrigatório</strong> e a carteirinha é ativada após validação pela administração.
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={showAddFreeDepForm ? 'outline' : 'default'}
+                          onClick={() => setShowAddFreeDepForm((prev) => !prev)}
+                          className={
+                            showAddFreeDepForm
+                              ? 'border-slate-300 text-slate-700 font-bold text-xs h-9 shrink-0'
+                              : 'bg-[#004d00] hover:bg-emerald-900 text-white font-black text-xs h-9 px-4 rounded-xl shrink-0'
+                          }
+                        >
+                          {showAddFreeDepForm ? (
+                            <>Fechar Formulário</>
+                          ) : (
+                            <>
+                              <UserPlus className="w-3.5 h-3.5 mr-1.5" /> + Adicionar Dependente (TEA / Kids / 60+)
+                            </>
+                          )}
+                        </Button>
+                      </div>
+
+                      {showAddFreeDepForm && (() => {
+                        const freeDepOptions: Array<{
+                          code: SocioPortalFreeDependentModality;
+                          label: string;
+                          badge: string;
+                          desc: string;
+                        }> = [
+                          {
+                            code: 'PCD_TEA',
+                            label: 'Lessa Inclusão (PCD e TEA)',
+                            badge: 'GRÁTIS (R$ 0,00)',
+                            desc: 'Exige Laudo Médico com CID, CIPTEA ou Carteira PCD',
+                          },
+                          {
+                            code: 'KIDS',
+                            label: 'Lessa Kids (0 a 11 anos)',
+                            badge: 'GRÁTIS (R$ 0,00)',
+                            desc: 'Exige Certidão de Nascimento ou RG/CPF da criança',
+                          },
+                          {
+                            code: 'IDOSO_60',
+                            label: 'Lessa Vitalício 60+',
+                            badge: 'GRÁTIS (R$ 0,00)',
+                            desc: 'Exige RG ou CNH comprovando 60 anos ou mais',
+                          },
+                        ];
+                        const chosenRule = getPlanDocumentRule(newFreeDepModality);
+
+                        return (
+                          <div className="rounded-2xl border-2 border-emerald-300 bg-emerald-50/30 p-4 sm:p-5 space-y-4">
+                            {/* Escolha da categoria gratuita */}
+                            <div className="space-y-2">
+                              <label className="block text-xs font-black text-slate-800 uppercase">
+                                1. Selecione a Categoria do Dependente *
+                              </label>
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                                {freeDepOptions.map((opt) => {
+                                  const active = newFreeDepModality === opt.code;
+                                  return (
+                                    <button
+                                      key={opt.code}
+                                      type="button"
+                                      onClick={() => {
+                                        setNewFreeDepModality(opt.code);
+                                        if (opt.code === 'KIDS') setNewFreeDepKinship('Filho(a)');
+                                        else if (opt.code === 'IDOSO_60') setNewFreeDepKinship('Pai/Mãe');
+                                      }}
+                                      className={`text-left p-3 rounded-xl border-2 transition-all ${
+                                        active
+                                          ? 'border-emerald-700 bg-white shadow-sm ring-2 ring-emerald-200'
+                                          : 'border-slate-200 bg-white/80 hover:border-emerald-300'
+                                      }`}
+                                    >
+                                      <div className="flex items-center justify-between gap-1 mb-1">
+                                        <span className="font-black text-xs text-slate-900">{opt.label}</span>
+                                      </div>
+                                      <Badge className="bg-emerald-100 text-emerald-900 border border-emerald-300 text-[9px] font-black mb-1">
+                                        {opt.badge}
+                                      </Badge>
+                                      <p className="text-[11px] text-slate-600 leading-snug">{opt.desc}</p>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            {/* Aviso obrigatório de comprovação */}
+                            <div className="rounded-xl bg-amber-50 border border-amber-300 px-3.5 py-2.5 text-xs text-amber-950 space-y-1">
+                              <div className="font-black flex items-center gap-1.5">
+                                <FileCheck className="w-4 h-4 text-amber-700 shrink-0" />
+                                Comprovação obrigatória para ativação: {chosenRule.title}
+                              </div>
+                              <p className="text-[11px] text-amber-900">
+                                <strong>Documentos aceitos:</strong> {chosenRule.acceptedDocs.join(' • ')}.
+                              </p>
+                              <p className="text-[11px] font-bold text-amber-900">
+                                ⚠️ O dependente ficará com status <em>Em Análise</em> até a administração validar o comprovante. Sua carteirinha de titular continua ativa normalmente.
+                              </p>
+                            </div>
+
+                            {/* Dados + Foto 3x4 */}
+                            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
+                              <div className="md:col-span-3 flex flex-col items-center gap-2 p-3 rounded-xl bg-white border border-slate-200">
+                                <div className="w-24 h-28 rounded-xl overflow-hidden bg-slate-100 border-2 border-slate-200 flex items-center justify-center">
+                                  {newFreeDepPhotoPreview ? (
+                                    <img
+                                      src={newFreeDepPhotoPreview}
+                                      alt="Foto 3x4 do dependente"
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="text-center px-2">
+                                      <Camera className="w-6 h-6 text-slate-400 mx-auto mb-1" />
+                                      <span className="text-[10px] font-bold text-slate-400 block leading-tight">
+                                        Foto 3x4 (Opcional)
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                                <label className="w-full text-center cursor-pointer inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-900 text-white text-[11px] font-bold">
+                                  <Camera className="w-3.5 h-3.5" />
+                                  {newFreeDepPhotoPreview ? 'Trocar Foto' : 'Enviar Foto 3x4'}
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={async (e) => {
+                                      const f = e.target.files?.[0] || null;
+                                      setNewFreeDepPhotoFile(f);
+                                      if (f) {
+                                        try {
+                                          setNewFreeDepPhotoPreview(await fileToDataUrl(f));
+                                        } catch {}
+                                      } else {
+                                        setNewFreeDepPhotoPreview('');
+                                      }
+                                    }}
+                                  />
+                                </label>
+                              </div>
+
+                              <div className="md:col-span-9 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div className="sm:col-span-2">
+                                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                                    Nome Completo do Dependente *
+                                  </label>
+                                  <Input
+                                    value={newFreeDepName}
+                                    onChange={(e) => setNewFreeDepName(e.target.value.toUpperCase())}
+                                    placeholder="Nome completo conforme documento"
+                                    className="bg-white font-semibold uppercase"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                                    CPF *
+                                  </label>
+                                  <Input
+                                    value={newFreeDepCpf}
+                                    onChange={(e) => setNewFreeDepCpf(formatCpf(e.target.value))}
+                                    placeholder="000.000.000-00"
+                                    maxLength={14}
+                                    className="bg-white font-mono"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                                    Data de Nascimento *
+                                  </label>
+                                  <Input
+                                    value={newFreeDepBirth}
+                                    onChange={(e) => setNewFreeDepBirth(formatBirthDate(e.target.value))}
+                                    placeholder="DD/MM/AAAA"
+                                    maxLength={10}
+                                    className="bg-white font-mono"
+                                  />
+                                </div>
+
+                                <div className="sm:col-span-2">
+                                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                                    Parentesco com o Titular *
+                                  </label>
+                                  <select
+                                    value={newFreeDepKinship}
+                                    onChange={(e) => setNewFreeDepKinship(e.target.value)}
+                                    className="w-full h-10 rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800"
+                                  >
+                                    <option value="Filho(a)">Filho(a)</option>
+                                    <option value="Cônjuge / Companheiro(a)">Cônjuge / Companheiro(a)</option>
+                                    <option value="Enteado(a)">Enteado(a)</option>
+                                    <option value="Pai/Mãe">Pai/Mãe</option>
+                                    <option value="Outro Familiar">Outro Familiar</option>
+                                  </select>
+                                </div>
+
+                                {/* Upload Obrigatório do Comprovante */}
+                                <div className="sm:col-span-2 rounded-xl border-2 border-amber-300 bg-white p-3 space-y-2">
+                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                    <div>
+                                      <span className="text-xs font-black text-slate-900 block">
+                                        📎 Anexar {chosenRule.title} (Obrigatório) *
+                                      </span>
+                                      <span className="text-[11px] text-slate-500">
+                                        Tire uma foto nítida ou importe imagem/PDF do comprovante.
+                                      </span>
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-2 shrink-0">
+                                      <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold">
+                                        <Camera className="w-3.5 h-3.5" /> Câmera
+                                        <input
+                                          type="file"
+                                          accept="image/*"
+                                          capture="environment"
+                                          className="hidden"
+                                          onChange={(e) => {
+                                            setNewFreeDepDocFile(e.target.files?.[0] || null);
+                                          }}
+                                        />
+                                      </label>
+                                      <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold">
+                                        <Upload className="w-3.5 h-3.5" /> Importar Arquivo
+                                        <input
+                                          type="file"
+                                          accept="image/*,application/pdf"
+                                          className="hidden"
+                                          onChange={(e) => {
+                                            setNewFreeDepDocFile(e.target.files?.[0] || null);
+                                          }}
+                                        />
+                                      </label>
+                                    </div>
+                                  </div>
+                                  {newFreeDepDocFile && (
+                                    <div className="flex items-center justify-between gap-2 rounded-lg bg-emerald-50 border border-emerald-300 px-3 py-1.5 text-xs text-emerald-900">
+                                      <span className="font-bold truncate">
+                                        ✓ Comprovante pronto para envio: {newFreeDepDocFile.name}
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => setNewFreeDepDocFile(null)}
+                                        className="text-rose-600 hover:text-rose-800 font-bold text-[11px] shrink-0"
+                                      >
+                                        Remover
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-emerald-200">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                disabled={savingNewFreeDep}
+                                onClick={() => setShowAddFreeDepForm(false)}
+                                className="text-xs font-bold h-10"
+                              >
+                                Cancelar
+                              </Button>
+                              <Button
+                                type="button"
+                                disabled={savingNewFreeDep}
+                                onClick={handleAddSocioFreeDependent}
+                                className="bg-[#004d00] hover:bg-emerald-900 text-white font-black text-xs h-10 px-5 rounded-xl shadow-sm cursor-pointer"
+                              >
+                                {savingNewFreeDep ? (
+                                  <>
+                                    <RefreshCw className="w-4 h-4 mr-1.5 animate-spin" /> Enviando para análise...
+                                  </>
+                                ) : (
+                                  <>
+                                    <CheckCircle2 className="w-4 h-4 mr-1.5" /> Enviar Cadastro + Comprovante para Ativação
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Opção para incluir dependente pagante via atendimento */}
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-600">
+                        <span>
+                          Deseja adicionar um <strong>dependente pagante</strong> (Adulto, Estudante, Professor ou Servidor) ao seu plano?
+                        </span>
+                        <a
+                          href={`https://wa.me/5569992626140?text=${encodeURIComponent(
+                            `Olá! Sou associado(a) ${subscription.holderName} (Cartão #${subscription.subscriptionCode}) e gostaria de incluir um dependente pagante no meu plano Lessa Club.`
+                          )}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="shrink-0"
+                        >
+                          <Button size="sm" variant="outline" className="border-emerald-600 text-emerald-800 hover:bg-emerald-50 font-bold text-xs h-8">
+                            <MessageCircle className="w-3.5 h-3.5 mr-1.5" /> Falar no WhatsApp
+                          </Button>
+                        </a>
                       </div>
                     </div>
                   )}

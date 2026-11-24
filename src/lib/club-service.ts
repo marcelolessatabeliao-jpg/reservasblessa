@@ -656,7 +656,10 @@ export const resolveSubscriptionInactivityStatus = (sub: ClubSubscription): Club
   );
   const hasOverdue = overdueInvoices.length > 0;
 
-  // Verifica se há dependente ou titular com documento pendente de envio ou rejeitado
+  // Verifica se o titular ou dependentes possuem documento pendente de envio, em análise ou rejeitado
+  const titularMember =
+    (sub.members || []).find((m) => m.role === 'TITULAR') || (sub.members || [])[0];
+  const holderMissingDoc = titularMember ? isMemberBlockedForMissingDoc(titularMember, sub) : false;
   const hasMissingDoc = (sub.members || []).some((m) => isMemberBlockedForMissingDoc(m, sub));
 
   const isReasonFinance =
@@ -681,8 +684,9 @@ export const resolveSubscriptionInactivityStatus = (sub: ClubSubscription): Club
 
   // Se o plano está inativo por mensalidade, documento ou ambos:
   if (sub.status === 'INACTIVE' || isCombined || isReasonFinance || isReasonDocs || hasFinancialDebt) {
-    if (!hasFinancialDebt && !hasMissingDoc) {
-      // AMBOS RESOLVIDOS! Mensalidades pagas e documentos em dia: Libera o plano e membros imediatamente
+    if (!hasFinancialDebt && !holderMissingDoc) {
+      // Titular regularizado (mensalidades em dia e doc do titular OK):
+      // Libera a assinatura e o titular; dependentes com comprovação pendente/em análise continuam bloqueados individualmente!
       return {
         ...sub,
         status: 'ACTIVE',
@@ -692,19 +696,26 @@ export const resolveSubscriptionInactivityStatus = (sub: ClubSubscription): Club
         inactivityNotes: undefined,
         transferCompleted: true,
         manuallyConfirmedTransfer: true,
-        members: sub.members.map((m) => ({
-          ...m,
-          status: 'ACTIVE',
-          inactivityReason: undefined,
-          inactivityReasons: undefined,
-          inactivityNotes: undefined,
-        })),
+        members: sub.members.map((m) => {
+          const depBlocked = isMemberBlockedForMissingDoc(m, {
+            ...sub,
+            inactivityReason: undefined,
+            inactivityReasons: undefined,
+          });
+          return {
+            ...m,
+            status: depBlocked ? 'INACTIVE' : 'ACTIVE',
+            inactivityReason: depBlocked ? 'FALTA_DOCUMENTOS' : undefined,
+            inactivityReasons: depBlocked ? ['FALTA_DOCUMENTOS'] : undefined,
+            inactivityNotes: depBlocked ? m.inactivityNotes : undefined,
+          };
+        }),
         updatedAt: new Date().toISOString(),
       };
     }
 
-    if (!hasFinancialDebt && hasMissingDoc) {
-      // Mensalidades em dia, mas ainda falta documento
+    if (!hasFinancialDebt && holderMissingDoc) {
+      // Mensalidades em dia, mas ainda falta documento do titular
       return {
         ...sub,
         status: 'INACTIVE',
@@ -5487,9 +5498,25 @@ export const verifyMemberProofDocument = async (
     member.documentRejectionReason = undefined;
     member.documentVerifiedAt = new Date().toISOString();
     member.documentVerifiedBy = 'Administrador';
+    // Se a assinatura do titular está ativa e este integrante (ex: dependente TEA/Kids/60+) estava inativo aguardando validação documental, ativa-o imediatamente!
+    if (
+      sub.status === 'ACTIVE' &&
+      member.status !== 'ACTIVE' &&
+      (!member.inactivityReason || member.inactivityReason === 'FALTA_DOCUMENTOS')
+    ) {
+      member.status = 'ACTIVE';
+      member.inactivityReason = undefined;
+      member.inactivityReasons = undefined;
+      member.inactivityNotes = undefined;
+    }
   } else if (rejectionReason) {
     member.documentStatus = 'REJEITADO';
     member.documentRejectionReason = rejectionReason;
+    if (member.role === 'DEPENDENTE') {
+      member.status = 'INACTIVE';
+      member.inactivityReason = 'FALTA_DOCUMENTOS';
+      member.inactivityReasons = ['FALTA_DOCUMENTOS'];
+    }
   } else {
     member.documentStatus = memberHasProofUploaded(member, sub) ? 'EM_ANALISE' : 'PENDENTE_ANEXO';
   }
@@ -7207,13 +7234,300 @@ export interface SaveSocioDependentSlotInput {
 }
 
 /**
+ * Determina se um cadastro de titular permite vincular/adicionar dependentes no Admin e no Portal do Sócio.
+ * TODOS os planos pagos (Lessa Club, Professor Pass, Servidor Pass, Student Pass, Parceiro, Duo, Família Personalizado)
+ * bem como Lessa Family e Corporate Pass permitem vincular dependentes (ex: filho com TEA/PCD, Kids, Vitalício 60+, etc.).
+ * Apenas cadastros avulsos isentos/sem plano (Kids avulso, PCD/TEA avulso, Vitalício 60+ avulso ou Sem Plano) não recebem dependentes — eles são transferíveis para um titular.
+ */
+export const doesSubscriptionAllowDependents = (
+  subOrPlan?: Partial<ClubSubscription> | string | null
+): boolean => {
+  if (!subOrPlan) return false;
+  if (typeof subOrPlan === 'string') {
+    const p = subOrPlan.toLowerCase().trim();
+    if (!p || p === '-' || p === '- r$ 0,00' || p.includes('sem plano') || p === 'sem_plano') {
+      return false;
+    }
+    if (
+      p.includes('professor') ||
+      p.includes('servidor') ||
+      p.includes('student') ||
+      p.includes('estudante') ||
+      p.includes('parceiro') ||
+      p.includes('lessa club') ||
+      p.includes('duo') ||
+      p.includes('family') ||
+      p.includes('familia') ||
+      p.includes('família') ||
+      p.includes('corporate') ||
+      p.includes('publicidade') ||
+      p.includes('pessoas') ||
+      /\d+\s*x\s+/i.test(p) ||
+      p === 'adulto'
+    ) {
+      return true;
+    }
+    return false;
+  }
+
+  const sub = subOrPlan;
+  const titular = (sub.members || []).find((m) => m.role === 'TITULAR') || (sub.members || [])[0];
+  const titCode = (titular?.modalityCode || '').toUpperCase();
+
+  // Qualquer plano pago por valor mensal ou anual
+  if ((sub.monthlyEquivalent && sub.monthlyEquivalent > 0) || (sub.totalContractValue && sub.totalContractValue > 0)) {
+    return true;
+  }
+
+  // Modalidades pagas ou familiares/corporativas mesmo se isentas/cortesia
+  if (
+    ['ADULTO', 'PROFESSOR', 'SERVIDOR', 'ESTUDANTE', 'PARCEIRO', 'PUBLICIDADE', 'CORPORATE'].includes(titCode)
+  ) {
+    return true;
+  }
+
+  if (sub.contractType === 'FAMILY_PUBLICIDADE') {
+    return true;
+  }
+
+  return doesSubscriptionAllowDependents(sub.planSummaryLabel || titular?.modalityName || titCode);
+};
+
+export const SOCIO_PORTAL_FREE_DEPENDENT_MODALITIES = ['PCD_TEA', 'KIDS', 'IDOSO_60'] as const;
+export type SocioPortalFreeDependentModality = (typeof SOCIO_PORTAL_FREE_DEPENDENT_MODALITIES)[number];
+
+/**
+ * Calcula o próximo número de cartão único varrendo o estado atual e `public.club_records` (com paginação .range()).
+ */
+const allocateNextClubCardNumber = async (
+  currentState: ClubDatabaseState
+): Promise<{ cardNumber: string; nextSeq: number }> => {
+  let nextSeq = Number(currentState.lastCardSequence || 3015);
+  const bumpSeq = (code?: string | null) => {
+    const m = String(code || '').match(/^121225(\d+)$/);
+    if (m) {
+      const n = parseInt(m[1], 10);
+      if (!isNaN(n) && n < 90000 && n > nextSeq) nextSeq = n;
+    }
+  };
+  (currentState.subscriptions || []).forEach((s) => {
+    bumpSeq(s.subscriptionCode);
+    (s.members || []).forEach((mem) => bumpSeq(mem.cardNumber));
+  });
+  try {
+    for (let from = 0; from < 50000; from += 1000) {
+      const { data: latestCodes, error } = await (supabase.from as any)('club_records')
+        .select('subscription_code')
+        .order('subscription_code', { ascending: true })
+        .range(from, from + 999);
+      if (error || !Array.isArray(latestCodes) || latestCodes.length === 0) break;
+      latestCodes.forEach((row: any) => bumpSeq(row?.subscription_code));
+      if (latestCodes.length < 1000) break;
+    }
+  } catch {}
+  nextSeq += 1;
+  return {
+    cardNumber: `121225${String(nextSeq).padStart(4, '0')}`,
+    nextSeq,
+  };
+};
+
+export interface AddSocioDependentWithProofInput {
+  subscriptionId: string;
+  modalityCode: SocioPortalFreeDependentModality;
+  fullName: string;
+  cpf: string;
+  birthDate: string;
+  kinship?: string;
+  photoFile?: File | null;
+  documentFile: File;
+}
+
+/**
+ * Permite ao titular de qualquer plano pago (Lessa Club, Professor, Servidor, Student, Parceiro, Family)
+ * cadastrar/vincular um dependente com benefício gratuito (PCD/TEA, Kids até 11 anos ou Vitalício 60+)
+ * diretamente pelo Portal do Sócio, mediante envio obrigatório de documento comprobatório.
+ * O dependente fica INATIVO ("EM_ANALISE") até validação da administração, sem afetar o titular ativo.
+ */
+export const addSocioDependentWithProof = async (
+  input: AddSocioDependentWithProofInput
+): Promise<{ state: ClubDatabaseState; subscription: ClubSubscription; member: ClubMember }> => {
+  const currentState = memoryClubState || (await fetchClubState());
+  const subIdx = currentState.subscriptions.findIndex((s) => s.id === input.subscriptionId);
+  if (subIdx < 0) {
+    throw new Error('Assinatura não encontrada na base de dados.');
+  }
+
+  const sub = currentState.subscriptions[subIdx];
+  if (!doesSubscriptionAllowDependents(sub)) {
+    throw new Error('Este cadastro não está habilitado para inclusão de dependentes pelo portal.');
+  }
+
+  if (!SOCIO_PORTAL_FREE_DEPENDENT_MODALITIES.includes(input.modalityCode)) {
+    throw new Error('Modalidade não permitida para inclusão direta pelo Portal do Sócio.');
+  }
+
+  const cleanName = input.fullName.trim().toUpperCase();
+  if (cleanName.length < 3) {
+    throw new Error('Informe o nome completo do dependente.');
+  }
+  const cleanCpfDigits = cleanDigits(input.cpf);
+  if (cleanCpfDigits.length !== 11 || !isValidCpf(cleanCpfDigits)) {
+    throw new Error('Informe um CPF válido (11 dígitos) para o dependente.');
+  }
+  const cleanBirth = input.birthDate.trim();
+  if (cleanDigits(cleanBirth).length !== 8) {
+    throw new Error('Informe a data de nascimento completa (DD/MM/AAAA) do dependente.');
+  }
+  if (!input.documentFile) {
+    throw new Error('É obrigatório anexar o documento comprobatório para solicitar a ativação do dependente.');
+  }
+
+  const alreadyExists = (sub.members || []).some(
+    (m) =>
+      (m.cpf && cleanDigits(m.cpf) === cleanCpfDigits) ||
+      m.fullName.trim().toUpperCase() === cleanName
+  );
+  if (alreadyExists) {
+    throw new Error('Este dependente (CPF ou nome) já está vinculado ao seu cadastro.');
+  }
+
+  const mod =
+    (currentState.modalities || DEFAULT_CLUB_MODALITIES).find((m) => m.code === input.modalityCode) ||
+    DEFAULT_CLUB_MODALITIES.find((m) => m.code === input.modalityCode) ||
+    DEFAULT_CLUB_MODALITIES[0];
+
+  const nowIso = new Date().toISOString();
+  const { cardNumber: memberCardNumber, nextSeq } = await allocateNextClubCardNumber(currentState);
+  const memberId =
+    typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `mem-dep-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+
+  // 1. Upload da Foto 3x4 para Supabase Storage (`club-files`)
+  let resolvedPhotoUrl = '';
+  if (input.photoFile) {
+    const compressed = await compressImageFile(input.photoFile, 700, 700, 0.8);
+    const uploadedPhoto = await uploadClubFileToStorage(
+      sub.subscriptionCode,
+      compressed,
+      `foto_${memberCardNumber}_${input.photoFile.name || '3x4.jpg'}`,
+      'image/jpeg'
+    );
+    resolvedPhotoUrl = uploadedPhoto?.publicUrl || compressed;
+  }
+
+  // 2. Upload obrigatório do comprovante para `club-files` + `public.club_attachments`
+  const isPdf =
+    input.documentFile.type === 'application/pdf' ||
+    input.documentFile.name.toLowerCase().endsWith('.pdf');
+  const rawDataUrl = isPdf
+    ? await fileToDataUrl(input.documentFile)
+    : await compressImageFile(input.documentFile, 1280, 1280, 0.82);
+
+  const uploadedDoc = await uploadClubFileToStorage(
+    sub.subscriptionCode,
+    rawDataUrl,
+    `doc_${memberCardNumber}_${input.documentFile.name}`,
+    isPdf ? 'application/pdf' : 'image/jpeg'
+  );
+  const finalDocUrl = uploadedDoc?.publicUrl || rawDataUrl;
+  const newAtt: ClubAttachment = {
+    id: `att_dep_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    name: `${cleanName} — ${input.documentFile.name}`,
+    mimeType: isPdf ? 'application/pdf' : 'image/jpeg',
+    dataUrl: finalDocUrl,
+    createdAt: nowIso,
+  };
+  await saveClubAttachmentAtomic(sub.subscriptionCode, sub.id, memberId, newAtt);
+
+  const kidsExpDate = mod.code === 'KIDS' ? calculateKidsExpirationDate(cleanBirth) : undefined;
+  const effectiveExpDate = kidsExpDate || sub.endDate;
+  const effectiveValLabel = getValidityLabelFromDate(
+    effectiveExpDate,
+    sub.validityLabel || '11/2027'
+  );
+
+  // Dependente inicia INATIVO (em análise documental) até validação da administração — titular permanece ATIVO!
+  const newMember: ClubMember = {
+    id: memberId,
+    subscriptionId: sub.id,
+    role: 'DEPENDENTE',
+    modalityCode: mod.code,
+    modalityName: mod.name,
+    planCycleLabel: mod.name,
+    fullName: cleanName,
+    cpf: formatCpf(cleanCpfDigits),
+    rg: '',
+    birthDate: cleanBirth,
+    sex: '',
+    phone: sub.holderPhone,
+    photoUrl: resolvedPhotoUrl || undefined,
+    documentProofUrl: finalDocUrl,
+    documentProofName: input.documentFile.name,
+    documentVerified: false,
+    documentStatus: 'EM_ANALISE',
+    attachments: [newAtt],
+    cardNumber: memberCardNumber,
+    holderCardNumber: sub.subscriptionCode,
+    qrToken: `LC-${memberCardNumber}`,
+    frontCardUrl: mod.dependentFrontCardUrl || mod.frontCardUrl,
+    backCardUrl: mod.dependentBackCardUrl || mod.backCardUrl,
+    validityLabel: effectiveValLabel,
+    expirationDate: effectiveExpDate,
+    expirationNotes:
+      mod.code === 'KIDS'
+        ? 'Expira ao completar 12 anos (transição para plano pago)'
+        : mod.code === 'PCD_TEA'
+        ? 'Dependente Lessa Inclusão (PCD/TEA) — aguardando validação do laudo/CIPTEA'
+        : 'Dependente Vitalício 60+ — aguardando validação de RG/CNH',
+    kinship: (input.kinship || (mod.code === 'KIDS' ? 'Filho(a)' : 'Dependente')).trim(),
+    monthlyValue: 0,
+    status: 'INACTIVE',
+    inactivityReason: 'FALTA_DOCUMENTOS',
+    inactivityReasons: ['FALTA_DOCUMENTOS'],
+    inactivityNotes: 'Dependente cadastrado pelo Portal do Sócio — aguardando validação do comprovante pela administração.',
+    createdAt: nowIso,
+  };
+
+  const mergedSubAttachments = mergeAttachmentsSafely(sub.attachments, [newAtt]);
+
+  const updatedSub: ClubSubscription = {
+    ...sub,
+    members: [...(sub.members || []), newMember],
+    attachments: mergedSubAttachments,
+    isModifiedFromSeed: true,
+    updatedAt: nowIso,
+  };
+  updatedSub.contractContentHtml = renderSubscriptionContractHtml(
+    updatedSub,
+    currentState.contractTemplates
+  );
+
+  await saveMemberPermanentDocs(updatedSub.subscriptionCode, updatedSub, 'SOCIO_ADD_DEPENDENT');
+
+  const nextState: ClubDatabaseState = {
+    ...currentState,
+    lastCardSequence: Math.max(currentState.lastCardSequence || 3015, nextSeq),
+    subscriptions: currentState.subscriptions.map((s) => (s.id === updatedSub.id ? updatedSub : s)),
+  };
+  const savedState = await saveClubState(nextState, { waitForCloud: true });
+
+  return {
+    state: savedState,
+    subscription: updatedSub,
+    member: newMember,
+  };
+};
+
+/**
  * Permite ao próprio sócio cadastrar ou atualizar os dados de uma vaga de dependente
  * já contratada no seu plano (com foto 3x4 e documento obrigatório salvos no Supabase Storage `club-files` + `club_records`).
  */
 export const saveSocioDependentSlot = async (
   input: SaveSocioDependentSlotInput
 ): Promise<{ state: ClubDatabaseState; subscription: ClubSubscription; member: ClubMember }> => {
-  const currentState = await fetchClubState();
+  const currentState = memoryClubState || (await fetchClubState());
   const subIdx = currentState.subscriptions.findIndex((s) => s.id === input.subscriptionId);
   if (subIdx < 0) {
     throw new Error('Assinatura não encontrada na base de dados.');
@@ -7253,25 +7567,9 @@ export const saveSocioDependentSlot = async (
   let memberCardNumber = existingMember?.cardNumber || '';
   let nextSeq = Number(currentState.lastCardSequence || 3015);
   if (!memberCardNumber) {
-    const bumpSeq = (code?: string | null) => {
-      const m = String(code || '').match(/^121225(\d+)$/);
-      if (m) {
-        const n = parseInt(m[1], 10);
-        if (!isNaN(n) && n < 90000 && n > nextSeq) nextSeq = n;
-      }
-    };
-    (currentState.subscriptions || []).forEach((s) => {
-      bumpSeq(s.subscriptionCode);
-      (s.members || []).forEach((mem) => bumpSeq(mem.cardNumber));
-    });
-    try {
-      const { data: latestCodes } = await (supabase.from as any)('club_records').select('subscription_code');
-      if (Array.isArray(latestCodes)) {
-        latestCodes.forEach((row: any) => bumpSeq(row?.subscription_code));
-      }
-    } catch {}
-    nextSeq += 1;
-    memberCardNumber = `121225${String(nextSeq).padStart(4, '0')}`;
+    const allocated = await allocateNextClubCardNumber(currentState);
+    memberCardNumber = allocated.cardNumber;
+    nextSeq = allocated.nextSeq;
   }
 
   const memberId =
@@ -7381,11 +7679,28 @@ export const saveSocioDependentSlot = async (
       ? mod.annualInstallment
       : mod.monthlyPrice,
     status:
-      docRule.requiresDocument && !hasAnyRealDoc
+      docRule.requiresDocument &&
+      (!hasAnyRealDoc ||
+        ((uploadedNewDoc || !existingMember?.documentVerified) &&
+          (mod.isFreeTier || existingMember?.inactivityReason === 'FALTA_DOCUMENTOS')))
         ? 'INACTIVE'
         : sub.status === 'ACTIVE'
         ? 'ACTIVE'
         : sub.status,
+    inactivityReason:
+      docRule.requiresDocument &&
+      (!hasAnyRealDoc ||
+        ((uploadedNewDoc || !existingMember?.documentVerified) &&
+          (mod.isFreeTier || existingMember?.inactivityReason === 'FALTA_DOCUMENTOS')))
+        ? 'FALTA_DOCUMENTOS'
+        : existingMember?.inactivityReason,
+    inactivityReasons:
+      docRule.requiresDocument &&
+      (!hasAnyRealDoc ||
+        ((uploadedNewDoc || !existingMember?.documentVerified) &&
+          (mod.isFreeTier || existingMember?.inactivityReason === 'FALTA_DOCUMENTOS')))
+        ? ['FALTA_DOCUMENTOS']
+        : existingMember?.inactivityReasons,
     createdAt: existingMember?.createdAt || nowIso,
   };
 
