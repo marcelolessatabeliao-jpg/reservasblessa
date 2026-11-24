@@ -4081,9 +4081,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     memberId: string
   ) => {
     if (!state) return;
-    const targetMember = sub.members.find((m) => m.id === memberId);
+    const latestSub = (state.subscriptions || []).find((s) => s.id === sub.id) || sub;
+    const targetMember = (latestSub.members || []).find((m) => m.id === memberId);
     if (!targetMember) return;
 
+    const nowIso = new Date().toISOString();
     const depCard = targetMember.cardNumber || String(Date.now());
     const newIndSub: ClubSubscription = {
       id: `sub-labcard-${depCard}`,
@@ -4093,8 +4095,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       holderCpf: targetMember.cpf || '',
       holderBirthDate: targetMember.birthDate || '',
       holderPhone: targetMember.phone || '',
-      addressCity: sub.addressCity || 'Porto Velho',
-      addressState: sub.addressState || 'RO',
+      addressCity: latestSub.addressCity || 'Porto Velho',
+      addressState: latestSub.addressState || 'RO',
       billingCycle: 'MONTHLY',
       paymentMethod: 'PIX',
       installments: 1,
@@ -4102,16 +4104,18 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       totalContractValue: 0,
       dueDay: 10,
       status: targetMember.status === 'ACTIVE' ? 'ACTIVE' : 'PENDING_TRANSFER',
-      origin: sub.origin || 'IMPORT_LABCARD',
+      origin: latestSub.origin || 'IMPORT_LABCARD',
       planSummaryLabel: 'Sem Plano - R$ 0,00',
-      notes: `Cadastro individual desvinculado de ${sub.holderName} (#${sub.subscriptionCode})`,
+      notes: `Cadastro individual desvinculado de ${latestSub.holderName} (#${latestSub.subscriptionCode})`,
       contractType: 'ADESAO_PF',
       contractAccepted: true,
-      startDate: sub.startDate || '2025-01-01',
-      endDate: targetMember.expirationDate || sub.endDate || '2027-10-31',
+      startDate: latestSub.startDate || '2025-01-01',
+      endDate: targetMember.expirationDate || latestSub.endDate || '2027-10-31',
       manualStatusOverride: true,
       transferCompleted: true,
-      transferredAt: new Date().toISOString(),
+      transferredAt: nowIso,
+      isModifiedFromSeed: true,
+      updatedAt: nowIso,
       members: [
         {
           ...targetMember,
@@ -4129,14 +4133,15 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       additionalServices: [],
     };
 
-    const remainingMembers = sub.members.filter((m) => m.id !== memberId);
+    const remainingMembers = (latestSub.members || []).filter((m) => m.id !== memberId);
     const updatedSub: ClubSubscription = {
-      ...sub,
+      ...latestSub,
       members: remainingMembers,
-      updatedAt: new Date().toISOString(),
+      updatedAt: nowIso,
+      isModifiedFromSeed: true,
       manualStatusOverride: true,
       transferCompleted: true,
-      transferredAt: sub.transferredAt || new Date().toISOString(),
+      transferredAt: latestSub.transferredAt || nowIso,
     };
 
     let nextSubs = (state.subscriptions || []).map((s) =>
@@ -4153,10 +4158,22 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       deletedSubscriptionIds: nextDeleted,
     };
 
-    await persist(nextState);
     if (selectedSubForDetail?.id === updatedSub.id) {
       setSelectedSubForDetail(updatedSub);
     }
+
+    await saveMemberPermanentDocs(
+      updatedSub.subscriptionCode || updatedSub.id,
+      updatedSub,
+      'DETACH_DEPENDENT'
+    );
+    await saveMemberPermanentDocs(
+      newIndSub.subscriptionCode,
+      newIndSub,
+      'DETACH_TO_INDIVIDUAL'
+    );
+    await persist(nextState, { waitForCloud: true });
+
     toast({
       title: 'Dependente Desvinculado!',
       description: `${targetMember.fullName} (Cartão #${depCard}) agora possui seu próprio cadastro individual como Titular.`,
