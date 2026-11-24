@@ -1766,6 +1766,7 @@ export const normalizeClubDatabaseState = (
         let invList = Array.isArray(sub.invoices) ? sub.invoices : [];
 
         // ROKSIANE: Restringe EXATAMENTE e EXCLUSIVAMENTE às 12 parcelas oficiais do carnê de dia 05
+        // (preservando status PAID / paidAt / valor atualizados futuramente no Asaas para parcelas 9..12)
         if (
           sub.subscriptionCode === '1212251327' ||
           sub.id === 'sub-labcard-1212251327' ||
@@ -1786,28 +1787,47 @@ export const normalizeClubDatabaseState = (
             { num: 12, ref: '03/2027', due: '2027-03-05', paid: undefined, status: 'PENDING' as const, asaasPaymentId: 'pay_ygqondvffufxs5p2', invoiceUrl: 'https://www.asaas.com/i/ygqondvffufxs5p2', boleto: '783717753578427179', val: 30 },
           ];
 
-          return roksianeOfficial.map((c) => ({
-            id: `inv_asaas_roksiane_${c.num}`,
-            subscriptionId: sub.id,
-            subscriptionCode: '1212251327',
-            holderName: sub.holderName,
-            holderCpf: sub.holderCpf,
-            installmentNumber: c.num,
-            totalInstallments: 12,
-            referenceMonth: c.ref,
-            amount: c.val,
-            dueDate: c.due,
-            paidAt: c.paid,
-            paymentMethod: 'PIX' as const,
-            status: c.status,
-            asaasPaymentId: c.asaasPaymentId,
-            invoiceUrl: c.invoiceUrl,
-            boletoNumber: c.boleto,
-            description: `Lessa Servidor Pass (Mensal) - R$ ${c.val.toFixed(2).replace('.', ',')} (Mensalidade ${c.ref})`,
-            invoiceKind: 'MENSALIDADE' as const,
-            carneGroup: 1,
-            createdAt: '2026-04-04T00:00:00.000Z',
-          }));
+          return roksianeOfficial.map((c) => {
+            const existing = invList.find(
+              (inv) =>
+                inv.asaasPaymentId === c.asaasPaymentId ||
+                inv.id === `inv_asaas_roksiane_${c.num}`
+            );
+            const resolvedStatus =
+              existing?.status === 'PAID' || c.status === 'PAID'
+                ? ('PAID' as const)
+                : existing?.status === 'OVERDUE'
+                ? ('OVERDUE' as const)
+                : c.status;
+            const resolvedAmount =
+              existing && existing.amount > 0 && (resolvedStatus === 'PAID' || existing.amount === c.val)
+                ? existing.amount
+                : c.val;
+            return {
+              id: `inv_asaas_roksiane_${c.num}`,
+              subscriptionId: sub.id,
+              subscriptionCode: '1212251327',
+              holderName: sub.holderName,
+              holderCpf: sub.holderCpf,
+              installmentNumber: c.num,
+              totalInstallments: 12,
+              referenceMonth: c.ref,
+              amount: resolvedAmount,
+              dueDate: existing?.dueDate || c.due,
+              paidAt: resolvedStatus === 'PAID' ? existing?.paidAt || c.paid : undefined,
+              paymentMethod: existing?.paymentMethod || ('PIX' as const),
+              status: resolvedStatus,
+              asaasPaymentId: existing?.asaasPaymentId || c.asaasPaymentId,
+              invoiceUrl: existing?.invoiceUrl || c.invoiceUrl,
+              boletoNumber: existing?.boletoNumber || c.boleto,
+              pixPayload: existing?.pixPayload,
+              pixQrCode: existing?.pixQrCode,
+              description: `Lessa Servidor Pass (Mensal) - R$ ${c.val.toFixed(2).replace('.', ',')} (Mensalidade ${c.ref})`,
+              invoiceKind: 'MENSALIDADE' as const,
+              carneGroup: 1,
+              createdAt: '2026-04-04T00:00:00.000Z',
+            };
+          });
         }
 
         // JADIA: Mantém as 4 parcelas do Carnê 1 e garante o Carnê 4 com a parcela anual de R$ 200 quitada à vista
@@ -1893,9 +1913,16 @@ export const normalizeClubDatabaseState = (
           });
         }
 
-        // ATUALIZAÇÃO GERAL 2027: Ajusta parcelas de 2027 com os novos valores para todos os cadastros
+        // ATUALIZAÇÃO GERAL 2027: Ajusta parcelas EM ABERTO de 2027 com os novos valores
+        // (NUNCA altera faturas já PAGAS nem reservas avulsas, e mantém o texto da descrição coerente com o valor)
         return invList.map((inv) => {
-          if (inv.dueDate && inv.dueDate >= '2027-01-01' && sub.billingCycle !== 'ANNUAL') {
+          if (
+            inv.dueDate &&
+            inv.dueDate >= '2027-01-01' &&
+            sub.billingCycle !== 'ANNUAL' &&
+            inv.status !== 'PAID' &&
+            !isClubInvoiceReservation(inv)
+          ) {
             const desc = (inv.description || '').toLowerCase();
             const planSumm = (sub.planSummaryLabel || '').toLowerCase();
             let newAmount = inv.amount;
@@ -1912,9 +1939,15 @@ export const normalizeClubDatabaseState = (
               newAmount = 59.90;
             }
 
+            const formattedNew = newAmount.toFixed(2).replace('.', ',');
+            const syncedDesc = inv.description
+              ? inv.description.replace(/-\s*R\$\s*\d+[.,]\d{2}/i, `- R$ ${formattedNew}`)
+              : inv.description;
+
             return {
               ...inv,
               amount: newAmount,
+              description: syncedDesc,
             };
           }
           return inv;
@@ -3773,6 +3806,38 @@ const memberCardNumberFormat = (num: string): string => num;
 // ============================================================================
 // INTEGRAÇÃO REAL COM ASAAS (PIX QR CODE + CARTÃO CRÉDITO / DÉBITO)
 // ============================================================================
+const invokeEdgeFunctionWithTimeout = async (
+  name: string,
+  options: { body: any },
+  timeoutMs = 30000
+): Promise<any> => {
+  let timeoutId: any;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(`Tempo limite de ${timeoutMs / 1000}s atingido na comunicação com o gateway.`));
+    }, timeoutMs);
+  });
+
+  try {
+    const result: any = await Promise.race([
+      supabase.functions.invoke(name, options),
+      timeoutPromise,
+    ]);
+    if (result?.error && (result.error as any).context) {
+      try {
+        const text = await (result.error as any).context.text();
+        const json = JSON.parse(text);
+        if (json?.error) {
+          result.error.message = json.error;
+        }
+      } catch (_) {}
+    }
+    return result;
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+};
+
 export const generateAsaasChargeForClubInvoice = async (
   subscription: ClubSubscription,
   invoice: ClubInvoice,
@@ -3783,9 +3848,18 @@ export const generateAsaasChargeForClubInvoice = async (
   invoiceUrl: string;
   pixPayload?: string;
   pixQrCode?: string;
+  isPaid?: boolean;
+  status?: string;
+  deleted?: boolean;
+  value?: number;
+  originalValue?: number;
+  interestValue?: number;
+  paidAt?: string;
+  dueDate?: string;
+  pixError?: string;
 }> => {
   // SE A FATURA JÁ POSSUI COBRANÇA NO ASAAS (paymentId ou invoiceUrl) E NÃO ESTÁ TROCANDO DE MÉTODO,
-  // reutiliza a cobrança original do Asaas e busca seu QR Code / link oficial
+  // reutiliza a cobrança original do Asaas e busca seu QR Code / link oficial (SEM varrer o banco inteiro!)
   const existingPaymentId =
     !options?.forceNew
       ? invoice.asaasPaymentId ||
@@ -3794,42 +3868,96 @@ export const generateAsaasChargeForClubInvoice = async (
 
   if (!options?.forceNew && (existingPaymentId || invoice.invoiceUrl)) {
     try {
-      const { data, error } = await supabase.functions.invoke('create-payment', {
-        body: {
-          action: 'get-pix-qr-code',
-          paymentId: existingPaymentId,
-          invoiceUrl: invoice.invoiceUrl,
+      const { data, error } = await invokeEdgeFunctionWithTimeout(
+        'create-payment',
+        {
+          body: {
+            action: 'get-pix-qr-code',
+            paymentId: existingPaymentId,
+            invoiceUrl: invoice.invoiceUrl,
+          },
         },
-      });
+        18000
+      );
 
       if (!error && data?.success && data.data) {
         const paymentData = data.data;
-        const state = await fetchClubState();
-        const subIdx = state.subscriptions.findIndex((s) => s.id === subscription.id);
-        if (subIdx >= 0) {
-          let targetSub = state.subscriptions[subIdx];
-          const invIdx = targetSub.invoices.findIndex((inv) => inv.id === invoice.id);
-          if (invIdx >= 0) {
-            const invObj = targetSub.invoices[invIdx];
-            invObj.asaasPaymentId = paymentData.paymentId || existingPaymentId;
-            invObj.invoiceUrl = paymentData.invoiceUrl || invoice.invoiceUrl;
-            if (paymentData.pix) {
-              invObj.pixPayload = paymentData.pix.payload;
-              invObj.pixQrCode = paymentData.pix.encodedImage;
+        const resolvedPaymentId = paymentData.paymentId || existingPaymentId || '';
+        const resolvedInvoiceUrl = paymentData.invoiceUrl || invoice.invoiceUrl || '';
+        const resolvedPixPayload = paymentData.pix?.payload || invoice.pixPayload;
+        const resolvedPixQrCode = paymentData.pix?.encodedImage || invoice.pixQrCode;
+        const resolvedValue =
+          paymentData.value !== undefined && Number(paymentData.value) > 0
+            ? Number(paymentData.value)
+            : invoice.amount;
+        const resolvedPaidAt = paymentData.paidAt || invoice.paidAt || new Date().toISOString();
+
+        // Atualiza em memória imediatamente (sem fazer fetchClubState de 2.657 linhas!)
+        // e só grava na nuvem (1 linha em club_records) se houve mudança real (ex: já estava PAGA no Asaas)
+        const currentState = memoryClubState;
+        if (currentState) {
+          const subIdx = currentState.subscriptions.findIndex((s) => s.id === subscription.id);
+          if (subIdx >= 0) {
+            let targetSub = {
+              ...currentState.subscriptions[subIdx],
+              invoices: [...(currentState.subscriptions[subIdx].invoices || [])],
+            };
+            const invIdx = targetSub.invoices.findIndex((inv) => inv.id === invoice.id);
+            if (invIdx >= 0) {
+              const prevInv = targetSub.invoices[invIdx];
+              const nextInv: ClubInvoice = {
+                ...prevInv,
+                asaasPaymentId: resolvedPaymentId || prevInv.asaasPaymentId,
+                invoiceUrl: resolvedInvoiceUrl || prevInv.invoiceUrl,
+                amount: resolvedValue,
+                dueDate: paymentData.dueDate || prevInv.dueDate,
+                ...(resolvedPixPayload ? { pixPayload: resolvedPixPayload } : {}),
+                ...(resolvedPixQrCode ? { pixQrCode: resolvedPixQrCode } : {}),
+              };
+              const becamePaid = Boolean(paymentData.isPaid && prevInv.status !== 'PAID');
+              if (paymentData.isPaid) {
+                nextInv.status = 'PAID';
+                nextInv.paidAt = resolvedPaidAt;
+              }
+              targetSub.invoices[invIdx] = nextInv;
+              if (becamePaid) {
+                targetSub = resolveSubscriptionInactivityStatus(targetSub);
+                targetSub.updatedAt = new Date().toISOString();
+                targetSub.isModifiedFromSeed = true;
+              }
+              currentState.subscriptions[subIdx] = targetSub;
+              memoryClubState = currentState;
+
+              if (becamePaid) {
+                // Grava apenas o registro individual em club_records (nunca armazena base64 de QR no Postgres)
+                const cleanSubForDb: ClubSubscription = {
+                  ...targetSub,
+                  invoices: targetSub.invoices.map((i) => ({ ...i, pixQrCode: undefined })),
+                };
+                void saveMemberPermanentDocs(
+                  targetSub.subscriptionCode,
+                  cleanSubForDb,
+                  'ASAAS_PIX_MODAL_PAID_SYNC'
+                );
+              }
             }
-            if (paymentData.isPaid) {
-              invObj.status = 'PAID';
-              invObj.paidAt = invObj.paidAt || new Date().toISOString();
-            }
-            await saveClubState(state, { waitForCloud: true });
           }
         }
 
         return {
-          paymentId: paymentData.paymentId || existingPaymentId || '',
-          invoiceUrl: paymentData.invoiceUrl || invoice.invoiceUrl || '',
-          pixPayload: paymentData.pix?.payload || invoice.pixPayload,
-          pixQrCode: paymentData.pix?.encodedImage || invoice.pixQrCode,
+          paymentId: resolvedPaymentId,
+          invoiceUrl: resolvedInvoiceUrl,
+          pixPayload: resolvedPixPayload,
+          pixQrCode: resolvedPixQrCode,
+          isPaid: Boolean(paymentData.isPaid),
+          status: paymentData.status,
+          deleted: Boolean(paymentData.deleted),
+          value: resolvedValue,
+          originalValue: paymentData.originalValue,
+          interestValue: paymentData.interestValue,
+          paidAt: paymentData.isPaid ? resolvedPaidAt : undefined,
+          dueDate: paymentData.dueDate || invoice.dueDate,
+          pixError: paymentData.pixError || undefined,
         };
       }
     } catch (err) {
@@ -3920,17 +4048,21 @@ export const generateAsaasChargeForClubInvoice = async (
     paymentRequestBody.installmentValue = Number((chargeValue / annualCreditInstallments).toFixed(2));
   }
 
-  const { data, error } = await supabase.functions.invoke('create-payment', {
-    body: paymentRequestBody,
-  });
+  const { data, error } = await invokeEdgeFunctionWithTimeout(
+    'create-payment',
+    {
+      body: paymentRequestBody,
+    },
+    25000
+  );
 
   if (error || !data?.success) {
     throw new Error(data?.error || error?.message || 'Não foi possível gerar a cobrança no Asaas.');
   }
 
   const paymentData = data.data;
-  // Salva os dados na fatura e ativa/vincula na assinatura (garantindo que a assinatura nunca seja omitida)
-  const state = await fetchClubState();
+  // Salva os dados na fatura e ativa/vincula na assinatura (sem varrer o banco inteiro!)
+  const state = memoryClubState || (await fetchClubState());
   let subIdx = state.subscriptions.findIndex((s) => s.id === subscription.id);
   if (subIdx < 0) {
     state.subscriptions = [{ ...subscription, isModifiedFromSeed: true }, ...state.subscriptions];
@@ -3950,7 +4082,11 @@ export const generateAsaasChargeForClubInvoice = async (
       targetSub.invoices[invIdx].pixQrCode = paymentData.pix.encodedImage;
     }
   }
-  await saveMemberPermanentDocs(targetSub.subscriptionCode, targetSub, 'ASAAS_CHARGE_CREATED');
+  const cleanSubForDb: ClubSubscription = {
+    ...targetSub,
+    invoices: targetSub.invoices.map((i) => ({ ...i, pixQrCode: undefined })),
+  };
+  await saveMemberPermanentDocs(targetSub.subscriptionCode, cleanSubForDb, 'ASAAS_CHARGE_CREATED');
   await saveClubState(state, { waitForCloud: true });
 
   return {
@@ -3958,6 +4094,8 @@ export const generateAsaasChargeForClubInvoice = async (
     invoiceUrl: paymentData.invoiceUrl,
     pixPayload: paymentData.pix?.payload,
     pixQrCode: paymentData.pix?.encodedImage,
+    isPaid: Boolean(paymentData.isPaid),
+    status: paymentData.status,
   };
 };
 
@@ -3990,35 +4128,68 @@ export const syncSubscriptionInvoicesWithAsaas = async (
   subscriptionIdOrSub: string | ClubSubscription
 ): Promise<{ state: ClubDatabaseState; updatedSub: ClubSubscription | null; syncedCount: number }> => {
   const subId = typeof subscriptionIdOrSub === 'string' ? subscriptionIdOrSub : subscriptionIdOrSub.id;
-  const state = await fetchClubState();
+  const state = memoryClubState || (await fetchClubState());
   const subIdx = state.subscriptions.findIndex((s) => s.id === subId);
   if (subIdx < 0) return { state, updatedSub: null, syncedCount: 0 };
 
-  let targetSub = state.subscriptions[subIdx];
+  let targetSub = {
+    ...state.subscriptions[subIdx],
+    invoices: [...(state.subscriptions[subIdx].invoices || [])],
+  };
   const cleanCpf = cleanDigits(targetSub.holderCpf);
   if (!cleanCpf || cleanCpf.length !== 11) {
     return { state, updatedSub: targetSub, syncedCount: 0 };
   }
 
   try {
-    const { data, error } = await supabase.functions.invoke('create-payment', {
-      body: {
-        action: 'list-customer-charges',
-        cpf: cleanCpf,
+    const { data, error } = await invokeEdgeFunctionWithTimeout(
+      'create-payment',
+      {
+        body: {
+          action: 'list-customer-charges',
+          cpf: cleanCpf,
+        },
       },
-    });
+      15000
+    );
 
     if (error || !data || !Array.isArray(data.payments) || data.payments.length === 0) {
       return { state, updatedSub: targetSub, syncedCount: 0 };
     }
 
-    const rawPayments: any[] = data.payments.filter((p: any) => !p.deleted);
+    const isRoksiane =
+      targetSub.subscriptionCode === '1212251327' ||
+      targetSub.id === 'sub-labcard-1212251327' ||
+      (targetSub.holderName && targetSub.holderName.toUpperCase().includes('ROKSIANE'));
+
+    const rawPayments: any[] = data.payments.filter((p: any) => {
+      if (p.deleted) return false;
+      // Roksiane: ignora cobrança histórica avulsa de 23/01/2026 com vencimento placeholder 31/12/2026 (fora do carnê de dia 05)
+      if (isRoksiane && p.id === 'pay_5wjefb0hffyhtx0p') return false;
+      return true;
+    });
     // Ordena as cobranças por data de vencimento crescente
     const sortedPayments = [...rawPayments].sort((a, b) =>
       (a.dueDate || '').localeCompare(b.dueDate || '')
     );
 
     const existingInvoices = [...(targetSub.invoices || [])];
+    const beforeFingerprint = JSON.stringify({
+      status: targetSub.status,
+      endDate: targetSub.endDate,
+      invoices: existingInvoices.map((i) => ({
+        id: i.id,
+        asaasPaymentId: i.asaasPaymentId,
+        status: i.status,
+        amount: i.amount,
+        dueDate: i.dueDate,
+        paidAt: i.paidAt,
+        description: i.description,
+        invoiceUrl: i.invoiceUrl,
+        notes: i.notes,
+      })),
+    });
+
     const existingByAsaasId = new Map<string, ClubInvoice>();
     existingInvoices.forEach((inv) => {
       if (inv.asaasPaymentId) existingByAsaasId.set(inv.asaasPaymentId, inv);
@@ -4054,11 +4225,27 @@ export const syncSubscriptionInvoicesWithAsaas = async (
         );
       }
 
+      const asaasValue = Number(p.value) || 0;
+      const origValue = p.originalValue !== undefined && p.originalValue !== null ? Number(p.originalValue) : 0;
+      const hasLateInterest = origValue > 0 && asaasValue > origValue + 0.005;
+      const interestNote = hasLateInterest
+        ? `Valor original R$ ${origValue.toFixed(2).replace('.', ',')} + R$ ${(asaasValue - origValue).toFixed(2).replace('.', ',')} multa/juros Asaas`
+        : undefined;
+
       if (matchIdx >= 0) {
         const existing = updatedInvoices[matchIdx];
+        const nextAmount = asaasValue > 0 ? asaasValue : existing.amount;
+        // Se o valor do plano mudou oficialmente (ex: reajuste 2027 para R$ 30,00 sem juros), alinha também o texto "- R$ XX,XX" da descrição
+        let nextDesc = existing.description;
+        if (nextDesc && !hasLateInterest && nextAmount > 0) {
+          nextDesc = nextDesc.replace(
+            /-\s*R\$\s*\d+[.,]\d{2}/i,
+            `- R$ ${nextAmount.toFixed(2).replace('.', ',')}`
+          );
+        }
         updatedInvoices[matchIdx] = {
           ...existing,
-          amount: Number(p.value) || existing.amount,
+          amount: nextAmount,
           dueDate: p.dueDate || existing.dueDate,
           paidAt: isPaid
             ? p.paymentDate || p.clientPaymentDate || existing.paidAt || `${p.dueDate}T12:00:00.000Z`
@@ -4068,10 +4255,13 @@ export const syncSubscriptionInvoicesWithAsaas = async (
           asaasPaymentId: p.id,
           invoiceUrl: p.invoiceUrl || existing.invoiceUrl,
           boletoNumber: p.nossoNumero || p.bankSlipUrl || existing.boletoNumber,
+          description: nextDesc,
+          ...(interestNote ? { notes: interestNote } : {}),
         };
       } else {
         const existing = existingByAsaasId.get(p.id);
         const rawFirstLine = String(p.description || '').split('\n')[0].trim();
+        const finalVal = asaasValue || targetSub.monthlyEquivalent || 25;
         updatedInvoices.push({
           id: existing?.id || `inv_asaas_${p.id}`,
           subscriptionId: targetSub.id,
@@ -4082,7 +4272,7 @@ export const syncSubscriptionInvoicesWithAsaas = async (
           installmentNumber: idx + 1,
           totalInstallments: Math.max(clubPayments.length, existingInvoices.filter((i) => !isClubInvoiceReservation(i)).length, 1),
           referenceMonth: refMonth,
-          amount: Number(p.value) || targetSub.monthlyEquivalent || 25,
+          amount: finalVal,
           dueDate: p.dueDate,
           paidAt: isPaid ? p.paymentDate || p.clientPaymentDate || `${p.dueDate}T12:00:00.000Z` : undefined,
           paymentMethod: p.billingType === 'BOLETO' ? 'BOLETO' : p.billingType === 'PIX' ? 'PIX' : 'CREDIT_CARD',
@@ -4090,7 +4280,10 @@ export const syncSubscriptionInvoicesWithAsaas = async (
           asaasPaymentId: p.id,
           invoiceUrl: p.invoiceUrl,
           boletoNumber: p.nossoNumero || p.bankSlipUrl,
-          description: rawFirstLine || `${targetSub.planSummaryLabel || 'Lessa Club'} (Mensalidade ${refMonth})`,
+          description: rawFirstLine
+            ? `${rawFirstLine} (Mensalidade ${refMonth})`
+            : `${targetSub.planSummaryLabel || 'Lessa Club'} (Mensalidade ${refMonth})`,
+          ...(interestNote ? { notes: interestNote } : {}),
           invoiceKind: 'MENSALIDADE',
           carneGroup: 1,
           createdAt: p.dateCreated ? `${p.dateCreated}T00:00:00.000Z` : targetSub.createdAt,
@@ -4160,7 +4353,6 @@ export const syncSubscriptionInvoicesWithAsaas = async (
     const syncedInvoices = dedupedInvoices;
 
     // Se o Administrador já definiu uma data de vigência no Lessa Club (ex: 2026-12-30), PRESERVA INTEGRALMENTE a data do Admin!
-    // A decisão soberana do administrador no Lessa Club sempre prevalece sobre estimativas automáticas.
     if (!targetSub.endDate || targetSub.endDate === '2027-10-31') {
       const lastDue = sortedPayments[sortedPayments.length - 1]?.dueDate;
       if (lastDue) {
@@ -4185,10 +4377,36 @@ export const syncSubscriptionInvoicesWithAsaas = async (
 
     targetSub = resolveSubscriptionInactivityStatus(targetSub);
 
+    const afterFingerprint = JSON.stringify({
+      status: targetSub.status,
+      endDate: targetSub.endDate,
+      invoices: (targetSub.invoices || []).map((i) => ({
+        id: i.id,
+        asaasPaymentId: i.asaasPaymentId,
+        status: i.status,
+        amount: i.amount,
+        dueDate: i.dueDate,
+        paidAt: i.paidAt,
+        description: i.description,
+        invoiceUrl: i.invoiceUrl,
+        notes: i.notes,
+      })),
+    });
+
+    // Evita escrita desnecessária no Supabase quando nada mudou no Asaas (protege CPU/IOPS!)
+    if (beforeFingerprint === afterFingerprint) {
+      const normalizedCurrent = state.subscriptions[subIdx];
+      return { state, updatedSub: normalizedCurrent, syncedCount: normalizedCurrent.invoices.length };
+    }
+
     targetSub.updatedAt = new Date().toISOString();
-    state.subscriptions[subIdx] = targetSub;
-    const saved = await saveClubState(state, { waitForCloud: true });
-    return { state: saved, updatedSub: targetSub, syncedCount: syncedInvoices.length };
+    targetSub.isModifiedFromSeed = true;
+    const nextSubs = [...state.subscriptions];
+    nextSubs[subIdx] = targetSub;
+    const saved = await saveClubState({ ...state, subscriptions: nextSubs }, { waitForCloud: true });
+    // Retorna SEMPRE o cadastro normalizado para garantir 100% de consistência entre Admin e Portal do Sócio
+    const normalizedSub = saved.subscriptions.find((s) => s.id === targetSub.id) || targetSub;
+    return { state: saved, updatedSub: normalizedSub, syncedCount: normalizedSub.invoices.length };
   } catch (err) {
     console.warn('[ClubService] Erro ao sincronizar faturas com o Asaas:', err);
     return { state, updatedSub: targetSub, syncedCount: 0 };
@@ -4269,38 +4487,6 @@ export interface EmitCarneMonthlyChargesParams {
   cardLast4?: string;
   onProgress?: (current: number, total: number, message: string) => void;
 }
-
-const invokeEdgeFunctionWithTimeout = async (
-  name: string,
-  options: { body: any },
-  timeoutMs = 30000
-): Promise<any> => {
-  let timeoutId: any;
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    timeoutId = setTimeout(() => {
-      reject(new Error(`Tempo limite de ${timeoutMs / 1000}s atingido na comunicação com o gateway.`));
-    }, timeoutMs);
-  });
-
-  try {
-    const result: any = await Promise.race([
-      supabase.functions.invoke(name, options),
-      timeoutPromise,
-    ]);
-    if (result?.error && (result.error as any).context) {
-      try {
-        const text = await (result.error as any).context.text();
-        const json = JSON.parse(text);
-        if (json?.error) {
-          result.error.message = json.error;
-        }
-      } catch (_) {}
-    }
-    return result;
-  } finally {
-    if (timeoutId) clearTimeout(timeoutId);
-  }
-};
 
 export const emitCarneMonthlyChargesInAsaas = async (
   params: EmitCarneMonthlyChargesParams
@@ -4715,7 +4901,7 @@ export const checkClubInvoicePaymentStatus = async (
   subscriptionId: string,
   invoiceId: string
 ): Promise<boolean> => {
-  const state = await fetchClubState();
+  const state = memoryClubState || (await fetchClubState());
   const sub = state.subscriptions.find((s) => s.id === subscriptionId);
   const inv = sub?.invoices.find((i) => i.id === invoiceId);
   if (!sub || !inv) return false;
@@ -4727,11 +4913,37 @@ export const checkClubInvoicePaymentStatus = async (
 
   if (paymentId) {
     try {
-      const { data } = await supabase.functions.invoke('check-payment', {
-        body: { paymentId, orderId: inv.id },
-      });
-      if (data?.isPaid || data?.status === 'RECEIVED' || data?.status === 'CONFIRMED') {
-        await markClubInvoicePaid(subscriptionId, invoiceId, { waitForCloud: true });
+      const { data } = await invokeEdgeFunctionWithTimeout(
+        'check-payment',
+        {
+          body: { paymentId, orderId: inv.id },
+        },
+        15000
+      );
+      if (
+        data?.isPaid ||
+        data?.status === 'RECEIVED' ||
+        data?.status === 'CONFIRMED' ||
+        data?.status === 'RECEIVED_IN_CASH'
+      ) {
+        const asaasPay = data?.data;
+        const paidMethod: ClubPaymentMethod =
+          asaasPay?.billingType === 'BOLETO'
+            ? 'BOLETO'
+            : asaasPay?.billingType === 'CREDIT_CARD'
+            ? 'CREDIT_CARD'
+            : 'PIX';
+        await markClubInvoicePaid(subscriptionId, invoiceId, paidMethod, {
+          paidAt:
+            asaasPay?.paymentDate ||
+            asaasPay?.clientPaymentDate ||
+            asaasPay?.confirmedDate ||
+            new Date().toISOString(),
+          amount:
+            asaasPay?.value !== undefined && Number(asaasPay.value) > 0
+              ? Number(asaasPay.value)
+              : undefined,
+        });
         return true;
       }
     } catch (e) {
@@ -5141,7 +5353,7 @@ export const markClubInvoicePaid = async (
     notes?: string;
   }
 ): Promise<ClubDatabaseState> => {
-  const state = await fetchClubState();
+  const state = memoryClubState || (await fetchClubState());
   const sub = state.subscriptions.find((s) => s.id === subscriptionId);
   if (sub) {
     const inv = sub.invoices.find((i) => i.id === invoiceId);
@@ -5171,11 +5383,17 @@ export const markClubInvoicePaid = async (
     }
     sub.manualStatusOverride = true;
     sub.transferCompleted = true;
+    sub.isModifiedFromSeed = true;
     // Atualiza contrato oficial gerado com a confirmação de quitação / pagamento
     sub.contractContentHtml = renderSubscriptionContractHtml(sub, state.contractTemplates);
     sub.updatedAt = new Date().toISOString();
+    const cleanSubForDb: ClubSubscription = {
+      ...sub,
+      invoices: sub.invoices.map((i) => ({ ...i, pixQrCode: undefined })),
+    };
+    await saveMemberPermanentDocs(sub.subscriptionCode, cleanSubForDb, 'MARK_INVOICE_PAID');
   }
-  return saveClubState(state);
+  return saveClubState(state, { waitForCloud: true });
 };
 
 export const attachMemberProofDocument = async (

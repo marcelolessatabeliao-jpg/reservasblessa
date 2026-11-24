@@ -108,11 +108,26 @@ Deno.serve(async (req) => {
       });
       const payData = payReq.ok ? await payReq.json() : null;
 
-      // Busca QR Code PIX
-      const pixReq = await fetch(`${ASAAS_URL}/payments/${targetPaymentId}/pixQrCode`, {
-        headers: { 'access_token': ASAAS_API_KEY },
-      });
-      const pixData = await pixReq.json();
+      const isPaid =
+        payData?.status === 'CONFIRMED' ||
+        payData?.status === 'RECEIVED' ||
+        payData?.status === 'RECEIVED_IN_CASH';
+      const isDeleted = Boolean(payData?.deleted);
+
+      // Busca QR Code PIX apenas se a cobrança ainda estiver em aberto e não excluída
+      let pixOk = false;
+      let pixData: any = null;
+      let pixError: string | null = null;
+      if (!isPaid && !isDeleted) {
+        const pixReq = await fetch(`${ASAAS_URL}/payments/${targetPaymentId}/pixQrCode`, {
+          headers: { 'access_token': ASAAS_API_KEY },
+        });
+        pixOk = pixReq.ok;
+        pixData = await pixReq.json().catch(() => null);
+        if (!pixOk) {
+          pixError = pixData?.errors?.[0]?.description || `HTTP ${pixReq.status}`;
+        }
+      }
 
       return new Response(JSON.stringify({
         success: true,
@@ -120,12 +135,20 @@ Deno.serve(async (req) => {
           paymentId: targetPaymentId,
           invoiceUrl: payData?.invoiceUrl,
           status: payData?.status,
-          isPaid: payData?.status === 'CONFIRMED' || payData?.status === 'RECEIVED',
-          pix: pixReq.ok && pixData ? {
+          isPaid,
+          deleted: isDeleted,
+          value: payData?.value !== undefined ? Number(payData.value) : undefined,
+          originalValue: payData?.originalValue !== undefined && payData?.originalValue !== null ? Number(payData.originalValue) : undefined,
+          interestValue: payData?.interestValue !== undefined && payData?.interestValue !== null ? Number(payData.interestValue) : undefined,
+          dueDate: payData?.dueDate,
+          paidAt: payData?.paymentDate || payData?.clientPaymentDate || payData?.confirmedDate || undefined,
+          billingType: payData?.billingType,
+          pix: pixOk && pixData ? {
             encodedImage: pixData.encodedImage,
             payload: pixData.payload,
             expirationDate: pixData.expirationDate,
           } : null,
+          pixError,
         },
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });
     }

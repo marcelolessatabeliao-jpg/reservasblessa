@@ -76,8 +76,13 @@ Deno.serve(async (req) => {
           if (paidMatch) {
             inv.status = 'PAID';
             inv.asaasPaymentId = paidMatch.id;
-            inv.paidAt = paidMatch.confirmedDate || paidMatch.paymentDate || paidMatch.clientPaymentDate || nowIso;
-            inv.paymentMethod = paidMatch.billingType || inv.paymentMethod || 'PIX';
+            inv.paidAt = paidMatch.paymentDate || paidMatch.clientPaymentDate || paidMatch.confirmedDate || nowIso;
+            if (paidMatch.value && Number(paidMatch.value) > 0) {
+              inv.amount = Number(paidMatch.value);
+            }
+            if (paidMatch.billingType) {
+              inv.paymentMethod = paidMatch.billingType === 'BOLETO' ? 'BOLETO' : paidMatch.billingType === 'CREDIT_CARD' ? 'CREDIT_CARD' : 'PIX';
+            }
             subHasNewlyPaidInvoice = true;
             updatedCount++;
           }
@@ -518,8 +523,14 @@ Deno.serve(async (req) => {
             if (matches || matchesSubUnified) {
               if (inv.status !== 'PAID') {
                 inv.status = 'PAID';
-                inv.paidAt = nowIso;
+                inv.paidAt = asaasData?.paymentDate || asaasData?.clientPaymentDate || asaasData?.confirmedDate || nowIso;
                 inv.asaasPaymentId = externalId;
+                if (asaasData?.value && Number(asaasData.value) > 0) {
+                  inv.amount = Number(asaasData.value);
+                }
+                if (asaasData?.billingType) {
+                  inv.paymentMethod = asaasData.billingType === 'BOLETO' ? 'BOLETO' : asaasData.billingType === 'CREDIT_CARD' ? 'CREDIT_CARD' : 'PIX';
+                }
                 subInvoicePaid = true;
                 changed = true;
               }
@@ -592,34 +603,47 @@ Deno.serve(async (req) => {
           if (crPage.length < 1000) break;
         }
 
-        const { data: settingsRow } = await supabaseAdmin
-          .from('site_settings')
-          .select('value')
-          .eq('key', 'lessa_club_ecosystem_v1')
-          .maybeSingle();
+        // Só toca no espelho legado `site_settings` se o cadastro NÃO foi encontrado em `club_records`
+        if (updatedSingleMap.size === 0) {
+          const { data: settingsRow } = await supabaseAdmin
+            .from('site_settings')
+            .select('value')
+            .eq('key', 'lessa_club_ecosystem_v1')
+            .maybeSingle();
 
-        if (settingsRow?.value && Array.isArray(settingsRow.value.subscriptions) && settingsRow.value.subscriptions.length > 0) {
-          const clubState = settingsRow.value;
-          let clubUpdated = false;
+          if (settingsRow?.value && Array.isArray(settingsRow.value.subscriptions) && settingsRow.value.subscriptions.length > 0) {
+            const clubState = settingsRow.value;
+            let clubUpdated = false;
 
-          for (let idx = 0; idx < clubState.subscriptions.length; idx += 1) {
-            const sub = clubState.subscriptions[idx];
-            const code = String(sub.subscriptionCode || sub.id || '').trim();
-            if (code && updatedSingleMap.has(code)) {
-              clubState.subscriptions[idx] = updatedSingleMap.get(code);
-              clubUpdated = true;
-              continue;
+            for (let idx = 0; idx < clubState.subscriptions.length; idx += 1) {
+              const sub = clubState.subscriptions[idx];
+              if (applySinglePaymentToSub(sub)) {
+                clubUpdated = true;
+                const code = String(sub.subscriptionCode || sub.id || '').trim();
+                if (code) {
+                  await supabaseAdmin.from('club_records').upsert(
+                    {
+                      subscription_code: code,
+                      subscription_id: sub.id || code,
+                      holder_name: sub.holderName || '',
+                      holder_cpf: sub.holderCpf || '',
+                      status: sub.status || 'ACTIVE',
+                      payload: sub,
+                      updated_at: nowIso,
+                      updated_by: 'CHECK_PAYMENT_SINGLE',
+                    },
+                    { onConflict: 'subscription_code' }
+                  );
+                }
+              }
             }
-            if (applySinglePaymentToSub(sub)) {
-              clubUpdated = true;
-            }
-          }
 
-          if (clubUpdated) {
-            await supabaseAdmin
-              .from('site_settings')
-              .update({ value: clubState, updated_at: nowIso })
-              .eq('key', 'lessa_club_ecosystem_v1');
+            if (clubUpdated) {
+              await supabaseAdmin
+                .from('site_settings')
+                .update({ value: clubState, updated_at: nowIso })
+                .eq('key', 'lessa_club_ecosystem_v1');
+            }
           }
         }
       } catch (clubErr) {

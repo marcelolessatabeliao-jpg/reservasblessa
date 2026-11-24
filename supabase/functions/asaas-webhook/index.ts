@@ -127,10 +127,13 @@ Deno.serve(async (req) => {
             if (matchesInvoice || matchesSubUnified) {
               if (inv.status !== 'PAID') {
                 inv.status = 'PAID';
-                inv.paidAt = payment.clientPaymentDate || payment.confirmedDate || payment.paymentDate || new Date().toISOString();
+                inv.paidAt = payment.paymentDate || payment.clientPaymentDate || payment.confirmedDate || new Date().toISOString();
                 inv.asaasPaymentId = externalId;
+                if (payment.value && Number(payment.value) > 0) {
+                  inv.amount = Number(payment.value);
+                }
                 if (payment.billingType) {
-                  inv.paymentMethod = payment.billingType === 'BOLETO' ? 'BOLETO' : payment.billingType === 'CREDIT_CARD' ? 'CARTAO' : 'PIX';
+                  inv.paymentMethod = payment.billingType === 'BOLETO' ? 'BOLETO' : payment.billingType === 'CREDIT_CARD' ? 'CREDIT_CARD' : 'PIX';
                 }
                 subInvoicePaid = true;
                 changed = true;
@@ -219,52 +222,49 @@ Deno.serve(async (req) => {
           if (crPage.length < 1000) break;
         }
 
-        // 5B. Espelho legado em `site_settings` (apenas se contiver assinaturas)
-        const { data: settingsRow } = await supabaseAdmin
-          .from('site_settings')
-          .select('value')
-          .eq('key', 'lessa_club_ecosystem_v1')
-          .maybeSingle();
+        // 5B. Espelho legado em `site_settings` (apenas se não encontrado em `club_records`)
+        if (updatedByCode.size === 0) {
+          const { data: settingsRow } = await supabaseAdmin
+            .from('site_settings')
+            .select('value')
+            .eq('key', 'lessa_club_ecosystem_v1')
+            .maybeSingle();
 
-        if (settingsRow?.value && Array.isArray(settingsRow.value.subscriptions) && settingsRow.value.subscriptions.length > 0) {
-          const clubState = settingsRow.value;
-          let clubUpdated = false;
+          if (settingsRow?.value && Array.isArray(settingsRow.value.subscriptions) && settingsRow.value.subscriptions.length > 0) {
+            const clubState = settingsRow.value;
+            let clubUpdated = false;
 
-          for (let idx = 0; idx < clubState.subscriptions.length; idx += 1) {
-            const sub = clubState.subscriptions[idx];
-            const code = String(sub.subscriptionCode || sub.id || '').trim();
-            if (code && updatedByCode.has(code)) {
-              clubState.subscriptions[idx] = updatedByCode.get(code);
-              clubUpdated = true;
-              continue;
-            }
-            const res = applyPaymentToSub(sub);
-            if (res.changed) {
-              clubUpdated = true;
-              if (code && !updatedByCode.has(code)) {
-                await supabaseAdmin.from('club_records').upsert(
-                  {
-                    subscription_code: code,
-                    subscription_id: sub.id || code,
-                    holder_name: sub.holderName || '',
-                    holder_cpf: sub.holderCpf || '',
-                    status: sub.status || 'ACTIVE',
-                    payload: sub,
-                    updated_at: nowIso,
-                    updated_by: 'ASAAS_WEBHOOK_PAYMENT',
-                  },
-                  { onConflict: 'subscription_code' }
-                );
+            for (let idx = 0; idx < clubState.subscriptions.length; idx += 1) {
+              const sub = clubState.subscriptions[idx];
+              const code = String(sub.subscriptionCode || sub.id || '').trim();
+              const res = applyPaymentToSub(sub);
+              if (res.changed) {
+                clubUpdated = true;
+                if (code) {
+                  await supabaseAdmin.from('club_records').upsert(
+                    {
+                      subscription_code: code,
+                      subscription_id: sub.id || code,
+                      holder_name: sub.holderName || '',
+                      holder_cpf: sub.holderCpf || '',
+                      status: sub.status || 'ACTIVE',
+                      payload: sub,
+                      updated_at: nowIso,
+                      updated_by: 'ASAAS_WEBHOOK_PAYMENT',
+                    },
+                    { onConflict: 'subscription_code' }
+                  );
+                }
               }
             }
-          }
 
-          if (clubUpdated) {
-            await supabaseAdmin
-              .from('site_settings')
-              .update({ value: clubState, updated_at: nowIso })
-              .eq('key', 'lessa_club_ecosystem_v1');
-            console.log('[asaas-webhook] Mirrored updated club state to site_settings');
+            if (clubUpdated) {
+              await supabaseAdmin
+                .from('site_settings')
+                .update({ value: clubState, updated_at: nowIso })
+                .eq('key', 'lessa_club_ecosystem_v1');
+              console.log('[asaas-webhook] Mirrored updated club state to site_settings');
+            }
           }
         }
       } catch (clubErr) {

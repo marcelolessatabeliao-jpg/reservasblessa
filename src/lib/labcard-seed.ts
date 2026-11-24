@@ -535,18 +535,18 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
         });
       } else if (upName.includes('ELSA BUENO') || holderCard === '1212251781') {
         const elsaCarnes = [
-          { num: 1, ref: '02/2026', due: '2026-02-20', paid: '2026-02-19T10:00:00.000Z', status: 'PAID' as const, asaasPaymentId: 'pay_76sve9lhfkclynmg', invoiceUrl: 'https://www.asaas.com/i/76sve9lhfkclynmg', amount: 25 },
-          { num: 2, ref: '03/2026', due: '2026-03-20', paid: '2026-03-10T10:00:00.000Z', status: 'PAID' as const, asaasPaymentId: 'pay_scwdc8qy9rwlfj2l', invoiceUrl: 'https://www.asaas.com/i/scwdc8qy9rwlfj2l', amount: 25 },
-          { num: 3, ref: '04/2026', due: '2026-04-20', paid: '2026-04-20T10:00:00.000Z', status: 'PAID' as const, asaasPaymentId: 'pay_n24oa640uprr4a2v', invoiceUrl: 'https://www.asaas.com/i/n24oa640uprr4a2v', amount: 25 },
-          { num: 4, ref: '05/2026', due: '2026-05-20', paid: '2026-05-31T10:00:00.000Z', status: 'PAID' as const, asaasPaymentId: 'pay_lwk7mxqubjhgonva', invoiceUrl: 'https://www.asaas.com/i/lwk7mxqubjhgonva', amount: 25 },
-          { num: 5, ref: '06/2026', due: '2026-06-20', paid: '2026-06-20T10:00:00.000Z', status: 'PAID' as const, asaasPaymentId: 'pay_qe3uo1sxbax1y998', invoiceUrl: 'https://www.asaas.com/i/qe3uo1sxbax1y998', amount: 25 },
-          { num: 6, ref: '07/2026', due: '2026-07-20', paid: '2026-07-12T10:00:00.000Z', status: 'PAID' as const, asaasPaymentId: 'pay_n3ssnqkolzjpxy6b', invoiceUrl: 'https://www.asaas.com/i/n3ssnqkolzjpxy6b', amount: 25 },
-          { num: 7, ref: '08/2026', due: '2026-08-20', paid: '2026-09-13T10:00:00.000Z', status: 'PAID' as const, asaasPaymentId: 'pay_tu55p66gftwzxv9a', invoiceUrl: 'https://www.asaas.com/i/tu55p66gftwzxv9a', amount: 25 },
-          { num: 8, ref: '09/2026', due: '2026-09-20', paid: '2026-09-27T10:00:00.000Z', status: 'PAID' as const, asaasPaymentId: 'pay_wq824m1ocjwb4rh2', invoiceUrl: 'https://www.asaas.com/i/wq824m1ocjwb4rh2', amount: 25.36 },
-          { num: 9, ref: '10/2026', due: '2026-10-10', paid: undefined, status: 'OVERDUE' as const, asaasPaymentId: 'pay_6pnijr32q176lic6', invoiceUrl: 'https://www.asaas.com/i/6pnijr32q176lic6', amount: 25 },
-          { num: 10, ref: '11/2026', due: '2026-11-10', paid: undefined, status: 'OVERDUE' as const, asaasPaymentId: 'pay_8aa9qpvtvoqd8ebb', invoiceUrl: 'https://www.asaas.com/i/8aa9qpvtvoqd8ebb', amount: 25 },
-          { num: 11, ref: '12/2026', due: '2026-12-10', paid: undefined, status: 'PENDING' as const, asaasPaymentId: 'pay_o58qntvl6bzgbl28', invoiceUrl: 'https://www.asaas.com/i/o58qntvl6bzgbl28', amount: 25 },
-          { num: 12, ref: '01/2027', due: '2027-01-10', paid: undefined, status: 'PENDING' as const, asaasPaymentId: 'pay_njoas2na5toab364', invoiceUrl: 'https://www.asaas.com/i/njoas2na5toab364', amount: 30 },
+          { num: 1, ref: '02/2026', due: '2026-02-20', paid: '2026-02-19T10:00:00.000Z', status: 'PAID' as const, asaasPaymentId: 'pay_76sve9lhfkclynmg', invoiceUrl: 'https://www.asaas.com/i/76sve9lhfkclynmg', amount: 25, baseLabel: '25,00' },
+          { num: 2, ref: '03/2026', due: '2026-03-20', paid: '2026-03-10T10:00:00.000Z', status: 'PAID' as const, asaasPaymentId: 'pay_scwdc8qy9rwlfj2l', invoiceUrl: 'https://www.asaas.com/i/scwdc8qy9rwlfj2l', amount: 25, baseLabel: '25,00' },
+          { num: 3, ref: '04/2026', due: '2026-04-20', paid: '2026-04-20T10:00:00.000Z', status: 'PAID' as const, asaasPaymentId: 'pay_n24oa640uprr4a2v', invoiceUrl: 'https://www.asaas.com/i/n24oa640uprr4a2v', amount: 25, baseLabel: '25,00' },
+          { num: 4, ref: '05/2026', due: '2026-05-20', paid: '2026-05-31T10:00:00.000Z', status: 'PAID' as const, asaasPaymentId: 'pay_lwk7mxqubjhgonva', invoiceUrl: 'https://www.asaas.com/i/lwk7mxqubjhgonva', amount: 25, baseLabel: '25,00' },
+          { num: 5, ref: '06/2026', due: '2026-06-20', paid: '2026-06-20T10:00:00.000Z', status: 'PAID' as const, asaasPaymentId: 'pay_qe3uo1sxbax1y998', invoiceUrl: 'https://www.asaas.com/i/qe3uo1sxbax1y998', amount: 25, baseLabel: '25,00' },
+          { num: 6, ref: '07/2026', due: '2026-07-20', paid: '2026-07-12T10:00:00.000Z', status: 'PAID' as const, asaasPaymentId: 'pay_n3ssnqkolzjpxy6b', invoiceUrl: 'https://www.asaas.com/i/n3ssnqkolzjpxy6b', amount: 25, baseLabel: '25,00' },
+          { num: 7, ref: '08/2026', due: '2026-08-20', paid: '2026-09-13T10:00:00.000Z', status: 'PAID' as const, asaasPaymentId: 'pay_tu55p66gftwzxv9a', invoiceUrl: 'https://www.asaas.com/i/tu55p66gftwzxv9a', amount: 25, baseLabel: '25,00' },
+          { num: 8, ref: '09/2026', due: '2026-09-20', paid: '2026-09-27T10:00:00.000Z', status: 'PAID' as const, asaasPaymentId: 'pay_wq824m1ocjwb4rh2', invoiceUrl: 'https://www.asaas.com/i/wq824m1ocjwb4rh2', amount: 25.36, baseLabel: '25,00' },
+          { num: 9, ref: '10/2026', due: '2026-10-10', paid: '2026-11-24T10:00:00.000Z', status: 'PAID' as const, asaasPaymentId: 'pay_6pnijr32q176lic6', invoiceUrl: 'https://www.asaas.com/i/6pnijr32q176lic6', amount: 26, baseLabel: '25,00' },
+          { num: 10, ref: '11/2026', due: '2026-11-10', paid: '2026-11-24T15:00:00.000Z', status: 'PAID' as const, asaasPaymentId: 'pay_8aa9qpvtvoqd8ebb', invoiceUrl: 'https://www.asaas.com/i/8aa9qpvtvoqd8ebb', amount: 25.48, baseLabel: '25,00' },
+          { num: 11, ref: '12/2026', due: '2026-12-10', paid: undefined, status: 'PENDING' as const, asaasPaymentId: 'pay_o58qntvl6bzgbl28', invoiceUrl: 'https://www.asaas.com/i/o58qntvl6bzgbl28', amount: 25, baseLabel: '25,00' },
+          { num: 12, ref: '01/2027', due: '2027-01-10', paid: undefined, status: 'PENDING' as const, asaasPaymentId: 'pay_njoas2na5toab364', invoiceUrl: 'https://www.asaas.com/i/njoas2na5toab364', amount: 30, baseLabel: '30,00' },
         ];
         elsaCarnes.forEach((c) => {
           invoices.push({
@@ -566,7 +566,7 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
             status: c.status,
             asaasPaymentId: c.asaasPaymentId,
             invoiceUrl: c.invoiceUrl,
-            description: `${mod.name} (Mensalidade ${c.ref})`,
+            description: `Lessa Servidor Pass (Mensal) - R$ ${c.baseLabel} (Mensalidade ${c.ref})`,
             invoiceKind: 'MENSALIDADE',
             carneGroup: 1,
             createdAt: '2026-02-19T00:00:00.000Z',

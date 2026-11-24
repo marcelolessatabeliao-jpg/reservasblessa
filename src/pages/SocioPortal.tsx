@@ -128,7 +128,21 @@ const SocioPortal: React.FC = () => {
         const found = syncState.subscriptions?.find(
           (s) => s.id === savedSubId || s.subscriptionCode === savedSubId || s.holderCpf === savedSubId
         );
-        if (found) return found;
+        // Se a URL veio com ?cpf= ou ?card= de OUTRO associado (sem direct=1), NÃO restaurar sessão antiga de outra pessoa!
+        if (found) {
+          if (initialCpfOrCard) {
+            const qDigits = cleanDigits(initialCpfOrCard);
+            const matchesSaved =
+              (qDigits && cleanDigits(found.holderCpf) === qDigits) ||
+              (qDigits && cleanDigits(found.subscriptionCode) === qDigits) ||
+              found.members?.some((m) => qDigits && (cleanDigits(m.cpf) === qDigits || cleanDigits(m.cardNumber) === qDigits));
+            if (!matchesSaved) {
+              sessionStorage.removeItem('lessa_socio_sub_id');
+              return null;
+            }
+          }
+          return found;
+        }
       }
     }
     return null;
@@ -413,6 +427,18 @@ const SocioPortal: React.FC = () => {
               (s) => s.id === savedSubId || s.subscriptionCode === savedSubId || s.holderCpf === savedSubId
             );
             if (found) {
+              if (initialCpfOrCard) {
+                const qDigits = cleanDigits(initialCpfOrCard);
+                const matchesSaved =
+                  (qDigits && cleanDigits(found.holderCpf) === qDigits) ||
+                  (qDigits && cleanDigits(found.subscriptionCode) === qDigits) ||
+                  found.members?.some((m) => qDigits && (cleanDigits(m.cpf) === qDigits || cleanDigits(m.cardNumber) === qDigits));
+                if (!matchesSaved) {
+                  sessionStorage.removeItem('lessa_socio_sub_id');
+                  setSubscription(null);
+                  return;
+                }
+              }
               setSubscription(found);
               return;
             }
@@ -775,35 +801,85 @@ const SocioPortal: React.FC = () => {
     setGeneratingPixId(invoice.id);
     try {
       const charge = await generateAsaasChargeForClubInvoice(subscription, invoice, billingType);
-      const refreshedState = await fetchClubState();
-      setState(refreshedState);
-      const refreshedSub =
-        refreshedState.subscriptions.find((s) => s.id === subscription.id) || subscription;
-      setSubscription(refreshedSub);
-      const updatedInv =
-        refreshedSub.invoices.find((i) => i.id === invoice.id) || {
-          ...invoice,
-          asaasPaymentId: charge.paymentId,
-          invoiceUrl: charge.invoiceUrl,
-          pixPayload: charge.pixPayload,
-          pixQrCode: charge.pixQrCode,
-        };
-      setSelectedInvoiceForPix(updatedInv);
-      if (billingType === 'CREDIT_CARD' && charge.invoiceUrl) {
-        window.open(charge.invoiceUrl, '_blank');
-      }
-      toast({
-        title:
-          billingType === 'PIX'
-            ? 'Cobrança PIX gerada com sucesso!'
-            : 'Fatura de Cartão gerada com sucesso!',
+      const latestState = getClubStateSync();
+      setState(latestState);
+
+      const resolvedAmount =
+        charge.value !== undefined && charge.value > 0 ? charge.value : invoice.amount;
+      const interestNote =
+        charge.originalValue && resolvedAmount > charge.originalValue + 0.005
+          ? `Valor original R$ ${charge.originalValue.toFixed(2).replace('.', ',')} + R$ ${(resolvedAmount - charge.originalValue).toFixed(2).replace('.', ',')} multa/juros Asaas`
+          : invoice.notes;
+
+      const updatedInv: ClubInvoice = {
+        ...invoice,
+        asaasPaymentId: charge.paymentId || invoice.asaasPaymentId,
+        invoiceUrl: charge.invoiceUrl || invoice.invoiceUrl,
+        pixPayload: charge.pixPayload || invoice.pixPayload,
+        pixQrCode: charge.pixQrCode || invoice.pixQrCode,
+        amount: resolvedAmount,
+        dueDate: charge.dueDate || invoice.dueDate,
+        ...(interestNote ? { notes: interestNote } : {}),
+        ...(charge.isPaid
+          ? { status: 'PAID' as const, paidAt: charge.paidAt || new Date().toISOString() }
+          : {}),
+      };
+
+      const baseSub = latestState.subscriptions.find((s) => s.id === subscription.id) || subscription;
+      const mergedSub = resolveSubscriptionInactivityStatus({
+        ...baseSub,
+        invoices: baseSub.invoices.map((i) => (i.id === invoice.id ? updatedInv : i)),
       });
+      setSubscription(mergedSub);
+
+      // Se a cobrança JÁ estava paga no Asaas, fecha o modal imediatamente e evita pagamento em duplicidade!
+      if (charge.isPaid) {
+        setSelectedInvoiceForPix(null);
+        toast({
+          title: 'Pagamento já confirmado no Asaas!',
+          description: `A parcela ${invoice.installmentNumber}/${invoice.totalInstallments} já consta como quitada e foi atualizada automaticamente.`,
+        });
+        return;
+      }
+
+      // Se a cobrança foi excluída/cancelada no Asaas, informa claramente em vez de exibir PIX falso
+      if (charge.deleted) {
+        setSelectedInvoiceForPix(updatedInv);
+        toast({
+          title: 'Cobrança cancelada no Asaas',
+          description:
+            'Esta cobrança foi cancelada no Asaas. Fale com o suporte no WhatsApp ou solicite a reemissão à administração.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      setSelectedInvoiceForPix(updatedInv);
+      if (billingType === 'CREDIT_CARD' && updatedInv.invoiceUrl) {
+        window.open(updatedInv.invoiceUrl, '_blank');
+        toast({
+          title: 'Fatura de Cartão aberta com sucesso!',
+        });
+      } else if (billingType === 'PIX' && (updatedInv.pixPayload || updatedInv.pixQrCode)) {
+        toast({
+          title: 'QR Code PIX carregado com sucesso!',
+          description: 'Escaneie o código ou copie o PIX Copia e Cola abaixo.',
+        });
+      } else {
+        toast({
+          title: 'Fatura oficial disponível no Asaas',
+          description:
+            charge.pixError
+              ? `Use o botão "Abrir no Asaas" para concluir o pagamento (${charge.pixError}).`
+              : 'Use o botão "Abrir no Asaas" ou a Chave PIX oficial abaixo para pagar.',
+        });
+      }
     } catch (err: any) {
       console.warn('Erro ao gerar via Asaas, abrindo opções de pagamento oficiais:', err);
       setSelectedInvoiceForPix(invoice);
       toast({
         title: 'Aviso Asaas',
-        description: err?.message || 'Você pode pagar via Chave PIX oficial ou solicitar suporte.',
+        description: err?.message || 'Você pode pagar clicando em "Abrir no Asaas" ou via Chave PIX oficial.',
         variant: 'destructive',
       });
     } finally {
@@ -818,13 +894,16 @@ const SocioPortal: React.FC = () => {
     setCheckingInvoiceId(null);
 
     if (isPaid) {
-      const refreshed = await fetchClubState();
+      const refreshed = getClubStateSync();
       setState(refreshed);
       let refreshedSub = refreshed.subscriptions.find((s) => s.id === subscription.id) || null;
       if (refreshedSub) {
         refreshedSub = resolveSubscriptionInactivityStatus(refreshedSub);
       }
       setSubscription(refreshedSub);
+      if (selectedInvoiceForPix?.id === invoice.id) {
+        setSelectedInvoiceForPix(null);
+      }
       toast({
         title: 'Pagamento confirmado!',
         description: 'Sua assinatura e faturas foram atualizadas com sucesso.',
@@ -3067,6 +3146,11 @@ const SocioPortal: React.FC = () => {
                         >
                           <div className="space-y-1">
                             <div className="flex flex-wrap items-center gap-2">
+                              {!isReservation && inv.installmentNumber > 0 && (
+                                <Badge variant="outline" className="border-slate-300 bg-white text-slate-700 font-black text-[10px]">
+                                  Parcela {inv.installmentNumber}/{inv.totalInstallments || planOnlyInvoices.length}
+                                </Badge>
+                              )}
                               <span className="font-bold text-slate-900">
                                 {inv.description || `Parcela ${inv.installmentNumber}/${inv.totalInstallments}`}
                               </span>
@@ -3104,6 +3188,11 @@ const SocioPortal: React.FC = () => {
                                 </>
                               )}
                             </div>
+                            {!isReservation && inv.notes && /multa\/juros|juros/i.test(inv.notes) && (
+                              <div className="text-[11px] font-semibold text-amber-700">
+                                ℹ️ {inv.notes}
+                              </div>
+                            )}
                           </div>
 
                           <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-between md:justify-end">
@@ -3229,6 +3318,11 @@ const SocioPortal: React.FC = () => {
                             <DialogDescription className="text-xs text-slate-600">
                               {selectedInvoiceForPix.description || 'Mensalidade do Plano Lessa Club'}
                             </DialogDescription>
+                            {selectedInvoiceForPix.notes && /multa\/juros|juros/i.test(selectedInvoiceForPix.notes) && (
+                              <div className="text-[11px] font-semibold text-amber-700 pt-0.5">
+                                ℹ️ {selectedInvoiceForPix.notes}
+                              </div>
+                            )}
                           </DialogHeader>
 
                           {/* Link Direto para a Fatura Oficial no Asaas */}
@@ -3291,11 +3385,16 @@ const SocioPortal: React.FC = () => {
                           {paymentMethodTab === 'PIX' && (
                             <div className="space-y-4 pt-1 text-center">
                               {generatingPixId === selectedInvoiceForPix.id ? (
-                                <div className="py-8 space-y-3 bg-emerald-50/50 rounded-2xl border border-emerald-200">
+                                <div className="py-8 space-y-3 bg-emerald-50/50 rounded-2xl border border-emerald-200 px-4">
                                   <RefreshCw className="w-8 h-8 animate-spin mx-auto text-emerald-600" />
                                   <p className="text-xs font-bold text-emerald-950">
-                                    Gerando cobrança PIX no Asaas...
+                                    Consultando QR Code PIX no Asaas...
                                   </p>
+                                  {selectedInvoiceForPix.invoiceUrl && (
+                                    <p className="text-[11px] text-slate-600">
+                                      Se preferir, você já pode pagar clicando no botão azul <strong>"Abrir no Asaas"</strong> acima.
+                                    </p>
+                                  )}
                                 </div>
                               ) : (
                                 <>
