@@ -7,6 +7,178 @@ import {
   ChaleTermsAcceptanceRecord
 } from '@/components/booking/ChaleTermsModal';
 
+export interface ChaleUnitGuestSplit {
+  chaleId: number;
+  occupancyType: 'casal' | 'individual';
+  adults: number;
+  children: number;
+  adultNames: string[];
+  childNames: { name: string; ageLabel: string; ageGroup: 'under11' | '12plus' }[];
+}
+
+export function parseChaleMetadata(rawMeta: any): Record<string, any> {
+  if (!rawMeta) return {};
+  if (typeof rawMeta === 'string') {
+    try {
+      const parsed = JSON.parse(rawMeta);
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+  return typeof rawMeta === 'object' ? rawMeta : {};
+}
+
+export function extractChaleIdsFromMetadata(rawMeta: any, fallbackText?: string): number[] {
+  const meta = parseChaleMetadata(rawMeta);
+  if (Array.isArray(meta.chale_ids) && meta.chale_ids.length > 0) {
+    const clean = Array.from(
+      new Set(
+        meta.chale_ids
+          .map((id: any) => Number(id))
+          .filter((n: number) => Number.isFinite(n) && n > 0)
+      )
+    );
+    if (clean.length > 0) return clean;
+  }
+  if (meta.chale_id !== undefined && meta.chale_id !== null && meta.chale_id !== '') {
+    const single = Number(meta.chale_id);
+    if (Number.isFinite(single) && single > 0) return [single];
+  }
+  if (fallbackText) {
+    const match = fallbackText.match(/chal[ée]\s*0?(\d+)/i);
+    if (match) {
+      const fromText = Number(match[1]);
+      if (Number.isFinite(fromText) && fromText > 0) return [fromText];
+    }
+  }
+  return [];
+}
+
+export function formatChaleIdsLabel(chaleIds: number[], compact = false): string {
+  const clean = Array.from(new Set((chaleIds || []).map(Number).filter((n) => Number.isFinite(n) && n > 0)));
+  if (clean.length === 0) return 'Chalé 01';
+  const padded = clean.map((id) => String(id).padStart(2, '0'));
+  if (padded.length === 1) return `Chalé ${padded[0]}`;
+  if (compact) return `Chalés ${padded.join(', ')}`;
+  if (padded.length === 2) return `Chalés ${padded[0]} e ${padded[1]}`;
+  return `Chalés ${padded.slice(0, -1).join(', ')} e ${padded[padded.length - 1]}`;
+}
+
+export function splitChaleUnitsFromMetadata(rawMeta: any, fallbackGuestName?: string): ChaleUnitGuestSplit[] {
+  const meta = parseChaleMetadata(rawMeta);
+  const extractedIds = extractChaleIdsFromMetadata(meta);
+  const chaleIds = extractedIds.length > 0 ? extractedIds : [1];
+
+  const occupancies: Record<string, 'casal' | 'individual'> =
+    meta.chale_occupancies && typeof meta.chale_occupancies === 'object' ? meta.chale_occupancies : {};
+  const kidsMap: Record<string, ('under11' | '12plus')[]> =
+    meta.chale_kids && typeof meta.chale_kids === 'object' ? meta.chale_kids : {};
+  const childrenAges: ('under11' | '12plus')[] = Array.isArray(meta.children_ages) ? meta.children_ages : [];
+
+  const rawNames: string[] = Array.isArray(meta.guest_names)
+    ? meta.guest_names.map((n: any) => String(n || '').trim())
+    : meta.guest_names && typeof meta.guest_names === 'object'
+      ? Object.values(meta.guest_names).map((n: any) => String(n || '').trim())
+      : [];
+
+  // Determina a modalidade (casal vs individual) de cada unidade
+  const unitModes: ('casal' | 'individual')[] = chaleIds.map((cId) => {
+    const explicit = occupancies[cId] ?? occupancies[String(cId)];
+    if (explicit === 'individual' || explicit === 'casal') return explicit;
+    if (chaleIds.length === 1) {
+      if (meta.occupancy_type === 'individual' || Number(meta.adults) === 1) return 'individual';
+      return 'casal';
+    }
+    return 'casal';
+  });
+
+  const computedTotalAdults = unitModes.reduce((acc, m) => acc + (m === 'individual' ? 1 : 2), 0);
+  const totalAdultsOffset =
+    chaleIds.length > 1
+      ? computedTotalAdults
+      : Number(meta.adults || computedTotalAdults || 2);
+
+  let adultCursor = 0;
+  let kidCursor = 0;
+
+  const splits: ChaleUnitGuestSplit[] = chaleIds.map((cId, unitIdx) => {
+    const mode = unitModes[unitIdx];
+    const unitAdultsCount = mode === 'individual' ? 1 : 2;
+    const adultNames: string[] = [];
+
+    const name1 = rawNames[adultCursor];
+    if (name1) {
+      adultNames.push(name1);
+    } else if (unitIdx === 0 && fallbackGuestName) {
+      adultNames.push(fallbackGuestName.trim());
+    }
+    adultCursor++;
+
+    if (mode !== 'individual') {
+      const name2 = rawNames[adultCursor];
+      if (name2) {
+        adultNames.push(name2);
+      }
+      adultCursor++;
+    }
+
+    const mappedUnitKids = kidsMap[cId] ?? kidsMap[String(cId)];
+    let unitKidsAges: ('under11' | '12plus')[] = [];
+    if (Array.isArray(mappedUnitKids) && mappedUnitKids.length > 0) {
+      unitKidsAges = mappedUnitKids;
+    } else if (chaleIds.length === 1) {
+      if (childrenAges.length > 0) {
+        unitKidsAges = childrenAges;
+      } else {
+        const declaredKids = Number(meta.children || 0);
+        const trailingNames = rawNames.slice(totalAdultsOffset).filter(Boolean).length;
+        const count = Math.max(declaredKids, trailingNames);
+        unitKidsAges = Array.from({ length: count }, () => 'under11');
+      }
+    }
+
+    const childNames: { name: string; ageLabel: string; ageGroup: 'under11' | '12plus' }[] = [];
+    unitKidsAges.forEach((ageCode, kIdx) => {
+      const kidName = rawNames[totalAdultsOffset + kidCursor] || `Criança ${kIdx + 1}`;
+      const ageGroup: 'under11' | '12plus' = ageCode === '12plus' ? '12plus' : 'under11';
+      childNames.push({
+        name: kidName,
+        ageLabel: ageGroup === '12plus' ? '12+ anos • Filho(a) Hóspede' : 'Até 11 anos • Filho(a) Hóspede',
+        ageGroup
+      });
+      kidCursor++;
+    });
+
+    return {
+      chaleId: cId,
+      occupancyType: mode,
+      adults: unitAdultsCount,
+      children: childNames.length,
+      adultNames,
+      childNames
+    };
+  });
+
+  // Fallback de segurança caso existam crianças declaradas sem chale_kids em reserva multi-unidade
+  const totalDeclaredKids = Math.max(Number(meta.children || 0), childrenAges.length);
+  const assignedKids = splits.reduce((acc, s) => acc + s.childNames.length, 0);
+  if (totalDeclaredKids > assignedKids && splits.length > 0) {
+    for (let idx = assignedKids; idx < totalDeclaredKids; idx++) {
+      const ageCode: 'under11' | '12plus' = childrenAges[idx] === '12plus' ? '12plus' : 'under11';
+      const kidName = rawNames[totalAdultsOffset + idx] || `Criança ${idx + 1}`;
+      splits[0].childNames.push({
+        name: kidName,
+        ageLabel: ageCode === '12plus' ? '12+ anos • Filho(a) Hóspede' : 'Até 11 anos • Filho(a) Hóspede',
+        ageGroup: ageCode
+      });
+      splits[0].children = splits[0].childNames.length;
+    }
+  }
+
+  return splits;
+}
+
 export interface ParsedChaleDetails {
   isHospedagem: boolean;
   chaleIds: number[];
@@ -228,24 +400,13 @@ export function extractChaleDetailsFromOrder(order: any): ParsedChaleDetails | n
 
   if (!chaleItem) return null;
 
-  let meta = chaleItem.metadata;
-  if (typeof meta === 'string') {
-    try {
-      meta = JSON.parse(meta);
-    } catch {
-      meta = {};
-    }
-  }
-  meta = meta || {};
+  const meta = parseChaleMetadata(chaleItem.metadata);
 
-  const chaleIds: number[] = Array.isArray(meta.chale_ids) && meta.chale_ids.length > 0
-    ? meta.chale_ids.map(Number)
-    : meta.chale_id
-      ? [Number(meta.chale_id)]
-      : [1];
+  const extractedIds = extractChaleIdsFromMetadata(meta, `${chaleItem.product_name || ''} ${chaleItem.product_id || ''}`);
+  const chaleIds: number[] = extractedIds.length > 0 ? extractedIds : [1];
 
   const chaleLabel = chaleIds.length > 1
-    ? `Chalés ${chaleIds.map(id => String(id).padStart(2, '0')).join(', ')} (Alvenaria Tradicional)`
+    ? `${formatChaleIdsLabel(chaleIds)} (Alvenaria Tradicional)`
     : `Chalé ${String(chaleIds[0]).padStart(2, '0')} — Alvenaria Tradicional`;
 
   const pkgType = meta.package_type || 'combo-2n-sex-dom';
@@ -260,7 +421,11 @@ export function extractChaleDetailsFromOrder(order: any): ParsedChaleDetails | n
   const occupancies: Record<number, 'casal' | 'individual'> = meta.chale_occupancies || {};
   const kidsMap: Record<number, ('under11' | '12plus')[]> = meta.chale_kids || {};
   const childrenAges: ('under11' | '12plus')[] = Array.isArray(meta.children_ages) ? meta.children_ages : [];
-  const rawNames: string[] = Array.isArray(meta.guest_names) ? meta.guest_names : [];
+  const rawNames: string[] = Array.isArray(meta.guest_names)
+    ? meta.guest_names.map((n: any) => String(n || '').trim())
+    : meta.guest_names && typeof meta.guest_names === 'object'
+      ? Object.values(meta.guest_names).map((n: any) => String(n || '').trim())
+      : [];
 
   const adultsCount = Number(meta.adults || chaleIds.reduce((acc, id) => acc + (occupancies[id] === 'individual' ? 1 : 2), 0) || 2);
   const childrenCount = Number(meta.children || childrenAges.length || 0);

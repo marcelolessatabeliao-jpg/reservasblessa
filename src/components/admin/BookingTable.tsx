@@ -44,6 +44,7 @@ import {
 } from "@/components/ui/popover";
 import { Calendar as CalendarUI } from "@/components/ui/calendar";
 import { formatCurrency } from "@/lib/booking-types";
+import { extractChaleIdsFromMetadata, formatChaleIdsLabel, parseChaleMetadata } from "@/lib/chale-voucher-utils";
 import { BookingDetail } from "./BookingDetail";
 import { VoucherShareDialog } from "./VoucherShareDialog";
 import { Textarea } from "@/components/ui/textarea";
@@ -356,10 +357,11 @@ export function BookingTable({
               const n = ((i.product_name || '') + ' ' + (i.product_id || '')).toLowerCase();
               return n.includes('chalé') || n.includes('chale') || n.includes('hospedagem');
             });
-            let chaleMeta: any = itemChale?.metadata;
-            if (typeof chaleMeta === 'string') { try { chaleMeta = JSON.parse(chaleMeta); } catch(e) { chaleMeta = {}; } }
-            chaleMeta = chaleMeta || {};
-            const chaleId = itemChale ? (chaleMeta.chale_id || (Array.isArray(chaleMeta.chale_ids) ? chaleMeta.chale_ids[0] : 1)) : null;
+            const chaleMeta: any = parseChaleMetadata(itemChale?.metadata);
+            const chaleIds = itemChale
+              ? extractChaleIdsFromMetadata(chaleMeta, `${itemChale.product_name || ''} ${itemChale.product_id || ''}`)
+              : [];
+            const chaleBadgeLabel = itemChale ? formatChaleIdsLabel(chaleIds.length > 0 ? chaleIds : [1], true) : null;
             const chaleAdults = itemChale ? Number(chaleMeta.adults || (chaleMeta.occupancy_type === 'individual' ? 1 : 2)) : 0;
             const chaleKids = itemChale ? Number(chaleMeta.children || 0) : 0;
 
@@ -516,9 +518,9 @@ export function BookingTable({
                           {totalPeople} Pessoas
                         </span>
                       </div>
-                      {chaleId && (
+                      {chaleBadgeLabel && (
                         <span className="text-[10px] font-black uppercase bg-amber-100 text-amber-950 px-2 py-0.5 rounded-md border border-amber-300 flex items-center gap-1">
-                          <Home className="w-3 h-3 text-amber-700" /> Chalé {String(chaleId).padStart(2, '0')}
+                          <Home className="w-3 h-3 text-amber-700" /> {chaleBadgeLabel}
                         </span>
                       )}
                     </div>
@@ -931,10 +933,11 @@ export function BookingTable({
                   const n = ((i.product_name || '') + ' ' + (i.product_id || '')).toLowerCase();
                   return n.includes('chalé') || n.includes('chale') || n.includes('hospedagem');
                 });
-                let chaleMeta: any = itemChale?.metadata;
-                if (typeof chaleMeta === 'string') { try { chaleMeta = JSON.parse(chaleMeta); } catch(e) { chaleMeta = {}; } }
-                chaleMeta = chaleMeta || {};
-                const chaleId = itemChale ? (chaleMeta.chale_id || (Array.isArray(chaleMeta.chale_ids) ? chaleMeta.chale_ids[0] : 1)) : null;
+                const chaleMeta: any = parseChaleMetadata(itemChale?.metadata);
+                const chaleIds = itemChale
+                  ? extractChaleIdsFromMetadata(chaleMeta, `${itemChale.product_name || ''} ${itemChale.product_id || ''}`)
+                  : [];
+                const chaleBadgeLabel = itemChale ? formatChaleIdsLabel(chaleIds.length > 0 ? chaleIds : [1], true) : null;
                 const chaleAdults = itemChale ? Number(chaleMeta.adults || (chaleMeta.occupancy_type === 'individual' ? 1 : 2)) : 0;
                 const chaleKids = itemChale ? Number(chaleMeta.children || 0) : 0;
 
@@ -1127,9 +1130,9 @@ export function BookingTable({
                             </div>
                           )}
                           <div className="flex items-center gap-2 mt-1 flex-wrap">
-                             {chaleId && (
+                             {chaleBadgeLabel && (
                                <span className="bg-amber-100 text-amber-950 border border-amber-300 text-[9px] font-black uppercase px-2 py-0.5 rounded-full flex items-center gap-1 shadow-xs">
-                                 <Home className="w-3 h-3 text-amber-700" /> Chalé {String(chaleId).padStart(2, '0')}
+                                 <Home className="w-3 h-3 text-amber-700" /> {chaleBadgeLabel}
                                </span>
                              )}
                              {booking.is_associado && (
@@ -1153,8 +1156,8 @@ export function BookingTable({
                           </div>
                           
                           <div className="flex flex-col gap-1.5 justify-center max-w-[40px]">
-                            {chaleId && (
-                              <div className="bg-amber-100 text-amber-900 p-1.5 rounded-md border border-amber-300 flex items-center justify-center" title={`Hospedagem em Chalé ${String(chaleId).padStart(2, '0')}`}>
+                            {chaleBadgeLabel && (
+                              <div className="bg-amber-100 text-amber-900 p-1.5 rounded-md border border-amber-300 flex items-center justify-center" title={`Hospedagem em ${chaleBadgeLabel}`}>
                                 <Home className="w-3 h-3 text-amber-700" />
                               </div>
                             )}

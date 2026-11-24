@@ -239,12 +239,21 @@ function ChaleSelectorInner({
             const orderDate = order.visit_date;
             items.forEach((item: any) => {
               const pid = (item.product_id || '').toLowerCase();
-              if (pid.includes('chale') || pid.includes('chalé')) {
-                const cId = Number(item.metadata?.chale_id);
-                const cIn = item.metadata?.check_in_date || orderDate;
-                const cOut = item.metadata?.check_out_date || cIn;
-                if (!isNaN(cId) && cId > 0 && cIn) {
-                  list.push({ chaleId: cId, checkIn: cIn, checkOut: cOut });
+              if (pid.includes('chale') || pid.includes('chalé') || pid.includes('hospedagem')) {
+                let meta: any = item.metadata;
+                if (typeof meta === 'string') {
+                  try { meta = JSON.parse(meta); } catch { meta = {}; }
+                }
+                meta = meta || {};
+                const unitIds: number[] = Array.isArray(meta.chale_ids) && meta.chale_ids.length > 0
+                  ? meta.chale_ids.map(Number).filter((n: number) => !isNaN(n) && n > 0)
+                  : (meta.chale_id ? [Number(meta.chale_id)].filter((n: number) => !isNaN(n) && n > 0) : []);
+                const cIn = meta.check_in_date || orderDate;
+                const cOut = meta.check_out_date || cIn;
+                if (cIn && unitIds.length > 0) {
+                  unitIds.forEach((cId) => {
+                    list.push({ chaleId: cId, checkIn: cIn, checkOut: cOut });
+                  });
                 }
               }
             });
@@ -289,7 +298,7 @@ function ChaleSelectorInner({
       document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
       supabase.removeChannel(channel);
     };
-  }, [formattedDate]);
+  }, [formattedDate, formattedOutDate]);
 
   // Lista de chalés selecionados (nenhum chalé pré-selecionado inicialmente)
   const selectedChaleUnits: number[] = useMemo(() => {

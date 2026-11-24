@@ -173,27 +173,54 @@ export async function saveBooking(
           const { CHALE_PACKAGES, calculateChaleTotal } = await import('@/lib/booking-types');
           const pkg = CHALE_PACKAGES[booking.chale.packageType];
           if (pkg) {
-            const adults = Math.min(2, Math.max(1, booking.chale.adultsCount || 2));
+            const activeChaleIds = (booking.chale.chaleIds && booking.chale.chaleIds.length > 0)
+              ? booking.chale.chaleIds
+              : (booking.chale.chaleId ? [booking.chale.chaleId] : []);
+            const chaletsCount = Math.max(1, activeChaleIds.length);
+            const adults = chaletsCount > 1
+              ? Math.max(1, booking.chale.adultsCount || activeChaleIds.reduce((acc, id) => acc + (booking.chale?.chaleOccupancies?.[id] === 'individual' ? 1 : 2), 0))
+              : Math.min(2, Math.max(1, booking.chale.adultsCount || 2));
             const kids = booking.chale.childrenCount || 0;
-            const chaleTotalPrice = calculateChaleTotal(booking.chale.packageType, adults, kids);
+            const chaleTotalPrice = calculateChaleTotal(
+              booking.chale.packageType,
+              adults,
+              kids,
+              booking.chale.checkInDate,
+              booking.chale.checkOutDate,
+              booking.chale.chaleOccupancies,
+              activeChaleIds,
+              booking.chale.childrenAges
+            );
             const visitDateStr = (booking.chale.checkInDate || booking.entry.visitDate)
               ? format(new Date(booking.chale.checkInDate || booking.entry.visitDate!), 'yyyy-MM-dd')
+              : null;
+            const checkOutDateStr = booking.chale.checkOutDate
+              ? format(new Date(booking.chale.checkOutDate), 'yyyy-MM-dd')
               : null;
 
             orderItems.push({
               order_id: finalOrderId,
-              product_id: `Hospedagem - ${pkg.title}`,
+              product_id: chaletsCount > 1 ? `Chalés (${chaletsCount} unidades): ${pkg.title}` : `Chalé: ${pkg.title}`,
               quantity: 1,
               unit_price: chaleTotalPrice,
               metadata: {
                 package_type: pkg.id,
-                chale_id: booking.chale.chaleId || null,
+                package_title: pkg.title,
+                chale_id: activeChaleIds[0] || booking.chale.chaleId || null,
+                chale_ids: activeChaleIds,
+                chalets_count: chaletsCount,
+                chale_occupancies: booking.chale.chaleOccupancies || {},
+                chale_kids: booking.chale.chaleKids || {},
                 adults: adults,
                 children: kids,
+                children_ages: booking.chale.childrenAges || [],
                 check_in: '15:00',
-                check_out: '11:00',
+                check_out: '12:00',
+                check_in_time: '15:00',
+                check_out_time: '12:00',
                 check_in_date: visitDateStr,
-                breakfast: 'Incluso até as 09h',
+                check_out_date: checkOutDateStr,
+                breakfast: 'Incluso das 07h às 10h',
                 guest_names: booking.chale.guestNames || []
               }
             });
@@ -500,9 +527,18 @@ export async function getBookedChaleIds(date?: string | null, outDate?: string |
         (order.order_items || []).forEach((item: any) => {
           const prod = (item.product_id || '').toLowerCase();
           if (prod.includes('chalé') || prod.includes('chale') || prod.includes('hospedagem')) {
-            const chaleId = item.metadata?.chale_id;
-            const checkIn = (item.metadata?.check_in_date || orderDate || '').split('T')[0];
-            const checkOut = (item.metadata?.check_out_date || checkIn || '').split('T')[0];
+            let meta: any = item.metadata;
+            if (typeof meta === 'string') {
+              try { meta = JSON.parse(meta); } catch { meta = {}; }
+            }
+            meta = meta || {};
+
+            const unitIds: number[] = Array.isArray(meta.chale_ids) && meta.chale_ids.length > 0
+              ? meta.chale_ids.map(Number).filter((n: number) => !isNaN(n) && n > 0)
+              : (meta.chale_id ? [Number(meta.chale_id)].filter((n: number) => !isNaN(n) && n > 0) : []);
+
+            const checkIn = (meta.check_in_date || orderDate || '').split('T')[0];
+            const checkOut = (meta.check_out_date || checkIn || '').split('T')[0];
 
             let isMatching = false;
             // Regra Hoteleira: O hóspede sai ao meio-dia e o próximo entra às 15h.
@@ -527,11 +563,8 @@ export async function getBookedChaleIds(date?: string | null, outDate?: string |
               isMatching = (date === orderDate);
             }
 
-            if (isMatching && chaleId) {
-              const numId = Number(chaleId);
-              if (!isNaN(numId) && numId > 0) {
-                bookedIds.push(numId);
-              }
+            if (isMatching && unitIds.length > 0) {
+              unitIds.forEach((numId) => bookedIds.push(numId));
             }
           }
         });

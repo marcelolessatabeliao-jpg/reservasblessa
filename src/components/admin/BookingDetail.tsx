@@ -11,6 +11,12 @@ import { useToast } from '@/hooks/use-toast';
 import { AddItemsToBookingDialog } from './AddItemsToBookingDialog';
 import { Plus } from 'lucide-react';
 import { formatProductDisplayName } from '@/utils/product-utils';
+import {
+  extractChaleIdsFromMetadata,
+  formatChaleIdsLabel,
+  parseChaleMetadata,
+  splitChaleUnitsFromMetadata
+} from '@/lib/chale-voucher-utils';
 
 interface BookingDetailProps {
   booking: {
@@ -336,17 +342,16 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
 
         const isChale = pId.includes('chalé') || pId.includes('chale') || pId.includes('hospedagem') || pName.includes('chalé') || pName.includes('chale') || pName.includes('hospedagem');
         if (isChale) {
-          let meta = item.metadata;
-          if (typeof meta === 'string') { try { meta = JSON.parse(meta); } catch(e) { meta = {}; } }
-          meta = meta || {};
-          const cId = meta.chale_id || (Array.isArray(meta.chale_ids) ? meta.chale_ids[0] : 1);
-          const cAdults = Number(meta.adults || (meta.occupancy_type === 'individual' ? 1 : 2));
-          const cKids = Number(meta.children || 0);
-          const occ = meta.occupancy_type === 'individual' ? 'Individual' : 'Casal';
-          counts[`Chalé ${String(cId).padStart(2, '0')} (${occ}) • Adultos`] = (counts[`Chalé ${String(cId).padStart(2, '0')} (${occ}) • Adultos`] || 0) + cAdults;
-          if (cKids > 0) {
-            counts[`Chalé ${String(cId).padStart(2, '0')} • Crianças Adicionais`] = (counts[`Chalé ${String(cId).padStart(2, '0')} • Crianças Adicionais`] || 0) + cKids;
-          }
+          const meta = parseChaleMetadata(item.metadata);
+          const unitSplits = splitChaleUnitsFromMetadata(meta, booking.name || (booking as any).customer_name);
+          unitSplits.forEach((unit) => {
+            const occ = unit.occupancyType === 'individual' ? 'Individual' : 'Casal';
+            const pad = String(unit.chaleId).padStart(2, '0');
+            counts[`Chalé ${pad} (${occ}) • Adultos`] = (counts[`Chalé ${pad} (${occ}) • Adultos`] || 0) + unit.adults;
+            if (unit.children > 0) {
+              counts[`Chalé ${pad} • Crianças`] = (counts[`Chalé ${pad} • Crianças`] || 0) + unit.children;
+            }
+          });
         } else if (pName.includes('professor') || pId.includes('professor')) {
           counts['Meia-Entrada (Professor)'] = (counts['Meia-Entrada (Professor)'] || 0) + qty;
         } else if (pName.includes('estudante') || pId.includes('estudante')) {
@@ -467,19 +472,23 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
                   return n.includes('chalé') || n.includes('chale') || n.includes('hospedagem');
                 });
                 if (!chaleItem) return null;
-                let meta = chaleItem.metadata;
-                if (typeof meta === 'string') { try { meta = JSON.parse(meta); } catch(e) { meta = {}; } }
-                meta = meta || {};
-                const cId = meta.chale_id || (Array.isArray(meta.chale_ids) ? meta.chale_ids[0] : 1);
+                const meta = parseChaleMetadata(chaleItem.metadata);
+                const unitSplits = splitChaleUnitsFromMetadata(meta, booking.name || (booking as any).customer_name);
+                const chaleIds = unitSplits.map((u) => u.chaleId);
+                const isMultiUnit = chaleIds.length > 1;
+                const chaleHeading = isMultiUnit
+                  ? `${formatChaleIdsLabel(chaleIds)} (${chaleIds.length} unidades) — Alvenaria Tradicional`
+                  : `Chalé ${String(chaleIds[0] || 1).padStart(2, '0')} — Alvenaria Tradicional`;
                 const pkgTitle = meta.package_title || chaleItem.product_name || 'Hospedagem em Chalé';
                 const cIn = meta.check_in_date || booking.visit_date;
                 const cInTime = meta.check_in_time || '15:00';
                 const cOut = meta.check_out_date || cIn;
                 const cOutTime = meta.check_out_time || '12:00';
-                const guestList = Array.isArray(meta.guest_names) && meta.guest_names.length > 0 
-                  ? meta.guest_names 
-                  : [booking.name || (booking as any).customer_name];
-                const voucherCode = booking.confirmation_code || (booking as any).confirmation_code;
+                const totalGuestsListed = unitSplits.reduce(
+                  (acc, u) => acc + Math.max(u.adults, u.adultNames.length) + u.childNames.length,
+                  0
+                );
+                const voucherCode = (booking as any).confirmation_code;
 
                 return (
                   <div className="bg-gradient-to-r from-[#022c16] via-[#043d1f] to-[#01170c] text-white rounded-2xl p-4 border-2 border-amber-400 shadow-md space-y-3">
@@ -491,13 +500,15 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
                             Hospedagem em Chalé
                           </span>
                           <h4 className="text-base font-black text-white">
-                            Chalé {String(cId).padStart(2, '0')} — Alvenaria Tradicional
+                            {chaleHeading}
                           </h4>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 flex-wrap">
                         <Badge className="bg-amber-400 text-slate-950 font-black text-xs uppercase px-3 py-1 border-none shadow-xs">
-                          {pkgTitle} ({meta.occupancy_type === 'individual' ? '1 Adulto' : 'Casal'})
+                          {isMultiUnit
+                            ? `${pkgTitle} (${chaleIds.length} chalés)`
+                            : `${pkgTitle} (${unitSplits[0]?.occupancyType === 'individual' ? '1 Adulto' : 'Casal'})`}
                         </Badge>
                         {voucherCode && (
                           <Button
@@ -525,25 +536,38 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
                       </div>
                     </div>
 
-                    {/* Relação Nominal de Hóspedes */}
-                    <div className="bg-white/5 rounded-xl p-3 border border-white/10 space-y-1.5">
+                    {/* Relação Nominal de Hóspedes (dividida corretamente por chalé) */}
+                    <div className="bg-white/5 rounded-xl p-3 border border-white/10 space-y-2">
                       <span className="text-[10px] font-black uppercase text-amber-300 tracking-wider block">
-                        👥 Relação Nominal de Hóspedes ({guestList.length}):
+                        👥 Relação Nominal de Hóspedes ({totalGuestsListed}):
                       </span>
-                      <div className="space-y-1 pl-1 text-xs">
-                        {guestList.map((gName: string, gIdx: number) => {
-                          const isTitular = gIdx === 0;
-                          const isAcomp = gIdx === 1 && meta.occupancy_type !== 'individual';
-                          const role = isTitular ? 'Titular Responsável' : (isAcomp ? 'Acompanhante Adulto' : 'Criança Adicional');
-                          return (
-                            <div key={gIdx} className="flex items-center justify-between bg-white/10 px-2.5 py-1 rounded-lg">
-                              <span className="font-bold text-white">👤 {gName}</span>
-                              <span className="text-[10px] font-black uppercase bg-emerald-400/20 text-emerald-200 px-2 py-0.5 rounded">
-                                {role}
-                              </span>
-                            </div>
-                          );
-                        })}
+                      <div className="space-y-2 text-xs">
+                        {unitSplits.map((unit, uIdx) => (
+                          <div key={unit.chaleId} className="space-y-1">
+                            {isMultiUnit && (
+                              <div className="text-[10px] font-black uppercase tracking-wider text-emerald-300 bg-black/25 px-2.5 py-1 rounded-md border border-white/10 flex items-center justify-between">
+                                <span>🏡 Chalé {String(unit.chaleId).padStart(2, '0')} — {unit.occupancyType === 'individual' ? 'Individual (1 Adulto)' : 'Casal (2 Adultos)'}</span>
+                                <span>{unit.adults} ad.{unit.children > 0 ? ` + ${unit.children} cri.` : ''}</span>
+                              </div>
+                            )}
+                            {unit.adultNames.map((aName, aIdx) => (
+                              <div key={`a-${unit.chaleId}-${aIdx}`} className="flex items-center justify-between bg-white/10 px-2.5 py-1 rounded-lg">
+                                <span className="font-bold text-white">👤 {aName}</span>
+                                <span className="text-[10px] font-black uppercase bg-emerald-400/20 text-emerald-200 px-2 py-0.5 rounded">
+                                  {uIdx === 0 && aIdx === 0 ? 'Titular Responsável' : (aIdx === 0 ? 'Adulto 1 (Chalé)' : 'Acompanhante Adulto')}
+                                </span>
+                              </div>
+                            ))}
+                            {unit.childNames.map((kid, kIdx) => (
+                              <div key={`k-${unit.chaleId}-${kIdx}`} className="flex items-center justify-between bg-white/10 px-2.5 py-1 rounded-lg">
+                                <span className="font-bold text-amber-100">👶 {kid.name}</span>
+                                <span className="text-[10px] font-black uppercase bg-amber-400/20 text-amber-200 px-2 py-0.5 rounded">
+                                  {kid.ageGroup === '12plus' ? 'Criança (12+ anos)' : 'Criança (Até 11 anos)'}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        ))}
                       </div>
                     </div>
                   </div>
@@ -834,24 +858,32 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
               const itemLower = ((item.product_name || '') + ' ' + (item.product_id || '')).toLowerCase();
               const isChaleItem = itemLower.includes('chalé') || itemLower.includes('chale') || itemLower.includes('hospedagem');
 
-              let itemMeta: any = item.metadata;
-              if (typeof itemMeta === 'string') {
-                try { itemMeta = JSON.parse(itemMeta); } catch(e) { itemMeta = {}; }
-              }
-              const itemChaleId = itemMeta?.chale_id || (booking as any)?.chale_id || (booking as any)?.metadata?.chale_id || (() => {
-                const match = ((item.product_name || '') + ' ' + (item.product_id || '')).match(/chal[ée]\s*0?(\d+)/i);
-                return match ? match[1] : null;
-              })();
+              const itemMeta: any = parseChaleMetadata(item.metadata);
+              const itemChaleIds = extractChaleIdsFromMetadata(
+                itemMeta,
+                `${item.product_name || ''} ${item.product_id || ''}`
+              );
+              const fallbackChaleId = (booking as any)?.chale_id || (booking as any)?.metadata?.chale_id;
+              const resolvedChaleIds = itemChaleIds.length > 0
+                ? itemChaleIds
+                : (fallbackChaleId ? [Number(fallbackChaleId)] : []);
 
               let displayName = formatProductDisplayName(item.product_id, item.unit_price, item.product_name);
-              if (isChaleItem && itemChaleId) {
-                const padChale = `Chalé ${String(itemChaleId).padStart(2, '0')}`;
-                if (!displayName.toLowerCase().includes(padChale.toLowerCase())) {
-                  displayName = displayName
-                    .replace(/CHAL[ÉE]:/i, `${padChale}:`)
-                    .replace(/CHAL[ÉE] —/i, `${padChale} —`)
-                    .replace(/^CHAL[ÉE]\b/i, padChale);
-                  if (!displayName.toLowerCase().includes(padChale.toLowerCase())) {
+              if (isChaleItem && resolvedChaleIds.length > 0) {
+                const padChale = formatChaleIdsLabel(resolvedChaleIds);
+                if (resolvedChaleIds.length > 1) {
+                  if (/^chal[ée]s?(?![a-zà-ú])/i.test(displayName)) {
+                    displayName = displayName.replace(
+                      /^chal[ée]s?\s*(\(\d+\s*unidades?\))?\s*([:—-])?/i,
+                      (_m, _units, sep) => `${padChale} (${resolvedChaleIds.length} unidades)${sep || ':'}`
+                    );
+                  } else if (!displayName.toLowerCase().includes(padChale.toLowerCase())) {
+                    displayName = `${padChale} (${resolvedChaleIds.length} unidades) — ${displayName}`;
+                  }
+                } else if (!displayName.toLowerCase().includes(padChale.toLowerCase())) {
+                  if (/^chal[ée](?![a-zà-ú])/i.test(displayName)) {
+                    displayName = displayName.replace(/^chal[ée](?![a-zà-ú])/i, padChale);
+                  } else {
                     displayName = `${padChale} — ${displayName}`;
                   }
                 }
@@ -861,7 +893,8 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
                 e.stopPropagation();
                 window.dispatchEvent(new CustomEvent('admin:navigate-tab', { detail: { tab: 'chales' } }));
                 const q = booking.name || booking.id || cpf || '';
-                window.dispatchEvent(new CustomEvent('admin:filter-chales', { detail: { search: q } }));
+                const targetDate = itemMeta?.check_in_date || booking.visit_date || '';
+                window.dispatchEvent(new CustomEvent('admin:filter-chales', { detail: { search: q, date: targetDate } }));
               };
 
               return (
