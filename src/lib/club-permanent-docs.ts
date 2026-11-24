@@ -613,8 +613,46 @@ export async function loadMemberPermanentDocs(
 }
 
 /**
+ * Busca TODAS as linhas de uma tabela do Supabase paginando em lotes de 1.000 via `.range()`.
+ * O PostgREST do Supabase limita respostas sem paginação a 1.000 linhas (mesmo com `.limit(5000)`),
+ * portanto a paginação garante carregamento de 100% dos registros mesmo com 5.000–50.000+ cadastros.
+ */
+async function fetchAllRowsPaginated<T = any>(
+  tableName: string,
+  selectColumns: string,
+  orderColumn: string,
+  applyFilter?: (query: any) => any,
+  pageSize = 1000,
+  maxRows = 50000
+): Promise<{ rows: T[]; error: any }> {
+  const allRows: T[] = [];
+  for (let from = 0; from < maxRows; from += pageSize) {
+    let query = supabase
+      .from(tableName as any)
+      .select(selectColumns)
+      .order(orderColumn, { ascending: true })
+      .range(from, from + pageSize - 1);
+    if (applyFilter) {
+      query = applyFilter(query);
+    }
+    const { data, error } = await query;
+    if (error) {
+      return { rows: allRows, error };
+    }
+    if (!Array.isArray(data) || data.length === 0) {
+      break;
+    }
+    allRows.push(...(data as T[]));
+    if (data.length < pageSize) {
+      break;
+    }
+  }
+  return { rows: allRows, error: null };
+}
+
+/**
  * Carrega TODOS os cadastros individuais de `public.club_records` e TODOS os anexos ativos
- * de `public.club_attachments` em paralelo (fonte da verdade soberana do sistema!).
+ * de `public.club_attachments` em paralelo com paginação automática (sem limite de 1.000 linhas!).
  */
 export async function loadAllPermanentMemberDocs(): Promise<Map<string, PermanentMemberDocRecord>> {
   const map = new Map<string, PermanentMemberDocRecord>();
@@ -629,25 +667,26 @@ export async function loadAllPermanentMemberDocs(): Promise<Map<string, Permanen
     });
   } catch {}
 
-  // 2. Consulta paralela nas tabelas relacionais `club_records` e `club_attachments`
+  // 2. Consulta paginada paralela nas tabelas relacionais `club_records` e `club_attachments`
   try {
     const [recordsRes, attachmentsRes] = await Promise.all([
-      supabase
-        .from('club_records' as any)
-        .select('subscription_code, payload, updated_at')
-        .order('updated_at', { ascending: false })
-        .limit(5000),
-      supabase
-        .from('club_attachments' as any)
-        .select('id, subscription_code, member_id, file_name, mime_type, public_url, data_url, created_at')
-        .eq('is_deleted', false)
-        .limit(5000),
+      fetchAllRowsPaginated<any>(
+        'club_records',
+        'subscription_code, payload, updated_at',
+        'subscription_code'
+      ),
+      fetchAllRowsPaginated<any>(
+        'club_attachments',
+        'id, subscription_code, member_id, file_name, mime_type, public_url, data_url, created_at',
+        'id',
+        (q) => q.eq('is_deleted', false)
+      ),
     ]);
 
     // Agrupa anexos por subscription_code
     const attByCode = new Map<string, Array<{ att: ClubAttachment; memberId: string }>>();
-    if (!attachmentsRes.error && Array.isArray(attachmentsRes.data)) {
-      (attachmentsRes.data as any[]).forEach((row) => {
+    if (!attachmentsRes.error && Array.isArray(attachmentsRes.rows)) {
+      attachmentsRes.rows.forEach((row) => {
         const code = String(row.subscription_code || '').trim();
         const url = row.public_url || row.data_url || '';
         if (!code || !url) return;
@@ -666,8 +705,8 @@ export async function loadAllPermanentMemberDocs(): Promise<Map<string, Permanen
       });
     }
 
-    if (!recordsRes.error && Array.isArray(recordsRes.data)) {
-      (recordsRes.data as any[]).forEach((row) => {
+    if (!recordsRes.error && Array.isArray(recordsRes.rows)) {
+      recordsRes.rows.forEach((row) => {
         if (!row.subscription_code || !row.payload) return;
         const code = String(row.subscription_code).trim();
         let remoteRec = row.payload as PermanentMemberDocRecord;
@@ -687,7 +726,16 @@ export async function loadAllPermanentMemberDocs(): Promise<Map<string, Permanen
         const localRec = map.get(code);
         const finalRec = localRec ? mergePermanentRecords(localRec, remoteRec) : remoteRec;
         map.set(code, finalRec);
-        saveMemberPermanentDataToIndexedDB(code, finalRec);
+        if (finalRec.updatedAt) {
+          const prevSaved = lastSavedPermanentTimestamps.get(code) || '';
+          if (finalRec.updatedAt > prevSaved) {
+            lastSavedPermanentTimestamps.set(code, finalRec.updatedAt);
+          }
+        }
+        // Só regrava no IndexedDB se for novo ou mais recente que o cache local (evita milhares de writes redundantes)
+        if (!localRec || (finalRec.updatedAt || '') !== (localRec.updatedAt || '')) {
+          saveMemberPermanentDataToIndexedDB(code, finalRec);
+        }
       });
     }
 

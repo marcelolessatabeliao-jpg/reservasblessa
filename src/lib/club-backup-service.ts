@@ -15,10 +15,13 @@ export interface ClubBackupMeta {
   overdueSubscriptions: number;
   sizeKb: number;
   version: string;
+  storagePath?: string;
+  storageUrl?: string;
 }
 
 const BACKUPS_MANIFEST_KEY = 'lessa_club_backups_manifest_v1';
-const MAX_AUTO_BACKUPS_RETAINED = 30;
+const BACKUP_STORAGE_BUCKET = 'club-files';
+const MAX_AUTO_BACKUPS_RETAINED = 14;
 
 let lastDailyCheckDate: string | null = null;
 
@@ -106,14 +109,37 @@ export const createClubBackup = async (
       ? `Ponto de Restauração de Segurança (${now.toLocaleDateString('pt-BR')} ${now.toLocaleTimeString('pt-BR')})`
       : `Backup Manual (${now.toLocaleDateString('pt-BR')} ${now.toLocaleTimeString('pt-BR')})`;
 
-  // Cria cópia limpa do estado para armazenamento
+  // Cria cópia compacta (remove HTML redundante e registros estáticos inalterados do seed Labcard)
+  // para suportar milhares de cadastros sem estourar disco ou memória do PostgreSQL.
+  const compactBackupSubs = state.subscriptions
+    .filter((s) => {
+      if (!s.id.startsWith('sub-labcard-')) return true;
+      return Boolean(
+        s.isModifiedFromSeed ||
+        s.manualStatusOverride ||
+        s.transferCompleted ||
+        s.status === 'ACTIVE' ||
+        s.status === 'INACTIVE' ||
+        s.status === 'SUSPENDED' ||
+        s.status === 'CANCELLED' ||
+        (s.attachments && s.attachments.length > 0) ||
+        (s.invoices && s.invoices.some((i) => Boolean(i.asaasPaymentId) || i.status === 'PAID'))
+      );
+    })
+    .map((s) => {
+      const { contractContentHtml: _omit, ...rest } = s as any;
+      return rest;
+    });
+
   const backupPayload: ClubDatabaseState = {
     ...state,
+    subscriptions: compactBackupSubs,
     updatedAt: now.toISOString(),
   };
 
   const payloadString = JSON.stringify(backupPayload);
   const sizeKb = Math.round(payloadString.length / 1024);
+  const storagePath = `_backups/${key}.json`;
 
   const meta: ClubBackupMeta = {
     id,
@@ -128,35 +154,68 @@ export const createClubBackup = async (
     activeSubscriptions: activeCount,
     overdueSubscriptions: overdueCount,
     sizeKb,
-    version: '2.0',
+    version: '3.0-storage',
+    storagePath,
   };
 
   try {
-    // 1. Salva o snapshot na nuvem
-    const { error: saveError } = await supabase.from('site_settings' as any).upsert(
-      {
-        key,
-        value: backupPayload,
-        updated_at: now.toISOString(),
-      },
-      { onConflict: 'key' }
-    );
+    // 1. Envia o JSON de backup para o Supabase Storage (bucket club-files/_backups/)
+    // Evita inchar a tabela site_settings do PostgreSQL mesmo com 3.000+ cadastros!
+    let savedInStorage = false;
+    try {
+      const jsonBlob = new Blob([payloadString], { type: 'application/json' });
+      const { error: upErr } = await supabase.storage
+        .from(BACKUP_STORAGE_BUCKET)
+        .upload(storagePath, jsonBlob, {
+          contentType: 'application/json',
+          upsert: true,
+        });
+      if (!upErr) {
+        const { data: pub } = supabase.storage.from(BACKUP_STORAGE_BUCKET).getPublicUrl(storagePath);
+        meta.storageUrl = pub?.publicUrl;
+        savedInStorage = true;
+      } else {
+        console.warn('[BackupService] Aviso ao gravar backup no Storage:', upErr);
+      }
+    } catch (stErr) {
+      console.warn('[BackupService] Exceção ao enviar backup para Storage:', stErr);
+    }
 
-    if (saveError) {
-      console.error('[BackupService] Falha ao gravar snapshot:', saveError);
-      return null;
+    if (!savedInStorage) {
+      // Fallback seguro apenas se o backup couber com folga no Postgres (< 1.5 MB)
+      if (sizeKb > 1500) {
+        console.warn(`[BackupService] Backup (${sizeKb} KB) excede limite seguro de site_settings e Storage indisponível.`);
+        return null;
+      }
+      meta.storagePath = undefined;
+      meta.version = '2.0';
+      const { error: saveError } = await supabase.from('site_settings' as any).upsert(
+        {
+          key,
+          value: backupPayload,
+          updated_at: now.toISOString(),
+        },
+        { onConflict: 'key' }
+      );
+      if (saveError) {
+        console.error('[BackupService] Falha ao gravar snapshot:', saveError);
+        return null;
+      }
     }
 
     // 2. Atualiza o manifesto de backups
     const currentManifest = await getBackupsManifest();
     let updatedManifest = [meta, ...currentManifest.filter((m) => m.key !== key)];
 
-    // 3. Aplica política de retenção para backups automáticos diários (mantém até 30)
+    // 3. Aplica política de retenção para backups automáticos diários (mantém até 14)
     const autoBackups = updatedManifest.filter((m) => m.type === 'DAILY_AUTO');
     if (autoBackups.length > MAX_AUTO_BACKUPS_RETAINED) {
       const toRemove = autoBackups.slice(MAX_AUTO_BACKUPS_RETAINED);
       for (const old of toRemove) {
         try {
+          if (old.storagePath) {
+            await supabase.storage.from(BACKUP_STORAGE_BUCKET).remove([old.storagePath]);
+          }
           await supabase.from('site_settings' as any).delete().eq('key', old.key);
         } catch {}
       }
@@ -165,7 +224,7 @@ export const createClubBackup = async (
     }
 
     await saveBackupsManifest(updatedManifest);
-    console.info(`[BackupService] Snapshot gravado com sucesso: ${key} (${sizeKb} KB)`);
+    console.info(`[BackupService] Snapshot gravado com sucesso: ${key} (${sizeKb} KB, storage=${savedInStorage})`);
     return meta;
   } catch (err) {
     console.error('[BackupService] Exceção ao gravar backup:', err);
@@ -209,6 +268,21 @@ export const ensureDailyBackup = async (state: ClubDatabaseState): Promise<ClubB
  */
 export const fetchBackupData = async (backupKey: string): Promise<ClubDatabaseState | null> => {
   try {
+    // 1. Tenta ler primeiro do Supabase Storage (`club-files/_backups/<key>.json`)
+    try {
+      const { data: blobData, error: dlErr } = await supabase.storage
+        .from(BACKUP_STORAGE_BUCKET)
+        .download(`_backups/${backupKey}.json`);
+      if (!dlErr && blobData) {
+        const text = await blobData.text();
+        const parsed = JSON.parse(text);
+        if (parsed && Array.isArray(parsed.subscriptions)) {
+          return parsed as ClubDatabaseState;
+        }
+      }
+    } catch {}
+
+    // 2. Fallback para backups legados salvos em site_settings
     const { data, error } = await supabase
       .from('site_settings' as any)
       .select('value')
@@ -254,6 +328,7 @@ export const restoreClubBackup = async (
  */
 export const deleteClubBackup = async (backupKey: string): Promise<boolean> => {
   try {
+    await supabase.storage.from(BACKUP_STORAGE_BUCKET).remove([`_backups/${backupKey}.json`]).catch(() => {});
     await supabase.from('site_settings' as any).delete().eq('key', backupKey);
     const manifest = await getBackupsManifest();
     const updated = manifest.filter((m) => m.key !== backupKey);
