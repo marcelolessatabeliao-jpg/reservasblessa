@@ -14,6 +14,7 @@ import { formatProductDisplayName } from '@/utils/product-utils';
 import {
   extractChaleIdsFromMetadata,
   formatChaleIdsLabel,
+  formatChaleModelLabel,
   parseChaleMetadata,
   splitChaleUnitsFromMetadata
 } from '@/lib/chale-voucher-utils';
@@ -476,9 +477,10 @@ export function BookingDetail({ booking, onRemoveItem, onRemoveReceipt, onRefres
                 const unitSplits = splitChaleUnitsFromMetadata(meta, booking.name || (booking as any).customer_name);
                 const chaleIds = unitSplits.map((u) => u.chaleId);
                 const isMultiUnit = chaleIds.length > 1;
+                const modelLabel = formatChaleModelLabel(chaleIds);
                 const chaleHeading = isMultiUnit
-                  ? `${formatChaleIdsLabel(chaleIds)} (${chaleIds.length} unidades) — Alvenaria Tradicional`
-                  : `Chalé ${String(chaleIds[0] || 1).padStart(2, '0')} — Alvenaria Tradicional`;
+                  ? `${formatChaleIdsLabel(chaleIds)} (${chaleIds.length} unidades) — ${modelLabel}`
+                  : `Chalé ${String(chaleIds[0] || 1).padStart(2, '0')} — ${modelLabel}`;
                 const pkgTitle = meta.package_title || chaleItem.product_name || 'Hospedagem em Chalé';
                 const cIn = meta.check_in_date || booking.visit_date;
                 const cInTime = meta.check_in_time || '15:00';

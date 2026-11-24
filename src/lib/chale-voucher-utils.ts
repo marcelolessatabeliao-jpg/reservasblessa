@@ -1,4 +1,4 @@
-import { CHALE_PACKAGES } from '@/lib/booking-types';
+import { CHALE_PACKAGES, CHALE_UNITS } from '@/lib/booking-types';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
@@ -53,6 +53,17 @@ export function extractChaleIdsFromMetadata(rawMeta: any, fallbackText?: string)
     }
   }
   return [];
+}
+
+export function formatChaleModelLabel(chaleIds: number[]): string {
+  const clean = Array.from(new Set((chaleIds || []).map(Number).filter((n) => Number.isFinite(n) && n > 0)));
+  if (clean.length === 0) return 'Alvenaria Tradicional';
+  const types = new Set(
+    clean.map((id) => CHALE_UNITS.find((u) => u.id === id)?.type || (id >= 7 ? 'vidro' : 'alvenaria'))
+  );
+  if (types.has('alvenaria') && types.has('vidro')) return 'Alvenaria e Vidro Panorâmico';
+  if (types.has('vidro')) return 'Vidro Panorâmico';
+  return 'Alvenaria Tradicional';
 }
 
 export function formatChaleIdsLabel(chaleIds: number[], compact = false): string {
@@ -405,9 +416,10 @@ export function extractChaleDetailsFromOrder(order: any): ParsedChaleDetails | n
   const extractedIds = extractChaleIdsFromMetadata(meta, `${chaleItem.product_name || ''} ${chaleItem.product_id || ''}`);
   const chaleIds: number[] = extractedIds.length > 0 ? extractedIds : [1];
 
+  const modelLabel = formatChaleModelLabel(chaleIds);
   const chaleLabel = chaleIds.length > 1
-    ? `${formatChaleIdsLabel(chaleIds)} (Alvenaria Tradicional)`
-    : `Chalé ${String(chaleIds[0]).padStart(2, '0')} — Alvenaria Tradicional`;
+    ? `${formatChaleIdsLabel(chaleIds)} (${modelLabel})`
+    : `Chalé ${String(chaleIds[0]).padStart(2, '0')} — ${modelLabel}`;
 
   const pkgType = meta.package_type || 'combo-2n-sex-dom';
   const pkgDef = CHALE_PACKAGES[pkgType as keyof typeof CHALE_PACKAGES];
