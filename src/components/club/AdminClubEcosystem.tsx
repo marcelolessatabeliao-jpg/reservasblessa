@@ -16373,14 +16373,21 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           ? p.value
                           : undefined;
 
-                      // Valores atualizados para parcelas de 2027 (apenas mensalidades de plano, nunca reservas)
-                      if (!isReservationPayment && p.dueDate && p.dueDate >= '2027-01-01' && selectedSubForDetail.billingCycle !== 'ANNUAL') {
+                      // Valores atualizados para parcelas de 2027 (apenas mensalidades de plano na tabela 2026, nunca reduzindo valor já reajustado)
+                      if (
+                        !isReservationPayment &&
+                        !desc.includes('Tabela 2027') &&
+                        p.dueDate &&
+                        p.dueDate >= '2027-01-01' &&
+                        selectedSubForDetail.billingCycle !== 'ANNUAL'
+                      ) {
                         const planSumm = (selectedSubForDetail.planSummaryLabel || '').toLowerCase();
-                        if (planSumm.includes('4 pessoas') || desc.includes('4 pessoas')) newAmount = 239.60;
-                        else if (planSumm.includes('3 pessoas') || desc.includes('3 pessoas') || p.value === 149.70) newAmount = 179.70;
-                        else if (planSumm.includes('2 pessoas') || desc.includes('2 pessoas') || p.value === 99.80) newAmount = 119.80;
-                        else if (planSumm.includes('servidor') || planSumm.includes('estudante') || planSumm.includes('professor') || p.value === 25) newAmount = 30.00;
-                        else if (planSumm.includes('lessa club') || p.value === 49.90) newAmount = 59.90;
+                        const isCustomFamily = planSumm.includes('personalizado');
+                        if (p.value === 199.60 || (!isCustomFamily && (planSumm.includes('4 pessoas') || desc.includes('4 pessoas')))) newAmount = Math.max(Number(p.value || 0), 239.60);
+                        else if (p.value === 149.70 || (!isCustomFamily && (planSumm.includes('3 pessoas') || desc.includes('3 pessoas')))) newAmount = Math.max(Number(p.value || 0), 179.70);
+                        else if (p.value === 99.80 || (!isCustomFamily && (planSumm.includes('2 pessoas') || desc.includes('2 pessoas')))) newAmount = Math.max(Number(p.value || 0), 119.80);
+                        else if (p.value === 25 || (!isCustomFamily && (planSumm.includes('servidor') || planSumm.includes('estudante') || planSumm.includes('professor')))) newAmount = Math.max(Number(p.value || 0), 30.00);
+                        else if (p.value === 49.90 || (!isCustomFamily && planSumm.includes('lessa club'))) newAmount = Math.max(Number(p.value || 0), 59.90);
                       }
 
                       const firstDescLine = desc.split('\n')[0].trim();
