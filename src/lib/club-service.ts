@@ -2905,15 +2905,25 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
                 });
               }
               // Preserva faturas emitidas e sincronizadas no Asaas na nuvem ou no seed
-              const seedSubForInv = defaultLabcardSubs.find((x) => x.id === s.id);
+              // (NUNCA ressuscita faturas do seed se o cadastro já foi modificado/excluído no Admin ou está em club_records!)
+              const subCodeForInv = String(s.subscriptionCode || current.subscriptionCode || '').trim();
+              const isBackedInClubRecords = Boolean(
+                (subCodeForInv && permCodesSet.has(subCodeForInv)) ||
+                  permIdsSet.has(s.id) ||
+                  s.isModifiedFromSeed ||
+                  current.isModifiedFromSeed
+              );
+              const seedSubForInv = !isBackedInClubRecords
+                ? defaultLabcardSubs.find((x) => x.id === s.id)
+                : undefined;
               const fullInvoicesSource =
                 ((seedSubForInv?.invoices?.length || 0) > (s.invoices?.length || 0))
                   ? seedSubForInv?.invoices
-                  : ((current.invoices?.length || 0) > (s.invoices?.length || 0))
+                  : (!isBackedInClubRecords && (current.invoices?.length || 0) > (s.invoices?.length || 0))
                   ? current.invoices
                   : (seedSubForInv?.invoices && seedSubForInv.invoices.some((i) => i.asaasPaymentId) && (!s.invoices || !s.invoices.some((i) => i.asaasPaymentId)))
                   ? seedSubForInv.invoices
-                  : (current.invoices && current.invoices.some((i) => i.asaasPaymentId))
+                  : (current.invoices && current.invoices.some((i) => i.asaasPaymentId) && (!s.invoices || !s.invoices.some((i) => i.asaasPaymentId)))
                   ? current.invoices
                   : null;
 
@@ -3149,11 +3159,20 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
                 }
               }
 
-              // Preserva o carnê completo de parcelas caso o seed ou local possua mais faturas que o remoto (ex: 12 parcelas da Roksiane)
-              const seedSubForInv = defaultLabcardSubs.find((x) => x.id === current.id);
+              // Preserva o carnê completo de parcelas caso o seed ou local possua mais faturas que o remoto
+              // SOMENTE se o cadastro AINDA NÃO foi editado/salvo em club_records (nunca ressuscita parcelas excluídas!)
+              const curCodeForInv = String(current.subscriptionCode || '').trim();
+              const isCurBacked = Boolean(
+                (curCodeForInv && permCodesSet.has(curCodeForInv)) ||
+                  permIdsSet.has(current.id) ||
+                  current.isModifiedFromSeed
+              );
+              const seedSubForInv = !isCurBacked
+                ? defaultLabcardSubs.find((x) => x.id === current.id)
+                : undefined;
               const fullInvoicesSource = ((seedSubForInv?.invoices?.length || 0) > (current.invoices?.length || 0))
                 ? seedSubForInv?.invoices
-                : ((s.invoices?.length || 0) > (current.invoices?.length || 0))
+                : (!isCurBacked && (s.invoices?.length || 0) > (current.invoices?.length || 0))
                 ? s.invoices
                 : null;
               if (fullInvoicesSource) {

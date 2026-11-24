@@ -428,7 +428,7 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
       finalEndDate = '2027-04-04';
     } else if (upName.includes('ELSA BUENO') || holderCard === '1212251781') {
       finalCreatedAt = '2026-02-19T00:00:00.000Z';
-      finalEndDate = '2026-12-30';
+      finalEndDate = '2027-02-19';
     } else if (upName.includes('MARLI DA SILVA') || holderCard === '121225817') {
       finalCreatedAt = '2025-01-01T00:00:00.000Z';
       finalEndDate = '2026-12-15';
@@ -811,17 +811,15 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
       addressNeighborhood: isMarli ? 'Jardim Jorge Teixeira' : isRoksiane ? 'Setor 04' : isLiliane ? 'Setor 03' : '',
       addressCity: 'Ariquemes',
       addressState: 'RO',
-      validityLabel: (isRoksiane ? '04/2027' : isGisseia ? '10/2027' : isDamiane ? '10/2027' : '10/2027'),
+      validityLabel: (isRoksiane ? '04/2027' : isElsa ? '02/2027' : isGisseia ? '10/2027' : isDamiane ? '10/2027' : '10/2027'),
       billingCycle: (isAnnual || isJadia || isAndrirlei || isGisseia || isEder) ? 'ANNUAL' : 'MONTHLY',
       paymentMethod: plan.toLowerCase().includes('publicidade') ? 'COURTESY' : (isAndrirlei || isGisseia || isEder) ? 'CREDIT_CARD' : 'PIX',
       installments: (isJadia || isAndrirlei) ? 1 : isAnnual ? 12 : 1,
       monthlyEquivalent: (isJadia || isAndrirlei) ? 0 : isDamiane ? 25.00 : (isGisseia || isEder) ? 22.50 : mod.price,
       totalContractValue: isJadia ? 290 : (isAndrirlei || isGisseia || isEder) ? 270 : isDamiane ? 300 : isAnnual ? mod.price * 12 : mod.price,
       dueDay: isDamiane ? 21 : isRoksiane ? 5 : (isJadia ? 2 : (isGisseia || isEder) ? 15 : 10),
-      status: isElsa || isLiliane || isGenivaldo ? 'INACTIVE' : (isRoksiane || isMarli || isJadia || isAndrirlei || isGisseia || isDamiane) ? 'ACTIVE' : finalStatus,
+      status: isLiliane || isGenivaldo ? 'INACTIVE' : (isElsa || isRoksiane || isMarli || isJadia || isAndrirlei || isGisseia || isDamiane) ? 'ACTIVE' : finalStatus,
       inactivityReason: isGenivaldo
-        ? 'MENSALIDADE_VENCIDA'
-        : isElsa
         ? 'MENSALIDADE_VENCIDA'
         : isLiliane
         ? 'MENSALIDADE_VENCIDA'
@@ -830,33 +828,27 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
         ? ['MENSALIDADE_VENCIDA']
         : isLiliane
         ? ['FALTA_DOCUMENTOS', 'MENSALIDADE_VENCIDA']
-        : isElsa
-        ? ['MENSALIDADE_VENCIDA']
         : undefined,
       inactivityNotes: isGenivaldo
         ? 'Mensalidades vencidas'
         : isLiliane
         ? 'Falta de documentos comprobatórios para ativação do benefício'
-        : isElsa
-        ? 'Mensalidades 10/2026 e 11/2026 em atraso'
         : undefined,
       origin: 'IMPORT_LABCARD',
       planSummaryLabel: plan + (depMembers.length > 0 ? ` (${depMembers.length + 1} pessoas)` : ''),
       notes: `Cadastrado por ${by} no Labcard`,
       contractType: plan.toLowerCase().includes('publicidade') ? 'FAMILY_PUBLICIDADE' : 'ADESAO_PF',
       contractAccepted: true,
-      contractSignedAt: '2025-01-01T00:00:00.000Z',
-      startDate: '2025-01-01',
-      endDate: isLiliane ? '2026-12-31' : (isRoksiane ? '2027-04-04' : isGisseia ? '2027-10-31' : isDamiane ? '2027-10-31' : finalEndDate),
+      contractSignedAt: isElsa ? '2026-02-19T00:00:00.000Z' : '2025-01-01T00:00:00.000Z',
+      startDate: isElsa ? '2026-02-19' : '2025-01-01',
+      endDate: isLiliane ? '2026-12-31' : (isRoksiane ? '2027-04-04' : isElsa ? '2027-02-19' : isGisseia ? '2027-10-31' : isDamiane ? '2027-10-31' : finalEndDate),
       members: allMembers.map((m) => {
         if (isElsa) {
           return {
             ...m,
-            status: 'INACTIVE',
-            inactivityReason: 'MENSALIDADE_VENCIDA',
-            inactivityNotes: 'Mensalidades 10/2026 e 11/2026 em atraso',
-            expirationDate: '2026-12-30',
-            validityLabel: '12/2026',
+            status: 'ACTIVE',
+            expirationDate: '2027-02-19',
+            validityLabel: '02/2027',
             manualStatusOverride: true,
           };
         }
@@ -959,10 +951,10 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
         : isGisseia
         ? '2026-11-23T11:00:00.000Z'
         : '2026-11-10T00:00:00.000Z',
-      transferCompleted: isElsa || isLiliane || isGenivaldo ? false : (isRoksiane || isMarli || isJadia || isAndrirlei || isGisseia || isDamiane) ? true : isTitularAtivo,
+      transferCompleted: isLiliane || isGenivaldo ? false : (isElsa || isRoksiane || isMarli || isJadia || isAndrirlei || isGisseia || isDamiane) ? true : isTitularAtivo,
       manualStatusOverride: isElsa || isLiliane || isGenivaldo || isRoksiane || isMarli || isJadia || isAndrirlei || isGisseia || isDamiane ? true : isTitularAtivo,
-      manuallyConfirmedTransfer: (isRoksiane || isMarli || isJadia || isAndrirlei || isGisseia || isDamiane) ? true : false,
-      transferredAt: (isRoksiane || isMarli || isJadia || isAndrirlei || isGisseia || isDamiane) ? '2026-11-21T00:00:00.000Z' : undefined,
+      manuallyConfirmedTransfer: (isElsa || isRoksiane || isMarli || isJadia || isAndrirlei || isGisseia || isDamiane) ? true : false,
+      transferredAt: (isElsa || isRoksiane || isMarli || isJadia || isAndrirlei || isGisseia || isDamiane) ? '2026-11-21T00:00:00.000Z' : undefined,
       isModifiedFromSeed: isMarli || isRoksiane || isElsa || isLiliane || isJadia || isGenivaldo || isDamiane || isGisseia ? true : undefined,
     };
   });

@@ -16395,8 +16395,10 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
                         currentInvoices[existingInvIndex] = {
                           ...existing,
+                          dueDate: p.dueDate || existing.dueDate,
                           amount: newAmount !== undefined ? newAmount : existing.amount,
                           asaasPaymentId: p.id,
+                          invoiceUrl: p.invoiceUrl || existing.invoiceUrl,
                           carneGroup: isReservationPayment ? 99 : existing.carneGroup || carneGroup,
                           invoiceKind: isReservationPayment ? 'AVULSA' : existing.invoiceKind,
                           description: isReservationPayment
@@ -16408,7 +16410,14 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           paidAt: isPaid
                             ? (p.clientPaymentDate || p.paymentDate || p.confirmedDate || existing.paidAt || new Date().toISOString())
                             : undefined,
-                          paymentMethod: p.billingType || existing.paymentMethod,
+                          paymentMethod:
+                            p.billingType === 'CREDIT_CARD'
+                              ? 'CREDIT_CARD'
+                              : p.billingType === 'BOLETO'
+                              ? 'BOLETO'
+                              : p.billingType === 'PIX'
+                              ? 'PIX'
+                              : existing.paymentMethod,
                           paymentUrl: p.bankSlipUrl || p.invoiceUrl || existing.paymentUrl,
                         };
                         updatedCount++;
