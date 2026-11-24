@@ -1754,17 +1754,17 @@ export const normalizeClubDatabaseState = (
           ? 22.50
           : sub.monthlyEquivalent,
       validityLabel:
-        (sub.subscriptionCode === '121225890' || (sub.holderName && sub.holderName.toUpperCase().includes('JADIA')))
+        (!sub.isModifiedFromSeed && (sub.subscriptionCode === '121225890' || (sub.holderName && sub.holderName.toUpperCase().includes('JADIA'))))
           ? '06/2027'
-          : (sub.subscriptionCode === '1212251327' || (sub.holderName && sub.holderName.toUpperCase().includes('ROKSIANE')))
+          : (!sub.isModifiedFromSeed && !sub.validityLabel && (sub.subscriptionCode === '1212251327' || (sub.holderName && sub.holderName.toUpperCase().includes('ROKSIANE'))))
           ? '04/2027'
           : (!sub.validityLabel && (sub.subscriptionCode === '1212252794' || (sub.holderName && sub.holderName.toUpperCase().includes('ANDRIRLEI'))))
           ? '06/2027'
           : sub.validityLabel,
       endDate:
-        (sub.subscriptionCode === '121225890' || (sub.holderName && sub.holderName.toUpperCase().includes('JADIA')))
+        (!sub.isModifiedFromSeed && (sub.subscriptionCode === '121225890' || (sub.holderName && sub.holderName.toUpperCase().includes('JADIA'))))
           ? '2027-06-02'
-          : (sub.subscriptionCode === '1212251327' || (sub.holderName && sub.holderName.toUpperCase().includes('ROKSIANE')))
+          : (!sub.isModifiedFromSeed && !sub.endDate && (sub.subscriptionCode === '1212251327' || (sub.holderName && sub.holderName.toUpperCase().includes('ROKSIANE'))))
           ? '2027-04-04'
           : sub.endDate,
       planSummaryLabel:
@@ -3446,12 +3446,16 @@ export const createClubSubscription = async (
     }
   }
   try {
-    const { data: latestCodes } = await (supabase.from as any)('club_records')
-      .select('subscription_code');
-    if (Array.isArray(latestCodes)) {
+    for (let from = 0; from < 50000; from += 1000) {
+      const { data: latestCodes, error: seqQueryErr } = await (supabase.from as any)('club_records')
+        .select('subscription_code')
+        .order('subscription_code', { ascending: true })
+        .range(from, from + 999);
+      if (seqQueryErr || !Array.isArray(latestCodes) || latestCodes.length === 0) break;
       for (const row of latestCodes) {
         bumpSeqFromCode(row?.subscription_code);
       }
+      if (latestCodes.length < 1000) break;
     }
   } catch (seqErr) {
     console.warn('[ClubService] Aviso ao consultar última sequência em club_records:', seqErr);
@@ -3818,7 +3822,13 @@ export const createClubSubscription = async (
 
   // 1. Gravação ATÔMICA IMEDIATA em public.club_records (+ snapshot automático em club_record_history)
   // Garante que NENHUM novo cadastro pelo site ou admin se perca mesmo se o cliente fechar a aba ou houver debounce!
-  await saveMemberPermanentDocs(subscription.subscriptionCode, subscription, 'CREATE_SUBSCRIPTION');
+  let savedPermanent = await saveMemberPermanentDocs(subscription.subscriptionCode, subscription, 'CREATE_SUBSCRIPTION');
+  if (!savedPermanent) {
+    savedPermanent = await saveMemberPermanentDocs(subscription.subscriptionCode, subscription, 'CREATE_SUBSCRIPTION');
+  }
+  if (!savedPermanent) {
+    throw new Error('Falha ao gravar o cadastro no banco de dados (club_records). Tente novamente.');
+  }
 
   // 2. Gravação imediata no estado global (waitForCloud: true — SEM debounce!) antes de abrir pagamento Asaas
   state.lastCardSequence = seq;
