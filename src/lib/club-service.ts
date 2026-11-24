@@ -10,6 +10,7 @@ import {
   softDeleteClubAttachment,
   loadClubRecordHistory,
   uploadClubFileToStorage,
+  lastSavedPermanentTimestamps,
   type PermanentMemberDocRecord,
   type ClubRecordHistoryEntry,
 } from './club-permanent-docs';
@@ -125,21 +126,41 @@ export const mergeAttachmentsSafely = (
   if (pList.length === 0) return fList;
   if (fList.length === 0) return pList;
 
-  const fMap = new Map(fList.map((a) => [a.name, a]));
-  const merged = pList.map((att) => {
-    const fAtt = fMap.get(att.name);
-    if (!fAtt) return att;
-    const isCompacted = !att.dataUrl || att.dataUrl.includes('[COMPACTED_LOCAL]') || att.dataUrl === 'HAS_DOC_ATTACHED';
-    const fIsReal = fAtt.dataUrl && !fAtt.dataUrl.includes('[COMPACTED_LOCAL]') && fAtt.dataUrl !== 'HAS_DOC_ATTACHED';
-    if (isCompacted && fIsReal) {
+  const isCompactedUrl = (u?: string) =>
+    !u || u.trim().length < 20 || u.includes('[COMPACTED_LOCAL]') || u === 'HAS_DOC_ATTACHED';
+  const isHttp = (u?: string) => Boolean(u && (u.startsWith('http://') || u.startsWith('https://')));
+
+  const findMatch = (list: ClubAttachment[], target: ClubAttachment): number =>
+    list.findIndex((item) => {
+      if (target.id && item.id && item.id === target.id) return true;
+      if (!isCompactedUrl(target.dataUrl) && !isCompactedUrl(item.dataUrl) && item.dataUrl === target.dataUrl) {
+        return true;
+      }
+      if (target.name && item.name && item.name === target.name) {
+        const distinctRealFiles =
+          !isCompactedUrl(target.dataUrl) &&
+          !isCompactedUrl(item.dataUrl) &&
+          target.dataUrl !== item.dataUrl &&
+          Boolean(target.id && item.id && target.id !== item.id);
+        return !distinctRealFiles;
+      }
+      return false;
+    });
+
+  const merged: ClubAttachment[] = pList.map((att) => {
+    const fIdx = findMatch(fList, att);
+    if (fIdx === -1) return att;
+    const fAtt = fList[fIdx];
+    const pCompacted = isCompactedUrl(att.dataUrl);
+    const fReal = !isCompactedUrl(fAtt.dataUrl);
+    if ((pCompacted && fReal) || (!isHttp(att.dataUrl) && isHttp(fAtt.dataUrl))) {
       return { ...att, dataUrl: fAtt.dataUrl, mimeType: att.mimeType || fAtt.mimeType };
     }
     return att;
   });
 
-  const mergedNames = new Set(merged.map((a) => a.name));
   fList.forEach((fa) => {
-    if (!mergedNames.has(fa.name)) {
+    if (findMatch(merged, fa) === -1) {
       merged.push(fa);
     }
   });
@@ -1715,7 +1736,7 @@ export const normalizeClubDatabaseState = (
       members: normalizedMembers,
       billingCycle:
         (sub.subscriptionCode === '121225890' || (sub.holderName && sub.holderName.toUpperCase().includes('JADIA')) ||
-         sub.subscriptionCode === '1212252794' || (sub.holderName && sub.holderName.toUpperCase().includes('ANDRIRLEI')) ||
+         (!sub.isModifiedFromSeed && (sub.subscriptionCode === '1212252794' || (sub.holderName && sub.holderName.toUpperCase().includes('ANDRIRLEI')))) ||
          sub.subscriptionCode === '1212252990' || (sub.holderName && sub.holderName.toUpperCase().includes('GISSEIA')) ||
          sub.subscriptionCode === '1212252991' || (sub.holderName && sub.holderName.toUpperCase().includes('EDER APARECIDO')))
           ? 'ANNUAL'
@@ -1723,14 +1744,14 @@ export const normalizeClubDatabaseState = (
       totalContractValue:
         (sub.subscriptionCode === '121225890' || (sub.holderName && sub.holderName.toUpperCase().includes('JADIA')))
           ? 290
-          : (sub.subscriptionCode === '1212252794' || (sub.holderName && sub.holderName.toUpperCase().includes('ANDRIRLEI')) ||
+          : ((!sub.isModifiedFromSeed && (sub.subscriptionCode === '1212252794' || (sub.holderName && sub.holderName.toUpperCase().includes('ANDRIRLEI')))) ||
              sub.subscriptionCode === '1212252990' || (sub.holderName && sub.holderName.toUpperCase().includes('GISSEIA')) ||
              sub.subscriptionCode === '1212252991' || (sub.holderName && sub.holderName.toUpperCase().includes('EDER APARECIDO')))
           ? 270
           : sub.totalContractValue,
       monthlyEquivalent:
         (sub.subscriptionCode === '121225890' || (sub.holderName && sub.holderName.toUpperCase().includes('JADIA')) ||
-         sub.subscriptionCode === '1212252794' || (sub.holderName && sub.holderName.toUpperCase().includes('ANDRIRLEI')))
+         (!sub.isModifiedFromSeed && (sub.subscriptionCode === '1212252794' || (sub.holderName && sub.holderName.toUpperCase().includes('ANDRIRLEI')))))
           ? 0
           : (sub.subscriptionCode === '1212252990' || (sub.holderName && sub.holderName.toUpperCase().includes('GISSEIA')) ||
              sub.subscriptionCode === '1212252991' || (sub.holderName && sub.holderName.toUpperCase().includes('EDER APARECIDO')))
@@ -1741,7 +1762,7 @@ export const normalizeClubDatabaseState = (
           ? '06/2027'
           : (sub.subscriptionCode === '1212251327' || (sub.holderName && sub.holderName.toUpperCase().includes('ROKSIANE')))
           ? '04/2027'
-          : (sub.subscriptionCode === '1212252794' || (sub.holderName && sub.holderName.toUpperCase().includes('ANDRIRLEI')))
+          : (!sub.validityLabel && (sub.subscriptionCode === '1212252794' || (sub.holderName && sub.holderName.toUpperCase().includes('ANDRIRLEI'))))
           ? '06/2027'
           : sub.validityLabel,
       endDate:
@@ -1753,7 +1774,7 @@ export const normalizeClubDatabaseState = (
       planSummaryLabel:
         (sub.subscriptionCode === '121225890' || (sub.holderName && sub.holderName.toUpperCase().includes('JADIA')))
           ? 'Lessa Servidor Pass (Anual)'
-          : (sub.subscriptionCode === '1212252794' || (sub.holderName && sub.holderName.toUpperCase().includes('ANDRIRLEI')))
+          : (!sub.isModifiedFromSeed && (sub.subscriptionCode === '1212252794' || (sub.holderName && sub.holderName.toUpperCase().includes('ANDRIRLEI'))))
           ? 'Lessa Professor Pass (Anual)'
           : sub.planSummaryLabel,
       invoices: (() => {
@@ -1844,11 +1865,12 @@ export const normalizeClubDatabaseState = (
           return [...carne1Invs, carne4Inv];
         }
 
-        // ANDRIRLEI: Plano Anual quitado à vista (R$ 270,00)
+        // ANDRIRLEI: Fallback inicial do plano anual quitado à vista (R$ 270,00) — somente se não houver faturas salvas pelo admin!
         if (
-          sub.subscriptionCode === '1212252794' ||
-          sub.id === 'sub-labcard-1212252794' ||
-          (sub.holderName && sub.holderName.toUpperCase().includes('ANDRIRLEI'))
+          invList.length === 0 &&
+          (sub.subscriptionCode === '1212252794' ||
+            sub.id === 'sub-labcard-1212252794' ||
+            (sub.holderName && sub.holderName.toUpperCase().includes('ANDRIRLEI')))
         ) {
           return [
             {
@@ -2213,13 +2235,32 @@ const syncModifiedSubsToClubRecords = async (stateToSave: ClubDatabaseState): Pr
   for (const sub of stateToSave.subscriptions || []) {
     const code = String(sub.subscriptionCode || sub.id || '').trim();
     if (!code) continue;
-    const prevTs = lastSyncedRecordTimestamps.get(code);
+    const prevSyncedTs = lastSyncedRecordTimestamps.get(code);
+    const prevDirectTs = lastSavedPermanentTimestamps.get(code);
+    const prevTs =
+      prevSyncedTs && prevDirectTs
+        ? prevSyncedTs > prevDirectTs
+          ? prevSyncedTs
+          : prevDirectTs
+        : prevSyncedTs || prevDirectTs;
     const curTs = sub.updatedAt || '';
-    // Se mudou desde o último sync (ou se nunca foi rastreado mas foi modificado recentemente)
-    if (curTs && curTs !== prevTs && curTs > '2026-11-11T00:00:00.000Z') {
-      // Só envia se foi alterado nesta sessão (prevTs definido) ou se o timestamp é dos últimos 10 minutos
-      const ageMs = Date.now() - new Date(curTs).getTime();
-      if (prevTs !== undefined || (Number.isFinite(ageMs) && ageMs < 10 * 60 * 1000)) {
+    if (!curTs || curTs <= '2026-11-11T00:00:00.000Z') continue;
+
+    const curMs = new Date(curTs).getTime();
+    const prevMs = prevTs ? new Date(prevTs).getTime() : 0;
+    if (!Number.isFinite(curMs)) continue;
+
+    // REGRA ANTI-REGRESSÃO:
+    // JAMAIS envia um registro com timestamp igual ou mais antigo que o último sincronizado/salvo!
+    if (prevTs !== undefined) {
+      if (curMs > prevMs) {
+        modifiedSubs.push(sub);
+      }
+    } else {
+      // Ainda não havia baseline em memória: só envia se editado nos últimos 2 minutos
+      // (e `saveMemberPermanentDocs` valida contra o updated_at atual no Postgres antes de gravar).
+      const ageMs = Date.now() - curMs;
+      if (Number.isFinite(ageMs) && ageMs >= -60000 && ageMs < 2 * 60 * 1000) {
         modifiedSubs.push(sub);
       }
     }
@@ -2311,8 +2352,17 @@ const runCloudSaveExecution = async (stateToSave: ClubDatabaseState): Promise<vo
           const safeMerged = applyPermanentDocsToSub(existing, rec);
           subById.set(safeMerged.id, safeMerged);
           if (safeMerged.subscriptionCode) subByCode.set(safeMerged.subscriptionCode, safeMerged);
+          if (safeMerged.updatedAt) {
+            const curSynced = lastSyncedRecordTimestamps.get(code) || '';
+            if (safeMerged.updatedAt > curSynced) {
+              lastSyncedRecordTimestamps.set(code, safeMerged.updatedAt);
+            }
+          }
         } else if (rec.id && rec.holderName) {
           subById.set(rec.id, rec as ClubSubscription);
+          if (rec.updatedAt) {
+            lastSyncedRecordTimestamps.set(code, rec.updatedAt);
+          }
         }
       });
 
@@ -5057,8 +5107,13 @@ export const applySelectedAsaasSync = async (
         sel.candidate.subscriptions?.[0]?.id ||
         chosenPayments[0]?.subscriptionId,
       invoices: invoicesCopy,
+      isModifiedFromSeed: true,
       updatedAt: nowIso,
     };
+    const syncedCode = String(nextSubs[targetIdx].subscriptionCode || nextSubs[targetIdx].id || '').trim();
+    if (syncedCode) {
+      await saveMemberPermanentDocs(syncedCode, nextSubs[targetIdx], 'ASAAS_SYNC');
+    }
     updatedSubs += 1;
   }
 
@@ -5068,7 +5123,7 @@ export const applySelectedAsaasSync = async (
     lastCardSequence: seq,
   };
 
-  const saved = await saveClubState(nextState);
+  const saved = await saveClubState(nextState, { waitForCloud: true });
   return {
     state: saved,
     updatedSubs,
@@ -5233,7 +5288,11 @@ export const verifyMemberProofDocument = async (
   if (subIdx >= 0) {
     state.subscriptions[subIdx] = resolved;
   }
-  return saveClubState(state);
+  const permCode = resolved.subscriptionCode || resolved.holderCpf || resolved.id;
+  if (permCode) {
+    await saveMemberPermanentDocs(permCode, resolved, 'VERIFY_DOC');
+  }
+  return saveClubState(state, { waitForCloud: true });
 };
 
 // ============================================================================
@@ -7010,14 +7069,14 @@ export const saveSocioDependentSlot = async (
   // 1. Upload de Foto 3x4 para Supabase Storage (`club-files`)
   let resolvedPhotoUrl = existingMember?.photoUrl || '';
   if (input.photoFile) {
-    const compressed = await compressImageFile(input.photoFile, 700, 0.8);
-    const uploadedPhotoUrl = await uploadClubFileToStorage(
+    const compressed = await compressImageFile(input.photoFile, 700, 700, 0.8);
+    const uploadedPhoto = await uploadClubFileToStorage(
       sub.subscriptionCode,
       compressed,
       `foto_${memberCardNumber}_${input.photoFile.name || '3x4.jpg'}`,
       'image/jpeg'
     );
-    resolvedPhotoUrl = uploadedPhotoUrl || compressed;
+    resolvedPhotoUrl = uploadedPhoto?.publicUrl || compressed;
   }
 
   // 2. Upload de Documento Obrigatório (ex: Certidão/RG para Lessa Kids) para `club-files` + `club_attachments`
@@ -7032,15 +7091,15 @@ export const saveSocioDependentSlot = async (
       input.documentFile.name.toLowerCase().endsWith('.pdf');
     const rawDataUrl = isPdf
       ? await fileToDataUrl(input.documentFile)
-      : await compressImageFile(input.documentFile, 1280, 0.82);
+      : await compressImageFile(input.documentFile, 1280, 1280, 0.82);
 
-    const uploadedDocUrl = await uploadClubFileToStorage(
+    const uploadedDoc = await uploadClubFileToStorage(
       sub.subscriptionCode,
       rawDataUrl,
       `doc_${memberCardNumber}_${input.documentFile.name}`,
       isPdf ? 'application/pdf' : 'image/jpeg'
     );
-    const finalDocUrl = uploadedDocUrl || rawDataUrl;
+    const finalDocUrl = uploadedDoc?.publicUrl || rawDataUrl;
     const newAtt: ClubAttachment = {
       id: `att_dep_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
       name: `${cleanName} — ${input.documentFile.name}`,
@@ -7048,7 +7107,7 @@ export const saveSocioDependentSlot = async (
       dataUrl: finalDocUrl,
       createdAt: nowIso,
     };
-    await saveClubAttachmentAtomic(sub.subscriptionCode, memberId, newAtt);
+    await saveClubAttachmentAtomic(sub.subscriptionCode, sub.id, memberId, newAtt);
     resolvedDocUrl = finalDocUrl;
     resolvedDocName = input.documentFile.name;
     resolvedAttachments = [newAtt, ...resolvedAttachments.filter((a) => a.id !== newAtt.id)];
@@ -7162,6 +7221,7 @@ export {
   softDeleteClubAttachment,
   loadClubRecordHistory,
   uploadClubFileToStorage,
+  lastSavedPermanentTimestamps,
   type PermanentMemberDocRecord,
   type ClubRecordHistoryEntry,
 };

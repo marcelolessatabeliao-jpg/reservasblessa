@@ -1095,7 +1095,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
             );
             let nextStatus = selectedSubForDetail.status;
             let nextReason = selectedSubForDetail.inactivityReason;
-            if (!hasOverdueInvs && (selectedSubForDetail.inactivityReason === 'MENSALIDADE_VENCIDA' || selectedSubForDetail.status === 'INACTIVE')) {
+            if (
+              !hasOverdueInvs &&
+              selectedSubForDetail.inactivityReason === 'MENSALIDADE_VENCIDA' &&
+              !selectedSubForDetail.manualStatusOverride
+            ) {
               nextStatus = 'ACTIVE';
               nextReason = undefined;
             }
@@ -1105,15 +1109,20 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
               inactivityReason: nextReason,
               inactivityReasons: nextReason ? selectedSubForDetail.inactivityReasons : undefined,
               invoices: currentInvs,
+              isModifiedFromSeed: true,
               updatedAt: new Date().toISOString(),
             };
             setSelectedSubForDetail(updated);
+            const permCode = updated.subscriptionCode || updated.holderCpf || updated.id;
+            if (permCode) {
+              await saveMemberPermanentDocs(permCode, updated, 'ASAAS_AUTO_SYNC');
+            }
             if (state) {
               const nextState: ClubDatabaseState = {
                 ...state,
                 subscriptions: (state.subscriptions || []).map((s) => (s.id === updated.id ? updated : s)),
               };
-              await persist(nextState);
+              await persist(nextState, { waitForCloud: true });
             }
           }
         } catch (err) {
@@ -3350,8 +3359,20 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
           : selectedSubForDetail.monthlyEquivalent;
       const cycleSuffix =
         editClientData.billingCycle === 'ANNUAL' ? '(Anual)' : '(Mensal)';
+      const freshBaseSub =
+        (state.subscriptions || []).find((s) => s.id === selectedSubForDetail.id) ||
+        selectedSubForDetail;
       const updatedSub: ClubSubscription = {
+        ...freshBaseSub,
         ...selectedSubForDetail,
+        invoices:
+          (freshBaseSub.invoices?.length || 0) > (selectedSubForDetail.invoices?.length || 0)
+            ? freshBaseSub.invoices
+            : selectedSubForDetail.invoices,
+        attachments:
+          (freshBaseSub.attachments?.length || 0) > (selectedSubForDetail.attachments?.length || 0)
+            ? freshBaseSub.attachments
+            : selectedSubForDetail.attachments,
         status: targetStatus,
         contractType: isPublicidade
           ? 'FAMILY_PUBLICIDADE'
@@ -3360,6 +3381,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
           ? 'COURTESY'
           : selectedSubForDetail.paymentMethod,
         endDate: nextEndDate,
+        validityLabel: nextValidityLabel || selectedSubForDetail.validityLabel,
         holderName: editClientData.holderName.trim() || selectedSubForDetail.holderName,
         holderCpf: editClientData.holderCpf.trim() || selectedSubForDetail.holderCpf,
         holderRg: editClientData.holderRg.trim(),
@@ -3488,17 +3510,15 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         ),
       };
 
-      // Grava no estado e aguarda a confirmação de nuvem
-      await persist(nextState, { waitForCloud: true });
-
-      // Blindagem atômica dedicada permanente no Supabase (club_member_docs_*) e no IndexedDB:
-      // Impede definitivamente qualquer perda de anexos, e-mail, CEP e datas por merges futuros.
+      // Blindagem atômica dedicada permanente em public.club_records + Storage + IndexedDB ANTES do sync geral:
+      // Garante ordem estrita sem race conditions e impede sobrescritas ou perdas de anexos/faturas.
       const permCode = updatedSub.subscriptionCode || updatedSub.holderCpf;
       if (permCode) {
-        saveMemberPermanentDocs(permCode, updatedSub).catch((err) => {
-          console.warn('[AdminClubEcosystem] Aviso ao salvar documento permanente:', err);
-        });
+        await saveMemberPermanentDocs(permCode, updatedSub, 'ADMIN_SAVE');
       }
+
+      // Grava no estado e aguarda a confirmação de nuvem
+      await persist(nextState, { waitForCloud: true });
 
       // Blindagem definitiva: persiste os cartões no conjunto de cartões confirmados pelo administrador
       if (updatedSub.subscriptionCode) {
@@ -4051,41 +4071,43 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
   // Alterna manualmente o status de transferência concluída do associado
   const handleToggleTransferCompleted = async (sub: ClubSubscription, completed: boolean) => {
     if (!state) return;
-    const isLab = sub.origin === 'IMPORT_LABCARD' || sub.id.startsWith('sub-labcard-');
-    const isSameSelected = selectedSubForDetail?.id === sub.id;
+    // Usa sempre a versão mais atualizada em `state` para nunca sobrescrever faturas/anexos recém-sincronizados
+    const baseSub = (state.subscriptions || []).find((s) => s.id === sub.id) || sub;
+    const isLab = baseSub.origin === 'IMPORT_LABCARD' || baseSub.id.startsWith('sub-labcard-');
+    const isSameSelected = selectedSubForDetail?.id === baseSub.id;
 
     // Obedece estritamente o status principal definido pelo admin (INACTIVE, SUSPENDED, CANCELLED ou ACTIVE):
     // Se o cliente foi configurado como INATIVO pelo admin (no cadastro ou no seletor da tela),
     // concluir a transferência JAMAIS pode reativá-lo compulsoriamente.
     const isAdminInactive =
-      sub.status === 'INACTIVE' ||
-      sub.status === 'SUSPENDED' ||
-      sub.status === 'CANCELLED' ||
-      Boolean(sub.inactivityReason) ||
+      baseSub.status === 'INACTIVE' ||
+      baseSub.status === 'SUSPENDED' ||
+      baseSub.status === 'CANCELLED' ||
+      Boolean(baseSub.inactivityReason) ||
       (isSameSelected && situacaoInativar === 'SIM' && situacaoLiberar === 'NAO');
 
     const preservedInactiveStatus: SubscriptionStatus =
-      sub.status === 'SUSPENDED' || sub.status === 'CANCELLED' ? sub.status : 'INACTIVE';
+      baseSub.status === 'SUSPENDED' || baseSub.status === 'CANCELLED' ? baseSub.status : 'INACTIVE';
 
     const targetStatus: SubscriptionStatus = completed
       ? (isAdminInactive
           ? preservedInactiveStatus
-          : sub.status === 'PENDING_TRANSFER'
+          : baseSub.status === 'PENDING_TRANSFER'
           ? 'ACTIVE'
-          : sub.status)
-      : (sub.status === 'ACTIVE' && isLab ? 'PENDING_TRANSFER' : sub.status);
+          : baseSub.status)
+      : (baseSub.status === 'ACTIVE' && isLab ? 'PENDING_TRANSFER' : baseSub.status);
 
     // Só registra como cartão ativo confirmado pelo admin se o status resultante for efetivamente ACTIVE
-    markCardAsAdminConfirmed(sub.subscriptionCode, completed && targetStatus === 'ACTIVE');
+    markCardAsAdminConfirmed(baseSub.subscriptionCode, completed && targetStatus === 'ACTIVE');
 
     const effectiveInactivityReason =
       targetStatus !== 'ACTIVE'
-        ? (sub.inactivityReason || (isSameSelected ? situacaoMotivoInativo : undefined) || 'FALTA_DOCUMENTOS')
+        ? (baseSub.inactivityReason || (isSameSelected ? situacaoMotivoInativo : undefined) || 'FALTA_DOCUMENTOS')
         : undefined;
     const effectiveInactivityReasons =
       targetStatus !== 'ACTIVE'
-        ? (sub.inactivityReasons && sub.inactivityReasons.length > 0
-            ? sub.inactivityReasons
+        ? (baseSub.inactivityReasons && baseSub.inactivityReasons.length > 0
+            ? baseSub.inactivityReasons
             : isSameSelected && situacaoMotivosInativo.length > 0
             ? situacaoMotivosInativo
             : effectiveInactivityReason
@@ -4094,17 +4116,17 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         : undefined;
 
     const updatedSub: ClubSubscription = {
-      ...sub,
+      ...baseSub,
       transferCompleted: completed,
       manuallyConfirmedTransfer: completed,
-      transferredAt: completed ? (sub.transferredAt || new Date().toISOString()) : undefined,
+      transferredAt: completed ? (baseSub.transferredAt || new Date().toISOString()) : undefined,
       manualStatusOverride: true,
       isModifiedFromSeed: true,
       status: targetStatus,
       inactivityReason: effectiveInactivityReason,
       inactivityReasons: effectiveInactivityReasons,
-      members: (sub.members || []).map((m) => {
-        const hasRealDoc = memberHasProofUploaded(m, sub);
+      members: (baseSub.members || []).map((m) => {
+        const hasRealDoc = memberHasProofUploaded(m, baseSub);
         const keepDocVerified = hasRealDoc && Boolean(m.documentVerified);
         return {
           ...m,
@@ -4136,12 +4158,12 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       setSelectedSubForDetail(updatedSub);
     }
 
-    await persist(nextState, { waitForCloud: true });
-
     const permCode = updatedSub.subscriptionCode || updatedSub.holderCpf;
     if (permCode) {
-      saveMemberPermanentDocs(permCode, updatedSub).catch(() => {});
+      await saveMemberPermanentDocs(permCode, updatedSub, 'ADMIN_TRANSFER_TOGGLE');
     }
+
+    await persist(nextState, { waitForCloud: true });
 
     const statusBadgeText =
       targetStatus === 'ACTIVE'
@@ -4702,38 +4724,40 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         '2027-10-31';
       const nextValidity = getValidityLabelFromDate(nextEndDate);
 
+      const baseSub = (state.subscriptions || []).find((s) => s.id === sub.id) || sub;
       const updatedSub: ClubSubscription = {
-        ...sub,
-        holderEmail: editClientData.holderEmail.trim() || sub.holderEmail,
-        addressCep: editClientData.addressCep.trim() || sub.addressCep,
-        addressStreet: editClientData.addressStreet.trim() || sub.addressStreet,
-        addressNumber: editClientData.addressNumber.trim() || sub.addressNumber,
-        addressComplement: editClientData.addressComplement.trim() || sub.addressComplement,
-        addressNeighborhood: editClientData.addressNeighborhood.trim() || sub.addressNeighborhood,
-        addressCity: editClientData.addressCity.trim() || sub.addressCity,
-        addressState: editClientData.addressState.trim() || sub.addressState,
-        vehicleModel: editClientData.vehicleModel.trim() || sub.vehicleModel,
-        vehiclePlate: editClientData.vehiclePlate.trim().toUpperCase() || sub.vehiclePlate,
-        vehicleColor: editClientData.vehicleColor.trim() || sub.vehicleColor,
-        notes: editClientData.notes.trim() || sub.notes,
-        holderRg: editClientData.holderRg.trim() || sub.holderRg,
-        holderPhone: editClientData.holderPhone.trim() || sub.holderPhone,
-        holderBirthDate: editClientData.holderBirthDate || sub.holderBirthDate,
-        holderSex: editClientData.holderSex || sub.holderSex,
-        holderMaritalStatus: editClientData.holderMaritalStatus || sub.holderMaritalStatus,
+        ...baseSub,
+        holderEmail: editClientData.holderEmail.trim() || baseSub.holderEmail,
+        addressCep: editClientData.addressCep.trim() || baseSub.addressCep,
+        addressStreet: editClientData.addressStreet.trim() || baseSub.addressStreet,
+        addressNumber: editClientData.addressNumber.trim() || baseSub.addressNumber,
+        addressComplement: editClientData.addressComplement.trim() || baseSub.addressComplement,
+        addressNeighborhood: editClientData.addressNeighborhood.trim() || baseSub.addressNeighborhood,
+        addressCity: editClientData.addressCity.trim() || baseSub.addressCity,
+        addressState: editClientData.addressState.trim() || baseSub.addressState,
+        vehicleModel: editClientData.vehicleModel.trim() || baseSub.vehicleModel,
+        vehiclePlate: editClientData.vehiclePlate.trim().toUpperCase() || baseSub.vehiclePlate,
+        vehicleColor: editClientData.vehicleColor.trim() || baseSub.vehicleColor,
+        notes: editClientData.notes.trim() || baseSub.notes,
+        holderRg: editClientData.holderRg.trim() || baseSub.holderRg,
+        holderPhone: editClientData.holderPhone.trim() || baseSub.holderPhone,
+        holderBirthDate: editClientData.holderBirthDate || baseSub.holderBirthDate,
+        holderSex: editClientData.holderSex || baseSub.holderSex,
+        holderMaritalStatus: editClientData.holderMaritalStatus || baseSub.holderMaritalStatus,
         status: newStatus,
         inactivityReason: newStatus === 'ACTIVE' ? undefined : effectiveReason,
         inactivityReasons: newStatus === 'ACTIVE' ? undefined : effectiveReasons,
         inactivityNotes: newStatus === 'ACTIVE' ? undefined : (effectiveNotes || undefined),
         manualStatusOverride: true,
         isModifiedFromSeed: true,
-        manuallyConfirmedTransfer: newStatus === 'ACTIVE' ? true : Boolean(sub.manuallyConfirmedTransfer),
+        manuallyConfirmedTransfer: newStatus === 'ACTIVE' ? true : Boolean(baseSub.manuallyConfirmedTransfer),
         endDate: nextEndDate,
+        validityLabel: nextValidity || baseSub.validityLabel,
         updatedAt: new Date().toISOString(),
-        transferCompleted: newStatus === 'ACTIVE' ? true : Boolean(sub.transferCompleted),
-        transferredAt: (newStatus === 'ACTIVE' || sub.transferCompleted) ? (sub.transferredAt || new Date().toISOString()) : undefined,
-        members: sub.members.map((m) => {
-          const hasRealDoc = memberHasProofUploaded(m, sub);
+        transferCompleted: newStatus === 'ACTIVE' ? true : Boolean(baseSub.transferCompleted),
+        transferredAt: (newStatus === 'ACTIVE' || baseSub.transferCompleted) ? (baseSub.transferredAt || new Date().toISOString()) : undefined,
+        members: baseSub.members.map((m) => {
+          const hasRealDoc = memberHasProofUploaded(m, baseSub);
           const keepDocVerified = hasRealDoc && (newStatus === 'ACTIVE' ? true : Boolean(m.documentVerified));
           return {
             ...m,
@@ -4753,11 +4777,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         }),
       };
       if (newStatus === 'ACTIVE') {
-        markCardAsAdminConfirmed(sub.subscriptionCode, true);
+        markCardAsAdminConfirmed(baseSub.subscriptionCode, true);
         setSituacaoLiberar('SIM');
         setSituacaoInativar('NAO');
       } else {
-        markCardAsAdminConfirmed(sub.subscriptionCode, false);
+        markCardAsAdminConfirmed(baseSub.subscriptionCode, false);
         setSituacaoLiberar('NAO');
         setSituacaoInativar('SIM');
       }
@@ -4774,12 +4798,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
           s.id === updatedSub.id ? updatedSub : s
         ),
       };
-      await persist(nextState, { waitForCloud: true });
-
       const permCode = updatedSub.subscriptionCode || updatedSub.holderCpf;
       if (permCode) {
-        saveMemberPermanentDocs(permCode, updatedSub).catch(() => {});
+        await saveMemberPermanentDocs(permCode, updatedSub, 'ADMIN_STATUS_TOGGLE');
       }
+      await persist(nextState, { waitForCloud: true });
 
       const feedbackMsg =
         prevLabel !== newLabel
@@ -16451,6 +16474,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                       manuallyConfirmedTransfer: selectedSubForDetail.manuallyConfirmedTransfer,
                       members: nextMembers,
                       invoices: currentInvoices,
+                      isModifiedFromSeed: true,
                       updatedAt: new Date().toISOString(),
                     };
 
@@ -16463,7 +16487,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
                     setSelectedSubForDetail(updatedSub);
                     setSelectedCarneNumber('ALL');
-                    await persist(nextState);
+                    const permCode = updatedSub.subscriptionCode || updatedSub.holderCpf || updatedSub.id;
+                    if (permCode) {
+                      await saveMemberPermanentDocs(permCode, updatedSub, 'ASAAS_SYNC_CLIENT');
+                    }
+                    await persist(nextState, { waitForCloud: true });
 
                     toast({
                       title: 'Sincronização com Asaas Concluída!',
@@ -18825,6 +18853,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                   const updatedSub: ClubSubscription = {
                                     ...selectedSubForDetail,
                                     invoices: remaining,
+                                    isModifiedFromSeed: true,
+                                    updatedAt: new Date().toISOString(),
                                   };
                                   const nextState: ClubDatabaseState = {
                                     ...state!,
@@ -18835,7 +18865,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                   setSelectedSubForDetail(updatedSub);
                                   setSelectedClientInvoiceIdsForDelete([]);
                                   setInvoiceDeleteConfirm(null);
-                                  await persist(nextState);
+                                  const permCode = updatedSub.subscriptionCode || updatedSub.holderCpf || updatedSub.id;
+                                  if (permCode) {
+                                    await saveMemberPermanentDocs(permCode, updatedSub, 'ADMIN_DELETE_INVOICE');
+                                  }
+                                  await persist(nextState, { waitForCloud: true });
 
                                   let toastTitle = `${idsToRemove.size} parcela(s) excluída(s) com sucesso!`;
                                   if (asaasSuccessCount > 0) {
@@ -18914,6 +18948,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                   const updatedSub: ClubSubscription = {
                                     ...selectedSubForDetail,
                                     invoices: updatedInvoices,
+                                    isModifiedFromSeed: true,
+                                    updatedAt: new Date().toISOString(),
                                   };
                                   const nextState: ClubDatabaseState = {
                                     ...state!,
@@ -18923,7 +18959,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                   };
                                   setSelectedSubForDetail(updatedSub);
                                   setInvoiceDeleteConfirm(null);
-                                  await persist(nextState);
+                                  const permCode = updatedSub.subscriptionCode || updatedSub.holderCpf || updatedSub.id;
+                                  if (permCode) {
+                                    await saveMemberPermanentDocs(permCode, updatedSub, 'ADMIN_EDIT_INVOICES');
+                                  }
+                                  await persist(nextState, { waitForCloud: true });
                                   toast({
                                     title: `Pagamento da parcela ${target.installmentNumber} estornado para NÃO PAGA.`,
                                   });
@@ -18956,6 +18996,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                   const updatedSub: ClubSubscription = {
                                     ...selectedSubForDetail,
                                     invoices: remaining,
+                                    isModifiedFromSeed: true,
+                                    updatedAt: new Date().toISOString(),
                                   };
                                   const nextState: ClubDatabaseState = {
                                     ...state!,
@@ -18968,7 +19010,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                     prev.filter((id) => id !== target.id)
                                   );
                                   setInvoiceDeleteConfirm(null);
-                                  await persist(nextState);
+                                  const permCode = updatedSub.subscriptionCode || updatedSub.holderCpf || updatedSub.id;
+                                  if (permCode) {
+                                    await saveMemberPermanentDocs(permCode, updatedSub, 'ADMIN_DELETE_INVOICE');
+                                  }
+                                  await persist(nextState, { waitForCloud: true });
 
                                   toast({
                                     title: `Parcela ${target.installmentNumber} excluída do cadastro${
@@ -19057,13 +19103,16 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   {/* PAINEL DE VALIDAÇÃO DE COMPROVAÇÃO DOCUMENTAL OBRIGATÓRIA */}
                   <ClubDocumentVerificationPanel
                     subscription={selectedSubForDetail}
-                    onUpdateSub={async (updatedSub) => {
+                    onUpdateSub={async (updatedSub, freshState) => {
+                      const baseState = freshState || state;
                       const mergedSub: ClubSubscription = {
                         ...updatedSub,
                         holderName: editClientData.holderName.trim() || updatedSub.holderName,
                         holderEmail: editClientData.holderEmail.trim() || updatedSub.holderEmail,
                         holderPhone: editClientData.holderPhone.trim() || updatedSub.holderPhone,
-                        addressCep: editClientData.addressCep.trim() || updatedSub.addressCep,
+                        addressCep: (editClientData.addressCep.trim() && editClientData.addressCep.trim() !== '76870-000')
+                          ? editClientData.addressCep.trim()
+                          : (updatedSub.addressCep || editClientData.addressCep.trim()),
                         addressStreet: editClientData.addressStreet.trim() || updatedSub.addressStreet,
                         addressNumber: editClientData.addressNumber.trim() || updatedSub.addressNumber,
                         addressComplement: editClientData.addressComplement.trim() || updatedSub.addressComplement,
@@ -19072,18 +19121,44 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         addressState: editClientData.addressState.trim() || updatedSub.addressState,
                         notes: editClientData.notes.trim() || updatedSub.notes,
                       };
+                      const hadUnsavedFormEdits =
+                        mergedSub.holderName !== updatedSub.holderName ||
+                        mergedSub.holderEmail !== updatedSub.holderEmail ||
+                        mergedSub.holderPhone !== updatedSub.holderPhone ||
+                        mergedSub.addressCep !== updatedSub.addressCep ||
+                        mergedSub.addressStreet !== updatedSub.addressStreet ||
+                        mergedSub.addressNumber !== updatedSub.addressNumber ||
+                        mergedSub.addressComplement !== updatedSub.addressComplement ||
+                        mergedSub.addressNeighborhood !== updatedSub.addressNeighborhood ||
+                        mergedSub.addressCity !== updatedSub.addressCity ||
+                        mergedSub.addressState !== updatedSub.addressState ||
+                        mergedSub.notes !== updatedSub.notes;
+
                       setSelectedSubForDetail(mergedSub);
-                      if (state) {
+                      if (baseState) {
                         const nextState: ClubDatabaseState = {
-                          ...state,
-                          subscriptions: (state.subscriptions || []).map((s) =>
+                          ...baseState,
+                          subscriptions: (baseState.subscriptions || []).map((s) =>
                             s.id === mergedSub.id ? mergedSub : s
                           ),
                         };
-                        await persist(nextState);
-                        const permCode = mergedSub.subscriptionCode || mergedSub.holderCpf;
-                        if (permCode) {
-                          saveMemberPermanentDocs(permCode, mergedSub).catch(() => {});
+                        if (hadUnsavedFormEdits || !freshState) {
+                          const permCode = mergedSub.subscriptionCode || mergedSub.holderCpf;
+                          const withFreshTs = { ...mergedSub, updatedAt: new Date().toISOString() };
+                          const nextStateTs: ClubDatabaseState = {
+                            ...nextState,
+                            subscriptions: nextState.subscriptions.map((s) =>
+                              s.id === withFreshTs.id ? withFreshTs : s
+                            ),
+                          };
+                          setSelectedSubForDetail(withFreshTs);
+                          if (permCode) {
+                            await saveMemberPermanentDocs(permCode, withFreshTs, 'ADMIN_SAVE');
+                          }
+                          await persist(nextStateTs, { waitForCloud: true });
+                        } else {
+                          // Já salvo atomicamente pelo ClubDocumentVerificationPanel — apenas sincroniza UI sem regravar!
+                          setState(nextState);
                         }
                       }
                     }}
@@ -19664,7 +19739,12 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                             ),
                                           };
                                           setSelectedSubForDetail(updatedSub);
-                                          await persist(nextState);
+                                          await softDeleteClubAttachment(att.id);
+                                          const permCode = updatedSub.subscriptionCode || updatedSub.holderCpf;
+                                          if (permCode) {
+                                            await saveMemberPermanentDocs(permCode, updatedSub, 'REMOVE_ATTACHMENT');
+                                          }
+                                          await persist(nextState, { waitForCloud: true });
                                           toast({ title: 'Documento removido.' });
                                         }}
                                         className="h-7 w-7 p-0 text-rose-600 hover:bg-rose-50"
@@ -19707,13 +19787,16 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   {/* PAINEL DE VALIDAÇÃO DE COMPROVAÇÃO DOCUMENTAL (TITULAR E DEPENDENTES) */}
                   <ClubDocumentVerificationPanel
                     subscription={selectedSubForDetail}
-                    onUpdateSub={async (updatedSub) => {
+                    onUpdateSub={async (updatedSub, freshState) => {
+                      const baseState = freshState || state;
                       const mergedSub: ClubSubscription = {
                         ...updatedSub,
                         holderName: editClientData.holderName.trim() || updatedSub.holderName,
                         holderEmail: editClientData.holderEmail.trim() || updatedSub.holderEmail,
                         holderPhone: editClientData.holderPhone.trim() || updatedSub.holderPhone,
-                        addressCep: editClientData.addressCep.trim() || updatedSub.addressCep,
+                        addressCep: (editClientData.addressCep.trim() && editClientData.addressCep.trim() !== '76870-000')
+                          ? editClientData.addressCep.trim()
+                          : (updatedSub.addressCep || editClientData.addressCep.trim()),
                         addressStreet: editClientData.addressStreet.trim() || updatedSub.addressStreet,
                         addressNumber: editClientData.addressNumber.trim() || updatedSub.addressNumber,
                         addressComplement: editClientData.addressComplement.trim() || updatedSub.addressComplement,
@@ -19722,18 +19805,44 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         addressState: editClientData.addressState.trim() || updatedSub.addressState,
                         notes: editClientData.notes.trim() || updatedSub.notes,
                       };
+                      const hadUnsavedFormEdits =
+                        mergedSub.holderName !== updatedSub.holderName ||
+                        mergedSub.holderEmail !== updatedSub.holderEmail ||
+                        mergedSub.holderPhone !== updatedSub.holderPhone ||
+                        mergedSub.addressCep !== updatedSub.addressCep ||
+                        mergedSub.addressStreet !== updatedSub.addressStreet ||
+                        mergedSub.addressNumber !== updatedSub.addressNumber ||
+                        mergedSub.addressComplement !== updatedSub.addressComplement ||
+                        mergedSub.addressNeighborhood !== updatedSub.addressNeighborhood ||
+                        mergedSub.addressCity !== updatedSub.addressCity ||
+                        mergedSub.addressState !== updatedSub.addressState ||
+                        mergedSub.notes !== updatedSub.notes;
+
                       setSelectedSubForDetail(mergedSub);
-                      if (state) {
+                      if (baseState) {
                         const nextState: ClubDatabaseState = {
-                          ...state,
-                          subscriptions: (state.subscriptions || []).map((s) =>
+                          ...baseState,
+                          subscriptions: (baseState.subscriptions || []).map((s) =>
                             s.id === mergedSub.id ? mergedSub : s
                           ),
                         };
-                        await persist(nextState);
-                        const permCode = mergedSub.subscriptionCode || mergedSub.holderCpf;
-                        if (permCode) {
-                          saveMemberPermanentDocs(permCode, mergedSub).catch(() => {});
+                        if (hadUnsavedFormEdits || !freshState) {
+                          const permCode = mergedSub.subscriptionCode || mergedSub.holderCpf;
+                          const withFreshTs = { ...mergedSub, updatedAt: new Date().toISOString() };
+                          const nextStateTs: ClubDatabaseState = {
+                            ...nextState,
+                            subscriptions: nextState.subscriptions.map((s) =>
+                              s.id === withFreshTs.id ? withFreshTs : s
+                            ),
+                          };
+                          setSelectedSubForDetail(withFreshTs);
+                          if (permCode) {
+                            await saveMemberPermanentDocs(permCode, withFreshTs, 'ADMIN_SAVE');
+                          }
+                          await persist(nextStateTs, { waitForCloud: true });
+                        } else {
+                          // Já salvo atomicamente pelo ClubDocumentVerificationPanel — apenas sincroniza UI sem regravar!
+                          setState(nextState);
                         }
                       }
                     }}
@@ -20619,25 +20728,37 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                     onChange={async (e) => {
                                       const file = e.target.files?.[0];
                                       if (!file) return;
-                                      const dataUrl = file.type.startsWith('image/')
+                                      const rawDataUrl = file.type.startsWith('image/')
                                         ? await compressImageFile(file, 1200, 1200, 0.72)
                                         : await fileToDataUrl(file);
-                                      const newAtt: ClubAttachment = {
-                                        id: `att_dep_${Date.now()}`,
+                                      const permCode =
+                                        selectedSubForDetail.subscriptionCode ||
+                                        selectedSubForDetail.holderCpf ||
+                                        selectedSubForDetail.id;
+                                      const rawAtt: ClubAttachment = {
+                                        id: `att_dep_${dep.id}_${Date.now()}`,
                                         name: `${dep.fullName.split(' ')[0]} - ${file.name}`,
                                         mimeType:
                                           file.type || 'application/octet-stream',
-                                        dataUrl,
+                                        dataUrl: rawDataUrl,
                                         createdAt: new Date().toISOString(),
                                       };
+                                      const savedAtt = await saveClubAttachmentAtomic(
+                                        permCode,
+                                        selectedSubForDetail.id,
+                                        dep.id,
+                                        rawAtt
+                                      );
                                       const updatedMembers =
                                         selectedSubForDetail.members.map((m) =>
                                           m.id === dep.id
                                             ? {
                                                 ...m,
+                                                documentProofUrl: m.documentProofUrl || savedAtt.dataUrl,
+                                                documentProofName: m.documentProofName || savedAtt.name,
                                                 attachments: [
-                                                  newAtt,
-                                                  ...(m.attachments || []),
+                                                  savedAtt,
+                                                  ...(m.attachments || []).filter((a) => a.id !== savedAtt.id),
                                                 ],
                                               }
                                             : m
@@ -20655,10 +20776,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                         ),
                                       };
                                       setSelectedSubForDetail(updatedSub);
-                                      await persist(nextState);
+                                      await saveMemberPermanentDocs(permCode, updatedSub, 'ADD_DEP_ATTACHMENT');
+                                      await persist(nextState, { waitForCloud: true });
                                       toast({
-                                        title: 'Documento anexado ao dependente!',
-                                        description: file.name,
+                                        title: 'Documento salvo permanentemente no Storage!',
+                                        description: `${file.name} vinculado a ${dep.fullName}.`,
                                       });
                                     }}
                                   />

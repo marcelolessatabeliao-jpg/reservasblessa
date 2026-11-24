@@ -43,7 +43,7 @@ import {
 
 interface ClubDocumentVerificationPanelProps {
   subscription: ClubSubscription;
-  onUpdateSub: (updatedSub: ClubSubscription) => void;
+  onUpdateSub: (updatedSub: ClubSubscription, freshState?: ClubDatabaseState) => void;
   onPreviewAttachment?: (att: {
     name: string;
     dataUrl: string;
@@ -227,13 +227,17 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
         updatedAt: new Date().toISOString(),
       };
 
+      const permCode = updatedSub.subscriptionCode || updatedSub.holderCpf || updatedSub.id;
+      if (permCode) {
+        await saveMemberPermanentDocs(permCode, updatedSub, 'DOC_APPROVE');
+      }
       const nextSubs = allState.subscriptions.map((s) => (s.id === updatedSub.id ? updatedSub : s));
       const nextState: ClubDatabaseState = {
         ...allState,
         subscriptions: nextSubs,
       };
-      await saveClubState(nextState);
-      onUpdateSub(updatedSub);
+      const savedState = await saveClubState(nextState, { waitForCloud: true });
+      onUpdateSub(updatedSub, savedState);
 
       toast({
         title: 'Documento Aprovado!',
@@ -289,13 +293,17 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
         isModifiedFromSeed: true,
       };
 
+      const permCode = updatedSub.subscriptionCode || updatedSub.holderCpf || updatedSub.id;
+      if (permCode) {
+        await saveMemberPermanentDocs(permCode, updatedSub, 'DOC_REJECT');
+      }
       const nextSubs = allState.subscriptions.map((s) => (s.id === updatedSub.id ? updatedSub : s));
       const nextState: ClubDatabaseState = {
         ...allState,
         subscriptions: nextSubs,
       };
-      await saveClubState(nextState);
-      onUpdateSub(updatedSub);
+      const savedState = await saveClubState(nextState, { waitForCloud: true });
+      onUpdateSub(updatedSub, savedState);
       setRejectingMemberId(null);
       setRejectionReason('');
       toast({
@@ -339,13 +347,17 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
         isModifiedFromSeed: true,
       };
 
+      const permCode = updatedSub.subscriptionCode || updatedSub.holderCpf || updatedSub.id;
+      if (permCode) {
+        await saveMemberPermanentDocs(permCode, updatedSub, 'DOC_REVOKE');
+      }
       const nextSubs = allState.subscriptions.map((s) => (s.id === updatedSub.id ? updatedSub : s));
       const nextState: ClubDatabaseState = {
         ...allState,
         subscriptions: nextSubs,
       };
-      await saveClubState(nextState);
-      onUpdateSub(updatedSub);
+      const savedState = await saveClubState(nextState, { waitForCloud: true });
+      onUpdateSub(updatedSub, savedState);
       toast({
         title: 'Validação Revogada',
         description: `O documento de ${member.fullName} voltou para o status de análise.`,
@@ -406,16 +418,26 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
       // Grava atomicamente na linha individual do cliente em public.club_records + nuvem geral
       await saveMemberPermanentDocs(permCode, updatedSub, 'UPLOAD_DOC_PANEL');
       const allState = await fetchClubState();
+      const latestSubFromCloud = allState.subscriptions.find((s) => s.id === updatedSub.id);
+      const safeUpdatedSub: ClubSubscription = latestSubFromCloud
+        ? {
+            ...latestSubFromCloud,
+            attachments: updatedSub.attachments,
+            members: updatedSub.members,
+            updatedAt: updatedSub.updatedAt,
+            isModifiedFromSeed: true,
+          }
+        : updatedSub;
       const nextSubs = (allState.subscriptions || []).map((s) =>
-        s.id === updatedSub.id ? updatedSub : s
+        s.id === safeUpdatedSub.id ? safeUpdatedSub : s
       );
       const nextState: ClubDatabaseState = {
         ...allState,
         subscriptions: nextSubs,
       };
-      await saveClubState(nextState, { waitForCloud: true });
+      const savedState = await saveClubState(nextState, { waitForCloud: true });
 
-      onUpdateSub(updatedSub);
+      onUpdateSub(safeUpdatedSub, savedState);
       toast({
         title: 'Comprovante salvo permanentemente no Storage!',
         description: `Arquivo ${file.name} vinculado a ${member.fullName} e gravado definitivamente na nuvem.`,

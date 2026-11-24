@@ -292,6 +292,83 @@ async function persistSubMediaToStorage(sub: Partial<ClubSubscription>, code: st
 }
 
 /**
+ * Fila assíncrona por subscription_code para serializar gravações e impedir
+ * race conditions (ex.: dois cliques rápidos chegando fora de ordem no Supabase).
+ */
+const recordWriteQueues = new Map<string, Promise<boolean>>();
+
+/**
+ * Rastreia o último `updatedAt` efetivamente salvo em `public.club_records` por código,
+ * permitindo que o sync em lote evite gravações duplicadas ou regressões no tempo.
+ */
+export const lastSavedPermanentTimestamps = new Map<string, string>();
+
+const isValidIsoDate = (d?: string): boolean => Boolean(d && /^\d{4}-\d{2}-\d{2}$/.test(d.trim()));
+
+const deriveValidityFromEndDate = (endDate?: string, currentLabel?: string): string | undefined => {
+  if (!isValidIsoDate(endDate)) return currentLabel;
+  const [y, m] = endDate!.trim().split('-');
+  if (!y || !m) return currentLabel;
+  const derived = `${m}/${y}`;
+  // Se o validityLabel atual divergir do endDate real (ex: ficou preso no padrão '10/2027'), corrige automaticamente
+  if (!currentLabel || currentLabel === '10/2027' || currentLabel === '12/2026') {
+    return derived;
+  }
+  return currentLabel;
+};
+
+const mergeInvoicesSafely = (
+  primaryInvs: ClubSubscription['invoices'],
+  secondaryInvs: ClubSubscription['invoices'],
+  allowDropAsaas = false
+): NonNullable<ClubSubscription['invoices']> => {
+  const pList = Array.isArray(primaryInvs) ? primaryInvs : [];
+  const sList = Array.isArray(secondaryInvs) ? secondaryInvs : [];
+  if (pList.length === 0) return sList;
+  if (sList.length === 0) return pList;
+
+  const pAsaasIds = new Set(pList.map((i) => i.asaasPaymentId).filter(Boolean));
+  const sAsaasInvs = sList.filter((i) => Boolean(i.asaasPaymentId));
+
+  // Proteção anti-perda de carnê Asaas: se a versão mais nova perdeu TODAS as faturas com asaasPaymentId
+  // que já existiam na versão anterior (ex: aba aberta desatualizada antes da sincronização Asaas),
+  // preserva integralmente as faturas Asaas!
+  if (!allowDropAsaas && sAsaasInvs.length > 0 && pAsaasIds.size === 0) {
+    const pById = new Map(pList.map((i) => [i.id, i]));
+    const rescued = sList.map((sInv) => {
+      const pMatch = pById.get(sInv.id);
+      if (!pMatch) return sInv;
+      if (pMatch.status === 'PAID' && sInv.status !== 'PAID') {
+        return { ...sInv, ...pMatch };
+      }
+      return sInv;
+    });
+    const rescuedIds = new Set(rescued.map((i) => i.id));
+    for (const pInv of pList) {
+      if (!rescuedIds.has(pInv.id)) {
+        rescued.push(pInv);
+      }
+    }
+    return rescued;
+  }
+
+  // Caso normal: a lista da versão mais recente (`primary`) prevalece (respeitando exclusões intencionais
+  // de faturas duplicadas/avulsas), preservando baixas PAID registradas em qualquer lado.
+  const sById = new Map(sList.map((i) => [i.id, i]));
+  const sByAsaas = new Map(
+    sList.filter((i) => i.asaasPaymentId).map((i) => [i.asaasPaymentId!, i])
+  );
+  return pList.map((inv) => {
+    const o = sById.get(inv.id) || (inv.asaasPaymentId ? sByAsaas.get(inv.asaasPaymentId) : undefined);
+    if (!o) return inv;
+    if (o.status === 'PAID' && inv.status !== 'PAID') {
+      return { ...inv, ...o };
+    }
+    return { ...o, ...inv };
+  });
+};
+
+/**
  * Salva permanentemente 1 cadastro individual na tabela relacional `public.club_records`
  * (1 linha por associado = IMPOSSÍVEL sobrescrever ou apagar outros clientes!),
  * sobe todos os anexos no Storage `club-files` + `public.club_attachments`,
@@ -306,6 +383,26 @@ export async function saveMemberPermanentDocs(
   const code = String(sub.subscriptionCode || subCodeOrId || '').trim();
   if (!code) return false;
 
+  const prevTask = recordWriteQueues.get(code) || Promise.resolve(true);
+  const runTask = prevTask
+    .catch(() => true)
+    .then(() => executeSaveMemberPermanentDocs(code, sub, actionLabel));
+
+  recordWriteQueues.set(code, runTask);
+  try {
+    return await runTask;
+  } finally {
+    if (recordWriteQueues.get(code) === runTask) {
+      recordWriteQueues.delete(code);
+    }
+  }
+}
+
+async function executeSaveMemberPermanentDocs(
+  code: string,
+  sub: Partial<ClubSubscription>,
+  actionLabel: string
+): Promise<boolean> {
   const nowIso = new Date().toISOString();
 
   // 1. Sobe qualquer anexo/foto em base64 para o Supabase Storage (club-files) + tabela club_attachments
@@ -313,17 +410,118 @@ export async function saveMemberPermanentDocs(
 
   // Remove HTML gigante redundante do contrato antes de gravar no JSONB (reconstruído dinamicamente)
   const { contractContentHtml: _omitHtml, ...cleanPayload } = withCloudMedia as any;
-  const finalPayload: PermanentMemberDocRecord = {
+  let finalPayload: PermanentMemberDocRecord = {
     ...cleanPayload,
     subscriptionCode: code,
+    validityLabel: deriveValidityFromEndDate(cleanPayload.endDate, cleanPayload.validityLabel),
     updatedAt: cleanPayload.updatedAt || nowIso,
     isModifiedFromSeed: true,
   };
 
-  // 2. Grava no IndexedDB local imediatamente
+  // 2. Blindagem Read-Before-Write em `public.club_records`:
+  // Impede definitivamente que uma aba antiga ou estado defasado sobrescreva dados mais novos,
+  // apague anexos reais do Storage ou zere faturas já sincronizadas no Asaas!
+  const isExplicitRestore = actionLabel.startsWith('RESTORE_V');
+  const isExplicitRemoveAttachment = actionLabel === 'REMOVE_ATTACHMENT';
+  const isExplicitInvoiceAction =
+    actionLabel === 'ADMIN_DELETE_INVOICE' ||
+    actionLabel === 'ADMIN_EDIT_INVOICES' ||
+    actionLabel === 'ADMIN_CREATE_CARNE' ||
+    isExplicitRestore;
+
+  if (!isExplicitRestore) {
+    try {
+      const { data: existingRow } = await supabase
+        .from('club_records' as any)
+        .select('payload, updated_at')
+        .eq('subscription_code', code)
+        .maybeSingle();
+
+      const existingPayload = (existingRow as any)?.payload as PermanentMemberDocRecord | undefined;
+      if (existingPayload && typeof existingPayload === 'object') {
+        const remoteTime = Math.max(
+          existingPayload.updatedAt ? new Date(existingPayload.updatedAt).getTime() : 0,
+          (existingRow as any)?.updated_at ? new Date((existingRow as any).updated_at).getTime() : 0
+        );
+        const incomingTime = finalPayload.updatedAt ? new Date(finalPayload.updatedAt).getTime() : 0;
+
+        if (remoteTime > incomingTime) {
+          // A gravação que chegou é MAIS ANTIGA do que já está salvo no banco!
+          // Nunca regride dados nem timestamps: mescla mantendo a versão mais nova do banco como primária,
+          // preservando apenas mídias/anexos novos que acabaram de subir para o Storage.
+          const mergedSafe = applyPermanentDocsToSub(
+            finalPayload as ClubSubscription,
+            { ...existingPayload, updatedAt: new Date(remoteTime).toISOString() }
+          );
+          finalPayload = {
+            ...mergedSafe,
+            subscriptionCode: code,
+            updatedAt: new Date(remoteTime).toISOString(),
+            isModifiedFromSeed: true,
+          };
+          await saveMemberPermanentDataToIndexedDB(code, finalPayload);
+          lastSavedPermanentTimestamps.set(code, finalPayload.updatedAt);
+          // Só persiste no banco se esta chamada adicionou alguma mídia nova que não estava no remoto
+          const hadNewMedia =
+            (finalPayload.attachments?.length || 0) > (existingPayload.attachments?.length || 0);
+          if (!hadNewMedia) {
+            return true;
+          }
+        } else {
+          // Versão nova ou igual: protege anexos reais e faturas Asaas contra perda acidental por estado defasado
+          if (!isExplicitRemoveAttachment) {
+            finalPayload.attachments = mergeAttachmentsLists(
+              finalPayload.attachments,
+              existingPayload.attachments
+            );
+            if (Array.isArray(finalPayload.members) && Array.isArray(existingPayload.members)) {
+              finalPayload.members = finalPayload.members.map((m) => {
+                const em = existingPayload.members?.find(
+                  (x) =>
+                    x.id === m.id ||
+                    (x.cardNumber && x.cardNumber === m.cardNumber) ||
+                    (x.cpf && x.cpf === m.cpf)
+                );
+                if (!em) return m;
+                const docProofUrl = isRealAttachmentUrl(m.documentProofUrl)
+                  ? m.documentProofUrl
+                  : isRealAttachmentUrl(em.documentProofUrl)
+                  ? em.documentProofUrl
+                  : m.documentProofUrl || em.documentProofUrl;
+                const photoUrl = isRealAttachmentUrl(m.photoUrl)
+                  ? m.photoUrl
+                  : isRealAttachmentUrl(em.photoUrl)
+                  ? em.photoUrl
+                  : m.photoUrl || em.photoUrl;
+                return {
+                  ...m,
+                  photoUrl,
+                  documentProofUrl: docProofUrl,
+                  documentProofName: m.documentProofName || em.documentProofName,
+                  attachments: mergeAttachmentsLists(m.attachments, em.attachments),
+                };
+              });
+            }
+          }
+
+          if (!isExplicitInvoiceAction) {
+            finalPayload.invoices = mergeInvoicesSafely(
+              finalPayload.invoices,
+              existingPayload.invoices,
+              false
+            );
+          }
+        }
+      }
+    } catch (readErr) {
+      console.warn(`[ClubRecordsDB] Aviso na verificação pré-gravação (${code}):`, readErr);
+    }
+  }
+
+  // 3. Grava no IndexedDB local imediatamente
   await saveMemberPermanentDataToIndexedDB(code, finalPayload);
 
-  // 3. UPSERT atômico EXCLUSIVAMENTE na linha deste cliente em `public.club_records`
+  // 4. UPSERT atômico EXCLUSIVAMENTE na linha deste cliente em `public.club_records`
   // (O trigger do PostgreSQL grava automaticamente um snapshot versionado em `public.club_record_history`!)
   try {
     const { error } = await supabase
@@ -346,6 +544,7 @@ export async function saveMemberPermanentDocs(
       console.warn(`[ClubRecordsDB] Erro ao gravar club_records (${code}):`, error);
       return false;
     }
+    lastSavedPermanentTimestamps.set(code, finalPayload.updatedAt);
     return true;
   } catch (err) {
     console.warn(`[ClubRecordsDB] Exceção ao gravar club_records (${code}):`, err);
@@ -379,28 +578,32 @@ export async function loadMemberPermanentDocs(
         .eq('is_deleted', false),
     ]);
 
-    const dbAttachments: ClubAttachment[] = Array.isArray(attRes.data)
+    const dbDetailedAttachments: Array<{ att: ClubAttachment; memberId: string }> = Array.isArray(attRes.data)
       ? (attRes.data as any[])
           .map((row) => ({
-            id: row.id,
-            name: row.file_name,
-            mimeType: row.mime_type || 'application/octet-stream',
-            dataUrl: row.public_url || row.data_url || '',
-            createdAt: row.created_at,
+            memberId: String(row.member_id || ''),
+            att: {
+              id: row.id,
+              name: row.file_name,
+              mimeType: row.mime_type || 'application/octet-stream',
+              dataUrl: row.public_url || row.data_url || '',
+              createdAt: row.created_at,
+            },
           }))
-          .filter((a) => Boolean(a.dataUrl))
+          .filter((item) => Boolean(item.att.dataUrl))
       : [];
+    const dbAttachments = dbDetailedAttachments.map((x) => x.att);
 
     if (!recRes.error && recRes.data && (recRes.data as any).payload) {
       const remote = (recRes.data as any).payload as PermanentMemberDocRecord;
-      const withAtts = attachCloudFilesToRecord(remote, dbAttachments);
+      const withAtts = attachCloudFilesToRecord(remote, dbAttachments, dbDetailedAttachments);
       const merged = local ? mergePermanentRecords(local, withAtts) : withAtts;
       saveMemberPermanentDataToIndexedDB(code, merged);
       return merged;
     }
 
     if (local && dbAttachments.length > 0) {
-      return attachCloudFilesToRecord(local, dbAttachments);
+      return attachCloudFilesToRecord(local, dbAttachments, dbDetailedAttachments);
     }
   } catch (err) {
     console.warn(`[ClubRecordsDB] Falha ao carregar club_records (${code}):`, err);
@@ -545,38 +748,26 @@ function attachCloudFilesToRecord(
   if (!atts || atts.length === 0) return rec;
 
   const existing = Array.isArray(rec.attachments) ? rec.attachments : [];
-  const mergedMap = new Map<string, ClubAttachment>();
-
-  existing.forEach((a) => {
-    if (a && a.name) mergedMap.set(a.name, a);
-  });
-
-  atts.forEach((a) => {
-    if (!a || !a.name || !a.dataUrl) return;
-    const cur = mergedMap.get(a.name);
-    const curIsEmpty = !cur?.dataUrl || cur.dataUrl.length < 30 || cur.dataUrl.includes('[COMPACTED_LOCAL]') || cur.dataUrl === 'HAS_DOC_ATTACHED';
-    if (!cur || curIsEmpty || isHttpUrl(a.dataUrl)) {
-      mergedMap.set(a.name, a);
-    }
-  });
+  const merged = mergeAttachmentsLists(atts, existing);
 
   let updatedMembers = rec.members;
   if (detailed && Array.isArray(rec.members)) {
     updatedMembers = rec.members.map((m) => {
       const memAtts = detailed.filter((d) => d.memberId === m.id).map((d) => d.att);
       if (memAtts.length === 0) return m;
-      const mProofEmpty = !m.documentProofUrl || m.documentProofUrl.length < 30 || m.documentProofUrl === 'HAS_DOC_ATTACHED';
+      const mProofEmpty = !isRealAttachmentUrl(m.documentProofUrl);
       return {
         ...m,
         documentProofUrl: mProofEmpty ? memAtts[0].dataUrl : m.documentProofUrl,
         documentProofName: m.documentProofName || memAtts[0].name,
+        attachments: mergeAttachmentsLists(memAtts, m.attachments),
       };
     });
   }
 
   return {
     ...rec,
-    attachments: Array.from(mergedMap.values()),
+    attachments: merged,
     members: updatedMembers,
   };
 }
@@ -591,24 +782,59 @@ function isRealAttachmentUrl(url?: string): boolean {
 }
 
 function mergeAttachmentsLists(primaryList?: ClubAttachment[], secondaryList?: ClubAttachment[]): ClubAttachment[] {
-  const map = new Map<string, ClubAttachment>();
+  const result: ClubAttachment[] = [];
+
+  const findMatchIndex = (att: ClubAttachment): number => {
+    return result.findIndex((item) => {
+      if (att.id && item.id && item.id === att.id) return true;
+      if (isRealAttachmentUrl(att.dataUrl) && isRealAttachmentUrl(item.dataUrl) && item.dataUrl === att.dataUrl) {
+        return true;
+      }
+      // Mesmo nome: só agrupa se ambos não possuem IDs distintos com URLs diferentes (evita sobrescrever RG de 2 dependentes diferentes)
+      if (att.name && item.name && item.name === att.name) {
+        const bothHaveDistinctRealUrls =
+          isRealAttachmentUrl(att.dataUrl) &&
+          isRealAttachmentUrl(item.dataUrl) &&
+          att.dataUrl !== item.dataUrl &&
+          Boolean(att.id && item.id && att.id !== item.id);
+        return !bothHaveDistinctRealUrls;
+      }
+      return false;
+    });
+  };
+
   (secondaryList || []).forEach((att) => {
-    if (att && att.name) map.set(att.name, att);
-  });
-  (primaryList || []).forEach((att) => {
-    if (!att || !att.name) return;
-    const prev = map.get(att.name);
-    if (!prev) {
-      map.set(att.name, att);
-    } else if (isRealAttachmentUrl(att.dataUrl)) {
-      map.set(att.name, att);
-    } else if (isRealAttachmentUrl(prev.dataUrl)) {
-      map.set(att.name, { ...att, dataUrl: prev.dataUrl });
-    } else {
-      map.set(att.name, att);
+    if (!att || (!att.name && !att.id)) return;
+    const idx = findMatchIndex(att);
+    if (idx === -1) {
+      result.push(att);
+    } else if (!isRealAttachmentUrl(result[idx].dataUrl) && isRealAttachmentUrl(att.dataUrl)) {
+      result[idx] = { ...result[idx], ...att };
     }
   });
-  return Array.from(map.values());
+
+  (primaryList || []).forEach((att) => {
+    if (!att || (!att.name && !att.id)) return;
+    const idx = findMatchIndex(att);
+    if (idx === -1) {
+      result.push(att);
+    } else {
+      const prev = result[idx];
+      if (isHttpUrl(att.dataUrl)) {
+        result[idx] = { ...prev, ...att };
+      } else if (isHttpUrl(prev.dataUrl)) {
+        result[idx] = { ...att, dataUrl: prev.dataUrl };
+      } else if (isRealAttachmentUrl(att.dataUrl)) {
+        result[idx] = { ...prev, ...att };
+      } else if (isRealAttachmentUrl(prev.dataUrl)) {
+        result[idx] = { ...att, dataUrl: prev.dataUrl };
+      } else {
+        result[idx] = { ...prev, ...att };
+      }
+    }
+  });
+
+  return result;
 }
 
 function mergePermanentRecords(
@@ -713,27 +939,20 @@ export function applyPermanentDocsToSub(
     };
   });
 
-  // Mescla faturas (preservando baixas de pagamento do Asaas de qualquer lado!)
-  const mergedInvoices = (() => {
-    const subInvs = sub.invoices || [];
-    const permInvs = perm.invoices || [];
-    if (permInvs.length === 0) return subInvs;
-    if (subInvs.length === 0) return permInvs;
-    const baseInvs = permInvs.length >= subInvs.length ? permInvs : subInvs;
-    const otherInvs = permInvs.length >= subInvs.length ? subInvs : permInvs;
-    const otherMap = new Map(otherInvs.map((i) => [i.id, i]));
-    return baseInvs.map((inv) => {
-      const o = otherMap.get(inv.id);
-      if (!o) return inv;
-      // Se qualquer um dos lados registrou PAID no Asaas, preserva o PAID
-      if (o.status === 'PAID' && inv.status !== 'PAID') {
-        return { ...inv, ...o };
-      }
-      return permIsNewerOrEqual ? { ...o, ...inv } : { ...inv, ...o };
-    });
-  })();
+  // Mescla faturas respeitando a versão mais recente (e exclusões intencionais de duplicadas),
+  // mas protegendo carnês do Asaas contra perda por aba desatualizada e preservando baixas PAID!
+  const mergedInvoices = mergeInvoicesSafely(
+    permIsNewerOrEqual ? perm.invoices : sub.invoices,
+    permIsNewerOrEqual ? sub.invoices : perm.invoices,
+    false
+  );
 
   const finalStatus = (primary.status || secondary.status || sub.status) as ClubSubscription['status'];
+  const finalEndDate = primary.endDate || secondary.endDate || sub.endDate;
+  const finalValidityLabel = deriveValidityFromEndDate(
+    finalEndDate,
+    primary.validityLabel || secondary.validityLabel || sub.validityLabel
+  );
 
   return {
     ...sub,
@@ -770,8 +989,8 @@ export function applyPermanentDocsToSub(
       : sub.vehicleStickerPhotoUrl,
     vehicleStickerPhotoName: primary.vehicleStickerPhotoName || secondary.vehicleStickerPhotoName || sub.vehicleStickerPhotoName,
     notes: primary.notes || secondary.notes || sub.notes,
-    endDate: primary.endDate || secondary.endDate || sub.endDate,
-    validityLabel: primary.validityLabel || secondary.validityLabel || sub.validityLabel,
+    endDate: finalEndDate,
+    validityLabel: finalValidityLabel,
     status: finalStatus,
     inactivityReason: finalStatus === 'ACTIVE' ? undefined : (primary.inactivityReason ?? secondary.inactivityReason),
     inactivityReasons: finalStatus === 'ACTIVE' ? undefined : (primary.inactivityReasons ?? secondary.inactivityReasons),

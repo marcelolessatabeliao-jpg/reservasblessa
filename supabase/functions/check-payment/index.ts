@@ -67,6 +67,8 @@ Deno.serve(async (req) => {
         const clubState = settingsRow.value;
         let stateChanged = false;
 
+        const updatedSubsForRecords: any[] = [];
+
         for (const sub of (clubState.subscriptions || [])) {
           let subHasNewlyPaidInvoice = false;
 
@@ -92,10 +94,14 @@ Deno.serve(async (req) => {
             }
           }
 
-          if (subHasNewlyPaidInvoice || sub.status !== 'ACTIVE') {
+          if (subHasNewlyPaidInvoice) {
             const hasOverdue = (sub.invoices || []).some((i: any) => i.status === 'OVERDUE');
-            const hasPaidAtLeastOne = (sub.invoices || []).some((i: any) => i.status === 'PAID');
-            if (!hasOverdue && hasPaidAtLeastOne && sub.status !== 'ACTIVE') {
+            const isManualAdminBlock =
+              sub.inactivityReason === 'ADMINISTRATIVO' ||
+              sub.inactivityReason === 'SOLICITACAO_CLIENTE' ||
+              sub.inactivityReason === 'FALTA_DOCUMENTOS' ||
+              (sub.status === 'INACTIVE' && sub.manualStatusOverride && sub.inactivityReason !== 'MENSALIDADE_VENCIDA');
+            if (!hasOverdue && !isManualAdminBlock && sub.status !== 'ACTIVE') {
               sub.status = 'ACTIVE';
               sub.inactivityReason = undefined;
               sub.inactivityReasons = undefined;
@@ -107,18 +113,44 @@ Deno.serve(async (req) => {
                 m.inactivityReason = undefined;
                 m.inactivityReasons = undefined;
               });
-              sub.updatedAt = new Date().toISOString();
               activatedCount++;
-              stateChanged = true;
             }
+            sub.updatedAt = new Date().toISOString();
+            sub.isModifiedFromSeed = true;
+            updatedSubsForRecords.push(sub);
+            stateChanged = true;
           }
         }
 
         if (stateChanged) {
+          const nowIso = new Date().toISOString();
           await supabaseAdmin
             .from('site_settings')
-            .update({ value: clubState, updated_at: new Date().toISOString() })
+            .update({ value: clubState, updated_at: nowIso })
             .eq('key', 'lessa_club_ecosystem_v1');
+
+          // Persiste atomicamente cada cliente atualizado em public.club_records
+          for (const uSub of updatedSubsForRecords) {
+            const code = String(uSub.subscriptionCode || uSub.id || '').trim();
+            if (!code) continue;
+            try {
+              await supabaseAdmin.from('club_records').upsert(
+                {
+                  subscription_code: code,
+                  subscription_id: uSub.id || code,
+                  holder_name: uSub.holderName || '',
+                  holder_cpf: uSub.holderCpf || '',
+                  status: uSub.status || 'ACTIVE',
+                  payload: uSub,
+                  updated_at: nowIso,
+                  updated_by: 'CHECK_PAYMENT_SYNC',
+                },
+                { onConflict: 'subscription_code' }
+              );
+            } catch (crErr) {
+              console.warn('[check-payment] club_records upsert warning:', crErr);
+            }
+          }
         }
       }
 
