@@ -1016,8 +1016,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
     timer = setTimeout(() => {
       runAutoSync();
-      interval = setInterval(runAutoSync, 5 * 60 * 1000);
-    }, 3000);
+      interval = setInterval(runAutoSync, 15 * 60 * 1000);
+    }, 60000);
 
     return () => {
       clearTimeout(timer);

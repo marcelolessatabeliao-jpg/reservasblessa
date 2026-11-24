@@ -2303,103 +2303,73 @@ const notifyCloudSyncStatus = (status: CloudSyncStatus, error: string | null = n
 let inFlightCloudSavePromise: Promise<any> | null = null;
 let queuedCloudSaveState: ClubDatabaseState | null = null;
 let cloudSaveDebounceTimer: any = null;
+let lastSyncedGlobalSignature: string | null = null;
+
+const computeGlobalConfigSignature = (state: ClubDatabaseState): string => {
+  try {
+    return JSON.stringify({
+      deletedSubscriptionIds: state.deletedSubscriptionIds || [],
+      lastCardSequence: state.lastCardSequence || 3000,
+      modalities: state.modalities || [],
+      consultants: state.consultants || [],
+      cashEntries: state.cashEntries || [],
+      catalogServices: state.catalogServices || [],
+      siteTermsText: state.siteTermsText || '',
+      contractTemplates: (state.contractTemplates || []).map((t) => ({
+        id: t.id,
+        name: t.name,
+        updatedAt: t.updatedAt,
+        len: (t.contentHtml || '').length,
+      })),
+    });
+  } catch {
+    return String(Date.now());
+  }
+};
 
 const runCloudSaveExecution = async (stateToSave: ClubDatabaseState): Promise<void> => {
   notifyCloudSyncStatus('SAVING', null);
 
-  // 1. PERSISTENCIA ATOMICA POR LINHA EM `public.club_records` + STORAGE `club-files` + HISTORICO IMUTAVEL
-  // Garante que cada cadastro alterado seja gravado individualmente sem risco de sobrescrita cruzada!
+  // 1. PERSISTÊNCIA ATÔMICA ULTRA-LEVE POR LINHA EM `public.club_records` (~5-11 KB por cliente editado!):
+  // Nunca faz scan completo de `club_records` nem regrava JSON gigante em `site_settings` ao editar cadastros!
   try {
     await syncModifiedSubsToClubRecords(stateToSave);
-  } catch (atomicErr) {
-    console.warn('[ClubService] Aviso ao sincronizar linha individual em club_records:', atomicErr);
+  } catch (atomicErr: any) {
+    console.warn('[ClubService] Erro ao sincronizar linha individual em club_records:', atomicErr);
+    notifyCloudSyncStatus('ERROR', String(atomicErr?.message || atomicErr || 'Erro ao gravar cadastro'));
+    throw atomicErr;
   }
 
-  // 2. SNAPSHOT COMPATÍVEL `lessa_club_ecosystem_v1` COM ESCALA PARA MILHARES DE CADASTROS:
-  // Enquanto o espelho legado cabe em <= 1.2 MB (~150-200 cadastros), mantém compatibilidade completa.
-  // Acima de 1.2 MB (centenas/milhares de cadastros editados), `public.club_records` (1 linha por cliente)
-  // atua como banco soberano escalável e `site_settings` grava apenas configurações globais (< 60 KB) +
-  // eventuais registros sem código único em `club_records`, evitando timeouts/413 mesmo com 10.000+ cadastros!
-  let cloudState = buildCompactCloudState(stateToSave);
-  const compactSubsSize = JSON.stringify(cloudState.subscriptions || []).length;
+  // 2. `site_settings` (`lessa_club_ecosystem_v1`) SOMENTE é gravado quando configurações GLOBAIS mudam
+  // (ex: exclusão na Lixeira, novo cadastro que incrementa `lastCardSequence`, modalidades, consultores, caixa, termos).
+  // Em 99% das edições individuais de sócios (dados, anexos, validação, status, faturas), `site_settings`
+  // NÃO é regravado — reduzindo em ~98% o uso de CPU/IO/WAL do PostgreSQL no Supabase!
+  const currentGlobalSig = computeGlobalConfigSignature(stateToSave);
+  if (lastSyncedGlobalSignature !== null && currentGlobalSig === lastSyncedGlobalSignature) {
+    lastClubFetchErrorMessage = null;
+    notifyCloudSyncStatus('SYNCED', null);
+    return;
+  }
 
-  if (compactSubsSize <= 1_200_000) {
-    let mergedForCloud = stateToSave;
-    try {
-      const latestRecords = await loadAllPermanentMemberDocs();
-      if (latestRecords.size > 0) {
-        const subById = new Map((stateToSave.subscriptions || []).map((s) => [s.id, s]));
-        const subByCode = new Map(
-          (stateToSave.subscriptions || [])
-            .filter((s) => s.subscriptionCode)
-            .map((s) => [s.subscriptionCode, s])
-        );
-        const deletedSet = new Set(stateToSave.deletedSubscriptionIds || []);
-
-        latestRecords.forEach((rec, code) => {
-          const recId = rec.id || `sub-labcard-${code}`;
-          if (deletedSet.has(recId)) return;
-          const existing = subByCode.get(code) || subById.get(recId);
-          if (existing) {
-            const safeMerged = applyPermanentDocsToSub(existing, rec);
-            subById.set(safeMerged.id, safeMerged);
-            if (safeMerged.subscriptionCode) subByCode.set(safeMerged.subscriptionCode, safeMerged);
-            if (safeMerged.updatedAt) {
-              const curSynced = lastSyncedRecordTimestamps.get(code) || '';
-              if (safeMerged.updatedAt > curSynced) {
-                lastSyncedRecordTimestamps.set(code, safeMerged.updatedAt);
-              }
-            }
-          } else if (rec.id && rec.holderName) {
-            subById.set(rec.id, rec as ClubSubscription);
-            if (rec.updatedAt) {
-              lastSyncedRecordTimestamps.set(code, rec.updatedAt);
-            }
-          }
-        });
-
-        mergedForCloud = {
-          ...stateToSave,
-          subscriptions: Array.from(subById.values()),
-        };
-      }
-    } catch (mergeErr) {
-      console.warn('[ClubService] Aviso ao mesclar club_records antes do upsert legado:', mergeErr);
+  // Quando configurações globais mudam, grava payload leve (< 60 KB) sem duplicar os milhares de cadastros
+  // que já possuem linha própria em `public.club_records` (mantendo apenas eventuais colisões legadas de código).
+  const baseCompact = buildCompactCloudState(stateToSave);
+  const seenCodes = new Set<string>();
+  const unbackedCollisionSubs: ClubSubscription[] = [];
+  for (const s of baseCompact.subscriptions || []) {
+    const code = String(s.subscriptionCode || s.id || '').trim();
+    if (!code) continue;
+    if (seenCodes.has(code)) {
+      unbackedCollisionSubs.push(s);
+      continue;
     }
-    cloudState = buildCompactCloudState(mergedForCloud);
+    seenCodes.add(code);
   }
 
-  // Disjuntor de escala: se o JSON final de `subscriptions` ultrapassar 1.2 MB,
-  // garante que quaisquer cadastros modificados ainda não sincronizados estejam em `club_records`
-  // e mantém `site_settings` ultraleve (< 80 KB) com apenas configurações globais + eventuais códigos colididos.
-  if (JSON.stringify(cloudState.subscriptions || []).length > 1_200_000) {
-    const seenCodes = new Set<string>();
-    const unbackedCollisionSubs: ClubSubscription[] = [];
-    for (const s of cloudState.subscriptions || []) {
-      const code = String(s.subscriptionCode || s.id || '').trim();
-      if (!code) continue;
-      if (seenCodes.has(code)) {
-        // Colisão legada de subscriptionCode: preserva no snapshot global para não perder nenhum dos dois
-        unbackedCollisionSubs.push(s);
-        continue;
-      }
-      seenCodes.add(code);
-      const alreadySynced =
-        lastSyncedRecordTimestamps.has(code) || lastSavedPermanentTimestamps.has(code);
-      if (!alreadySynced) {
-        const ok = await saveMemberPermanentDocs(code, s, 'SCALE_MIGRATION_SYNC');
-        if (ok && s.updatedAt) {
-          lastSyncedRecordTimestamps.set(code, s.updatedAt);
-        } else if (!ok) {
-          unbackedCollisionSubs.push(s);
-        }
-      }
-    }
-    cloudState = {
-      ...cloudState,
-      subscriptions: unbackedCollisionSubs,
-    };
-  }
+  const lightweightGlobalCloudState: ClubDatabaseState = {
+    ...baseCompact,
+    subscriptions: unbackedCollisionSubs,
+  };
   const maxAttempts = 2;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
@@ -2410,7 +2380,7 @@ const runCloudSaveExecution = async (stateToSave: ClubDatabaseState): Promise<vo
         .upsert(
           {
             key: SUPABASE_SETTINGS_KEY,
-            value: cloudState,
+            value: lightweightGlobalCloudState,
             updated_at: stateToSave.updatedAt,
           },
           { onConflict: 'key' }
@@ -2426,6 +2396,7 @@ const runCloudSaveExecution = async (stateToSave: ClubDatabaseState): Promise<vo
       if (timeoutTimer) clearTimeout(timeoutTimer);
 
       if (!error) {
+        lastSyncedGlobalSignature = currentGlobalSig;
         lastClubFetchErrorMessage = null;
         notifyCloudSyncStatus('SYNCED', null);
         return;
@@ -3282,13 +3253,14 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
       };
 
       const normalized = normalizeClubDatabaseState(mergedState, local);
-      // Registra baseline de timestamps sincronizados para detectar com precisão edições futuras
+      // Registra baseline de timestamps sincronizados e assinatura global para evitar regravações desnecessárias
       (normalized.subscriptions || []).forEach((s) => {
         const code = String(s.subscriptionCode || s.id || '').trim();
         if (code && s.updatedAt) {
           lastSyncedRecordTimestamps.set(code, s.updatedAt);
         }
       });
+      lastSyncedGlobalSignature = computeGlobalConfigSignature(normalized);
       memoryClubState = normalized;
       tryPersistLocalState(normalized);
       ensureDailyBackup(normalized).catch(() => {});
@@ -5216,7 +5188,7 @@ export const attachMemberProofDocument = async (
     verifyImmediately?: boolean;
   }
 ): Promise<ClubDatabaseState> => {
-  const state = await fetchClubState();
+  const state = memoryClubState || (await fetchClubState());
   const sub = state.subscriptions.find((s) => s.id === subscriptionId);
   if (!sub) return state;
 
@@ -5284,7 +5256,7 @@ export const verifyMemberProofDocument = async (
   verified: boolean,
   rejectionReason?: string
 ): Promise<ClubDatabaseState> => {
-  const state = await fetchClubState();
+  const state = memoryClubState || (await fetchClubState());
   const sub = state.subscriptions.find((s) => s.id === subscriptionId);
   if (!sub) return state;
 

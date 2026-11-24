@@ -34,7 +34,9 @@ import {
   compressImageFile,
   fileToDataUrl,
   formatDateBR,
-  fetchClubState,
+  getClubStateSync,
+  loadMemberPermanentDocs,
+  applyPermanentDocsToSub,
   saveClubState,
   saveClubAttachmentAtomic,
   saveMemberPermanentDocs,
@@ -116,11 +118,23 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
   const missingUploadCount = membersRequiringDocs.filter((m) => !m.hasProof).length;
   const isFullyApproved = approvedCount === membersRequiringDocs.length && missingUploadCount === 0;
 
+  const loadSingleSubFast = async (): Promise<{ allState: ClubDatabaseState; currentSub: ClubSubscription }> => {
+    const allState = getClubStateSync();
+    const baseSub = allState.subscriptions.find((s) => s.id === subscription.id) || subscription;
+    const permCode = baseSub.subscriptionCode || baseSub.holderCpf || baseSub.id;
+    try {
+      const latestPerm = permCode ? await loadMemberPermanentDocs(permCode) : null;
+      const currentSub = latestPerm ? applyPermanentDocsToSub(baseSub, latestPerm) : baseSub;
+      return { allState, currentSub };
+    } catch {
+      return { allState, currentSub: baseSub };
+    }
+  };
+
   const handleApprove = async (member: ClubMember) => {
     try {
       setIsProcessing(true);
-      const allState = await fetchClubState();
-      const currentSub = allState.subscriptions.find((s) => s.id === subscription.id) || subscription;
+      const { allState, currentSub } = await loadSingleSubFast();
 
       // Unifica anexos existentes em subscription (painel) e currentSub (banco)
       const mergedAttachments = [
@@ -268,8 +282,7 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
 
     try {
       setIsProcessing(true);
-      const allState = await fetchClubState();
-      const currentSub = allState.subscriptions.find((s) => s.id === subscription.id) || subscription;
+      const { allState, currentSub } = await loadSingleSubFast();
 
       const updatedMembers = currentSub.members.map((m) => {
         if (m.id === member.id) {
@@ -325,8 +338,7 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
   const handleRevoke = async (member: ClubMember) => {
     try {
       setIsProcessing(true);
-      const allState = await fetchClubState();
-      const currentSub = allState.subscriptions.find((s) => s.id === subscription.id) || subscription;
+      const { allState, currentSub } = await loadSingleSubFast();
 
       const updatedMembers = currentSub.members.map((m) => {
         if (m.id === member.id) {
@@ -415,13 +427,13 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
         isModifiedFromSeed: true,
       };
 
-      // Grava atomicamente na linha individual do cliente em public.club_records + nuvem geral
+      // Grava atomicamente na linha individual do cliente em public.club_records (1 linha ~8KB, sem full-scan!)
       await saveMemberPermanentDocs(permCode, updatedSub, 'UPLOAD_DOC_PANEL');
-      const allState = await fetchClubState();
-      const latestSubFromCloud = allState.subscriptions.find((s) => s.id === updatedSub.id);
-      const safeUpdatedSub: ClubSubscription = latestSubFromCloud
+      const allState = getClubStateSync();
+      const latestSubLocal = allState.subscriptions.find((s) => s.id === updatedSub.id);
+      const safeUpdatedSub: ClubSubscription = latestSubLocal
         ? {
-            ...latestSubFromCloud,
+            ...latestSubLocal,
             attachments: updatedSub.attachments,
             members: updatedSub.members,
             updatedAt: updatedSub.updatedAt,
