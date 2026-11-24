@@ -19285,18 +19285,36 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {(selectedSubForDetail.attachments || []).map((att) => (
+                      {(selectedSubForDetail.attachments || []).map((att) => {
+                        const hasRealMedia = Boolean(
+                          att.dataUrl &&
+                          att.dataUrl.trim().length > 20 &&
+                          !att.dataUrl.includes('[COMPACTED_LOCAL]') &&
+                          att.dataUrl !== 'HAS_DOC_ATTACHED'
+                        );
+                        const isCloudStored = Boolean(
+                          att.dataUrl && (att.dataUrl.startsWith('http://') || att.dataUrl.startsWith('https://'))
+                        );
+                        return (
                         <div
                           key={att.id}
-                          className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between gap-3"
+                          className={`p-3.5 rounded-xl border flex items-center justify-between gap-3 ${
+                            hasRealMedia
+                              ? 'border-slate-200 bg-slate-50'
+                              : 'border-amber-400 bg-amber-50/90'
+                          }`}
                         >
                           <div className="flex items-center gap-3 overflow-hidden">
-                            {att.mimeType.startsWith('image/') ? (
+                            {hasRealMedia && att.mimeType.startsWith('image/') ? (
                               <img
                                 src={att.dataUrl}
                                 alt={att.name}
                                 className="w-12 h-12 rounded-lg object-cover border border-slate-300 shrink-0"
                               />
+                            ) : !hasRealMedia ? (
+                              <div className="w-12 h-12 rounded-lg bg-amber-200 text-amber-900 flex items-center justify-center font-black text-[10px] shrink-0 text-center leading-tight px-1">
+                                SEM ARQUIVO
+                              </div>
                             ) : (
                               <div className="w-12 h-12 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center font-black text-xs shrink-0">
                                 PDF/DOC
@@ -19308,45 +19326,71 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                               </div>
                               <div className="text-[11px] text-slate-500">
                                 Adicionado em {formatDateBR(att.createdAt)}
+                                {isCloudStored && (
+                                  <span className="ml-1.5 text-emerald-700 font-bold">• Salvo no Storage ✔</span>
+                                )}
                               </div>
+                              {!hasRealMedia && (
+                                <div className="text-[11px] font-bold text-amber-900 mt-0.5">
+                                  ⚠ Arquivo antigo sem mídia na nuvem — reenvie em &quot;+ Adicionar Anexo&quot;
+                                </div>
+                              )}
                             </div>
                           </div>
                           <div className="flex flex-wrap items-center gap-1.5 shrink-0">
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              onClick={() =>
-                                setPreviewAttachment({
-                                  name: att.name,
-                                  dataUrl: att.dataUrl,
-                                  mimeType: att.mimeType,
-                                  createdAt: att.createdAt,
-                                })
-                              }
-                              className="h-8 text-xs font-bold border-emerald-600 bg-white text-emerald-900 hover:bg-emerald-50 hover:text-emerald-950"
-                            >
-                              <Eye className="w-3.5 h-3.5 mr-1" /> Visualizar
-                            </Button>
-                            <a
-                              href={att.dataUrl}
-                              download={att.name}
-                              target="_blank"
-                              rel="noreferrer"
-                            >
-                              <Button size="sm" variant="outline" className="h-8 text-xs">
-                                <Download className="w-3.5 h-3.5 mr-1" /> Baixar
-                              </Button>
-                            </a>
+                            {hasRealMedia && (
+                              <>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() =>
+                                    setPreviewAttachment({
+                                      name: att.name,
+                                      dataUrl: att.dataUrl,
+                                      mimeType: att.mimeType,
+                                      createdAt: att.createdAt,
+                                    })
+                                  }
+                                  className="h-8 text-xs font-bold border-emerald-600 bg-white text-emerald-900 hover:bg-emerald-50 hover:text-emerald-950"
+                                >
+                                  <Eye className="w-3.5 h-3.5 mr-1" /> Visualizar
+                                </Button>
+                                <a
+                                  href={att.dataUrl}
+                                  download={att.name}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
+                                  <Button size="sm" variant="outline" className="h-8 text-xs">
+                                    <Download className="w-3.5 h-3.5 mr-1" /> Baixar
+                                  </Button>
+                                </a>
+                              </>
+                            )}
                             <Button
                               size="sm"
                               variant="ghost"
                               onClick={async () => {
+                                const updatedMembers = (selectedSubForDetail.members || []).map((m) => {
+                                  const matchesProof =
+                                    (att.dataUrl && m.documentProofUrl === att.dataUrl) ||
+                                    (att.name && m.documentProofName === att.name && !hasRealMedia);
+                                  return {
+                                    ...m,
+                                    documentProofUrl: matchesProof ? '' : m.documentProofUrl,
+                                    documentProofName: matchesProof ? '' : m.documentProofName,
+                                    attachments: (m.attachments || []).filter(
+                                      (a) => a.id !== att.id && (!att.name || a.name !== att.name || hasRealMedia)
+                                    ),
+                                  };
+                                });
                                 const updatedSub: ClubSubscription = {
                                   ...selectedSubForDetail,
                                   attachments: (
                                     selectedSubForDetail.attachments || []
                                   ).filter((a) => a.id !== att.id),
+                                  members: updatedMembers,
                                   updatedAt: new Date().toISOString(),
                                   isModifiedFromSeed: true,
                                 };
@@ -19371,7 +19415,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                             </Button>
                           </div>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
 

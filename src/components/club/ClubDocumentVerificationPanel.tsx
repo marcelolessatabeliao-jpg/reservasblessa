@@ -607,7 +607,16 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
                         Comprovante anexado para conferência:
                       </span>
                       <div className="flex flex-wrap items-center gap-2">
-                        {memberDocs.map((doc) => (
+                        {memberDocs.filter((d) => isRealMediaUrl(d.dataUrl)).length === 0 && (
+                          <div className="w-full rounded-lg border border-amber-400 bg-amber-50 px-3 py-2 text-xs text-amber-950 font-semibold flex items-center gap-2">
+                            <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0" />
+                            <span>
+                              O registro antigo ({member.documentProofName || 'anexo anterior'}) está sem arquivo salvo na nuvem.
+                              Reenvie o comprovante pelo botão ao lado para gravar permanentemente no Storage.
+                            </span>
+                          </div>
+                        )}
+                        {memberDocs.filter((d) => isRealMediaUrl(d.dataUrl)).map((doc) => (
                           <div
                             key={doc.id}
                             className="inline-flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-slate-300 shadow-2xs text-xs font-bold text-slate-800"
