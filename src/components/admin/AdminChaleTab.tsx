@@ -93,6 +93,7 @@ export interface ChaleReservation {
   chaleId: number;
   allChaleIds?: number[];
   chaletsCount?: number;
+  chaleItemId?: string;
   orderHolderName?: string;
   guestName: string;
   phone: string;
@@ -158,6 +159,9 @@ export function AdminChaleTab({
     window.addEventListener('admin:filter-chales', handleFilterChales);
     return () => window.removeEventListener('admin:filter-chales', handleFilterChales);
   }, []);
+
+  // Marcação imediata (otimista) de voucher enviado por chalé, até o próximo refresh do banco
+  const [voucherSentOverrides, setVoucherSentOverrides] = useState<Record<string, string>>({});
 
   // RESERVAS MANUAIS SALVAS LOCALMENTE
   const [localReservations, setLocalReservations] = useState<ChaleReservation[]>(() => {
@@ -672,12 +676,21 @@ export function AdminChaleTab({
           unitSplits.forEach((unit) => {
             const unitAdultNames = unit.adultNames.length > 0 ? unit.adultNames : [orderHolderName];
             const unitLeadGuest = unitAdultNames[0] || orderHolderName;
+            const unitResId = isMultiUnit ? `${order.id}__ch${unit.chaleId}` : order.id;
+            const sentMap = (meta.voucher_sent_by_chale && typeof meta.voucher_sent_by_chale === 'object')
+              ? meta.voucher_sent_by_chale
+              : {};
+            // Reserva conjunta: cada chalé tem status de voucher independente
+            const unitVoucherSentAt = isMultiUnit
+              ? (voucherSentOverrides[unitResId] || sentMap[String(unit.chaleId)] || null)
+              : (voucherSentOverrides[unitResId] || order.last_voucher_sent_at || (order.notes?.includes('[VOUCHER ENVIADO]') ? order.updated_at || new Date().toISOString() : null));
 
             list.push({
-              id: isMultiUnit ? `${order.id}__ch${unit.chaleId}` : order.id,
+              id: unitResId,
               chaleId: unit.chaleId,
               allChaleIds,
               chaletsCount: unitSplits.length,
+              chaleItemId: item.id,
               orderHolderName,
               guestName: unitLeadGuest,
               phone: order.customer_phone || '(Não informado)',
@@ -704,7 +717,7 @@ export function AdminChaleTab({
               isOrder: true,
               orderId: order.id,
               confirmationCode: order.confirmation_code,
-              last_voucher_sent_at: order.last_voucher_sent_at || (order.notes?.includes('[VOUCHER ENVIADO]') ? order.updated_at || new Date().toISOString() : null)
+              last_voucher_sent_at: unitVoucherSentAt
             });
           });
         }
@@ -740,7 +753,7 @@ export function AdminChaleTab({
     });
 
     return { realChaleOrders: list, campingBookings: campings };
-  }, [orders]);
+  }, [orders, voucherSentOverrides]);
 
   // Sincronização e Limpeza: Remove de localReservations qualquer reserva pendente ou cancelada que colida com pedidos online reais
   useEffect(() => {
@@ -1694,13 +1707,15 @@ export function AdminChaleTab({
   // Marcação de voucher gerado / enviado
   const markVoucherAsSent = async (res: ChaleReservation) => {
     const nowIso = new Date().toISOString();
+    const isMultiUnit = (res.chaletsCount || 1) > 1;
 
-    // Atualiza estado local de reservas
+    // Atualiza estado local SOMENTE do chalé/voucher atual (cada chalé tem seu próprio voucher independente)
+    setVoucherSentOverrides(prev => ({ ...prev, [res.id]: nowIso }));
     setLocalReservations(prev => prev.map(r => {
-      if (r.id === res.id || (r.orderId && r.orderId === res.orderId) || (r.confirmationCode && r.confirmationCode === res.confirmationCode)) {
-        return { ...r, last_voucher_sent_at: nowIso };
-      }
-      return r;
+      const sameTarget = isMultiUnit
+        ? r.id === res.id
+        : (r.id === res.id || (r.orderId && r.orderId === res.orderId) || (r.confirmationCode && r.confirmationCode === res.confirmationCode));
+      return sameTarget ? { ...r, last_voucher_sent_at: nowIso } : r;
     }));
 
     if (voucherRes) {
@@ -1709,23 +1724,40 @@ export function AdminChaleTab({
 
     // Persiste no banco Supabase
     try {
-      const orderTargetId = res.orderId || (res.isOrder ? res.id : null);
-      if (orderTargetId) {
-        await supabase.from('orders').update({
-          last_voucher_sent_at: nowIso,
-          notes: (res.notes || '').includes('[VOUCHER ENVIADO]') ? res.notes : ((res.notes ? res.notes + ' ' : '') + '[VOUCHER ENVIADO]')
-        }).eq('id', orderTargetId);
-      } else if (res.confirmationCode) {
-        await supabase.from('orders').update({
-          last_voucher_sent_at: nowIso,
-          notes: (res.notes || '').includes('[VOUCHER ENVIADO]') ? res.notes : ((res.notes ? res.notes + ' ' : '') + '[VOUCHER ENVIADO]')
-        }).eq('confirmation_code', res.confirmationCode);
-      }
+      if (isMultiUnit && res.chaleItemId) {
+        // Reserva conjunta: grava o envio por chalé no metadata do item (não afeta os outros chalés)
+        const { data: itemRow } = await (supabase as any)
+          .from('order_items')
+          .select('metadata')
+          .eq('id', res.chaleItemId)
+          .single();
+        const currentMeta = parseChaleMetadata(itemRow?.metadata);
+        const sentMap = (currentMeta.voucher_sent_by_chale && typeof currentMeta.voucher_sent_by_chale === 'object')
+          ? currentMeta.voucher_sent_by_chale
+          : {};
+        await (supabase as any)
+          .from('order_items')
+          .update({ metadata: { ...currentMeta, voucher_sent_by_chale: { ...sentMap, [String(res.chaleId)]: nowIso } } })
+          .eq('id', res.chaleItemId);
+      } else {
+        const orderTargetId = res.orderId || (res.isOrder ? res.id : null);
+        if (orderTargetId) {
+          await supabase.from('orders').update({
+            last_voucher_sent_at: nowIso,
+            notes: (res.notes || '').includes('[VOUCHER ENVIADO]') ? res.notes : ((res.notes ? res.notes + ' ' : '') + '[VOUCHER ENVIADO]')
+          }).eq('id', orderTargetId);
+        } else if (res.confirmationCode) {
+          await supabase.from('orders').update({
+            last_voucher_sent_at: nowIso,
+            notes: (res.notes || '').includes('[VOUCHER ENVIADO]') ? res.notes : ((res.notes ? res.notes + ' ' : '') + '[VOUCHER ENVIADO]')
+          }).eq('confirmation_code', res.confirmationCode);
+        }
 
-      if (res.id && !res.id.includes('__ch')) {
-        await supabase.from('bookings').update({
-          last_voucher_sent_at: nowIso
-        }).eq('id', res.id);
+        if (res.id && !res.id.includes('__ch')) {
+          await supabase.from('bookings').update({
+            last_voucher_sent_at: nowIso
+          }).eq('id', res.id);
+        }
       }
 
       if (onRefresh) {
@@ -1798,7 +1830,8 @@ export function AdminChaleTab({
       ...(voucherRes.childNames || []).map((c) => `• Criança: ${c.name} (${c.ageLabel})`)
     ].join('\n');
     const msg = `*BALNEÁRIO LESSA - COMPROVANTE OFICIAL DE HOSPEDAGEM* 🌿\n\n` +
-      `*Titular do Pedido:* ${voucherRes.orderHolderName || voucherRes.guestName}\n` +
+      `*Titular do Chalé:* ${voucherRes.guestName}\n` +
+      (isMultiUnit && voucherRes.orderHolderName && voucherRes.orderHolderName !== voucherRes.guestName ? `*Reservado por:* ${voucherRes.orderHolderName}\n` : '') +
       `*Chalé:* Chalé ${String(voucherRes.chaleId).padStart(2, '0')} (${voucherRes.occupancyType === 'individual' ? 'Individual • 1 Adulto' : 'Casal • 2 Adultos'})\n` +
       (isMultiUnit ? `*Reserva Conjunta (${voucherRes.chaletsCount} unidades):* ${formatChaleIdsLabel(voucherRes.allChaleIds!)}\n` : '') +
       `*Código:* ${voucherRes.confirmationCode || 'CHA-OK'}\n` +
@@ -3998,19 +4031,19 @@ export function AdminChaleTab({
                       backgroundColor: '#f59e0b',
                       color: '#02170c',
                       textAlign: 'center',
-                      padding: '5px 18px 6px 18px',
+                      height: '26px',
+                      lineHeight: '26px',
+                      padding: '0 20px',
                       borderRadius: '9999px',
-                      fontSize: '11px',
+                      fontSize: '12px',
                       fontWeight: 900,
-                      lineHeight: 1,
                       letterSpacing: '0.05em',
                       textTransform: 'uppercase',
+                      whiteSpace: 'nowrap',
                       boxSizing: 'border-box'
                     }}
                   >
-                    <span style={{ display: 'inline-block', lineHeight: 1, verticalAlign: 'middle' }}>
-                      Chalé {String(voucherRes.chaleId).padStart(2, '0')}
-                    </span>
+                    Chalé {String(voucherRes.chaleId).padStart(2, '0')}
                   </div>
                   {(voucherRes.chaletsCount || 1) > 1 && Array.isArray(voucherRes.allChaleIds) && voucherRes.allChaleIds.length > 1 && (
                     <div style={{ color: '#fde047' }} className="text-[10px] font-bold pt-0.5">
@@ -4031,12 +4064,18 @@ export function AdminChaleTab({
                   }} 
                   className="space-y-2 text-xs"
                 >
-                  <div style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '0.375rem' }} className="flex justify-between">
+                  <div style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '0.375rem' }} className="flex justify-between gap-2">
                     <span style={{ color: '#a7f3d0' }} className="font-bold uppercase text-[10px]">
-                      {(voucherRes.chaletsCount || 1) > 1 ? 'Titular do Pedido:' : 'Titular:'}
+                      {(voucherRes.chaletsCount || 1) > 1 ? `Titular do Chalé ${String(voucherRes.chaleId).padStart(2, '0')}:` : 'Titular:'}
                     </span>
-                    <span style={{ color: '#ffffff' }} className="font-black">{voucherRes.orderHolderName || voucherRes.guestName}</span>
+                    <span style={{ color: '#ffffff' }} className="font-black text-right">{voucherRes.guestName}</span>
                   </div>
+                  {(voucherRes.chaletsCount || 1) > 1 && voucherRes.orderHolderName && voucherRes.orderHolderName !== voucherRes.guestName && (
+                    <div style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '0.375rem' }} className="flex justify-between gap-2">
+                      <span style={{ color: '#a7f3d0' }} className="font-bold uppercase text-[10px]">Reservado por:</span>
+                      <span style={{ color: '#ffffff' }} className="font-bold text-right">{voucherRes.orderHolderName}</span>
+                    </div>
+                  )}
                   <div style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '0.375rem' }} className="flex justify-between">
                     <span style={{ color: '#a7f3d0' }} className="font-bold uppercase text-[10px]">CPF:</span>
                     <span style={{ color: '#fde047' }} className="font-black">{voucherRes.cpf || '123.456.789-00'}</span>
@@ -4169,17 +4208,17 @@ export function AdminChaleTab({
                       backgroundColor: voucherRes.status === 'paid' ? '#10b981' : '#f59e0b',
                       color: '#02170c',
                       textAlign: 'center',
-                      padding: '5px 12px 6px 12px',
+                      height: '24px',
+                      lineHeight: '24px',
+                      padding: '0 14px',
                       borderRadius: '8px',
                       fontSize: '11px',
                       fontWeight: 900,
-                      lineHeight: 1,
                       letterSpacing: '0.02em',
+                      whiteSpace: 'nowrap',
                       boxSizing: 'border-box'
                     }}>
-                      <span style={{ display: 'inline-block', lineHeight: 1, verticalAlign: 'middle' }}>
-                        {voucherRes.status === 'paid' ? 'PAGO OK ✓' : 'A PAGAR'}
-                      </span>
+                      {voucherRes.status === 'paid' ? 'PAGO OK ✓' : 'A PAGAR'}
                     </div>
                     <span style={{ color: '#ffffff', lineHeight: '1.3' }} className="text-[12px] font-black block pt-1">
                       {(voucherRes.chaletsCount || 1) > 1
