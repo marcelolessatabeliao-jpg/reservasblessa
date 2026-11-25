@@ -472,9 +472,18 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
     try {
       const targetUrl = doc.dataUrl || (doc as any).fileUrl || '';
       const targetId = doc.id;
+      const targetName = (doc.name || '').trim().toLowerCase();
       const matchesTarget = (a: ClubAttachment) => {
         const aUrl = a.dataUrl || (a as any).fileUrl || '';
-        return a.id === targetId || (Boolean(targetUrl) && aUrl === targetUrl);
+        const aName = (a.name || (a as any).fileName || '').trim().toLowerCase();
+        return (
+          a.id === targetId ||
+          (Boolean(targetUrl) && aUrl === targetUrl) ||
+          (Boolean(targetName) &&
+            targetName !== 'documento comprobatório' &&
+            targetName !== 'anexo do integrante' &&
+            aName === targetName)
+        );
       };
 
       const updatedMembers = subscription.members.map((m) => {
@@ -482,21 +491,31 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
         const nextAtts = (m.attachments || []).filter((a) => !matchesTarget(a));
         const clearedPrimary =
           (Boolean(targetUrl) && m.documentProofUrl === targetUrl) ||
-          m.documentProofName === doc.name;
-        const nextPrimaryUrl = clearedPrimary ? nextAtts[0]?.dataUrl : m.documentProofUrl;
-        const nextPrimaryName = clearedPrimary ? nextAtts[0]?.name : m.documentProofName;
+          (Boolean(targetName) && (m.documentProofName || '').trim().toLowerCase() === targetName);
+        const nextPrimaryUrl = clearedPrimary ? (nextAtts[0]?.dataUrl || '') : (m.documentProofUrl || '');
+        const nextPrimaryName = clearedPrimary ? (nextAtts[0]?.name || '') : (m.documentProofName || '');
         const hasAnyLeft = Boolean(nextPrimaryUrl) || nextAtts.length > 0;
         return {
           ...m,
-          documentProofUrl: nextPrimaryUrl,
-          documentProofName: nextPrimaryName,
+          documentProofUrl: nextPrimaryUrl || undefined,
+          documentProofName: nextPrimaryName || undefined,
           attachments: nextAtts,
           documentVerified: hasAnyLeft ? m.documentVerified : false,
           documentStatus: hasAnyLeft ? m.documentStatus : ('PENDENTE_ANEXO' as const),
         };
       });
 
-      const updatedSubAtts = (subscription.attachments || []).filter((a) => !matchesTarget(a));
+      // Só remove de sub.attachments se nenhum OUTRO integrante estiver usando exatamente essa URL
+      const stillUsedByOtherMember = updatedMembers.some(
+        (m) =>
+          m.id !== member.id &&
+          (m.documentProofUrl === targetUrl ||
+            (m.attachments || []).some((a) => (a.dataUrl || (a as any).fileUrl) === targetUrl))
+      );
+
+      const updatedSubAtts = stillUsedByOtherMember
+        ? subscription.attachments || []
+        : (subscription.attachments || []).filter((a) => !matchesTarget(a));
 
       const updatedSub: ClubSubscription = {
         ...subscription,
@@ -506,25 +525,39 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
         isModifiedFromSeed: true,
       };
 
+      // Atualiza a tela imediatamente
+      const allState = getClubStateSync();
+      const nextSubs = (allState.subscriptions || []).map((s) =>
+        s.id === updatedSub.id ? updatedSub : s
+      );
+      const nextState: ClubDatabaseState = { ...allState, subscriptions: nextSubs };
+      onUpdateSub(updatedSub, nextState);
+
       try {
-        if (targetId && targetId !== 'primary-doc' && !targetId.startsWith('att-') && !targetId.startsWith('sub-att-')) {
-          await (supabase as any)
-            .from('club_attachments')
-            .update({ is_deleted: true })
-            .eq('id', targetId);
-        }
-        if (targetUrl && targetUrl.startsWith('http')) {
-          await (supabase as any)
-            .from('club_attachments')
-            .update({ is_deleted: true })
-            .eq('public_url', targetUrl);
+        if (!stillUsedByOtherMember) {
+          if (targetId && targetId !== 'primary-doc' && !targetId.startsWith('att-') && !targetId.startsWith('sub-att-')) {
+            await (supabase as any)
+              .from('club_attachments')
+              .update({ is_deleted: true })
+              .eq('id', targetId);
+          }
+          if (targetUrl && targetUrl.startsWith('http')) {
+            await (supabase as any)
+              .from('club_attachments')
+              .update({ is_deleted: true })
+              .eq('public_url', targetUrl);
+          }
         }
         if (doc.name && subscription.subscriptionCode) {
-          await (supabase as any)
+          let query = (supabase as any)
             .from('club_attachments')
             .update({ is_deleted: true })
             .eq('subscription_code', subscription.subscriptionCode)
             .eq('file_name', doc.name);
+          if (member.id) {
+            query = query.eq('member_id', member.id);
+          }
+          await query;
         }
       } catch (e) {
         console.warn('Erro ao marcar anexo como excluído em club_attachments:', e);
@@ -534,13 +567,7 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
       if (permCode) {
         await saveMemberPermanentDocs(permCode, updatedSub, 'REMOVE_ATTACHMENT');
       }
-      const allState = getClubStateSync();
-      const nextSubs = (allState.subscriptions || []).map((s) =>
-        s.id === updatedSub.id ? updatedSub : s
-      );
-      const nextState: ClubDatabaseState = { ...allState, subscriptions: nextSubs };
       await saveClubState(nextState, { skipCloudSync: true });
-      onUpdateSub(updatedSub, nextState);
 
       toast({
         title: 'Anexo removido',

@@ -894,6 +894,7 @@ function mergePermanentRecords(
   const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
   const primary = aTime >= bTime ? a : b;
   const secondary = aTime >= bTime ? b : a;
+  const primaryStrictlyNewer = aTime !== bTime && Math.max(aTime, bTime) > 0;
 
   return {
     ...secondary,
@@ -910,7 +911,9 @@ function mergePermanentRecords(
     holderBirthDate: primary.holderBirthDate || secondary.holderBirthDate,
     endDate: primary.endDate || secondary.endDate,
     validityLabel: primary.validityLabel || secondary.validityLabel,
-    attachments: mergeAttachmentsLists(primary.attachments, secondary.attachments),
+    attachments: primaryStrictlyNewer
+      ? (primary.attachments || [])
+      : mergeAttachmentsLists(primary.attachments, secondary.attachments),
     updatedAt: new Date(Math.max(aTime, bTime)).toISOString(),
   };
 }
@@ -918,8 +921,7 @@ function mergePermanentRecords(
 /**
  * Aplica os dados e anexos permanentes da tabela `public.club_records` sobre uma assinatura.
  * Compara rigorosamente os timestamps (`updatedAt`) para que uma versão mais antiga
- * NUNCA sobrescreva uma edição mais nova, enquanto garante que nenhum anexo ou campo
- * preenchido jamais seja apagado!
+ * NUNCA sobrescreva uma edição mais nova nem ressuscite anexos excluídos!
  */
 export function applyPermanentDocsToSub(
   sub: ClubSubscription,
@@ -930,11 +932,14 @@ export function applyPermanentDocsToSub(
   const subTime = sub.updatedAt ? new Date(sub.updatedAt).getTime() : 0;
   const permTime = perm.updatedAt ? new Date(perm.updatedAt).getTime() : 0;
   const permIsNewerOrEqual = permTime >= subTime;
+  const primaryStrictlyNewer = permTime !== subTime && Math.max(permTime, subTime) > 0;
 
   const primary = permIsNewerOrEqual ? perm : sub;
   const secondary = permIsNewerOrEqual ? sub : perm;
 
-  const finalAttachments = mergeAttachmentsLists(primary.attachments, secondary.attachments);
+  const finalAttachments = primaryStrictlyNewer
+    ? (primary.attachments || [])
+    : mergeAttachmentsLists(primary.attachments, secondary.attachments);
 
   // Unifica membros (garantindo que dependentes adicionados em `perm` nunca sejam perdidos!)
   const baseMembers = (primary.members && primary.members.length > 0 ? primary.members : sub.members) || [];
@@ -946,7 +951,14 @@ export function applyPermanentDocsToSub(
     );
     if (!om) return pm;
 
-    const docProof = isRealAttachmentUrl(pm.documentProofUrl)
+    const pmDocIsPlaceholder = Boolean(
+      pm.documentProofUrl &&
+      (pm.documentProofUrl === 'HAS_DOC_ATTACHED' || pm.documentProofUrl.includes('[COMPACTED_LOCAL]'))
+    );
+
+    const docProof = primaryStrictlyNewer && !pmDocIsPlaceholder
+      ? pm.documentProofUrl
+      : isRealAttachmentUrl(pm.documentProofUrl)
       ? pm.documentProofUrl
       : isRealAttachmentUrl(om.documentProofUrl)
       ? om.documentProofUrl
@@ -958,7 +970,9 @@ export function applyPermanentDocsToSub(
       ? om.photoUrl
       : (pm.photoUrl || om.photoUrl);
 
-    const memAtts = mergeAttachmentsLists(pm.attachments, om.attachments);
+    const memAtts = primaryStrictlyNewer
+      ? (pm.attachments || [])
+      : mergeAttachmentsLists(pm.attachments, om.attachments);
     const hasAnyMemDoc = Boolean(
       isRealAttachmentUrl(docProof) ||
       memAtts.length > 0 ||
@@ -975,7 +989,9 @@ export function applyPermanentDocsToSub(
       backCardUrl: pm.backCardUrl || om.backCardUrl,
       photoUrl,
       documentProofUrl: docProof,
-      documentProofName: pm.documentProofName || om.documentProofName,
+      documentProofName: primaryStrictlyNewer && !pmDocIsPlaceholder
+        ? pm.documentProofName
+        : (pm.documentProofName || om.documentProofName),
       attachments: memAtts,
       documentStatus: hasAnyMemDoc ? (pm.documentStatus || om.documentStatus) : undefined,
       documentVerified: hasAnyMemDoc ? Boolean(pm.documentVerified ?? om.documentVerified) : false,
