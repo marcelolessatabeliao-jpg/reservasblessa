@@ -17,7 +17,7 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { getPersonPrice, formatCurrency, KIOSK_INFO, QUAD_LABELS, getQuadDiscount, ADDITIONAL_INFO, CHALE_PACKAGES, CAMPING_PRICE_PER_PERSON, WHATSAPP_NUMBER, isSundayOrHoliday, calculateChaleTotal, calculateChaleGrossTotal, calculateStayPricing, type BookingState, type AdultInfo, type ChildInfo } from '@/lib/booking-types';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { trackFBEvent } from '@/utils/pixel-events';
 
 interface Props {
@@ -217,7 +217,7 @@ export function BookingOverview({
     });
   };
 
-  const isSubmittingActionRef = React.useRef(false);
+  const isSubmittingActionRef = useRef(false);
 
   const handleAction = async (
     method: 'PIX' | 'CREDIT_CARD' | 'DEBIT_CARD' | 'LOCAL',

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Loader2, QrCode, CreditCard, Copy, CheckCircle, Wallet, AlertTriangle, MessageCircle } from 'lucide-react';
@@ -95,7 +95,7 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, phone, 
     };
   }, [orderId, open, toast, onOpenChange, onSuccess]);
 
-  const isSubmittingPaymentRef = React.useRef(false);
+  const isSubmittingPaymentRef = useRef(false);
 
   const handleGeneratePayment = async (method: PaymentMethod) => {
     if (isSubmittingPaymentRef.current || paymentConfirmed) {
