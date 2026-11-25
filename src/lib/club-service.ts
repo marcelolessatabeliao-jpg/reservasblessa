@@ -3210,10 +3210,31 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
                     validityLabel: effVal,
                   };
                 });
-                if (s.members.length > current.members.length) {
+                const curCodeForMem = String(current.subscriptionCode || '').trim();
+                const isCurBackedForMem = Boolean(
+                  (curCodeForMem && permCodesSet.has(curCodeForMem)) ||
+                    permIdsSet.has(current.id)
+                );
+                const curTimeForMem = current.updatedAt ? new Date(current.updatedAt).getTime() : 0;
+                const localTimeForMem = s.updatedAt ? new Date(s.updatedAt).getTime() : 0;
+                const localStrictlyNewerThanCur = localTimeForMem > curTimeForMem;
+
+                if (
+                  s.members.length > current.members.length &&
+                  (!isCurBackedForMem || localStrictlyNewerThanCur)
+                ) {
                   const currentCards = new Set(current.members.map((m) => m.cardNumber));
-                  const missingFromCurrent = s.members.filter((m) => !currentCards.has(m.cardNumber));
-                  current.members = [...current.members, ...missingFromCurrent];
+                  const titularCodesInMap = new Set(
+                    Array.from(subsMap.values()).map((subItem) => String(subItem.subscriptionCode || '').trim())
+                  );
+                  const missingFromCurrent = s.members.filter(
+                    (m) =>
+                      !currentCards.has(m.cardNumber) &&
+                      !(m.role === 'DEPENDENTE' && m.cardNumber && titularCodesInMap.has(String(m.cardNumber).trim()))
+                  );
+                  if (missingFromCurrent.length > 0) {
+                    current.members = [...current.members, ...missingFromCurrent];
+                  }
                 }
               }
 
@@ -6094,9 +6115,19 @@ export const findMemberOrSubscriptionByQuery = (
   });
 
   const seenKeys = new Set<string>();
+  const seenTitularCards = new Set<string>();
+  for (const { member } of scoredResults) {
+    if (member.role === 'TITULAR' && member.cardNumber) {
+      seenTitularCards.add(member.cardNumber.trim());
+    }
+  }
   const deduped: Array<{ member: ClubMember; subscription: ClubSubscription }> = [];
   for (const { member, subscription } of scoredResults) {
-    const key = `${subscription.subscriptionCode || subscription.id}_${member.cardNumber || member.id}`;
+    const cardTrim = (member.cardNumber || '').trim();
+    if (member.role === 'DEPENDENTE' && cardTrim && seenTitularCards.has(cardTrim)) {
+      continue;
+    }
+    const key = `${subscription.subscriptionCode || subscription.id}_${cardTrim || member.id}`;
     if (seenKeys.has(key)) continue;
     seenKeys.add(key);
     deduped.push({ member, subscription });
