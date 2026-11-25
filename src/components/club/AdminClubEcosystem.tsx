@@ -16484,7 +16484,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         selectedSubForDetail.billingCycle !== 'ANNUAL'
                       ) {
                         const planSumm = (selectedSubForDetail.planSummaryLabel || '').toLowerCase();
-                        const isCustomFamily = planSumm.includes('personalizado');
+                        const isCustomFamily = /personaliz|unificad|servidor|estudante|student|professor/i.test(planSumm);
                         if (p.value === 199.60 || (!isCustomFamily && (planSumm.includes('4 pessoas') || desc.includes('4 pessoas')))) newAmount = Math.max(Number(p.value || 0), 239.60);
                         else if (p.value === 149.70 || (!isCustomFamily && (planSumm.includes('3 pessoas') || desc.includes('3 pessoas')))) newAmount = Math.max(Number(p.value || 0), 179.70);
                         else if (p.value === 99.80 || (!isCustomFamily && (planSumm.includes('2 pessoas') || desc.includes('2 pessoas')))) newAmount = Math.max(Number(p.value || 0), 119.80);

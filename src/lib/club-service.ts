@@ -1948,17 +1948,18 @@ export const normalizeClubDatabaseState = (
           ) {
             const desc = (inv.description || '').toLowerCase();
             const planSumm = (sub.planSummaryLabel || '').toLowerCase();
+            const isSpecialOrCustom = /personaliz|unificad|servidor|estudante|student|professor/i.test(planSumm);
             let newAmount = inv.amount;
 
-            if (planSumm.includes('4 pessoas') || desc.includes('4 pessoas')) {
+            if (inv.amount === 199.60 || (!isSpecialOrCustom && (planSumm.includes('4 pessoas') || desc.includes('4 pessoas')))) {
               newAmount = 239.60;
-            } else if (planSumm.includes('3 pessoas') || desc.includes('3 pessoas') || inv.amount === 149.70) {
+            } else if (inv.amount === 149.70 || (!isSpecialOrCustom && (planSumm.includes('3 pessoas') || desc.includes('3 pessoas')))) {
               newAmount = 179.70;
-            } else if (planSumm.includes('2 pessoas') || desc.includes('2 pessoas') || inv.amount === 99.80) {
+            } else if (inv.amount === 99.80 || (!isSpecialOrCustom && (planSumm.includes('2 pessoas') || desc.includes('2 pessoas')))) {
               newAmount = 119.80;
-            } else if (planSumm.includes('servidor') || planSumm.includes('estudante') || planSumm.includes('professor') || inv.amount === 25) {
+            } else if (inv.amount === 25) {
               newAmount = 30.00;
-            } else if (planSumm.includes('lessa club') || inv.amount === 49.90) {
+            } else if (inv.amount === 49.90) {
               newAmount = 59.90;
             }
 
