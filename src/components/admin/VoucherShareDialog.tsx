@@ -174,36 +174,61 @@ export function VoucherShareDialog({
     setLoading(true);
     try {
       if (!voucherRef.current) return;
-      
-      const imagePromise = (async () => {
-        // Small delay to ensure render
-        await new Promise(r => setTimeout(r, 100));
-        const canvas = await html2canvas(voucherRef.current!, {
-          backgroundColor: '#ffffff',
-          scale: 2,
-          useCORS: true,
-          logging: false,
-        });
-        const dataUrl = canvas.toDataURL('image/png');
-        setImageGenerated(dataUrl);
-        updateVoucherSent();
-        const res = await fetch(dataUrl);
-        return await res.blob();
-      })();
+
+      // Garante que o QR Code em base64 esteja carregado antes do html2canvas para evitar erro de CORS/taint
+      if (!qrBase64 && code) {
+        try {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 3500);
+          const qrRes = await fetch(
+            `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://reservas.balneariolessa.com.br/voucher/${code}`,
+            { signal: controller.signal }
+          );
+          clearTimeout(timer);
+          if (qrRes.ok) {
+            const blob = await qrRes.blob();
+            const b64 = await new Promise<string>((resolve) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve((reader.result as string) || '');
+              reader.readAsDataURL(blob);
+            });
+            if (b64) {
+              setQrBase64(b64);
+              await new Promise((r) => setTimeout(r, 120));
+            }
+          }
+        } catch {
+          // Segue sem bloquear caso o serviço externo de QR oscile
+        }
+      }
+
+      await new Promise((r) => setTimeout(r, 100));
+      const canvas = await html2canvas(voucherRef.current, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        scrollX: 0,
+        scrollY: 0,
+      });
+      const dataUrl = canvas.toDataURL('image/png');
+      setImageGenerated(dataUrl);
+      await updateVoucherSent();
 
       try {
-         await navigator.clipboard.write([
-            new ClipboardItem({ 'image/png': imagePromise })
-         ]);
-         toast({ title: "Imagem Copiada!", description: "A imagem do voucher foi copiada. Agora basta colar no WhatsApp do cliente." });
-      } catch (err) {
-         console.log("Clipboard API failed directly, showing generated image instead", err);
-         await imagePromise;
-         toast({ title: "Imagem Gerada!", description: "A imagem está pronta abaixo. Você pode baixar ou colar manualmente." });
+        const res = await fetch(dataUrl);
+        const blob = await res.blob();
+        await navigator.clipboard.write([
+          new ClipboardItem({ 'image/png': blob })
+        ]);
+        toast({ title: "Imagem Copiada!", description: "A imagem do voucher foi copiada. Agora basta colar no WhatsApp do cliente." });
+      } catch (clipErr) {
+        console.log("Clipboard API failed directly, showing generated image instead", clipErr);
+        toast({ title: "Imagem Gerada!", description: "A imagem está pronta abaixo. Você pode baixar ou colar manualmente." });
       }
-    } catch (err) {
-      console.error(err);
-      toast({ title: "Erro ao gerar imagem", variant: "destructive" });
+    } catch (err: any) {
+      console.error('Erro ao gerar imagem do voucher:', err);
+      toast({ title: "Erro ao gerar imagem", description: err?.message || "Tente novamente.", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -289,7 +314,7 @@ export function VoucherShareDialog({
         </div>
 
         {/* HIDDEN VOUCHER FOR IMAGE GENERATION (Using inline styles to guarantee perfect html2canvas render, matching Voucher.tsx layout) */}
-        <div style={{ position: 'absolute', top: 0, left: 0, zIndex: -10, opacity: 0, pointerEvents: 'none' }}>
+        <div style={{ position: 'fixed', top: '-10000px', left: '-10000px', opacity: 1, pointerEvents: 'none', zIndex: -1 }}>
            <div 
              ref={voucherRef} 
              style={{ 
@@ -319,12 +344,17 @@ export function VoucherShareDialog({
                  <div style={{ width: '35%', display: 'flex', flexDirection: 'column', gap: '24px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                        <div style={{ padding: '12px', backgroundColor: '#ffffff', borderRadius: '32px', border: '4px solid rgba(6, 78, 59, 0.05)', marginBottom: '8px' }}>
-                          <img 
-                            src={qrBase64 || `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://reservas.balneariolessa.com.br/voucher/${code}`} 
-                            alt="QR Code" 
-                            style={{ width: '140px', height: '140px', display: 'block' }} 
-                            crossOrigin={qrBase64 ? undefined : "anonymous"}
-                          />
+                          {qrBase64 ? (
+                            <img 
+                              src={qrBase64} 
+                              alt="QR Code" 
+                              style={{ width: '140px', height: '140px', display: 'block' }} 
+                            />
+                          ) : (
+                            <div style={{ width: '140px', height: '140px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc', borderRadius: '16px', color: '#064e3b', fontWeight: 900, fontSize: '16px', fontFamily: 'monospace' }}>
+                              #{code}
+                            </div>
+                          )}
                        </div>
                        <div style={{ textAlign: 'center' }}>
                           <p style={{ fontSize: '10px', fontWeight: 900, color: '#64748b', textTransform: 'uppercase', letterSpacing: '3px', margin: '0 0 4px 0' }}>Código de Acesso</p>

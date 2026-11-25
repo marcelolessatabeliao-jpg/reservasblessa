@@ -240,6 +240,36 @@ Deno.serve(async (req) => {
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });
     }
 
+    // Estorno de parcelamento duplicado no Asaas (installmentId ou paymentId)
+    if (action === 'refund-installment') {
+      const targetInstallmentId = body.installmentId ? String(body.installmentId).trim() : '';
+      const targetPaymentId = paymentId ? String(paymentId).trim() : '';
+      if (!targetInstallmentId && !targetPaymentId) {
+        throw new Error('Informe installmentId ou paymentId para realizar o estorno.');
+      }
+
+      const endpoint = targetInstallmentId
+        ? `${ASAAS_URL}/installments/${targetInstallmentId}/refund`
+        : `${ASAAS_URL}/payments/${targetPaymentId}/refund`;
+
+      const refundReq = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', access_token: ASAAS_API_KEY },
+        body: JSON.stringify(body.value ? { value: Number(body.value) } : {}),
+      });
+      const refundData = await refundReq.json().catch(() => ({}));
+      if (!refundReq.ok) {
+        throw new Error(
+          `Asaas (Estorno): ${refundData?.errors?.[0]?.description || refundData?.message || 'Erro ao estornar cobrança'}`
+        );
+      }
+
+      return new Response(JSON.stringify({
+        success: true,
+        refunded: refundData,
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });
+    }
+
     // 2. Limpeza e Validação de Dados
     const cleanCpf = cpf ? cpf.replace(/\D/g, '') : '';
     if (!cleanCpf) throw new Error('Para cobranças reais em produção, o CPF é obrigatório.');
@@ -398,6 +428,36 @@ Deno.serve(async (req) => {
     }
     if (body.creditCardHolderInfo) {
       paymentBody.creditCardHolderInfo = body.creditCardHolderInfo;
+    }
+
+    if (billingType === 'CREDIT_CARD' && orderId) {
+      try {
+        const existingReq = await fetch(
+          `${ASAAS_URL}/payments?customer=${asaasCustomerId}&externalReference=${encodeURIComponent(String(orderId))}&limit=20`,
+          { headers: { access_token: ASAAS_API_KEY } }
+        );
+        if (existingReq.ok) {
+          const existingJson = await existingReq.json();
+          const alreadyPaid = (existingJson?.data || []).find(
+            (p: any) => p.status === 'CONFIRMED' || p.status === 'RECEIVED'
+          );
+          if (alreadyPaid) {
+            return new Response(JSON.stringify({
+              success: true,
+              duplicatePrevented: true,
+              data: {
+                paymentId: alreadyPaid.id,
+                invoiceUrl: alreadyPaid.invoiceUrl,
+                status: alreadyPaid.status,
+                isPaid: true,
+                pix: null,
+              },
+            }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });
+          }
+        }
+      } catch (e) {
+        console.warn('Erro ao verificar cobrança duplicada no Asaas:', e);
+      }
     }
 
     const paymentReq = await fetch(`${ASAAS_URL}/payments`, {
