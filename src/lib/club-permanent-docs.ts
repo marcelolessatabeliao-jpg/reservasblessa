@@ -422,7 +422,8 @@ async function executeSaveMemberPermanentDocs(
   // Impede definitivamente que uma aba antiga ou estado defasado sobrescreva dados mais novos,
   // apague anexos reais do Storage ou zere faturas já sincronizadas no Asaas!
   const isExplicitRestore = actionLabel.startsWith('RESTORE_V');
-  const isExplicitRemoveAttachment = actionLabel === 'REMOVE_ATTACHMENT';
+  const isExplicitRemoveAttachment =
+    actionLabel === 'REMOVE_ATTACHMENT' || actionLabel === 'DELETE_DOC_PANEL';
   const isExplicitInvoiceAction =
     actionLabel === 'ADMIN_DELETE_INVOICE' ||
     actionLabel === 'ADMIN_EDIT_INVOICES' ||

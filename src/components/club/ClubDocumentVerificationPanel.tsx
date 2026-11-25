@@ -525,7 +525,7 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
 
       const permCode = subscription.subscriptionCode || subscription.holderCpf || subscription.id;
       if (permCode) {
-        await saveMemberPermanentDocs(permCode, updatedSub, 'DELETE_DOC_PANEL');
+        await saveMemberPermanentDocs(permCode, updatedSub, 'REMOVE_ATTACHMENT');
       }
       const allState = getClubStateSync();
       const nextSubs = (allState.subscriptions || []).map((s) =>
