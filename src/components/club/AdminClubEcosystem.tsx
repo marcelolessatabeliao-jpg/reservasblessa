@@ -577,8 +577,14 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
   // Candidatos para vincular como dependente ao cadastro atual
   const personSearchCandidates = useMemo(() => {
-    const q = personSearchQuery.trim().toLowerCase();
+    const stripAccents = (s: string) =>
+      s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+    const qRaw = personSearchQuery.trim();
+    const q = stripAccents(qRaw);
     if (q.length < 2 || !selectedSubForDetail) return [];
+
+    const qTokens = q.split(/\s+/).filter(Boolean);
 
     const existingCardNumbers = new Set(
       selectedSubForDetail.members.map((m) => m.cardNumber.trim())
@@ -604,7 +610,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       isLabcardSeed?: boolean;
     }> = [];
 
-    const cleanQDigits = q.replace(/\D/g, '');
+    const cleanQDigits = qRaw.replace(/\D/g, '');
 
     // 1. Procurar nas assinaturas do banco local/estado
     if (state?.subscriptions) {
@@ -613,6 +619,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
           const mCard = (m.cardNumber || '').trim();
           const mCpfDigits = (m.cpf || '').replace(/\D/g, '');
           const mName = m.fullName.trim();
+          const mNameNorm = stripAccents(mName);
 
           // Já está no cadastro selecionado? Pula
           if (
@@ -623,11 +630,13 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
             continue;
           }
 
-          // Combina com a query?
-          const matchName = mName.toLowerCase().includes(q);
-          const matchCard = mCard.toLowerCase().includes(q);
-          const matchCpf = cleanQDigits && mCpfDigits.includes(cleanQDigits);
-          const matchPhone = cleanQDigits && (m.phone || '').replace(/\D/g, '').includes(cleanQDigits);
+          // Combina com a query? (suporta múltiplos termos fora de ordem e sem acento)
+          const matchName =
+            mNameNorm.includes(q) ||
+            (qTokens.length > 1 && qTokens.every((t) => mNameNorm.includes(t)));
+          const matchCard = mCard.toLowerCase().includes(q) || (cleanQDigits.length >= 3 && mCard.includes(cleanQDigits));
+          const matchCpf = cleanQDigits.length >= 3 && mCpfDigits.includes(cleanQDigits);
+          const matchPhone = cleanQDigits.length >= 4 && (m.phone || '').replace(/\D/g, '').includes(cleanQDigits);
 
           if (matchName || matchCard || matchCpf || matchPhone) {
             const rawPlanStr = sub.planSummaryLabel || m.modalityName || '';
@@ -673,9 +682,12 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         continue;
       }
 
-      const matchName = name.toLowerCase().includes(q);
-      const matchCard = card.toLowerCase().includes(q);
-      const matchCpf = cleanQDigits && cpfDigits.includes(cleanQDigits);
+      const nameNorm = stripAccents(name);
+      const matchName =
+        nameNorm.includes(q) ||
+        (qTokens.length > 1 && qTokens.every((t) => nameNorm.includes(t)));
+      const matchCard = card.toLowerCase().includes(q) || (cleanQDigits.length >= 3 && card.includes(cleanQDigits));
+      const matchCpf = cleanQDigits.length >= 3 && cpfDigits.includes(cleanQDigits);
 
       if (matchName || matchCard || matchCpf) {
         const detectedMod = detectModalityCodeFromPlanDescription(
@@ -695,7 +707,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         });
         seenCards.add(card);
       }
-      if (results.length >= 35) break;
+      if (results.length >= 50) break;
     }
 
     return results;
