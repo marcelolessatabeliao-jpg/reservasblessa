@@ -3658,11 +3658,37 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       let nextDeleted = [...(state.deletedSubscriptionIds || [])];
       const addedNames: string[] = [];
 
+      const usedCardNumbers = new Set<string>();
+      for (const s of nextSubs) {
+        if (s.subscriptionCode) usedCardNumbers.add(String(s.subscriptionCode).trim());
+        for (const m of s.members || []) {
+          if (m.cardNumber) usedCardNumbers.add(String(m.cardNumber).trim());
+        }
+      }
+      for (const row of LABCARD_RAW_RECORDS) {
+        const c = String(row[0] || '').trim();
+        if (c) usedCardNumbers.add(c);
+      }
+      const allocateFreeCardNumber = (): string => {
+        let maxNum = 1212253050;
+        for (const c of usedCardNumbers) {
+          const n = Number(c.replace(/\D/g, ''));
+          if (n >= 1212250000 && n < 1212260000 && n > maxNum) maxNum = n;
+        }
+        let candidate = String(maxNum + 1);
+        while (usedCardNumbers.has(candidate)) {
+          maxNum += 1;
+          candidate = String(maxNum + 1);
+        }
+        usedCardNumbers.add(candidate);
+        return candidate;
+      };
+
       for (let i = 0; i < persons.length; i++) {
         const person = persons[i];
         const cleanName = person.fullName.trim();
         const cleanCpf = person.cpf ? formatCpf(person.cpf) : '';
-        const cardNum = person.cardNumber || String(Number(targetSub.subscriptionCode) + currentMembers.length);
+        const cardNum = person.cardNumber || allocateFreeCardNumber();
 
         // Verifica se a pessoa já está nesta assinatura
         const alreadyInSub = currentMembers.some(
@@ -20373,10 +20399,29 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                               (state.modalities || []).find(
                                 (m) => m.code === newDepModality
                               ) || state.modalities[0];
-                            const newCardNum = String(
-                              Number(selectedSubForDetail.subscriptionCode) +
-                                selectedSubForDetail.members.length
-                            );
+                            const usedCardsSet = new Set<string>();
+                            for (const s of state.subscriptions || []) {
+                              if (s.subscriptionCode) usedCardsSet.add(String(s.subscriptionCode).trim());
+                              for (const m of s.members || []) {
+                                if (m.cardNumber) usedCardsSet.add(String(m.cardNumber).trim());
+                              }
+                            }
+                            for (const row of LABCARD_RAW_RECORDS) {
+                              const c = String(row[0] || '').trim();
+                              if (c) usedCardsSet.add(c);
+                            }
+                            let maxExistingCard = 1212253050;
+                            for (const c of usedCardsSet) {
+                              const n = Number(c.replace(/\D/g, ''));
+                              if (n >= 1212250000 && n < 1212260000 && n > maxExistingCard) {
+                                maxExistingCard = n;
+                              }
+                            }
+                            let newCardNum = String(maxExistingCard + 1);
+                            while (usedCardsSet.has(newCardNum)) {
+                              maxExistingCard += 1;
+                              newCardNum = String(maxExistingCard + 1);
+                            }
                             const addMonthly =
                               isFamilyPlanSelected || mod.isFreeTier
                                 ? 0
