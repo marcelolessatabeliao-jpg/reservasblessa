@@ -1686,6 +1686,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     mimeType?: string;
     createdAt?: string;
   } | null>(null);
+  const [previewZoom, setPreviewZoom] = useState<number>(1);
 
   useEffect(() => {
     setIsSyncing(true);
@@ -21985,9 +21986,14 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
           {/* MODAL GLOBAL DE VISUALIZAÇÃO DE ANEXO E DOCUMENTOS DO ASSOCIADO */}
           <Dialog
             open={Boolean(previewAttachment)}
-            onOpenChange={(open) => !open && setPreviewAttachment(null)}
+            onOpenChange={(open) => {
+              if (!open) {
+                setPreviewAttachment(null);
+                setPreviewZoom(1);
+              }
+            }}
           >
-            <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+            <DialogContent className="max-w-4xl max-h-[92vh] flex flex-col">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2 text-base font-black text-slate-900 pr-6 truncate">
                   <Eye className="w-4 h-4 text-emerald-700 shrink-0" />
@@ -22053,12 +22059,35 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
                 return (
                   <>
-                    <div className="flex-1 overflow-auto bg-slate-100 rounded-xl border border-slate-200 p-3 flex items-center justify-center min-h-[300px]">
+                    <div
+                      onWheel={(e) => {
+                        if (!isImage) return;
+                        if (e.ctrlKey || e.metaKey || previewZoom > 1) {
+                          e.preventDefault();
+                          const delta = e.deltaY < 0 ? 0.25 : -0.25;
+                          setPreviewZoom((z) => Math.min(4, Math.max(0.5, Number((z + delta).toFixed(2)))));
+                        }
+                      }}
+                      className={`flex-1 overflow-auto bg-slate-100 rounded-xl border border-slate-200 p-3 flex min-h-[320px] max-h-[68vh] ${
+                        isImage && previewZoom > 1 ? 'items-start justify-start' : 'items-center justify-center'
+                      }`}
+                    >
                       {isImage ? (
                         <img
                           src={effectiveUrl}
                           alt={previewAttachment.name}
-                          className="max-w-full max-h-[65vh] object-contain rounded-lg shadow-md"
+                          onClick={() => setPreviewZoom((z) => (z === 1 ? 2 : 1))}
+                          title={previewZoom === 1 ? 'Clique para ampliar (2x)' : 'Clique para ajustar (1x)'}
+                          style={
+                            previewZoom === 1
+                              ? undefined
+                              : { width: `${Math.round(previewZoom * 100)}%`, maxWidth: 'none' }
+                          }
+                          className={
+                            previewZoom === 1
+                              ? 'max-w-full max-h-[64vh] object-contain rounded-lg shadow-md cursor-zoom-in transition-all'
+                              : 'h-auto rounded-lg shadow-md cursor-zoom-out transition-all'
+                          }
                         />
                       ) : isPdf ? (
                         <iframe
@@ -22113,32 +22142,77 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                       )}
                     </div>
 
-                    <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-slate-200">
-                      {hasValidMedia && (
-                        <a
-                          href={effectiveUrl}
-                          download={previewAttachment.name}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-200">
+                      {isImage ? (
+                        <div className="flex items-center gap-1.5">
                           <Button
                             type="button"
                             size="sm"
-                            className="bg-[#004d00] hover:bg-emerald-900 text-white font-bold text-xs"
+                            variant="outline"
+                            onClick={() => setPreviewZoom((z) => Math.max(0.5, Number((z - 0.25).toFixed(2))))}
+                            className="h-8 px-2.5 font-black text-xs"
+                            title="Diminuir zoom"
                           >
-                            <Download className="w-3.5 h-3.5 mr-1.5" /> Baixar Anexo
+                            −
                           </Button>
-                        </a>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setPreviewZoom(1)}
+                            className="h-8 px-2.5 font-bold text-xs min-w-[58px]"
+                            title="Restaurar zoom 100%"
+                          >
+                            {Math.round(previewZoom * 100)}%
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setPreviewZoom((z) => Math.min(4, Number((z + 0.25).toFixed(2))))}
+                            className="h-8 px-2.5 font-black text-xs"
+                            title="Aumentar zoom"
+                          >
+                            +
+                          </Button>
+                          <span className="text-[11px] text-slate-500 font-medium hidden sm:inline ml-1">
+                            Clique na imagem para ampliar
+                          </span>
+                        </div>
+                      ) : (
+                        <div />
                       )}
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setPreviewAttachment(null)}
-                        className="font-bold text-xs"
-                      >
-                        Fechar
-                      </Button>
+
+                      <div className="flex items-center gap-2">
+                        {hasValidMedia && (
+                          <a
+                            href={effectiveUrl}
+                            download={previewAttachment.name}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            <Button
+                              type="button"
+                              size="sm"
+                              className="bg-[#004d00] hover:bg-emerald-900 text-white font-bold text-xs"
+                            >
+                              <Download className="w-3.5 h-3.5 mr-1.5" /> Baixar Anexo
+                            </Button>
+                          </a>
+                        )}
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setPreviewAttachment(null);
+                            setPreviewZoom(1);
+                          }}
+                          className="font-bold text-xs"
+                        >
+                          Fechar
+                        </Button>
+                      </div>
                     </div>
                   </>
                 );

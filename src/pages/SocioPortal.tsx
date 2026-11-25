@@ -807,6 +807,7 @@ const SocioPortal: React.FC = () => {
     dataUrl: string;
     mimeType?: string;
   } | null>(null);
+  const [docPreviewZoom, setDocPreviewZoom] = useState<number>(1);
 
   const handleUploadMemberDocument = async (member: ClubMember, file: File) => {
     if (!subscription) return;
@@ -3483,9 +3484,14 @@ const SocioPortal: React.FC = () => {
                 {/* MODAL DE VISUALIZAÇÃO DO DOCUMENTO NO PORTAL DO SÓCIO */}
                 <Dialog
                   open={Boolean(previewDocModal)}
-                  onOpenChange={(open) => !open && setPreviewDocModal(null)}
+                  onOpenChange={(open) => {
+                    if (!open) {
+                      setPreviewDocModal(null);
+                      setDocPreviewZoom(1);
+                    }
+                  }}
                 >
-                  <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+                  <DialogContent className="max-w-4xl max-h-[92vh] flex flex-col">
                     <DialogHeader>
                       <DialogTitle className="flex items-center gap-2 text-base font-black text-slate-900 pr-6 truncate">
                         <Eye className="w-4 h-4 text-emerald-700 shrink-0" />
@@ -3493,62 +3499,123 @@ const SocioPortal: React.FC = () => {
                       </DialogTitle>
                     </DialogHeader>
 
-                    {previewDocModal && (
-                      <div className="flex-1 overflow-auto bg-slate-100 rounded-xl border border-slate-200 p-3 flex items-center justify-center min-h-[300px]">
-                        {previewDocModal.dataUrl.startsWith('data:image/') ||
+                    {previewDocModal && (() => {
+                      const isImg =
+                        previewDocModal.dataUrl.startsWith('data:image/') ||
                         previewDocModal.mimeType?.startsWith('image/') ||
-                        /\.(png|jpe?g|gif|webp)(\?|$)/i.test(previewDocModal.name || previewDocModal.dataUrl) ? (
-                          <img
-                            src={previewDocModal.dataUrl}
-                            alt={previewDocModal.name}
-                            className="max-w-full max-h-[65vh] object-contain rounded-lg shadow-md"
-                          />
-                        ) : previewDocModal.dataUrl.startsWith('data:application/pdf') ||
-                          previewDocModal.mimeType === 'application/pdf' ||
-                          /\.pdf(\?|$)/i.test(previewDocModal.name || previewDocModal.dataUrl) ? (
-                          <iframe
-                            src={previewDocModal.dataUrl}
-                            title={previewDocModal.name}
-                            className="w-full h-[65vh] rounded-lg border border-slate-300 bg-white"
-                          />
-                        ) : (
-                          <div className="text-center space-y-3 p-6">
-                            <FileText className="w-12 h-12 text-slate-400 mx-auto" />
-                            <p className="text-sm font-bold text-slate-700">
-                              Pré-visualização direta indisponível para este formato.
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                        /\.(png|jpe?g|gif|webp)(\?|$)/i.test(previewDocModal.name || previewDocModal.dataUrl);
+                      const isPdf =
+                        previewDocModal.dataUrl.startsWith('data:application/pdf') ||
+                        previewDocModal.mimeType === 'application/pdf' ||
+                        /\.pdf(\?|$)/i.test(previewDocModal.name || previewDocModal.dataUrl);
 
-                    {previewDocModal && (
-                      <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-slate-200">
-                        <a
-                          href={previewDocModal.dataUrl}
-                          download={previewDocModal.name}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          <Button
-                            type="button"
-                            size="sm"
-                            className="bg-[#004d00] hover:bg-emerald-900 text-white font-bold text-xs"
+                      return (
+                        <>
+                          <div
+                            className={`flex-1 overflow-auto bg-slate-100 rounded-xl border border-slate-200 p-3 flex min-h-[300px] max-h-[68vh] ${
+                              isImg && docPreviewZoom > 1 ? 'items-start justify-start' : 'items-center justify-center'
+                            }`}
                           >
-                            <Download className="w-3.5 h-3.5 mr-1.5" /> Baixar Documento
-                          </Button>
-                        </a>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setPreviewDocModal(null)}
-                          className="font-bold text-xs"
-                        >
-                          Fechar
-                        </Button>
-                      </div>
-                    )}
+                            {isImg ? (
+                              <img
+                                src={previewDocModal.dataUrl}
+                                alt={previewDocModal.name}
+                                onClick={() => setDocPreviewZoom((z) => (z === 1 ? 2 : 1))}
+                                title={docPreviewZoom === 1 ? 'Clique para ampliar (2x)' : 'Clique para ajustar (1x)'}
+                                style={
+                                  docPreviewZoom === 1
+                                    ? undefined
+                                    : { width: `${Math.round(docPreviewZoom * 100)}%`, maxWidth: 'none' }
+                                }
+                                className={
+                                  docPreviewZoom === 1
+                                    ? 'max-w-full max-h-[64vh] object-contain rounded-lg shadow-md cursor-zoom-in transition-all'
+                                    : 'h-auto rounded-lg shadow-md cursor-zoom-out transition-all'
+                                }
+                              />
+                            ) : isPdf ? (
+                              <iframe
+                                src={previewDocModal.dataUrl}
+                                title={previewDocModal.name}
+                                className="w-full h-[65vh] rounded-lg border border-slate-300 bg-white"
+                              />
+                            ) : (
+                              <div className="text-center space-y-3 p-6">
+                                <FileText className="w-12 h-12 text-slate-400 mx-auto" />
+                                <p className="text-sm font-bold text-slate-700">
+                                  Pré-visualização direta indisponível para este formato.
+                                </p>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-200">
+                            {isImg ? (
+                              <div className="flex items-center gap-1.5">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setDocPreviewZoom((z) => Math.max(0.5, Number((z - 0.25).toFixed(2))))}
+                                  className="h-8 px-2.5 font-black text-xs"
+                                >
+                                  −
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setDocPreviewZoom(1)}
+                                  className="h-8 px-2.5 font-bold text-xs min-w-[58px]"
+                                >
+                                  {Math.round(docPreviewZoom * 100)}%
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setDocPreviewZoom((z) => Math.min(4, Number((z + 0.25).toFixed(2))))}
+                                  className="h-8 px-2.5 font-black text-xs"
+                                >
+                                  +
+                                </Button>
+                              </div>
+                            ) : (
+                              <div />
+                            )}
+
+                            <div className="flex items-center gap-2">
+                              <a
+                                href={previewDocModal.dataUrl}
+                                download={previewDocModal.name}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  className="bg-[#004d00] hover:bg-emerald-900 text-white font-bold text-xs"
+                                >
+                                  <Download className="w-3.5 h-3.5 mr-1.5" /> Baixar Documento
+                                </Button>
+                              </a>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setPreviewDocModal(null);
+                                  setDocPreviewZoom(1);
+                                }}
+                                className="font-bold text-xs"
+                              >
+                                Fechar
+                              </Button>
+                            </div>
+                          </div>
+                        </>
+                      );
+                    })()}
                   </DialogContent>
                 </Dialog>
               </TabsContent>
