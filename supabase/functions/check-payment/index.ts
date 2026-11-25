@@ -94,8 +94,23 @@ Deno.serve(async (req) => {
             sub.inactivityReason === 'ADMINISTRATIVO' ||
             sub.inactivityReason === 'SOLICITACAO_CLIENTE' ||
             sub.inactivityReason === 'FALTA_DOCUMENTOS' ||
-            (sub.status === 'INACTIVE' && sub.manualStatusOverride && sub.inactivityReason !== 'MENSALIDADE_VENCIDA');
-          if (!hasOverdue && !isManualAdminBlock && sub.status !== 'ACTIVE') {
+            (sub.status === 'INACTIVE' && sub.manualStatusOverride && sub.inactivityReason !== 'MENSALIDADE_VENCIDA' && sub.inactivityReason !== 'MENSALIDADE_E_DOCUMENTOS');
+          if (!hasOverdue && sub.inactivityReason === 'MENSALIDADE_E_DOCUMENTOS') {
+            sub.inactivityReason = 'FALTA_DOCUMENTOS';
+            sub.inactivityReasons = ['FALTA_DOCUMENTOS'];
+            if (
+              sub.inactivityNotes &&
+              /mensal|atraso|asaas|pagamento|fatura/i.test(sub.inactivityNotes)
+            ) {
+              sub.inactivityNotes = 'Falta de documentos comprobatórios para ativação do benefício.';
+            }
+            (sub.members || []).forEach((m: any) => {
+              if (m.inactivityReason === 'MENSALIDADE_E_DOCUMENTOS') {
+                m.inactivityReason = 'FALTA_DOCUMENTOS';
+                m.inactivityReasons = ['FALTA_DOCUMENTOS'];
+              }
+            });
+          } else if (!hasOverdue && !isManualAdminBlock && sub.status !== 'ACTIVE') {
             sub.status = 'ACTIVE';
             sub.inactivityReason = undefined;
             sub.inactivityReasons = undefined;

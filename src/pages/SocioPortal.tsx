@@ -608,6 +608,15 @@ const SocioPortal: React.FC = () => {
     };
   }, [subscription?.id]);
 
+  // Garante que motivos de inatividade (mensalidade vencida / falta de documentos) estejam sempre sincronizados com a realidade das faturas e anexos
+  useEffect(() => {
+    if (!subscription) return;
+    const resolved = resolveSubscriptionInactivityStatus(subscription);
+    if (resolved !== subscription) {
+      setSubscription(resolved);
+    }
+  }, [subscription]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!loginInput.trim()) return;

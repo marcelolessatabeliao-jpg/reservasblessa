@@ -167,6 +167,8 @@ import {
   normalizeClientPlanName,
   isSubscriptionOverdue,
   isSubscriptionMissingDocs,
+  hasSubscriptionOverdueInvoices,
+  resolveSubscriptionInactivityStatus,
   attachMemberProofDocument,
   verifyMemberProofDocument,
   getConsultantSlug,
@@ -1092,29 +1094,34 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
           }
 
           if (hasChanges) {
-            const hasOverdueInvs = currentInvs.some(
-              (i) => !isClubInvoiceReservation(i) && i.status === 'OVERDUE'
-            );
-            let nextStatus = selectedSubForDetail.status;
-            let nextReason = selectedSubForDetail.inactivityReason;
-            if (
-              !hasOverdueInvs &&
-              selectedSubForDetail.inactivityReason === 'MENSALIDADE_VENCIDA' &&
-              !selectedSubForDetail.manualStatusOverride
-            ) {
-              nextStatus = 'ACTIVE';
-              nextReason = undefined;
-            }
-            const updated: ClubSubscription = {
+            const updated = resolveSubscriptionInactivityStatus({
               ...selectedSubForDetail,
-              status: nextStatus,
-              inactivityReason: nextReason,
-              inactivityReasons: nextReason ? selectedSubForDetail.inactivityReasons : undefined,
               invoices: currentInvs,
               isModifiedFromSeed: true,
               updatedAt: new Date().toISOString(),
-            };
+            });
             setSelectedSubForDetail(updated);
+            if (updated.status === 'ACTIVE') {
+              setSituacaoLiberar('SIM');
+              setSituacaoInativar('NAO');
+            } else if (updated.status === 'PENDING_TRANSFER') {
+              setSituacaoLiberar('NAO');
+              setSituacaoInativar('NAO');
+            } else {
+              setSituacaoLiberar('NAO');
+              setSituacaoInativar('SIM');
+            }
+            const nextInitReason = updated.inactivityReason || 'MENSALIDADE_VENCIDA';
+            setSituacaoMotivoInativo(nextInitReason);
+            if (updated.inactivityReasons && updated.inactivityReasons.length > 0) {
+              setSituacaoMotivosInativo(updated.inactivityReasons);
+            } else if (nextInitReason === 'MENSALIDADE_E_DOCUMENTOS') {
+              setSituacaoMotivosInativo(['MENSALIDADE_VENCIDA', 'FALTA_DOCUMENTOS']);
+            } else {
+              setSituacaoMotivosInativo([nextInitReason]);
+            }
+            setSituacaoNotasInativo(updated.inactivityNotes || '');
+
             const permCode = updated.subscriptionCode || updated.holderCpf || updated.id;
             if (permCode) {
               await saveMemberPermanentDocs(permCode, updated, 'ASAAS_AUTO_SYNC');
@@ -3090,27 +3097,41 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     if (isNewClient) {
       currentDetailSubIdRef.current = selectedSubForDetail.id;
 
-      if (selectedSubForDetail.status === 'ACTIVE') {
+      const resolvedSub = resolveSubscriptionInactivityStatus(selectedSubForDetail);
+      if (resolvedSub !== selectedSubForDetail) {
+        setSelectedSubForDetail(resolvedSub);
+        if (state) {
+          const nextState: ClubDatabaseState = {
+            ...state,
+            subscriptions: (state.subscriptions || []).map((s) =>
+              s.id === resolvedSub.id ? resolvedSub : s
+            ),
+          };
+          void persist(nextState, { waitForCloud: false });
+        }
+      }
+
+      if (resolvedSub.status === 'ACTIVE') {
         setSituacaoLiberar('SIM');
         setSituacaoInativar('NAO');
-      } else if (selectedSubForDetail.status === 'PENDING_TRANSFER') {
+      } else if (resolvedSub.status === 'PENDING_TRANSFER') {
         setSituacaoLiberar('NAO');
         setSituacaoInativar('NAO');
       } else {
         setSituacaoLiberar('NAO');
         setSituacaoInativar('SIM');
       }
-      const initReason = selectedSubForDetail.inactivityReason || 'MENSALIDADE_VENCIDA';
+      const initReason = resolvedSub.inactivityReason || 'MENSALIDADE_VENCIDA';
       setSituacaoMotivoInativo(initReason);
-      if (selectedSubForDetail.inactivityReasons && selectedSubForDetail.inactivityReasons.length > 0) {
-        setSituacaoMotivosInativo(selectedSubForDetail.inactivityReasons);
+      if (resolvedSub.inactivityReasons && resolvedSub.inactivityReasons.length > 0) {
+        setSituacaoMotivosInativo(resolvedSub.inactivityReasons);
       } else if (initReason === 'MENSALIDADE_E_DOCUMENTOS') {
         setSituacaoMotivosInativo(['MENSALIDADE_VENCIDA', 'FALTA_DOCUMENTOS']);
       } else {
         setSituacaoMotivosInativo([initReason]);
       }
-      setSituacaoNotasInativo(selectedSubForDetail.inactivityNotes || '');
-      setTempExpirationDate(selectedSubForDetail.endDate || '2027-10-31');
+      setSituacaoNotasInativo(resolvedSub.inactivityNotes || '');
+      setTempExpirationDate(resolvedSub.endDate || '2027-10-31');
       const rawPlanDesc = selectedSubForDetail.planSummaryLabel || '';
       const titularMember =
         selectedSubForDetail.members.find((m) => m.role === 'TITULAR') ||
@@ -14980,6 +15001,58 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         </Button>
                       </div>
 
+                      {/* DIAGNÓSTICO AUTOMÁTICO FINANCEIRO & DOCUMENTOS */}
+                      {(() => {
+                        const overdueCount = (selectedSubForDetail.invoices || []).filter(
+                          (i) =>
+                            !isClubInvoiceReservation(i) &&
+                            (i.status === 'OVERDUE' ||
+                              (i.status === 'PENDING' &&
+                                Boolean(i.dueDate) &&
+                                new Date(i.dueDate + 'T23:59:59') < new Date()))
+                        ).length;
+                        const hasOverdueNow = overdueCount > 0;
+                        const missingDocsMembers = (selectedSubForDetail.members || []).filter((m) =>
+                          isMemberBlockedForMissingDoc(m, selectedSubForDetail)
+                        );
+                        const hasMissingDocsNow = missingDocsMembers.length > 0;
+                        const membersRequiringDocs = (selectedSubForDetail.members || []).filter(
+                          (m) => getPlanDocumentRule(m.modalityCode, m.modalityName).requiresDocument
+                        );
+
+                        return (
+                          <div className="sm:col-span-12 flex flex-wrap items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-[11px]">
+                            <span className="font-black text-slate-600 uppercase tracking-wider">
+                              Verificação Automática:
+                            </span>
+                            <span
+                              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-bold ${
+                                hasOverdueNow
+                                  ? 'bg-rose-100 text-rose-900 border border-rose-300'
+                                  : 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                              }`}
+                            >
+                              {hasOverdueNow
+                                ? `⚠️ Financeiro: ${overdueCount} mensalidade(s) vencida(s)`
+                                : '✓ Financeiro: Mensalidades em dia'}
+                            </span>
+                            <span
+                              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-bold ${
+                                hasMissingDocsNow
+                                  ? 'bg-rose-100 text-rose-900 border border-rose-300'
+                                  : 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                              }`}
+                            >
+                              {hasMissingDocsNow
+                                ? `⚠️ Documentos: Pendente (${missingDocsMembers.map((m) => m.fullName.split(' ')[0]).join(', ')})`
+                                : membersRequiringDocs.length > 0
+                                ? '✓ Documentos: Anexado(s)'
+                                : '✓ Documentos: Dispensado / OK'}
+                            </span>
+                          </div>
+                        );
+                      })()}
+
                       {/* OPÇÕES DOS MOTIVOS DE INATIVIDADE */}
                       {situacaoInativar === 'SIM' && (
                         <div className="sm:col-span-12 bg-rose-50 border-2 border-rose-200 rounded-xl p-3.5 space-y-3">
@@ -16547,61 +16620,33 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                       }
                     }
 
-                    // Se o cadastro estava inativo por mensalidade vencida, e agora todas as vencidas estão quitadas:
-                    // Obedece rigorosamente se o admin inativou manualmente por outro motivo
-                    const hasOverdueInvoices = currentInvoices.some(
-                      (i) => !isClubInvoiceReservation(i) && i.status === 'OVERDUE'
-                    );
-                    let nextSubStatus = selectedSubForDetail.status;
-                    let nextInactivityReason = selectedSubForDetail.inactivityReason;
-                    let nextInactivityReasons = selectedSubForDetail.inactivityReasons;
-                    let nextInactivityNotes = selectedSubForDetail.inactivityNotes;
-
-                    if (
-                      !hasOverdueInvoices &&
-                      selectedSubForDetail.inactivityReason === 'MENSALIDADE_VENCIDA' &&
-                      !selectedSubForDetail.manualStatusOverride
-                    ) {
-                      const hasDocPending = (selectedSubForDetail.members || []).some((m) =>
-                        isMemberBlockedForMissingDoc(m, selectedSubForDetail)
-                      );
-                      if (!hasDocPending) {
-                        nextSubStatus = 'ACTIVE';
-                        nextInactivityReason = undefined;
-                        nextInactivityReasons = undefined;
-                        nextInactivityNotes = undefined;
-                      }
-                    }
-
-                    const nextMembers = (selectedSubForDetail.members || []).map((m) => {
-                      if (nextSubStatus === 'ACTIVE' && (m.status === 'INACTIVE' || m.status === 'PENDING_TRANSFER')) {
-                        const memBlockedDoc = isMemberBlockedForMissingDoc(m, selectedSubForDetail);
-                        if (!memBlockedDoc) {
-                          return {
-                            ...m,
-                            status: 'ACTIVE' as const,
-                            inactivityReason: undefined,
-                            inactivityReasons: undefined,
-                            inactivityNotes: undefined,
-                          };
-                        }
-                      }
-                      return m;
-                    });
-
-                    const updatedSub: ClubSubscription = {
+                    const updatedSub = resolveSubscriptionInactivityStatus({
                       ...selectedSubForDetail,
-                      status: nextSubStatus,
-                      inactivityReason: nextInactivityReason,
-                      inactivityReasons: nextInactivityReasons,
-                      inactivityNotes: nextInactivityNotes,
-                      transferCompleted: selectedSubForDetail.transferCompleted,
-                      manuallyConfirmedTransfer: selectedSubForDetail.manuallyConfirmedTransfer,
-                      members: nextMembers,
                       invoices: currentInvoices,
                       isModifiedFromSeed: true,
                       updatedAt: new Date().toISOString(),
-                    };
+                    });
+
+                    if (updatedSub.status === 'ACTIVE') {
+                      setSituacaoLiberar('SIM');
+                      setSituacaoInativar('NAO');
+                    } else if (updatedSub.status === 'PENDING_TRANSFER') {
+                      setSituacaoLiberar('NAO');
+                      setSituacaoInativar('NAO');
+                    } else {
+                      setSituacaoLiberar('NAO');
+                      setSituacaoInativar('SIM');
+                    }
+                    const nextInitReason = updatedSub.inactivityReason || 'MENSALIDADE_VENCIDA';
+                    setSituacaoMotivoInativo(nextInitReason);
+                    if (updatedSub.inactivityReasons && updatedSub.inactivityReasons.length > 0) {
+                      setSituacaoMotivosInativo(updatedSub.inactivityReasons);
+                    } else if (nextInitReason === 'MENSALIDADE_E_DOCUMENTOS') {
+                      setSituacaoMotivosInativo(['MENSALIDADE_VENCIDA', 'FALTA_DOCUMENTOS']);
+                    } else {
+                      setSituacaoMotivosInativo([nextInitReason]);
+                    }
+                    setSituacaoNotasInativo(updatedSub.inactivityNotes || '');
 
                     const nextState: ClubDatabaseState = {
                       ...state!,

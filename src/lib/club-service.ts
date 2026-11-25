@@ -493,32 +493,17 @@ export const isMemberBlockedForMissingDoc = (
   if (!member) return false;
 
   const hasRealDoc = memberHasProofUploaded(member, sub);
-  const isApproved = member.documentVerified === true || member.documentStatus === 'APROVADO';
+  const rule = getPlanDocumentRule(member.modalityCode, member.modalityName);
 
-  // Se a assinatura ou o membro tiver motivo explícito de falta de documentos
-  const hasExplicitDocReason =
-    sub?.inactivityReason === 'FALTA_DOCUMENTOS' ||
-    sub?.inactivityReason === 'MENSALIDADE_E_DOCUMENTOS' ||
-    sub?.inactivityReasons?.includes('FALTA_DOCUMENTOS') ||
-    member.inactivityReason === 'FALTA_DOCUMENTOS' ||
-    member.inactivityReason === 'MENSALIDADE_E_DOCUMENTOS' ||
-    member.inactivityReasons?.includes('FALTA_DOCUMENTOS');
-
-  if (hasExplicitDocReason) {
-    // Se não tiver documento real anexado ou não estiver aprovado, está bloqueado
-    if (!hasRealDoc || !isApproved) {
-      return true;
-    }
+  // Se o documento foi expressamente rejeitado pelo admin (e não foi aprovado depois), continua bloqueado
+  if (member.documentStatus === 'REJEITADO' && !(member.documentVerified && hasRealDoc)) {
+    return true;
   }
 
-  const rule = getPlanDocumentRule(member.modalityCode, member.modalityName);
   if (!rule.requiresDocument) return false;
 
   // Plano exige comprovação: se não anexou nada, está bloqueado
   if (!hasRealDoc) return true;
-
-  // Se já anexou documento real, só bloqueia se o admin rejeitou expressamente
-  if (member.documentStatus === 'REJEITADO') return true;
 
   return false;
 };
@@ -591,55 +576,48 @@ export const normalizeClientPlanName = (sub: ClubSubscription): string => {
 };
 
 /**
+ * Verifica objetivamente nas faturas se há alguma mensalidade vencida/em atraso
+ */
+export const hasSubscriptionOverdueInvoices = (sub: Partial<ClubSubscription>): boolean => {
+  const now = new Date();
+  return (sub.invoices || []).some(
+    (i) =>
+      !isClubInvoiceReservation(i) &&
+      (i.status === 'OVERDUE' ||
+        (i.status === 'PENDING' && Boolean(i.dueDate) && new Date(i.dueDate + 'T23:59:59') < now))
+  );
+};
+
+/**
  * Identifica se a assinatura possui faturas/mensalidades atrasadas
  */
 export const isSubscriptionOverdue = (sub: ClubSubscription): boolean => {
-  if (
-    sub.inactivityReason === 'MENSALIDADE_VENCIDA' ||
-    sub.inactivityReasons?.includes('MENSALIDADE_VENCIDA')
-  ) {
-    return true;
-  }
-  const now = new Date();
-  return (sub.invoices || []).some(
-    (i) => i.status === 'OVERDUE' || (i.status === 'PENDING' && new Date(i.dueDate + 'T23:59:59') < now)
-  );
+  return hasSubscriptionOverdueInvoices(sub);
 };
 
 /**
  * Identifica se a assinatura possui titular ou dependentes com pendência de documentos
  */
 export const isSubscriptionMissingDocs = (sub: ClubSubscription): boolean => {
-  if (
-    sub.inactivityReason === 'FALTA_DOCUMENTOS' ||
-    sub.inactivityReasons?.includes('FALTA_DOCUMENTOS') ||
-    sub.inactivityReason === 'MENSALIDADE_E_DOCUMENTOS'
-  ) {
-    return true;
-  }
-  return (sub.members || []).some((m) => {
-    if (m.documentStatus === 'REJEITADO' || m.documentStatus === 'PENDENTE_ANEXO') return true;
-    if (isMemberBlockedForMissingDoc(m, sub)) return true;
-    const plan = (m.planCycleLabel || sub.planSummaryLabel || '').toLowerCase();
-    const needsProof =
-      plan.includes('servidor') ||
-      plan.includes('student') ||
-      plan.includes('estudante') ||
-      plan.includes('professor') ||
-      plan.includes('inclus') ||
-      plan.includes('pcd') ||
-      plan.includes('tea');
-    if (
-      needsProof &&
-      !m.documentVerified &&
-      !m.documentProofUrl &&
-      !m.documentProofName &&
-      m.documentStatus !== 'APROVADO'
-    ) {
-      return true;
-    }
-    return false;
-  });
+  return (sub.members || []).some((m) => isMemberBlockedForMissingDoc(m, sub));
+};
+
+const isFinanceAutoNote = (notes?: string): boolean => {
+  if (!notes) return false;
+  const lower = notes.toLowerCase();
+  return (
+    lower.includes('mensal') ||
+    lower.includes('pagamento') ||
+    lower.includes('fatura') ||
+    lower.includes('atraso') ||
+    lower.includes('asaas')
+  );
+};
+
+const isDocAutoNote = (notes?: string): boolean => {
+  if (!notes) return false;
+  const lower = notes.toLowerCase();
+  return lower.includes('document') || lower.includes('comprobat');
 };
 
 /**
@@ -647,140 +625,174 @@ export const isSubscriptionMissingDocs = (sub: ClubSubscription): boolean => {
  * - Se tinha pendência financeira e foi paga: remove o aviso de mensalidade.
  * - Se tinha pendência de documento e foi anexado/aprovado: remove o aviso de documento.
  * - Se ambos foram resolvidos: ativa o plano e libera as carteirinhas automaticamente.
+ * - Preserva motivos manuais (SOLICITACAO_CLIENTE, ADMINISTRATIVO) caso existam.
+ * - Retorna a própria referência `sub` caso nada tenha mudado.
  */
 export const resolveSubscriptionInactivityStatus = (sub: ClubSubscription): ClubSubscription => {
-  const overdueInvoices = (sub.invoices || []).filter(
-    (i) =>
-      !isClubInvoiceReservation(i) &&
-      (i.status === 'OVERDUE' || (i.status === 'PENDING' && new Date(i.dueDate + 'T23:59:59') < new Date()))
-  );
-  const hasOverdue = overdueInvoices.length > 0;
+  const hasFinancialDebt = hasSubscriptionOverdueInvoices(sub);
 
-  // Verifica se o titular ou dependentes possuem documento pendente de envio, em análise ou rejeitado
   const titularMember =
     (sub.members || []).find((m) => m.role === 'TITULAR') || (sub.members || [])[0];
   const holderMissingDoc = titularMember ? isMemberBlockedForMissingDoc(titularMember, sub) : false;
-  const hasMissingDoc = (sub.members || []).some((m) => isMemberBlockedForMissingDoc(m, sub));
 
-  const isReasonFinance =
-    sub.inactivityReason === 'MENSALIDADE_VENCIDA' ||
-    sub.inactivityReasons?.includes('MENSALIDADE_VENCIDA');
-  const isReasonDocs =
-    sub.inactivityReason === 'FALTA_DOCUMENTOS' ||
-    sub.inactivityReasons?.includes('FALTA_DOCUMENTOS');
-  const isCombined =
-    sub.inactivityReason === 'MENSALIDADE_E_DOCUMENTOS' ||
-    (isReasonFinance && isReasonDocs);
+  const rawReasons: InactivityReason[] =
+    sub.inactivityReasons && sub.inactivityReasons.length > 0
+      ? sub.inactivityReasons
+      : sub.inactivityReason
+      ? [sub.inactivityReason]
+      : [];
 
-  const hasFinancialDebt = hasOverdue;
+  const expandedReasons = new Set<InactivityReason>();
+  for (const r of rawReasons) {
+    if (r === 'MENSALIDADE_E_DOCUMENTOS') {
+      expandedReasons.add('MENSALIDADE_VENCIDA');
+      expandedReasons.add('FALTA_DOCUMENTOS');
+    } else if (r) {
+      expandedReasons.add(r);
+    }
+  }
 
-  // Se o motivo for administrativo ou solicitação expressa do cliente, preserva a decisão manual deliberada
+  const isReasonFinance = expandedReasons.has('MENSALIDADE_VENCIDA');
+  const isReasonDocs = expandedReasons.has('FALTA_DOCUMENTOS');
+  const hasManualReason =
+    expandedReasons.has('SOLICITACAO_CLIENTE') || expandedReasons.has('ADMINISTRATIVO');
+
+  // Só atua automaticamente se o cadastro estiver inativo ou com motivos/pendências financeiras/documentais
+  const shouldEvaluate =
+    sub.status === 'INACTIVE' || isReasonFinance || isReasonDocs || hasFinancialDebt;
+
+  if (!shouldEvaluate) {
+    return sub;
+  }
+
+  // Se está bloqueado exclusivamente por decisão administrativa ou solicitação do cliente, mantém intacto
+  if (hasManualReason && !isReasonFinance && !isReasonDocs && !hasFinancialDebt && !holderMissingDoc) {
+    return sub;
+  }
+
+  const nextReasonsSet = new Set<InactivityReason>();
+  if (expandedReasons.has('SOLICITACAO_CLIENTE')) nextReasonsSet.add('SOLICITACAO_CLIENTE');
+  if (expandedReasons.has('ADMINISTRATIVO')) nextReasonsSet.add('ADMINISTRATIVO');
+  if (hasFinancialDebt) nextReasonsSet.add('MENSALIDADE_VENCIDA');
+  if (holderMissingDoc) nextReasonsSet.add('FALTA_DOCUMENTOS');
+
+  const nextReasonsList = Array.from(nextReasonsSet);
+
+  let nextStatus: ClubSubscription['status'] = sub.status;
+  let nextInactivityReason: InactivityReason | undefined = undefined;
+  let nextInactivityReasons: InactivityReason[] | undefined = undefined;
+  let nextInactivityNotes: string | undefined = sub.inactivityNotes;
+  let nextManualOverride = sub.manualStatusOverride;
+  let nextTransferCompleted = sub.transferCompleted;
+  let nextManuallyConfirmedTransfer = sub.manuallyConfirmedTransfer;
+
+  if (nextReasonsList.length === 0) {
+    nextStatus = 'ACTIVE';
+    nextInactivityReason = undefined;
+    nextInactivityReasons = undefined;
+    if (isFinanceAutoNote(sub.inactivityNotes) || isDocAutoNote(sub.inactivityNotes)) {
+      nextInactivityNotes = undefined;
+    }
+    nextManualOverride = true;
+    nextTransferCompleted = true;
+    nextManuallyConfirmedTransfer = true;
+  } else {
+    nextStatus = 'INACTIVE';
+    nextInactivityReasons = nextReasonsList;
+    if (nextReasonsSet.has('MENSALIDADE_VENCIDA') && nextReasonsSet.has('FALTA_DOCUMENTOS')) {
+      nextInactivityReason = 'MENSALIDADE_E_DOCUMENTOS';
+    } else {
+      nextInactivityReason = nextReasonsList[0];
+    }
+
+    if (!hasFinancialDebt && isFinanceAutoNote(sub.inactivityNotes)) {
+      nextInactivityNotes = holderMissingDoc
+        ? 'Falta de documentos comprobatórios para ativação do benefício.'
+        : undefined;
+    } else if (!holderMissingDoc && isDocAutoNote(sub.inactivityNotes)) {
+      nextInactivityNotes = hasFinancialDebt
+        ? 'Mensalidade(s) pendente(s) ou em atraso para regularização.'
+        : undefined;
+    } else if (hasFinancialDebt && !holderMissingDoc && !sub.inactivityNotes) {
+      nextInactivityNotes = 'Mensalidade(s) pendente(s) ou em atraso para regularização.';
+    } else if (!hasFinancialDebt && holderMissingDoc && !sub.inactivityNotes) {
+      nextInactivityNotes = 'Falta de documentos comprobatórios para ativação do benefício.';
+    }
+  }
+
+  let membersChanged = false;
+  const nextMembers = (sub.members || []).map((m) => {
+    const depMissingDoc = isMemberBlockedForMissingDoc(m, {
+      ...sub,
+      inactivityReason: undefined,
+      inactivityReasons: undefined,
+    });
+
+    const targetMemberStatus: ClubMember['status'] =
+      nextStatus === 'ACTIVE' ? (depMissingDoc ? 'INACTIVE' : 'ACTIVE') : 'INACTIVE';
+    const targetMemberReason: InactivityReason | undefined =
+      nextStatus === 'ACTIVE'
+        ? depMissingDoc
+          ? 'FALTA_DOCUMENTOS'
+          : undefined
+        : nextInactivityReason;
+    const targetMemberReasons: InactivityReason[] | undefined =
+      nextStatus === 'ACTIVE'
+        ? depMissingDoc
+          ? ['FALTA_DOCUMENTOS']
+          : undefined
+        : nextInactivityReasons;
+    const targetMemberNotes =
+      nextStatus === 'ACTIVE' && !depMissingDoc ? undefined : m.inactivityNotes;
+
+    const sameMemberReasons =
+      JSON.stringify(m.inactivityReasons || []) === JSON.stringify(targetMemberReasons || []);
+
+    if (
+      m.status === targetMemberStatus &&
+      m.inactivityReason === targetMemberReason &&
+      sameMemberReasons &&
+      (m.inactivityNotes || '') === (targetMemberNotes || '')
+    ) {
+      return m;
+    }
+
+    membersChanged = true;
+    return {
+      ...m,
+      status: targetMemberStatus,
+      inactivityReason: targetMemberReason,
+      inactivityReasons: targetMemberReasons,
+      inactivityNotes: targetMemberNotes,
+    };
+  });
+
+  const sameSubReasons =
+    JSON.stringify(sub.inactivityReasons || []) === JSON.stringify(nextInactivityReasons || []);
+
   if (
-    sub.inactivityReason === 'SOLICITACAO_CLIENTE' ||
-    sub.inactivityReason === 'ADMINISTRATIVO'
+    sub.status === nextStatus &&
+    sub.inactivityReason === nextInactivityReason &&
+    sameSubReasons &&
+    (sub.inactivityNotes || '') === (nextInactivityNotes || '') &&
+    !membersChanged
   ) {
     return sub;
   }
 
-  // Se o plano está inativo por mensalidade, documento ou ambos:
-  if (sub.status === 'INACTIVE' || isCombined || isReasonFinance || isReasonDocs || hasFinancialDebt) {
-    if (!hasFinancialDebt && !holderMissingDoc) {
-      // Titular regularizado (mensalidades em dia e doc do titular OK):
-      // Libera a assinatura e o titular; dependentes com comprovação pendente/em análise continuam bloqueados individualmente!
-      return {
-        ...sub,
-        status: 'ACTIVE',
-        manualStatusOverride: true,
-        inactivityReason: undefined,
-        inactivityReasons: undefined,
-        inactivityNotes: undefined,
-        transferCompleted: true,
-        manuallyConfirmedTransfer: true,
-        members: sub.members.map((m) => {
-          const depBlocked = isMemberBlockedForMissingDoc(m, {
-            ...sub,
-            inactivityReason: undefined,
-            inactivityReasons: undefined,
-          });
-          return {
-            ...m,
-            status: depBlocked ? 'INACTIVE' : 'ACTIVE',
-            inactivityReason: depBlocked ? 'FALTA_DOCUMENTOS' : undefined,
-            inactivityReasons: depBlocked ? ['FALTA_DOCUMENTOS'] : undefined,
-            inactivityNotes: depBlocked ? m.inactivityNotes : undefined,
-          };
-        }),
-        updatedAt: new Date().toISOString(),
-      };
-    }
-
-    if (!hasFinancialDebt && holderMissingDoc) {
-      // Mensalidades em dia, mas ainda falta documento do titular
-      return {
-        ...sub,
-        status: 'INACTIVE',
-        inactivityReason: 'FALTA_DOCUMENTOS',
-        inactivityReasons: ['FALTA_DOCUMENTOS'],
-        inactivityNotes:
-          sub.inactivityNotes &&
-          (sub.inactivityNotes.toLowerCase().includes('document') ||
-            sub.inactivityNotes.toLowerCase().includes('comprobat'))
-            ? sub.inactivityNotes
-            : 'Falta de documentos comprobatórios para ativação do benefício.',
-        members: sub.members.map((m) => ({
-          ...m,
-          status: isMemberBlockedForMissingDoc(m, sub) ? 'INACTIVE' : 'ACTIVE',
-          inactivityReason: isMemberBlockedForMissingDoc(m, sub) ? 'FALTA_DOCUMENTOS' : undefined,
-          inactivityReasons: isMemberBlockedForMissingDoc(m, sub) ? ['FALTA_DOCUMENTOS'] : undefined,
-        })),
-        updatedAt: new Date().toISOString(),
-      };
-    }
-
-    if (hasFinancialDebt && !hasMissingDoc) {
-      // Documentos anexados, mas ainda há mensalidades vencidas / pendência financeira
-      return {
-        ...sub,
-        status: 'INACTIVE',
-        inactivityReason: 'MENSALIDADE_VENCIDA',
-        inactivityReasons: ['MENSALIDADE_VENCIDA'],
-        inactivityNotes:
-          sub.inactivityNotes &&
-          (sub.inactivityNotes.toLowerCase().includes('mensal') ||
-            sub.inactivityNotes.toLowerCase().includes('pagamento') ||
-            sub.inactivityNotes.toLowerCase().includes('fatura') ||
-            sub.inactivityNotes.toLowerCase().includes('atraso'))
-            ? sub.inactivityNotes
-            : 'Mensalidade(s) pendente(s) ou em atraso para regularização.',
-        members: sub.members.map((m) => ({
-          ...m,
-          status: 'INACTIVE',
-          inactivityReason: 'MENSALIDADE_VENCIDA',
-          inactivityReasons: ['MENSALIDADE_VENCIDA'],
-        })),
-        updatedAt: new Date().toISOString(),
-      };
-    }
-
-    if (hasFinancialDebt && hasMissingDoc) {
-      // Ambos pendentes
-      return {
-        ...sub,
-        status: 'INACTIVE',
-        inactivityReason: 'MENSALIDADE_E_DOCUMENTOS',
-        inactivityReasons: ['MENSALIDADE_VENCIDA', 'FALTA_DOCUMENTOS'],
-        members: sub.members.map((m) => ({
-          ...m,
-          status: 'INACTIVE',
-          inactivityReason: 'MENSALIDADE_E_DOCUMENTOS',
-          inactivityReasons: ['MENSALIDADE_VENCIDA', 'FALTA_DOCUMENTOS'],
-        })),
-        updatedAt: new Date().toISOString(),
-      };
-    }
-  }
-
-  return sub;
+  return {
+    ...sub,
+    status: nextStatus,
+    manualStatusOverride: nextManualOverride,
+    inactivityReason: nextInactivityReason,
+    inactivityReasons: nextInactivityReasons,
+    inactivityNotes: nextInactivityNotes,
+    transferCompleted: nextTransferCompleted,
+    manuallyConfirmedTransfer: nextManuallyConfirmedTransfer,
+    members: nextMembers,
+    isModifiedFromSeed: true,
+    updatedAt: new Date().toISOString(),
+  };
 };
 
 let cachedLabcardSeedMap: Map<string, ClubSubscription> | null = null;
