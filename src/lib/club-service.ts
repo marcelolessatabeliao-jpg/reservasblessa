@@ -213,6 +213,23 @@ export const getPlanDocumentRule = (
   const code = (modalityCode || '').toUpperCase().trim();
   const name = (modalityName || '').toLowerCase();
 
+  // Plano Lessa Club padrão (pagante integral) não exige documento comprobatório,
+  // inclusive para dependentes pagantes integrais (mesmo se modalityCode legado estiver incorreto).
+  const isPlainFullPriceLessaClub =
+    name.includes('lessa club') &&
+    !/publicidade|family|permuta|kids|estudante|student|professor|servidor|doador|pcd|tea|inclus|vital[ií]cio|60\+|idoso|c[oô]njuge|espos|marido/i.test(
+      name
+    );
+
+  if (isPlainFullPriceLessaClub) {
+    return {
+      requiresDocument: false,
+      title: '',
+      summary: '',
+      acceptedDocs: [],
+    };
+  }
+
   if (code === 'IDOSO_60' || name.includes('vitalício') || name.includes('vitalicio') || name.includes('60+')) {
     return {
       requiresDocument: true,
@@ -1650,17 +1667,33 @@ export const normalizeClubDatabaseState = (
         frontUrl = m.role === 'DEPENDENTE' ? '/cards/30.png' : '/cards/29.png';
         backUrl = '/cards/33.png';
       } else if (m.modalityCode === 'PUBLICIDADE') {
-        if (m.role === 'DEPENDENTE') {
-          if (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/44.png' || frontUrl === '/cards/13.png' || frontUrl === '/cards/29.png') {
-            frontUrl = '/cards/30.png';
+        const memPlanText = `${m.modalityName || ''} ${m.planCycleLabel || ''}`.toLowerCase();
+        const isPlainLessaClubMem =
+          !isSubFamilyPub &&
+          memPlanText.includes('lessa club') &&
+          !/publicidade|family|permuta/i.test(memPlanText);
+
+        if (isPlainLessaClubMem) {
+          m.modalityCode = 'ADULTO';
+          if (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/30.png' || frontUrl === '/cards/29.png') {
+            frontUrl = '/cards/44.png';
+          }
+          if (isOutdatedCardUrl(backUrl) || backUrl === '/cards/33.png') {
+            backUrl = '/cards/24.png';
           }
         } else {
-          if (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/44.png' || frontUrl === '/cards/13.png') {
-            frontUrl = '/cards/29.png';
+          if (m.role === 'DEPENDENTE') {
+            if (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/44.png' || frontUrl === '/cards/13.png' || frontUrl === '/cards/29.png') {
+              frontUrl = '/cards/30.png';
+            }
+          } else {
+            if (isOutdatedCardUrl(frontUrl) || frontUrl === '/cards/44.png' || frontUrl === '/cards/13.png') {
+              frontUrl = '/cards/29.png';
+            }
           }
-        }
-        if (isOutdatedCardUrl(backUrl) || backUrl === '/cards/24.png') {
-          backUrl = '/cards/33.png';
+          if (isOutdatedCardUrl(backUrl) || backUrl === '/cards/24.png') {
+            backUrl = '/cards/33.png';
+          }
         }
       }
 
