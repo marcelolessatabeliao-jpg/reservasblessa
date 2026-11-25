@@ -470,15 +470,19 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
   const handleDeleteDoc = async (member: ClubMember, doc: ClubAttachment) => {
     setProcessingMemberId(member.id);
     try {
-      const targetUrl = doc.dataUrl;
+      const targetUrl = doc.dataUrl || (doc as any).fileUrl || '';
       const targetId = doc.id;
+      const matchesTarget = (a: ClubAttachment) => {
+        const aUrl = a.dataUrl || (a as any).fileUrl || '';
+        return a.id === targetId || (Boolean(targetUrl) && aUrl === targetUrl);
+      };
+
       const updatedMembers = subscription.members.map((m) => {
         if (m.id !== member.id) return m;
-        const nextAtts = (m.attachments || []).filter(
-          (a) => a.id !== targetId && a.dataUrl !== targetUrl
-        );
+        const nextAtts = (m.attachments || []).filter((a) => !matchesTarget(a));
         const clearedPrimary =
-          m.documentProofUrl === targetUrl || m.documentProofName === doc.name;
+          (Boolean(targetUrl) && m.documentProofUrl === targetUrl) ||
+          m.documentProofName === doc.name;
         const nextPrimaryUrl = clearedPrimary ? nextAtts[0]?.dataUrl : m.documentProofUrl;
         const nextPrimaryName = clearedPrimary ? nextAtts[0]?.name : m.documentProofName;
         const hasAnyLeft = Boolean(nextPrimaryUrl) || nextAtts.length > 0;
@@ -492,9 +496,7 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
         };
       });
 
-      const updatedSubAtts = (subscription.attachments || []).filter(
-        (a) => a.id !== targetId && a.dataUrl !== targetUrl
-      );
+      const updatedSubAtts = (subscription.attachments || []).filter((a) => !matchesTarget(a));
 
       const updatedSub: ClubSubscription = {
         ...subscription,
@@ -504,15 +506,21 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
         isModifiedFromSeed: true,
       };
 
-      if (targetId && targetId !== 'primary-doc') {
-        try {
+      try {
+        if (targetId && targetId !== 'primary-doc' && !targetId.startsWith('att-') && !targetId.startsWith('sub-att-')) {
           await (supabase as any)
             .from('club_attachments')
             .update({ is_deleted: true })
             .eq('id', targetId);
-        } catch (e) {
-          console.warn('Erro ao marcar anexo como excluído em club_attachments:', e);
         }
+        if (targetUrl && targetUrl.startsWith('http')) {
+          await (supabase as any)
+            .from('club_attachments')
+            .update({ is_deleted: true })
+            .eq('public_url', targetUrl);
+        }
+      } catch (e) {
+        console.warn('Erro ao marcar anexo como excluído em club_attachments:', e);
       }
 
       const permCode = subscription.subscriptionCode || subscription.holderCpf || subscription.id;
@@ -767,8 +775,12 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
                               <button
                                 type="button"
                                 disabled={isProcessing}
-                                onClick={() => handleDeleteDoc(member, doc)}
-                                className="p-1 rounded hover:bg-rose-50 text-rose-600 hover:text-rose-800 disabled:opacity-40"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleDeleteDoc(member, doc);
+                                }}
+                                className="p-1 rounded hover:bg-rose-50 text-rose-600 hover:text-rose-800 disabled:opacity-40 cursor-pointer"
                                 title="Apagar este anexo"
                               >
                                 <Trash2 className="w-4 h-4" />

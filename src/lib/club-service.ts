@@ -448,18 +448,30 @@ export const getMemberResolvedAttachments = (
     const card = (member.cardNumber || '').trim();
     const memId = (member.id || '').trim();
 
+    const otherMemberIdsOrCards = (sub.members || [])
+      .filter((om) => om.id !== member.id)
+      .flatMap((om) => [om.id, om.cardNumber].filter(Boolean).map((v) => String(v).toLowerCase().trim()));
+
     for (const att of sub.attachments) {
       const effUrl = att.dataUrl || (att as any).fileUrl;
       const effName = att.name || (att as any).fileName || (att as any).title || 'Anexo do Cadastro';
       if (!att || !effUrl || seenUrls.has(effUrl)) continue;
       const attName = (effName || '').toLowerCase();
       const attId = (att.id || '').toLowerCase();
+      const attUrlLower = effUrl.toLowerCase();
+
+      const belongsToOtherMember = otherMemberIdsOrCards.some(
+        (otherKey) =>
+          otherKey.length >= 4 &&
+          (attId.includes(otherKey) || attName.includes(otherKey) || attUrlLower.includes(`/${otherKey}/`))
+      );
 
       const matches =
-        isHolderOrSolo ||
-        (firstName.length >= 3 && attName.includes(firstName)) ||
-        (card && attName.includes(card)) ||
-        (memId && (attId.includes(memId) || attName.includes(memId)));
+        !belongsToOtherMember &&
+        (isHolderOrSolo ||
+          (firstName.length >= 3 && attName.includes(firstName)) ||
+          (card && attName.includes(card)) ||
+          (memId && (attId.includes(memId) || attName.includes(memId))));
 
       if (matches) {
         seenUrls.add(effUrl);
