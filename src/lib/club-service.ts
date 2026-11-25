@@ -395,6 +395,7 @@ export const getMemberResolvedAttachments = (
   if (!member) return [];
   const list: Array<{ id: string; name: string; dataUrl: string; mimeType: string; createdAt?: string }> = [];
   const seenUrls = new Set<string>();
+  const seenNames = new Set<string>();
 
   const inferMimeType = (url: string, name?: string, explicit?: string): string => {
     if (explicit) return explicit;
@@ -408,10 +409,20 @@ export const getMemberResolvedAttachments = (
     return 'application/pdf';
   };
 
+  const pushUnique = (item: { id: string; name: string; dataUrl: string; mimeType: string; createdAt?: string }) => {
+    const normName = (item.name || '').trim().toLowerCase();
+    if (seenUrls.has(item.dataUrl)) return;
+    if (normName && normName !== 'documento comprobatório' && normName !== 'anexo do integrante' && seenNames.has(normName)) {
+      return;
+    }
+    seenUrls.add(item.dataUrl);
+    if (normName) seenNames.add(normName);
+    list.push(item);
+  };
+
   if (member.documentProofUrl && member.documentProofUrl.trim().length > 0) {
-    seenUrls.add(member.documentProofUrl);
     const docName = member.documentProofName || 'Documento Comprobatório';
-    list.push({
+    pushUnique({
       id: 'primary-doc',
       name: docName,
       dataUrl: member.documentProofUrl,
@@ -424,9 +435,8 @@ export const getMemberResolvedAttachments = (
     for (const att of member.attachments) {
       const effUrl = att.dataUrl || (att as any).fileUrl;
       const effName = att.name || (att as any).fileName || 'Anexo do Integrante';
-      if (att && effUrl && !seenUrls.has(effUrl)) {
-        seenUrls.add(effUrl);
-        list.push({
+      if (att && effUrl) {
+        pushUnique({
           id: att.id || `att-${list.length}`,
           name: effName,
           dataUrl: effUrl,
@@ -448,9 +458,15 @@ export const getMemberResolvedAttachments = (
     const card = (member.cardNumber || '').trim();
     const memId = (member.id || '').trim();
 
-    const otherMemberIdsOrCards = (sub.members || [])
-      .filter((om) => om.id !== member.id)
+    const otherMembers = (sub.members || []).filter((om) => om.id !== member.id);
+    const otherMemberIdsOrCards = otherMembers
       .flatMap((om) => [om.id, om.cardNumber].filter(Boolean).map((v) => String(v).toLowerCase().trim()));
+    const otherMembersUrls = new Set(
+      otherMembers.flatMap((om) => [
+        om.documentProofUrl,
+        ...(om.attachments || []).map((a) => a.dataUrl || (a as any).fileUrl),
+      ].filter(Boolean) as string[])
+    );
 
     for (const att of sub.attachments) {
       const effUrl = att.dataUrl || (att as any).fileUrl;
@@ -460,11 +476,13 @@ export const getMemberResolvedAttachments = (
       const attId = (att.id || '').toLowerCase();
       const attUrlLower = effUrl.toLowerCase();
 
-      const belongsToOtherMember = otherMemberIdsOrCards.some(
-        (otherKey) =>
-          otherKey.length >= 4 &&
-          (attId.includes(otherKey) || attName.includes(otherKey) || attUrlLower.includes(`/${otherKey}/`))
-      );
+      const belongsToOtherMember =
+        otherMembersUrls.has(effUrl) ||
+        otherMemberIdsOrCards.some(
+          (otherKey) =>
+            otherKey.length >= 4 &&
+            (attId.includes(otherKey) || attName.includes(otherKey) || attUrlLower.includes(`/${otherKey}/`))
+        );
 
       const matches =
         !belongsToOtherMember &&
@@ -474,8 +492,7 @@ export const getMemberResolvedAttachments = (
           (memId && (attId.includes(memId) || attName.includes(memId))));
 
       if (matches) {
-        seenUrls.add(effUrl);
-        list.push({
+        pushUnique({
           id: att.id || `sub-att-${list.length}`,
           name: effName,
           dataUrl: effUrl,
@@ -1697,7 +1714,10 @@ export const normalizeClubDatabaseState = (
       // Para cadastros Kids: calcula automaticamente expiração no 12º aniversário da criança
       let resolvedExpDate = m.expirationDate;
       let resolvedExpNotes = m.expirationNotes;
-      const isKids = m.modalityCode === 'KIDS' || (m.planCycleLabel || '').toLowerCase().includes('kids');
+      const modNameLower = (m.modalityName || '').toLowerCase();
+      const isKids =
+        m.modalityCode === 'KIDS' ||
+        (modNameLower.includes('kids') && !modNameLower.includes('+') && !modNameLower.includes('família') && !modNameLower.includes('familia'));
       if (isKids && m.birthDate) {
         const kids12Exp = calculateKidsExpirationDate(m.birthDate);
         if (kids12Exp) {

@@ -519,6 +519,13 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
             .update({ is_deleted: true })
             .eq('public_url', targetUrl);
         }
+        if (doc.name && subscription.subscriptionCode) {
+          await (supabase as any)
+            .from('club_attachments')
+            .update({ is_deleted: true })
+            .eq('subscription_code', subscription.subscriptionCode)
+            .eq('file_name', doc.name);
+        }
       } catch (e) {
         console.warn('Erro ao marcar anexo como excluído em club_attachments:', e);
       }
