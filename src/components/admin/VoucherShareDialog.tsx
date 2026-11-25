@@ -411,9 +411,9 @@ export function VoucherShareDialog({
                     {/* Items */}
                     <div style={{ flex: 1 }}>
                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-                          <div style={{ flex: 1, height: '1px', background: 'linear-gradient(to right, transparent, rgba(250, 204, 21, 0.4), transparent)' }} />
+                          <div style={{ flex: 1, height: '1px', backgroundColor: 'rgba(250, 204, 21, 0.45)' }} />
                           <span style={{ fontSize: '10px', fontWeight: 900, color: '#064e3b', textTransform: 'uppercase', letterSpacing: '1px' }}>Itens Inclusos</span>
-                          <div style={{ flex: 1, height: '1px', background: 'linear-gradient(to right, transparent, rgba(250, 204, 21, 0.4), transparent)' }} />
+                          <div style={{ flex: 1, height: '1px', backgroundColor: 'rgba(250, 204, 21, 0.45)' }} />
                        </div>
                        
                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
