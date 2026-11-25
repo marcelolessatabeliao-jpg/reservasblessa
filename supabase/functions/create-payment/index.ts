@@ -430,7 +430,93 @@ Deno.serve(async (req) => {
       paymentBody.creditCardHolderInfo = body.creditCardHolderInfo;
     }
 
-    if (billingType === 'CREDIT_CARD' && orderId) {
+    let supabaseAdminForLock: ReturnType<typeof createClient> | null = null;
+    let lockedPaymentRowId: string | null = null;
+
+    if ((billingType === 'CREDIT_CARD' || billingType === 'DEBIT_CARD') && orderId) {
+      if (isUuid) {
+        try {
+          supabaseAdminForLock = createClient(
+            Deno.env.get('SUPABASE_URL') || '',
+            Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
+          );
+
+          const { data: orderRow } = await supabaseAdminForLock
+            .from('orders')
+            .select('status, payment_id')
+            .eq('id', orderId)
+            .maybeSingle();
+
+          if (orderRow && (orderRow.status === 'paid' || orderRow.status === 'confirmed')) {
+            return new Response(JSON.stringify({
+              success: true,
+              duplicatePrevented: true,
+              data: {
+                paymentId: orderRow.payment_id || null,
+                invoiceUrl: null,
+                status: 'CONFIRMED',
+                isPaid: true,
+                pix: null,
+              },
+            }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });
+          }
+
+          const { data: recentPayments } = await supabaseAdminForLock
+            .from('payments')
+            .select('id, status, external_id, payment_url, created_at')
+            .eq('order_id', orderId)
+            .eq('metodo', billingType)
+            .order('created_at', { ascending: false })
+            .limit(5);
+
+          const paidRow = (recentPayments || []).find((p: any) => p.status === 'paid');
+          if (paidRow) {
+            return new Response(JSON.stringify({
+              success: true,
+              duplicatePrevented: true,
+              data: {
+                paymentId: paidRow.external_id,
+                invoiceUrl: paidRow.payment_url,
+                status: 'CONFIRMED',
+                isPaid: true,
+                pix: null,
+              },
+            }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });
+          }
+
+          const nowMs = Date.now();
+          const inFlightRow = (recentPayments || []).find(
+            (p: any) =>
+              p.status === 'pending' &&
+              p.created_at &&
+              nowMs - new Date(p.created_at).getTime() < 45000
+          );
+          if (inFlightRow) {
+            throw new Error('Pagamento já está sendo processado. Aguarde alguns segundos antes de tentar novamente.');
+          }
+
+          // Cria trava imediata antes de chamar o Asaas para impedir cliques duplos simultâneos
+          const { data: lockInserted } = await supabaseAdminForLock
+            .from('payments')
+            .insert({
+              order_id: orderId,
+              gateway: 'asaas',
+              metodo: billingType,
+              status: 'pending',
+            })
+            .select('id')
+            .single();
+          if (lockInserted?.id) {
+            lockedPaymentRowId = lockInserted.id;
+          }
+        } catch (lockErr: any) {
+          if (lockErr?.message?.includes('já está sendo processado')) {
+            throw lockErr;
+          }
+          console.warn('Aviso ao verificar trava de pagamento:', lockErr);
+        }
+      }
+
       try {
         const existingReq = await fetch(
           `${ASAAS_URL}/payments?customer=${asaasCustomerId}&externalReference=${encodeURIComponent(String(orderId))}&limit=20`,
@@ -442,6 +528,9 @@ Deno.serve(async (req) => {
             (p: any) => p.status === 'CONFIRMED' || p.status === 'RECEIVED'
           );
           if (alreadyPaid) {
+            if (supabaseAdminForLock && lockedPaymentRowId) {
+              await supabaseAdminForLock.from('payments').delete().eq('id', lockedPaymentRowId);
+            }
             return new Response(JSON.stringify({
               success: true,
               duplicatePrevented: true,
@@ -468,7 +557,15 @@ Deno.serve(async (req) => {
 
     const paymentData = await paymentReq.json();
     if (!paymentReq.ok) {
-        throw new Error(`Asaas (Cobrança): ${paymentData.errors?.[0]?.description || 'Erro ao gerar cobrança'}`);
+      if (supabaseAdminForLock && lockedPaymentRowId) {
+        try {
+          await supabaseAdminForLock
+            .from('payments')
+            .update({ status: 'failed' })
+            .eq('id', lockedPaymentRowId);
+        } catch (_) {}
+      }
+      throw new Error(`Asaas (Cobrança): ${paymentData.errors?.[0]?.description || 'Erro ao gerar cobrança'}`);
     }
 
     // 5. Dados do PIX (Se for PIX)
@@ -485,19 +582,31 @@ Deno.serve(async (req) => {
     // 6. Registro no Supabase (Opcional - apenas para pedidos com UUID)
     if (isUuid) {
       try {
-        const supabaseAdmin = createClient(Deno.env.get('SUPABASE_URL') || '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '');
-        await supabaseAdmin.from('payments').insert({
-            order_id: orderId,
-            gateway: 'asaas',
-            metodo: billingType,
-            status: isPaid ? 'paid' : 'pending',
-            external_id: paymentData.id,
-            payment_url: paymentData.invoiceUrl
-        });
+        const supabaseAdmin = supabaseAdminForLock || createClient(Deno.env.get('SUPABASE_URL') || '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '');
+        if (lockedPaymentRowId) {
+          await supabaseAdmin
+            .from('payments')
+            .update({
+              status: isPaid ? 'paid' : 'pending',
+              external_id: paymentData.id,
+              payment_url: paymentData.invoiceUrl,
+            })
+            .eq('id', lockedPaymentRowId);
+        } else {
+          await supabaseAdmin.from('payments').insert({
+              order_id: orderId,
+              gateway: 'asaas',
+              metodo: billingType,
+              status: isPaid ? 'paid' : 'pending',
+              external_id: paymentData.id,
+              payment_url: paymentData.invoiceUrl
+          });
+        }
 
         if (isPaid) {
           await supabaseAdmin.from('orders').update({
             status: 'paid',
+            payment_id: paymentData.id,
             updated_at: new Date().toISOString()
           }).eq('id', orderId);
         }

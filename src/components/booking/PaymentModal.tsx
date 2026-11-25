@@ -95,7 +95,13 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, phone, 
     };
   }, [orderId, open, toast, onOpenChange, onSuccess]);
 
+  const isSubmittingPaymentRef = React.useRef(false);
+
   const handleGeneratePayment = async (method: PaymentMethod) => {
+    if (isSubmittingPaymentRef.current || paymentConfirmed) {
+      return;
+    }
+    isSubmittingPaymentRef.current = true;
     setLoading(true);
     setPixData(null);
     trackFBEvent(
@@ -165,6 +171,7 @@ export function PaymentModal({ open, onOpenChange, orderId, name, email, phone, 
       });
     } finally {
       setLoading(false);
+      isSubmittingPaymentRef.current = false;
     }
   };
 

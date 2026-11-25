@@ -217,6 +217,8 @@ export function BookingOverview({
     });
   };
 
+  const isSubmittingActionRef = React.useRef(false);
+
   const handleAction = async (
     method: 'PIX' | 'CREDIT_CARD' | 'DEBIT_CARD' | 'LOCAL',
     installmentsCount: number = 1,
@@ -231,7 +233,12 @@ export function BookingOverview({
       installments: number;
     }
   ) => {
-    const fullName = booking.entry.name?.trim();
+    if (isSubmittingActionRef.current || paymentConfirmed) {
+      return;
+    }
+    isSubmittingActionRef.current = true;
+    try {
+      const fullName = booking.entry.name?.trim();
 
     if (!fullName || fullName.length < 2) {
       toast({
@@ -683,6 +690,9 @@ export function BookingOverview({
       toast({ title: 'Falha no Agendamento', description: friendlyMsg, variant: 'destructive' });
     } finally {
       setSaving(false);
+    }
+    } finally {
+      isSubmittingActionRef.current = false;
     }
   };
 
