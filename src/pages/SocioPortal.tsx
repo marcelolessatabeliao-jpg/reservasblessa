@@ -3411,7 +3411,9 @@ const SocioPortal: React.FC = () => {
                                     className="flex items-center justify-between gap-3 bg-white border border-emerald-200 rounded-xl p-2.5"
                                   >
                                     <div className="flex items-center gap-2.5 min-w-0">
-                                      {doc.dataUrl.startsWith('data:image/') ? (
+                                      {doc.dataUrl.startsWith('data:image/') ||
+                                      doc.mimeType?.startsWith('image/') ||
+                                      /\.(png|jpe?g|gif|webp)(\?|$)/i.test(doc.name || doc.dataUrl) ? (
                                         <img
                                           src={doc.dataUrl}
                                           alt={doc.name}
@@ -3494,14 +3496,16 @@ const SocioPortal: React.FC = () => {
                     {previewDocModal && (
                       <div className="flex-1 overflow-auto bg-slate-100 rounded-xl border border-slate-200 p-3 flex items-center justify-center min-h-[300px]">
                         {previewDocModal.dataUrl.startsWith('data:image/') ||
-                        previewDocModal.mimeType?.startsWith('image/') ? (
+                        previewDocModal.mimeType?.startsWith('image/') ||
+                        /\.(png|jpe?g|gif|webp)(\?|$)/i.test(previewDocModal.name || previewDocModal.dataUrl) ? (
                           <img
                             src={previewDocModal.dataUrl}
                             alt={previewDocModal.name}
                             className="max-w-full max-h-[65vh] object-contain rounded-lg shadow-md"
                           />
                         ) : previewDocModal.dataUrl.startsWith('data:application/pdf') ||
-                          previewDocModal.mimeType === 'application/pdf' ? (
+                          previewDocModal.mimeType === 'application/pdf' ||
+                          /\.pdf(\?|$)/i.test(previewDocModal.name || previewDocModal.dataUrl) ? (
                           <iframe
                             src={previewDocModal.dataUrl}
                             title={previewDocModal.name}

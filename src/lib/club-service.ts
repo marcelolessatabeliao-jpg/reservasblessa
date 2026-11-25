@@ -396,13 +396,26 @@ export const getMemberResolvedAttachments = (
   const list: Array<{ id: string; name: string; dataUrl: string; mimeType: string; createdAt?: string }> = [];
   const seenUrls = new Set<string>();
 
+  const inferMimeType = (url: string, name?: string, explicit?: string): string => {
+    if (explicit) return explicit;
+    if (url.startsWith('data:image/')) return 'image/jpeg';
+    if (url.startsWith('data:application/pdf')) return 'application/pdf';
+    const target = `${name || ''} ${url}`.toLowerCase();
+    if (/\.webp(\?|$)/.test(target)) return 'image/webp';
+    if (/\.png(\?|$)/.test(target)) return 'image/png';
+    if (/\.jpe?g(\?|$)/.test(target)) return 'image/jpeg';
+    if (/\.gif(\?|$)/.test(target)) return 'image/gif';
+    return 'application/pdf';
+  };
+
   if (member.documentProofUrl && member.documentProofUrl.trim().length > 0) {
     seenUrls.add(member.documentProofUrl);
+    const docName = member.documentProofName || 'Documento Comprobatório';
     list.push({
       id: 'primary-doc',
-      name: member.documentProofName || 'Documento Comprobatório',
+      name: docName,
       dataUrl: member.documentProofUrl,
-      mimeType: member.documentProofUrl.startsWith('data:image/') ? 'image/jpeg' : 'application/pdf',
+      mimeType: inferMimeType(member.documentProofUrl, docName),
       createdAt: member.documentVerifiedAt,
     });
   }
@@ -417,7 +430,7 @@ export const getMemberResolvedAttachments = (
           id: att.id || `att-${list.length}`,
           name: effName,
           dataUrl: effUrl,
-          mimeType: att.mimeType || (effUrl.startsWith('data:image/') ? 'image/jpeg' : 'application/pdf'),
+          mimeType: inferMimeType(effUrl, effName, att.mimeType),
           createdAt: att.createdAt || (att as any).uploadedAt,
         });
       }
@@ -454,7 +467,7 @@ export const getMemberResolvedAttachments = (
           id: att.id || `sub-att-${list.length}`,
           name: effName,
           dataUrl: effUrl,
-          mimeType: att.mimeType || (effUrl.startsWith('data:image/') ? 'image/jpeg' : 'application/pdf'),
+          mimeType: inferMimeType(effUrl, effName, att.mimeType),
           createdAt: att.createdAt || (att as any).uploadedAt,
         });
       }
@@ -6048,7 +6061,16 @@ export const findMemberOrSubscriptionByQuery = (
     return b.createdAt - a.createdAt;
   });
 
-  return scoredResults.map(({ member, subscription }) => ({ member, subscription }));
+  const seenKeys = new Set<string>();
+  const deduped: Array<{ member: ClubMember; subscription: ClubSubscription }> = [];
+  for (const { member, subscription } of scoredResults) {
+    const key = `${subscription.subscriptionCode || subscription.id}_${member.cardNumber || member.id}`;
+    if (seenKeys.has(key)) continue;
+    seenKeys.add(key);
+    deduped.push({ member, subscription });
+  }
+
+  return deduped;
 };
 
 export const getConsultantSlug = (name?: string | null): string => {

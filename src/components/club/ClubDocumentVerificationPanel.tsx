@@ -12,7 +12,9 @@ import {
   Camera,
   RotateCcw,
   Sparkles,
+  Trash2,
 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -465,6 +467,82 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
     }
   };
 
+  const handleDeleteDoc = async (member: ClubMember, doc: ClubAttachment) => {
+    setProcessingMemberId(member.id);
+    try {
+      const targetUrl = doc.dataUrl;
+      const targetId = doc.id;
+      const updatedMembers = subscription.members.map((m) => {
+        if (m.id !== member.id) return m;
+        const nextAtts = (m.attachments || []).filter(
+          (a) => a.id !== targetId && a.dataUrl !== targetUrl
+        );
+        const clearedPrimary =
+          m.documentProofUrl === targetUrl || m.documentProofName === doc.name;
+        const nextPrimaryUrl = clearedPrimary ? nextAtts[0]?.dataUrl : m.documentProofUrl;
+        const nextPrimaryName = clearedPrimary ? nextAtts[0]?.name : m.documentProofName;
+        const hasAnyLeft = Boolean(nextPrimaryUrl) || nextAtts.length > 0;
+        return {
+          ...m,
+          documentProofUrl: nextPrimaryUrl,
+          documentProofName: nextPrimaryName,
+          attachments: nextAtts,
+          documentVerified: hasAnyLeft ? m.documentVerified : false,
+          documentStatus: hasAnyLeft ? m.documentStatus : ('PENDENTE_ANEXO' as const),
+        };
+      });
+
+      const updatedSubAtts = (subscription.attachments || []).filter(
+        (a) => a.id !== targetId && a.dataUrl !== targetUrl
+      );
+
+      const updatedSub: ClubSubscription = {
+        ...subscription,
+        attachments: updatedSubAtts,
+        members: updatedMembers,
+        updatedAt: new Date().toISOString(),
+        isModifiedFromSeed: true,
+      };
+
+      if (targetId && targetId !== 'primary-doc') {
+        try {
+          await (supabase as any)
+            .from('club_attachments')
+            .update({ is_deleted: true })
+            .eq('id', targetId);
+        } catch (e) {
+          console.warn('Erro ao marcar anexo como excluído em club_attachments:', e);
+        }
+      }
+
+      const permCode = subscription.subscriptionCode || subscription.holderCpf || subscription.id;
+      if (permCode) {
+        await saveMemberPermanentDocs(permCode, updatedSub, 'DELETE_DOC_PANEL');
+      }
+      const allState = getClubStateSync();
+      const nextSubs = (allState.subscriptions || []).map((s) =>
+        s.id === updatedSub.id ? updatedSub : s
+      );
+      const nextState: ClubDatabaseState = { ...allState, subscriptions: nextSubs };
+      await saveClubState(nextState, { skipCloudSync: true });
+      onUpdateSub(updatedSub, nextState);
+
+      toast({
+        title: 'Anexo removido',
+        description: `"${doc.name}" foi excluído de ${member.fullName}.`,
+      });
+    } catch (err) {
+      console.error('Erro ao excluir anexo:', err);
+      toast({
+        title: 'Erro ao excluir anexo',
+        description: 'Não foi possível remover este documento.',
+        variant: 'destructive',
+      });
+    } finally {
+      setProcessingMemberId(null);
+    }
+  };
+
   return (
     <div className="bg-gradient-to-br from-amber-50/90 via-white to-emerald-50/40 rounded-2xl border-2 border-amber-300 p-4 sm:p-5 space-y-4 shadow-sm animate-in fade-in">
       {/* CABEÇALHO DO PAINEL DE VALIDAÇÃO */}
@@ -686,6 +764,15 @@ export const ClubDocumentVerificationPanel: React.FC<ClubDocumentVerificationPan
                                   <Download className="w-4 h-4" />
                                 </a>
                               )}
+                              <button
+                                type="button"
+                                disabled={isProcessing}
+                                onClick={() => handleDeleteDoc(member, doc)}
+                                className="p-1 rounded hover:bg-rose-50 text-rose-600 hover:text-rose-800 disabled:opacity-40"
+                                title="Apagar este anexo"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
                             </div>
                           </div>
                         ))}
