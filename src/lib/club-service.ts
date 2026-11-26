@@ -3542,8 +3542,8 @@ export const createClubSubscription = async (
   }
 
   // Calcula a sequência REAL máxima entre state, assinaturas, membros e public.club_records
-  // para impedir 100% qualquer colisão de código de carteirinha (ex: dois clientes com 1212253016)
-  let seq = Number(state.lastCardSequence || 3015);
+  // Reserva a faixa 1212253000-1212253999 para cadastros do Labcard, iniciando novos cartões Lessa Club em 1212254001+
+  let seq = Math.max(4000, Number(state.lastCardSequence || 4000));
   const bumpSeqFromCode = (code?: string | null) => {
     const m = String(code || '').match(/^121225(\d+)$/);
     if (m) {

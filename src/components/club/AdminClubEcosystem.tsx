@@ -3671,7 +3671,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         if (c) usedCardNumbers.add(c);
       }
       const allocateFreeCardNumber = (): string => {
-        let maxNum = 1212253050;
+        let maxNum = 1212254000;
         for (const c of usedCardNumbers) {
           const n = Number(c.replace(/\D/g, ''));
           if (n >= 1212250000 && n < 1212260000 && n > maxNum) maxNum = n;
@@ -20498,7 +20498,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                               const c = String(row[0] || '').trim();
                               if (c) usedCardsSet.add(c);
                             }
-                            let maxExistingCard = 1212253050;
+                            let maxExistingCard = 1212254000;
                             for (const c of usedCardsSet) {
                               const n = Number(c.replace(/\D/g, ''));
                               if (n >= 1212250000 && n < 1212260000 && n > maxExistingCard) {
