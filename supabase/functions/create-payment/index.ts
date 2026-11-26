@@ -188,6 +188,35 @@ Deno.serve(async (req) => {
         }
       }
 
+      // Fallback por Nome quando o CPF ainda não está preenchido no cadastro (ex: importado da Labcard)
+      const rawSearchName = String(body.name || body.customerName || '').trim();
+      if (targetCustomerIds.length === 0 && rawSearchName.length >= 4) {
+        const norm = (s: string) =>
+          s
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .replace(/\s+/g, ' ')
+            .trim();
+        const targetNorm = norm(rawSearchName);
+        const custNameReq = await fetch(
+          `${ASAAS_URL}/customers?name=${encodeURIComponent(rawSearchName)}&limit=10`,
+          { headers: { access_token: ASAAS_API_KEY } }
+        );
+        const custNameData = await custNameReq.json().catch(() => ({}));
+        if (Array.isArray(custNameData?.data)) {
+          const exactMatches = custNameData.data.filter(
+            (c: any) => c?.id && norm(String(c.name || '')) === targetNorm
+          );
+          const chosen = exactMatches.length > 0 ? exactMatches : custNameData.data;
+          for (const c of chosen) {
+            if (c?.id && !targetCustomerIds.includes(c.id)) {
+              targetCustomerIds.push(c.id);
+            }
+          }
+        }
+      }
+
       if (targetCustomerIds.length === 0) {
         return new Response(JSON.stringify({
           success: true,

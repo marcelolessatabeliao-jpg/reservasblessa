@@ -1054,7 +1054,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       const syncCustomer = async () => {
         try {
           const cleanCpf = (selectedSubForDetail.holderCpf || '').replace(/\D/g, '');
-          if (!cleanCpf) return;
+          const holderNameForSync = (selectedSubForDetail.holderName || '').trim();
+          if (!cleanCpf && holderNameForSync.length < 4) return;
 
           const firstAsaasId =
             selectedSubForDetail.invoices?.find((i) => i.asaasPaymentId)?.asaasPaymentId ||
@@ -1064,6 +1065,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
             body: {
               action: 'list-customer-charges',
               cpf: cleanCpf,
+              name: holderNameForSync,
               paymentId: firstAsaasId,
             },
           });
@@ -16703,6 +16705,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                       body: {
                         action: 'list-customer-charges',
                         cpf: cleanCpf,
+                        name: (selectedSubForDetail.holderName || '').trim(),
                         paymentId: firstAsaasId,
                       },
                     });

@@ -4313,7 +4313,8 @@ export const syncSubscriptionInvoicesWithAsaas = async (
     invoices: [...(state.subscriptions[subIdx].invoices || [])],
   };
   const cleanCpf = cleanDigits(targetSub.holderCpf);
-  if (!cleanCpf || cleanCpf.length !== 11) {
+  const holderNameForSync = (targetSub.holderName || '').trim();
+  if ((!cleanCpf || cleanCpf.length !== 11) && holderNameForSync.length < 4) {
     return { state, updatedSub: targetSub, syncedCount: 0 };
   }
 
@@ -4324,6 +4325,7 @@ export const syncSubscriptionInvoicesWithAsaas = async (
         body: {
           action: 'list-customer-charges',
           cpf: cleanCpf,
+          name: holderNameForSync,
         },
       },
       15000
