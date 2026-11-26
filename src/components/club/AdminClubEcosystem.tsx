@@ -26213,31 +26213,83 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
       {/* MODAL GLOBAL DE CONFIRMAÇÃO DE EXCLUSÃO DE CLIENTE */}
       <Dialog open={!!clientToDelete} onOpenChange={(open) => !open && setClientToDelete(null)}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-base font-black text-rose-700 flex items-center gap-2">
               <Trash2 className="w-5 h-5 text-rose-600" /> Confirmar Exclusão de Cliente
             </DialogTitle>
           </DialogHeader>
+          {(() => {
+            const dependentsToDelete = (clientToDelete?.members || []).filter(
+              (m, idx) => m.role === 'DEPENDENTE' || idx > 0
+            );
+            return (
           <div className="space-y-3 py-2 text-xs text-slate-700">
             <p>
-              Tem certeza que deseja excluir permanentemente o cadastro de:
+              Tem certeza que deseja excluir o cadastro do titular abaixo?
             </p>
             <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl space-y-1">
               <div className="font-bold text-sm text-rose-950">
-                {clientToDelete?.holderName}
+                👑 {clientToDelete?.holderName}
               </div>
               <div className="text-[11px] text-rose-800">
-                Cartão: <strong>#{clientToDelete?.subscriptionCode}</strong> • CPF: <strong>{clientToDelete?.holderCpf}</strong>
+                Cartão: <strong>#{clientToDelete?.subscriptionCode}</strong> • CPF: <strong>{clientToDelete?.holderCpf || 'Não informado'}</strong>
               </div>
               <div className="text-[11px] text-rose-700">
                 Plano: {clientToDelete?.planSummaryLabel} ({clientToDelete?.invoices.length || 0} faturas vinculadas)
               </div>
             </div>
+
+            {dependentsToDelete.length > 0 && (
+              <div className="p-3 bg-amber-50 border-2 border-amber-300 rounded-xl space-y-2">
+                <div className="font-black text-xs text-amber-950 flex items-center gap-1.5">
+                  <Users className="w-4 h-4 text-amber-700 shrink-0" />
+                  Dependentes que também serão excluídos junto ao titular ({dependentsToDelete.length}):
+                </div>
+                <div className="space-y-1.5 max-h-44 overflow-y-auto pr-1">
+                  {dependentsToDelete.map((dep, depIdx) => (
+                    <div
+                      key={dep.id || `${dep.cardNumber}_${depIdx}`}
+                      className="bg-white rounded-lg border border-amber-200 px-2.5 py-2 flex items-center justify-between gap-2 text-[11px]"
+                    >
+                      <div className="min-w-0">
+                        <div className="font-black text-slate-900 truncate">
+                          👤 {dep.fullName}
+                        </div>
+                        <div className="text-slate-600">
+                          Cartão: <strong className="font-mono">#{dep.cardNumber || '—'}</strong>
+                          {dep.cpf ? (
+                            <>
+                              {' '}• CPF: <strong>{dep.cpf}</strong>
+                            </>
+                          ) : null}
+                          {' '}• {dep.planCycleLabel || dep.modalityName || 'Dependente'}
+                        </div>
+                      </div>
+                      <Badge
+                        className={
+                          dep.status === 'ACTIVE'
+                            ? 'bg-emerald-600 text-white text-[10px] shrink-0'
+                            : 'bg-rose-600 text-white text-[10px] shrink-0'
+                        }
+                      >
+                        {dep.status === 'ACTIVE' ? 'ATIVO' : 'INATIVO'}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-[11px] text-amber-900 font-semibold">
+                  💡 Se quiser manter algum dependente, cancele e use <strong>"Tornar Titular Individual"</strong> antes de excluir o titular.
+                </p>
+              </div>
+            )}
+
             <p className="text-slate-500 font-medium">
-              ⚠️ Esta ação é irreversível e removerá todas as carteirinhas, dependentes, histórico financeiro e parcelas deste cliente.
+              ⚠️ Esta ação removerá o titular{dependentsToDelete.length > 0 ? ` e os ${dependentsToDelete.length} dependente(s) listado(s) acima` : ''}, carteirinhas, histórico financeiro e parcelas (com cópia recuperável em Segurança &gt; Lixeira).
             </p>
           </div>
+            );
+          })()}
           <DialogFooter className="flex items-center justify-end gap-2 pt-2">
             <Button
               type="button"
