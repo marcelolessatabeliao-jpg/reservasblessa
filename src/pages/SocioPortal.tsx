@@ -2523,14 +2523,14 @@ const SocioPortal: React.FC = () => {
                                 </div>
                               </div>
 
-                              {/* Aviso de documento obrigatório (ex: Lessa Kids) */}
+                              {/* Aviso de documento obrigatório (ex: Estudante, Servidor, Professor, Kids, PCD, 60+) */}
                               {slot.requiresDocument && (
                                 <div className="rounded-xl bg-rose-50 border border-rose-200 px-3.5 py-2.5 text-xs text-rose-950 space-y-0.5">
                                   <div className="font-black flex items-center gap-1.5">
                                     <FileCheck className="w-4 h-4 text-rose-600 shrink-0" />
-                                    Documento obrigatório ({slot.modalityName}): {slot.docRule.documentLabel}
+                                    Documento obrigatório ({slot.modalityName}): {slot.docRule.title || (slot.docRule as any).documentLabel}
                                   </div>
-                                  <p className="text-[11px] text-rose-800">{slot.docRule.description}</p>
+                                  <p className="text-[11px] text-rose-800">{slot.docRule.summary || (slot.docRule as any).description}</p>
                                 </div>
                               )}
 

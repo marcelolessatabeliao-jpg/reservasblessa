@@ -843,6 +843,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
   const [newDepDocName, setNewDepDocName] = useState('');
   const [editingDepModalityMemberId, setEditingDepModalityMemberId] = useState<string | null>(null);
   const [targetNewModalityCode, setTargetNewModalityCode] = useState('');
+  const [reserveSlotModality, setReserveSlotModality] = useState('ESTUDANTE');
 
   // Modal de Validação de Carteirinha (QR Code / Portaria) via menu Clientes
   const [isQrValidatorModalOpen, setIsQrValidatorModalOpen] = useState(false);
@@ -1757,6 +1758,101 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       console.warn('[AdminClubEcosystem] Aviso ao persistir estado:', err);
       return next;
     }
+  };
+
+  const DEPENDENT_SLOT_PLAN_OPTIONS: Array<{ code: string; label: string }> = [
+    { code: 'ADULTO', label: 'Lessa Club (Pagante Integral)' },
+    { code: 'ESTUDANTE', label: 'Lessa Student Pass (Estudante)' },
+    { code: 'SERVIDOR', label: 'Lessa Servidor Pass (Servidor Público)' },
+    { code: 'PROFESSOR', label: 'Lessa Professor Pass (Professor)' },
+    { code: 'DOADOR', label: 'Lessa Doador (Doador de Sangue)' },
+    { code: 'KIDS', label: 'Lessa Kids (Gratuito até 11 anos)' },
+    { code: 'PCD_TEA', label: 'Lessa Inclusão (PCD / TEA — Gratuito)' },
+    { code: 'IDOSO_60', label: 'Lessa Vitalício 60+ (Gratuito)' },
+  ];
+
+  const handleUpdateOpenSlotsComposition = async (
+    baseSub: ClubSubscription,
+    nextDependentSlotCodes: string[],
+    successMessage?: string
+  ) => {
+    if (!state) return;
+    const allMods = state.modalities?.length ? state.modalities : DEFAULT_CLUB_MODALITIES;
+    const findMod = (code: string) =>
+      allMods.find((m) => m.code === code) ||
+      DEFAULT_CLUB_MODALITIES.find((m) => m.code === code) ||
+      DEFAULT_CLUB_MODALITIES[0];
+
+    const holder =
+      (baseSub.members || []).find((m) => m.role === 'TITULAR') ||
+      (baseSub.members || [])[0];
+    const holderCode =
+      (holder?.modalityCode && holder.modalityCode !== 'SEM_PLANO'
+        ? holder.modalityCode
+        : editClientData.modalityCode && editClientData.modalityCode !== 'SEM_PLANO'
+        ? editClientData.modalityCode
+        : 'ADULTO');
+
+    const allCodes = [holderCode, ...nextDependentSlotCodes];
+    const isAnnual = (editClientData.billingCycle || baseSub.billingCycle) === 'ANNUAL';
+    const cycleLabel = isAnnual ? 'Anual' : 'Mensal';
+
+    const countMap = new Map<string, number>();
+    let monthlyTotal = 0;
+    for (const code of allCodes) {
+      countMap.set(code, (countMap.get(code) || 0) + 1);
+      const mod = findMod(code);
+      if (!mod.isFreeTier && !['CORPORATE', 'PUBLICIDADE', 'CONVENIO', 'SEM_PLANO'].includes(mod.code)) {
+        monthlyTotal += isAnnual ? (mod.annualInstallment || mod.monthlyPrice || 0) : (mod.monthlyPrice || 0);
+      }
+    }
+    monthlyTotal = Number(monthlyTotal.toFixed(2));
+
+    const parts: string[] = [];
+    countMap.forEach((qty, code) => {
+      const mod = findMod(code);
+      parts.push(`${qty}x ${mod.name}`);
+    });
+
+    const nextPlanSummary =
+      allCodes.length > 1
+        ? `Família Personalizado (${cycleLabel}): ${parts.join(' + ')} - ${formatCurrency(monthlyTotal)}`
+        : `${findMod(holderCode).name} (${cycleLabel}) - ${formatCurrency(monthlyTotal)}`;
+
+    const nowIso = new Date().toISOString();
+    const updatedSub: ClubSubscription = {
+      ...baseSub,
+      planSummaryLabel: nextPlanSummary,
+      monthlyEquivalent: monthlyTotal,
+      totalContractValue: isAnnual ? Number((monthlyTotal * 12).toFixed(2)) : monthlyTotal,
+      updatedAt: nowIso,
+      isModifiedFromSeed: true,
+    };
+
+    const nextState: ClubDatabaseState = {
+      ...state,
+      subscriptions: (state.subscriptions || []).map((s) =>
+        s.id === updatedSub.id ? updatedSub : s
+      ),
+    };
+
+    setSelectedSubForDetail(updatedSub);
+    setEditClientData((prev) => ({
+      ...prev,
+      planSummaryLabel: nextPlanSummary,
+      monthlyEquivalent: monthlyTotal,
+    }));
+
+    const permCode = updatedSub.subscriptionCode || updatedSub.holderCpf;
+    if (permCode) {
+      await saveMemberPermanentDocs(permCode, updatedSub, 'ADMIN_SAVE');
+    }
+    await persist(nextState, { waitForCloud: true });
+
+    toast({
+      title: successMessage || 'Vagas do plano atualizadas!',
+      description: `${nextPlanSummary} • Já sincronizado com o Portal do Sócio.`,
+    });
   };
 
   const handleUpdateMemberCardStatus = async (
@@ -14545,25 +14641,79 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         {openDepSlots.map((slot) => (
                           <div
                             key={`open-dep-slot-${slot.slotIndex}`}
-                            className="bg-white/90 rounded-xl border-2 border-dashed border-emerald-400 p-3 flex flex-col justify-between gap-2.5 text-xs shadow-xs"
+                            className="bg-white/95 rounded-xl border-2 border-dashed border-emerald-400 p-3 flex flex-col justify-between gap-2.5 text-xs shadow-xs"
                           >
-                            <div className="space-y-1">
+                            <div className="space-y-2">
                               <div className="flex flex-wrap items-center justify-between gap-1.5">
                                 <span className="font-black text-emerald-950">
                                   👤 DEPENDENTE #{slot.slotIndex + 1} — Vaga em Aberto
                                 </span>
-                                <Badge className="bg-amber-500 text-slate-950 text-[10px] font-black">
-                                  DISPONÍVEL
-                                </Badge>
+                                <div className="flex items-center gap-1">
+                                  <Badge className="bg-amber-500 text-slate-950 text-[10px] font-black">
+                                    DISPONÍVEL NO PORTAL E ADMIN
+                                  </Badge>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const nextCodes = contractedDepSlots
+                                        .filter((s) => s.slotIndex !== slot.slotIndex)
+                                        .map((s) => s.existingMember?.modalityCode || s.modalityCode || 'ADULTO');
+                                      handleUpdateOpenSlotsComposition(
+                                        selectedSubForDetail,
+                                        nextCodes,
+                                        'Vaga em aberto removida do plano.'
+                                      );
+                                    }}
+                                    className="text-[10px] font-bold text-rose-600 hover:text-rose-800 px-1.5 py-0.5 rounded hover:bg-rose-50 cursor-pointer"
+                                    title="Remover esta vaga em aberto do plano"
+                                  >
+                                    × Remover
+                                  </button>
+                                </div>
                               </div>
-                              <div className="text-emerald-900 font-bold">
-                                Plano previsto: {slot.modalityName}
+
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-bold uppercase text-slate-600 block">
+                                  Plano desta vaga (define regra de documento no Portal do Sócio):
+                                </label>
+                                <select
+                                  value={slot.modalityCode}
+                                  onChange={(e) => {
+                                    const chosenCode = e.target.value;
+                                    const nextCodes = contractedDepSlots.map((s) =>
+                                      s.slotIndex === slot.slotIndex
+                                        ? chosenCode
+                                        : s.existingMember?.modalityCode || s.modalityCode || 'ADULTO'
+                                    );
+                                    handleUpdateOpenSlotsComposition(
+                                      selectedSubForDetail,
+                                      nextCodes,
+                                      `Vaga #${slot.slotIndex + 1} configurada com novo plano!`
+                                    );
+                                  }}
+                                  className="w-full h-8 rounded-lg border border-emerald-400 bg-emerald-50/70 px-2 text-[11px] font-black text-emerald-950 cursor-pointer"
+                                >
+                                  {DEPENDENT_SLOT_PLAN_OPTIONS.map((opt) => (
+                                    <option key={opt.code} value={opt.code}>
+                                      {opt.label}
+                                    </option>
+                                  ))}
+                                </select>
                               </div>
-                              <p className="text-[11px] text-slate-600">
-                                Vaga inclusa no plano contratado sem dependente cadastrado. Cadastre um novo dependente ou agrupe um cadastro existente.
-                              </p>
+
+                              {slot.requiresDocument ? (
+                                <div className="rounded-lg bg-rose-50 border border-rose-200 px-2.5 py-1.5 text-[11px] text-rose-900">
+                                  <strong className="text-rose-700">📎 Exige anexo obrigatório:</strong>{' '}
+                                  {slot.docRule.title}
+                                </div>
+                              ) : (
+                                <div className="rounded-lg bg-emerald-50 border border-emerald-200 px-2.5 py-1.5 text-[11px] text-emerald-800 font-semibold">
+                                  ✔ Pagante integral — sem exigência de documento comprobatório.
+                                </div>
+                              )}
                             </div>
-                            <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-emerald-100">
+
+                            <div className="flex flex-wrap items-center gap-1.5 pt-1.5 border-t border-emerald-100">
                               <Button
                                 type="button"
                                 size="sm"
@@ -14573,7 +14723,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                 }}
                                 className="h-7 px-2.5 text-[11px] font-black bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer flex items-center gap-1"
                               >
-                                <UserPlus className="w-3 h-3" /> + Cadastrar Dependente
+                                <UserPlus className="w-3 h-3" /> + Preencher / Cadastrar Agora
                               </Button>
                               <Button
                                 type="button"
@@ -14591,6 +14741,68 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           </div>
                         ))}
                       </div>
+
+                      {/* BARRA RÁPIDA: LIBERAR NOVA VAGA DE DEPENDENTE COM ESCOLHA DE PLANO (EX: +1 ESTUDANTE / SERVIDOR / LESSA CLUB) */}
+                      {isPlanAllowingDeps && (() => {
+                        const previewMod =
+                          (state?.modalities || DEFAULT_CLUB_MODALITIES).find((m) => m.code === reserveSlotModality) ||
+                          DEFAULT_CLUB_MODALITIES.find((m) => m.code === reserveSlotModality);
+                        const previewDocRule = getPlanDocumentRule(reserveSlotModality, previewMod?.name);
+                        return (
+                          <div className="rounded-xl border border-emerald-300 bg-white p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                            <div className="space-y-0.5 flex-1">
+                              <div className="text-[11px] font-black uppercase text-emerald-950">
+                                + Adicionar / Liberar Nova Vaga de Dependente (Admin &amp; Portal do Sócio)
+                              </div>
+                              <p className="text-[11px] text-slate-600">
+                                Escolha o plano da vaga adicional (ex.: mudar de 2 para 3 pessoas com o 3º sendo Estudante ou Servidor).{' '}
+                                {previewDocRule.requiresDocument ? (
+                                  <span className="font-bold text-rose-700">
+                                    Exigirá anexo: {previewDocRule.title}.
+                                  </span>
+                                ) : (
+                                  <span className="font-bold text-emerald-700">
+                                    Pagante integral (sem anexo obrigatório).
+                                  </span>
+                                )}
+                              </p>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2 shrink-0">
+                              <select
+                                value={reserveSlotModality}
+                                onChange={(e) => setReserveSlotModality(e.target.value)}
+                                className="h-8 rounded-lg border border-emerald-400 bg-emerald-50 px-2.5 text-xs font-bold text-emerald-950 cursor-pointer"
+                              >
+                                {DEPENDENT_SLOT_PLAN_OPTIONS.map((opt) => (
+                                  <option key={opt.code} value={opt.code}>
+                                    {opt.label}
+                                  </option>
+                                ))}
+                              </select>
+                              <Button
+                                type="button"
+                                size="sm"
+                                onClick={() => {
+                                  const currentDepCodes =
+                                    contractedDepSlots.length > 0
+                                      ? contractedDepSlots.map((s) => s.existingMember?.modalityCode || s.modalityCode || 'ADULTO')
+                                      : selectedSubForDetail.members
+                                          .filter((m, i) => m.role === 'DEPENDENTE' && i > 0)
+                                          .map((m) => m.modalityCode || 'ADULTO');
+                                  handleUpdateOpenSlotsComposition(
+                                    selectedSubForDetail,
+                                    [...currentDepCodes, reserveSlotModality],
+                                    'Nova vaga de dependente liberada no Admin e Portal do Sócio!'
+                                  );
+                                }}
+                                className="h-8 px-3 text-[11px] font-black bg-emerald-700 hover:bg-emerald-800 text-white cursor-pointer"
+                              >
+                                + Liberar Vaga
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                       );
                     })()}
@@ -20240,6 +20452,154 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     }}
                     onPreviewAttachment={(att) => setPreviewAttachment(att)}
                   />
+
+                  {/* VAGAS EM ABERTO NO PLANO + RESERVA DE NOVA VAGA COM ESCOLHA DE PLANO (ADMIN & PORTAL DO SÓCIO) */}
+                  {(() => {
+                    const allDepSlots = getContractedDependentSlots(selectedSubForDetail);
+                    const vacantSlots = allDepSlots.filter((sl) => !sl.existingMember);
+                    const previewMod =
+                      (state?.modalities || DEFAULT_CLUB_MODALITIES).find((m) => m.code === reserveSlotModality) ||
+                      DEFAULT_CLUB_MODALITIES.find((m) => m.code === reserveSlotModality);
+                    const previewDocRule = getPlanDocumentRule(reserveSlotModality, previewMod?.name);
+                    return (
+                      <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 space-y-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <h4 className="text-xs font-black uppercase text-emerald-950 tracking-wider">
+                              Espaços / Vagas de Dependentes no Plano ({vacantSlots.length} em aberto)
+                            </h4>
+                            <p className="text-[11px] text-slate-600">
+                              Selecione o plano de cada vaga adicional (ex.: Estudante, Servidor, Lessa Club, Kids). A vaga fica disponível imediatamente aqui e no <strong>Portal do Sócio</strong> já com a regra de anexos obrigatórios.
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <select
+                              value={reserveSlotModality}
+                              onChange={(e) => setReserveSlotModality(e.target.value)}
+                              className="h-8 rounded-lg border border-emerald-400 bg-white px-2.5 text-xs font-bold text-emerald-950 cursor-pointer"
+                            >
+                              {DEPENDENT_SLOT_PLAN_OPTIONS.map((opt) => (
+                                <option key={opt.code} value={opt.code}>
+                                  {opt.label}
+                                </option>
+                              ))}
+                            </select>
+                            <Button
+                              type="button"
+                              size="sm"
+                              onClick={() => {
+                                const currentDepCodes =
+                                  allDepSlots.length > 0
+                                    ? allDepSlots.map((s) => s.existingMember?.modalityCode || s.modalityCode || 'ADULTO')
+                                    : selectedSubForDetail.members
+                                        .filter((m, i) => m.role === 'DEPENDENTE' && i > 0)
+                                        .map((m) => m.modalityCode || 'ADULTO');
+                                handleUpdateOpenSlotsComposition(
+                                  selectedSubForDetail,
+                                  [...currentDepCodes, reserveSlotModality],
+                                  'Nova vaga de dependente liberada no Admin e Portal do Sócio!'
+                                );
+                              }}
+                              className="h-8 px-3 text-xs font-black bg-emerald-700 hover:bg-emerald-800 text-white cursor-pointer"
+                            >
+                              + Liberar Nova Vaga
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div className="text-[11px]">
+                          {previewDocRule.requiresDocument ? (
+                            <span className="text-rose-700 font-bold">
+                              📎 Regra do plano selecionado ({previewMod?.name}): exigirá anexo obrigatório ({previewDocRule.title}).
+                            </span>
+                          ) : (
+                            <span className="text-emerald-800 font-semibold">
+                              ✔ Regra do plano selecionado ({previewMod?.name || 'Lessa Club'}): pagante integral — sem anexo obrigatório.
+                            </span>
+                          )}
+                        </div>
+
+                        {vacantSlots.length > 0 && (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                            {vacantSlots.map((slot) => (
+                              <div
+                                key={`dep-tab-vacant-${slot.slotIndex}`}
+                                className="bg-white rounded-xl border-2 border-dashed border-emerald-400 p-3 space-y-2 text-xs"
+                              >
+                                <div className="flex items-center justify-between gap-1.5">
+                                  <span className="font-black text-emerald-950">
+                                    👤 Vaga Dependente #{slot.slotIndex + 1} (Disponível)
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const nextCodes = allDepSlots
+                                        .filter((s) => s.slotIndex !== slot.slotIndex)
+                                        .map((s) => s.existingMember?.modalityCode || s.modalityCode || 'ADULTO');
+                                      handleUpdateOpenSlotsComposition(
+                                        selectedSubForDetail,
+                                        nextCodes,
+                                        'Vaga em aberto removida do plano.'
+                                      );
+                                    }}
+                                    className="text-[10px] font-bold text-rose-600 hover:text-rose-800 px-1.5 py-0.5 rounded hover:bg-rose-50 cursor-pointer"
+                                  >
+                                    × Remover vaga
+                                  </button>
+                                </div>
+                                <select
+                                  value={slot.modalityCode}
+                                  onChange={(e) => {
+                                    const chosenCode = e.target.value;
+                                    const nextCodes = allDepSlots.map((s) =>
+                                      s.slotIndex === slot.slotIndex
+                                        ? chosenCode
+                                        : s.existingMember?.modalityCode || s.modalityCode || 'ADULTO'
+                                    );
+                                    handleUpdateOpenSlotsComposition(
+                                      selectedSubForDetail,
+                                      nextCodes,
+                                      `Plano da Vaga #${slot.slotIndex + 1} atualizado!`
+                                    );
+                                  }}
+                                  className="w-full h-8 rounded-lg border border-emerald-400 bg-emerald-50/70 px-2 text-[11px] font-black text-emerald-950 cursor-pointer"
+                                >
+                                  {DEPENDENT_SLOT_PLAN_OPTIONS.map((opt) => (
+                                    <option key={opt.code} value={opt.code}>
+                                      {opt.label}
+                                    </option>
+                                  ))}
+                                </select>
+                                {slot.requiresDocument ? (
+                                  <div className="rounded-lg bg-rose-50 border border-rose-200 px-2.5 py-1.5 text-[11px] text-rose-900">
+                                    <strong>📎 Anexo obrigatório:</strong> {slot.docRule.title}
+                                  </div>
+                                ) : (
+                                  <div className="rounded-lg bg-emerald-50 border border-emerald-200 px-2.5 py-1.5 text-[11px] text-emerald-800 font-semibold">
+                                    ✔ Pagante integral — sem anexo obrigatório.
+                                  </div>
+                                )}
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  onClick={() => {
+                                    setNewDepModality(slot.modalityCode || 'ADULTO');
+                                    toast({
+                                      title: `Modalidade ${slot.modalityName} selecionada!`,
+                                      description: 'Preencha os dados do dependente no formulário logo abaixo.',
+                                    });
+                                  }}
+                                  className="h-7 px-2.5 text-[11px] font-black bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer"
+                                >
+                                  Usar esta modalidade no formulário abaixo ↓
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {/* FORMULÁRIO DE CADASTRO DE NOVO DEPENDENTE */}
                   <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">

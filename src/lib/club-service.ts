@@ -7272,6 +7272,9 @@ const mapLabelToModality = (rawLabel: string): ClubModality => {
   if (low.includes('servidor')) {
     return DEFAULT_CLUB_MODALITIES.find((m) => m.code === 'SERVIDOR') || DEFAULT_CLUB_MODALITIES[0];
   }
+  if (low.includes('doador')) {
+    return DEFAULT_CLUB_MODALITIES.find((m) => m.code === 'DOADOR') || DEFAULT_CLUB_MODALITIES[0];
+  }
   if (low.includes('vitalício') || low.includes('vitalicio') || low.includes('60+') || low.includes('idoso')) {
     return DEFAULT_CLUB_MODALITIES.find((m) => m.code === 'IDOSO_60') || DEFAULT_CLUB_MODALITIES[0];
   }
