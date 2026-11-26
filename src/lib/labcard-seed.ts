@@ -721,7 +721,8 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
             createdAt: '2026-05-01T00:00:00.000Z',
           });
         });
-      } else {
+      } else if (novStatus === 'PAID') {
+        // Mantém apenas parcelas historicamente PAGAS; não gera mensalidades sintéticas em aberto sem vínculo no Asaas
         invoices.push({
           id: `inv_${holderCard}_11_2026`,
           subscriptionId: subId,
@@ -740,37 +741,6 @@ export const getLabcardSubscriptions = (): ClubSubscription[] => {
           boletoNumber: novBoleto,
           description: `${mod.name} (Mensalidade 11/2026)`,
           createdAt: '2026-11-01T00:00:00.000Z',
-        });
-      }
-
-      // 2. Cobranças em Atraso (Junho/2026 - Screenshot 4)
-      if (
-        upName.includes('GENIVALDO ALVES') ||
-        upName.includes('EDENILSON JOSE') ||
-        upName.includes('JEANDRO APARECIDO') ||
-        upName.includes('EDUARDA ALMEIDA') ||
-        upName.includes('FABIANA ERICA') ||
-        upName.includes('RONSAGELA') ||
-        upName.includes('RENATO PICOLO') ||
-        upName.includes('GUSTAVO TORRES')
-      ) {
-        invoices.push({
-          id: `inv_overdue_${holderCard}_06_2026`,
-          subscriptionId: subId,
-          subscriptionCode: subCode,
-          holderName: name.trim(),
-          holderCpf: formatCpf(cpf),
-          holderPhone: formatPhone(phone),
-          installmentNumber: 6,
-          totalInstallments: 12,
-          referenceMonth: '06/2026',
-          amount: mod.price,
-          dueDate: '2026-06-01',
-          paymentMethod: 'BOLETO',
-          status: 'OVERDUE',
-          boletoNumber: `${600000000000000000 + Number(holderCard.slice(-6))}`,
-          description: `${mod.name} (Mensalidade 06/2026)`,
-          createdAt: '2026-06-01T00:00:00.000Z',
         });
       }
     }
