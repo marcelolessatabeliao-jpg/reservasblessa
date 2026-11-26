@@ -678,7 +678,7 @@ export async function loadAllPermanentMemberDocs(): Promise<Map<string, Permanen
       ),
       fetchAllRowsPaginated<any>(
         'club_attachments',
-        'id, subscription_code, member_id, file_name, mime_type, public_url, data_url, created_at',
+        'id, subscription_code, member_id, file_name, mime_type, public_url, created_at',
         'id',
         (q) => q.eq('is_deleted', false)
       ),

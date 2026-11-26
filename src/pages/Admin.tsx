@@ -1296,24 +1296,21 @@ export default function Admin() {
         }
       });
 
-    // Fallback: Realtime já ouve alterações via WebSocket. Polling suave a cada 5 minutos e apenas quando a aba estiver ativa!
+    // Fallback: Realtime já ouve alterações via WebSocket. Polling leve a cada 10 minutos e apenas quando a aba estiver ativa!
+    // (Não dispara refreshClubNotifications em loop para evitar leituras pesadas repetidas em club_records/Disk IO no Supabase.)
     const pollInterval = setInterval(() => {
       if (typeof document !== 'undefined' && document.hidden) return;
       console.log("[Admin] Periodic gentle sync...");
       fetchData(true);
-      syncAllPendingPayments();
-      refreshClubNotifications();
-    }, 5 * 60 * 1000);
+    }, 10 * 60 * 1000);
 
-    // Sync silencioso quando a janela volta ao foco (se passou mais de 1 minuto)
+    // Sync silencioso quando a janela volta ao foco (somente se passou mais de 10 minutos — evita rajadas ao alternar abas)
     let lastFocusTime = Date.now();
     const handleFocus = () => {
-      if (Date.now() - lastFocusTime < 60 * 1000) return;
+      if (Date.now() - lastFocusTime < 10 * 60 * 1000) return;
       lastFocusTime = Date.now();
       console.log("[Admin] Window focused, syncing data...");
       fetchData(true);
-      syncAllPendingPayments();
-      refreshClubNotifications();
     };
     window.addEventListener('focus', handleFocus);
 
