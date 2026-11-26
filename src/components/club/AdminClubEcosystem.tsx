@@ -124,6 +124,7 @@ import {
   softDeleteClubAttachment,
   uploadClubFileToStorage,
   doesSubscriptionAllowDependents,
+  getContractedDependentSlots,
   loadClubRecordHistory,
   ClubRecordHistoryEntry,
   getCloudSyncStatus,
@@ -14197,32 +14198,56 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                       />
                     </div>
 
-                    {/* COMPOSIÇÃO COMPLETA DA FICHA: NOME E PLANO DE CADA INTEGRANTE (TITULAR + DEPENDENTES) */}
+                    {/* COMPOSIÇÃO COMPLETA DA FICHA: NOME E PLANO DE CADA INTEGRANTE (TITULAR + DEPENDENTES + VAGAS EM ABERTO) */}
+                    {(() => {
+                      const effectiveSubForSlots: ClubSubscription = {
+                        ...selectedSubForDetail,
+                        planSummaryLabel:
+                          editClientData.planSummaryLabel || selectedSubForDetail.planSummaryLabel,
+                      };
+                      const contractedDepSlots = getContractedDependentSlots(effectiveSubForSlots);
+                      const openDepSlots = contractedDepSlots.filter((sl) => !sl.existingMember);
+                      const totalPlannedMembers = Math.max(
+                        selectedSubForDetail.members.length,
+                        1 + contractedDepSlots.length
+                      );
+                      const isPlanAllowingDeps =
+                        doesSubscriptionAllowDependents(effectiveSubForSlots) ||
+                        contractedDepSlots.length > 0;
+                      const hasDependents = selectedSubForDetail.members.some(
+                        (m) => m.role === 'DEPENDENTE'
+                      );
+                      const isEligibleForTransfer =
+                        !isPlanAllowingDeps && (
+                          (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('kids') ||
+                          (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('tea') ||
+                          (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('pcd') ||
+                          (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('pdc') ||
+                          (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('inclus') ||
+                          (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('vital') ||
+                          (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('sem plano') ||
+                          ['KIDS', 'PCD_TEA', 'IDOSO_60', 'VITALICIO', 'SEM_PLANO'].includes(selectedSubForDetail.members[0]?.modalityCode || '')
+                        );
+
+                      return (
                     <div className="sm:col-span-12 rounded-xl border border-emerald-200 bg-emerald-50/50 p-3.5 space-y-2.5">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="text-xs font-black uppercase text-emerald-950 flex items-center gap-1.5">
+                        <div className="text-xs font-black uppercase text-emerald-950 flex flex-wrap items-center gap-1.5">
                           <Users className="w-4 h-4 text-emerald-700" />
-                          Integrantes da Assinatura ({selectedSubForDetail.members.length}): Nome e Plano de Cada Pessoa
+                          <span>
+                            Integrantes da Assinatura (
+                            {openDepSlots.length > 0
+                              ? `${selectedSubForDetail.members.length} de ${totalPlannedMembers}`
+                              : selectedSubForDetail.members.length}
+                            ): Nome e Plano de Cada Pessoa
+                          </span>
+                          {openDepSlots.length > 0 && (
+                            <Badge className="bg-amber-500 text-slate-950 text-[10px] font-black">
+                              {openDepSlots.length} {openDepSlots.length === 1 ? 'vaga disponível' : 'vagas disponíveis'}
+                            </Badge>
+                          )}
                         </div>
-                        {(() => {
-                          const isPlanAllowingDeps = doesSubscriptionAllowDependents(selectedSubForDetail);
-                          const hasDependents = selectedSubForDetail.members.some(
-                            (m) => m.role === 'DEPENDENTE'
-                          );
-                          const isEligibleForTransfer =
-                            !isPlanAllowingDeps && (
-                              (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('kids') ||
-                              (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('tea') ||
-                              (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('pcd') ||
-                              (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('pdc') ||
-                              (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('inclus') ||
-                              (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('vital') ||
-                              (selectedSubForDetail.planSummaryLabel || '').toLowerCase().includes('sem plano') ||
-                              ['KIDS', 'PCD_TEA', 'IDOSO_60', 'VITALICIO', 'SEM_PLANO'].includes(selectedSubForDetail.members[0]?.modalityCode || '')
-                            );
-
-                          return (
-                            <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex items-center gap-2 flex-wrap">
                               {!isPlanAllowingDeps && (
                                 <Badge
                                   variant="outline"
@@ -14269,18 +14294,33 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                 </Button>
                               )}
                               {isPlanAllowingDeps && (
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  onClick={() => {
-                                    setPersonSearchQuery('');
-                                    setPersonSearchModalOpen(true);
-                                  }}
-                                  className="h-7 text-[11px] font-black bg-emerald-800 hover:bg-emerald-900 text-white shadow-xs cursor-pointer flex items-center gap-1"
-                                  title="Buscar dependente por nome ou cartão para agrupar nesta família"
-                                >
-                                  <Search className="w-3 h-3 text-amber-300" /> + Buscar e Agrupar Dependente
-                                </Button>
+                                <>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    onClick={() => {
+                                      const defaultMod = openDepSlots[0]?.modalityCode || 'ADULTO';
+                                      setNewDepModality(defaultMod);
+                                      setClientDetailTool('ADICIONAR_DEPENDENTES');
+                                    }}
+                                    className="h-7 text-[11px] font-black bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs cursor-pointer flex items-center gap-1"
+                                    title="Cadastrar um novo dependente diretamente nesta assinatura"
+                                  >
+                                    <UserPlus className="w-3 h-3" /> + Cadastrar Dependente
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    onClick={() => {
+                                      setPersonSearchQuery('');
+                                      setPersonSearchModalOpen(true);
+                                    }}
+                                    className="h-7 text-[11px] font-black bg-emerald-800 hover:bg-emerald-900 text-white shadow-xs cursor-pointer flex items-center gap-1"
+                                    title="Buscar dependente por nome ou cartão para agrupar nesta família"
+                                  >
+                                    <Search className="w-3 h-3 text-amber-300" /> + Buscar e Agrupar Dependente
+                                  </Button>
+                                </>
                               )}
                               <Button
                                 type="button"
@@ -14291,9 +14331,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                               >
                                 <Paperclip className="w-3 h-3 mr-1" /> Ver / Anexar Documentos
                               </Button>
-                            </div>
-                          );
-                        })()}
+                        </div>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
                         {selectedSubForDetail.members.map((m, idx) => {
@@ -14504,8 +14542,58 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                             </div>
                           );
                         })}
+                        {openDepSlots.map((slot) => (
+                          <div
+                            key={`open-dep-slot-${slot.slotIndex}`}
+                            className="bg-white/90 rounded-xl border-2 border-dashed border-emerald-400 p-3 flex flex-col justify-between gap-2.5 text-xs shadow-xs"
+                          >
+                            <div className="space-y-1">
+                              <div className="flex flex-wrap items-center justify-between gap-1.5">
+                                <span className="font-black text-emerald-950">
+                                  👤 DEPENDENTE #{slot.slotIndex + 1} — Vaga em Aberto
+                                </span>
+                                <Badge className="bg-amber-500 text-slate-950 text-[10px] font-black">
+                                  DISPONÍVEL
+                                </Badge>
+                              </div>
+                              <div className="text-emerald-900 font-bold">
+                                Plano previsto: {slot.modalityName}
+                              </div>
+                              <p className="text-[11px] text-slate-600">
+                                Vaga inclusa no plano contratado sem dependente cadastrado. Cadastre um novo dependente ou agrupe um cadastro existente.
+                              </p>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-emerald-100">
+                              <Button
+                                type="button"
+                                size="sm"
+                                onClick={() => {
+                                  setNewDepModality(slot.modalityCode || 'ADULTO');
+                                  setClientDetailTool('ADICIONAR_DEPENDENTES');
+                                }}
+                                className="h-7 px-2.5 text-[11px] font-black bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer flex items-center gap-1"
+                              >
+                                <UserPlus className="w-3 h-3" /> + Cadastrar Dependente
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setPersonSearchQuery('');
+                                  setPersonSearchModalOpen(true);
+                                }}
+                                className="h-7 px-2.5 text-[11px] font-bold border-emerald-600 text-emerald-900 bg-white hover:bg-emerald-50 cursor-pointer flex items-center gap-1"
+                              >
+                                <Search className="w-3 h-3" /> Buscar Existente
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
+                      );
+                    })()}
 
                     <div className="sm:col-span-3">
                       <Label className="text-xs font-bold text-slate-700">
