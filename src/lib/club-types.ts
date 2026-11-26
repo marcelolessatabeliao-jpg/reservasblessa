@@ -196,6 +196,9 @@ export interface ClubSubscription {
   labcardSituationLabel?: string;
   /** Vagas de dependentes em aberto EXPLICITAMENTE liberadas pelo admin (modalidades como 'ADULTO', 'ESTUDANTE', 'SERVIDOR', 'KIDS') */
   openDependentSlots?: string[];
+  /** Data/hora ISO em que a mensagem/convite de acesso ao Portal do Sócio foi copiada ou enviada via WhatsApp */
+  portalInviteSentAt?: string;
+  portalInviteSentChannel?: 'COPIED' | 'WHATSAPP';
   addressCep?: string;
   addressStreet?: string;
   addressNumber?: string;

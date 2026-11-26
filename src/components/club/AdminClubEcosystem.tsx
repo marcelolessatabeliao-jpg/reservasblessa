@@ -377,6 +377,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
   const [subDateEnd, setSubDateEnd] = useState<string>('');
   const [personFilter, setPersonFilter] = useState<'ALL' | 'PF' | 'PJ'>('ALL');
   const [originFilter, setOriginFilter] = useState<'ALL' | 'SITE' | 'ADMIN' | 'IMPORT_LABCARD'>('ALL');
+  const [portalInviteFilter, setPortalInviteFilter] = useState<'ALL' | 'NOT_SENT' | 'SENT'>('ALL');
   const [clientPage, setClientPage] = useState(1);
   const [clientPageSize, setClientPageSize] = useState<number | 'ALL'>(50);
   const [empresaStatusFilter, setEmpresaStatusFilter] = useState<string>('ALL');
@@ -1863,6 +1864,38 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     });
   };
 
+  const handleMarkPortalInviteSent = async (
+    sub: ClubSubscription,
+    channel: 'COPIED' | 'WHATSAPP' | null
+  ) => {
+    if (!state) return;
+    const baseSub = (state.subscriptions || []).find((s) => s.id === sub.id) || sub;
+    const nowIso = new Date().toISOString();
+    const updatedSub: ClubSubscription = {
+      ...baseSub,
+      portalInviteSentAt: channel ? nowIso : undefined,
+      portalInviteSentChannel: channel || undefined,
+      updatedAt: nowIso,
+      isModifiedFromSeed: true,
+    };
+    const nextState: ClubDatabaseState = {
+      ...state,
+      subscriptions: (state.subscriptions || []).map((s) =>
+        s.id === updatedSub.id ? updatedSub : s
+      ),
+      updatedAt: nowIso,
+    };
+    setState(nextState);
+    if (selectedSubForDetail?.id === updatedSub.id) {
+      setSelectedSubForDetail(updatedSub);
+    }
+    const permCode = updatedSub.subscriptionCode || updatedSub.holderCpf;
+    if (permCode) {
+      await saveMemberPermanentDocs(permCode, updatedSub, channel ? 'PORTAL_INVITE_SENT' : 'PORTAL_INVITE_RESET');
+    }
+    await persist(nextState);
+  };
+
   const handleUpdateMemberCardStatus = async (
     sub: ClubSubscription,
     memberId: string,
@@ -2097,6 +2130,12 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       if (originFilter !== 'ALL' && sub.origin !== originFilter) {
         return false;
       }
+      if (portalInviteFilter === 'SENT' && !sub.portalInviteSentAt) {
+        return false;
+      }
+      if (portalInviteFilter === 'NOT_SENT' && Boolean(sub.portalInviteSentAt)) {
+        return false;
+      }
       if (subStatusFilter !== 'ALL') {
         if (subStatusFilter === 'UNSEEN') {
           if (seenClubSubIds.has(sub.id)) return false;
@@ -2215,6 +2254,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     subDateEnd,
     personFilter,
     originFilter,
+    portalInviteFilter,
     seenClubSubIds,
   ]);
 
@@ -2231,6 +2271,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     subDateEnd,
     personFilter,
     originFilter,
+    portalInviteFilter,
   ]);
 
   const totalClients = filteredSubscriptions.length;
@@ -7586,6 +7627,38 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                   ⚠️ Mensalidades Atrasadas ({overdueCount})
                 </Button>
 
+                {/* Filtros de Envio da Mensagem do Portal do Sócio */}
+                <Button
+                  size="sm"
+                  variant={portalInviteFilter === 'NOT_SENT' ? 'default' : 'outline'}
+                  onClick={() => {
+                    setPortalInviteFilter((prev) => (prev === 'NOT_SENT' ? 'ALL' : 'NOT_SENT'));
+                  }}
+                  className={`shrink-0 whitespace-nowrap text-xs font-semibold cursor-pointer ${
+                    portalInviteFilter === 'NOT_SENT'
+                      ? 'bg-sky-700 text-white font-bold hover:bg-sky-800 shadow-sm'
+                      : 'border-sky-300 text-sky-900 bg-sky-50/70 hover:bg-sky-100'
+                  }`}
+                  title="Mostrar apenas cadastros cuja mensagem do Portal do Sócio ainda NÃO foi copiada/enviada"
+                >
+                  📩 Portal Não Enviado
+                </Button>
+                <Button
+                  size="sm"
+                  variant={portalInviteFilter === 'SENT' ? 'default' : 'outline'}
+                  onClick={() => {
+                    setPortalInviteFilter((prev) => (prev === 'SENT' ? 'ALL' : 'SENT'));
+                  }}
+                  className={`shrink-0 whitespace-nowrap text-xs font-semibold cursor-pointer ${
+                    portalInviteFilter === 'SENT'
+                      ? 'bg-emerald-700 text-white font-bold hover:bg-emerald-800 shadow-sm'
+                      : 'border-emerald-300 text-emerald-900 bg-emerald-50/70 hover:bg-emerald-100'
+                  }`}
+                  title="Mostrar apenas cadastros cuja mensagem do Portal do Sócio JÁ foi copiada/enviada"
+                >
+                  ✅ Portal Já Enviado ({(state?.subscriptions || []).filter((s) => Boolean(s.portalInviteSentAt)).length})
+                </Button>
+
                 {/* Filtro Especial: Cadastros Sem Documentos */}
                 <Button
                   size="sm"
@@ -7974,6 +8047,16 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                 🪪 {(sub.members[0]?.cardStatus || sub.cardStatus) || 'Não produzida'}
                               </span>
                             </div>
+                            {sub.portalInviteSentAt && (
+                              <div className="mt-1">
+                                <span
+                                  className="inline-block px-2 py-0.5 rounded text-[9.5px] font-black bg-teal-50 text-teal-800 border border-teal-300 whitespace-nowrap"
+                                  title={`Mensagem do Portal ${sub.portalInviteSentChannel === 'WHATSAPP' ? 'enviada via WhatsApp' : 'copiada'} em ${new Date(sub.portalInviteSentAt).toLocaleString('pt-BR')}`}
+                                >
+                                  ✅ Portal Enviado ({formatDateBR(sub.portalInviteSentAt)})
+                                </span>
+                              </div>
+                            )}
                           </td>
                           <td className="py-3 px-4 text-right">
                             <div className="flex items-center justify-end">
@@ -22299,8 +22382,9 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                             variant="outline"
                             onClick={() => {
                               navigator.clipboard.writeText(access.message || access.text);
+                              void handleMarkPortalInviteSent(selectedSubForDetail, 'COPIED');
                               toast({
-                                title: 'Dados de acesso copiados!',
+                                title: 'Dados de acesso copiados e marcados como enviados!',
                                 description: `Login: ${access.login || access.loginUser || selectedSubForDetail.holderEmail || selectedSubForDetail.holderCpf} | Senha: ${access.password}`,
                               });
                             }}
@@ -22441,6 +22525,38 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                             </p>
                           </div>
 
+                          {/* MARCAÇÃO DE ENVIO / CÓPIA DA MENSAGEM DO PORTAL */}
+                          {selectedSubForDetail.portalInviteSentAt && (
+                            <div className="rounded-xl bg-teal-50 border border-teal-300 px-3.5 py-2 flex flex-wrap items-center justify-between gap-2 text-xs text-teal-950">
+                              <span className="font-bold">
+                                ✅ Mensagem do Portal já{' '}
+                                {selectedSubForDetail.portalInviteSentChannel === 'WHATSAPP'
+                                  ? 'enviada via WhatsApp'
+                                  : 'copiada'}{' '}
+                                em{' '}
+                                <strong>
+                                  {new Date(selectedSubForDetail.portalInviteSentAt).toLocaleString('pt-BR', {
+                                    day: '2-digit',
+                                    month: '2-digit',
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })}
+                                </strong>
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  void handleMarkPortalInviteSent(selectedSubForDetail, null);
+                                  toast({ title: 'Marcação de envio removida.' });
+                                }}
+                                className="text-[11px] font-bold text-rose-700 hover:text-rose-900 underline cursor-pointer"
+                              >
+                                Desmarcar envio
+                              </button>
+                            </div>
+                          )}
+
                           {/* BOTÕES DE AÇÃO: WHATSAPP, COPIAR E RESTAURAR */}
                           <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
                             <div className="flex flex-wrap items-center gap-2">
@@ -22448,6 +22564,9 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                 href={`https://wa.me/${fullPhone}?text=${encodeURIComponent(currentMsg)}`}
                                 target="_blank"
                                 rel="noreferrer"
+                                onClick={() => {
+                                  void handleMarkPortalInviteSent(selectedSubForDetail, 'WHATSAPP');
+                                }}
                               >
                                 <Button className="bg-[#004d00] hover:bg-emerald-900 text-white font-black text-xs h-10 px-4 shadow-sm cursor-pointer">
                                   <MessageSquare className="w-4 h-4 mr-2 text-emerald-300" /> Enviar via WhatsApp Agora
@@ -22458,9 +22577,10 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                 variant="outline"
                                 onClick={() => {
                                   navigator.clipboard.writeText(currentMsg);
+                                  void handleMarkPortalInviteSent(selectedSubForDetail, 'COPIED');
                                   toast({
-                                    title: 'Mensagem copiada!',
-                                    description: 'Texto copiado com sucesso para a área de transferência.',
+                                    title: 'Mensagem copiada e marcada como enviada!',
+                                    description: 'Texto copiado e cadastro marcado com "Portal Enviado".',
                                   });
                                 }}
                                 className="bg-white hover:bg-slate-100 text-slate-800 border-slate-300 font-bold text-xs h-10 px-3 cursor-pointer"
