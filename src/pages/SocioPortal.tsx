@@ -33,6 +33,10 @@ import {
   Upload,
   FileCheck,
   Download,
+  User,
+  Mail,
+  Phone,
+  Save,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -89,7 +93,9 @@ import {
   addSocioDependentWithProof,
   isClubInvoiceReservation,
   formatCpf,
+  formatPhone,
   formatBirthDate,
+  saveMemberPermanentDocs,
   type ContractedDependentSlot,
   type SocioPortalFreeDependentModality,
 } from '@/lib/club-service';
@@ -167,6 +173,91 @@ const SocioPortal: React.FC = () => {
   const [paymentMethodTab, setPaymentMethodTab] = useState<'PIX' | 'CARD'>('PIX');
   const [generatingPixId, setGeneratingPixId] = useState<string | null>(null);
   const [checkingInvoiceId, setCheckingInvoiceId] = useState<string | null>(null);
+  const [profileEmail, setProfileEmail] = useState('');
+  const [profilePhone, setProfilePhone] = useState('');
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+  useEffect(() => {
+    if (!subscription) return;
+    setProfileEmail(subscription.holderEmail || '');
+    setProfilePhone(subscription.holderPhone || subscription.members?.[0]?.phone || '');
+  }, [subscription?.id, subscription?.holderEmail, subscription?.holderPhone]);
+
+  const handleSaveProfileContact = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!subscription || !state) return;
+
+    const trimmedEmail = profileEmail.trim();
+    const trimmedPhone = profilePhone.trim();
+    const phoneDigits = cleanDigits(trimmedPhone);
+
+    if (trimmedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      toast({
+        title: 'E-mail inválido',
+        description: 'Informe um endereço de e-mail válido (ex.: nome@email.com).',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (trimmedPhone && phoneDigits.length < 10) {
+      toast({
+        title: 'Telefone incompleto',
+        description: 'Informe o DDD + número de telefone/WhatsApp completo.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsSavingProfile(true);
+    try {
+      const formattedPhoneVal = trimmedPhone ? formatPhone(trimmedPhone) : '';
+      const nowIso = new Date().toISOString();
+      const updatedMembers = (subscription.members || []).map((m, idx) =>
+        idx === 0 || m.role === 'TITULAR'
+          ? { ...m, phone: formattedPhoneVal || m.phone }
+          : m
+      );
+
+      const updatedSub: ClubSubscription = {
+        ...subscription,
+        holderEmail: trimmedEmail || undefined,
+        holderPhone: formattedPhoneVal,
+        members: updatedMembers,
+        updatedAt: nowIso,
+        isModifiedFromSeed: true,
+      };
+
+      const nextState: ClubDatabaseState = {
+        ...state,
+        subscriptions: (state.subscriptions || []).map((s) =>
+          s.id === updatedSub.id ? updatedSub : s
+        ),
+        updatedAt: nowIso,
+      };
+
+      const permCode = updatedSub.subscriptionCode || updatedSub.holderCpf;
+      if (permCode) {
+        await saveMemberPermanentDocs(permCode, updatedSub, 'SOCIO_UPDATE_PROFILE');
+      }
+      await saveClubState(nextState);
+      setState(nextState);
+      setSubscription(updatedSub);
+
+      toast({
+        title: 'Dados atualizados com sucesso!',
+        description: 'Seu e-mail e telefone já foram salvos no seu cadastro Lessa Club.',
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao salvar dados',
+        description: err?.message || 'Não foi possível salvar agora. Tente novamente.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
 
   const sortedInvoices = useMemo(() => {
     if (!subscription?.invoices) return [];
@@ -1662,12 +1753,18 @@ const SocioPortal: React.FC = () => {
                 }}
                 className="space-y-6"
               >
-                <TabsList className="grid grid-cols-2 sm:grid-cols-6 w-full max-w-5xl bg-slate-200/80 p-1 rounded-2xl h-auto sm:h-12 gap-1">
+                <TabsList className="grid grid-cols-2 sm:grid-cols-7 w-full max-w-6xl bg-slate-200/80 p-1 rounded-2xl h-auto sm:h-12 gap-1">
                   <TabsTrigger
                     value="carteirinhas"
                     className="rounded-xl font-bold text-xs md:text-sm data-[state=active]:bg-white data-[state=active]:text-emerald-700"
                   >
                     <CreditCard className="w-4 h-4 mr-1.5" /> Carteirinhas ({(subscription.members || []).length})
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="meus-dados"
+                    className="rounded-xl font-bold text-xs md:text-sm data-[state=active]:bg-white data-[state=active]:text-emerald-700"
+                  >
+                    <User className="w-4 h-4 mr-1.5" /> Meus Dados
                   </TabsTrigger>
                   <TabsTrigger
                     value="dependentes"
@@ -4341,6 +4438,110 @@ const SocioPortal: React.FC = () => {
                       </Button>
                     </a>
                   </div>
+                </div>
+              </TabsContent>
+
+              {/* TAB MEUS DADOS: VISUALIZAR CADASTRO E ATUALIZAR E-MAIL / TELEFONE */}
+              <TabsContent value="meus-dados" className="space-y-4">
+                <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-sm space-y-6">
+                  <div className="border-b border-slate-100 pb-4 space-y-1">
+                    <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                      <User className="w-5 h-5 text-emerald-700" />
+                      Meus Dados Cadastrais
+                    </h3>
+                    <p className="text-xs text-slate-600">
+                      Confira as informações da sua assinatura e mantenha seu <strong>e-mail</strong> e <strong>telefone/WhatsApp</strong> sempre atualizados para receber comprovantes, boletos e avisos do Balneário Lessa.
+                    </p>
+                  </div>
+
+                  {/* Dados fixos de identificação */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <div className="rounded-2xl bg-slate-50 border border-slate-200 p-3.5">
+                      <span className="text-[11px] font-bold uppercase text-slate-500 block">Titular</span>
+                      <span className="text-sm font-black text-slate-900">{subscription.holderName}</span>
+                    </div>
+                    <div className="rounded-2xl bg-slate-50 border border-slate-200 p-3.5">
+                      <span className="text-[11px] font-bold uppercase text-slate-500 block">Nº do Cartão</span>
+                      <span className="text-sm font-mono font-black text-emerald-800">#{subscription.subscriptionCode}</span>
+                    </div>
+                    <div className="rounded-2xl bg-slate-50 border border-slate-200 p-3.5">
+                      <span className="text-[11px] font-bold uppercase text-slate-500 block">CPF</span>
+                      <span className="text-sm font-bold text-slate-900">{subscription.holderCpf || 'Não informado'}</span>
+                    </div>
+                    <div className="rounded-2xl bg-slate-50 border border-slate-200 p-3.5">
+                      <span className="text-[11px] font-bold uppercase text-slate-500 block">Data de Nascimento</span>
+                      <span className="text-sm font-bold text-slate-900">
+                        {subscription.holderBirthDate || subscription.members?.[0]?.birthDate
+                          ? formatDateBR(subscription.holderBirthDate || subscription.members?.[0]?.birthDate || '')
+                          : 'Não informada'}
+                      </span>
+                    </div>
+                    <div className="rounded-2xl bg-slate-50 border border-slate-200 p-3.5">
+                      <span className="text-[11px] font-bold uppercase text-slate-500 block">Plano Contratado</span>
+                      <span className="text-sm font-bold text-emerald-900">{subscription.planSummaryLabel || 'Lessa Club'}</span>
+                    </div>
+                    <div className="rounded-2xl bg-slate-50 border border-slate-200 p-3.5">
+                      <span className="text-[11px] font-bold uppercase text-slate-500 block">Validade da Assinatura</span>
+                      <span className="text-sm font-bold text-slate-900">
+                        {subscription.endDate ? formatDateBR(subscription.endDate) : 'Não definida'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Formulário editável de E-mail e Telefone */}
+                  <form onSubmit={handleSaveProfileContact} className="rounded-2xl border-2 border-emerald-200 bg-emerald-50/40 p-4 sm:p-5 space-y-4">
+                    <div className="space-y-0.5">
+                      <h4 className="text-sm font-black text-emerald-950">
+                        Atualizar Dados de Contato
+                      </h4>
+                      <p className="text-xs text-emerald-900/80">
+                        As alterações são salvas instantaneamente no seu cadastro do Lessa Club.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                          <Mail className="w-3.5 h-3.5 text-emerald-700" /> E-mail
+                        </label>
+                        <Input
+                          type="email"
+                          value={profileEmail}
+                          onChange={(e) => setProfileEmail(e.target.value)}
+                          placeholder="seuemail@exemplo.com"
+                          className="h-11 bg-white border-emerald-300 text-sm font-medium"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                          <Phone className="w-3.5 h-3.5 text-emerald-700" /> Telefone / WhatsApp
+                        </label>
+                        <Input
+                          type="tel"
+                          value={profilePhone}
+                          onChange={(e) => setProfilePhone(formatPhone(e.target.value))}
+                          placeholder="(69) 99999-9999"
+                          maxLength={15}
+                          className="h-11 bg-white border-emerald-300 text-sm font-medium"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                      <span className="text-[11px] text-slate-600">
+                        Para alterar nome, CPF ou data de nascimento, fale com a recepção pelo WhatsApp.
+                      </span>
+                      <Button
+                        type="submit"
+                        disabled={isSavingProfile}
+                        className="bg-[#004d00] hover:bg-emerald-900 text-white font-black text-xs h-10 px-5 rounded-xl cursor-pointer"
+                      >
+                        <Save className="w-4 h-4 mr-1.5" />
+                        {isSavingProfile ? 'Salvando...' : 'Salvar E-mail e Telefone'}
+                      </Button>
+                    </div>
+                  </form>
                 </div>
               </TabsContent>
             </Tabs>
