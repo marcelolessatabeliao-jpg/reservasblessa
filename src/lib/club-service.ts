@@ -2133,6 +2133,11 @@ export const loadClubStateLocal = (): ClubDatabaseState => {
     const deletedSet = new Set(parsed.deletedSubscriptionIds || []);
     const defaultLabcardSubs = getLabcardSubscriptions();
     const subsMap = new Map<string, ClubSubscription>();
+    const parsedTitularCodes = new Set(
+      (parsed.subscriptions || [])
+        .map((x) => String(x.subscriptionCode || '').trim())
+        .filter(Boolean)
+    );
     defaultLabcardSubs.forEach((s) => {
       if (!deletedSet.has(s.id)) subsMap.set(s.id, s);
     });
@@ -2149,10 +2154,18 @@ export const loadClubStateLocal = (): ClubDatabaseState => {
               return mergeMemberMediaSafely(m, sm);
             });
           }
-          if (seedSub.members && seedSub.members.length > (s.members?.length || 0)) {
-            // Restaura dependentes mapeados da família caso o cache local tenha ficado desatualizado
+          // NUNCA ressuscita dependentes do seed estático em cadastros já editados/desvinculados pelo admin (`isModifiedFromSeed`)
+          // nem reanexa dependente cujo cartão já virou titular individual ou foi excluído!
+          if (!s.isModifiedFromSeed && seedSub.members && seedSub.members.length > (s.members?.length || 0)) {
             const existingCards = new Set((s.members || []).map((m) => m.cardNumber));
-            const missingDeps = seedSub.members.filter((m) => !existingCards.has(m.cardNumber));
+            const missingDeps = seedSub.members.filter((m) => {
+              const cardTrim = String(m.cardNumber || '').trim();
+              if (existingCards.has(m.cardNumber)) return false;
+              if (m.role === 'DEPENDENTE' && cardTrim && (parsedTitularCodes.has(cardTrim) || deletedSet.has(cardTrim) || deletedSet.has(`sub-labcard-${cardTrim}`))) {
+                return false;
+              }
+              return true;
+            });
             if (missingDeps.length > 0) {
               s.members = [...(s.members || []), ...missingDeps];
               if (seedSub.planSummaryLabel && (!s.planSummaryLabel || !s.planSummaryLabel.includes('pessoas'))) {
@@ -3025,8 +3038,8 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
             const remoteTime = current.updatedAt ? new Date(current.updatedAt).getTime() : 0;
             // Se o local for estritamente mais recente (e não estiver contaminado por ativação em massa), prevalece o local; caso contrário, a nuvem é a fonte da verdade
             if (localTime > remoteTime && !isLocalMassPolluted) {
-              if (current.members && current.members.length > (s.members?.length || 0)) {
-                // Restaura dependentes mapeados da família caso o cache local tenha ficado com menos integrantes
+              // NUNCA ressuscita dependentes antigos de `current` (seed/cache antigo) quando `s` já foi modificado pelo admin
+              if (!s.isModifiedFromSeed && current.members && current.members.length > (s.members?.length || 0)) {
                 const existingCards = new Set((s.members || []).map((m) => m.cardNumber));
                 const missingDeps = current.members.filter((m) => !existingCards.has(m.cardNumber));
                 if (missingDeps.length > 0) {
