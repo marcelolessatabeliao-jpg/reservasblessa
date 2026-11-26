@@ -4298,7 +4298,9 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
       additionalServices: [],
     };
 
-    const remainingMembers = (latestSub.members || []).filter((m) => m.id !== memberId);
+    const remainingMembers = (latestSub.members || []).filter(
+      (m) => m.id !== memberId && (!depCard || String(m.cardNumber || '').trim() !== depCard)
+    );
     const updatedSub: ClubSubscription = {
       ...latestSub,
       members: remainingMembers,
@@ -4312,31 +4314,38 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     let nextSubs = (state.subscriptions || []).map((s) =>
       s.id === updatedSub.id ? updatedSub : s
     );
-    if (!nextSubs.some((s) => s.id === newIndSub.id)) {
+    if (!nextSubs.some((s) => s.id === newIndSub.id || s.subscriptionCode === newIndSub.subscriptionCode)) {
       nextSubs.push(newIndSub);
     }
 
-    const nextDeleted = (state.deletedSubscriptionIds || []).filter((id) => id !== newIndSub.id);
+    const nextDeleted = (state.deletedSubscriptionIds || []).filter(
+      (id) => id !== newIndSub.id && id !== newIndSub.subscriptionCode && id !== `sub-labcard-${newIndSub.subscriptionCode}`
+    );
     const nextState: ClubDatabaseState = {
       ...state,
       subscriptions: nextSubs,
       deletedSubscriptionIds: nextDeleted,
+      updatedAt: nowIso,
     };
 
+    // Atualiza UI instantaneamente (0ms) antes de sincronizar em paralelo com o Supabase
+    setState(nextState);
     if (selectedSubForDetail?.id === updatedSub.id) {
       setSelectedSubForDetail(updatedSub);
     }
 
-    await saveMemberPermanentDocs(
-      updatedSub.subscriptionCode || updatedSub.id,
-      updatedSub,
-      'DETACH_DEPENDENT'
-    );
-    await saveMemberPermanentDocs(
-      newIndSub.subscriptionCode,
-      newIndSub,
-      'DETACH_TO_INDIVIDUAL'
-    );
+    await Promise.all([
+      saveMemberPermanentDocs(
+        updatedSub.subscriptionCode || updatedSub.id,
+        updatedSub,
+        'DETACH_DEPENDENT'
+      ),
+      saveMemberPermanentDocs(
+        newIndSub.subscriptionCode,
+        newIndSub,
+        'DETACH_TO_INDIVIDUAL'
+      ),
+    ]);
     await persist(nextState, { waitForCloud: true });
 
     toast({
@@ -21218,39 +21227,53 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                     size="sm"
                                     variant="ghost"
                                     onClick={async () => {
-                                      const updatedMembers =
-                                        selectedSubForDetail.members.filter(
-                                          (m) => m.id !== dep.id
-                                        );
+                                      const nowIso = new Date().toISOString();
+                                      const baseSub =
+                                        (state.subscriptions || []).find((s) => s.id === selectedSubForDetail.id) ||
+                                        selectedSubForDetail;
+                                      const depCardTrim = String(dep.cardNumber || '').trim();
+                                      const updatedMembers = (baseSub.members || []).filter(
+                                        (m) =>
+                                          m.id !== dep.id &&
+                                          (!depCardTrim || String(m.cardNumber || '').trim() !== depCardTrim)
+                                      );
                                       const removedMonthly = dep.monthlyValue || 0;
                                       const newMonthlyTotal = Math.max(
                                         0,
                                         Number(
                                           (
-                                            selectedSubForDetail.monthlyEquivalent -
+                                            baseSub.monthlyEquivalent -
                                             removedMonthly
                                           ).toFixed(2)
                                         )
                                       );
                                       const updatedSub: ClubSubscription = {
-                                        ...selectedSubForDetail,
+                                        ...baseSub,
                                         members: updatedMembers,
                                         monthlyEquivalent: newMonthlyTotal,
                                         totalContractValue:
-                                          selectedSubForDetail.billingCycle ===
-                                          'ANNUAL'
+                                          baseSub.billingCycle === 'ANNUAL'
                                             ? Number((newMonthlyTotal * 12).toFixed(2))
                                             : newMonthlyTotal,
+                                        updatedAt: nowIso,
+                                        isModifiedFromSeed: true,
                                       };
                                       const nextState: ClubDatabaseState = {
                                         ...state,
                                         subscriptions: (state.subscriptions || []).map((s) =>
                                           s.id === updatedSub.id ? updatedSub : s
                                         ),
+                                        updatedAt: nowIso,
                                       };
+                                      // Atualiza UI instantaneamente e grava atomicamente em public.club_records
+                                      setState(nextState);
                                       setSelectedSubForDetail(updatedSub);
-                                      await persist(nextState);
-                                      toast({ title: 'Dependente removido.' });
+                                      const permCode = updatedSub.subscriptionCode || updatedSub.holderCpf;
+                                      if (permCode) {
+                                        await saveMemberPermanentDocs(permCode, updatedSub, 'REMOVE_DEPENDENT');
+                                      }
+                                      await persist(nextState, { waitForCloud: true });
+                                      toast({ title: 'Dependente removido definitivamente.' });
                                     }}
                                     className="text-rose-600 hover:bg-rose-50 h-8 text-xs"
                                   >
