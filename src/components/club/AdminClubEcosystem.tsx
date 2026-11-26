@@ -18670,17 +18670,32 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           </div>
 
                           {effectiveVal > 0 && (
-                            <label className="flex items-center gap-2 p-2.5 bg-sky-50 border border-sky-200 rounded-lg cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={carneEmitAsaasOnCreate}
-                                onChange={(e) => setCarneEmitAsaasOnCreate(e.target.checked)}
-                                className="w-4 h-4 rounded"
-                              />
-                              <span className="text-xs font-semibold text-sky-950">
-                                Já emitir todas as cobranças mensais no Asaas agora
-                              </span>
-                            </label>
+                            <>
+                              <label className="flex items-center gap-2 p-2.5 bg-sky-50 border border-sky-200 rounded-lg cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={carneEmitAsaasOnCreate}
+                                  onChange={(e) => setCarneEmitAsaasOnCreate(e.target.checked)}
+                                  className="w-4 h-4 rounded"
+                                />
+                                <span className="text-xs font-semibold text-sky-950">
+                                  Já emitir todas as cobranças mensais no Asaas agora
+                                </span>
+                              </label>
+                              {carneEmitAsaasOnCreate && (() => {
+                                const nowD = new Date();
+                                const todayIso = `${nowD.getFullYear()}-${String(nowD.getMonth() + 1).padStart(2, '0')}-${String(nowD.getDate()).padStart(2, '0')}`;
+                                const hasPastDate =
+                                  (carneAdhesionDueDate && carneAdhesionDueDate < todayIso) ||
+                                  (carneFirstDueDate && carneFirstDueDate < todayIso);
+                                if (!hasPastDate) return null;
+                                return (
+                                  <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-300 text-[11px] text-amber-950 leading-snug">
+                                    <strong>⚠️ Datas no passado detectadas:</strong> O Asaas só aceita cobranças a partir de hoje ({formatDateBR(todayIso)}). As parcelas com data anterior a hoje serão mantidas com suas datas originais apenas no carnê local (sem acumular várias no mesmo mês), e somente as parcelas a partir de hoje serão enviadas ao Asaas.
+                                  </div>
+                                );
+                              })()}
+                            </>
                           )}
                         </div>
 

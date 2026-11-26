@@ -4784,6 +4784,7 @@ export const emitCarneMonthlyChargesInAsaas = async (
 
   let generatedCount = 0;
   let failedCount = 0;
+  let skippedPastCount = 0;
   let firstError: string | undefined;
 
   const asaasBillingType =
@@ -4798,6 +4799,9 @@ export const emitCarneMonthlyChargesInAsaas = async (
       ? `${window.location.origin}/socio`
       : 'https://balneariolessa.com.br/socio';
 
+  const todayLocal = new Date();
+  const todayStr = `${todayLocal.getFullYear()}-${String(todayLocal.getMonth() + 1).padStart(2, '0')}-${String(todayLocal.getDate()).padStart(2, '0')}`;
+
   for (let idx = 0; idx < eligibleInvoices.length; idx++) {
     const inv = eligibleInvoices[idx];
     if (params.onProgress) {
@@ -4808,22 +4812,25 @@ export const emitCarneMonthlyChargesInAsaas = async (
       );
     }
 
-    // Atualiza datas subsequentes com dia fixo e valor equalizado caso informado
-    const due = new Date(baseDate.getFullYear(), baseDate.getMonth() + idx, 1);
-    const maxDayOfMonth = new Date(due.getFullYear(), due.getMonth() + 1, 0).getDate();
-    due.setDate(Math.min(fixedDay, maxDayOfMonth));
-    const yyyy = due.getFullYear();
-    const mm = String(due.getMonth() + 1).padStart(2, '0');
-    const dd = String(due.getDate()).padStart(2, '0');
-    
-    // O Asaas proíbe vencimento inferior a hoje. Clampa para no mínimo hoje.
-    const todayStr = new Date().toISOString().split('T')[0];
-    let computedDue = `${yyyy}-${mm}-${dd}`;
-    if (computedDue < todayStr) {
-      computedDue = todayStr;
+    // Preserva a data de vencimento já calculada na parcela (respeitando 1º vencimento + 1ª mensalidade distintos).
+    // Só calcula a partir de baseDate + idx se a parcela ainda não tiver dueDate válido.
+    let computedDue = /^\d{4}-\d{2}-\d{2}$/.test(String(inv.dueDate || '').trim())
+      ? String(inv.dueDate).trim()
+      : '';
+    if (!computedDue) {
+      const due = new Date(baseDate.getFullYear(), baseDate.getMonth() + idx, 1);
+      const maxDayOfMonth = new Date(due.getFullYear(), due.getMonth() + 1, 0).getDate();
+      due.setDate(Math.min(fixedDay, maxDayOfMonth));
+      const yyyy = due.getFullYear();
+      const mm = String(due.getMonth() + 1).padStart(2, '0');
+      const dd = String(due.getDate()).padStart(2, '0');
+      computedDue = `${yyyy}-${mm}-${dd}`;
+      inv.dueDate = computedDue;
+      inv.referenceMonth = `${mm}/${yyyy}`;
+    } else {
+      const [yyyy, mm] = computedDue.split('-');
+      inv.referenceMonth = `${mm}/${yyyy}`;
     }
-    inv.dueDate = computedDue;
-    inv.referenceMonth = `${mm}/${yyyy}`;
 
     if (typeof params.equalizedAmount === 'number' && Number.isFinite(params.equalizedAmount) && params.equalizedAmount > 0) {
       inv.amount = Number(params.equalizedAmount.toFixed(2));
@@ -4831,6 +4838,16 @@ export const emitCarneMonthlyChargesInAsaas = async (
 
     if (params.activateCardRecurrence && params.cardLast4) {
       inv.paymentMethod = targetSub.registeredCard?.cardType === 'DEBIT' ? 'DEBIT_CARD' : 'CREDIT_CARD';
+    }
+
+    // O Asaas proíbe vencimento anterior a hoje. NUNCA jogar várias parcelas passadas para o mesmo dia de hoje:
+    // mantém a parcela com sua data original no registro local (como histórica/vencida) e emite no Asaas apenas >= hoje.
+    if (computedDue < todayStr) {
+      skippedPastCount += 1;
+      if (!firstError) {
+        firstError = `Parcelas com vencimento anterior a hoje (${formatDateBR(todayStr)}) foram mantidas com a data original sem envio ao Asaas para evitar cobranças repetidas no mesmo mês.`;
+      }
+      continue;
     }
 
     if (inv.amount <= 0) {
