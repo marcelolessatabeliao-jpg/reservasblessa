@@ -26254,8 +26254,14 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
               size="sm"
               onClick={async () => {
                 if (!clientToDelete || !state) return;
+                const delCode = String(clientToDelete.subscriptionCode || '').trim();
+                const keysToMarkDeleted = [
+                  clientToDelete.id,
+                  delCode,
+                  delCode ? `sub-labcard-${delCode}` : '',
+                ].filter(Boolean);
                 const nextDeletedIds = Array.from(
-                  new Set([...(state.deletedSubscriptionIds || []), clientToDelete.id])
+                  new Set([...(state.deletedSubscriptionIds || []), ...keysToMarkDeleted])
                 );
                 const trashItem: ClubTrashItem = {
                   id: clientToDelete.id,
@@ -26273,15 +26279,27 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                 const nextState: ClubDatabaseState = {
                   ...state,
                   subscriptions: (state.subscriptions || []).filter(
-                    (s) => s.id !== clientToDelete.id
+                    (s) =>
+                      s.id !== clientToDelete.id &&
+                      (!delCode || String(s.subscriptionCode || '').trim() !== delCode)
                   ),
                   deletedSubscriptionIds: nextDeletedIds,
                   trash: nextTrash,
                 };
-                await persist(nextState);
+                // Remove também a linha em `public.club_records` (mantendo backup na Lixeira e histórico imutável)
+                if (delCode) {
+                  try {
+                    await (supabase.from as any)('club_records')
+                      .delete()
+                      .eq('subscription_code', delCode);
+                  } catch (delRecErr) {
+                    console.warn('[AdminClub] Aviso ao remover linha de club_records:', delRecErr);
+                  }
+                }
+                await persist(nextState, { waitForCloud: true });
                 toast({
                   title: 'Cadastro movido para a Lixeira Protegida!',
-                  description: `${clientToDelete.holderName} pode ser recuperado a qualquer momento em "Segurança > Lixeira".`,
+                  description: `${clientToDelete.holderName} foi removido da nuvem e pode ser recuperado em "Segurança > Lixeira".`,
                 });
                 if (selectedSubForDetail?.id === clientToDelete.id) {
                   setSelectedSubForDetail(null);

@@ -2444,6 +2444,7 @@ const computeGlobalConfigSignature = (state: ClubDatabaseState): string => {
   try {
     return JSON.stringify({
       deletedSubscriptionIds: state.deletedSubscriptionIds || [],
+      trashIds: (state.trash || []).map((t) => t.id),
       lastCardSequence: state.lastCardSequence || 3000,
       modalities: state.modalities || [],
       consultants: state.consultants || [],
@@ -2505,6 +2506,55 @@ const runCloudSaveExecution = async (stateToSave: ClubDatabaseState): Promise<vo
     ...baseCompact,
     subscriptions: unbackedCollisionSubs,
   };
+
+  // Proteção anti-perda de exclusões entre abas/dispositivos:
+  // Antes de gravar `site_settings`, mescla `deletedSubscriptionIds` e `trash` já existentes na nuvem
+  // (preservando exclusões feitas em outras abas ou dias anteriores, exceto cadastros explicitamente restaurados).
+  try {
+    const { data: currentCloudRow } = await supabase
+      .from('site_settings' as any)
+      .select('value')
+      .eq('key', SUPABASE_SETTINGS_KEY)
+      .maybeSingle();
+    const existingCloudVal = (currentCloudRow as any)?.value as Partial<ClubDatabaseState> | undefined;
+    if (existingCloudVal) {
+      const localTrashIds = new Set((lightweightGlobalCloudState.trash || []).map((t) => t.id));
+      const localDeletedSet = new Set(lightweightGlobalCloudState.deletedSubscriptionIds || []);
+      const restoredActiveIds = new Set<string>();
+      for (const s of stateToSave.subscriptions || []) {
+        if (s.isModifiedFromSeed && !localDeletedSet.has(s.id)) {
+          restoredActiveIds.add(s.id);
+          if (s.subscriptionCode) {
+            restoredActiveIds.add(s.subscriptionCode);
+            restoredActiveIds.add(`sub-labcard-${s.subscriptionCode}`);
+          }
+        }
+      }
+
+      const mergedDeleted = new Set<string>(lightweightGlobalCloudState.deletedSubscriptionIds || []);
+      for (const cloudDelId of existingCloudVal.deletedSubscriptionIds || []) {
+        if (cloudDelId && !restoredActiveIds.has(cloudDelId)) {
+          mergedDeleted.add(cloudDelId);
+        }
+      }
+      lightweightGlobalCloudState.deletedSubscriptionIds = Array.from(mergedDeleted);
+
+      const mergedTrash = [...(lightweightGlobalCloudState.trash || [])];
+      for (const cloudTrashItem of existingCloudVal.trash || []) {
+        if (
+          cloudTrashItem?.id &&
+          !localTrashIds.has(cloudTrashItem.id) &&
+          !restoredActiveIds.has(cloudTrashItem.id)
+        ) {
+          mergedTrash.push(cloudTrashItem);
+        }
+      }
+      lightweightGlobalCloudState.trash = mergedTrash;
+    }
+  } catch (mergeDelErr) {
+    console.warn('[ClubService] Aviso ao mesclar deletedSubscriptionIds da nuvem:', mergeDelErr);
+  }
+
   const maxAttempts = 2;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
@@ -3373,7 +3423,14 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
         if (permanentDocsMap.size > 0) {
           permanentDocsMap.forEach((permRec, code) => {
             const recId = permRec.id || `sub-labcard-${code}`;
-            if (remoteDeletedSet.has(recId) || remoteDeletedSet.has(`sub-labcard-${code}`)) return;
+            const isDeletedEverywhere =
+              remoteDeletedSet.has(recId) ||
+              remoteDeletedSet.has(`sub-labcard-${code}`) ||
+              remoteDeletedSet.has(code) ||
+              deletedSet.has(recId) ||
+              deletedSet.has(`sub-labcard-${code}`) ||
+              deletedSet.has(code);
+            if (isDeletedEverywhere) return;
             deletedSet.delete(recId);
             deletedSet.delete(`sub-labcard-${code}`);
             const sub =
@@ -3414,10 +3471,18 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
       const finalDeletedIds = Array.from(deletedSet);
 
       // Deduplica assinaturas por subscriptionCode (impede 2 registros com IDs diferentes mas mesmo nº de cartão)
+      // e garante que nenhum cadastro marcado em deletedSet reapareça sob outro ID
       const dedupByCode = new Map<string, ClubSubscription>();
       for (const s of subsMap.values()) {
         const codeKey = String(s.subscriptionCode || s.id || '').trim();
         if (!codeKey) continue;
+        if (
+          deletedSet.has(s.id) ||
+          deletedSet.has(codeKey) ||
+          deletedSet.has(`sub-labcard-${codeKey}`)
+        ) {
+          continue;
+        }
         const existing = dedupByCode.get(codeKey);
         if (!existing) {
           dedupByCode.set(codeKey, s);
