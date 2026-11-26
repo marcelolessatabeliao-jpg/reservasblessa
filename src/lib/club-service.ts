@@ -7385,9 +7385,9 @@ const mapLabelToModality = (rawLabel: string): ClubModality => {
 };
 
 /**
- * Calcula exatamente as vagas de dependentes contratadas conforme a configuração do plano
- * (ex: "Família Personalizado (Anual): 2x Lessa Club + 2x Lessa Kids" -> 1 titular + exatamente 3 vagas:
- * [1x Lessa Club, 1x Lessa Kids, 1x Lessa Kids], sem gerar campos extras!).
+ * Retorna os dependentes já cadastrados + APENAS as vagas em aberto que foram
+ * EXPLICITAMENTE liberadas pelo administrador em `subscription.openDependentSlots`.
+ * Nunca cria espaços vazios automaticamente a partir do texto do plano.
  */
 export const getContractedDependentSlots = (
   subscription: ClubSubscription
@@ -7395,72 +7395,11 @@ export const getContractedDependentSlots = (
   const existingDeps = (subscription.members || []).filter(
     (m, idx) => m.role === 'DEPENDENTE' && idx > 0
   );
-  const holder =
-    (subscription.members || []).find((m) => m.role === 'TITULAR') ||
-    (subscription.members || [])[0];
-  const holderModCode = holder?.modalityCode || 'ADULTO';
 
-  const planDesc = String(subscription.planSummaryLabel || '');
-  const totalContractedMods: ClubModality[] = [];
+  const slots: ContractedDependentSlot[] = [];
 
-  // 1. Composição explícita tipo "2x Lessa Club + 2x Lessa Kids"
-  const nxRegex = /(\d+)\s*x\s*([^+,\[\]()]+)/gi;
-  let match: RegExpExecArray | null;
-  while ((match = nxRegex.exec(planDesc)) !== null) {
-    const qty = Math.min(15, Math.max(0, parseInt(match[1], 10) || 0));
-    const mod = mapLabelToModality(match[2] || '');
-    for (let i = 0; i < qty; i += 1) {
-      totalContractedMods.push(mod);
-    }
-  }
-
-  let dependentMods: ClubModality[] = [];
-  if (totalContractedMods.length > 0) {
-    // Subtrai exatamente 1 vaga correspondente ao titular já cadastrado
-    const holderIdx = totalContractedMods.findIndex((m) => m.code === holderModCode);
-    if (holderIdx >= 0) {
-      totalContractedMods.splice(holderIdx, 1);
-    } else {
-      totalContractedMods.shift();
-    }
-    dependentMods = totalContractedMods;
-  } else {
-    // 2. Planos multi-pessoas padrão: "Lessa Club (3 pessoas)", "Lessa Club - 2 pessoas", "Lessa Duo Club"
-    const peopleMatch = planDesc.match(/(\d+)\s*pessoas?/i);
-    if (peopleMatch) {
-      const totalPeople = Math.min(15, Math.max(1, parseInt(peopleMatch[1], 10) || 1));
-      const baseMod = mapLabelToModality(planDesc);
-      for (let i = 1; i < totalPeople; i += 1) {
-        dependentMods.push(baseMod);
-      }
-    } else if (/duo\s*club/i.test(planDesc)) {
-      dependentMods.push(DEFAULT_CLUB_MODALITIES[0]);
-    }
-  }
-
-  // Vincula os dependentes já cadastrados às suas vagas exatas por modalidade
-  const remainingDeps = [...existingDeps];
-  const slots: ContractedDependentSlot[] = dependentMods.map((mod, idx) => {
-    let depIdx = remainingDeps.findIndex((d) => d.modalityCode === mod.code);
-    if (depIdx < 0 && remainingDeps.length > 0 && dependentMods.length === existingDeps.length) {
-      depIdx = 0;
-    }
-    const matched = depIdx >= 0 ? remainingDeps.splice(depIdx, 1)[0] : undefined;
-    const docRule = getPlanDocumentRule(mod.code, mod.name);
-    return {
-      slotIndex: idx,
-      modalityCode: mod.code,
-      modalityName: mod.name,
-      frontCardUrl: mod.dependentFrontCardUrl || mod.frontCardUrl,
-      backCardUrl: mod.dependentBackCardUrl || mod.backCardUrl,
-      requiresDocument: docRule.requiresDocument,
-      docRule,
-      existingMember: matched,
-    };
-  });
-
-  // Se já existiam dependentes cadastrados pelo admin além do parse do texto, mantém esses já cadastrados (sem criar extras vazios!)
-  remainingDeps.forEach((dep) => {
+  // 1. Dependentes já cadastrados
+  existingDeps.forEach((dep) => {
     const mod =
       DEFAULT_CLUB_MODALITIES.find((m) => m.code === dep.modalityCode) ||
       mapLabelToModality(dep.modalityName || '');
@@ -7474,6 +7413,30 @@ export const getContractedDependentSlots = (
       requiresDocument: docRule.requiresDocument,
       docRule,
       existingMember: dep,
+    });
+  });
+
+  // 2. Vagas em aberto EXPLICITAMENTE liberadas pelo administrador
+  const explicitOpenCodes = Array.isArray(subscription.openDependentSlots)
+    ? subscription.openDependentSlots.filter((c) => typeof c === 'string' && c.trim().length > 0)
+    : [];
+
+  explicitOpenCodes.forEach((rawCode) => {
+    const code = rawCode.trim().toUpperCase();
+    const mod =
+      DEFAULT_CLUB_MODALITIES.find((m) => m.code === code) ||
+      mapLabelToModality(code) ||
+      DEFAULT_CLUB_MODALITIES[0];
+    const docRule = getPlanDocumentRule(mod.code, mod.name);
+    slots.push({
+      slotIndex: slots.length,
+      modalityCode: mod.code,
+      modalityName: mod.name,
+      frontCardUrl: mod.dependentFrontCardUrl || mod.frontCardUrl,
+      backCardUrl: mod.dependentBackCardUrl || mod.backCardUrl,
+      requiresDocument: docRule.requiresDocument,
+      docRule,
+      existingMember: undefined,
     });
   });
 
@@ -7972,9 +7935,25 @@ export const saveSocioDependentSlot = async (
     ? mergeAttachmentsSafely(sub.attachments, resolvedAttachments)
     : sub.attachments || [];
 
+  // Ao preencher uma vaga em aberto com novo dependente, consome 1 vaga correspondente de openDependentSlots
+  let nextOpenDependentSlots = Array.isArray(sub.openDependentSlots)
+    ? [...sub.openDependentSlots]
+    : undefined;
+  if (!existingMember && nextOpenDependentSlots && nextOpenDependentSlots.length > 0) {
+    const matchIdx = nextOpenDependentSlots.findIndex(
+      (c) => String(c || '').trim().toUpperCase() === mod.code
+    );
+    if (matchIdx >= 0) {
+      nextOpenDependentSlots.splice(matchIdx, 1);
+    } else {
+      nextOpenDependentSlots.shift();
+    }
+  }
+
   const updatedSub: ClubSubscription = {
     ...sub,
     members: nextMembers,
+    openDependentSlots: nextOpenDependentSlots && nextOpenDependentSlots.length > 0 ? nextOpenDependentSlots : undefined,
     attachments: mergedSubAttachments,
     isModifiedFromSeed: true,
     updatedAt: nowIso,

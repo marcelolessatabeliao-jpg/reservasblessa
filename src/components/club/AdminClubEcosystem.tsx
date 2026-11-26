@@ -1775,7 +1775,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
   const handleUpdateOpenSlotsComposition = async (
     baseSub: ClubSubscription,
-    nextDependentSlotCodes: string[],
+    nextOpenSlotCodes: string[],
     successMessage?: string
   ) => {
     if (!state) return;
@@ -1795,7 +1795,12 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
         ? editClientData.modalityCode
         : 'ADULTO');
 
-    const allCodes = [holderCode, ...nextDependentSlotCodes];
+    const existingDepCodes = (baseSub.members || [])
+      .filter((m, idx) => m.role === 'DEPENDENTE' && idx > 0)
+      .map((m) => m.modalityCode || 'ADULTO');
+
+    const cleanOpenCodes = nextOpenSlotCodes.filter(Boolean);
+    const allCodes = [holderCode, ...existingDepCodes, ...cleanOpenCodes];
     const isAnnual = (editClientData.billingCycle || baseSub.billingCycle) === 'ANNUAL';
     const cycleLabel = isAnnual ? 'Anual' : 'Mensal';
 
@@ -1824,6 +1829,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     const nowIso = new Date().toISOString();
     const updatedSub: ClubSubscription = {
       ...baseSub,
+      openDependentSlots: cleanOpenCodes.length > 0 ? cleanOpenCodes : undefined,
       planSummaryLabel: nextPlanSummary,
       monthlyEquivalent: monthlyTotal,
       totalContractValue: isAnnual ? Number((monthlyTotal * 12).toFixed(2)) : monthlyTotal,
@@ -14640,7 +14646,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                             </div>
                           );
                         })}
-                        {openDepSlots.map((slot) => (
+                        {openDepSlots.map((slot, openIdx) => (
                           <div
                             key={`open-dep-slot-${slot.slotIndex}`}
                             className="bg-white/95 rounded-xl border-2 border-dashed border-emerald-400 p-3 flex flex-col justify-between gap-2.5 text-xs shadow-xs"
@@ -14657,12 +14663,12 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                   <button
                                     type="button"
                                     onClick={() => {
-                                      const nextCodes = contractedDepSlots
-                                        .filter((s) => s.slotIndex !== slot.slotIndex)
-                                        .map((s) => s.existingMember?.modalityCode || s.modalityCode || 'ADULTO');
+                                      const nextOpenCodes = openDepSlots
+                                        .filter((_, i) => i !== openIdx)
+                                        .map((s) => s.modalityCode || 'ADULTO');
                                       handleUpdateOpenSlotsComposition(
                                         selectedSubForDetail,
-                                        nextCodes,
+                                        nextOpenCodes,
                                         'Vaga em aberto removida do plano.'
                                       );
                                     }}
@@ -14682,14 +14688,12 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                   value={slot.modalityCode}
                                   onChange={(e) => {
                                     const chosenCode = e.target.value;
-                                    const nextCodes = contractedDepSlots.map((s) =>
-                                      s.slotIndex === slot.slotIndex
-                                        ? chosenCode
-                                        : s.existingMember?.modalityCode || s.modalityCode || 'ADULTO'
+                                    const nextOpenCodes = openDepSlots.map((s, i) =>
+                                      i === openIdx ? chosenCode : s.modalityCode || 'ADULTO'
                                     );
                                     handleUpdateOpenSlotsComposition(
                                       selectedSubForDetail,
-                                      nextCodes,
+                                      nextOpenCodes,
                                       `Vaga #${slot.slotIndex + 1} configurada com novo plano!`
                                     );
                                   }}
@@ -14785,15 +14789,10 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                 type="button"
                                 size="sm"
                                 onClick={() => {
-                                  const currentDepCodes =
-                                    contractedDepSlots.length > 0
-                                      ? contractedDepSlots.map((s) => s.existingMember?.modalityCode || s.modalityCode || 'ADULTO')
-                                      : selectedSubForDetail.members
-                                          .filter((m, i) => m.role === 'DEPENDENTE' && i > 0)
-                                          .map((m) => m.modalityCode || 'ADULTO');
+                                  const currentOpenCodes = openDepSlots.map((s) => s.modalityCode || 'ADULTO');
                                   handleUpdateOpenSlotsComposition(
                                     selectedSubForDetail,
-                                    [...currentDepCodes, reserveSlotModality],
+                                    [...currentOpenCodes, reserveSlotModality],
                                     'Nova vaga de dependente liberada no Admin e Portal do Sócio!'
                                   );
                                 }}
@@ -20491,15 +20490,10 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                               type="button"
                               size="sm"
                               onClick={() => {
-                                const currentDepCodes =
-                                  allDepSlots.length > 0
-                                    ? allDepSlots.map((s) => s.existingMember?.modalityCode || s.modalityCode || 'ADULTO')
-                                    : selectedSubForDetail.members
-                                        .filter((m, i) => m.role === 'DEPENDENTE' && i > 0)
-                                        .map((m) => m.modalityCode || 'ADULTO');
+                                const currentOpenCodes = vacantSlots.map((s) => s.modalityCode || 'ADULTO');
                                 handleUpdateOpenSlotsComposition(
                                   selectedSubForDetail,
-                                  [...currentDepCodes, reserveSlotModality],
+                                  [...currentOpenCodes, reserveSlotModality],
                                   'Nova vaga de dependente liberada no Admin e Portal do Sócio!'
                                 );
                               }}
@@ -20524,7 +20518,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
 
                         {vacantSlots.length > 0 && (
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-                            {vacantSlots.map((slot) => (
+                            {vacantSlots.map((slot, vacIdx) => (
                               <div
                                 key={`dep-tab-vacant-${slot.slotIndex}`}
                                 className="bg-white rounded-xl border-2 border-dashed border-emerald-400 p-3 space-y-2 text-xs"
@@ -20536,12 +20530,12 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                   <button
                                     type="button"
                                     onClick={() => {
-                                      const nextCodes = allDepSlots
-                                        .filter((s) => s.slotIndex !== slot.slotIndex)
-                                        .map((s) => s.existingMember?.modalityCode || s.modalityCode || 'ADULTO');
+                                      const nextOpenCodes = vacantSlots
+                                        .filter((_, i) => i !== vacIdx)
+                                        .map((s) => s.modalityCode || 'ADULTO');
                                       handleUpdateOpenSlotsComposition(
                                         selectedSubForDetail,
-                                        nextCodes,
+                                        nextOpenCodes,
                                         'Vaga em aberto removida do plano.'
                                       );
                                     }}
@@ -20554,14 +20548,12 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                                   value={slot.modalityCode}
                                   onChange={(e) => {
                                     const chosenCode = e.target.value;
-                                    const nextCodes = allDepSlots.map((s) =>
-                                      s.slotIndex === slot.slotIndex
-                                        ? chosenCode
-                                        : s.existingMember?.modalityCode || s.modalityCode || 'ADULTO'
+                                    const nextOpenCodes = vacantSlots.map((s, i) =>
+                                      i === vacIdx ? chosenCode : s.modalityCode || 'ADULTO'
                                     );
                                     handleUpdateOpenSlotsComposition(
                                       selectedSubForDetail,
-                                      nextCodes,
+                                      nextOpenCodes,
                                       `Plano da Vaga #${slot.slotIndex + 1} atualizado!`
                                     );
                                   }}

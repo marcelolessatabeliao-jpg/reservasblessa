@@ -194,6 +194,8 @@ export interface ClubSubscription {
   holderCnpj?: string;
   companyName?: string;
   labcardSituationLabel?: string;
+  /** Vagas de dependentes em aberto EXPLICITAMENTE liberadas pelo admin (modalidades como 'ADULTO', 'ESTUDANTE', 'SERVIDOR', 'KIDS') */
+  openDependentSlots?: string[];
   addressCep?: string;
   addressStreet?: string;
   addressNumber?: string;
