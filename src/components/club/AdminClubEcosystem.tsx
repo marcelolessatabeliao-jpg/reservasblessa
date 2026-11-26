@@ -6989,9 +6989,9 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
           <div className="pt-1">
             {quickSearchResults.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 max-h-72 overflow-y-auto">
-                {quickSearchResults.slice(0, 30).map(({ member, subscription }) => (
+                {quickSearchResults.slice(0, 30).map(({ member, subscription }, idx) => (
                   <div
-                    key={member.id}
+                    key={`${subscription.id}_${member.id}_${idx}`}
                     className={`rounded-xl border-2 p-3.5 flex items-center justify-between gap-3 ${
                       subscription.status === 'ACTIVE'
                         ? 'border-emerald-500 bg-emerald-50/60'
@@ -13249,9 +13249,9 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
             </div>
             {quickSearchResults.length > 0 ? (
               <div className="space-y-2 max-h-80 overflow-y-auto">
-                {quickSearchResults.slice(0, 30).map(({ member, subscription }) => (
+                {quickSearchResults.slice(0, 30).map(({ member, subscription }, idx) => (
                   <div
-                    key={member.id}
+                    key={`${subscription.id}_${member.id}_${idx}`}
                     className={`rounded-2xl border-2 p-4 flex items-center justify-between gap-3 ${
                       subscription.status === 'ACTIVE'
                         ? 'border-emerald-500 bg-emerald-50/50'

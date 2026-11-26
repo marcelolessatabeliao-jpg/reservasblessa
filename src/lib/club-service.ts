@@ -3413,11 +3413,35 @@ export const fetchClubState = async (options?: { timeoutMs?: number }): Promise<
       const isLocalNewer = localTime > remoteTime;
       const finalDeletedIds = Array.from(deletedSet);
 
+      // Deduplica assinaturas por subscriptionCode (impede 2 registros com IDs diferentes mas mesmo nº de cartão)
+      const dedupByCode = new Map<string, ClubSubscription>();
+      for (const s of subsMap.values()) {
+        const codeKey = String(s.subscriptionCode || s.id || '').trim();
+        if (!codeKey) continue;
+        const existing = dedupByCode.get(codeKey);
+        if (!existing) {
+          dedupByCode.set(codeKey, s);
+          continue;
+        }
+        const sIsPerm = permCodesSet.has(codeKey) && (s.id === `sub-labcard-${codeKey}` || permIdsSet.has(s.id));
+        const eIsPerm = permCodesSet.has(codeKey) && (existing.id === `sub-labcard-${codeKey}` || permIdsSet.has(existing.id));
+        const sTime = s.updatedAt ? new Date(s.updatedAt).getTime() : 0;
+        const eTime = existing.updatedAt ? new Date(existing.updatedAt).getTime() : 0;
+        const sInvs = (s.invoices || []).length;
+        const eInvs = (existing.invoices || []).length;
+        if (
+          (sIsPerm && !eIsPerm) ||
+          (sIsPerm === eIsPerm && (sTime > eTime || (sTime === eTime && sInvs > eInvs)))
+        ) {
+          dedupByCode.set(codeKey, s);
+        }
+      }
+
       const mergedState: Partial<ClubDatabaseState> = {
         ...(isLocalNewer ? remote : {}),
         ...(isLocalNewer ? local : remote),
         updatedAt: new Date(Math.max(localTime, remoteTime, Date.now())).toISOString(),
-        subscriptions: Array.from(subsMap.values()),
+        subscriptions: Array.from(dedupByCode.values()),
         deletedSubscriptionIds: finalDeletedIds,
         lastCardSequence: Math.max(remote.lastCardSequence || 3015, local.lastCardSequence || 3015, 3015),
         modalities: (isLocalNewer ? local.modalities : remote.modalities) || remote.modalities || local.modalities,
@@ -6148,6 +6172,7 @@ export const findMemberOrSubscriptionByQuery = (
   });
 
   const seenKeys = new Set<string>();
+  const seenCardNumbers = new Set<string>();
   const seenTitularCards = new Set<string>();
   for (const { member } of scoredResults) {
     if (member.role === 'TITULAR' && member.cardNumber) {
@@ -6159,6 +6184,11 @@ export const findMemberOrSubscriptionByQuery = (
     const cardTrim = (member.cardNumber || '').trim();
     if (member.role === 'DEPENDENTE' && cardTrim && seenTitularCards.has(cardTrim)) {
       continue;
+    }
+    // Cada número de cartão aparece no máximo 1 vez na Busca Rápida (evita cards duplicados em famílias sobrepostas)
+    if (cardTrim) {
+      if (seenCardNumbers.has(cardTrim)) continue;
+      seenCardNumbers.add(cardTrim);
     }
     const key = `${subscription.subscriptionCode || subscription.id}_${cardTrim || member.id}`;
     if (seenKeys.has(key)) continue;
