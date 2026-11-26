@@ -175,60 +175,121 @@ export function VoucherShareDialog({
     try {
       if (!voucherRef.current) return;
 
-      // Garante que o QR Code em base64 esteja carregado antes do html2canvas para evitar erro de CORS/taint
-      if (!qrBase64 && code) {
-        try {
-          const controller = new AbortController();
-          const timer = setTimeout(() => controller.abort(), 3500);
-          const qrRes = await fetch(
-            `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://reservas.balneariolessa.com.br/voucher/${code}`,
-            { signal: controller.signal }
-          );
-          clearTimeout(timer);
-          if (qrRes.ok) {
-            const blob = await qrRes.blob();
-            const b64 = await new Promise<string>((resolve) => {
-              const reader = new FileReader();
-              reader.onloadend = () => resolve((reader.result as string) || '');
-              reader.readAsDataURL(blob);
-            });
-            if (b64) {
-              setQrBase64(b64);
-              await new Promise((r) => setTimeout(r, 120));
+      const buildVoucherBlobPromise = async (): Promise<{ blob: Blob; dataUrl: string }> => {
+        // Garante que o QR Code em base64 esteja carregado antes do html2canvas para evitar erro de CORS/taint
+        if (!qrBase64 && code) {
+          try {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 3500);
+            const qrRes = await fetch(
+              `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://reservas.balneariolessa.com.br/voucher/${code}`,
+              { signal: controller.signal }
+            );
+            clearTimeout(timer);
+            if (qrRes.ok) {
+              const blob = await qrRes.blob();
+              const b64 = await new Promise<string>((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve((reader.result as string) || '');
+                reader.readAsDataURL(blob);
+              });
+              if (b64) {
+                setQrBase64(b64);
+                await new Promise((r) => setTimeout(r, 80));
+              }
             }
+          } catch {
+            // Segue sem bloquear caso o serviço externo de QR oscile
           }
+        }
+
+        if (!voucherRef.current) {
+          throw new Error('Container do voucher indisponível.');
+        }
+
+        const canvas = await html2canvas(voucherRef.current, {
+          backgroundColor: '#ffffff',
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          scrollX: 0,
+          scrollY: 0,
+        });
+        const dataUrl = canvas.toDataURL('image/png');
+        const blob = await new Promise<Blob>((resolve, reject) => {
+          canvas.toBlob((b) => {
+            if (b) resolve(b);
+            else reject(new Error('Falha ao converter imagem do voucher.'));
+          }, 'image/png');
+        });
+        return { blob, dataUrl };
+      };
+
+      const renderPromise = buildVoucherBlobPromise();
+
+      // Registra a cópia na área de transferência SINCRONAMENTE dentro do clique (usando Promise<Blob>),
+      // evitando perda da ativação de gesto do navegador e sem depender de chamadas ao Supabase antes de copiar!
+      let copiedAuto = false;
+      const canUseClipboardItem =
+        typeof navigator !== 'undefined' &&
+        Boolean(navigator.clipboard?.write) &&
+        typeof ClipboardItem !== 'undefined';
+
+      let clipPromise: Promise<void> | null = null;
+      if (canUseClipboardItem) {
+        try {
+          clipPromise = navigator.clipboard.write([
+            new ClipboardItem({
+              'image/png': renderPromise.then((r) => r.blob),
+            }),
+          ]);
         } catch {
-          // Segue sem bloquear caso o serviço externo de QR oscile
+          clipPromise = null;
         }
       }
 
-      await new Promise((r) => setTimeout(r, 100));
-      const canvas = await html2canvas(voucherRef.current, {
-        backgroundColor: '#ffffff',
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        scrollX: 0,
-        scrollY: 0,
-      });
-      const dataUrl = canvas.toDataURL('image/png');
+      const { blob, dataUrl } = await renderPromise;
       setImageGenerated(dataUrl);
-      await updateVoucherSent();
 
-      try {
-        const res = await fetch(dataUrl);
-        const blob = await res.blob();
-        await navigator.clipboard.write([
-          new ClipboardItem({ 'image/png': blob })
-        ]);
-        toast({ title: "Imagem Copiada!", description: "A imagem do voucher foi copiada. Agora basta colar no WhatsApp do cliente." });
-      } catch (clipErr) {
-        console.log("Clipboard API failed directly, showing generated image instead", clipErr);
-        toast({ title: "Imagem Gerada!", description: "A imagem está pronta abaixo. Você pode baixar ou colar manualmente." });
+      if (clipPromise) {
+        try {
+          await clipPromise;
+          copiedAuto = true;
+        } catch {
+          // Fallback direto caso o navegador não suporte Promise dentro de ClipboardItem
+          try {
+            await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+            copiedAuto = true;
+          } catch (clipErr) {
+            console.log('Clipboard API fallback failed:', clipErr);
+          }
+        }
+      } else if (canUseClipboardItem) {
+        try {
+          await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+          copiedAuto = true;
+        } catch (clipErr) {
+          console.log('Clipboard API failed:', clipErr);
+        }
       }
+
+      if (copiedAuto) {
+        toast({
+          title: 'Imagem Copiada!',
+          description: 'A imagem do voucher foi copiada automaticamente. Agora basta colar (Ctrl+V) no WhatsApp.',
+        });
+      } else {
+        toast({
+          title: 'Imagem Gerada!',
+          description: 'Clique em "Copiar Imagem" abaixo ou baixe para enviar ao cliente.',
+        });
+      }
+
+      // Marca como enviado em segundo plano para nunca atrasar nem bloquear a cópia
+      void updateVoucherSent().catch((e) => console.warn('Aviso ao registrar envio do voucher:', e));
     } catch (err: any) {
       console.error('Erro ao gerar imagem do voucher:', err);
-      toast({ title: "Erro ao gerar imagem", description: err?.message || "Tente novamente.", variant: "destructive" });
+      toast({ title: 'Erro ao gerar imagem', description: err?.message || 'Tente novamente.', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
