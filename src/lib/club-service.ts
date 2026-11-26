@@ -1864,7 +1864,23 @@ export const normalizeClubDatabaseState = (
           ? 'Lessa Professor Pass (Anual)'
           : sub.planSummaryLabel,
       invoices: (() => {
-        let invList = Array.isArray(sub.invoices) ? sub.invoices : [];
+        let invList = (Array.isArray(sub.invoices) ? sub.invoices : []).filter((inv) => {
+          // Remove parcelas sintéticas antigas do seed da Labcard sem vínculo no Asaas e não pagas
+          // (inclusive as que ainda estavam no cache localStorage/IndexedDB do navegador)
+          if (!inv.asaasPaymentId && inv.status !== 'PAID') {
+            const idStr = String(inv.id || '');
+            if (/^inv_(?:overdue_)?\d+_(?:11_2026|06_2026)$/.test(idStr)) {
+              return false;
+            }
+            if (
+              (inv.dueDate === '2026-11-01' && /\(Mensalidade 11\/2026\)/i.test(String(inv.description || ''))) ||
+              (inv.dueDate === '2026-06-01' && /\(Mensalidade 06\/2026\)/i.test(String(inv.description || '')))
+            ) {
+              return false;
+            }
+          }
+          return true;
+        });
 
         // ROKSIANE: Restringe EXATAMENTE e EXCLUSIVAMENTE às 12 parcelas oficiais do carnê de dia 05
         // (preservando status PAID / paidAt / valor atualizados futuramente no Asaas para parcelas 9..12)
