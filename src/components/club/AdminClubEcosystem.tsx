@@ -7200,20 +7200,33 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         </p>
                       )}
                     </div>
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        setSelectedSubForDetail(subscription);
-                        if (member.role === 'DEPENDENTE') {
-                          setClientDetailTool('DEPENDENTES');
-                        } else {
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-1.5 shrink-0">
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          setSelectedSubForDetail(subscription);
                           setClientDetailTool('DADOS_CADASTRAIS');
-                        }
-                      }}
-                      className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shrink-0"
-                    >
-                      {member.role === 'DEPENDENTE' ? 'Abrir Dependentes da Família' : 'Abrir Cadastro / Situação'}
-                    </Button>
+                          setQuickQuery('');
+                        }}
+                        className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shrink-0"
+                      >
+                        {member.role === 'DEPENDENTE' ? 'Abrir Cadastro do Titular' : 'Abrir Cadastro / Situação'}
+                      </Button>
+                      {member.role === 'DEPENDENTE' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedSubForDetail(subscription);
+                            setClientDetailTool('ADICIONAR_DEPENDENTES');
+                            setQuickQuery('');
+                          }}
+                          className="border-emerald-700 text-emerald-900 hover:bg-emerald-50 font-bold text-xs shrink-0"
+                        >
+                          Dependentes
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -13490,6 +13503,11 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         Cartão #{member.cardNumber} • CPF: {member.cpf || subscription.holderCpf} •{' '}
                         {member.planCycleLabel}
                       </p>
+                      {member.role === 'DEPENDENTE' && (
+                        <p className="text-[11px] font-bold text-amber-900 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 mt-1.5 inline-flex items-center gap-1.5">
+                          👥 Dependente vinculado ao Titular: <strong>{subscription.holderName}</strong> (Cartão #{subscription.subscriptionCode})
+                        </p>
+                      )}
                     </div>
                     <div className="flex flex-col sm:flex-row items-center gap-1.5">
                       <Button
@@ -13501,7 +13519,7 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         }}
                         className="bg-[#004d00] hover:bg-emerald-800 text-white font-bold text-xs"
                       >
-                        Entrar no Cadastro
+                        {member.role === 'DEPENDENTE' ? 'Abrir Cadastro do Titular' : 'Entrar no Cadastro'}
                       </Button>
                       <Button
                         size="sm"
