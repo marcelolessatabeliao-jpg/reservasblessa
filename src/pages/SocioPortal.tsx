@@ -56,6 +56,7 @@ import {
   ClubSubscription,
   ClubConsultant,
 } from '@/lib/club-types';
+import { getLabcardAuditEvidenceByCard } from '@/lib/labcard-audit-logs';
 import {
   ClubDatabaseState,
   fetchClubState,
@@ -4357,6 +4358,7 @@ const SocioPortal: React.FC = () => {
                       <p className="text-xs text-slate-500">
                         Aceito digitalmente em{' '}
                         {subscription.acceptanceLog?.dateDisplay ||
+                          getLabcardAuditEvidenceByCard(subscription.subscriptionCode).acceptanceLog?.dateDisplay ||
                           new Date(subscription.contractSignedAt || subscription.createdAt).toLocaleString('pt-BR')}
                       </p>
                     </div>

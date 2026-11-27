@@ -203,6 +203,7 @@ import {
   MultiCardPrintSheet,
 } from '@/components/club/ClubMemberCardView';
 import { LABCARD_RAW_RECORDS } from '@/lib/labcard-seed';
+import { getLabcardAuditEvidenceByCard } from '@/lib/labcard-audit-logs';
 
 const MONTH_OPTIONS = [
   { value: '2026-01', label: 'Janeiro/2026' },
@@ -5623,10 +5624,16 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
     if (!state) return;
     const termsHtml = renderSiteTermsHtml(sub, state.contractTemplates, siteTermsText);
     const contractHtml = renderSubscriptionContractHtml(sub, state.contractTemplates);
+    const fallbackEvidence = getLabcardAuditEvidenceByCard(sub.subscriptionCode);
     const signedAtStr =
       sub.acceptanceLog?.dateDisplay ||
+      fallbackEvidence.acceptanceLog?.dateDisplay ||
       new Date(sub.contractSignedAt || sub.createdAt).toLocaleString('pt-BR');
-    const signedIpStr = sub.acceptanceLog?.ip || sub.contractSignatureIp || '';
+    const signedIpStr =
+      sub.acceptanceLog?.ip ||
+      fallbackEvidence.acceptanceLog?.ip ||
+      sub.contractSignatureIp ||
+      '';
 
     const fullBodyHtml = `
       <h2 style="color:#005200; border-bottom:2px solid #005200; padding-bottom:8px; font-size:18px; margin-top:0;">
@@ -19833,7 +19840,15 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                     </Button>
                   </div>
                   {/* PROVA JURÍDICA: LOG OFICIAL DE CADASTRO E ACEITE DOS TERMOS */}
-                  {(selectedSubForDetail.acceptanceLog || (selectedSubForDetail.auditLogs && selectedSubForDetail.auditLogs.length > 0)) && (
+                  {(() => {
+                    const fallbackEvidence = getLabcardAuditEvidenceByCard(selectedSubForDetail.subscriptionCode);
+                    const effLog = selectedSubForDetail.acceptanceLog || fallbackEvidence.acceptanceLog;
+                    const effLogs =
+                      selectedSubForDetail.auditLogs && selectedSubForDetail.auditLogs.length > 0
+                        ? selectedSubForDetail.auditLogs
+                        : fallbackEvidence.auditLogs;
+                    if (!effLog && (!effLogs || effLogs.length === 0)) return null;
+                    return (
                     <div className="rounded-xl border-2 border-emerald-300 bg-emerald-50/70 p-4 space-y-2.5 text-xs">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <span className="font-black text-emerald-950 uppercase tracking-wide flex items-center gap-1.5">
@@ -19841,48 +19856,48 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                           Log Oficial de Cadastro & Aceite dos Termos (Prova Jurídica)
                         </span>
                         <Badge className="bg-emerald-700 text-white text-[10px] font-bold">
-                          {selectedSubForDetail.acceptanceLog?.source === 'LABCARD_LOG'
+                          {effLog?.source === 'LABCARD_LOG'
                             ? 'LOG LABCARD VERIFICADO'
-                            : selectedSubForDetail.acceptanceLog?.source === 'ASAAS_FIRST_CHARGE'
+                            : effLog?.source === 'ASAAS_FIRST_CHARGE'
                             ? '1ª COBRANÇA REGISTRADA'
                             : 'LOG PORTAL / SITE'}
                         </Badge>
                       </div>
-                      {selectedSubForDetail.acceptanceLog && (
+                      {effLog && (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
                           <div className="bg-white rounded-lg border border-emerald-200 p-2">
                             <span className="text-[10px] font-bold uppercase text-slate-500 block">Data/Hora do Log</span>
                             <span className="font-mono font-black text-emerald-900">
-                              {selectedSubForDetail.acceptanceLog.dateDisplay}
+                              {effLog.dateDisplay}
                             </span>
                           </div>
                           <div className="bg-white rounded-lg border border-emerald-200 p-2">
                             <span className="text-[10px] font-bold uppercase text-slate-500 block">Evento</span>
                             <span className="font-bold text-slate-900">
-                              {selectedSubForDetail.acceptanceLog.event}
+                              {effLog.event}
                             </span>
                           </div>
                           <div className="bg-white rounded-lg border border-emerald-200 p-2">
                             <span className="text-[10px] font-bold uppercase text-slate-500 block">IP de Acesso</span>
                             <span className="font-mono font-bold text-slate-800 break-all">
-                              {selectedSubForDetail.acceptanceLog.ip || 'Não registrado'}
+                              {effLog.ip || 'Não registrado'}
                             </span>
                           </div>
                           <div className="bg-white rounded-lg border border-emerald-200 p-2">
                             <span className="text-[10px] font-bold uppercase text-slate-500 block">Responsável</span>
                             <span className="font-bold text-slate-800">
-                              {selectedSubForDetail.acceptanceLog.responsible || 'Autoatendimento / Sistema'}
+                              {effLog.responsible || 'Autoatendimento / Sistema'}
                             </span>
                           </div>
                         </div>
                       )}
-                      {selectedSubForDetail.auditLogs && selectedSubForDetail.auditLogs.length > 1 && (
+                      {effLogs && effLogs.length > 1 && (
                         <div className="pt-1">
                           <span className="text-[10px] font-black uppercase text-emerald-900 block mb-1">
-                            Linha do Tempo ({selectedSubForDetail.auditLogs.length} marcos registrados):
+                            Linha do Tempo ({effLogs.length} marcos registrados):
                           </span>
                           <div className="max-h-32 overflow-y-auto bg-white rounded-lg border border-emerald-200 divide-y divide-slate-100">
-                            {selectedSubForDetail.auditLogs.map((lg, li) => (
+                            {effLogs.map((lg, li) => (
                               <div key={li} className="px-2.5 py-1.5 flex flex-wrap items-center justify-between gap-2 text-[11px]">
                                 <span>
                                   <strong className="font-mono text-emerald-800">{lg.dateDisplay}</strong> — <strong>{lg.event}</strong>
@@ -19895,7 +19910,8 @@ export const AdminClubEcosystem: React.FC<AdminClubEcosystemProps> = ({
                         </div>
                       )}
                     </div>
-                  )}
+                    );
+                  })()}
 
                   <div
                     className="p-6 rounded-xl border border-slate-200 bg-slate-50 max-h-96 overflow-y-auto text-xs prose max-w-none"

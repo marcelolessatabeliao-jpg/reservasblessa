@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { getLabcardSubscriptions, doesPlanAllowDependents, REGULARIZED_ACTIVE_CARDS } from './labcard-seed';
+import { getLabcardAuditEvidenceByCard } from './labcard-audit-logs';
 import { saveStateToIndexedDB, loadStateFromIndexedDB } from './club-indexeddb';
 import {
   saveMemberPermanentDocs,
@@ -5927,33 +5928,40 @@ export const renderSubscriptionContractHtml = (
           'Aceite digital com assinatura e validação eletrônica registrada nos servidores',
         ];
 
+  const labcardLogFallback = getLabcardAuditEvidenceByCard(subscription.subscriptionCode);
+  const effectiveAcceptanceLog = subscription.acceptanceLog || labcardLogFallback.acceptanceLog;
+  const effectiveAuditLogs =
+    subscription.auditLogs && subscription.auditLogs.length > 0
+      ? subscription.auditLogs
+      : labcardLogFallback.auditLogs;
+
   const acceptanceDateDisplay =
-    subscription.acceptanceLog?.dateDisplay ||
+    effectiveAcceptanceLog?.dateDisplay ||
     new Date(subscription.contractSignedAt || subscription.createdAt).toLocaleString('pt-BR');
   const acceptanceIpDisplay =
-    subscription.acceptanceLog?.ip ||
+    effectiveAcceptanceLog?.ip ||
     subscription.contractSignatureIp ||
     'Assinatura Eletrônica Registrada';
-  const acceptanceEventLine = subscription.acceptanceLog
+  const acceptanceEventLine = effectiveAcceptanceLog
     ? `<div style="margin-top: 4px; font-size: 10px; color: #334155;">
-        <strong>Evento Registrado:</strong> ${subscription.acceptanceLog.event}${
-        subscription.acceptanceLog.responsible
-          ? ` &nbsp;|&nbsp; <strong>Responsável:</strong> ${subscription.acceptanceLog.responsible}`
+        <strong>Evento Registrado:</strong> ${effectiveAcceptanceLog.event}${
+        effectiveAcceptanceLog.responsible
+          ? ` &nbsp;|&nbsp; <strong>Responsável:</strong> ${effectiveAcceptanceLog.responsible}`
           : ''
       }${
-        subscription.acceptanceLog.url
-          ? ` &nbsp;|&nbsp; <strong>Origem:</strong> <span style="font-family: monospace; font-size: 9px;">${subscription.acceptanceLog.url}</span>`
+        effectiveAcceptanceLog.url
+          ? ` &nbsp;|&nbsp; <strong>Origem:</strong> <span style="font-family: monospace; font-size: 9px;">${effectiveAcceptanceLog.url}</span>`
           : ''
       }
       </div>`
     : '';
 
   const auditLogsTableHtml =
-    subscription.auditLogs && subscription.auditLogs.length > 0
+    effectiveAuditLogs && effectiveAuditLogs.length > 0
       ? `
       <div style="margin-top: 12px; border-top: 1px solid #cbd5e1; padding-top: 8px;">
         <div style="font-weight: bold; color: #005200; font-size: 10.5px; text-transform: uppercase; margin-bottom: 6px;">
-          🛡️ Registro Cronológico de Auditoria / Log do Cadastro (${subscription.auditLogs.length} marcos)
+          🛡️ Registro Cronológico de Auditoria / Log do Cadastro (${effectiveAuditLogs.length} marcos)
         </div>
         <div style="overflow-x: auto;">
           <table style="width: 100%; border-collapse: collapse; font-size: 10px; background: #ffffff;">
@@ -5966,7 +5974,7 @@ export const renderSubscriptionContractHtml = (
               </tr>
             </thead>
             <tbody>
-              ${subscription.auditLogs
+              ${effectiveAuditLogs
                 .map(
                   (lg) => `
                 <tr>
